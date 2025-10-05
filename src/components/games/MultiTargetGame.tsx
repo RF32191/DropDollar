@@ -1,7 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameEngine, GameEngine } from '@/lib/gameEngine';
+import { GameAudio } from '@/utils/gameAudio';
+import GameCountdown from './GameCountdown';
+import { FairRNGService, MultiTargetRNGConfig } from '@/lib/fairRNGService';
 
 interface GameResult {
   score: number;
@@ -31,15 +34,23 @@ interface Target {
 const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 
 export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: MultiTargetGameProps) {
-  const [gameState, setGameState] = useState<'ready' | 'playing' | 'ended'>('ready');
+  // Get fair RNG configuration based on listing and attempt number
+  const rngConfig = listingId && entryNumber 
+    ? FairRNGService.getMultiTargetConfig(listingId, entryNumber)
+    : null;
+    
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [targets, setTargets] = useState<Target[]>([]);
   const [correctTargets, setCorrectTargets] = useState<number[]>([]); // Multiple correct targets
+  const [hitTargets, setHitTargets] = useState<number[]>([]); // Track which correct targets have been hit
   const [score, setScore] = useState(0);
+  const currentScoreRef = useRef(0); // Track current score for accurate game end reporting
   const [round, setRound] = useState(0);
   const [roundStartTime, setRoundStartTime] = useState(0);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | ''>('');
+  
 
   // Game engine with proper timer and RNG
   const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
@@ -48,28 +59,71 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
     rng: {
       isPractice: !isCompetitionMode, // Practice mode if not competition
       listingId,
-      entryNumber,
-      gameId // Use gameId for deterministic seeding
+      entryNumber
     },
     onGameEnd: () => {
+      console.log('MultiTarget: Game engine onGameEnd callback triggered');
+      // Play game end sound
+      GameAudio.playGameEnd();
+      
       setGameState('ended');
       const avgReactionTime = reactionTimes.length > 0 ? 
         reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length : 0;
       const accuracy = round > 0 ? (correctAnswers / round) * 100 : 0;
       
-      // Always pass the full result object (both competition and practice modes)
       const gameResult = {
-        score,
+        score: currentScoreRef.current, // Use ref for most up-to-date score
         accuracy,
         avgReactionTime
       };
       
+      console.log('MultiTargetGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);
     }
   });
 
   const generateTargets = useCallback(() => {
-    // Fallback random functions if engine not ready
+    const currentRound = round + 1;
+    
+    // Use RNG configuration if available (competition mode)
+    if (rngConfig && currentRound <= rngConfig.rounds.length) {
+      const roundConfig = rngConfig.rounds[currentRound - 1];
+      const newTargets: Target[] = [];
+      const correctIndices: number[] = [];
+      
+      // Create targets based on RNG configuration
+      roundConfig.targets.forEach((targetConfig, index) => {
+        const target: Target = {
+          id: index,
+          x: targetConfig.x, // Already in percentage
+          y: targetConfig.y, // Already in percentage
+          color: COLORS[index % COLORS.length],
+          isCorrect: true, // All configured targets are correct in this system
+          size: Math.round(targetConfig.size * 60), // Convert size multiplier to pixels
+          pulseSpeed: 1.0 + (index * 0.1) // Slight variation in pulse
+        };
+        newTargets.push(target);
+        correctIndices.push(index);
+      });
+      
+      console.log(`Using RNG Config ${rngConfig.id} for round ${currentRound}:`, roundConfig);
+      setTargets(newTargets);
+      setCorrectTargets(correctIndices);
+      setHitTargets([]);
+      setRoundStartTime(Date.now());
+      setFeedback('');
+      
+      // Set round timeout based on configuration
+      setTimeout(() => {
+        if (gameState === 'playing') {
+          setRound(prev => prev + 1); // Move to next round
+        }
+      }, roundConfig.timeLimit);
+      
+      return;
+    }
+    
+    // Fallback to original random generation for practice mode
     const randomInt = (min: number, max: number) => {
       if (engine && engine.randomInt) {
         return engine.randomInt(min, max);
@@ -145,92 +199,168 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
     console.log('Generated targets:', newTargets.length, 'targets, correct:', correctIndices.length, 'round:', round);
     setTargets(newTargets);
     setCorrectTargets(correctIndices);
+    setHitTargets([]); // Reset hit targets for new round
     setRoundStartTime(Date.now());
     setFeedback('');
-  }, [engine, round]);
+  }, [engine, round, rngConfig, gameState]);
 
-  const handleTargetClick = useCallback((targetId: number) => {
+  const handleTargetClick = useCallback((targetId: number, event?: React.MouseEvent) => {
     if (gameState !== 'playing') return;
 
     const reactionTime = Date.now() - roundStartTime;
     const isCorrect = correctTargets.includes(targetId);
+    const alreadyHit = hitTargets.includes(targetId);
     const target = targets.find(t => t.id === targetId);
+
+    // Don't allow hitting the same correct target twice
+    if (isCorrect && alreadyHit) {
+      return;
+    }
+
+    // Calculate click precision (distance from center)
+    let centerAccuracy = 1.0; // Default perfect accuracy
+    if (event && target) {
+      const rect = (event.target as HTMLElement).getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const clickX = event.clientX;
+      const clickY = event.clientY;
+      
+      // Calculate distance from center as percentage of target radius
+      const distance = Math.sqrt(Math.pow(clickX - centerX, 2) + Math.pow(clickY - centerY, 2));
+      const maxDistance = Math.min(rect.width, rect.height) / 2;
+      centerAccuracy = Math.max(0.1, 1 - (distance / maxDistance)); // 0.1 to 1.0
+    }
 
     setReactionTimes(prev => [...prev, reactionTime]);
     
     // Advanced scoring system for 50,000+ users to prevent ties
     if (isCorrect && target) {
+      // Play hit sound
+      GameAudio.playTargetHit();
+      
       // Base score varies by difficulty
       const baseScore = 100 + (round * 10); // Increases with rounds
       
-      // Reaction time bonus (0-50 points) - exponential curve for precision
-      const reactionBonus = Math.max(0, 50 * Math.exp(-reactionTime / 800));
+      // Speed bonus (0-100 points) - exponential curve for lightning-fast reactions
+      const speedBonus = Math.max(0, 100 * Math.exp(-reactionTime / 600));
+      
+      // Center accuracy bonus (0-75 points) - rewards precise clicking
+      const centerBonus = centerAccuracy * 75;
       
       // Target size bonus (smaller = harder = more points)
-      const sizeBonus = Math.max(0, (70 - target.size) * 2);
+      const sizeBonus = Math.max(0, (70 - target.size) * 1.5);
       
       // Multiple target bonus (more correct targets = higher multiplier)
-      const multiTargetBonus = correctTargets.length > 1 ? (correctTargets.length - 1) * 25 : 0;
+      const multiTargetBonus = correctTargets.length > 1 ? (correctTargets.length - 1) * 30 : 0;
       
-      // Round progression bonus
-      const roundBonus = Math.floor(round / 5) * 15;
-      
-      // Precision timing bonus (microsecond-level variability)
-      const precisionBonus = (Date.now() % 1000) / 100; // 0-9.99 points based on millisecond timing
+      // Round progression bonus (gets harder over time)
+      const roundBonus = Math.floor(round / 3) * 20;
       
       // Pulse speed bonus (faster pulse = harder = more points)
-      const pulseBonus = target.pulseSpeed > 1.0 ? (target.pulseSpeed - 1.0) * 20 : 0;
+      const pulseBonus = target.pulseSpeed > 1.0 ? (target.pulseSpeed - 1.0) * 25 : 0;
       
-      // Random variability to ensure uniqueness (much larger range)
+      // Precision timing bonus (microsecond-level variability for uniqueness)
+      const precisionBonus = (Date.now() % 1000) / 50; // 0-19.98 points
+      
+      // Combo bonus (consecutive correct hits)
+      const comboBonus = Math.min(correctAnswers * 2, 50); // Up to 50 bonus points
+      
+      // Random variability to ensure uniqueness (smaller range for better balance)
       const randomVariability = engine && engine.randomFloat ? 
-        engine.randomFloat(0.001, 49.999) : 
-        Math.random() * 49.998 + 0.001;
+        engine.randomFloat(0.001, 24.999) : 
+        Math.random() * 24.998 + 0.001;
       
       // Calculate final score with high precision
-      const totalScore = baseScore + reactionBonus + sizeBonus + multiTargetBonus + 
-                        roundBonus + precisionBonus + pulseBonus + randomVariability;
+      const totalScore = baseScore + speedBonus + centerBonus + sizeBonus + multiTargetBonus + 
+                        roundBonus + pulseBonus + precisionBonus + comboBonus + randomVariability;
       
-      setScore(prev => prev + totalScore);
+      // Add this target to hit targets
+      const newHitTargets = [...hitTargets, targetId];
+      setHitTargets(newHitTargets);
+      
+      setScore(prev => {
+        const newScore = prev + totalScore;
+        currentScoreRef.current = newScore; // Update ref for accurate game end reporting
+        return newScore;
+      });
       setCorrectAnswers(prev => prev + 1);
       setFeedback('correct');
       
+      // Clear correct feedback after a short time so player can continue
+      setTimeout(() => {
+        setFeedback('');
+      }, 600);
+      
       console.log('Score breakdown:', {
-        base: baseScore,
-        reaction: reactionBonus.toFixed(2),
-        size: sizeBonus,
-        multi: multiTargetBonus,
-        round: roundBonus,
-        precision: precisionBonus.toFixed(2),
+        base: baseScore.toFixed(2),
+        speed: speedBonus.toFixed(2),
+        center: centerBonus.toFixed(2),
+        size: sizeBonus.toFixed(2),
+        multi: multiTargetBonus.toFixed(2),
+        round: roundBonus.toFixed(2),
         pulse: pulseBonus.toFixed(2),
+        precision: precisionBonus.toFixed(2),
+        combo: comboBonus.toFixed(2),
         random: randomVariability.toFixed(3),
-        total: totalScore.toFixed(3)
+        total: totalScore.toFixed(3),
+        centerAccuracy: (centerAccuracy * 100).toFixed(1) + '%'
       });
     } else {
+      // Play miss sound
+      GameAudio.playTargetMiss();
+      
       setFeedback('wrong');
       // Small penalty for wrong clicks to discourage spam clicking
-      setScore(prev => Math.max(0, prev - 5));
+      setScore(prev => {
+        const newScore = Math.max(0, prev - 5);
+        currentScoreRef.current = newScore; // Update ref for accurate game end reporting
+        return newScore;
+      });
+      
+      // Clear wrong feedback after a short time so player can continue
+      setTimeout(() => {
+        setFeedback('');
+      }, 800);
     }
 
-    setRound(prev => prev + 1);
+    // Check if all correct targets have been hit (use newHitTargets if we just hit a correct target)
+    const currentHitTargets = isCorrect && !alreadyHit ? [...hitTargets, targetId] : hitTargets;
+    const allTargetsHit = correctTargets.every(correctId => currentHitTargets.includes(correctId));
 
-    // Progressive speed-up: feedback time gets shorter as rounds increase
-    const speedMultiplier = Math.max(0.2, 1 - (round * 0.03)); // Gets 3% faster each round, min 20% speed
-    const feedbackTime = 600 * speedMultiplier;
-    setTimeout(() => {
-      if (timer.timeLeft > 0) {
-        generateTargets();
-      }
-    }, feedbackTime);
-  }, [gameState, correctTargets, roundStartTime, timer.timeLeft, round, generateTargets, engine, targets]);
+    if (allTargetsHit) {
+      // All targets hit - progress to next round
+      setRound(prev => prev + 1);
+
+      // Progressive speed-up: feedback time gets shorter as rounds increase
+      const speedMultiplier = Math.max(0.2, 1 - (round * 0.03)); // Gets 3% faster each round, min 20% speed
+      const feedbackTime = 600 * speedMultiplier;
+      setTimeout(() => {
+        if (timer.timeLeft > 0) {
+          generateTargets();
+        }
+      }, feedbackTime);
+    }
+  }, [gameState, correctTargets, hitTargets, roundStartTime, timer.timeLeft, round, generateTargets, engine, targets]);
 
   const handleStartGame = () => {
-    console.log('Starting MultiTargetGame...');
+    console.log('Starting MultiTargetGame countdown...');
     
-    // Reset round counter
+    // Reset game state
     setRound(0);
     setScore(0);
+    currentScoreRef.current = 0; // Reset score ref
     setCorrectAnswers(0);
     setReactionTimes([]);
+    setHitTargets([]);
+    setFeedback('');
+    
+    // Start countdown
+    setGameState('countdown');
+  };
+
+  const handleCountdownComplete = () => {
+    console.log('Countdown complete, starting game...');
     
     // Generate targets FIRST, before starting timer
     generateTargets();
@@ -242,7 +372,14 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
     console.log('Game started, state set to playing');
   };
 
+  const handleCountdownCancel = () => {
+    console.log('Countdown cancelled');
+    setGameState('ready');
+  };
+
   const getTargetStyle = (target: Target) => {
+    const isHit = hitTargets.includes(target.id);
+    
     const baseColors = {
       red: 'bg-red-500 hover:bg-red-600',
       blue: 'bg-blue-500 hover:bg-blue-600',
@@ -253,15 +390,31 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       pink: 'bg-pink-500 hover:bg-pink-600'
     };
     
-    const baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gray-500 hover:bg-gray-600';
+    // Different styles for hit vs unhit targets
+    let baseClass;
+    if (isHit && target.isCorrect) {
+      // Hit correct target - show as completed with checkmark
+      baseClass = 'bg-green-600 border-4 border-white';
+    } else if (target.isCorrect) {
+      // Unhit correct target - show pulsing
+      baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gray-500 hover:bg-gray-600';
+    } else {
+      // Incorrect target - normal appearance
+      baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gray-500 hover:bg-gray-600';
+    }
     
-    // Multiple pulse effects for correct targets
-    const pulseClass = target.isCorrect ? 
+    // Pulse effects for correct targets that haven't been hit yet
+    const pulseClass = target.isCorrect && !isHit ? 
       `animate-pulse ring-4 ring-white ring-opacity-90 shadow-2xl` : 
       'hover:shadow-lg';
     
+    // Disable interaction for already hit targets
+    const interactionClass = isHit && target.isCorrect ? 
+      'cursor-not-allowed opacity-75' : 
+      'cursor-pointer transform hover:scale-110';
+    
     return {
-      className: `${baseClass} ${pulseClass} absolute rounded-full transition-all duration-200 transform hover:scale-110 cursor-pointer`,
+      className: `${baseClass} ${pulseClass} ${interactionClass} absolute rounded-full transition-all duration-200`,
       style: {
         left: `${target.x}%`,
         top: `${target.y}%`,
@@ -331,6 +484,17 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
     );
   }
 
+  // Show countdown overlay
+  if (gameState === 'countdown') {
+    return (
+      <GameCountdown
+        onCountdownComplete={handleCountdownComplete}
+        onCancel={handleCountdownCancel}
+        showTitle="🎯 Multi-Target Reaction"
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 text-center">
@@ -342,6 +506,11 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600">Time: {timer.timeLeft}s</div>
             <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
+            {correctTargets.length > 0 && (
+              <div className="text-sm text-blue-600 font-semibold">
+                Targets: {hitTargets.length}/{correctTargets.length}
+              </div>
+            )}
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
@@ -377,13 +546,18 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
               )}
               {targets.map((target) => {
                 const targetStyle = getTargetStyle(target);
+                const isHit = hitTargets.includes(target.id);
                 return (
                   <button
                     key={target.id}
-                    onClick={() => handleTargetClick(target.id)}
+                    onClick={(e) => handleTargetClick(target.id, e)}
                     className={targetStyle.className}
                     style={targetStyle.style}
-                  />
+                  >
+                    {isHit && target.isCorrect && (
+                      <span className="text-white font-bold text-xl">✓</span>
+                    )}
+                  </button>
                 );
               })}
               

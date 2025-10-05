@@ -2,714 +2,728 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  UserIcon,
-  ShoppingBagIcon,
-  TrophyIcon,
-  CogIcon,
-  BellIcon,
-  HeartIcon,
-  EyeIcon,
-  StarIcon,
-  CurrencyDollarIcon,
-  ChartBarIcon,
-  ArrowRightOnRectangleIcon,
-  EnvelopeIcon,
-  DevicePhoneMobileIcon,
-  HomeIcon,
-  GiftIcon,
-  CheckCircleIcon
-} from '@heroicons/react/24/outline';
-import { UserDatabaseService, UserAccount } from '@/lib/userDatabase';
-import { TwoFactorAuthService } from '@/lib/twoFactorAuth';
-import { WalletService } from '@/lib/walletService';
+import { supabase } from '@/lib/supabase/client';
+import PaymentModal from '@/components/payments/PaymentModal';
 
-export default function BuyerDashboardPage() {
-  const router = useRouter();
-  const { user: authUser, logout, isLoading: authLoading } = useAuth();
-  const [user, setUser] = useState<UserAccount | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'profile' | 'preferences' | 'security' | 'wallet'>('overview');
-  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [walletSummary, setWalletSummary] = useState<{ address: string; masked: string; usd: number; dropUsd: number; totalUsd: number } | null>(null);
-  const [tokenPrice, setTokenPrice] = useState<number>(1.0);
+interface UserBalance {
+  tokens: number;
+  cash_balance: number;
+  pending_earnings: number;
+  total_spent: number;
+  total_earned: number;
+}
+
+interface UserLevel {
+  current_level: number;
+  total_points: number;
+  games_played: number;
+  daily_games_played: number;
+  best_score: number;
+}
+
+interface GameScore {
+  id: string;
+  game_type: string;
+  score: number;
+  listing_id?: string;
+  tournament_id?: string;
+  created_at: string;
+}
+
+interface Transaction {
+  id: string;
+  type: 'purchase' | 'earning' | 'withdrawal' | 'entry_fee';
+  amount: number;
+  description: string;
+  status: 'completed' | 'pending' | 'failed';
+  created_at: string;
+}
+
+interface BankAccount {
+  id: string;
+  account_type: 'checking' | 'savings';
+  bank_name: string;
+  last_four: string;
+  is_verified: boolean;
+  is_default: boolean;
+}
+
+export default function MoneyDashboard() {
+  const { user } = useAuth();
+  const [balance, setBalance] = useState<UserBalance>({
+    tokens: 0,
+    cash_balance: 0,
+    pending_earnings: 0,
+    total_spent: 0,
+    total_earned: 0
+  });
+  const [userLevel, setUserLevel] = useState<UserLevel>({
+    current_level: 1,
+    total_points: 0,
+    games_played: 0,
+    daily_games_played: 0,
+    best_score: 0
+  });
+  const [gameScores, setGameScores] = useState<GameScore[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showAddTokensModal, setShowAddTokensModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState(0);
+  const [tokenAmount, setTokenAmount] = useState(10);
+
+  const [connectStatus, setConnectStatus] = useState<{
+    hasAccount: boolean;
+    isVerified: boolean;
+    canReceivePayouts: boolean;
+    onboardingUrl?: string;
+  }>({
+    hasAccount: false,
+    isVerified: false,
+    canReceivePayouts: false
+  });
 
   useEffect(() => {
-    const currentUser = UserDatabaseService.getCurrentUser();
-    if (!currentUser) {
-      router.push('/auth/login?message=Please log in to access your dashboard');
+    if (user) {
+      loadDashboardData();
+      loadConnectStatus();
+    }
+  }, [user]);
+
+  const loadConnectStatus = async () => {
+    try {
+      const response = await fetch(`/api/payments/connect?userId=${user?.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setConnectStatus({
+          hasAccount: data.hasAccount,
+          isVerified: data.isVerified,
+          canReceivePayouts: data.canReceivePayouts,
+          onboardingUrl: data.onboardingUrl
+        });
+      }
+    } catch (error) {
+      console.error('Error loading Connect status:', error);
+    }
+  };
+
+  const handleLinkBankAccount = async () => {
+    try {
+      setLoading(true);
+      
+      const response = await fetch('/api/payments/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          email: user?.email,
+          businessType: 'individual'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.onboardingUrl) {
+        // Redirect to Stripe Connect onboarding
+        window.location.href = data.onboardingUrl;
+      } else {
+        console.error('Failed to create Connect account:', data.error);
+        alert(`Failed to link bank account: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error linking bank account:', error);
+      alert('Failed to link bank account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load user balance
+      const { data: balanceData, error: balanceError } = await supabase
+        .from('user_balances')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (balanceData) {
+        setBalance(balanceData);
+      }
+
+      // Load user level and DropPoints
+      const { data: levelData, error: levelError } = await supabase
+        .from('user_levels')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (levelData) {
+        setUserLevel(levelData);
+      }
+
+      // Load recent game scores
+      const { data: scoresData, error: scoresError } = await supabase
+        .from('game_scores')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (scoresData) {
+        setGameScores(scoresData);
+      }
+
+      // Load recent transactions
+      const { data: transactionData, error: transactionError } = await supabase
+        .from('user_transactions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (transactionData) {
+        setTransactions(transactionData);
+      }
+
+      // Load bank accounts
+      const { data: bankData, error: bankError } = await supabase
+        .from('user_bank_accounts')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      if (bankData) {
+        setBankAccounts(bankData);
+      }
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!user || withdrawAmount <= 0 || withdrawAmount > balance.cash_balance) {
+      alert('Invalid withdrawal amount');
       return;
     }
-    
-    setUser(currentUser);
-    setIs2FAEnabled(TwoFactorAuthService.is2FAEnabled(currentUser.id));
+
+    if (bankAccounts.length === 0) {
+      alert('Please add a bank account first');
+      return;
+    }
+
     try {
-      // Derive token price from existing platform logic (falls back to 1.0)
-      const price = (window as any).__DD_TOKEN_PRICE__ ?? 1.0;
-      setTokenPrice(Number(price) || 1.0);
-      const wallet = WalletService.getOrCreateWallet(currentUser.id);
-      const fiat = WalletService.getFiatBalance(currentUser.id, Number(price) || 1.0);
-      setWalletSummary({ address: wallet.address, masked: WalletService.getMaskedAddress(wallet.address), usd: fiat.usd, dropUsd: fiat.dropUsd, totalUsd: fiat.totalUsd });
-    } catch (e) {
-      // Ignore wallet init errors
-    }
-    setIsLoading(false);
-  }, [router]);
+      // Create withdrawal request
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          user_id: user.id,
+          amount: withdrawAmount,
+          bank_account_id: bankAccounts.find(acc => acc.is_default)?.id || bankAccounts[0].id,
+          status: 'pending'
+        });
 
-  const handleLogout = async () => {
-    await UserDatabaseService.logoutUser();
-    router.push('/auth/login?message=You have been logged out successfully');
-  };
+      if (error) throw error;
 
-  const handleMarketingPreferenceChange = async (preference: string, value: boolean) => {
-    if (!user) return;
-    
-    const result = await UserDatabaseService.updateMarketingPreferences(user.id, {
-      [preference]: value
-    } as any);
-    
-    if (result.success) {
-      // Update local state
-      setUser(prev => prev ? {
-        ...prev,
-        marketingPreferences: {
-          ...prev.marketingPreferences,
-          [preference]: value
-        }
-      } : null);
+      alert(`Withdrawal request for $${withdrawAmount.toFixed(2)} submitted successfully! Processing time: 1-3 business days.`);
+      setShowWithdrawModal(false);
+      setWithdrawAmount(0);
+      loadDashboardData(); // Refresh data
+
+    } catch (error: any) {
+      alert(`Withdrawal failed: ${error.message}`);
     }
   };
 
-  if (isLoading) {
+  const handleAddBankAccount = () => {
+    // In production, this would integrate with Stripe Connect or Plaid
+    const bankName = prompt('Enter your bank name:');
+    const accountNumber = prompt('Enter your account number (last 4 digits will be stored):');
+    
+    if (bankName && accountNumber) {
+      const mockAccount: BankAccount = {
+        id: Date.now().toString(),
+        account_type: 'checking',
+        bank_name: bankName,
+        last_four: accountNumber.slice(-4),
+        is_verified: false,
+        is_default: bankAccounts.length === 0
+      };
+      
+      setBankAccounts([...bankAccounts, mockAccount]);
+      alert('Bank account added! In production, this would require verification.');
+    }
+  };
+
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'purchase': return '🛒';
+      case 'earning': return '💰';
+      case 'withdrawal': return '🏦';
+      case 'entry_fee': return '🎮';
+      default: return '💳';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-600';
+      case 'pending': return 'text-yellow-600';
+      case 'failed': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Sign In Required</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Please sign in to view your money dashboard</p>
+          <Link href="/auth/login" className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium">
+            Sign In
+          </Link>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
-  const renderOverview = () => (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Welcome back, {user.personalInfo.firstName}! 👋
-            </h2>
-            <p className="text-gray-600 mt-1">
-              Ready to compete in some skill-based games?
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-600">Member since</div>
-            <div className="font-semibold text-gray-900">
-              {new Date(user.createdAt).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <ShoppingBagIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Total Purchases</p>
-              <p className="text-2xl font-bold text-gray-900">{user.buyerStats?.totalPurchases || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold text-gray-900">${user.buyerStats?.totalSpent || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <StarIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Loyalty Points</p>
-              <p className="text-2xl font-bold text-gray-900">{user.buyerStats?.loyaltyPoints || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <TrophyIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Membership</p>
-              <p className="text-2xl font-bold text-gray-900 capitalize">{user.buyerStats?.membershipTier || 'Bronze'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link
-            href="/listings"
-            className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-          >
-            <ShoppingBagIcon className="h-8 w-8 text-green-600 mb-2" />
-            <span className="text-sm font-medium text-green-800">Browse Items</span>
-          </Link>
-          
-          <Link
-            href="/hot-sell"
-            className="flex flex-col items-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            <TrophyIcon className="h-8 w-8 text-red-600 mb-2" />
-            <span className="text-sm font-medium text-red-800">Tournaments</span>
-          </Link>
-          
-          <Link
-            href="/games"
-            className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-          >
-            <StarIcon className="h-8 w-8 text-purple-600 mb-2" />
-            <span className="text-sm font-medium text-purple-800">Practice Games</span>
-          </Link>
-          
-          <Link
-            href="/buy-tokens"
-            className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <CurrencyDollarIcon className="h-8 w-8 text-blue-600 mb-2" />
-            <span className="text-sm font-medium text-blue-800">Buy Tokens</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-        <div className="space-y-3">
-          <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-            <GiftIcon className="h-5 w-5 text-green-600 mr-3" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">Welcome bonus received</p>
-              <p className="text-xs text-gray-600">100 loyalty points added to your account</p>
-            </div>
-            <span className="text-xs text-gray-500">Just now</span>
-          </div>
-          
-          <div className="text-center py-8 text-gray-500">
-            <p>No recent activity. Start competing to see your activity here!</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderProfile = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-            <input
-              type="text"
-              value={user.personalInfo.firstName}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-              readOnly
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-            <input
-              type="text"
-              value={user.personalInfo.lastName}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-              readOnly
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <div className="flex items-center">
-              <input
-                type="email"
-                value={user.email}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-                readOnly
-              />
-              {user.emailVerified ? (
-                <span className="ml-2 text-green-600 text-sm">✓ Verified</span>
-              ) : (
-                <span className="ml-2 text-red-600 text-sm">Not verified</span>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-            <div className="flex items-center">
-              <input
-                type="tel"
-                value={user.personalInfo.phone || ''}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-                readOnly
-              />
-              {user.phoneVerified ? (
-                <span className="ml-2 text-green-600 text-sm">✓ Verified</span>
-              ) : (
-                <span className="ml-2 text-red-600 text-sm">Not verified</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Address Information */}
-      {user.addresses.length > 0 && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Address Information</h3>
-          {user.addresses.map((address, index) => (
-            <div key={address.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-gray-900 capitalize">{address.type} Address</span>
-                {address.isDefault && (
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Default</span>
-                )}
-              </div>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>{address.street}</p>
-                <p>{address.city}, {address.state} {address.zipCode}</p>
-                <p>{address.country}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderPreferences = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Preferences</h3>
-        <p className="text-gray-600 mb-6">Choose how you'd like to hear from us about deals, updates, and new features.</p>
-        
-        <div className="space-y-4">
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={user.marketingPreferences.emailMarketing}
-              onChange={(e) => handleMarketingPreferenceChange('emailMarketing', e.target.checked)}
-              className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <div className="ml-3">
-              <div className="flex items-center">
-                <EnvelopeIcon className="h-4 w-4 text-gray-600 mr-2" />
-                <span className="text-sm font-medium text-gray-700">Email Marketing</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Receive promotional emails and special offers</p>
-            </div>
-          </label>
-
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={user.marketingPreferences.smsMarketing}
-              onChange={(e) => handleMarketingPreferenceChange('smsMarketing', e.target.checked)}
-              className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <div className="ml-3">
-              <div className="flex items-center">
-                <DevicePhoneMobileIcon className="h-4 w-4 text-gray-600 mr-2" />
-                <span className="text-sm font-medium text-gray-700">SMS Marketing</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Receive text messages about deals and updates</p>
-            </div>
-          </label>
-
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={user.marketingPreferences.hotDealsAlerts}
-              onChange={(e) => handleMarketingPreferenceChange('hotDealsAlerts', e.target.checked)}
-              className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <div className="ml-3">
-              <div className="flex items-center">
-                <span className="text-sm font-medium text-gray-700">🔥 Hot Deals Alerts</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Get notified when hot competitions are about to start</p>
-            </div>
-          </label>
-
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={user.marketingPreferences.newProductAlerts}
-              onChange={(e) => handleMarketingPreferenceChange('newProductAlerts', e.target.checked)}
-              className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <div className="ml-3">
-              <span className="text-sm font-medium text-gray-700">New Product Alerts</span>
-              <p className="text-xs text-gray-500 mt-1">Be the first to know about new competitions</p>
-            </div>
-          </label>
-
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={user.marketingPreferences.tournamentAlerts}
-              onChange={(e) => handleMarketingPreferenceChange('tournamentAlerts', e.target.checked)}
-              className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <div className="ml-3">
-              <span className="text-sm font-medium text-gray-700">🏆 Tournament Alerts</span>
-              <p className="text-xs text-gray-500 mt-1">Get notified about cash prize tournaments</p>
-            </div>
-          </label>
-
-          <label className="flex items-start">
-            <input
-              type="checkbox"
-              checked={user.marketingPreferences.weeklyNewsletter}
-              onChange={(e) => handleMarketingPreferenceChange('weeklyNewsletter', e.target.checked)}
-              className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <div className="ml-3">
-              <span className="text-sm font-medium text-gray-700">Weekly Newsletter</span>
-              <p className="text-xs text-gray-500 mt-1">Weekly roundup of competitions and platform updates</p>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Settings</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50" disabled>
-              <option value="USD">USD - US Dollar</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
-            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50" disabled>
-              <option value="America/New_York">Eastern Time (ET)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderSecurity = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Two-Factor Authentication</h3>
-        <p className="text-gray-600 mb-6">
-          Add an extra layer of security to your account by requiring a verification code sent to your phone.
-        </p>
-        
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center">
-            <DevicePhoneMobileIcon className="h-6 w-6 text-gray-600 mr-3" />
-            <div>
-              <p className="font-medium text-gray-900">SMS Authentication</p>
-              <p className="text-sm text-gray-600">
-                {is2FAEnabled 
-                  ? `Enabled for ${TwoFactorAuthService.maskPhoneNumber(user?.personalInfo.phone || '')}`
-                  : 'Receive codes via text message'
-                }
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={async () => {
-              if (is2FAEnabled) {
-                const result = await TwoFactorAuthService.disable2FA(user!.id);
-                if (result.success) {
-                  setIs2FAEnabled(false);
-                  alert(result.message);
-                }
-              } else {
-                if (user?.personalInfo.phone) {
-                  const result = await TwoFactorAuthService.enable2FA(user.id, user.personalInfo.phone);
-                  if (result.success) {
-                    setIs2FAEnabled(true);
-                    alert(`2FA enabled! Backup codes: ${result.backupCodes?.join(', ')}`);
-                  }
-                } else {
-                  alert('Please add a phone number to your profile first.');
-                }
-              }
-            }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              is2FAEnabled
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white'
-            }`}
-          >
-            {is2FAEnabled ? 'Disable' : 'Enable'}
-          </button>
-        </div>
-
-        {is2FAEnabled && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center text-blue-800 mb-2">
-              <CheckCircleIcon className="h-5 w-5 mr-2" />
-              <span className="font-medium">2FA is Active</span>
-            </div>
-            <p className="text-blue-700 text-sm">
-              You'll receive a verification code via SMS when logging in. 
-              Keep your backup codes safe in case you lose access to your phone.
-            </p>
-            <div className="mt-3 space-x-3">
-              <button
-                onClick={async () => {
-                  const result = await TwoFactorAuthService.regenerateBackupCodes(user!.id);
-                  if (result.success && result.backupCodes) {
-                    alert(`New backup codes: ${result.backupCodes.join(', ')}`);
-                  }
-                }}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                Regenerate Backup Codes
-              </button>
-              <span className="text-blue-600">•</span>
-              <span className="text-blue-700 text-sm">
-                {TwoFactorAuthService.getBackupCodesCount(user!.id)} backup codes remaining
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Login Security</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm text-gray-700">Login Notifications</span>
-            <span className="text-green-600 text-sm">✓ Enabled</span>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm text-gray-700">Phone Verification Required</span>
-            <span className="text-green-600 text-sm">✓ Enabled</span>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm text-gray-700">Session Timeout</span>
-            <span className="text-gray-600 text-sm">30 days</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderWallet = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Wallet</h3>
-        <p className="text-sm text-gray-600 mb-4">Your internal wallet for DROP tokens and USD balance.</p>
-        {walletSummary && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <div className="text-xs text-gray-600">Address</div>
-              <div className="font-mono text-sm text-gray-900">{walletSummary.masked}</div>
-            </div>
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="text-xs text-gray-600">USD Balance</div>
-              <div className="text-gray-900 font-semibold">${walletSummary.usd.toFixed(2)}</div>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="text-xs text-gray-600">DROP (USD value)</div>
-              <div className="text-gray-900 font-semibold">${walletSummary.dropUsd.toFixed(2)}</div>
-            </div>
-          </div>
-        )}
-        <div className="mt-4 text-sm text-gray-600">Token price: ${tokenPrice.toFixed(2)} per DROP</div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            onClick={() => {
-              if (!user) return;
-              // Demo: credit $10 to USD
-              const w = WalletService.credit(user.id, 'USD', 10, 'USD top-up');
-              const fiat = WalletService.getFiatBalance(user.id, tokenPrice);
-              setWalletSummary({ address: w.address, masked: WalletService.getMaskedAddress(w.address), usd: fiat.usd, dropUsd: fiat.dropUsd, totalUsd: fiat.totalUsd });
-            }}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-          >
-            Add $10 USD (demo)
-          </button>
-          <button
-            onClick={() => {
-              if (!user) return;
-              WalletService.buyDrop(user.id, 5, tokenPrice);
-              const fiat = WalletService.getFiatBalance(user.id, tokenPrice);
-              const w = WalletService.getOrCreateWallet(user.id);
-              setWalletSummary({ address: w.address, masked: WalletService.getMaskedAddress(w.address), usd: fiat.usd, dropUsd: fiat.dropUsd, totalUsd: fiat.totalUsd });
-            }}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-          >
-            Convert $5 → DROP (demo)
-          </button>
-          <button
-            onClick={() => {
-              if (!user) return;
-              const res = WalletService.generateBackupMnemonic(user.id);
-              if (res.success && res.mnemonic) alert(`Backup phrase (demo):\n${res.mnemonic}`);
-            }}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg"
-          >
-            Show Backup Phrase (demo)
-          </button>
-          <button
-            onClick={() => {
-              if (!user) return;
-              const exp = WalletService.exportWallet(user.id);
-              if (exp.success && exp.data) {
-                const blob = new Blob([exp.data], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `wallet_${user.id}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }
-            }}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
-          >
-            Export Wallet (JSON)
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-3">
-              <img src="/DropCoin.png" alt="Dollar Drop" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop</span>
+              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
+                <img src="/DropCoin.png" alt="DropDollar Logo" className="w-full h-full object-contain" />
+              </div>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">DropDollar</span>
             </Link>
-            
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user.personalInfo.firstName}</span>
-              <button
-                onClick={handleLogout}
-                className="flex items-center text-gray-700 hover:text-red-600 transition-colors"
-              >
-                <ArrowRightOnRectangleIcon className="h-5 w-5 mr-1" />
-                Logout
-              </button>
-            </div>
+            <nav className="flex items-center space-x-6">
+              <Link href="/listings" className="text-gray-700 dark:text-gray-300 hover:text-green-600 font-medium">Browse</Link>
+              <Link href="/games" className="text-gray-700 dark:text-gray-300 hover:text-green-600 font-medium">Games</Link>
+              <Link href="/tournaments" className="text-gray-700 dark:text-gray-300 hover:text-green-600 font-medium">Tournaments</Link>
+              <Link href="/dashboard" className="text-green-600 dark:text-green-400 font-bold">💰 Dashboard</Link>
+            </nav>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
-          <div className="lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <UserIcon className="h-6 w-6 text-green-600" />
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Money Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Manage your tokens, earnings, and withdrawals</p>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading dashboard...</span>
+          </div>
+        ) : (
+          <>
+            {/* Balance Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Token Balance */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
+                    <span className="text-2xl">💎</span>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">DROP Tokens</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{balance.tokens.toLocaleString()}</p>
+                  </div>
                 </div>
-                <div className="ml-3">
-                  <p className="font-semibold text-gray-900">{user.personalInfo.firstName} {user.personalInfo.lastName}</p>
-                  <p className="text-sm text-gray-600 capitalize">{user.buyerStats?.membershipTier || 'Bronze'} Member</p>
+                <button
+                  onClick={() => setShowAddTokensModal(true)}
+                  className="mt-4 w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg text-sm font-medium"
+                >
+                  Buy More Tokens
+                </button>
+              </div>
+
+              {/* Cash Balance */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Cash Balance</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">${balance.cash_balance.toFixed(2)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWithdrawModal(true)}
+                  disabled={balance.cash_balance <= 0}
+                  className="mt-4 w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 px-4 rounded-lg text-sm font-medium"
+                >
+                  Withdraw Cash
+                </button>
+              </div>
+
+              {/* DropPoints Level */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
+                    <span className="text-2xl">🏆</span>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">DropPoints Level</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">Level {userLevel.current_level}</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    <span>{userLevel.total_points.toLocaleString()} points</span>
+                    <span>{userLevel.games_played} games</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-orange-600 h-2 rounded-full" 
+                      style={{ width: `${Math.min((userLevel.total_points % 1000) / 10, 100)}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
-              
-              <nav className="space-y-2">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === 'overview' ? 'bg-green-50 text-green-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <ChartBarIcon className="h-5 w-5 mr-3" />
-                  Overview
-                </button>
-                
-                <button
-                  onClick={() => setActiveTab('profile')}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === 'profile' ? 'bg-green-50 text-green-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <UserIcon className="h-5 w-5 mr-3" />
-                  Profile
-                </button>
-                
-                <button
-                  onClick={() => setActiveTab('preferences')}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === 'preferences' ? 'bg-green-50 text-green-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <CogIcon className="h-5 w-5 mr-3" />
-                  Preferences
-                </button>
-                
-                <button
-                  onClick={() => setActiveTab('security')}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === 'security' ? 'bg-green-50 text-green-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <DevicePhoneMobileIcon className="h-5 w-5 mr-3" />
-                  Security
-                </button>
-                <button
-                  onClick={() => setActiveTab('wallet')}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === 'wallet' ? 'bg-green-50 text-green-700' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <CurrencyDollarIcon className="h-5 w-5 mr-3" />
-                  Wallet
-                </button>
-              </nav>
+
+              {/* Best Score */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                    <span className="text-2xl">⭐</span>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Best Score</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{userLevel.best_score.toFixed(2)}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                  Daily games: {userLevel.daily_games_played}
+                </p>
+              </div>
+            </div>
+
+            {/* Game Scores & Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+              {/* Recent Game Scores */}
+              <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Game Scores</h3>
+                </div>
+                <div className="p-6">
+                  {gameScores.length === 0 ? (
+                    <div className="text-center py-8">
+                      <span className="text-4xl mb-4 block">🎮</span>
+                      <p className="text-gray-600 dark:text-gray-400">No game scores yet</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        Play some games to see your scores here!
+                      </p>
+                      <Link href="/games" className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        Play Games
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {gameScores.map((score) => (
+                        <div key={score.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <div className="flex items-center">
+                            <span className="text-2xl mr-3">
+                              {score.game_type === 'multi_target' ? '🎯' : 
+                               score.game_type === 'falling_object' ? '💰' : 
+                               score.game_type === 'color_sequence' ? '🌈' : '🎮'}
+                            </span>
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {score.game_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {new Date(score.created_at).toLocaleDateString()} at{' '}
+                                {new Date(score.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg text-blue-600 dark:text-blue-400">
+                              {score.score.toFixed(2)}
+                            </p>
+                            {score.listing_id && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Listing</p>
+                            )}
+                            {score.tournament_id && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Tournament</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Level Progress */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Level Progress</h3>
+                </div>
+                <div className="p-6">
+                  <div className="text-center mb-6">
+                    <div className="w-20 h-20 mx-auto bg-gradient-to-br from-orange-400 to-red-600 rounded-full flex items-center justify-center mb-4">
+                      <span className="text-2xl font-bold text-white">{userLevel.current_level}</span>
+                    </div>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white">Level {userLevel.current_level}</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">DropPoints Player</p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Points</span>
+                        <span className="text-sm font-bold text-orange-600">{userLevel.total_points.toLocaleString()}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                        <div 
+                          className="bg-orange-600 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${Math.min((userLevel.total_points % 1000) / 10, 100)}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {1000 - (userLevel.total_points % 1000)} points to next level
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{userLevel.games_played}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Total Games</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{userLevel.daily_games_played}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Today</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bank Accounts & Transactions */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Bank Accounts */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Bank Account</h3>
+                    {!connectStatus.hasAccount && (
+                      <button
+                        onClick={handleLinkBankAccount}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                      >
+                        Link Bank Account
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="p-6">
+                  {!connectStatus.hasAccount ? (
+                    <div className="text-center py-8">
+                      <span className="text-4xl mb-4 block">🏦</span>
+                      <p className="text-gray-600 dark:text-gray-400">No bank account linked</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        Link your bank account to receive payouts from sales and tournament winnings
+                      </p>
+                      <button
+                        onClick={handleLinkBankAccount}
+                        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium"
+                      >
+                        Get Started with Stripe Connect
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="flex items-center">
+                          <span className="text-2xl mr-3">💳</span>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">Stripe Connect Account</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              Professional payment processing
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {connectStatus.isVerified ? (
+                            <span className="text-green-600 text-sm font-medium">✅ Verified & Active</span>
+                          ) : (
+                            <div className="text-right">
+                              <span className="text-yellow-600 text-sm font-medium">⏳ Setup Required</span>
+                              {connectStatus.onboardingUrl && (
+                                <div className="mt-2">
+                                  <a
+                                    href={connectStatus.onboardingUrl}
+                                    className="text-blue-600 hover:text-blue-700 text-sm underline"
+                                  >
+                                    Complete Setup
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {connectStatus.isVerified && connectStatus.canReceivePayouts && (
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <div className="flex items-center">
+                            <span className="text-green-600 text-lg mr-2">🎉</span>
+                            <div>
+                              <p className="text-green-800 dark:text-green-200 font-medium">Ready for Payouts!</p>
+                              <p className="text-green-700 dark:text-green-300 text-sm">
+                                You can now receive payments from sales and tournament winnings directly to your bank account.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!connectStatus.isVerified && (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                          <div className="flex items-center">
+                            <span className="text-yellow-600 text-lg mr-2">⚠️</span>
+                            <div>
+                              <p className="text-yellow-800 dark:text-yellow-200 font-medium">Verification Required</p>
+                              <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                                Complete your Stripe Connect setup to start receiving payouts. This includes identity verification and bank account details.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Transactions */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h3>
+                </div>
+                <div className="p-6">
+                  {transactions.length === 0 ? (
+                    <div className="text-center py-8">
+                      <span className="text-4xl mb-4 block">📊</span>
+                      <p className="text-gray-600 dark:text-gray-400">No transactions yet</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        Your transaction history will appear here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                      {transactions.map((transaction) => (
+                        <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <div className="flex items-center">
+                            <span className="text-2xl mr-3">{getTransactionIcon(transaction.type)}</span>
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {new Date(transaction.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold ${transaction.type === 'earning' ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
+                              {transaction.type === 'earning' ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
+                            </p>
+                            <p className={`text-sm ${getStatusColor(transaction.status)}`}>
+                              {transaction.status}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Withdraw Cash</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Withdrawal Amount
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={balance.cash_balance}
+                step="0.01"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter amount"
+              />
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Available: ${balance.cash_balance.toFixed(2)}
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className="flex-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleWithdraw}
+                disabled={withdrawAmount <= 0 || withdrawAmount > balance.cash_balance}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2 px-4 rounded-lg font-medium"
+              >
+                Withdraw
+              </button>
             </div>
           </div>
-
-          {/* Main Content */}
-          <div className="flex-1">
-            {activeTab === 'overview' && renderOverview()}
-            {activeTab === 'profile' && renderProfile()}
-            {activeTab === 'preferences' && renderPreferences()}
-            {activeTab === 'security' && renderSecurity()}
-            {activeTab === 'wallet' && renderWallet()}
-          </div>
         </div>
-      </div>
+      )}
+
+      {/* Add Tokens Modal */}
+      <PaymentModal
+        isOpen={showAddTokensModal}
+        onClose={() => setShowAddTokensModal(false)}
+        amount={tokenAmount * 100} // Convert to cents
+        title="Purchase DROP Tokens"
+        description={`Add ${tokenAmount} DROP tokens to your account`}
+        type="listing"
+        metadata={{
+          listingId: 'token-purchase',
+          gameType: 'token-purchase',
+          entryNumber: tokenAmount
+        }}
+        onSuccess={(paymentIntent) => {
+          alert(`Successfully purchased ${tokenAmount} DROP tokens!`);
+          setShowAddTokensModal(false);
+          loadDashboardData();
+        }}
+        onError={(error) => {
+          alert(`Token purchase failed: ${error}`);
+        }}
+      />
     </div>
   );
 }

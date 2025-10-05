@@ -144,7 +144,7 @@ export default function AdminRevenuePage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Revenue Dashboard</h1>
               <p className="mt-2 text-gray-600">
-                Track your platform earnings from Dollar Drop marketplace
+                Track your platform earnings from DropDollar marketplace
               </p>
             </div>
             <div className="flex items-center space-x-3">

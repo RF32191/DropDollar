@@ -211,35 +211,111 @@ export default function ListingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Simple Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center">
-              <div className="w-10 h-10 mr-3">
-                <img
-                  src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
-                  className="w-full h-full object-contain"
-                />
+    <div className="min-h-screen bg-gray-900 transition-colors">
+      {/* GREEN BROWSE Header */}
+      <header className="bg-gradient-to-r from-green-900 via-emerald-800 to-green-900 dark:from-green-950 dark:via-emerald-900 dark:to-green-950 shadow-2xl border-b-4 border-green-500/50 transition-all duration-300 relative overflow-hidden">
+        {/* Animated Green Background */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-1/4 w-32 h-32 bg-green-500/30 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-10 right-1/3 w-24 h-24 bg-emerald-500/40 rounded-full blur-xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-teal-500/20 rounded-full blur-xl animate-pulse delay-2000"></div>
+        </div>
+        <div className="max-w-8xl mx-auto px-3 lg:px-4 relative z-10">
+          <div className="flex justify-between items-center py-3">
+            {/* Logo Section */}
+            <Link href="/" className="flex items-center space-x-4 group">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-400 via-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-xl group-hover:shadow-green-500/25 transition-all duration-300 group-hover:scale-105">
+                  <img 
+                    src="/DropCoin.png" 
+                    alt="DropDollar Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop</span>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                  DropDollar
+                </span>
+                <span className="text-xs text-gray-400 font-medium tracking-wide">BROWSE MARKETPLACE</span>
+              </div>
             </Link>
-                   <nav className="flex items-center space-x-6">
-                     <Link href="/listings" className="text-gray-700 hover:text-green-600 font-medium">Browse</Link>
-                     <Link href="/categories" className="text-gray-700 hover:text-green-600 font-medium">Categories</Link>
-                     <Link href="/games" className="text-purple-600 hover:text-purple-700 font-bold">🎮 Games</Link>
-                     <Link href="/hot-sell" className="text-red-600 hover:text-red-700 font-bold">🔥 Hot Sell</Link>
-                     <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
-                     <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
-                     <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-                       <Link href="/wallet" className="text-green-600 hover:text-green-700 font-bold">👛 Wallet</Link>
-                       <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
-                       <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                       <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
-                     </div>
-                   </nav>
+
+            {/* GREEN Navigation - Accessible Layout */}
+            <div className="flex items-center justify-center flex-1 mx-4">
+              <nav className="hidden lg:flex items-center space-x-4">
+                {/* Primary Navigation */}
+                <div className="flex items-center space-x-2">
+                  <Link href="/listings" className="relative group px-3 py-2 text-green-100 hover:text-white font-bold transition-all duration-300 bg-gradient-to-r from-green-500/40 to-emerald-500/40 rounded-lg border border-green-300/30 text-sm flex items-center space-x-1">
+                    <span>🛍️</span>
+                    <span className="relative z-10">BROWSE</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-400/50 to-emerald-400/50 rounded-lg opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                  <Link href="/categories" className="relative group px-2 py-2 text-green-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                    <span className="relative z-10">Categories</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                  <Link href="/how-it-works" className="relative group px-2 py-2 text-green-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                    <span className="relative z-10">How It Works</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                </div>
+
+                {/* Gaming Section */}
+                <div className="flex items-center space-x-1 px-4 py-2 bg-gradient-to-r from-green-600/60 to-emerald-600/60 rounded-xl border-2 border-green-400/50 backdrop-blur-sm shadow-lg shadow-green-500/25">
+                  <Link href="/games" className="relative group px-2 py-1 text-purple-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                    <span>🎮</span>
+                    <span className="relative z-10">Games</span>
+                  </Link>
+                  <Link href="/tournaments" className="relative group px-2 py-1 text-yellow-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                    <span>🏆</span>
+                    <span className="relative z-10">Tournaments</span>
+                  </Link>
+                  <Link href="/hot-sell" className="relative group px-2 py-1 text-red-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                    <span>🔥</span>
+                    <span className="relative z-10">Hot Sell</span>
+                  </Link>
+                </div>
+
+                {/* Secondary Navigation */}
+                <div className="flex items-center space-x-2">
+                  <Link href="/buy-tokens" className="relative group px-3 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold rounded-lg transition-all duration-300 flex items-center space-x-1 shadow-lg hover:shadow-yellow-500/30 hover:scale-105 text-sm">
+                    <span>💰</span>
+                    <span>Tokens</span>
+                  </Link>
+                </div>
+              </nav>
+            </div>
+
+            {/* User Actions - Always Visible */}
+            <div className="flex items-center space-x-2">
+              <Link href="/settings" className="hidden md:flex items-center space-x-1 px-2 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm">
+                <span>⚙️</span>
+                <span>Settings</span>
+              </Link>
+              
+              <Link href="/auth/login" className="px-3 py-2 text-green-200 hover:text-white font-medium transition-colors duration-300 text-sm">
+                Sign In
+              </Link>
+              <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+                Sign Up
+              </Link>
+              <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+                Sell
+              </Link>
+            </div>
+          </div>
+
+          {/* Mobile Navigation */}
+          <div className="lg:hidden pb-4">
+            <div className="flex flex-wrap gap-2 justify-center">
+              <Link href="/listings" className="px-3 py-1.5 bg-green-600/30 text-green-300 rounded-lg text-sm font-medium border border-green-500/30">🛍️ Browse</Link>
+              <Link href="/games" className="px-3 py-1.5 bg-purple-600/20 text-purple-300 rounded-lg text-sm font-medium">🎮 Games</Link>
+              <Link href="/tournaments" className="px-3 py-1.5 bg-yellow-600/20 text-yellow-300 rounded-lg text-sm font-medium">🏆 Tournaments</Link>
+              <Link href="/hot-sell" className="px-3 py-1.5 bg-red-600/20 text-red-300 rounded-lg text-sm font-medium">🔥 Hot Sell</Link>
+              <Link href="/buy-tokens" className="px-3 py-1.5 bg-orange-600/20 text-orange-300 rounded-lg text-sm font-medium">💰 Tokens</Link>
+            </div>
           </div>
         </div>
       </header>
@@ -267,7 +343,7 @@ export default function ListingsPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <div className="bg-white bg-opacity-20 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold">$10/day</div>
-                <div className="text-sm">Premium Listing</div>
+                <div className="text-sm">Marketing Priority</div>
               </div>
               <div className="bg-white bg-opacity-20 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold">3</div>
@@ -620,7 +696,7 @@ export default function ListingsPage() {
       {/* Simple Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 Dollar Drop - Skill-Based Gaming Marketplace</p>
+          <p className="text-gray-400">© 2024 DropDollar - Skill-Based Gaming Marketplace</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/how-it-works" className="text-gray-400 hover:text-white">How It Works</Link>
             <Link href="/games" className="text-gray-400 hover:text-white">Practice Games</Link>

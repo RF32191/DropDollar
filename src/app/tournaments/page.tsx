@@ -1,535 +1,442 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { 
-  TrophyIcon,
-  ClockIcon,
-  UserGroupIcon,
-  CurrencyDollarIcon,
-  FireIcon,
-  CalendarIcon,
-  StarIcon,
-  ChevronRightIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
-
-interface Tournament {
-  id: string;
-  name: string;
-  description: string;
-  game: string;
-  entryFee: number;
-  prizePool: number; // Total collected amount
-  platformFee: number; // 15% platform fee
-  finalPrizePool: number; // After 15% deduction
-  maxParticipants: number;
-  currentParticipants: number;
-  startTime: string;
-  duration: string;
-  status: 'upcoming' | 'active' | 'completed';
-  difficulty: 'Beginner' | 'Intermediate' | 'Expert';
-  type: 'Daily' | 'Weekly' | 'Monthly' | 'Special';
-}
-
-const MOCK_TOURNAMENTS: Tournament[] = [
-  {
-    id: 'daily-simon-1',
-    name: 'Daily Simon Says Sprint',
-    description: 'Fast-paced Simon Says competition with rapid-fire commands',
-    game: 'Simon Says Reflex',
-    entryFee: 5,
-    prizePool: 500,
-    platformFee: 75, // 15% of 500
-    finalPrizePool: 425, // 500 - 75
-    maxParticipants: 100,
-    currentParticipants: 87,
-    startTime: '2024-01-15T18:00:00Z',
-    duration: '2 hours',
-    status: 'upcoming',
-    difficulty: 'Intermediate',
-    type: 'Daily'
-  },
-  {
-    id: 'elite-championship-1',
-    name: 'Elite Championship - $25,000 Prize',
-    description: 'Ultimate skill-based gaming championship with massive prize pool',
-    game: 'Mystery Game Assignment',
-    entryFee: 3,
-    prizePool: 25000,
-    platformFee: 3750, // 15% of 25000
-    finalPrizePool: 21250, // 25000 - 3750
-    maxParticipants: 2,
-    currentParticipants: 0,
-    startTime: '2024-01-15T20:00:00Z',
-    duration: '24 hours',
-    status: 'upcoming',
-    difficulty: 'Expert',
-    type: 'Daily'
-  },
-  {
-    id: 'weekly-memory-1',
-    name: 'Memory Masters Championship',
-    description: 'Ultimate pattern memory challenge for the most skilled players',
-    game: 'Pattern Memory Challenge',
-    entryFee: 10,
-    prizePool: 2000,
-    platformFee: 300, // 15% of 2000
-    finalPrizePool: 1700, // 2000 - 300
-    maxParticipants: 200,
-    currentParticipants: 156,
-    startTime: '2024-01-20T20:00:00Z',
-    duration: '4 hours',
-    status: 'active',
-    difficulty: 'Expert',
-    type: 'Weekly'
-  },
-  {
-    id: 'monthly-grand-1',
-    name: 'Grand Multi-Game Championship',
-    description: 'Play all 9 games in sequence - only the most versatile win!',
-    game: 'All Games',
-    entryFee: 25,
-    prizePool: 10000,
-    platformFee: 1500, // 15% of 10000
-    finalPrizePool: 8500, // 10000 - 1500
-    maxParticipants: 500,
-    currentParticipants: 342,
-    startTime: '2024-02-01T19:00:00Z',
-    duration: '1 week',
-    status: 'upcoming',
-    difficulty: 'Expert',
-    type: 'Monthly'
-  },
-  {
-    id: 'beginner-multi-1',
-    name: 'Newcomer Friendly Tournament',
-    description: 'Perfect for new players - easier games and lower stakes',
-    game: 'Multi-Target Reaction',
-    entryFee: 2,
-    prizePool: 200,
-    platformFee: 30, // 15% of 200
-    finalPrizePool: 170, // 200 - 30
-    maxParticipants: 50,
-    currentParticipants: 23,
-    startTime: '2024-01-16T16:00:00Z',
-    duration: '1 hour',
-    status: 'upcoming',
-    difficulty: 'Beginner',
-    type: 'Daily'
-  },
-  {
-    id: 'special-color-1',
-    name: 'Rainbow Rush Special Event',
-    description: 'Limited-time Color Sequence Memory tournament with bonus prizes',
-    game: 'Color Sequence Memory',
-    entryFee: 15,
-    prizePool: 3000,
-    platformFee: 450, // 15% of 3000
-    finalPrizePool: 2550, // 3000 - 450
-    maxParticipants: 150,
-    currentParticipants: 89,
-    startTime: '2024-01-18T21:00:00Z',
-    duration: '3 hours',
-    status: 'upcoming',
-    difficulty: 'Intermediate',
-    type: 'Special'
-  }
-];
 
 export default function TournamentsPage() {
-  const [tournaments, setTournaments] = useState<Tournament[]>(MOCK_TOURNAMENTS);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'upcoming' | 'active' | 'completed'>('all');
-  const [selectedType, setSelectedType] = useState<'all' | 'Daily' | 'Weekly' | 'Monthly' | 'Special'>('all');
-
-  const filteredTournaments = tournaments.filter(tournament => {
-    const statusMatch = selectedFilter === 'all' || tournament.status === selectedFilter;
-    const typeMatch = selectedType === 'all' || tournament.type === selectedType;
-    return statusMatch && typeMatch;
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'upcoming': return 'text-blue-600 bg-blue-100';
-      case 'active': return 'text-green-600 bg-green-100';
-      case 'completed': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Beginner': return 'text-green-600 bg-green-100';
-      case 'Intermediate': return 'text-yellow-600 bg-yellow-100';
-      case 'Expert': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'Daily': return '📅';
-      case 'Weekly': return '🗓️';
-      case 'Monthly': return '📆';
-      case 'Special': return '⭐';
-      default: return '🏆';
-    }
-  };
-
-  const formatTimeUntil = (startTime: string) => {
-    const now = new Date();
-    const start = new Date(startTime);
-    const diff = start.getTime() - now.getTime();
-    
-    if (diff < 0) return 'Started';
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      return `${days}d ${hours % 24}h`;
-    }
-    
-    return `${hours}h ${minutes}m`;
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center">
-              <div className="w-10 h-10 mr-3">
+    <div className="min-h-screen bg-gray-900 transition-colors">
+      {/* GOLD TOURNAMENTS Header */}
+      <header className="bg-gradient-to-r from-yellow-600 via-yellow-700 to-amber-800 shadow-2xl border-b-4 border-yellow-500">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            {/* Logo Section */}
+            <Link href="/" className="flex items-center group">
+              <div className="bg-gradient-to-br from-yellow-400 to-amber-600 p-3 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 mr-4">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
-                  className="w-full h-full object-contain"
+                  alt="DropDollar Logo"
+                  className="w-8 h-8 object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop</span>
-            </Link>
-            <nav className="flex items-center space-x-6">
-              <Link href="/listings" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">Browse</Link>
-              <Link href="/categories" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">Categories</Link>
-              <Link href="/games" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">🎮 Games</Link>
-              <Link href="/tournaments" className="text-purple-600 dark:text-green-400 hover:text-purple-700 dark:hover:text-green-300 font-bold transition-colors">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="text-red-600 dark:text-green-400 hover:text-red-700 dark:hover:text-green-300 font-bold transition-colors">🔥 Hot Sell</Link>
-              <Link href="/how-it-works" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">How It Works</Link>
-              <Link href="/buy-tokens" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold transition-colors">💰 Buy Tokens</Link>
-              <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700 transition-colors">
-                <Link href="/wallet" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold transition-colors">👛 Wallet</Link>
-                <Link href="/settings" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold transition-colors">⚙️ Settings</Link>
-                <Link href="/auth/login" className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium transition-colors">Sign In</Link>
-                <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
+              <div className="text-white">
+                <h1 className="text-2xl font-black tracking-tight">DropDollar</h1>
+                <p className="text-yellow-200 text-sm font-medium">Skill Tournaments</p>
               </div>
+            </Link>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="/buy-tokens" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
+                💰 Buy Tokens
+              </Link>
+              <Link href="/listings" className="text-white hover:text-yellow-200 font-medium transition-colors">
+                Browse
+              </Link>
+              <Link href="/hot-sell" className="text-white hover:text-yellow-200 font-medium transition-colors">
+                Hot Sell
+              </Link>
+              <Link href="/games" className="text-white hover:text-yellow-200 font-medium transition-colors">
+                Games
+              </Link>
             </nav>
+
+            {/* User Actions */}
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/auth/login"
+                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-2.5 rounded-xl font-semibold transition-all hover:scale-105 border border-white/30"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/auth/register"
+                className="bg-gradient-to-r from-white to-yellow-100 hover:from-yellow-50 hover:to-white text-yellow-800 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg"
+              >
+                Sign Up
+              </Link>
+              <Link
+                href="/seller/apply"
+                className="bg-gradient-to-r from-yellow-300 to-amber-400 hover:from-yellow-400 hover:to-amber-500 text-yellow-900 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg"
+              >
+                Sell
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            🏆 Tournament Arena
-          </h1>
-          <p className="text-xl text-gray-600 max-w-4xl mx-auto mb-8">
-            Compete in scheduled tournaments for massive prize pools! Test your skills against the best players 
-            in daily, weekly, and monthly competitions.
-          </p>
-          
-          {/* Platform Fee Notice */}
-          <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-6 max-w-5xl mx-auto mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <ExclamationTriangleIcon className="h-6 w-6 text-red-600 mr-2" />
-              <h3 className="text-lg font-bold text-red-900">💰 Tournament Fee Structure</h3>
+        {/* Enhanced Tournament Banners (Hot Sell Style) */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-black text-yellow-600 dark:text-yellow-400 mb-4">🏆 LIVE SKILL TOURNAMENTS</h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300">Join high-stakes tournaments with winner tracking and weekly limits!</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          {/* $500 Tournament */}
+          <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-8 shadow-2xl border-2 border-red-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-4 right-4 w-24 h-24 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+              <div className="absolute bottom-4 left-4 w-32 h-32 bg-red-500/10 rounded-full blur-xl animate-pulse delay-1000"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-red-900/20 to-transparent"></div>
             </div>
-            <p className="text-red-800 text-center mb-4">
-              <strong>15% Platform Fee:</strong> DropDollar takes a 15% cut from all tournament prize pools. 
-              Winners receive 85% of the total collected amount. Additionally, tournament winners cannot participate 
-              in the same tournament category for <strong>6 months</strong>.
-            </p>
-            <div className="bg-white rounded-lg p-4 max-w-3xl mx-auto">
-              <h4 className="font-bold text-gray-900 mb-3 text-center">Fee Breakdown Examples</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-lg font-bold text-blue-600">$500</div>
-                  <div className="text-gray-600 mb-1">Total Collected</div>
-                  <div className="text-sm text-red-600">-$75 (15%)</div>
-                  <div className="text-lg font-bold text-green-600">$425</div>
-                  <div className="text-gray-600">Final Prize</div>
+            <div className="relative z-10 text-center mb-6">
+              <div className="text-6xl mb-4">⚡</div>
+              <h3 className="text-2xl font-black text-white mb-2">$500 Prize Pool</h3>
+              <div className="text-3xl font-black text-red-400 mb-2">Winner Gets: $425</div>
+              <p className="text-xl font-bold text-white/90 mb-1">$500 Elite Championship</p>
+              <p className="text-red-300">Multi-Target Reaction</p>
+              <div className="text-sm text-gray-400 mt-2">(-15% platform fee)</div>
+            </div>
+            
+            <div className="relative z-10 space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-red-500/20">
+                  <div className="text-2xl font-bold text-white">0/100</div>
+                  <div className="text-xs text-gray-300">Participants</div>
                 </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <div className="text-lg font-bold text-purple-600">$2,000</div>
-                  <div className="text-gray-600 mb-1">Total Collected</div>
-                  <div className="text-sm text-red-600">-$300 (15%)</div>
-                  <div className="text-lg font-bold text-green-600">$1,700</div>
-                  <div className="text-gray-600">Final Prize</div>
-                </div>
-                <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                  <div className="text-lg font-bold text-yellow-600">$25,000</div>
-                  <div className="text-gray-600 mb-1">Total Collected</div>
-                  <div className="text-sm text-red-600">-$3,750 (15%)</div>
-                  <div className="text-lg font-bold text-green-600">$21,250</div>
-                  <div className="text-gray-600">Final Prize</div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-red-500/20">
+                  <div className="text-2xl font-bold text-white">$5</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="text-2xl font-bold text-green-600">$15,700</div>
-              <div className="text-sm text-gray-600">Total Prize Pool</div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="text-2xl font-bold text-blue-600">697</div>
-              <div className="text-sm text-gray-600">Active Players</div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="text-2xl font-bold text-purple-600">5</div>
-              <div className="text-sm text-gray-600">Live Tournaments</div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-lg">
-              <div className="text-2xl font-bold text-orange-600">2h 15m</div>
-              <div className="text-sm text-gray-600">Next Tournament</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg mb-8">
-          <div className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="font-semibold text-gray-900">Filter by Status:</span>
-              <div className="flex space-x-2">
-                {(['all', 'upcoming', 'active', 'completed'] as const).map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setSelectedFilter(status)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedFilter === status
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </button>
-                ))}
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-300 font-medium">Tournament Progress</span>
+                  <span className="text-gray-400">0%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div className="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-500" style={{width: '0%'}}></div>
+                </div>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-red-500/10">
+                <div className="flex items-center justify-between text-sm text-gray-300">
+                  <div className="flex items-center">
+                    <span className="mr-1">🛡️</span><span>1 Submission Only</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">📅</span><span>Weekly Limit</span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <span className="font-semibold text-gray-900">Tournament Type:</span>
-              <div className="flex space-x-2">
-                {(['all', 'Daily', 'Weekly', 'Monthly', 'Special'] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedType === type
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {type === 'all' ? 'All' : `${getTypeIcon(type)} ${type}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tournament Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {filteredTournaments.map((tournament) => (
-            <div key={tournament.id} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border border-gray-200">
-              {/* Tournament Header */}
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <span className="text-2xl mr-2">{getTypeIcon(tournament.type)}</span>
-                    <h3 className="text-xl font-bold text-gray-900">{tournament.name}</h3>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-3">{tournament.description}</p>
-                  <div className="flex items-center space-x-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(tournament.status)}`}>
-                      {tournament.status.charAt(0).toUpperCase() + tournament.status.slice(1)}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(tournament.difficulty)}`}>
-                      {tournament.difficulty}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-600">${tournament.finalPrizePool.toLocaleString()}</div>
-                  <div className="text-sm text-gray-500">Final Prize Pool</div>
-                  <div className="text-xs text-red-500">
-                    (${tournament.prizePool.toLocaleString()} - ${tournament.platformFee.toLocaleString()} fee)
-                  </div>
-                </div>
-              </div>
-
-              {/* Prize Pool Breakdown */}
-              <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4 mb-6">
-                <h4 className="font-bold text-red-900 mb-3 text-center">💰 Prize Pool Breakdown</h4>
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">${tournament.prizePool.toLocaleString()}</div>
-                    <div className="text-gray-600">Total Collected</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-red-600">-${tournament.platformFee.toLocaleString()}</div>
-                    <div className="text-gray-600">Platform Fee (15%)</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-green-600">${tournament.finalPrizePool.toLocaleString()}</div>
-                    <div className="text-gray-600">Final Prize Pool</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tournament Details */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center mb-2">
-                    <CurrencyDollarIcon className="h-5 w-5 text-green-600 mr-2" />
-                    <span className="text-sm font-medium text-gray-700">Entry Fee</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">${tournament.entryFee}</div>
-                </div>
-                
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center mb-2">
-                    <UserGroupIcon className="h-5 w-5 text-blue-600 mr-2" />
-                    <span className="text-sm font-medium text-gray-700">Participants</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {tournament.currentParticipants}/{tournament.maxParticipants}
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(tournament.currentParticipants / tournament.maxParticipants) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Game & Timing Info */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <TrophyIcon className="h-5 w-5 text-purple-600 mr-2" />
-                      <span className="text-sm font-medium text-gray-700">Game</span>
-                    </div>
-                    <div className="font-bold text-gray-900">{tournament.game}</div>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center mb-2">
-                      <ClockIcon className="h-5 w-5 text-orange-600 mr-2" />
-                      <span className="text-sm font-medium text-gray-700">
-                        {tournament.status === 'upcoming' ? 'Starts In' : 
-                         tournament.status === 'active' ? 'Duration' : 'Completed'}
-                      </span>
-                    </div>
-                    <div className="font-bold text-gray-900">
-                      {tournament.status === 'upcoming' ? formatTimeUntil(tournament.startTime) : tournament.duration}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <button
-                disabled={tournament.status === 'completed' || tournament.currentParticipants >= tournament.maxParticipants}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-              >
-                {tournament.status === 'completed' ? (
-                  <>
-                    <TrophyIcon className="h-5 w-5 mr-2" />
-                    View Results
-                  </>
-                ) : tournament.currentParticipants >= tournament.maxParticipants ? (
-                  <>
-                    <UserGroupIcon className="h-5 w-5 mr-2" />
-                    Tournament Full
-                  </>
-                ) : tournament.status === 'active' ? (
-                  <>
-                    <FireIcon className="h-5 w-5 mr-2" />
-                    Join Live Tournament
-                  </>
-                ) : (
-                  <>
-                    <CalendarIcon className="h-5 w-5 mr-2" />
-                    Register Now
-                  </>
-                )}
-                <ChevronRightIcon className="h-5 w-5 ml-2" />
+            <div className="relative z-10">
+              <button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-red-500/50">
+                ⚡ JOIN TOURNAMENT - $5
               </button>
             </div>
-          ))}
+            <div className="absolute top-4 left-4 bg-red-600/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold text-white">🤖 Auto-Generated</div>
+          </div>
+
+          {/* $250 Tournament */}
+          <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-8 shadow-2xl border-2 border-orange-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-4 right-4 w-24 h-24 bg-orange-500/20 rounded-full blur-xl animate-pulse"></div>
+              <div className="absolute bottom-4 left-4 w-32 h-32 bg-orange-500/10 rounded-full blur-xl animate-pulse delay-1000"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-orange-900/20 to-transparent"></div>
+            </div>
+            <div className="relative z-10 text-center mb-6">
+              <div className="text-6xl mb-4">🔥</div>
+              <h3 className="text-2xl font-black text-white mb-2">$250 Prize Pool</h3>
+              <div className="text-3xl font-black text-orange-400 mb-2">Winner Gets: $212.50</div>
+              <p className="text-xl font-bold text-white/90 mb-1">$250 Pro Tournament</p>
+              <p className="text-orange-300">Falling Object Catch</p>
+              <div className="text-sm text-gray-400 mt-2">(-15% platform fee)</div>
+            </div>
+            
+            <div className="relative z-10 space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-orange-500/20">
+                  <div className="text-2xl font-bold text-white">0/50</div>
+                  <div className="text-xs text-gray-300">Participants</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-orange-500/20">
+                  <div className="text-2xl font-bold text-white">$5</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-300 font-medium">Tournament Progress</span>
+                  <span className="text-gray-400">0%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div className="bg-gradient-to-r from-orange-500 to-orange-600 h-3 rounded-full transition-all duration-500" style={{width: '0%'}}></div>
+                </div>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-orange-500/10">
+                <div className="flex items-center justify-between text-sm text-gray-300">
+                  <div className="flex items-center">
+                    <span className="mr-1">🛡️</span><span>1 Submission Only</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">📅</span><span>Weekly Limit</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="relative z-10">
+              <button className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-orange-500/50">
+                🔥 JOIN TOURNAMENT - $5
+              </button>
+            </div>
+            <div className="absolute top-4 left-4 bg-orange-600/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold text-white">🤖 Auto-Generated</div>
+          </div>
+
+          {/* $100 Tournament */}
+          <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-8 shadow-2xl border-2 border-yellow-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-4 right-4 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse"></div>
+              <div className="absolute bottom-4 left-4 w-32 h-32 bg-yellow-500/10 rounded-full blur-xl animate-pulse delay-1000"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-yellow-900/20 to-transparent"></div>
+            </div>
+            <div className="relative z-10 text-center mb-6">
+              <div className="text-6xl mb-4">💫</div>
+              <h3 className="text-2xl font-black text-white mb-2">$100 Prize Pool</h3>
+              <div className="text-3xl font-black text-yellow-400 mb-2">Winner Gets: $85</div>
+              <p className="text-xl font-bold text-white/90 mb-1">$100 Challenger Cup</p>
+              <p className="text-yellow-300">Color Sequence Memory</p>
+              <div className="text-sm text-gray-400 mt-2">(-15% platform fee)</div>
+            </div>
+            
+            <div className="relative z-10 space-y-4 mb-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-yellow-500/20">
+                  <div className="text-2xl font-bold text-white">0/25</div>
+                  <div className="text-xs text-gray-300">Participants</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-yellow-500/20">
+                  <div className="text-2xl font-bold text-white">$5</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-300 font-medium">Tournament Progress</span>
+                  <span className="text-gray-400">0%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-3">
+                  <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500" style={{width: '0%'}}></div>
+                </div>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-yellow-500/10">
+                <div className="flex items-center justify-between text-sm text-gray-300">
+                  <div className="flex items-center">
+                    <span className="mr-1">🛡️</span><span>1 Submission Only</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">📅</span><span>Weekly Limit</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="relative z-10">
+              <button className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-yellow-500/50">
+                💫 JOIN TOURNAMENT - $5
+              </button>
+            </div>
+            <div className="absolute top-4 left-4 bg-yellow-600/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold text-black">🤖 Auto-Generated</div>
+          </div>
+        </div>
         </div>
 
-        {/* Tournament Info */}
-        <div className="mt-12 bg-white rounded-2xl p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            🏆 How Tournaments Work
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CalendarIcon className="h-8 w-8 text-blue-600" />
+        {/* 1v1 SKILL MATCHES Section */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-4">⚔️ 1v1 SKILL MATCHES</h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300">Challenge players of similar skill level in direct competition!</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* $1 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-green-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-3 right-3 w-16 h-16 bg-green-500/20 rounded-full blur-lg animate-pulse"></div>
+                <div className="absolute bottom-3 left-3 w-20 h-20 bg-green-500/10 rounded-full blur-lg animate-pulse delay-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-green-900/20 to-transparent"></div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">1. Register</h3>
-              <p className="text-gray-600 text-sm">
-                Pay the entry fee and secure your spot. Registration closes when the tournament starts or fills up.
-              </p>
+              <div className="relative z-10 text-center mb-4">
+                <div className="text-4xl mb-3">💚</div>
+                <h3 className="text-xl font-black text-white mb-2">$1 Quick Match</h3>
+                <div className="text-2xl font-black text-green-400 mb-1">Winner: $0.85</div>
+                <p className="text-green-300 text-sm">Starter Duel</p>
+                <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
+              </div>
+              
+              <div className="relative z-10 space-y-3 mb-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-green-500/20">
+                  <div className="text-lg font-bold text-white">$1</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-green-500/10">
+                  <div className="flex items-center justify-center text-xs text-gray-300">
+                    <span className="mr-1">🎯</span><span>Skill Matched</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative z-10">
+                <button 
+                  onClick={() => handleCreateMatch('1v1', '$1', 'Multi-Target')}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-green-500/50 text-sm"
+                >
+                  💚 CREATE MATCH - $1
+                </button>
+              </div>
+              <div className="absolute top-3 left-3 bg-green-600/80 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-bold text-white">⚡ NEW</div>
             </div>
-            
-            <div className="text-center">
-              <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FireIcon className="h-8 w-8 text-purple-600" />
+
+            {/* $5 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-blue-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-3 right-3 w-16 h-16 bg-blue-500/20 rounded-full blur-lg animate-pulse"></div>
+                <div className="absolute bottom-3 left-3 w-20 h-20 bg-blue-500/10 rounded-full blur-lg animate-pulse delay-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent"></div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">2. Compete</h3>
-              <p className="text-gray-600 text-sm">
-                Play the designated game during the tournament window. Your best score counts!
-              </p>
+              <div className="relative z-10 text-center mb-4">
+                <div className="text-4xl mb-3">🛡️</div>
+                <h3 className="text-xl font-black text-white mb-2">$5 Standard</h3>
+                <div className="text-2xl font-black text-blue-400 mb-1">Winner: $4.25</div>
+                <p className="text-blue-300 text-sm">Classic Duel</p>
+                <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
+              </div>
+              
+              <div className="relative z-10 space-y-3 mb-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-blue-500/20">
+                  <div className="text-lg font-bold text-white">$5</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-blue-500/10">
+                  <div className="flex items-center justify-center text-xs text-gray-300">
+                    <span className="mr-1">🎯</span><span>Skill Matched</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative z-10">
+                <button 
+                  onClick={() => handleCreateMatch('1v1', '$5', 'Falling Object')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-blue-500/50 text-sm"
+                >
+                  🛡️ CREATE MATCH - $5
+                </button>
+              </div>
+              <div className="absolute top-3 left-3 bg-blue-600/80 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-bold text-white">🔥 Popular</div>
             </div>
-            
-            <div className="text-center">
-              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrophyIcon className="h-8 w-8 text-green-600" />
+
+            {/* $10 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-purple-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-3 right-3 w-16 h-16 bg-purple-500/20 rounded-full blur-lg animate-pulse"></div>
+                <div className="absolute bottom-3 left-3 w-20 h-20 bg-purple-500/10 rounded-full blur-lg animate-pulse delay-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent"></div>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">3. Win Prizes</h3>
-              <p className="text-gray-600 text-sm">
-                Top performers share the prize pool. Winners are announced when the tournament ends.
-              </p>
+              <div className="relative z-10 text-center mb-4">
+                <div className="text-4xl mb-3">⚔️</div>
+                <h3 className="text-xl font-black text-white mb-2">$10 Advanced</h3>
+                <div className="text-2xl font-black text-purple-400 mb-1">Winner: $8.50</div>
+                <p className="text-purple-300 text-sm">Pro Duel</p>
+                <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
+              </div>
+              
+              <div className="relative z-10 space-y-3 mb-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-purple-500/20">
+                  <div className="text-lg font-bold text-white">$10</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-purple-500/10">
+                  <div className="flex items-center justify-center text-xs text-gray-300">
+                    <span className="mr-1">🎯</span><span>Skill Matched</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative z-10">
+                <button 
+                  onClick={() => handleCreateMatch('1v1', '$10', 'Color Sequence')}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-purple-500/50 text-sm"
+                >
+                  ⚔️ CREATE MATCH - $10
+                </button>
+              </div>
+              <div className="absolute top-3 left-3 bg-purple-600/80 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-bold text-white">💎 Premium</div>
+            </div>
+
+            {/* $25 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-red-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-3 right-3 w-16 h-16 bg-red-500/20 rounded-full blur-lg animate-pulse"></div>
+                <div className="absolute bottom-3 left-3 w-20 h-20 bg-red-500/10 rounded-full blur-lg animate-pulse delay-500"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-red-900/20 to-transparent"></div>
+              </div>
+              <div className="relative z-10 text-center mb-4">
+                <div className="text-4xl mb-3">👑</div>
+                <h3 className="text-xl font-black text-white mb-2">$25 Elite</h3>
+                <div className="text-2xl font-black text-red-400 mb-1">Winner: $21.25</div>
+                <p className="text-red-300 text-sm">Master Duel</p>
+                <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
+              </div>
+              
+              <div className="relative z-10 space-y-3 mb-4">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-red-500/20">
+                  <div className="text-lg font-bold text-white">$25</div>
+                  <div className="text-xs text-gray-300">Entry Fee</div>
+                </div>
+                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-red-500/10">
+                  <div className="flex items-center justify-center text-xs text-gray-300">
+                    <span className="mr-1">🎯</span><span>Skill Matched</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative z-10">
+                <button 
+                  onClick={() => handleCreateMatch('1v1', '$25', 'Multi-Target')}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-red-500/50 text-sm"
+                >
+                  👑 CREATE MATCH - $25
+                </button>
+              </div>
+              <div className="absolute top-3 left-3 bg-red-600/80 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-bold text-white">⚡ Elite</div>
             </div>
           </div>
-          
-          <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+
+          <div className="bg-gradient-to-r from-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-2xl p-6">
             <div className="flex items-start">
-              <StarIcon className="h-5 w-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-yellow-800">
-                <p className="font-medium mb-1">💡 Tournament Tips & Rules</p>
-                <ul className="space-y-1 text-xs">
-                  <li>• Practice the game beforehand in the Games section</li>
-                  <li>• Higher difficulty tournaments have bigger prize pools</li>
-                  <li>• Special events often feature unique prizes and bonuses</li>
-                  <li>• <strong>6-Month Winner Cooldown:</strong> Winners cannot enter the same tournament category for 6 months</li>
-                  <li>• <strong>15% Platform Fee:</strong> All prize pools are reduced by 15% before distribution</li>
-                  <li>• Tournament results are final and cannot be disputed</li>
-                </ul>
+              <span className="text-purple-400 text-2xl mr-3 mt-0.5">⚔️</span>
+              <div className="text-sm text-gray-300">
+                <p className="font-bold mb-3 text-lg text-purple-400">💡 1v1 Match Prize Breakdown</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <ul className="space-y-2 text-sm">
+                    <li>• <strong className="text-green-400">$1 Match:</strong> $2 pool → Winner gets $0.85 (-15%)</li>
+                    <li>• <strong className="text-blue-400">$5 Match:</strong> $10 pool → Winner gets $4.25 (-15%)</li>
+                    <li>• <strong className="text-purple-400">$10 Match:</strong> $20 pool → Winner gets $8.50 (-15%)</li>
+                    <li>• <strong className="text-red-400">$25 Match:</strong> $50 pool → Winner gets $21.25 (-15%)</li>
+                  </ul>
+                  <ul className="space-y-2 text-sm">
+                    <li>• <strong className="text-yellow-400">Platform Fee:</strong> 15% deducted from total prize pool</li>
+                    <li>• <strong className="text-cyan-400">Skill Matching:</strong> Players matched by ELO rating</li>
+                    <li>• <strong className="text-pink-400">Instant Play:</strong> Direct 1v1 competition</li>
+                    <li>• <strong className="text-orange-400">Fair Play:</strong> Same RNG seed for both players</li>
+                  </ul>
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 border-2 border-red-300 dark:border-red-600 rounded-2xl p-6 mb-8">
+          <div className="text-center">
+            <h3 className="text-lg font-bold text-red-900 dark:text-red-100 mb-4">💰 Daily Tournament Rules</h3>
+            <div className="text-red-800 dark:text-red-200 text-center mb-4">
+              <p className="mb-2"><strong>$5 Entry Fee:</strong> All daily tournaments have a fixed $5 entry fee to keep competition accessible.</p>
+              <p className="mb-2"><strong>15% Platform Fee:</strong> DropDollar takes 15% of the total prize pool. Winners get 85% of collected fees.</p>
+              <p><strong>Daily Reset:</strong> Tournaments reset every day unless they haven't filled up - then they continue until complete.</p>
             </div>
           </div>
         </div>

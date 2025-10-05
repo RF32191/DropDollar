@@ -148,3 +148,5 @@ npm run dev
 - Deploy to Ethereum mainnet
 
 **Ready to set up payments? Start with Stripe - it's the easiest! 🚀**
+
+

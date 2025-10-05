@@ -191,7 +191,7 @@ export default function CreateListingPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Create New Listing</h1>
           <p className="mt-2 text-gray-600">
-            List your item on Dollar Drop - <strong>Every Dollar Drops the Price!</strong>
+            List your item on DropDollar - <strong>Every DropDollars the Price!</strong>
           </p>
         </div>
 
@@ -353,7 +353,7 @@ export default function CreateListingPage() {
             <div className="bg-white shadow rounded-lg p-6 space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Pricing & Timer Settings</h2>
               
-              {/* Dollar Drop Explanation */}
+              {/* DropDollar Explanation */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5" />

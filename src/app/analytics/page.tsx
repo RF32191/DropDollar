@@ -93,11 +93,11 @@ export default function AnalyticsPage() {
               <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
+                  alt="DropDollar Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">DropDollar</span>
             </Link>
             <nav className="flex items-center space-x-6">
               <Link href="/listings" className="text-gray-700 hover:text-green-600 font-medium">Browse</Link>
@@ -107,7 +107,6 @@ export default function AnalyticsPage() {
               <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
               <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
               <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-                <Link href="/wallet" className="text-green-600 hover:text-green-700 font-bold">👛 Wallet</Link>
                 <Link href="/analytics" className="text-blue-600 hover:text-blue-700 font-bold">📊 Analytics</Link>
                 <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
                 <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
@@ -274,7 +273,7 @@ export default function AnalyticsPage() {
                 <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                   <img src="/DropCoin.png" alt="Logo" className="w-full h-full object-contain" />
                 </div>
-                <span className="text-lg font-bold">Dollar Drop</span>
+                <span className="text-lg font-bold">DropDollar</span>
               </div>
               <p className="text-gray-400 text-sm">Real-time analytics for the DROP token ecosystem.</p>
             </div>
@@ -304,7 +303,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2024 Dollar Drop. All rights reserved. Analytics powered by blockchain data.</p>
+            <p>&copy; 2024 DropDollar. All rights reserved. Analytics powered by blockchain data.</p>
           </div>
         </div>
       </footer>

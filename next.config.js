@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Optimized for Vercel deployment
+  trailingSlash: true,
   images: {
-    domains: ['localhost'],
+    unoptimized: true,
+    domains: ['localhost', 'drop-dollar.com'],
   },
   typescript: {
     // Skip type checking during build for now

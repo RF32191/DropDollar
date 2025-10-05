@@ -39,7 +39,7 @@ export default function WalletDemoPage() {
               <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-lg">$</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop - Wallet Demo</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">DropDollar - Wallet Demo</span>
             </div>
             <nav className="flex items-center space-x-6">
               <a href="/" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">← Back to Home</a>

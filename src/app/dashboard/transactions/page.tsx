@@ -127,7 +127,7 @@ export default function TransactionsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Transaction History</h1>
         <p className="mt-2 text-gray-600">
-          Track your purchases, sales, and earnings on Dollar Drop
+          Track your purchases, sales, and earnings on DropDollar
         </p>
       </div>
 

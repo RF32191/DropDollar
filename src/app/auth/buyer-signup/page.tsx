@@ -196,7 +196,7 @@ export default function BuyerSignupPage() {
             <CheckCircleIcon className="h-8 w-8 text-green-600" />
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to Dollar Drop!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to DropDollar!</h2>
           <p className="text-gray-600 mb-6">
             Your buyer account has been created successfully. You're now logged in and ready to start competing!
           </p>
@@ -229,8 +229,8 @@ export default function BuyerSignupPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-3">
-              <img src="/DropCoin.png" alt="Dollar Drop" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-900">Dollar Drop</span>
+              <img src="/DropCoin.png" alt="DropDollar" className="h-8 w-8" />
+              <span className="text-xl font-bold text-gray-900">DropDollar</span>
             </Link>
             <div className="flex items-center space-x-4">
               <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">

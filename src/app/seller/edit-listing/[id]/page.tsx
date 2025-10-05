@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import type { CreateListingForm } from '@/types';
 
+
 export default function EditListingPage() {
   const router = useRouter();
   const params = useParams();

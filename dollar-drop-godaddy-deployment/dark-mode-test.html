@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Mode Test - Dollar Drop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <img src="/DropCoin.png" alt="Dollar Drop Logo" class="w-10 h-10 mr-3">
+                    <span class="text-xl font-bold text-gray-900 dark:text-white">Dollar Drop - Dark Mode Test</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Page Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                🌙 Dark Mode Test
+            </h1>
+            <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Testing the dark mode functionality with theme switching
+            </p>
+        </div>
+
+        <!-- Theme Controls -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-8 transition-colors">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Theme Controls</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Light Theme -->
+                <button onclick="setTheme('light')" class="p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all">
+                    <div class="flex flex-col items-center">
+                        <div class="h-8 w-8 mb-2 text-2xl">☀️</div>
+                        <span class="font-medium text-gray-900 dark:text-white">Light Theme</span>
+                    </div>
+                </button>
+
+                <!-- Dark Theme -->
+                <button onclick="setTheme('dark')" class="p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all">
+                    <div class="flex flex-col items-center">
+                        <div class="h-8 w-8 mb-2 text-2xl">🌙</div>
+                        <span class="font-medium text-gray-900 dark:text-white">Dark Theme</span>
+                    </div>
+                </button>
+
+                <!-- Toggle Button -->
+                <button onclick="toggleTheme()" class="p-4 rounded-xl border-2 border-purple-200 dark:border-purple-600 hover:border-purple-300 dark:hover:border-purple-500 bg-purple-50 dark:bg-purple-900/20 transition-all">
+                    <div class="flex flex-col items-center">
+                        <div class="h-8 w-8 mb-2 text-2xl" id="toggleIcon">🔄</div>
+                        <span class="font-medium text-gray-900 dark:text-white">Toggle</span>
+                    </div>
+                </button>
+            </div>
+
+            <div class="text-center">
+                <p class="text-gray-600 dark:text-gray-400">
+                    Current theme: <span class="font-bold text-gray-900 dark:text-white" id="currentTheme">light</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Sample Components -->
+        <div class="space-y-8">
+            <!-- Sample Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Sample Competition Card</h3>
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 transition-colors">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-bold text-gray-900 dark:text-white">iPhone 15 Pro Max - 1TB Titanium</h4>
+                        <span class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-1 rounded-full text-sm">Active</span>
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">Premium smartphone with advanced features</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400 text-sm">Base Price:</span>
+                            <div class="font-bold text-gray-900 dark:text-white text-lg">$1,199</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400 text-sm">Participants:</span>
+                            <div class="font-bold text-gray-900 dark:text-white text-lg">47</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Showcase -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Color Showcase</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg">
+                        <div class="text-red-800 dark:text-red-200 font-bold">Red</div>
+                        <div class="text-red-600 dark:text-red-400 text-sm">Danger/Alert</div>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-lg">
+                        <div class="text-green-800 dark:text-green-200 font-bold">Green</div>
+                        <div class="text-green-600 dark:text-green-400 text-sm">Success/Money</div>
+                    </div>
+                    <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-lg">
+                        <div class="text-blue-800 dark:text-blue-200 font-bold">Blue</div>
+                        <div class="text-blue-600 dark:text-blue-400 text-sm">Info/Links</div>
+                    </div>
+                    <div class="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-lg">
+                        <div class="text-purple-800 dark:text-purple-200 font-bold">Purple</div>
+                        <div class="text-purple-600 dark:text-purple-400 text-sm">Games/Special</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Button Showcase -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Button Showcase</h3>
+                <div class="flex flex-wrap gap-4">
+                    <button class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                        Primary Button
+                    </button>
+                    <button class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                        Secondary Button
+                    </button>
+                    <button class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                        Neutral Button
+                    </button>
+                    <button class="border-2 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium transition-colors">
+                        Outline Button
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Message -->
+        <div class="mt-12 text-center">
+            <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <p class="text-blue-800 dark:text-blue-200">
+                    ✅ <strong>Dark Mode Implementation Complete!</strong><br>
+                    The theme switching is working properly. You can now integrate this into your Next.js application.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 dark:bg-gray-950 text-white py-8 mt-16 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-400">Dark Mode Test - Dollar Drop Platform</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme management
+        let currentTheme = localStorage.getItem('theme') || 'light';
+        
+        function updateTheme() {
+            const root = document.documentElement;
+            const themeDisplay = document.getElementById('currentTheme');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (currentTheme === 'dark') {
+                root.classList.add('dark');
+                toggleIcon.textContent = '☀️';
+            } else {
+                root.classList.remove('dark');
+                toggleIcon.textContent = '🌙';
+            }
+            
+            themeDisplay.textContent = currentTheme;
+            localStorage.setItem('theme', currentTheme);
+        }
+        
+        function setTheme(theme) {
+            currentTheme = theme;
+            updateTheme();
+        }
+        
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            updateTheme();
+        }
+        
+        // Initialize theme on page load
+        updateTheme();
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                currentTheme = e.matches ? 'dark' : 'light';
+                updateTheme();
+            }
+        });
+    </script>
+</body>
+</html>

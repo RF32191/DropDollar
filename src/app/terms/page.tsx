@@ -41,7 +41,7 @@ export default function TermsConditionsPage() {
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Terms & Conditions</h1>
           </div>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Contest rules and participation terms for Dollar Drop Gaming platform competitions.
+            Contest rules and participation terms for DropDollar Gaming platform competitions.
           </p>
           <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
             <strong>Last Updated:</strong> {currentDate}
@@ -71,7 +71,7 @@ export default function TermsConditionsPage() {
             <div>
               <h3 className="font-bold text-yellow-800 mb-2">⚖️ Legal Agreement</h3>
               <p className="text-yellow-700 text-sm">
-                These Terms & Conditions govern participation in contests hosted on the Dollar Drop Gaming platform. 
+                These Terms & Conditions govern participation in contests hosted on the DropDollar Gaming platform. 
                 <strong> By entering a contest, you agree to these Terms.</strong>
               </p>
             </div>
@@ -97,7 +97,7 @@ export default function TermsConditionsPage() {
               </li>
               <li className="flex items-start">
                 <span className="text-red-600 mr-2">✗</span>
-                <strong>Employee Exclusion:</strong> Employees, contractors, officers, and immediate family members of Dollar Drop are not eligible to participate.
+                <strong>Employee Exclusion:</strong> Employees, contractors, officers, and immediate family members of DropDollar are not eligible to participate.
               </li>
             </ul>
           </div>
@@ -126,7 +126,7 @@ export default function TermsConditionsPage() {
               </li>
               <li className="flex items-start">
                 <span className="text-green-600 mr-2">🏦</span>
-                <strong>Revenue Model:</strong> Dollar Drop retains all entry fees. Prize value is fixed and does not increase with the number of entries.
+                <strong>Revenue Model:</strong> DropDollar retains all entry fees. Prize value is fixed and does not increase with the number of entries.
               </li>
             </ul>
           </div>
@@ -164,7 +164,7 @@ export default function TermsConditionsPage() {
             <p className="text-gray-700">
               The participant with the highest score at the end of gameplay will be declared the winner. 
               In the event of a tie, the participant who achieved the score first will be declared the winner. 
-              All scoring decisions recorded by Dollar Drop's systems are final.
+              All scoring decisions recorded by DropDollar's systems are final.
             </p>
           </div>
         </section>
@@ -227,7 +227,7 @@ export default function TermsConditionsPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h4 className="font-bold text-blue-800 mb-3">⚖️ Player Responsibility</h4>
               <p className="text-blue-700">
-                By entering a contest, participants represent and warrant that participation is legal in their jurisdiction of residence. Dollar Drop is not responsible for entries made in violation of state or local laws.
+                By entering a contest, participants represent and warrant that participation is legal in their jurisdiction of residence. DropDollar is not responsible for entries made in violation of state or local laws.
               </p>
             </div>
           </div>

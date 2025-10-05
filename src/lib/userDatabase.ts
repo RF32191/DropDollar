@@ -1,6 +1,5 @@
 // User Database & Authentication System
 // Similar to Amazon/Etsy user management
-import { WalletService } from '@/lib/walletService';
 
 export interface UserAccount {
   id: string;
@@ -314,7 +313,7 @@ export class UserDatabaseService {
     
     return { 
       success: true, 
-      message: 'Account created successfully! Welcome to Dollar Drop!', 
+      message: 'Account created successfully! Welcome to DropDollar!', 
       userId: newUser.id 
     };
   }

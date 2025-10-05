@@ -18,11 +18,11 @@ export default function DarkModeTestPage() {
               <div className="w-10 h-10 mr-3">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
+                  alt="DropDollar Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Dollar Drop - Dark Mode Test</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">DropDollar - Dark Mode Test</span>
             </Link>
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function DarkModeTestPage() {
       {/* Footer */}
       <footer className="bg-gray-900 dark:bg-gray-950 text-white py-8 mt-16 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">Dark Mode Test - Dollar Drop Platform</p>
+          <p className="text-gray-400">Dark Mode Test - DropDollar Platform</p>
         </div>
       </footer>
     </div>

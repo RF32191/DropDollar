@@ -129,8 +129,9 @@ export default function SellerListingDashboard({
         <div className="bg-gradient-to-r from-green-400 to-blue-500 rounded-2xl p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm">Total Earnings</p>
+              <p className="text-green-100 text-sm">Total Cash Earnings</p>
               <p className="text-3xl font-bold">${totalEarnings.toFixed(2)}</p>
+              <p className="text-green-100 text-xs">💰 Direct bank payouts</p>
             </div>
             <CurrencyDollarIcon className="h-12 w-12 text-green-200" />
           </div>
@@ -292,7 +293,8 @@ export default function SellerListingDashboard({
                     <div className="text-lg font-bold text-green-900">
                       ${earnings.netEarnings.toFixed(2)}
                     </div>
-                    <div className="text-green-700 text-sm">Net Earnings</div>
+                    <div className="text-green-700 text-sm">Cash Earnings</div>
+                    <div className="text-xs text-green-600 mt-1">💰 Paid to your bank</div>
                   </div>
                 </div>
 
@@ -484,7 +486,7 @@ export default function SellerListingDashboard({
                         </div>
                         <div>
                           <div className="font-bold text-green-900">${earnings.netEarnings.toFixed(2)}</div>
-                          <div className="text-green-700">Net Earnings</div>
+                          <div className="text-green-700">Net Cash Earnings</div>
                         </div>
                       </>
                     );

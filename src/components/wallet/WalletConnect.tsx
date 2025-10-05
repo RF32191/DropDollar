@@ -153,7 +153,7 @@ export default function WalletConnect({ onConnect, requiredAmount = 0 }: WalletC
         </h3>
         
         <p className="text-gray-600 mb-6">
-          Connect your crypto wallet to make payments on Dollar Drop
+          Connect your crypto wallet to make payments on DropDollar
         </p>
 
         {error && (

@@ -17,7 +17,7 @@ export default function Footer() {
               <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-lg">$</span>
               </div>
-              <span className="text-xl font-bold">Dollar Drop</span>
+              <span className="text-xl font-bold">DropDollar</span>
             </div>
             <p className="text-gray-400 text-sm">
               Revolutionary skill-based gaming marketplace. Win incredible prizes through gaming talent, not luck!
@@ -128,7 +128,7 @@ export default function Footer() {
               </div>
             </div>
             <div className="text-sm text-gray-400">
-              © 2024 Dollar Drop. All rights reserved.
+              © 2024 DropDollar. All rights reserved.
             </div>
           </div>
         </div>

@@ -139,14 +139,14 @@ const testimonials: Testimonial[] = [
     name: 'Amanda "SpeedDemon" Foster',
     location: 'Phoenix, AZ',
     rating: 5,
-    title: 'Tesla Model 3 Through Cognitive Power!',
-    content: 'The biggest win of my life! Cognitive Reflex game with 127 points - my memory and reflexes were unstoppable. Won a $35,000 Tesla Model 3 for just $1. Electric car, $1 entry fee, pure skill. This platform is revolutionary!',
+    title: 'Tesla Model 3 Through Color Memory!',
+    content: 'The biggest win of my life! Color Sequence Memory game with 127 points - my memory and reflexes were unstoppable. Won a $35,000 Tesla Model 3 for just $0.20. Electric car, $0.20 entry fee, pure skill. This platform is revolutionary!',
     productWon: 'Tesla Model 3 Long Range',
-    gameType: 'Cognitive Reflex',
+    gameType: 'Color Sequence Memory',
     gameScore: 127,
-    entryFee: 1,
+    entryFee: 0.20,
     retailPrice: 35000,
-    savings: 34999,
+    savings: 34999.80,
     verified: true,
     gameIcon: PuzzlePieceIcon,
     difficulty: 'Hard'
@@ -219,11 +219,11 @@ export default function TestimonialsPage() {
               <div className="w-10 h-10 mr-3">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
+                  alt="DropDollar Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">DropDollar</span>
             </Link>
                    <nav className="flex items-center space-x-6">
                      <Link href="/listings" className="text-gray-700 hover:text-green-600 font-medium">Browse</Link>
@@ -233,7 +233,6 @@ export default function TestimonialsPage() {
                      <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
                      <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
                      <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-                       <Link href="/wallet" className="text-green-600 hover:text-green-700 font-bold">👛 Wallet</Link>
                        <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
                        <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
                        <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
@@ -497,7 +496,7 @@ export default function TestimonialsPage() {
       {/* Simple Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 Dollar Drop - Revolutionary Skill-Based Gaming Marketplace</p>
+          <p className="text-gray-400">© 2024 DropDollar - Revolutionary Skill-Based Gaming Marketplace</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/how-it-works" className="text-gray-400 hover:text-white">How It Works</Link>
             <Link href="/games" className="text-gray-400 hover:text-white">Practice Games</Link>

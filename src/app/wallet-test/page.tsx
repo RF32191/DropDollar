@@ -27,11 +27,11 @@ export default function WalletTestPage() {
               <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
+                  alt="DropDollar Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Dollar Drop</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">DropDollar</span>
             </Link>
             <nav className="flex items-center space-x-6">
               <Link href="/" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium">Home</Link>

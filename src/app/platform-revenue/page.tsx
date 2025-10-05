@@ -70,11 +70,11 @@ export default function PlatformRevenuePage() {
               <div className="w-10 h-10 mr-3">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
+                  alt="DropDollar Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900">Dollar Drop</span>
+              <span className="text-xl font-bold text-gray-900">DropDollar</span>
             </Link>
             <nav className="flex items-center space-x-6">
               <Link href="/hot-sell" className="text-gray-700 hover:text-green-600 font-medium">Back to Tournaments</Link>
@@ -258,7 +258,7 @@ export default function PlatformRevenuePage() {
                 <div className="flex items-start">
                   <span className="bg-purple-100 text-purple-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">3</span>
                   <div>
-                    <strong>Tournament Entry:</strong> User is entered into tournament with mystery game
+                    <strong>Tournament Entry:</strong> User is entered into tournament with assigned skill game
                   </div>
                 </div>
                 <div className="flex items-start">

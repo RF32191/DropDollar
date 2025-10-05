@@ -1,16 +1,21 @@
 {
-  "name": "dollar-drop",
+  "name": "dropdollar",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "export": "next build",
+    "deploy": "next build && echo 'Build complete! Upload the out/ folder to GoDaddy'",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@stripe/react-stripe-js": "^5.0.0",
+    "@stripe/stripe-js": "^8.0.0",
+    "@supabase/supabase-js": "^2.58.0",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.9.0",
     "@types/react": "^18.2.37",

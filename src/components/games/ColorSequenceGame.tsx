@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameEngine } from '@/lib/gameEngine';
+import { GameAudio } from '@/utils/gameAudio';
+import GameCountdown from './GameCountdown';
 
 interface GameResult {
   score: number;
@@ -36,18 +38,20 @@ const COLORS: ColorFlash[] = [
 ];
 
 export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: ColorSequenceGameProps) {
-  const [gameState, setGameState] = useState<'ready' | 'showing' | 'input' | 'feedback' | 'ended'>('ready');
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'showing' | 'input' | 'feedback' | 'ended'>('ready');
   const [sequence, setSequence] = useState<number[]>([]);
   const [userSequence, setUserSequence] = useState<number[]>([]);
   const [currentDisplay, setCurrentDisplay] = useState<number>(-1);
   const [round, setRound] = useState(0);
   const [score, setScore] = useState(0);
+  const currentScoreRef = useRef(0); // Track current score for accurate game end reporting
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | ''>('');
   const [sequenceSpeed, setSequenceSpeed] = useState(800); // ms between colors
   const [inputStartTime, setInputStartTime] = useState(0);
   const [showingIndex, setShowingIndex] = useState(0);
+  
 
   // Game engine with proper timer and RNG
   const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
@@ -60,18 +64,20 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
       gameId // Use gameId for deterministic seeding
     },
     onGameEnd: () => {
+      console.log('ColorSequence: Game engine onGameEnd callback triggered');
+      
       setGameState('ended');
       const avgReactionTime = reactionTimes.length > 0 ? 
         reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length : 0;
       const accuracy = round > 0 ? (correctAnswers / round) * 100 : 0;
       
-      // Always pass the full result object (both competition and practice modes)
       const gameResult = {
-        score,
+        score: currentScoreRef.current, // Use ref for most up-to-date score
         accuracy,
         avgReactionTime
       };
       
+      console.log('ColorSequenceGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);
     }
   });
@@ -129,7 +135,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
   // Start new round
   const startNewRound = useCallback(() => {
     if (timer.timeLeft <= 0) {
-      setGameState('ended');
+      console.log('ColorSequence: Timer expired, game will end automatically');
       return;
     }
 
@@ -155,7 +161,9 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
       if (index < newSequence.length) {
         setCurrentDisplay(newSequence[index]);
         setShowingIndex(index + 1);
-        playSound(COLORS[newSequence[index]].sound);
+        // Play color-specific sound for sequence display
+        const colorName = COLORS[newSequence[index]].name.toLowerCase();
+        GameAudio.playColorSound(colorName);
         
         timeoutRef.current = setTimeout(() => {
           setCurrentDisplay(-1);
@@ -179,14 +187,17 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
   const handleColorSelect = useCallback((colorIndex: number) => {
     if (gameState !== 'input') return;
 
+    // Play color-specific sound
+    const colorName = COLORS[colorIndex].name.toLowerCase();
+    GameAudio.playColorSound(colorName);
+
     const reactionTime = Date.now() - inputStartTime;
     setReactionTimes(prev => [...prev, reactionTime]);
 
     const newUserSequence = [...userSequence, colorIndex];
     setUserSequence(newUserSequence);
 
-    // Play sound feedback
-    playSound(COLORS[colorIndex].sound);
+    // Sound already played above with GameAudio.playColorSound
 
     // Check if sequence is complete
     if (newUserSequence.length === sequence.length) {
@@ -194,53 +205,78 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
       const isCorrect = newUserSequence.every((color, index) => color === sequence[index]);
       
       if (isCorrect) {
-        // Advanced scoring system for 50,000+ users to prevent ties
-        const baseScore = 100 + (round * 15); // Base increases with rounds
+        // Play sequence complete sound
+        GameAudio.playSequenceComplete();
         
-        // Reaction time bonus (0-75 points) - exponential curve
-        const reactionBonus = Math.max(0, 75 * Math.exp(-reactionTime / 1200));
+        // Enhanced scoring system with speed-based precision
+        const baseScore = 100 + (round * 20); // Base increases with rounds
         
-        // Sequence length bonus (longer = harder = more points)
-        const lengthBonus = (sequence.length - 3) * 20; // 20 points per length above 3
+        // Speed bonus (0-150 points) - exponential curve for lightning-fast completion
+        const speedBonus = Math.max(0, 150 * Math.exp(-reactionTime / 800));
         
-        // Round progression bonus
-        const roundBonus = Math.floor(round / 3) * 25;
+        // Sequence length bonus (longer = exponentially harder)
+        const lengthBonus = Math.pow(sequence.length - 2, 2) * 15; // Exponential difficulty
         
-        // Sequence speed bonus (faster rounds = more points)
-        const speedBonus = Math.max(0, (1000 - sequenceSpeed) / 20);
+        // Perfect memory bonus (no mistakes in sequence)
+        const memoryBonus = newUserSequence.length === sequence.length ? 50 : 0;
         
-        // Precision timing bonus (microsecond-level variability)
-        const precisionBonus = (Date.now() % 1000) / 50; // 0-19.98 points
+        // Round progression bonus (compound difficulty)
+        const roundBonus = Math.floor(round / 2) * 30;
         
-        // Audio memory bonus (using sound helps = slight bonus)
-        const audioBonus = engine.randomFloat(5, 15);
+        // Display speed bonus (faster sequence display = harder = more points)
+        const displaySpeedBonus = sequenceSpeed < 600 ? (600 - sequenceSpeed) / 8 : 0;
         
-        // Random variability to ensure uniqueness (large range)
-        const randomVariability = engine.randomFloat(0.001, 49.999);
+        // Consistency bonus (reward consistent performance)
+        const consistencyBonus = correctAnswers > 3 ? Math.min(correctAnswers * 3, 60) : 0;
+        
+        // Precision timing bonus (microsecond-level variability for uniqueness)
+        const precisionBonus = (Date.now() % 1000) / 25; // 0-39.96 points
+        
+        // Sequence complexity bonus (varied colors = harder)
+        const uniqueColors = new Set(sequence).size;
+        const complexityBonus = uniqueColors * 8;
+        
+        // Random variability to ensure uniqueness (balanced range)
+        const randomVariability = engine.randomFloat(0.001, 29.999);
         
         // Calculate final score with high precision
-        const totalScore = baseScore + reactionBonus + lengthBonus + roundBonus + 
-                          speedBonus + precisionBonus + audioBonus + randomVariability;
+        const totalScore = baseScore + speedBonus + lengthBonus + memoryBonus + roundBonus + 
+                          displaySpeedBonus + consistencyBonus + precisionBonus + 
+                          complexityBonus + randomVariability;
         
-        setScore(prev => prev + totalScore);
+        setScore(prev => {
+          const newScore = prev + totalScore;
+          currentScoreRef.current = newScore; // Update ref for accurate game end reporting
+          return newScore;
+        });
         setCorrectAnswers(prev => prev + 1);
         setFeedback('correct');
         
         console.log('ColorSequence score breakdown:', {
-          base: baseScore,
-          reaction: reactionBonus.toFixed(2),
-          length: lengthBonus,
-          round: roundBonus,
+          base: baseScore.toFixed(2),
           speed: speedBonus.toFixed(2),
+          length: lengthBonus.toFixed(2),
+          memory: memoryBonus.toFixed(2),
+          round: roundBonus.toFixed(2),
+          displaySpeed: displaySpeedBonus.toFixed(2),
+          consistency: consistencyBonus.toFixed(2),
           precision: precisionBonus.toFixed(2),
-          audio: audioBonus.toFixed(2),
+          complexity: complexityBonus.toFixed(2),
           random: randomVariability.toFixed(3),
-          total: totalScore.toFixed(3)
+          total: totalScore.toFixed(3),
+          reactionTime: reactionTime + 'ms'
         });
       } else {
+        // Play error sound
+        GameAudio.playSequenceError();
+        
         setFeedback('incorrect');
         // Small penalty for wrong sequences
-        setScore(prev => Math.max(0, prev - 10));
+        setScore(prev => {
+          const newScore = Math.max(0, prev - 10);
+          currentScoreRef.current = newScore; // Update ref for accurate game end reporting
+          return newScore;
+        });
       }
 
       setGameState('feedback');
@@ -250,7 +286,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
         if (timer.timeLeft > 0) {
           startNewRound();
         } else {
-          setGameState('ended');
+          console.log('ColorSequence: Timer expired in feedback timeout, game will end automatically');
         }
       }, 1500);
     } else {
@@ -286,13 +322,29 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
   }, []);
 
   const handleStartGame = () => {
-    // Generate the first sequence BEFORE starting timer
-    const currentRound = 1;
-    setRound(currentRound);
+    console.log('Starting ColorSequenceGame countdown...');
+    
+    // Reset game state
+    setRound(0);
+    setScore(0);
+    currentScoreRef.current = 0; // Reset score ref
+    setCorrectAnswers(0);
+    setReactionTimes([]);
     setUserSequence([]);
     setFeedback('');
     setCurrentDisplay(-1);
     setShowingIndex(0);
+    
+    // Start countdown
+    setGameState('countdown');
+  };
+
+  const handleCountdownComplete = () => {
+    console.log('Countdown complete, starting game...');
+    
+    // Generate the first sequence BEFORE starting timer
+    const currentRound = 1;
+    setRound(currentRound);
 
     // Progressive difficulty
     const sequenceLength = Math.min(3 + Math.floor(currentRound / 2), 12); // Max 12 colors
@@ -312,7 +364,9 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
       if (index < newSequence.length) {
         setCurrentDisplay(newSequence[index]);
         setShowingIndex(index + 1);
-        playSound(COLORS[newSequence[index]].sound);
+        // Play color-specific sound for sequence display
+        const colorName = COLORS[newSequence[index]].name.toLowerCase();
+        GameAudio.playColorSound(colorName);
         
         timeoutRef.current = setTimeout(() => {
           setCurrentDisplay(-1);
@@ -331,6 +385,22 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
     // Start showing sequence after brief delay
     timeoutRef.current = setTimeout(showNext, 500);
   };
+
+  const handleCountdownCancel = () => {
+    console.log('Countdown cancelled');
+    setGameState('ready');
+  };
+
+  // Show countdown overlay
+  if (gameState === 'countdown') {
+    return (
+      <GameCountdown
+        onCountdownComplete={handleCountdownComplete}
+        onCancel={handleCountdownCancel}
+        showTitle="🌈 Color Sequence Memory"
+      />
+    );
+  }
 
   if (gameState === 'ready') {
     return (

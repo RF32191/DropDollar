@@ -72,22 +72,22 @@ export default function TournamentResultsPage() {
   // Mock recent winners data
   const mockRecentWinners = {
     'starter-100': [
-      { userId: 'GameMaster123', score: 9850, gameType: 'Simon Says Reflex', winTime: '14:30', rank: 1 },
+      { userId: 'GameMaster123', score: 9850, gameType: 'Multi-Target Reaction', winTime: '14:30', rank: 1 },
       { userId: 'SkillPlayer456', score: 9720, gameType: 'Multi-Target Reaction', winTime: '15:45', rank: 2 },
-      { userId: 'ProGamer789', score: 9680, gameType: 'Cognitive Reflex', winTime: '16:20', rank: 3 },
-      { userId: 'EliteUser001', score: 9650, gameType: 'Rhythm Reflex', winTime: '17:10', rank: 4 },
+      { userId: 'ProGamer789', score: 9680, gameType: 'Color Sequence Memory', winTime: '16:20', rank: 3 },
+      { userId: 'EliteUser001', score: 9650, gameType: 'Falling Object Catch', winTime: '17:10', rank: 4 },
       { userId: 'Champion999', score: 9600, gameType: 'Falling Object Catch', winTime: '18:30', rank: 5 },
-      { userId: 'MasterPlayer', score: 9580, gameType: 'Pattern Memory', winTime: '19:15', rank: 6 },
-      { userId: 'SkillLord777', score: 9550, gameType: 'Color Sequence', winTime: '20:00', rank: 7 },
-      { userId: 'GameWizard', score: 9520, gameType: 'Word Chain Reflex', winTime: '20:45', rank: 8 }
+      { userId: 'MasterPlayer', score: 9580, gameType: 'Multi-Target Reaction', winTime: '19:15', rank: 6 },
+      { userId: 'SkillLord777', score: 9550, gameType: 'Color Sequence Memory', winTime: '20:00', rank: 7 },
+      { userId: 'GameWizard', score: 9520, gameType: 'Multi-Target Reaction', winTime: '20:45', rank: 8 }
     ],
     'intermediate-500': [
-      { userId: 'Champion001', score: 9950, gameType: 'Number Sequence', winTime: '16:30', rank: 1 },
-      { userId: 'ElitePlayer999', score: 9900, gameType: 'Simon Says Reflex', winTime: '18:15', rank: 2 },
-      { userId: 'MegaSkill555', score: 9850, gameType: 'Pattern Memory', winTime: '19:45', rank: 3 }
+      { userId: 'Champion001', score: 9950, gameType: 'Color Sequence Memory', winTime: '16:30', rank: 1 },
+      { userId: 'ElitePlayer999', score: 9900, gameType: 'Multi-Target Reaction', winTime: '18:15', rank: 2 },
+      { userId: 'MegaSkill555', score: 9850, gameType: 'Falling Object Catch', winTime: '19:45', rank: 3 }
     ],
     'advanced-2500': [
-      { userId: 'MegaWinner777', score: 9980, gameType: 'Cognitive Reflex', winTime: '17:20', rank: 1 },
+      { userId: 'MegaWinner777', score: 9980, gameType: 'Color Sequence Memory', winTime: '17:20', rank: 1 },
       { userId: 'UltimateGamer', score: 9960, gameType: 'Multi-Target Reaction', winTime: '21:30', rank: 2 }
     ],
     'elite-25000': [
@@ -112,8 +112,8 @@ export default function TournamentResultsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-3">
-              <img src="/DropCoin.png" alt="Dollar Drop" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-900">Dollar Drop</span>
+              <img src="/DropCoin.png" alt="DropDollar" className="h-8 w-8" />
+              <span className="text-xl font-bold text-gray-900">DropDollar</span>
             </Link>
             <nav className="flex space-x-8">
               <Link href="/hot-sell" className="text-red-600 hover:text-red-700 font-bold">🔥 Hot Sell</Link>
@@ -326,7 +326,7 @@ export default function TournamentResultsPage() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 Dollar Drop - Transparent Tournament Results</p>
+          <p className="text-gray-400">© 2024 DropDollar - Transparent Tournament Results</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/how-it-works" className="text-gray-400 hover:text-white">How It Works</Link>
             <Link href="/games" className="text-gray-400 hover:text-white">Practice Games</Link>

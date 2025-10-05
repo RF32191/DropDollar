@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
@@ -116,8 +115,18 @@ export default function RegisterPage() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    console.log('🚀 Starting registration process...');
     
     try {
+      console.log('📝 Form data:', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        username: formData.username,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        role: 'buyer'
+      });
+
       const result = await register({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -128,7 +137,10 @@ export default function RegisterPage() {
         role: 'buyer'
       });
 
+      console.log('✅ Registration result:', result);
+
       if (result.success) {
+        console.log('🎉 Registration successful, redirecting...');
         // Registration successful, redirect based on context
         if (urlMessage && urlMessage.includes('seller')) {
           router.push('/seller/apply');
@@ -136,10 +148,11 @@ export default function RegisterPage() {
           router.push('/dashboard');
         }
       } else {
+        console.error('❌ Registration failed:', result.error);
         setErrors({ email: result.error || 'Registration failed. Please try again.' });
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('💥 Registration error:', error);
       setErrors({ email: 'Registration failed. Please try again.' });
     } finally {
       setIsLoading(false);
@@ -148,7 +161,50 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
+      {/* BRONZE SIGN UP Header */}
+      <header className="bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-600 dark:from-amber-700 dark:via-yellow-700 dark:to-orange-700 shadow-2xl border-b-4 border-amber-600 dark:border-amber-500">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            {/* Logo Section */}
+            <Link href="/" className="flex items-center group">
+              <div className="bg-gradient-to-br from-amber-300 to-orange-500 dark:from-amber-400 dark:to-orange-600 p-3 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 mr-4">
+                <img
+                  src="/DropCoin.png"
+                  alt="DropDollar Logo"
+                  className="w-8 h-8 object-contain"
+                />
+              </div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-white to-amber-100 dark:from-amber-100 dark:to-white bg-clip-text text-transparent group-hover:from-amber-100 group-hover:to-white transition-all duration-300">
+                DropDollar
+              </div>
+            </Link>
+
+            {/* BRONZE Navigation */}
+            <nav className="flex-1 mx-4">
+              <div className="flex items-center justify-center space-x-4">
+                <Link href="/listings" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">Browse</Link>
+                <Link href="/categories" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">Categories</Link>
+                <Link href="/games" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">🎮 Games</Link>
+                <Link href="/tournaments" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">🏆 Tournaments</Link>
+                <Link href="/hot-sell" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">🔥 Hot Sell</Link>
+                <Link href="/how-it-works" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">How It Works</Link>
+              </div>
+            </nav>
+
+            {/* User Actions */}
+            <div className="flex items-center space-x-2">
+              <Link href="/auth/login" className="text-amber-100 dark:text-amber-200 hover:text-white dark:hover:text-amber-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-amber-600/30">Sign In</Link>
+              
+              {/* Active Sign Up Link */}
+              <div className="bg-gradient-to-r from-amber-300 to-orange-400 dark:from-amber-400 dark:to-orange-500 px-4 py-2 rounded-xl shadow-lg">
+                <Link href="/auth/register" className="text-amber-900 dark:text-amber-800 hover:text-amber-800 dark:hover:text-amber-700 font-bold transition-colors text-sm">Sign Up</Link>
+              </div>
+              
+              <Link href="/seller/apply" className="bg-amber-300 hover:bg-amber-200 text-amber-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg">Sell</Link>
+            </div>
+          </div>
+        </div>
+      </header>
       
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -184,7 +240,7 @@ export default function RegisterPage() {
             </div>
           )}
           <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={handleSubmit} autoComplete="off">
               {/* First Name & Last Name */}
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
@@ -196,11 +252,15 @@ export default function RegisterPage() {
                       id="firstName"
                       name="firstName"
                       type="text"
-                      autoComplete="given-name"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="words"
+                      spellCheck="false"
                       required
                       value={formData.firstName}
                       onChange={handleChange}
                       className="input-field"
+                      placeholder="Enter your first name"
                     />
                     {errors.firstName && (
                       <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
@@ -217,11 +277,15 @@ export default function RegisterPage() {
                       id="lastName"
                       name="lastName"
                       type="text"
-                      autoComplete="family-name"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="words"
+                      spellCheck="false"
                       required
                       value={formData.lastName}
                       onChange={handleChange}
                       className="input-field"
+                      placeholder="Enter your last name"
                     />
                     {errors.lastName && (
                       <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
@@ -240,11 +304,15 @@ export default function RegisterPage() {
                     id="username"
                     name="username"
                     type="text"
-                    autoComplete="username"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck="false"
                     required
                     value={formData.username}
                     onChange={handleChange}
                     className="input-field"
+                    placeholder="Choose a unique username"
                   />
                   {errors.username && (
                     <p className="mt-1 text-sm text-red-600">{errors.username}</p>
@@ -262,11 +330,15 @@ export default function RegisterPage() {
                     id="email"
                     name="email"
                     type="email"
-                    autoComplete="email"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck="false"
                     required
                     value={formData.email}
                     onChange={handleChange}
                     className="input-field"
+                    placeholder="Enter your email address"
                   />
                   {errors.email && (
                     <p className="mt-1 text-sm text-red-600">{errors.email}</p>
@@ -285,7 +357,10 @@ export default function RegisterPage() {
                     id="phoneNumber"
                     name="phoneNumber"
                     type="tel"
-                    autoComplete="tel"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck="false"
                     required
                     placeholder="+1 (555) 123-4567"
                     value={formData.phoneNumber}
@@ -309,10 +384,14 @@ export default function RegisterPage() {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck="false"
                     required
                     value={formData.password}
                     onChange={handleChange}
                     className="input-field pr-10"
+                    placeholder="Create a strong password"
                   />
                   <button
                     type="button"
@@ -350,11 +429,15 @@ export default function RegisterPage() {
                     id="confirmPassword"
                     name="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck="false"
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     className="input-field pr-10"
+                    placeholder="Confirm your password"
                   />
                   <button
                     type="button"
@@ -402,7 +485,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-white"
                 >
                   {isLoading ? 'Creating account...' : 'Create account'}
                 </button>

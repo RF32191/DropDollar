@@ -2,8 +2,8 @@ import type { RevenueCalculation, Transaction, ListingFee } from '@/types';
 
 // Platform configuration
 export const PLATFORM_CONFIG = {
-  TRANSACTION_FEE_RATE: 0.065, // 6.5%
-  LISTING_FEE_AMOUNT: 0.20, // $0.20 in tokens
+  TRANSACTION_FEE_RATE: 0.12, // 12% platform fee
+  LISTING_FEE_AMOUNT: 0.20, // $0.20 listing fee
   LISTING_FEE_PERIOD_MONTHS: 4, // Every 4 months
   ESCROW_PERIOD_DAYS: 14, // 2 weeks
   RESERVE_POOL: 100000000, // 100 million tokens

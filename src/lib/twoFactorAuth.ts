@@ -240,7 +240,7 @@ export class TwoFactorAuthService {
     this.saveCodes(codes);
 
     // Simulate SMS sending (in production, integrate with Twilio/AWS SNS)
-    console.log(`📱 SMS sent to ${phoneNumber}: Your Dollar Drop verification code is ${code}. Valid for ${this.CODE_EXPIRY_MINUTES} minutes.`);
+    console.log(`📱 SMS sent to ${phoneNumber}: Your DropDollar verification code is ${code}. Valid for ${this.CODE_EXPIRY_MINUTES} minutes.`);
 
     return {
       success: true,

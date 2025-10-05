@@ -15,11 +15,11 @@ export default function SellerDemoPage() {
               <div className="w-10 h-10 mr-3">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
+                  alt="DropDollar Logo"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900">Dollar Drop</span>
+              <span className="text-xl font-bold text-gray-900">DropDollar</span>
             </Link>
             <nav className="flex items-center space-x-6">
               <Link href="/listings" className="text-gray-700 hover:text-green-600 font-medium">Browse</Link>

@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameEngine } from '@/lib/gameEngine';
+import { GameAudio } from '@/utils/gameAudio';
+import GameCountdown from './GameCountdown';
+import { FairRNGService, FallingObjectRNGConfig } from '@/lib/fairRNGService';
 
 interface GameResult {
   score: number;
@@ -37,7 +40,12 @@ const OBJECT_TYPES = [
 ];
 
 export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: FallingObjectGameProps) {
-  const [gameState, setGameState] = useState<'ready' | 'playing' | 'ended'>('ready');
+  // Get fair RNG configuration based on listing and attempt number
+  const rngConfig = listingId && entryNumber 
+    ? FairRNGService.getFallingObjectConfig(listingId, entryNumber)
+    : null;
+    
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [score, setScore] = useState(0);
   const [objects, setObjects] = useState<FallingObject[]>([]);
   const [paddleX, setPaddleX] = useState(50); // Percentage position
@@ -56,8 +64,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     rng: {
       isPractice: !isCompetitionMode, // Practice mode if not competition
       listingId,
-      entryNumber,
-      gameId // Use gameId for deterministic seeding
+      entryNumber
     },
     onGameEnd: () => {
       setGameState('ended');
@@ -72,6 +79,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         avgReactionTime: 0 // Not applicable for this game
       };
       
+      console.log('FallingObjectGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);
     }
   });
@@ -178,6 +186,13 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           // Random variability to prevent ties
           const randomBonus = engine.randomFloat(0.1, 4.9);
           
+          // Play catch sound based on object type
+          if (obj.type === 'coin') {
+            GameAudio.playCoinCatch();
+          } else if (obj.type === 'dollar') {
+            GameAudio.playDollarCatch();
+          }
+          
           // Calculate total score for this catch
           const totalPoints = obj.value + locationBonus + timingBonus + randomBonus;
           
@@ -210,7 +225,15 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           velocityY: newVelocityY,
           bounces: newBounces
         };
-      }).filter((obj): obj is FallingObject => obj !== null && obj.y < 100); // Remove caught objects and those that fell off
+      }).filter((obj): obj is FallingObject => {
+        if (obj === null) return false; // Caught objects
+        if (obj.y >= 100) {
+          // Object fell off screen - play miss sound
+          GameAudio.playObjectMiss();
+          return false;
+        }
+        return true;
+      });
 
       // Update score immediately after processing objects
       if (caughtThisFrame > 0) {
@@ -227,17 +250,59 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       return updatedObjects;
     });
 
-    // Progressive spawn rate increase: slightly higher to compensate for slower objects
-    const timeElapsed = 60 - timer.timeLeft;
-    const spawnMultiplier = 1 + (timeElapsed * 0.06); // Increases 6% every second
-    const spawnRate = Math.min(0.1, 0.025 * spawnMultiplier); // Max 10% spawn rate, starts at 2.5%
-    if (engine.random() < spawnRate) {
-      setObjects(prev => [...prev, createRandomObject()]);
-      setTotalObjects(prev => prev + 1);
+    // Object spawning logic - use RNG config if available
+    if (rngConfig) {
+      // Competition mode: spawn objects based on RNG configuration
+      const gameTime = 60 - timer.timeLeft; // Time elapsed in seconds
+      const gameTimeMs = gameTime * 1000; // Convert to milliseconds
+      
+      // Check if any objects should spawn at this time
+      const objectsToSpawn = rngConfig.sequence.filter(item => {
+        const spawnTime = item.time;
+        const timeDiff = Math.abs(gameTimeMs - spawnTime);
+        return timeDiff <= 50; // Spawn within 50ms window (3 frames at 60fps)
+      });
+      
+      objectsToSpawn.forEach(spawnConfig => {
+        // Check if we already spawned this object (prevent duplicates)
+        const alreadySpawned = objects.some(obj => 
+          Math.abs(obj.x - spawnConfig.x) < 5 && 
+          obj.type === spawnConfig.type
+        );
+        
+        if (!alreadySpawned) {
+          const newObject: FallingObject = {
+            id: Date.now() + Math.random(),
+            x: spawnConfig.x,
+            y: -15,
+            velocityX: engine.randomFloat(-0.2, 0.2), // Small random drift
+            velocityY: spawnConfig.speed * 0.8, // Use configured speed
+            size: spawnConfig.type === 'coin' ? 35 : spawnConfig.type === 'cash' ? 40 : 45,
+            type: spawnConfig.type === 'coin' ? 'coin' : 
+                  spawnConfig.type === 'cash' ? 'dollar' : 'bonus-coin',
+            value: spawnConfig.value,
+            bounces: 0
+          };
+          
+          setObjects(prev => [...prev, newObject]);
+          setTotalObjects(prev => prev + 1);
+          
+          console.log(`Spawned RNG object at ${gameTime}s:`, spawnConfig);
+        }
+      });
+    } else {
+      // Practice mode: use original random spawning
+      const timeElapsed = 60 - timer.timeLeft;
+      const spawnMultiplier = 1 + (timeElapsed * 0.06); // Increases 6% every second
+      const spawnRate = Math.min(0.1, 0.025 * spawnMultiplier); // Max 10% spawn rate, starts at 2.5%
+      if (engine.random() < spawnRate) {
+        setObjects(prev => [...prev, createRandomObject()]);
+        setTotalObjects(prev => prev + 1);
+      }
     }
 
     animationRef.current = requestAnimationFrame(updateGame);
-  }, [gameState, paddleX, timer.timeLeft, createRandomObject, engine]);
+  }, [gameState, paddleX, timer.timeLeft, createRandomObject, engine, rngConfig, objects]);
 
   const handleKeyPress = useCallback((key: string, pressed: boolean) => {
     setKeysPressed(prev => {
@@ -307,6 +372,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   }, [gameState, updateGame]);
 
   const handleStartGame = () => {
+    console.log('Starting FallingObjectGame countdown...');
+    
     // Reset game state
     setScore(0);
     currentScoreRef.current = 0; // Reset score ref
@@ -314,6 +381,13 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     setPaddleX(50);
     setTotalObjects(0);
     setCaughtObjects(0);
+    
+    // Start countdown
+    setGameState('countdown');
+  };
+
+  const handleCountdownComplete = () => {
+    console.log('Countdown complete, starting game...');
     
     // Generate initial objects BEFORE starting timer
     const initialObjects: FallingObject[] = [];
@@ -331,6 +405,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     // Now start the game and timer
     setGameState('playing');
     startGame(); // Start the engine timer
+  };
+
+  const handleCountdownCancel = () => {
+    console.log('Countdown cancelled');
+    setGameState('ready');
   };
 
   const getObjectStyle = (obj: FallingObject) => {
@@ -379,15 +458,23 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           </div>
         </div>
 
+        {gameState === 'countdown' && (
+          <GameCountdown
+            onCountdownComplete={handleCountdownComplete}
+            onCancel={handleCountdownCancel}
+            showTitle="💰 Falling Object Catch"
+          />
+        )}
+
         {gameState === 'ready' && (
           <div className="space-y-8">
             <div className="text-2xl font-bold text-gray-900">
               🎮 Falling Object Catch
             </div>
             <div className="text-gray-600 space-y-2">
-              <p>Catch falling objects with your paddle!</p>
+              <p>Catch falling objects with your cash case!</p>
               <p>Objects have realistic physics - they bounce and drift unpredictably</p>
-              <p>Use <strong>Arrow Keys</strong> or <strong>A/D</strong> to move your paddle</p>
+              <p>Use <strong>Arrow Keys</strong> or <strong>A/D</strong> to move your cash case</p>
               <p>🎯 Each caught object = 1 point</p>
             </div>
             <button
@@ -402,7 +489,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         {gameState === 'playing' && (
           <div className="space-y-6">
             <div className="text-xl font-bold text-gray-900">
-              💰 Catch the coins and dollars with your briefcase!
+              💰 Catch the coins and dollars with your cash case!
             </div>
             
             {/* Score Info */}
@@ -454,7 +541,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 );
               })}
               
-              {/* Briefcase Paddle - Extra Wide for better scoring zones */}
+              {/* Cash Case Paddle - Extra Wide for better scoring zones */}
               <div
                 className="absolute flex items-center justify-center"
                 style={{
@@ -463,13 +550,20 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                   width: '200px', // Extra wide to match collision detection
                   height: '45px',
                   transform: 'translateX(-50%)',
-                  fontSize: '55px', // Even larger emoji to match extra wide area
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
                   filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
                   zIndex: 20
                 }}
               >
-                💼
+                <img 
+                  src="/CashCase.PNG" 
+                  alt="Cash Case" 
+                  style={{
+                    width: '80px',
+                    height: '45px',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))'
+                  }}
+                />
               </div>
               
               {/* Scoring Zone Indicators (subtle visual guides) */}

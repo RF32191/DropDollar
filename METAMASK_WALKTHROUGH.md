@@ -238,3 +238,5 @@ The script will show:
 - **Price appreciation:** Early buyers get lower prices
 
 **Ready to become a cryptocurrency creator? Let's do this! 🚀💧**
+
+

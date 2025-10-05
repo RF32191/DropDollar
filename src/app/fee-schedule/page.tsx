@@ -19,8 +19,8 @@ export default function FeeSchedulePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-3">
-              <img src="/DropCoin.png" alt="Dollar Drop" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-900">Dollar Drop</span>
+              <img src="/DropCoin.png" alt="DropDollar" className="h-8 w-8" />
+              <span className="text-xl font-bold text-gray-900">DropDollar</span>
             </Link>
             <nav className="flex space-x-6">
               <Link href="/seller/apply" className="text-blue-600 hover:text-blue-700 font-medium">← Back to Application</Link>
@@ -39,7 +39,7 @@ export default function FeeSchedulePage() {
             <h1 className="text-4xl font-bold text-gray-900">Fee Schedule</h1>
           </div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Transparent pricing structure for all Dollar Drop sellers and tournament participants
+            Transparent pricing structure for all DropDollar sellers and tournament participants
           </p>
         </div>
 
@@ -85,8 +85,11 @@ export default function FeeSchedulePage() {
                     <span className="font-bold text-red-600">-$0.20</span>
                   </div>
                   <div className="border-t border-green-300 pt-1 flex justify-between">
-                    <span className="font-bold">You receive:</span>
+                    <span className="font-bold">You receive (CASH):</span>
                     <span className="font-bold text-green-800">$879.80</span>
+                  </div>
+                  <div className="text-xs text-green-600 mt-2 font-medium">
+                    💰 Paid directly to your bank account after 14-day escrow period
                   </div>
                 </div>
               </div>
@@ -254,6 +257,62 @@ export default function FeeSchedulePage() {
           </div>
         </section>
 
+        {/* Cash Payout System */}
+        <section className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+            💰 Seller Cash Payout System
+          </h2>
+          
+          <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 shadow-lg border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <CurrencyDollarIcon className="h-6 w-6 text-green-600 mr-2" />
+                  How You Get Paid
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-start">
+                    <div className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">1</div>
+                    <div>
+                      <strong>Item Sells:</strong> Buyer pays the full item price
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">2</div>
+                    <div>
+                      <strong>Escrow Period:</strong> Payment held for 14 days for buyer protection
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">3</div>
+                    <div>
+                      <strong>Cash Payout:</strong> You receive 88% of sale price directly to your bank account
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Payment Methods</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <strong className="text-green-600">✓ Direct Bank Transfer</strong>
+                    <div className="text-gray-600">ACH transfer to your bank account</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <strong className="text-green-600">✓ PayPal Payout</strong>
+                    <div className="text-gray-600">Direct to your PayPal account</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <strong className="text-green-600">✓ Weekly Schedule</strong>
+                    <div className="text-gray-600">Payouts processed every Friday</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Important Notes */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
           <div className="flex items-start">
@@ -264,6 +323,8 @@ export default function FeeSchedulePage() {
                 <li>• <strong>Regular Item Sales:</strong> 12% DropDollar platform fee + $0.20 listing fee</li>
                 <li>• <strong>Cash Tournaments:</strong> 15% DropDollar platform fee from prize pools</li>
                 <li>• <strong>Entry Fees:</strong> 100% of tournament entry fees go to DropDollar</li>
+                <li>• <strong>Seller Payouts:</strong> CASH payments only - no tokens to sellers</li>
+                <li>• <strong>Escrow Protection:</strong> 14-day buyer protection period before seller payout</li>
                 <li>• <strong>Payment Processing:</strong> Additional payment processing fees may apply</li>
                 <li>• <strong>Fee Changes:</strong> DropDollar reserves the right to modify fees with 30 days notice</li>
                 <li>• <strong>Transparency:</strong> All fees are clearly disclosed before transactions</li>
@@ -297,7 +358,7 @@ export default function FeeSchedulePage() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 Dollar Drop - Transparent Fee Structure</p>
+          <p className="text-gray-400">© 2024 DropDollar - Transparent Fee Structure</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/terms" className="text-gray-400 hover:text-white">Terms & Conditions</Link>
             <Link href="/privacy" className="text-gray-400 hover:text-white">Privacy Policy</Link>

@@ -6,6 +6,13 @@ import { useSearchParams } from 'next/navigation';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
+import AdOverlay from '@/components/ads/AdOverlay';
+import LocationPermissionModal from '@/components/LocationPermissionModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAdSystem } from '@/hooks/useAdSystem';
+import { useGameLocationGuard } from '@/hooks/useLocationGuard';
+import { GameScoreService } from '@/lib/supabase/gameScores';
+import { LocationService, type LocationData } from '@/lib/locationService';
 import { 
   PuzzlePieceIcon, 
   CursorArrowRaysIcon, 
@@ -14,7 +21,9 @@ import {
   ClockIcon,
   TrophyIcon,
   InformationCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  MapPinIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -31,7 +40,7 @@ const GAMES = [
   {
     id: 'falling-objects',
     name: 'Falling Object Catch',
-    description: 'Catch objects with realistic physics and bouncing',
+    description: 'Catch coins and dollars with your cash case using realistic physics',
     icon: DevicePhoneMobileIcon,
     difficulty: 'Medium',
     avgTime: '60s',
@@ -70,6 +79,18 @@ export default function GamesPage() {
   const listingId = searchParams.get('listingId');
   const entryNumber = parseInt(searchParams.get('entryNumber') || '1');
   const isCompetitionMode = !!listingId;
+  const { user } = useAuth();
+  const locationGuard = useGameLocationGuard();
+  
+  // Ad System Integration
+  const { 
+    showAd, 
+    adSettings, 
+    startPracticeGame, 
+    handleAdComplete, 
+    handleAdSkip, 
+    resetAd 
+  } = useAdSystem();
 
   const [currentGame, setCurrentGame] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<GameResult | null>(null);
@@ -79,11 +100,43 @@ export default function GamesPage() {
   const [showPopularityStats, setShowPopularityStats] = useState(false);
   const [totalGamesPlayed, setTotalGamesPlayed] = useState(0);
   const [showSponsoredListings, setShowSponsoredListings] = useState(false);
+  const [isLoadingScores, setIsLoadingScores] = useState(false);
+  const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
-  // Load practice data from localStorage on component mount
-  useEffect(() => {
-    const savedScores = localStorage.getItem('bestScores');
+  // Check location permission before allowing game access
+  const checkLocationBeforeGame = (gameId: string) => {
+    if (locationGuard.needsLocationModal()) {
+      setShowLocationModal(true);
+      setPendingGameStart(gameId);
+      return false;
+    }
     
+    if (!locationGuard.canAccessGames()) {
+      // Location is restricted
+      return false;
+    }
+    
+    // Location is verified and allowed, proceed with game
+    return true;
+  };
+
+  const handleLocationVerified = (location: LocationData) => {
+    setShowLocationModal(false);
+    if (pendingGameStart) {
+      startGame(pendingGameStart);
+      setPendingGameStart(null);
+    }
+  };
+
+  const handleLocationDenied = (reason: string) => {
+    setShowLocationModal(false);
+    setPendingGameStart(null);
+    // User will see the restriction message in the UI
+  };
+
+  // Load practice data and scores
+  useEffect(() => {
     // Remove practice attempt limitations - allow unlimited practice
     const unlimitedAttempts: {[key: string]: number} = {};
     GAMES.forEach(game => {
@@ -91,9 +144,64 @@ export default function GamesPage() {
     });
     setPracticeAttempts(unlimitedAttempts);
 
-    if (savedScores) {
-      setBestScores(JSON.parse(savedScores));
-    }
+    // Load scores from Supabase if user is logged in, otherwise from localStorage
+    const loadScores = async () => {
+      if (user?.id) {
+        setIsLoadingScores(true);
+        try {
+          const userBestScores = await GameScoreService.getUserBestScores(user.id);
+          const scoresMap: {[key: string]: number} = {};
+          
+          userBestScores.forEach(score => {
+            scoresMap[score.game_type] = score.best_score;
+          });
+          
+          setBestScores(scoresMap);
+          
+          // Sync any local scores to Supabase if they exist
+          const savedScores = localStorage.getItem('bestScores');
+          if (savedScores) {
+            try {
+              const localScores = JSON.parse(savedScores);
+              await GameScoreService.syncLocalScores(user.id, localScores);
+              // Clear local storage after sync
+              localStorage.removeItem('bestScores');
+            } catch (error) {
+              console.error('Error syncing local scores:', error);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading scores from Supabase:', error);
+          // Fallback to localStorage
+          const savedScores = localStorage.getItem('bestScores');
+          if (savedScores) {
+            try {
+              const parsedScores = JSON.parse(savedScores);
+              setBestScores(parsedScores);
+            } catch (error) {
+              console.error('Error parsing saved scores:', error);
+              setBestScores({});
+            }
+          }
+        } finally {
+          setIsLoadingScores(false);
+        }
+      } else {
+        // Load from localStorage for non-logged-in users
+        const savedScores = localStorage.getItem('bestScores');
+        if (savedScores) {
+          try {
+            const parsedScores = JSON.parse(savedScores);
+            setBestScores(parsedScores);
+          } catch (error) {
+            console.error('Error parsing saved scores:', error);
+            setBestScores({});
+          }
+        }
+      }
+    };
+
+    loadScores();
 
     // Load popularity data - always reinitialize to ensure only 3 games
     const savedPopularity = localStorage.getItem('gamePopularity');
@@ -141,30 +249,125 @@ export default function GamesPage() {
     const totalPlayed = Object.values(currentPopularity).reduce((sum, pop) => sum + pop.timesPlayed, 0);
     setTotalGamesPlayed(totalPlayed);
     setShowSponsoredListings(totalPlayed >= 3);
-  }, []);
+  }, [user]);
 
   const handleGameStart = (gameId: string) => {
-    // Always allow game start - no attempt limits
+    // First check location permission for all game modes
+    if (!checkLocationBeforeGame(gameId)) {
+      return; // Location check failed, modal will be shown or user is restricted
+    }
+
+    // For competition mode, start immediately without ads
+    if (isCompetitionMode) {
+      setCurrentGame(gameId);
+      setGameResults(null);
+      return;
+    }
+
+    // For practice mode, check if ad should be shown
+    const shouldShowAd = startPracticeGame(gameId);
+    
+    if (shouldShowAd) {
+      // Ad will be shown, store the pending game
+      setPendingGameStart(gameId);
+    } else {
+      // No ad, start game immediately
+      setCurrentGame(gameId);
+      setGameResults(null);
+    }
+  };
+
+  // New function to start game after location verification
+  const startGame = (gameId: string) => {
     setCurrentGame(gameId);
     setGameResults(null);
   };
 
-  const handleGameEnd = (result: GameResult) => {
+  // Handle ad completion and start the pending game
+  const handleAdCompleteAndStartGame = () => {
+    handleAdComplete();
+    if (pendingGameStart) {
+      setCurrentGame(pendingGameStart);
+      setPendingGameStart(null);
+      setGameResults(null);
+    }
+  };
+
+  // Handle ad skip and start the pending game
+  const handleAdSkipAndStartGame = () => {
+    handleAdSkip();
+    if (pendingGameStart) {
+      setCurrentGame(pendingGameStart);
+      setPendingGameStart(null);
+      setGameResults(null);
+    }
+  };
+
+  const handleGameEnd = async (result: GameResult) => {
     if (!currentGame) return;
 
     setGameResults(result);
     
-    // No need to update attempts - unlimited practice
+    // Save score to Supabase if user is logged in
+    if (user?.id) {
+      try {
+        await GameScoreService.saveGameScore({
+          user_id: user.id,
+          game_type: currentGame as 'multi-target' | 'color-sequence' | 'falling-objects',
+          score: result.score,
+          accuracy: result.accuracy,
+          avg_reaction_time: result.avgReactionTime,
+          game_duration: 60, // Default game duration
+          is_practice: !isCompetitionMode,
+          listing_id: listingId || undefined,
+          entry_number: isCompetitionMode ? entryNumber : undefined,
+          metadata: {
+            timestamp: new Date().toISOString(),
+            game_version: '1.0'
+          }
+        });
 
-    // Update best score
-    const currentBest = bestScores[currentGame] || 0;
-    if (result.score > currentBest) {
-      const newBestScores = {
-        ...bestScores,
-        [currentGame]: result.score
-      };
-      setBestScores(newBestScores);
-      localStorage.setItem('bestScores', JSON.stringify(newBestScores));
+        // Reload best scores from Supabase to get updated data
+        const userBestScores = await GameScoreService.getUserBestScores(user.id);
+        const scoresMap: {[key: string]: number} = {};
+        
+        userBestScores.forEach(score => {
+          scoresMap[score.game_type] = score.best_score;
+        });
+        
+        setBestScores(scoresMap);
+      } catch (error) {
+        console.error('Error saving score to Supabase:', error);
+        // Fallback to localStorage
+        const currentBest = bestScores[currentGame] || 0;
+        if (result.score > currentBest) {
+          const newBestScores = {
+            ...bestScores,
+            [currentGame]: result.score
+          };
+          setBestScores(newBestScores);
+          try {
+            localStorage.setItem('bestScores', JSON.stringify(newBestScores));
+          } catch (error) {
+            console.error('Error saving best scores to localStorage:', error);
+          }
+        }
+      }
+    } else {
+      // Save to localStorage for non-logged-in users
+      const currentBest = bestScores[currentGame] || 0;
+      if (result.score > currentBest) {
+        const newBestScores = {
+          ...bestScores,
+          [currentGame]: result.score
+        };
+        setBestScores(newBestScores);
+        try {
+          localStorage.setItem('bestScores', JSON.stringify(newBestScores));
+        } catch (error) {
+          console.error('Error saving best scores to localStorage:', error);
+        }
+      }
     }
 
     // Update game popularity stats (increment play count and update average score)
@@ -211,7 +414,7 @@ export default function GamesPage() {
         <GameComponent
           onGameEnd={handleGameEnd}
           onExit={handleGameExit}
-          listingId={listingId}
+          listingId={listingId || undefined}
           entryNumber={entryNumber}
         />
       );
@@ -300,34 +503,178 @@ export default function GamesPage() {
       )}
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Simple Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center">
-              <div className="w-10 h-10 mr-3">
-                <img
-                  src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
-                  className="w-full h-full object-contain"
-                />
+      {/* Location Restriction Banner */}
+      {locationGuard.hasChecked && !locationGuard.canAccessGames() && (
+        <div className="bg-red-50 dark:bg-red-900/20 border-b-4 border-red-500">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">Dollar Drop</span>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-800 dark:text-red-300 mb-2">
+                  Games Not Available in Your Location
+                </h3>
+                <p className="text-red-700 dark:text-red-400 mb-4">
+                  {locationGuard.getBlockingReason() || 'Skill-based gaming competitions are not available in your current location due to legal regulations.'}
+                </p>
+                <div className="bg-red-100 dark:bg-red-900/30 rounded-lg p-4">
+                  <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">What you can still do:</h4>
+                  <ul className="text-red-700 dark:text-red-400 text-sm space-y-1">
+                    <li>• Browse our marketplace and view product listings</li>
+                    <li>• Learn about our platform and how it works</li>
+                    <li>• Contact customer support for assistance</li>
+                    <li>• Sign up for updates about expanded availability</li>
+                  </ul>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link 
+                    href="/listings" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                  >
+                    Browse Marketplace
+                  </Link>
+                  <Link 
+                    href="/how-it-works" 
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                  >
+                    Learn More
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Verification Status */}
+      {locationGuard.hasChecked && locationGuard.location && locationGuard.canAccessGames() && (
+        <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShieldCheckIcon className="h-5 w-5 text-green-600" />
+                <span className="text-sm text-green-800 dark:text-green-300 font-medium">
+                  Location verified: {locationGuard.getComplianceMessage()}
+                </span>
+              </div>
+              <button
+                onClick={() => locationGuard.clearLocation()}
+                className="text-xs text-green-600 hover:text-green-800 underline"
+              >
+                Update Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* GAMING Header */}
+      <header className="bg-gradient-to-r from-purple-900 via-indigo-800 to-purple-900 dark:from-purple-950 dark:via-indigo-900 dark:to-purple-950 shadow-2xl border-b-4 border-purple-500/50 transition-all duration-300 relative overflow-hidden">
+        {/* Animated Gaming Background */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-1/4 w-32 h-32 bg-purple-500/30 rounded-full blur-xl animate-pulse"></div>
+          <div className="absolute top-10 right-1/3 w-24 h-24 bg-pink-500/40 rounded-full blur-xl animate-pulse delay-1000"></div>
+          <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-indigo-500/20 rounded-full blur-xl animate-pulse delay-2000"></div>
+        </div>
+        <div className="max-w-8xl mx-auto px-3 lg:px-4 relative z-10">
+          <div className="flex justify-between items-center py-3">
+            {/* Logo Section */}
+            <Link href="/" className="flex items-center space-x-4 group">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 via-pink-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xl group-hover:shadow-purple-500/25 transition-all duration-300 group-hover:scale-105">
+                  <img 
+                    src="/DropCoin.png" 
+                    alt="DropDollar Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+                  DropDollar
+                </span>
+                <span className="text-xs text-gray-400 font-medium tracking-wide">PRACTICE GAMES</span>
+              </div>
             </Link>
-                     <nav className="flex items-center space-x-6">
-                       <Link href="/listings" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">Browse</Link>
-                       <Link href="/categories" className="text-gray-700 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300 font-medium transition-colors">Categories</Link>
-                       <Link href="/games" className="text-purple-600 dark:text-green-400 hover:text-purple-700 dark:hover:text-green-300 font-bold transition-colors">🎮 Games</Link>
-                       <Link href="/hot-sell" className="text-red-600 hover:text-red-700 font-bold">🔥 Hot Sell</Link>
-                       <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
-                       <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
-                       <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-                         <Link href="/wallet" className="text-green-600 hover:text-green-700 font-bold">👛 Wallet</Link>
-                         <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
-                         <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                         <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
-                       </div>
-                     </nav>
+
+            {/* GAMING Navigation - Accessible Layout */}
+            <div className="flex items-center justify-center flex-1 mx-4">
+              <nav className="hidden lg:flex items-center space-x-4">
+                {/* Primary Navigation */}
+                <div className="flex items-center space-x-2">
+                  <Link href="/listings" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                    <span className="relative z-10">Browse</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                  <Link href="/categories" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                    <span className="relative z-10">Categories</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                  <Link href="/how-it-works" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                    <span className="relative z-10">How It Works</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                </div>
+
+                {/* GAMES - Center Focus */}
+                <div className="flex items-center space-x-1 px-4 py-2 bg-gradient-to-r from-purple-600/60 to-pink-600/60 rounded-xl border-2 border-purple-400/50 backdrop-blur-sm shadow-lg shadow-purple-500/25">
+                  <Link href="/games" className="relative group px-3 py-1 text-purple-100 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 bg-gradient-to-r from-purple-500/40 to-pink-500/40 rounded-lg border border-purple-300/30 text-xs">
+                    <span className="animate-pulse">🎮</span>
+                    <span className="relative z-10">GAMES</span>
+                  </Link>
+                  <Link href="/tournaments" className="relative group px-2 py-1 text-yellow-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                    <span>🏆</span>
+                    <span className="relative z-10">Tournaments</span>
+                  </Link>
+                  <Link href="/hot-sell" className="relative group px-2 py-1 text-red-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                    <span>🔥</span>
+                    <span className="relative z-10">Hot Sell</span>
+                  </Link>
+                </div>
+
+                {/* Secondary Navigation */}
+                <div className="flex items-center space-x-2">
+                  <Link href="/tournament-results" className="relative group px-2 py-2 text-cyan-200 hover:text-white font-medium transition-all duration-300 flex items-center space-x-1 text-sm">
+                    <span>📊</span>
+                    <span className="relative z-10">Results</span>
+                  </Link>
+                  <Link href="/buy-tokens" className="relative group px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold rounded-lg transition-all duration-300 flex items-center space-x-1 shadow-lg hover:shadow-green-500/30 hover:scale-105 text-sm">
+                    <span>💰</span>
+                    <span>Tokens</span>
+                  </Link>
+                </div>
+              </nav>
+            </div>
+
+            {/* User Actions - Always Visible */}
+            <div className="flex items-center space-x-2">
+              <Link href="/settings" className="hidden md:flex items-center space-x-1 px-2 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm">
+                <span>⚙️</span>
+                <span>Settings</span>
+              </Link>
+              
+              <Link href="/auth/login" className="px-3 py-2 text-purple-200 hover:text-white font-medium transition-colors duration-300 text-sm">
+                Sign In
+              </Link>
+              <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+                Sign Up
+              </Link>
+              <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+                Sell
+              </Link>
+            </div>
+          </div>
+
+          {/* Mobile Navigation */}
+          <div className="lg:hidden pb-4">
+            <div className="flex flex-wrap gap-2 justify-center">
+              <Link href="/games" className="px-3 py-1.5 bg-purple-600/30 text-purple-300 rounded-lg text-sm font-medium border border-purple-500/30">🎮 Games</Link>
+              <Link href="/tournaments" className="px-3 py-1.5 bg-yellow-600/20 text-yellow-300 rounded-lg text-sm font-medium">🏆 Tournaments</Link>
+              <Link href="/hot-sell" className="px-3 py-1.5 bg-red-600/20 text-red-300 rounded-lg text-sm font-medium">🔥 Hot Sell</Link>
+              <Link href="/listings" className="px-3 py-1.5 bg-gray-600/20 text-gray-300 rounded-lg text-sm font-medium">Browse</Link>
+              <Link href="/buy-tokens" className="px-3 py-1.5 bg-green-600/20 text-green-300 rounded-lg text-sm font-medium">💰 Tokens</Link>
+            </div>
           </div>
         </div>
       </header>
@@ -335,9 +682,12 @@ export default function GamesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
             {isCompetitionMode ? '🏆 Competition Mode' : '🎮 Practice Gaming Arena'}
           </h1>
+          <p className="text-lg font-bold text-green-600 mb-4 italic">
+            "Don't drop out, drop a dollar."
+          </p>
           {isCompetitionMode ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 max-w-3xl mx-auto">
               <p className="text-lg text-red-800 font-bold">
@@ -725,7 +1075,7 @@ export default function GamesPage() {
       {/* Simple Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 Dollar Drop - Revolutionary Skill-Based Gaming Marketplace</p>
+          <p className="text-gray-400">© 2024 DropDollar - Revolutionary Skill-Based Gaming Marketplace</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/how-it-works" className="text-gray-400 hover:text-white">How It Works</Link>
             <Link href="/games" className="text-gray-400 hover:text-white">Practice Games</Link>
@@ -734,6 +1084,28 @@ export default function GamesPage() {
         </div>
       </footer>
       </div>
+      
+      {/* Ad Overlay - Shows before practice games */}
+      {showAd && (
+        <AdOverlay
+          onAdComplete={handleAdCompleteAndStartGame}
+          onSkip={adSettings.allowSkip ? handleAdSkipAndStartGame : undefined}
+          duration={adSettings.duration}
+          allowSkip={adSettings.allowSkip}
+          skipAfter={adSettings.skipAfter}
+        />
+      )}
+
+      {/* Location Permission Modal */}
+      <LocationPermissionModal
+        isOpen={showLocationModal}
+        onClose={() => {
+          setShowLocationModal(false);
+          setPendingGameStart(null);
+        }}
+        onLocationVerified={handleLocationVerified}
+        onLocationDenied={handleLocationDenied}
+      />
     </>
   );
 }

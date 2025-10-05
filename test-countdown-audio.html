@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DropDollar Countdown Audio Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            text-align: center; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button { 
+            padding: 15px 30px; 
+            margin: 10px; 
+            font-size: 18px; 
+            cursor: pointer; 
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .status { 
+            margin: 20px 0; 
+            padding: 20px; 
+            background: rgba(255, 255, 255, 0.2); 
+            border-radius: 15px; 
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .countdown-display {
+            font-size: 120px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .go-display {
+            font-size: 80px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #00ff88;
+            animation: bounce 0.6s ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 20%, 60%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            80% { transform: translateY(-15px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 DropDollar Countdown Test</h1>
+        <div class="status" id="status">Click any button to test countdown audio</div>
+        
+        <div id="countdown-display" class="countdown-display" style="display: none;"></div>
+        
+        <button onclick="testFullCountdown()">🚀 Test Full 5-Second Countdown</button>
+        <button onclick="testCountdownSounds()">🔊 Test Individual Countdown Sounds</button>
+        <button onclick="testStartSound()">⭐ Test "GO!" Start Sound</button>
+        <button onclick="stopTest()">⏹️ Stop Test</button>
+        
+        <div style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+            <p>🎵 <strong>Audio Features:</strong></p>
+            <p>• Numbers 5-1: Rising musical tones (A4 to E5)</p>
+            <p>• "GO!": Triumphant chord (C5 + E5 + G5)</p>
+            <p>• Visual countdown with animations</p>
+        </div>
+    </div>
+    
+    <script>
+        let audioContext = null;
+        let countdownInterval = null;
+        
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                document.getElementById('status').innerHTML = '✅ Audio Context Initialized';
+            }
+        }
+        
+        function createTone(frequency, duration, type = 'square', volume = 0.4) {
+            initAudio();
+            
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        function playCountdown(number) {
+            const frequencies = {
+                5: 440,  // A4
+                4: 494,  // B4
+                3: 523,  // C5
+                2: 587,  // D5
+                1: 659   // E5
+            };
+            
+            const frequency = frequencies[number] || 440;
+            createTone(frequency, 0.15, 'square', 0.4);
+            
+            document.getElementById('status').innerHTML = `🔊 Playing countdown: ${number}`;
+        }
+        
+        function playGameStartCountdown() {
+            // Final "GO!" sound - triumphant chord
+            createTone(523, 0.3, 'sine', 0.5); // C5
+            setTimeout(() => createTone(659, 0.3, 'sine', 0.4), 50); // E5
+            setTimeout(() => createTone(784, 0.3, 'sine', 0.3), 100); // G5
+            
+            document.getElementById('status').innerHTML = '🎉 Playing "GO!" sound';
+        }
+        
+        function testFullCountdown() {
+            stopTest();
+            
+            const display = document.getElementById('countdown-display');
+            display.style.display = 'block';
+            
+            let count = 5;
+            
+            function countdown() {
+                if (count > 0) {
+                    display.innerHTML = count;
+                    display.className = 'countdown-display';
+                    playCountdown(count);
+                    count--;
+                    countdownInterval = setTimeout(countdown, 1000);
+                } else {
+                    display.innerHTML = 'GO!';
+                    display.className = 'go-display';
+                    playGameStartCountdown();
+                    
+                    setTimeout(() => {
+                        display.style.display = 'none';
+                        document.getElementById('status').innerHTML = '✅ Full countdown test completed!';
+                    }, 2000);
+                }
+            }
+            
+            countdown();
+        }
+        
+        function testCountdownSounds() {
+            stopTest();
+            
+            let count = 5;
+            function playNext() {
+                if (count > 0) {
+                    playCountdown(count);
+                    count--;
+                    setTimeout(playNext, 600);
+                } else {
+                    document.getElementById('status').innerHTML = '✅ Individual sounds test completed!';
+                }
+            }
+            
+            playNext();
+        }
+        
+        function testStartSound() {
+            stopTest();
+            playGameStartCountdown();
+        }
+        
+        function stopTest() {
+            if (countdownInterval) {
+                clearTimeout(countdownInterval);
+                countdownInterval = null;
+            }
+            
+            document.getElementById('countdown-display').style.display = 'none';
+            document.getElementById('status').innerHTML = '⏹️ Test stopped';
+        }
+    </script>
+</body>
+</html>

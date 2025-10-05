@@ -4,7 +4,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { dropCoinContract } from '@/lib/dropCoinContract';
-import { walletService } from '@/lib/walletService';
 
 // Initialize Stripe only if secret key is available
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -246,14 +245,7 @@ async function distributeTokens(
   userId: string
 ) {
   try {
-    if (useWebsiteWallet) {
-      // Send to website wallet
-      const wallet = await walletService.getWallet(userId, 'user-password'); // You'll need to handle password properly
-      if (wallet) {
-        await walletService.sendTokensToWallet(wallet.address, tokenAmount);
-        return true;
-      }
-    } else if (customerAddress) {
+    if (customerAddress) {
       // Send to user's external wallet (MetaMask, etc.)
       // This would require your contract owner to send tokens
       // For now, just log it - you'll implement the actual transfer

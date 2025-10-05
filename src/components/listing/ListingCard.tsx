@@ -28,15 +28,9 @@ interface ListingCardProps {
 }
 
 const GAME_TYPES = [
-  { name: 'Simon Says Reflex', icon: PuzzlePieceIcon, color: 'blue', difficulty: 'Medium' },
-  { name: 'Multi-Target Reaction', icon: CursorArrowRaysIcon, color: 'green', difficulty: 'Easy' },
-  { name: 'Cognitive Reflex', icon: PuzzlePieceIcon, color: 'purple', difficulty: 'Hard' },
-  { name: 'Rhythm Reflex', icon: MusicalNoteIcon, color: 'yellow', difficulty: 'Medium' },
+  { name: 'Multi-Target Reaction', icon: CursorArrowRaysIcon, color: 'green', difficulty: 'Medium' },
   { name: 'Falling Object Catch', icon: DevicePhoneMobileIcon, color: 'red', difficulty: 'Medium' },
-  { name: 'Pattern Memory Challenge', icon: PuzzlePieceIcon, color: 'indigo', difficulty: 'Hard' },
-  { name: 'Color Sequence Memory', icon: PuzzlePieceIcon, color: 'pink', difficulty: 'Medium' },
-  { name: 'Word Chain Reflex', icon: PuzzlePieceIcon, color: 'teal', difficulty: 'Hard' },
-  { name: 'Number Sequence Puzzle', icon: PuzzlePieceIcon, color: 'violet', difficulty: 'Hard' }
+  { name: 'Color Sequence Memory', icon: PuzzlePieceIcon, color: 'purple', difficulty: 'Hard' }
 ];
 
 export default function ListingCard({ listing, showCategory = true }: ListingCardProps) {
@@ -110,10 +104,10 @@ export default function ListingCard({ listing, showCategory = true }: ListingCar
         </div>
       )}
 
-      {/* Mystery Game Badge */}
+      {/* Game Type Badge */}
       <div className="absolute bottom-3 right-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center shadow-lg">
-        <EyeSlashIcon className="h-3 w-3 mr-1" />
-        MYSTERY GAME
+        <PuzzlePieceIcon className="h-3 w-3 mr-1" />
+        {listing.gameType?.toUpperCase() || 'SKILL GAME'}
       </div>
 
       <Link href={`/listings/${listing.id}`} className="block">
@@ -251,11 +245,11 @@ export default function ListingCard({ listing, showCategory = true }: ListingCar
             </div>
           </div>
 
-          {/* Mystery Game System Notice */}
+          {/* Skill Game System Notice */}
           <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 mb-4 border border-purple-200">
             <div className="flex items-center justify-center mb-2">
-              <EyeSlashIcon className="h-4 w-4 text-purple-600 mr-2" />
-              <span className="text-sm font-medium text-purple-800">Mystery Gaming System</span>
+              <PuzzlePieceIcon className="h-4 w-4 text-purple-600 mr-2" />
+              <span className="text-sm font-medium text-purple-800">Skill Gaming System</span>
             </div>
             <div className="text-center">
               <div className="grid grid-cols-2 gap-3 text-xs text-purple-700">
@@ -332,7 +326,7 @@ export default function ListingCard({ listing, showCategory = true }: ListingCar
           {/* Action button */}
           <div className="text-center">
             <div className="text-xs text-gray-500 mb-3">
-              🎮 Enter to compete in mystery skill game!
+              🎮 Enter to compete in skill-based game!
             </div>
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-3 rounded-xl font-bold text-sm group-hover:from-purple-700 group-hover:to-pink-700 transition-all shadow-lg">
               🎯 Enter Game Competition ($1)

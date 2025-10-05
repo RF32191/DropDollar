@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { sellerDatabase, SellerApplication } from '@/lib/sellerDatabase';
-import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { 
   BuildingOfficeIcon,
@@ -834,8 +833,8 @@ export default function SellerApplicationPage() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Fee Structure</h3>
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <div className="flex justify-between">
-                  <span>Listing Fee (per 4 months):</span>
-                  <span className="font-semibold">$0.50</span>
+                  <span>Listing Fee (per listing):</span>
+                  <span className="font-semibold">$0.20</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Transaction Fee:</span>
@@ -891,7 +890,49 @@ export default function SellerApplicationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
+      {/* PLATINUM SELLER Header */}
+      <header className="bg-gradient-to-r from-slate-400 via-gray-300 to-zinc-400 dark:from-slate-600 dark:via-gray-500 dark:to-zinc-600 shadow-2xl border-b-4 border-slate-500 dark:border-slate-400">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            {/* Logo Section */}
+            <Link href="/" className="flex items-center group">
+              <div className="bg-gradient-to-br from-slate-200 to-zinc-400 dark:from-slate-300 dark:to-zinc-500 p-3 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 mr-4">
+                <img
+                  src="/DropCoin.png"
+                  alt="DropDollar Logo"
+                  className="w-8 h-8 object-contain"
+                />
+              </div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-white to-slate-100 dark:from-slate-100 dark:to-white bg-clip-text text-transparent group-hover:from-slate-100 group-hover:to-white transition-all duration-300">
+                DropDollar
+              </div>
+            </Link>
+
+            {/* PLATINUM Navigation */}
+            <nav className="flex-1 mx-4">
+              <div className="flex items-center justify-center space-x-4">
+                <Link href="/listings" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">Browse</Link>
+                <Link href="/categories" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">Categories</Link>
+                <Link href="/games" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">🎮 Games</Link>
+                <Link href="/tournaments" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">🏆 Tournaments</Link>
+                <Link href="/hot-sell" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">🔥 Hot Sell</Link>
+                <Link href="/how-it-works" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">How It Works</Link>
+              </div>
+            </nav>
+
+            {/* User Actions */}
+            <div className="flex items-center space-x-2">
+              <Link href="/auth/login" className="text-slate-100 dark:text-slate-200 hover:text-white dark:hover:text-slate-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-slate-500/30">Sign In</Link>
+              <Link href="/auth/register" className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-white/30">Sign Up</Link>
+              
+              {/* Active Seller Link */}
+              <div className="bg-gradient-to-r from-slate-200 to-zinc-300 dark:from-slate-300 dark:to-zinc-400 px-4 py-2 rounded-xl shadow-lg">
+                <Link href="/seller/apply" className="text-slate-900 dark:text-slate-800 hover:text-slate-800 dark:hover:text-slate-700 font-bold transition-colors text-sm">💼 Sell</Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Progress Bar */}

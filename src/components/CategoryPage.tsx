@@ -95,8 +95,8 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center space-x-3">
-              <img src="/DropCoin.png" alt="Dollar Drop" className="h-8 w-8" />
-              <span className="text-xl font-bold text-gray-900">Dollar Drop</span>
+              <img src="/DropCoin.png" alt="DropDollar" className="h-8 w-8" />
+              <span className="text-xl font-bold text-gray-900">DropDollar</span>
             </Link>
             <nav className="flex space-x-8">
               <Link href="/" className="text-gray-600 hover:text-gray-900">Home</Link>
@@ -164,7 +164,7 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
                   <h3 className="font-bold text-red-800 mb-2">⏰ Active Gaming Competitions</h3>
                   <p className="text-red-700 text-sm">
                     These items have met their base price and are now in active 24-hour gaming competitions! 
-                    Anyone can join to play the mystery game and compete for the prize.
+                    Anyone can join to play the assigned skill game and compete for the prize.
                   </p>
                 </div>
               </div>
@@ -202,7 +202,7 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Game Type:</span>
-                      <span className="font-bold text-purple-600">Mystery</span>
+                      <span className="font-bold text-purple-600">Multi-Target</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Players:</span>
@@ -362,8 +362,8 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="flex items-center justify-center space-x-3 mb-4">
-              <img src="/DropCoin.png" alt="Dollar Drop" className="h-8 w-8" />
-              <span className="text-xl font-bold">Dollar Drop</span>
+              <img src="/DropCoin.png" alt="DropDollar" className="h-8 w-8" />
+              <span className="text-xl font-bold">DropDollar</span>
             </div>
             <p className="text-gray-400 mb-4">
               Revolutionary gaming marketplace with fractional token technology

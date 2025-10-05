@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { database } from '@/lib/database';
+import { supabase } from '@/lib/supabase/client';
 import { validatePasswordStrength } from '@/lib/passwordUtils';
 
 // Import the verification codes (in production, use Redis or database)
@@ -70,27 +70,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user and update password
-    await database.initDB();
-    const user = await database.getUserByPhoneNumber(formattedPhone);
+    // Get user by phone number
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, phone')
+      .eq('phone', formattedPhone)
+      .single();
     
-    if (!user) {
+    if (!user || userError) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    // Hash the new password
-    const hashedPassword = await database.hashPassword(newPassword);
-    
-    // Update user's password
-    const success = await database.updateUser(user.id, { 
-      password: hashedPassword,
-      lastLogin: new Date()
-    });
+    // Update password using Supabase Auth Admin API
+    // Note: This requires service role key, which should be handled server-side
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword }
+    );
 
-    if (!success) {
+    if (updateError) {
       return NextResponse.json(
         { error: 'Failed to update password' },
         { status: 500 }

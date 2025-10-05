@@ -284,10 +284,10 @@ export class MarketingService {
     return this.createCampaign({
       name: `Weekly Newsletter - ${new Date().toLocaleDateString()}`,
       type: 'weeklyNewsletter',
-      subject: `📰 Your Weekly Dollar Drop Update - ${weeklyStats.newCompetitions} New Competitions!`,
+      subject: `📰 Your Weekly DropDollar Update - ${weeklyStats.newCompetitions} New Competitions!`,
       content: `
-        <h2>📰 Your Weekly Dollar Drop Update</h2>
-        <p>Here's what happened this week on Dollar Drop:</p>
+        <h2>📰 Your Weekly DropDollar Update</h2>
+        <p>Here's what happened this week on DropDollar:</p>
         
         <h3>📊 This Week's Stats</h3>
         <ul>

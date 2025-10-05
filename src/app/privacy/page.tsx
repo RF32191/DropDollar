@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Privacy Policy</h1>
           </div>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Your privacy is important to us. This policy explains how Dollar Drop collects, uses, and protects your personal information.
+            Your privacy is important to us. This policy explains how DropDollar collects, uses, and protects your personal information.
           </p>
           <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
             <strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -333,7 +333,7 @@ export default function PrivacyPolicyPage() {
                 <div>
                   <div className="font-bold text-gray-900">Company Address</div>
                   <div className="text-gray-600">
-                    Dollar Drop LLC<br />
+                    DropDollar LLC<br />
                     123 Gaming Street<br />
                     Tech City, CA 90210
                   </div>

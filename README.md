@@ -1,4 +1,4 @@
-# Dollar Drop - Every Dollar Drops the Price
+# DropDollar - Every Dollar Drops the Price
 
 **Every Dollar Drops the Price!** A unique marketplace where every $1 bid drops the price by $1! Guess the final price to win amazing deals on quality products.
 

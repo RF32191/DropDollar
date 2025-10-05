@@ -286,3 +286,5 @@ export class DropCoinWalletIntegration {
 }
 
 export const dropCoinWalletIntegration = new DropCoinWalletIntegration();
+
+

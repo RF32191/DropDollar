@@ -15,7 +15,7 @@ export default function DollarDropLogo({ size = 'md', className = '' }: DollarDr
     <div className={`${sizeClasses[size]} ${className} relative`}>
       <img
         src="/DropCoin.png"
-        alt="Dollar Drop Coin Logo - Your custom green coin with 1 cutting through dollar symbol"
+        alt="DropDollar Coin Logo - Your custom green coin with 1 cutting through dollar symbol"
         className="w-full h-full object-contain"
       />
     </div>

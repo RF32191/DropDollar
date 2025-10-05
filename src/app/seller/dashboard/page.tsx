@@ -316,6 +316,150 @@ export default function SellerDashboardPage() {
           </div>
         </div>
 
+        {/* Advertising Section */}
+        <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-lg shadow border border-orange-200 dark:border-orange-800 mb-8">
+          <div className="px-6 py-4 border-b border-orange-200 dark:border-orange-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mr-3">
+                  <span className="text-xl">📺</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Advertising & Sponsorship</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Promote your business with targeted ads</p>
+                </div>
+              </div>
+              <Link
+                href="/advertising/register"
+                className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-6 py-3 rounded-lg font-semibold inline-flex items-center transition-colors shadow-lg"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Ad Campaign
+              </Link>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column - Benefits */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Why Advertise on DropDollar?</h3>
+                <div className="space-y-3">
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Engaged Gaming Audience</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Reach active players who spend time on skill-based games</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Multiple Ad Formats</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Practice game ads, banner placements, and sponsored content</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Performance Tracking</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Detailed analytics on views, clicks, and conversions</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Flexible Budgets</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Start from $50, pay per view or click, full budget control</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Quick Stats & Actions */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Advertising Options</h3>
+                <div className="space-y-4">
+                  {/* Practice Game Ads */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <PlayIcon className="h-5 w-5 text-purple-600 mr-2" />
+                        <span className="font-medium text-gray-900 dark:text-white">Practice Game Ads</span>
+                      </div>
+                      <span className="text-sm font-semibold text-purple-600">$0.02/view</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">10-second ads before practice games</p>
+                  </div>
+
+                  {/* Banner Ads */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <EyeIcon className="h-5 w-5 text-blue-600 mr-2" />
+                        <span className="font-medium text-gray-900 dark:text-white">Banner Placements</span>
+                      </div>
+                      <span className="text-sm font-semibold text-blue-600">$0.015/view</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Display banners across the platform</p>
+                  </div>
+
+                  {/* Sponsored Content */}
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <StarIcon className="h-5 w-5 text-yellow-600 mr-2" />
+                        <span className="font-medium text-gray-900 dark:text-white">Sponsored Listings</span>
+                      </div>
+                      <span className="text-sm font-semibold text-yellow-600">$0.50/click</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Featured placement in categories</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex space-x-3">
+                    <Link
+                      href="/advertising/dashboard"
+                      className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded-lg font-medium text-center transition-colors"
+                    >
+                      View Campaigns
+                    </Link>
+                    <Link
+                      href="/advertising/billing"
+                      className="flex-1 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-blue-900 dark:text-blue-300 px-4 py-2 rounded-lg font-medium text-center transition-colors"
+                    >
+                      Billing & Payments
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Registration Notice */}
+            <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-start">
+                <ExclamationTriangleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300">Advertiser Registration Required</p>
+                  <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                    To create ad campaigns, you'll need to complete advertiser registration with payment method setup. 
+                    This ensures secure billing and campaign management.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Listings Management */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">

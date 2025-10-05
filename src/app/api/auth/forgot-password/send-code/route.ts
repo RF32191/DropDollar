@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { database } from '@/lib/database';
+import { supabase } from '@/lib/supabase/client';
 
 // Store verification codes temporarily (in production, use Redis or similar)
 const verificationCodes = new Map<string, { code: string; expiresAt: number; attempts: number }>();
@@ -52,8 +52,11 @@ export async function POST(request: NextRequest) {
     const formattedPhone = formatPhoneNumber(phoneNumber);
 
     // Check if user exists with this phone number
-    await database.initDB();
-    const user = await database.getUserByPhoneNumber(formattedPhone);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, phone')
+      .eq('phone', formattedPhone)
+      .single();
     
     if (!user) {
       return NextResponse.json(

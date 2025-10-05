@@ -34,57 +34,94 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center">
-              <div className="w-10 h-10 mr-3">
+      {/* SILVER SETTINGS Header */}
+      <header className="bg-gradient-to-r from-gray-400 via-gray-500 to-slate-600 dark:from-gray-600 dark:via-gray-700 dark:to-slate-800 shadow-2xl border-b-4 border-gray-600 dark:border-gray-500">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            {/* Logo Section */}
+            <Link href="/" className="flex items-center group">
+              <div className="bg-gradient-to-br from-gray-300 to-slate-500 dark:from-gray-400 dark:to-slate-600 p-3 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 mr-4">
                 <img
                   src="/DropCoin.png"
-                  alt="Dollar Drop Logo"
-                  className="w-full h-full object-contain"
+                  alt="DropDollar Logo"
+                  className="w-8 h-8 object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">Dollar Drop</span>
+              <div className="text-2xl font-bold bg-gradient-to-r from-white to-gray-100 dark:from-gray-100 dark:to-white bg-clip-text text-transparent group-hover:from-gray-100 group-hover:to-white transition-all duration-300">
+                DropDollar
+              </div>
             </Link>
-            <nav className="flex items-center space-x-6">
-              <Link href="/listings" className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium">Browse</Link>
-              <Link href="/categories" className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium">Categories</Link>
-              <Link href="/games" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-bold">🎮 Games</Link>
-              <Link href="/tournaments" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-bold">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-bold">🔥 Hot Sell</Link>
-              <Link href="/how-it-works" className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium">How It Works</Link>
-              <Link href="/buy-tokens" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold">💰 Buy Tokens</Link>
-              <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
-                <Link href="/wallet" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold">👛 Wallet</Link>
-                <Link href="/settings" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold">⚙️ Settings</Link>
-                <Link href="/auth/login" className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium">Sign In</Link>
-                <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
+
+            {/* SILVER Navigation */}
+            <nav className="flex-1 mx-4">
+              <div className="flex items-center justify-center space-x-4">
+                <Link href="/listings" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">Browse</Link>
+                <Link href="/categories" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">Categories</Link>
+                <Link href="/games" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">🎮 Games</Link>
+                <Link href="/tournaments" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">🏆 Tournaments</Link>
+                
+                {/* Active Settings Link */}
+                <div className="bg-gradient-to-r from-gray-300 to-slate-400 dark:from-gray-400 dark:to-slate-500 px-4 py-2 rounded-xl shadow-lg">
+                  <Link href="/settings" className="text-gray-900 dark:text-gray-800 hover:text-gray-800 dark:hover:text-gray-700 font-bold transition-colors text-sm">⚙️ Settings</Link>
+                </div>
+                
+                <Link href="/hot-sell" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">🔥 Hot Sell</Link>
+                <Link href="/how-it-works" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">How It Works</Link>
               </div>
             </nav>
+
+            {/* User Actions */}
+            <div className="flex items-center space-x-2">
+              <Link href="/auth/login" className="text-gray-100 dark:text-gray-200 hover:text-white dark:hover:text-gray-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-gray-600/30">Sign In</Link>
+              <Link href="/auth/register" className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-white/30">Sign Up</Link>
+              <Link href="/seller/apply" className="bg-gray-300 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg">Sell</Link>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Page Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            ⚙️ Settings
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Customize your Dollar Drop experience with themes, notifications, and preferences
-          </p>
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* SILVER Hero Section */}
+        <div className="bg-gradient-to-br from-gray-400 via-slate-500 to-gray-600 dark:from-gray-600 dark:via-slate-700 dark:to-gray-800 rounded-3xl p-8 mb-8 shadow-2xl border-4 border-gray-500 dark:border-gray-400">
+          <div className="text-center">
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+              ⚙️ Settings & Preferences ⚙️
+            </h1>
+            <p className="text-xl text-gray-100 dark:text-gray-200 max-w-4xl mx-auto mb-6">
+              Customize your DropDollar experience with themes, notifications, and personal preferences
+            </p>
+            
+            {/* Settings Quick Stats */}
+            <div className="bg-white/20 dark:bg-black/20 backdrop-blur-sm rounded-2xl p-6 max-w-3xl mx-auto border border-white/30">
+              <h2 className="text-2xl font-bold text-white mb-4">
+                Personalize Your Experience
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-white">
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="text-3xl font-bold">🎨</div>
+                  <div className="text-sm">Theme Options</div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="text-3xl font-bold">🔔</div>
+                  <div className="text-sm">Notifications</div>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="text-3xl font-bold">🔒</div>
+                  <div className="text-sm">Privacy & Security</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-8">
           {/* Appearance Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl p-8 transition-colors border-2 border-gray-200 dark:border-gray-600 hover:shadow-3xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center mb-6">
-              <PaintBrushIcon className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Appearance</h2>
+              <div className="bg-gradient-to-br from-gray-300 to-slate-500 dark:from-gray-400 dark:to-slate-600 p-3 rounded-2xl shadow-lg mr-4">
+                <PaintBrushIcon className="h-6 w-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Appearance & Theme</h2>
             </div>
             
             <div className="space-y-6">
@@ -159,10 +196,12 @@ export default function SettingsPage() {
           </div>
 
           {/* Notification Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl p-8 transition-colors border-2 border-gray-200 dark:border-gray-600 hover:shadow-3xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center mb-6">
-              <BellIcon className="h-6 w-6 text-green-600 dark:text-green-400 mr-3" />
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h2>
+              <div className="bg-gradient-to-br from-gray-300 to-slate-500 dark:from-gray-400 dark:to-slate-600 p-3 rounded-2xl shadow-lg mr-4">
+                <BellIcon className="h-6 w-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Notification Preferences</h2>
             </div>
             
             <div className="space-y-4">
@@ -197,10 +236,12 @@ export default function SettingsPage() {
           </div>
 
           {/* Account Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl p-8 transition-colors border-2 border-gray-200 dark:border-gray-600 hover:shadow-3xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center mb-6">
-              <UserIcon className="h-6 w-6 text-purple-600 dark:text-purple-400 mr-3" />
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account</h2>
+              <div className="bg-gradient-to-br from-gray-300 to-slate-500 dark:from-gray-400 dark:to-slate-600 p-3 rounded-2xl shadow-lg mr-4">
+                <UserIcon className="h-6 w-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account & Security</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -214,23 +255,16 @@ export default function SettingsPage() {
                 </div>
               </Link>
 
-              <Link href="/wallet" className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                <div className="flex items-center">
-                  <CogIcon className="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3" />
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">Wallet Settings</h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Manage your tokens</p>
-                  </div>
-                </div>
-              </Link>
             </div>
           </div>
 
           {/* Gaming Preferences */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 transition-colors">
+          <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl p-8 transition-colors border-2 border-gray-200 dark:border-gray-600 hover:shadow-3xl hover:scale-105 transition-all duration-300">
             <div className="flex items-center mb-6">
-              <EyeIcon className="h-6 w-6 text-red-600 dark:text-red-400 mr-3" />
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gaming Preferences</h2>
+              <div className="bg-gradient-to-br from-gray-300 to-slate-500 dark:from-gray-400 dark:to-slate-600 p-3 rounded-2xl shadow-lg mr-4">
+                <DevicePhoneMobileIcon className="h-6 w-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gaming & Display Preferences</h2>
             </div>
             
             <div className="space-y-4">
@@ -272,7 +306,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex justify-between">
                 <span>Platform:</span>
-                <span className="font-medium">Dollar Drop Gaming Marketplace</span>
+                <span className="font-medium">DropDollar Gaming Marketplace</span>
               </div>
             </div>
             
@@ -290,7 +324,7 @@ export default function SettingsPage() {
       {/* Footer */}
       <footer className="bg-gray-900 dark:bg-gray-950 text-white py-8 mt-16 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 Dollar Drop - Revolutionary Skill-Based Gaming Marketplace</p>
+          <p className="text-gray-400">© 2024 DropDollar - Revolutionary Skill-Based Gaming Marketplace</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/how-it-works" className="text-gray-400 hover:text-white">How It Works</Link>
             <Link href="/games" className="text-gray-400 hover:text-white">Practice Games</Link>

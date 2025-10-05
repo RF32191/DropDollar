@@ -1,4 +1,4 @@
-// Type definitions for Dollar Drop platform
+// Type definitions for DropDollar platform
 
 export interface User {
   id: string;

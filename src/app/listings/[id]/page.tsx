@@ -24,6 +24,7 @@ import { ListingStorageService, type StoredListing } from '@/lib/listingStorage'
 import { listingPricingService } from '@/lib/listingPricing';
 import { getReviewsForListing, getAverageRating, getTotalReviews } from '@/data/sampleReviews';
 
+
 export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -503,14 +504,14 @@ export default function ListingDetailPage() {
         {/* How it Works */}
         <div className="mt-12 bg-blue-50 rounded-lg p-8">
           <h3 className="text-xl font-bold text-blue-900 mb-4">
-            <strong>Every Dollar Drops the Price!</strong> - How This Works
+            <strong>Every DropDollars the Price!</strong> - How This Works
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CurrencyDollarIcon className="h-6 w-6 text-blue-600" />
               </div>
-              <h4 className="font-semibold text-blue-900 mb-2">1. Every Dollar Drops It</h4>
+              <h4 className="font-semibold text-blue-900 mb-2">1. Every DropDollars It</h4>
               <p className="text-blue-800 text-sm">
                 Use 1 token ($1) to make a price guess. <strong>Every dollar drops the price by $1!</strong>
               </p>
