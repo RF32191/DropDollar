@@ -316,7 +316,40 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     });
   }, []);
 
-  // Handle paddle movement
+  // Handle mouse/touch movement for iPhone support
+  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return;
+    
+    const gameArea = gameAreaRef.current;
+    if (!gameArea) return;
+    
+    const rect = gameArea.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const percentage = (x / rect.width) * 100;
+    
+    // Keep paddle within bounds
+    const boundedX = Math.max(10, Math.min(90, percentage));
+    setPaddleX(boundedX);
+  }, [gameState]);
+
+  const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault(); // Prevent scrolling
+    if (gameState !== 'playing') return;
+    
+    const gameArea = gameAreaRef.current;
+    if (!gameArea) return;
+    
+    const rect = gameArea.getBoundingClientRect();
+    const touch = event.touches[0];
+    const x = touch.clientX - rect.left;
+    const percentage = (x / rect.width) * 100;
+    
+    // Keep paddle within bounds
+    const boundedX = Math.max(10, Math.min(90, percentage));
+    setPaddleX(boundedX);
+  }, [gameState]);
+
+  // Handle paddle movement (keyboard)
   useEffect(() => {
     let moveSpeed = 0;
     if (keysPressed.has('ArrowLeft') || keysPressed.has('a')) {
@@ -525,8 +558,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             {/* Game Area - Much Larger and Taller */}
             <div 
               ref={gameAreaRef}
-              className="relative bg-gradient-to-b from-sky-200 via-sky-300 to-green-200 rounded-xl border-4 border-gray-300 overflow-hidden mx-auto"
-              style={{ height: '450px', width: '800px', maxWidth: '90vw' }}
+              className="relative bg-gradient-to-b from-sky-200 via-sky-300 to-green-200 rounded-xl border-4 border-gray-300 overflow-hidden mx-auto cursor-none"
+              style={{ height: '450px', width: '800px', maxWidth: '90vw', touchAction: 'none' }}
+              onMouseMove={handleMouseMove}
+              onTouchMove={handleTouchMove}
+              onTouchStart={handleTouchMove}
             >
               {/* Falling Objects - Coins and Dollars */}
               {objects.map((obj) => {

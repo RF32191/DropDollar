@@ -6,12 +6,13 @@ import { useSearchParams } from 'next/navigation';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
+import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdSystem } from '@/hooks/useAdSystem';
 import { useGameLocationGuard } from '@/hooks/useLocationGuard';
-import { GameScoreService } from '@/lib/supabase/gameScores';
+import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import { 
   PuzzlePieceIcon, 
@@ -23,7 +24,8 @@ import {
   InformationCircleIcon,
   ExclamationTriangleIcon,
   MapPinIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -56,6 +58,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Audio-Visual Memory', 'Sequential Processing', 'Multi-Sensory'],
     component: ColorSequenceGame
+  },
+  {
+    id: 'laser-dodge',
+    name: 'Laser Dodge',
+    description: 'Pilot your ship to dodge dangerous red lasers in this survival game',
+    icon: BoltIcon,
+    difficulty: 'Hard',
+    avgTime: '∞',
+    skills: ['Reflexes', 'Survival', 'Mobile-Friendly'],
+    component: LaserDodgeGame
   }
 ];
 
@@ -313,7 +325,7 @@ export default function GamesPage() {
       try {
         await GameScoreService.saveGameScore({
           user_id: user.id,
-          game_type: currentGame as 'multi-target' | 'color-sequence' | 'falling-objects',
+          game_type: currentGame as GameScore['game_type'],
           score: result.score,
           accuracy: result.accuracy,
           avg_reaction_time: result.avgReactionTime,
