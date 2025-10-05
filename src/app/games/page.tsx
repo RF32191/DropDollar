@@ -1093,7 +1093,7 @@ export default function GamesPage() {
           <p className="text-gray-400">© 2024 DropDollar - Revolutionary Skill-Based Gaming Marketplace</p>
           <div className="mt-4 flex justify-center space-x-6">
             <Link href="/how-it-works" className="text-gray-400 hover:text-white">How It Works</Link>
-            <Link href="/games" className="text-gray-400 hover:text-white">Practice Games</Link>
+            <Link href="/games" className="text-gray-400 hover:text-white">🚀 UPDATED Practice Games 🎮</Link>
             <Link href="/listings" className="text-gray-400 hover:text-white">Competitions</Link>
           </div>
         </div>
