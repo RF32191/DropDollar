@@ -71,6 +71,9 @@ const GAMES = [
   }
 ];
 
+// Debug: Log games array to ensure Laser Dodge is included
+console.log('Available games:', GAMES.map(g => g.name));
+
 interface GameResult {
   score: number;
   accuracy: number;
@@ -1120,4 +1123,4 @@ export default function GamesPage() {
       />
     </>
   );
-}/* Force deployment - Sun Oct  5 16:19:55 PDT 2025 */
+}
