@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import GameCountdown from './GameCountdown';
-import { gameAudio } from '@/utils/gameAudio';
+import { GameAudio } from '@/utils/gameAudio';
 
 interface LaserDodgeGameProps {
   onGameEnd: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
@@ -184,7 +184,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
         if (age > laser.timeToHarmful) {
           laser.isHarmful = true;
           // Play warning sound when laser becomes dangerous
-          gameAudio.playSound('coin', 0.3); // Use coin sound as warning
+          GameAudio.playCoinSound(); // Use coin sound as warning
         }
       }
       
@@ -277,7 +277,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
       }));
       
       // Play game over sound
-      gameAudio.playSound('coin', 0.5);
+      GameAudio.playCoinSound();
       
       // Pass result object with required format
       const gameResult = {
