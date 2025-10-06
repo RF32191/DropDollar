@@ -14,18 +14,18 @@ interface GameResult {
 interface LaserDodgeGameProps {
   onGameEnd: (result: GameResult) => void;
   onExit?: () => void;
-  listingId?: string; // For competition mode
-  entryNumber?: number; // For competition mode
+  listingId?: string;
+  entryNumber?: number;
   isCompetitionMode?: boolean;
 }
 
 interface Laser {
   id: number;
-  x: number;
-  y: number;
+  type: 'horizontal' | 'vertical';
+  position: number; // Percentage (0-100)
   isHarmful: boolean;
   timeToHarmful: number;
-  speed: number;
+  createdAt: number;
 }
 
 interface Ship {
@@ -36,7 +36,7 @@ interface Ship {
 export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: LaserDodgeGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [lasers, setLasers] = useState<Laser[]>([]);
-  const [ship, setShip] = useState<Ship>({ x: 50, y: 80 }); // Percentage positions
+  const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [score, setScore] = useState(0);
   const currentScoreRef = useRef(0);
   const gameAreaRef = useRef<HTMLDivElement>(null);
@@ -44,8 +44,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const lastLaserSpawnRef = useRef<number>(0);
   const animationRef = useRef<number>();
 
-  // Game engine with proper timer
-  const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
+  // Game engine
+  const { timer, startGame, stopGame } = useGameEngine({
     gameType: 'laser-dodge',
     totalTime: 60,
     rng: {
@@ -60,8 +60,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       setGameState('ended');
       const gameResult = {
         score: currentScoreRef.current,
-        accuracy: 100, // Survival game - if you're alive, you're 100% accurate
-        avgReactionTime: 0 // Not applicable for this game type
+        accuracy: 100,
+        avgReactionTime: 0
       };
       
       console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
@@ -69,23 +69,25 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
   });
 
-  // Spawn laser
+  // Spawn laser (much more frequent)
   const spawnLaser = useCallback(() => {
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
-    const level = Math.floor(timeSinceStart / 10000) + 1; // Level up every 10 seconds
+    const level = Math.floor(timeSinceStart / 5000) + 1; // Level up every 5 seconds
     
-    // Increase spawn rate with level
-    const spawnRate = Math.max(800, 2000 - (level * 200));
+    // Much faster spawn rate
+    const spawnRate = Math.max(200, 800 - (level * 50)); // Start at 800ms, down to 200ms minimum
     
     if (now - lastLaserSpawnRef.current > spawnRate) {
+      const isHorizontal = Math.random() < 0.5;
+      
       const newLaser: Laser = {
-        id: now,
-        x: Math.random() * 90 + 5, // Random X position (5% to 95%)
-        y: -5, // Start above the screen
+        id: now + Math.random(),
+        type: isHorizontal ? 'horizontal' : 'vertical',
+        position: Math.random() * 100, // Random position along the axis
         isHarmful: false,
-        timeToHarmful: 2000 + Math.random() * 1000, // 2-3 seconds
-        speed: 0.5 + (level * 0.1) + Math.random() * 0.3 // Increase speed with level
+        timeToHarmful: Math.max(800, 1500 - (level * 100)), // Faster warning time as level increases
+        createdAt: now
       };
       
       setLasers(prev => [...prev, newLaser]);
@@ -99,10 +101,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
-    const level = Math.floor(timeSinceStart / 10000) + 1;
 
-    // Update score (survival time based)
-    const newScore = Number((timeSinceStart / 100).toFixed(2));
+    // Update score (faster scoring)
+    const newScore = Number((timeSinceStart / 50).toFixed(2)); // 2 points per 100ms
     currentScoreRef.current = newScore;
     setScore(newScore);
 
@@ -114,12 +115,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       return prevLasers.map(laser => {
         const updatedLaser = { ...laser };
         
-        // Move laser down
-        updatedLaser.y += updatedLaser.speed;
-        
         // Check if laser should become harmful
         if (!updatedLaser.isHarmful) {
-          const age = now - laser.id;
+          const age = now - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
             GameAudio.playCoinSound(); // Warning sound
@@ -127,18 +125,30 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         }
         
         return updatedLaser;
-      }).filter(laser => laser.y < 105); // Remove lasers that went off screen
+      }).filter(laser => {
+        // Remove lasers after they've been harmful for 3 seconds
+        const age = now - laser.createdAt;
+        return age < laser.timeToHarmful + 3000;
+      });
     });
 
-    // Check collisions
+    // Check collisions with harmful lasers
     const harmfulLasers = lasers.filter(l => l.isHarmful);
     for (const laser of harmfulLasers) {
-      // Simple collision detection (laser and ship overlap)
-      if (Math.abs(laser.x - ship.x) < 8 && Math.abs(laser.y - ship.y) < 8) {
-        // Game Over!
-        console.log('LaserDodge: Collision detected! Game Over!');
-        stopGame();
-        return;
+      if (laser.type === 'horizontal') {
+        // Check if ship is on the same horizontal line (with tolerance)
+        if (Math.abs(laser.position - ship.y) < 8) {
+          console.log('LaserDodge: Horizontal laser collision! Game Over!');
+          stopGame();
+          return;
+        }
+      } else {
+        // Check if ship is on the same vertical line (with tolerance)
+        if (Math.abs(laser.position - ship.x) < 8) {
+          console.log('LaserDodge: Vertical laser collision! Game Over!');
+          stopGame();
+          return;
+        }
       }
     }
 
@@ -163,7 +173,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setShip({ x: boundedX, y: boundedY });
   }, [gameState]);
 
-  // Handle touch movement (iPhone support)
+  // Handle touch movement
   const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (gameState !== 'playing') return;
@@ -176,7 +186,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const x = ((touch.clientX - rect.left) / rect.width) * 100;
     const y = ((touch.clientY - rect.top) / rect.height) * 100;
     
-    // Keep ship within bounds
     const boundedX = Math.max(5, Math.min(95, x));
     const boundedY = Math.max(5, Math.min(95, y));
     
@@ -190,18 +199,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Start game
   const handleStartGame = () => {
-    console.log('LaserDodge: Starting countdown...');
     setGameState('countdown');
   };
 
   const handleCountdownComplete = () => {
-    console.log('LaserDodge: Countdown complete, starting game...');
-    
     // Reset game state
     setScore(0);
     currentScoreRef.current = 0;
     setLasers([]);
-    setShip({ x: 50, y: 80 });
+    setShip({ x: 50, y: 50 });
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
     
@@ -234,66 +240,69 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   }, []);
 
   if (gameState === 'ended') {
-    return null; // Parent handles the results
+    return null;
   }
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
         <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500/20 rounded-full blur-xl animate-pulse"></div>
-            <div className="absolute bottom-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-cyan-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
+            <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
           </div>
           
-          {/* Content */}
           <div className="relative z-10">
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
-              <span className="text-3xl">⚡</span>
+            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-3xl">🔥</span>
             </div>
             
-            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-              Laser Dodge
+            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
+              Laser Dodge EXTREME
             </h2>
-            <p className="text-purple-200 text-sm mb-6 font-medium">Survival Space Challenge</p>
+            <p className="text-orange-200 text-sm mb-6 font-medium">Ultimate Survival Challenge</p>
             
             <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">?</span>
+                <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">!</span>
                 </div>
-                <p className="text-white font-semibold">How to Play:</p>
+                <p className="text-white font-semibold">EXTREME MODE:</p>
               </div>
               
               <div className="space-y-3 pl-11">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-green-300 font-semibold">Control:</span> Move mouse or finger to pilot your ship</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-red-300 font-semibold">Avoid:</span> Dodge the dangerous red lasers</p>
+                  <p><span className="text-green-300 font-semibold">Control:</span> Move mouse/finger to pilot ship</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-blue-300 font-semibold">Warning:</span> Blue lasers turn red when deadly</p>
+                  <p><span className="text-blue-300 font-semibold">Blue Lasers:</span> Full-screen beams (safe)</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-red-300 font-semibold">Red Lasers:</span> DEADLY when they turn red!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-yellow-300 font-semibold">Survive:</span> Stay alive for higher scores</p>
+                  <p><span className="text-yellow-300 font-semibold">Horizontal:</span> Avoid being on same row</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-purple-300 font-semibold">Difficulty:</span> Gets harder over time</p>
+                  <p><span className="text-purple-300 font-semibold">Vertical:</span> Avoid being on same column</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-orange-300 font-semibold">Speed:</span> Gets MUCH faster over time!</p>
                 </div>
               </div>
               
-              <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/30 rounded-xl p-4 mt-6">
-                <p className="text-xs text-purple-200">
-                  <span className="text-cyan-300 font-bold">🚀 Pro Tip:</span> Watch for the color change - blue means safe, red means deadly! 
-                  Move smoothly to avoid getting trapped by multiple lasers.
+              <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
+                <p className="text-xs text-red-200">
+                  <span className="text-yellow-300 font-bold">🔥 WARNING:</span> This is the most intense version! 
+                  Full-screen lasers will cover the entire map. Find safe spots quickly!
                 </p>
               </div>
             </div>
@@ -309,9 +318,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               )}
               <button
                 onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
               >
-                ⚡ {isCompetitionMode ? 'Start Competition' : 'Start Game'}
+                🔥 {isCompetitionMode ? 'START EXTREME' : 'START EXTREME'}
               </button>
             </div>
           </div>
@@ -320,13 +329,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     );
   }
 
-  // Show countdown overlay
   if (gameState === 'countdown') {
     return (
       <GameCountdown
         onCountdownComplete={handleCountdownComplete}
-        gameName="Laser Dodge"
-        instructions="Move your mouse or finger to control the ship. Avoid red lasers!"
+        gameName="Laser Dodge EXTREME"
+        instructions="Avoid full-screen horizontal and vertical lasers! Blue = safe, Red = DEADLY!"
       />
     );
   }
@@ -337,7 +345,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div className="text-lg font-bold text-gray-900">
-            ⚡ Laser Dodge
+            🔥 Laser Dodge EXTREME
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600">Time: {timer.timeLeft}s</div>
@@ -356,13 +364,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         {gameState === 'playing' && (
           <div className="space-y-6">
             <div className="text-xl font-bold text-gray-900">
-              ⚡ Dodge the red lasers with your ship! 🚀
+              🔥 Avoid the full-screen laser beams! 🚀
             </div>
             
             {/* Game Area */}
             <div 
               ref={gameAreaRef}
-              className="relative bg-gradient-to-b from-indigo-900 via-purple-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
+              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
               style={{ touchAction: 'none' }}
               onMouseMove={handleMouseMove}
               onTouchStart={handleTouchStart}
@@ -370,48 +378,64 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             >
               {/* Stars background */}
               <div className="absolute inset-0">
-                {Array.from({ length: 50 }, (_, i) => (
+                {Array.from({ length: 100 }, (_, i) => (
                   <div
                     key={i}
                     className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
                     style={{
                       left: `${(i * 137) % 100}%`,
                       top: `${(i * 211) % 100}%`,
-                      animationDelay: `${i * 0.1}s`
+                      animationDelay: `${i * 0.05}s`
                     }}
                   />
                 ))}
               </div>
 
-              {/* Lasers */}
-              {lasers.map((laser) => (
+              {/* Horizontal Lasers (full width) */}
+              {lasers.filter(l => l.type === 'horizontal').map((laser) => (
                 <div
                   key={laser.id}
-                  className={`absolute w-2 h-8 rounded-full transition-colors duration-300 ${
+                  className={`absolute w-full h-4 transition-all duration-300 ${
                     laser.isHarmful 
                       ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                      : 'bg-blue-400 shadow-lg shadow-blue-400/50'
+                      : 'bg-blue-400 shadow-lg shadow-blue-400/30'
                   }`}
                   style={{
-                    left: `${laser.x}%`,
-                    top: `${laser.y}%`,
-                    transform: 'translate(-50%, -50%)'
+                    left: '0%',
+                    top: `${laser.position}%`,
+                    transform: 'translateY(-50%)'
+                  }}
+                />
+              ))}
+
+              {/* Vertical Lasers (full height) */}
+              {lasers.filter(l => l.type === 'vertical').map((laser) => (
+                <div
+                  key={laser.id}
+                  className={`absolute h-full w-4 transition-all duration-300 ${
+                    laser.isHarmful 
+                      ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
+                      : 'bg-blue-400 shadow-lg shadow-blue-400/30'
+                  }`}
+                  style={{
+                    left: `${laser.position}%`,
+                    top: '0%',
+                    transform: 'translateX(-50%)'
                   }}
                 />
               ))}
               
               {/* Ship */}
               <div
-                className="absolute w-6 h-6 bg-green-400 rounded-full shadow-lg shadow-green-400/50 animate-pulse"
+                className="absolute w-8 h-8 bg-green-400 rounded-full shadow-lg shadow-green-400/50 animate-pulse flex items-center justify-center text-white text-sm font-bold"
                 style={{
                   left: `${ship.x}%`,
                   top: `${ship.y}%`,
-                  transform: 'translate(-50%, -50%)'
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 10
                 }}
               >
-                <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
-                  🚀
-                </div>
+                🚀
               </div>
             </div>
 
@@ -423,9 +447,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
         {/* Instructions */}
         <div className="mt-8 text-sm text-gray-600 space-y-2">
-          <div>⚡ Move your ship to avoid red lasers</div>
-          <div>🔵 Blue lasers are harmless but turn red when dangerous</div>
-          <div>🚀 Survive as long as possible for higher scores</div>
+          <div>🔥 <strong>EXTREME MODE:</strong> Full-screen horizontal and vertical laser beams!</div>
+          <div>🔵 Blue lasers are safe but turn red when deadly</div>
+          <div>🚀 Find safe spots between the laser grids to survive</div>
         </div>
       </div>
     </div>
