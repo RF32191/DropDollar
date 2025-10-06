@@ -3,7 +3,7 @@ import { supabase } from './client';
 export interface GameScore {
   id?: string;
   user_id: string;
-  game_type: 'multi-target' | 'color-sequence' | 'falling-objects' | 'laser-dodge';
+  game_type: 'multi-target' | 'color-sequence' | 'falling-objects' | 'laser-dodge' | 'quick-click';
   score: number;
   accuracy?: number;
   avg_reaction_time?: number;
@@ -19,7 +19,7 @@ export interface GameScore {
 export interface UserBestScore {
   id?: string;
   user_id: string;
-  game_type: 'multi-target' | 'color-sequence' | 'falling-objects' | 'laser-dodge';
+  game_type: 'multi-target' | 'color-sequence' | 'falling-objects' | 'laser-dodge' | 'quick-click';
   best_score: number;
   best_accuracy?: number;
   best_reaction_time?: number;

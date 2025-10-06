@@ -7,6 +7,7 @@ import MultiTargetGame from '@/components/games/MultiTargetGame';
 import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
+import QuickClickGame from '@/components/games/QuickClickGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,13 +62,23 @@ const GAMES = [
   },
   {
     id: 'laser-dodge',
-    name: 'Laser Dodge',
-    description: 'Pilot your ship to dodge dangerous red lasers in this survival game',
+    name: 'Laser Dodge EXTREME',
+    description: 'Survive full-screen laser beams and earn bonus points on blue lasers',
     icon: BoltIcon,
-    difficulty: 'Hard',
-    avgTime: '∞',
-    skills: ['Reflexes', 'Survival', 'Mobile-Friendly'],
+    difficulty: 'Extreme',
+    avgTime: '60s',
+    skills: ['Reflexes', 'Strategy', 'Risk Assessment'],
     component: LaserDodgeGame
+  },
+  {
+    id: 'quick-click',
+    name: 'QuickClick',
+    description: 'Test your reaction time - click when the screen flashes green!',
+    icon: CursorArrowRaysIcon,
+    difficulty: 'Easy',
+    avgTime: '30s',
+    skills: ['Reaction Time', 'Focus', 'Precision'],
+    component: QuickClickGame
   }
 ];
 
