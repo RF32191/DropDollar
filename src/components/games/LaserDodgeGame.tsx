@@ -56,7 +56,8 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     isPlaying: false,
     score: 0,
     level: 1,
-    showCountdown: true,
+    showCountdown: false,
+    showReady: true,
     gameOver: false,
     finalScore: 0
   });
@@ -374,7 +375,16 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     ctx.fillText('Avoid red lasers! Blue lasers are harmless', 20, CANVAS_HEIGHT - 20);
   }, []);
 
-  // Start game
+  // Start countdown from ready state
+  const handleStartGame = useCallback(() => {
+    setGameState(prev => ({ 
+      ...prev, 
+      showReady: false, 
+      showCountdown: true 
+    }));
+  }, []);
+
+  // Start game from countdown
   const startGame = useCallback(() => {
     setGameState(prev => ({ ...prev, showCountdown: false }));
     initGame();
@@ -389,7 +399,8 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     }
     setGameState(prev => ({ 
       ...prev, 
-      showCountdown: true, 
+      showReady: true,
+      showCountdown: false, 
       gameOver: false, 
       finalScore: 0 
     }));
@@ -405,6 +416,51 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   }, []);
 
   // Render component
+  if (gameState.showReady) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center">
+            <span className="text-2xl text-white">⚡</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Laser Dodge</h2>
+          <div className="text-left text-sm text-gray-700 mb-6 space-y-2">
+            <p><strong>How to Play:</strong></p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li><strong>Control:</strong> Move your mouse or finger to pilot your ship</li>
+              <li><strong>Avoid:</strong> Dodge the dangerous red lasers</li>
+              <li><strong>Warning:</strong> Blue lasers are harmless but turn red when dangerous</li>
+              <li><strong>Survival:</strong> Stay alive as long as possible for higher scores</li>
+              <li><strong>Difficulty:</strong> More lasers spawn and move faster over time</li>
+            </ul>
+            <div className="bg-purple-50 border border-purple-200 rounded p-3 mt-4">
+              <p className="text-xs text-purple-800">
+                <strong>🚀 Survival Challenge:</strong> Test your reflexes and spatial awareness. 
+                Watch for the color change - blue means safe, red means deadly!
+              </p>
+            </div>
+          </div>
+          <div className="flex space-x-3">
+            {onExit && (
+              <button
+                onClick={onExit}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              >
+                Back
+              </button>
+            )}
+            <button
+              onClick={handleStartGame}
+              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+            >
+              Start Game
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (gameState.showCountdown) {
     return (
       <GameCountdown
