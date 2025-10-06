@@ -435,49 +435,81 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center">
-            <span className="text-2xl text-white">🎯</span>
+      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 right-0 w-36 h-36 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/20 rounded-full blur-xl animate-pulse delay-700"></div>
+            <div className="absolute top-1/3 left-1/4 w-20 h-20 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-300"></div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Multi-Target Reaction</h2>
-          <div className="text-left text-sm text-gray-700 mb-6 space-y-2">
-            <p><strong>How to Play:</strong></p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
-              <li><strong>Find:</strong> Look for ALL glowing/pulsing targets</li>
-              <li><strong>Click:</strong> Click each correct target as fast as possible</li>
-              <li><strong>Difficulty:</strong> More targets and faster pace each round</li>
-              <li><strong>Multiple:</strong> Later rounds have multiple correct targets</li>
-              <li><strong>Scoring:</strong> Speed, accuracy, and target difficulty all matter</li>
-            </ul>
-            <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-4">
-              <p className="text-xs text-blue-800">
-                <strong>🎯 Visual Focus:</strong> Requires rapid visual scanning and precise clicking. 
-                Look for the pulsing/glowing target!
-              </p>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-3xl">🎯</span>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-2">
-              <p className="text-xs text-yellow-800">
-                <strong>Bot-Proof Design:</strong> Requires human-like visual processing, 
-                spatial awareness, and fine motor control.
-              </p>
+            
+            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">
+              Multi-Target Reaction
+            </h2>
+            <p className="text-green-200 text-sm mb-6 font-medium">Precision & Speed Challenge</p>
+            
+            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">?</span>
+                </div>
+                <p className="text-white font-semibold">How to Play:</p>
+              </div>
+              
+              <div className="space-y-3 pl-11">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-semibold">Find:</span> Look for ALL glowing/pulsing targets</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-blue-300 font-semibold">Click:</span> Hit each correct target as fast as possible</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-yellow-300 font-semibold">Multiple:</span> Later rounds have multiple correct targets</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-purple-300 font-semibold">Difficulty:</span> More targets and faster pace each round</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-red-300 font-semibold">Scoring:</span> Speed, accuracy, and target difficulty matter</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-400/30 rounded-xl p-4 mt-6">
+                <p className="text-xs text-green-200">
+                  <span className="text-cyan-300 font-bold">🎯 Pro Tip:</span> Requires rapid visual scanning and precise clicking. 
+                  Look for the pulsing/glowing targets and click them all!
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex space-x-3">
-            {!isCompetitionMode && onExit && (
+            
+            <div className="flex space-x-4">
+              {!isCompetitionMode && onExit && (
+                <button
+                  onClick={onExit}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                >
+                  ← Back
+                </button>
+              )}
               <button
-                onClick={onExit}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition-colors"
+                onClick={handleStartGame}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
               >
-                Back
+                🎯 {isCompetitionMode ? 'Start Competition' : 'Start Game'}
               </button>
-            )}
-            <button
-              onClick={handleStartGame}
-              className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors`}
-            >
-              {isCompetitionMode ? 'Start Competition' : 'Start Game'}
-            </button>
+            </div>
           </div>
         </div>
       </div>

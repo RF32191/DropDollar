@@ -60,8 +60,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
     rng: {
       isPractice: !isCompetitionMode, // Practice mode if not competition
       listingId,
-      entryNumber,
-      gameId // Use gameId for deterministic seeding
+      entryNumber
     },
     onGameEnd: () => {
       console.log('ColorSequence: Game engine onGameEnd callback triggered');
@@ -404,47 +403,79 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full mx-auto mb-6 flex items-center justify-center">
-            <span className="text-2xl text-white">🌈</span>
+      <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-purple-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 right-1/4 w-24 h-24 bg-purple-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Color Sequence Memory</h2>
-          <div className="text-left text-sm text-gray-700 mb-6 space-y-2">
-            <p><strong>How to Play:</strong></p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
-              <li><strong>Watch:</strong> Colors flash in sequence with unique sounds</li>
-              <li><strong>Remember:</strong> Memorize both the colors and their order</li>
-              <li><strong>Repeat:</strong> Click colors in the exact same sequence</li>
-              <li><strong>Progress:</strong> Sequences get longer and faster</li>
-              <li><strong>Audio Cues:</strong> Each color has a unique musical tone</li>
-            </ul>
-            <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-4">
-              <p className="text-xs text-blue-800">
-                <strong>🎵 Multi-Sensory:</strong> Uses both visual and auditory memory. 
-                Listen to the tones to help remember the sequence!
-              </p>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-yellow-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-3xl">🌈</span>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-2">
-              <p className="text-xs text-yellow-800">
-                <strong>Bot-Proof Design:</strong> Requires human-like audio-visual processing, 
-                sequential memory, and multi-sensory integration.
-              </p>
+            
+            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-yellow-300 bg-clip-text text-transparent">
+              Color Sequence Memory
+            </h2>
+            <p className="text-red-200 text-sm mb-6 font-medium">Multi-Sensory Memory Challenge</p>
+            
+            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">?</span>
+                </div>
+                <p className="text-white font-semibold">How to Play:</p>
+              </div>
+              
+              <div className="space-y-3 pl-11">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-red-300 font-semibold">Watch:</span> Colors flash in sequence with unique sounds</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-yellow-300 font-semibold">Remember:</span> Memorize both colors and their order</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-blue-300 font-semibold">Repeat:</span> Click colors in the exact same sequence</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-semibold">Progress:</span> Sequences get longer and faster</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-purple-300 font-semibold">Audio:</span> Each color has a unique musical tone</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-red-500/20 to-yellow-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
+                <p className="text-xs text-red-200">
+                  <span className="text-cyan-300 font-bold">🎵 Pro Tip:</span> Uses both visual and auditory memory. 
+                  Listen to the tones to help remember the sequence!
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={onExit}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleStartGame}
-              className="flex-1 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-              Start Game
-            </button>
+            
+            <div className="flex space-x-4">
+              <button
+                onClick={onExit}
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleStartGame}
+                className="flex-1 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-500 hover:to-yellow-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse"
+              >
+                🌈 Start Game
+              </button>
+            </div>
           </div>
         </div>
       </div>

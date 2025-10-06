@@ -418,43 +418,81 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   // Render component
   if (gameState.showReady) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center">
-            <span className="text-2xl text-white">⚡</span>
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+          {/* Animated background elements */}
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-cyan-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Laser Dodge</h2>
-          <div className="text-left text-sm text-gray-700 mb-6 space-y-2">
-            <p><strong>How to Play:</strong></p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
-              <li><strong>Control:</strong> Move your mouse or finger to pilot your ship</li>
-              <li><strong>Avoid:</strong> Dodge the dangerous red lasers</li>
-              <li><strong>Warning:</strong> Blue lasers are harmless but turn red when dangerous</li>
-              <li><strong>Survival:</strong> Stay alive as long as possible for higher scores</li>
-              <li><strong>Difficulty:</strong> More lasers spawn and move faster over time</li>
-            </ul>
-            <div className="bg-purple-50 border border-purple-200 rounded p-3 mt-4">
-              <p className="text-xs text-purple-800">
-                <strong>🚀 Survival Challenge:</strong> Test your reflexes and spatial awareness. 
-                Watch for the color change - blue means safe, red means deadly!
-              </p>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-3xl">⚡</span>
             </div>
-          </div>
-          <div className="flex space-x-3">
-            {onExit && (
+            
+            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
+              Laser Dodge
+            </h2>
+            <p className="text-purple-200 text-sm mb-6 font-medium">Survival Space Challenge</p>
+            
+            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">?</span>
+                </div>
+                <p className="text-white font-semibold">How to Play:</p>
+              </div>
+              
+              <div className="space-y-3 pl-11">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-semibold">Control:</span> Move mouse or finger to pilot your ship</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-red-300 font-semibold">Avoid:</span> Dodge the dangerous red lasers</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-blue-300 font-semibold">Warning:</span> Blue lasers turn red when deadly</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-yellow-300 font-semibold">Survive:</span> Stay alive for higher scores</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-purple-300 font-semibold">Difficulty:</span> Gets harder over time</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-400/30 rounded-xl p-4 mt-6">
+                <p className="text-xs text-purple-200">
+                  <span className="text-cyan-300 font-bold">🚀 Pro Tip:</span> Watch for the color change - blue means safe, red means deadly! 
+                  Move smoothly to avoid getting trapped by multiple lasers.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex space-x-4">
+              {onExit && (
+                <button
+                  onClick={onExit}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                >
+                  ← Back
+                </button>
+              )}
               <button
-                onClick={onExit}
-                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                onClick={handleStartGame}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse"
               >
-                Back
+                🚀 Start Game
               </button>
-            )}
-            <button
-              onClick={handleStartGame}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-            >
-              Start Game
-            </button>
+            </div>
           </div>
         </div>
       </div>
