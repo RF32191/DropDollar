@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GameAudio } from '@/utils/gameAudio';
-import GameCountdown from './GameCountdown';
 
 interface GameResult {
   score: number;
@@ -38,14 +36,36 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
+  const [countdown, setCountdown] = useState(5);
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
   const lastLaserSpawnRef = useRef<number>(0);
   const animationRef = useRef<number>();
   const timerRef = useRef<NodeJS.Timeout>();
+  const countdownRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
   const isGameRunningRef = useRef(false);
+
+  // Simple countdown without GameCountdown component
+  useEffect(() => {
+    if (gameState === 'countdown') {
+      if (countdown > 0) {
+        countdownRef.current = setTimeout(() => {
+          setCountdown(prev => prev - 1);
+        }, 1000);
+      } else {
+        // Start game
+        handleCountdownComplete();
+      }
+    }
+    
+    return () => {
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, [gameState, countdown]);
 
   // Game loop - simplified without useCallback
   const gameLoop = () => {
@@ -89,7 +109,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           const age = now - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
-            GameAudio.playCoinSound();
+            // Simple audio without GameAudio
+            try {
+              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+              audio.volume = 0.1;
+              audio.play().catch(() => {});
+            } catch (e) {
+              // Audio failed, continue silently
+            }
           }
         }
         
@@ -145,8 +172,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
-
-    GameAudio.playGameEnd();
     
     const gameResult = {
       score: currentScoreRef.current,
@@ -201,6 +226,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Start game
   const handleStartGame = () => {
+    setCountdown(5);
     setGameState('countdown');
   };
 
@@ -244,6 +270,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
       }
     };
   }, []);
@@ -339,11 +368,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'countdown') {
     return (
-      <GameCountdown
-        onCountdownComplete={handleCountdownComplete}
-        gameName="Laser Dodge EXTREME"
-        instructions="Avoid full-screen horizontal and vertical lasers! Blue = safe, Red = DEADLY!"
-      />
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-12 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Laser Dodge EXTREME</h2>
+          <p className="text-lg text-gray-600 mb-8">Avoid full-screen horizontal and vertical lasers! Blue = safe, Red = DEADLY!</p>
+          <div className="text-8xl font-bold text-red-500 animate-pulse">
+            {countdown}
+          </div>
+          <p className="text-sm text-gray-500 mt-4">Get ready...</p>
+        </div>
+      </div>
     );
   }
 
