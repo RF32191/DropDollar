@@ -43,27 +43,14 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   const lastTimeRef = useRef<number>(0);
   const shipRef = useRef<Position>({ x: 400, y: 500 });
   const lasersRef = useRef<Laser[]>([]);
-  const gameStateRef = useRef({
-    isPlaying: false,
-    score: 0,
-    level: 1,
-    lastLaserSpawn: 0,
-    gameStartTime: 0,
-    isGameOver: false
-  });
+  const gameStartTimeRef = useRef<number>(0);
+  const lastLaserSpawnRef = useRef<number>(0);
+  const scoreRef = useRef<number>(0);
+  const levelRef = useRef<number>(1);
 
-  const [gameState, setGameState] = useState({
-    isPlaying: false,
-    score: 0,
-    level: 1,
-    showCountdown: false,
-    showReady: true,
-    gameOver: false,
-    finalScore: 0
-  });
-
-  const [mousePos, setMousePos] = useState<Position>({ x: 400, y: 500 });
-  const [isTouching, setIsTouching] = useState(false);
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [score, setScore] = useState(0);
+  const [level, setLevel] = useState(1);
 
   // Game constants
   const CANVAS_WIDTH = 800;
@@ -72,30 +59,9 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   const LASER_SPAWN_RATE = 1000; // Start with 1 laser per second
   const LEVEL_INCREASE_INTERVAL = 10000; // Increase difficulty every 10 seconds
 
-  // Initialize game
-  const initGame = useCallback(() => {
-    shipRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 100 };
-    lasersRef.current = [];
-    gameStateRef.current = {
-      isPlaying: true,
-      score: 0,
-      level: 1,
-      lastLaserSpawn: 0,
-      gameStartTime: Date.now(),
-      isGameOver: false
-    };
-    setGameState(prev => ({ 
-      ...prev, 
-      isPlaying: true, 
-      score: 0, 
-      level: 1, 
-      gameOver: false 
-    }));
-  }, []);
-
   // Handle mouse movement
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!gameStateRef.current.isPlaying) return;
+    if (gameState !== 'playing') return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -109,13 +75,12 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     const boundedY = Math.max(SHIP_SIZE/2, Math.min(CANVAS_HEIGHT - SHIP_SIZE/2, y));
     
     shipRef.current = { x: boundedX, y: boundedY };
-    setMousePos({ x: boundedX, y: boundedY });
-  }, []);
+  }, [gameState]);
 
   // Handle touch movement (iPhone support)
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    if (!gameStateRef.current.isPlaying) return;
+    if (gameState !== 'playing') return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -130,30 +95,27 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     const boundedY = Math.max(SHIP_SIZE/2, Math.min(CANVAS_HEIGHT - SHIP_SIZE/2, y));
     
     shipRef.current = { x: boundedX, y: boundedY };
-    setMousePos({ x: boundedX, y: boundedY });
-  }, []);
+  }, [gameState]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    setIsTouching(true);
     handleTouchMove(e);
   }, [handleTouchMove]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    setIsTouching(false);
   }, []);
 
   // Spawn laser
   const spawnLaser = useCallback(() => {
     const now = Date.now();
-    const timeSinceStart = now - gameStateRef.current.gameStartTime;
+    const timeSinceStart = now - gameStartTimeRef.current;
     const currentLevel = Math.floor(timeSinceStart / LEVEL_INCREASE_INTERVAL) + 1;
     
     // Increase spawn rate with level
     const spawnRate = Math.max(300, LASER_SPAWN_RATE - (currentLevel * 100));
     
-    if (now - gameStateRef.current.lastLaserSpawn > spawnRate) {
+    if (now - lastLaserSpawnRef.current > spawnRate) {
       const laser: Laser = {
         id: now,
         x: Math.random() * (CANVAS_WIDTH - 20),
@@ -167,12 +129,12 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
       };
       
       lasersRef.current.push(laser);
-      gameStateRef.current.lastLaserSpawn = now;
+      lastLaserSpawnRef.current = now;
     }
   }, []);
 
   // Update lasers
-  const updateLasers = useCallback((deltaTime: number) => {
+  const updateLasers = useCallback(() => {
     const now = Date.now();
     
     lasersRef.current = lasersRef.current.filter(laser => {
@@ -185,7 +147,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
         if (age > laser.timeToHarmful) {
           laser.isHarmful = true;
           // Play warning sound when laser becomes dangerous
-          GameAudio.playCoinSound(); // Use coin sound as warning
+          GameAudio.playCoinSound();
         }
       }
       
@@ -217,7 +179,6 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
           shipTop < laserBottom && 
           shipBottom > laserTop) {
         // Collision detected!
-        gameStateRef.current.isGameOver = true;
         return true;
       }
     }
@@ -226,11 +187,9 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   }, []);
 
   // Update score
-  const updateScore = useCallback((deltaTime: number) => {
-    if (!gameStateRef.current.isPlaying) return;
-    
+  const updateScore = useCallback(() => {
     // Score increases over time (survival)
-    const timeAlive = Date.now() - gameStateRef.current.gameStartTime;
+    const timeAlive = Date.now() - gameStartTimeRef.current;
     const baseScore = timeAlive / 100; // 1 point per 100ms survived
     
     // Bonus for dodging harmful lasers
@@ -238,81 +197,21 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     const difficultyBonus = harmfulLasers * 0.1;
     
     const newScore = Number((baseScore + difficultyBonus).toFixed(2));
-    gameStateRef.current.score = newScore;
+    scoreRef.current = newScore;
+    setScore(newScore);
     
     const currentLevel = Math.floor(timeAlive / LEVEL_INCREASE_INTERVAL) + 1;
-    gameStateRef.current.level = currentLevel;
-    
-    setGameState(prev => ({ 
-      ...prev, 
-      score: newScore, 
-      level: currentLevel 
-    }));
+    levelRef.current = currentLevel;
+    setLevel(currentLevel);
   }, []);
-
-  // Game loop
-  const gameLoop = useCallback((currentTime: number) => {
-    if (!gameStateRef.current.isPlaying || gameStateRef.current.isGameOver) {
-      console.log('🚀 Laser Dodge: Game loop stopped - isPlaying:', gameStateRef.current.isPlaying, 'isGameOver:', gameStateRef.current.isGameOver);
-      return;
-    }
-
-    const deltaTime = currentTime - lastTimeRef.current;
-    lastTimeRef.current = currentTime;
-
-    // Update game logic
-    spawnLaser();
-    updateLasers(deltaTime);
-    updateScore(deltaTime);
-
-    // Check for collisions
-    if (checkCollision()) {
-      // Game over
-      console.log('🚀 Laser Dodge: Game Over! Final Score:', gameStateRef.current.score);
-      gameStateRef.current.isPlaying = false;
-      const finalScore = gameStateRef.current.score;
-      
-      setGameState(prev => ({ 
-        ...prev, 
-        isPlaying: false, 
-        gameOver: true, 
-        finalScore 
-      }));
-      
-      // Play game over sound
-      GameAudio.playCoinSound();
-      
-      // Pass result object with required format
-      const gameResult = {
-        score: finalScore,
-        accuracy: 100, // Survival game - if you're alive, you're 100% accurate
-        avgReactionTime: 0 // Not applicable for this game type
-      };
-      
-      onGameEnd(gameResult);
-      return;
-    }
-
-    // Render
-    render();
-
-    // Continue loop
-    gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [spawnLaser, updateLasers, updateScore, checkCollision, onGameEnd]);
 
   // Render game
   const render = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) {
-      console.log('🚀 Laser Dodge: Canvas not found');
-      return;
-    }
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('🚀 Laser Dodge: Canvas context not found');
-      return;
-    }
+    if (!ctx) return;
 
     // Clear canvas
     ctx.fillStyle = '#000011';
@@ -373,8 +272,8 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     // Draw UI
     ctx.fillStyle = '#ffffff';
     ctx.font = '20px Arial';
-    ctx.fillText(`Score: ${gameStateRef.current.score.toFixed(2)}`, 20, 30);
-    ctx.fillText(`Level: ${gameStateRef.current.level}`, 20, 60);
+    ctx.fillText(`Score: ${scoreRef.current.toFixed(2)}`, 20, 30);
+    ctx.fillText(`Level: ${levelRef.current}`, 20, 60);
     
     // Draw instructions
     ctx.font = '14px Arial';
@@ -383,37 +282,76 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     ctx.fillText('Avoid red lasers! Blue lasers are harmless', 20, CANVAS_HEIGHT - 20);
   }, []);
 
-  // Start countdown from ready state
-  const handleStartGame = useCallback(() => {
-    setGameState(prev => ({ 
-      ...prev, 
-      showReady: false, 
-      showCountdown: true 
-    }));
-  }, []);
+  // Game loop
+  const gameLoop = useCallback(() => {
+    if (gameState !== 'playing') {
+      return;
+    }
+
+    // Update game logic
+    spawnLaser();
+    updateLasers();
+    updateScore();
+
+    // Check for collisions
+    if (checkCollision()) {
+      // Game over
+      console.log('🚀 Laser Dodge: Game Over! Final Score:', scoreRef.current);
+      setGameState('ended');
+      
+      // Play game over sound
+      GameAudio.playCoinSound();
+      
+      // Pass result object with required format
+      const gameResult = {
+        score: scoreRef.current,
+        accuracy: 100, // Survival game - if you're alive, you're 100% accurate
+        avgReactionTime: 0 // Not applicable for this game type
+      };
+      
+      onGameEnd(gameResult);
+      return;
+    }
+
+    // Render
+    render();
+
+    // Continue loop
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
+  }, [gameState, spawnLaser, updateLasers, updateScore, checkCollision, render, onGameEnd]);
 
   // Start game from countdown
   const startGame = useCallback(() => {
     console.log('🚀 Laser Dodge: Starting game...');
-    setGameState(prev => ({ ...prev, showCountdown: false }));
-    initGame();
-    lastTimeRef.current = performance.now();
+    
+    // Initialize game state
+    shipRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 100 };
+    lasersRef.current = [];
+    gameStartTimeRef.current = Date.now();
+    lastLaserSpawnRef.current = Date.now();
+    scoreRef.current = 0;
+    levelRef.current = 1;
+    
+    setGameState('playing');
+    setScore(0);
+    setLevel(1);
+    
+    // Start game loop
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-    console.log('🚀 Laser Dodge: Game loop started');
-  }, [initGame, gameLoop]);
+    console.log('🚀 Laser Dodge: Game started!');
+  }, [gameLoop]);
+
+  // Start countdown from ready state
+  const handleStartGame = useCallback(() => {
+    setGameState('countdown');
+  }, []);
 
   // Restart game
   const restartGame = useCallback(() => {
     if (gameLoopRef.current) {
       cancelAnimationFrame(gameLoopRef.current);
     }
-    setGameState(prev => ({ 
-      ...prev, 
-      showReady: true,
-      showCountdown: false, 
-      gameOver: false, 
-      finalScore: 0 
-    }));
+    setGameState('ready');
   }, []);
 
   // Cleanup
@@ -426,7 +364,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   }, []);
 
   // Render component
-  if (gameState.showReady) {
+  if (gameState === 'ready') {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
         <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
@@ -509,7 +447,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     );
   }
 
-  if (gameState.showCountdown) {
+  if (gameState === 'countdown') {
     return (
       <GameCountdown
         onCountdownComplete={startGame}
@@ -519,14 +457,37 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     );
   }
 
+  if (gameState === 'ended') {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="bg-gray-800 rounded-lg p-8 text-center">
+          <h3 className="text-2xl font-bold text-white mb-4">Game Over!</h3>
+          <p className="text-lg text-yellow-400 mb-2">
+            Final Score: {score.toFixed(2)}
+          </p>
+          <p className="text-sm text-gray-300 mb-6">
+            Survived {level} levels
+          </p>
+          <button
+            onClick={restartGame}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+          >
+            Play Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Playing state
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
       <div className="bg-gray-800 rounded-lg p-6 shadow-2xl">
         <div className="mb-4 text-center">
           <h2 className="text-2xl font-bold text-white mb-2">Laser Dodge</h2>
           <div className="flex justify-center gap-6 text-sm text-gray-300">
-            <span>Score: {gameState.score.toFixed(2)}</span>
-            <span>Level: {gameState.level}</span>
+            <span>Score: {score.toFixed(2)}</span>
+            <span>Level: {level}</span>
             <span className="text-yellow-400">
               {isPractice ? '🎮 Practice Mode' : '🏆 Competition Mode'}
             </span>
@@ -544,27 +505,6 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
           onTouchEnd={handleTouchEnd}
           style={{ touchAction: 'none' }}
         />
-
-        {gameState.gameOver && (
-          <div className="mt-4 text-center">
-            <div className="bg-red-900 bg-opacity-50 rounded-lg p-4 mb-4">
-              <h3 className="text-xl font-bold text-white mb-2">Game Over!</h3>
-              <p className="text-lg text-yellow-400">
-                Final Score: {gameState.finalScore.toFixed(2)}
-              </p>
-              <p className="text-sm text-gray-300">
-                Survived {gameState.level} levels
-              </p>
-            </div>
-            
-            <button
-              onClick={restartGame}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-            >
-              Play Again
-            </button>
-          </div>
-        )}
 
         <div className="mt-4 text-xs text-gray-400 text-center max-w-lg">
           <p className="mb-1">🎯 <strong>How to Play:</strong></p>
