@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameAudio } from '@/utils/gameAudio';
 
 interface GameResult {
   score: number;
@@ -40,23 +39,22 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   const countdownRef = useRef<NodeJS.Timeout>();
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
-  // Initialize audio with error handling
+  // Simple audio initialization (no complex GameAudio)
   useEffect(() => {
-    try {
-      GameAudio.init();
-    } catch (e) {
-      console.log('Audio initialization failed, continuing without audio');
-    }
+    // No complex audio initialization needed
   }, []);
 
   // Countdown logic
   useEffect(() => {
     if (gameState === 'countdown') {
       if (countdown > 0) {
+        // Simple countdown beep
         try {
-          GameAudio.playCountdown(countdown);
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = 0.1;
+          audio.play().catch(() => {});
         } catch (e) {
-          console.log('Audio failed, continuing silently');
+          // Audio failed, continue silently
         }
         countdownRef.current = setTimeout(() => {
           setCountdown(prev => prev - 1);
@@ -97,10 +95,13 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       console.log('QuickClick: FLASH!');
       setGameState('flash');
       setFlashStartTime(Date.now());
+      // Simple flash sound
       try {
-        GameAudio.playCountdown(1); // Flash sound
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = 0.15;
+        audio.play().catch(() => {});
       } catch (e) {
-        console.log('Audio failed, continuing silently');
+        // Audio failed, continue silently
       }
     }, waitTime);
   }, [currentRound]);
@@ -133,9 +134,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       // Play success sound
       try {
-        GameAudio.playTargetHit();
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = 0.2;
+        audio.play().catch(() => {});
       } catch (e) {
-        console.log('Audio failed, continuing silently');
+        // Audio failed, continue silently
       }
       
       // Record the round
@@ -166,10 +169,13 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     } else if (gameState === 'waiting') {
       // Clicked too early
       console.log('QuickClick: Clicked too early!');
+      // Play error sound
       try {
-        GameAudio.playTargetMiss();
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = 0.1;
+        audio.play().catch(() => {});
       } catch (e) {
-        console.log('Audio failed, continuing silently');
+        // Audio failed, continue silently
       }
       
       // Record failed round
@@ -201,10 +207,13 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     if (gameState === 'flash') {
       const timeout = setTimeout(() => {
         console.log('QuickClick: No click - auto fail');
+        // Play error sound
         try {
-          GameAudio.playTargetMiss();
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = 0.1;
+          audio.play().catch(() => {});
         } catch (e) {
-          console.log('Audio failed, continuing silently');
+          // Audio failed, continue silently
         }
         
         const newRound: Round = {
@@ -237,10 +246,13 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     console.log('QuickClick: Game ended', finalRounds);
     setGameState('ended');
     
+    // Simple game end sound
     try {
-      GameAudio.playGameEnd();
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+      audio.volume = 0.2;
+      audio.play().catch(() => {});
     } catch (e) {
-      console.log('Audio failed, continuing silently');
+      // Audio failed, continue silently
     }
     
     // Calculate results

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GameAudio } from '@/utils/gameAudio';
 
 interface GameResult {
   score: number;
@@ -150,8 +149,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           const age = currentTime - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
-            // Play laser warning sound
-            GameAudio.playCoinSound();
+            // Simple audio warning
+            try {
+              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+              audio.volume = 0.1;
+              audio.play().catch(() => {});
+            } catch (e) {
+              // Audio failed, continue silently
+            }
           }
         }
         
@@ -219,10 +224,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       clearInterval(timerRef.current);
     }
 
+    // Simple game end audio
     try {
-      GameAudio.playGameEnd();
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+      audio.volume = 0.2;
+      audio.play().catch(() => {});
     } catch (e) {
-      console.log('Audio failed, continuing silently');
+      // Audio failed, continue silently
     }
     
     const gameResult = {
