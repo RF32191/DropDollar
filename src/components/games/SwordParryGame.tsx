@@ -294,14 +294,16 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     }));
 
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [score]);
+  }, [score, timeLeft, endGame]);
 
   // Check for slashing attacks and cuts
   useEffect(() => {
-    if (gameState !== 'playing' || !isSlashing) return;
+    if (gameState !== 'playing' || !isSlashing || !attacks || !mousePos) return;
 
     // Check for slashing attacks - when user is actively clicking/touching
     const nearbyAttacks = attacks.filter(attack => {
+      if (!attack || typeof attack.x !== 'number' || typeof attack.y !== 'number') return false;
+      
       const distance = Math.sqrt(
         Math.pow(attack.x - mousePos.x, 2) + Math.pow(attack.y - mousePos.y, 2)
       );
@@ -342,6 +344,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
     // Check for optional target cuts (same as before)
     const nearbyCuttableTargets = optionalTargets.filter(target => {
+      if (!target || typeof target.x !== 'number' || typeof target.y !== 'number') return false;
+      
       const distance = Math.sqrt(
         Math.pow(target.x - mousePos.x, 2) + Math.pow(target.y - mousePos.y, 2)
       );
@@ -402,7 +406,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     console.log('SwordParryGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);
-  }, [totalAttacks, parriedAttacks, onGameEnd]);
+  }, [totalAttacks, destroyedAttacks, onGameEnd]);
 
   // Start game
   const handleStartGame = () => {
