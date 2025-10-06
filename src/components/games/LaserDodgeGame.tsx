@@ -79,24 +79,41 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     currentScoreRef.current = newScore;
     setScore(newScore);
 
-    // Spawn lasers
+    // Spawn lasers with EXTREME intensity after 30 seconds
     const level = Math.floor(timeSinceStart / 5000) + 1;
-    const spawnRate = Math.max(200, 800 - (level * 50));
+    const isExtremeMode = timeSinceStart > 30000; // Extreme mode after 30 seconds
+    
+    let spawnRate;
+    if (isExtremeMode) {
+      // EXTREME MODE: Much faster spawning (50-150ms)
+      spawnRate = Math.max(50, 150 - (level * 10));
+    } else {
+      // Normal mode: 200-800ms
+      spawnRate = Math.max(200, 800 - (level * 50));
+    }
     
     if (now - lastLaserSpawnRef.current > spawnRate) {
       const isHorizontal = Math.random() < 0.5;
       
-      const newLaser: Laser = {
-        id: now + Math.random(),
-        type: isHorizontal ? 'horizontal' : 'vertical',
-        position: Math.random() * 100,
-        isHarmful: false,
-        timeToHarmful: Math.max(800, 1500 - (level * 100)),
-        createdAt: now
-      };
+      // In extreme mode, spawn multiple lasers sometimes
+      const laserCount = isExtremeMode && Math.random() < 0.3 ? 2 : 1;
       
-      console.log('LaserDodge: Spawning laser:', newLaser.type, 'at position', newLaser.position);
-      setLasers(prev => [...prev, newLaser]);
+      for (let i = 0; i < laserCount; i++) {
+        const newLaser: Laser = {
+          id: now + Math.random() + i,
+          type: isHorizontal ? 'horizontal' : 'vertical',
+          position: Math.random() * 100,
+          isHarmful: false,
+          timeToHarmful: isExtremeMode 
+            ? Math.max(400, 800 - (level * 50)) // Faster warning time in extreme mode
+            : Math.max(800, 1500 - (level * 100)),
+          createdAt: now
+        };
+        
+        console.log(`LaserDodge: Spawning ${isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
+        setLasers(prev => [...prev, newLaser]);
+      }
+      
       lastLaserSpawnRef.current = now;
     }
 
@@ -142,13 +159,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
-        if (Math.abs(laser.position - ship.y) < 8) {
+        // More precise collision: ship must be directly on the laser beam (height 4)
+        // Laser is at laser.position%, ship is at ship.y%
+        // Allow for 2% tolerance (half the laser height)
+        if (Math.abs(laser.position - ship.y) < 2) {
           collision = true;
+          console.log('LaserDodge: Hit by horizontal red laser at Y:', laser.position, 'Ship Y:', ship.y);
           break;
         }
       } else {
-        if (Math.abs(laser.position - ship.x) < 8) {
+        // More precise collision: ship must be directly on the laser beam (width 4)
+        // Laser is at laser.position%, ship is at ship.x%
+        // Allow for 2% tolerance (half the laser width)
+        if (Math.abs(laser.position - ship.x) < 2) {
           collision = true;
+          console.log('LaserDodge: Hit by vertical red laser at X:', laser.position, 'Ship X:', ship.x);
           break;
         }
       }
@@ -332,7 +357,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-orange-300 font-semibold">Speed:</span> Gets MUCH faster over time!</p>
+                  <p><span className="text-orange-300 font-semibold">30 Seconds:</span> EXTREME MODE activates!</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-red-300 font-semibold">Extreme:</span> 10x faster lasers, multiple spawns!</p>
                 </div>
               </div>
               
@@ -407,6 +436,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           <div className="space-y-6">
             <div className="text-xl font-bold text-gray-900">
               🔥 Avoid the full-screen laser beams! 🚀
+              {timeLeft <= 30 && (
+                <div className="text-lg text-red-600 font-bold animate-pulse mt-2">
+                  ⚡ EXTREME MODE ACTIVATED! ⚡
+                </div>
+              )}
             </div>
             
             {/* Game Area */}
