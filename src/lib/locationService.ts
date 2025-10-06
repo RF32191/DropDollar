@@ -70,12 +70,47 @@ const PARTIAL_RESTRICTION_STATES = new Set([
 export class LocationService {
   private static readonly STORAGE_KEY = 'user_location_data';
   private static readonly PERMISSION_KEY = 'location_permission_granted';
+  private static readonly SESSION_KEY = 'location_session_cache';
   private static readonly GEOCODING_API = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
   
-  // Check if location permission has been granted
+  // Check if location permission has been granted recently (1 hour session)
   static hasLocationPermission(): boolean {
     if (typeof window === 'undefined') return false;
+    
+    // Check session cache first (1 hour)
+    const sessionCache = localStorage.getItem(this.SESSION_KEY);
+    if (sessionCache) {
+      try {
+        const sessionData = JSON.parse(sessionCache);
+        // Check if session is less than 1 hour old
+        if (Date.now() - sessionData.timestamp < 60 * 60 * 1000) {
+          console.log('📍 Using 1-hour location session cache');
+          return sessionData.hasPermission;
+        } else {
+          console.log('📍 Location session cache expired (1 hour)');
+          localStorage.removeItem(this.SESSION_KEY);
+        }
+      } catch (error) {
+        console.error('Error parsing session cache:', error);
+        localStorage.removeItem(this.SESSION_KEY);
+      }
+    }
+    
+    // Fallback to persistent permission
     return localStorage.getItem(this.PERMISSION_KEY) === 'true';
+  }
+
+  // Store session permission (1 hour cache)
+  static storeSessionPermission(hasPermission: boolean): void {
+    if (typeof window === 'undefined') return;
+    
+    const sessionData = {
+      hasPermission,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(this.SESSION_KEY, JSON.stringify(sessionData));
+    console.log('📍 Stored 1-hour location session cache:', hasPermission);
   }
 
   // Get stored location data
@@ -166,6 +201,9 @@ export class LocationService {
       // Store location data and permission
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(locationData));
       localStorage.setItem(this.PERMISSION_KEY, 'true');
+      
+      // Store 1-hour session cache
+      this.storeSessionPermission(true);
 
       return { granted: true, location: locationData };
 

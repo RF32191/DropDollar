@@ -138,9 +138,12 @@ export default function GamesPage() {
   };
 
   const handleLocationVerified = (location: LocationData) => {
+    console.log('📍 Location verified:', location);
     setShowLocationModal(false);
     if (pendingGameStart) {
-      startGame(pendingGameStart);
+      console.log('🎮 Continuing with pending game after location verification');
+      // Now proceed with the normal game flow (including ads)
+      proceedWithGameStart(pendingGameStart);
       setPendingGameStart(null);
     }
   };
@@ -268,25 +271,40 @@ export default function GamesPage() {
   }, [user]);
 
   const handleGameStart = (gameId: string) => {
+    console.log('🎮 Game start requested:', gameId);
+    
     // First check location permission for all game modes
     if (!checkLocationBeforeGame(gameId)) {
+      console.log('📍 Location check required, showing modal');
       return; // Location check failed, modal will be shown or user is restricted
     }
 
+    // Location is verified, now proceed with normal flow
+    proceedWithGameStart(gameId);
+  };
+
+  // Proceed with game start after location is verified
+  const proceedWithGameStart = (gameId: string) => {
+    console.log('✅ Location verified, proceeding with game start:', gameId);
+    
     // For competition mode, start immediately without ads
     if (isCompetitionMode) {
+      console.log('🏆 Competition mode - starting game immediately');
       setCurrentGame(gameId);
       setGameResults(null);
       return;
     }
 
     // For practice mode, check if ad should be shown
+    console.log('🎮 Practice mode - checking ad system');
     const shouldShowAd = startPracticeGame(gameId);
     
     if (shouldShowAd) {
+      console.log('📺 Ad should be shown, storing pending game');
       // Ad will be shown, store the pending game
       setPendingGameStart(gameId);
     } else {
+      console.log('🚀 No ad needed, starting game immediately');
       // No ad, start game immediately
       setCurrentGame(gameId);
       setGameResults(null);
