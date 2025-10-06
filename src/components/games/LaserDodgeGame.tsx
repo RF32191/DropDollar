@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useGameEngine } from '@/lib/gameEngine';
 import { GameAudio } from '@/utils/gameAudio';
 import GameCountdown from './GameCountdown';
 
@@ -22,7 +21,7 @@ interface LaserDodgeGameProps {
 interface Laser {
   id: number;
   type: 'horizontal' | 'vertical';
-  position: number; // Percentage (0-100)
+  position: number;
   isHarmful: boolean;
   timeToHarmful: number;
   createdAt: number;
@@ -38,45 +37,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [score, setScore] = useState(0);
-  const currentScoreRef = useRef(0);
+  const [timeLeft, setTimeLeft] = useState(60);
+  
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
   const lastLaserSpawnRef = useRef<number>(0);
   const animationRef = useRef<number>();
+  const timerRef = useRef<NodeJS.Timeout>();
+  const currentScoreRef = useRef(0);
 
-  // Game engine
-  const { timer, startGame, stopGame } = useGameEngine({
-    gameType: 'laser-dodge',
-    totalTime: 60,
-    rng: {
-      isPractice: !isCompetitionMode,
-      listingId,
-      entryNumber
-    },
-    onGameEnd: () => {
-      console.log('LaserDodge: Game engine onGameEnd callback triggered');
-      GameAudio.playGameEnd();
-      
-      setGameState('ended');
-      const gameResult = {
-        score: currentScoreRef.current,
-        accuracy: 100,
-        avgReactionTime: 0
-      };
-      
-      console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
-      onGameEnd(gameResult);
-    }
-  });
-
-  // Spawn laser (much more frequent)
+  // Spawn laser
   const spawnLaser = useCallback(() => {
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
-    const level = Math.floor(timeSinceStart / 5000) + 1; // Level up every 5 seconds
+    const level = Math.floor(timeSinceStart / 5000) + 1;
     
-    // Much faster spawn rate
-    const spawnRate = Math.max(200, 800 - (level * 50)); // Start at 800ms, down to 200ms minimum
+    const spawnRate = Math.max(200, 800 - (level * 50));
     
     if (now - lastLaserSpawnRef.current > spawnRate) {
       const isHorizontal = Math.random() < 0.5;
@@ -84,9 +60,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       const newLaser: Laser = {
         id: now + Math.random(),
         type: isHorizontal ? 'horizontal' : 'vertical',
-        position: Math.random() * 100, // Random position along the axis
+        position: Math.random() * 100,
         isHarmful: false,
-        timeToHarmful: Math.max(800, 1500 - (level * 100)), // Faster warning time as level increases
+        timeToHarmful: Math.max(800, 1500 - (level * 100)),
         createdAt: now
       };
       
@@ -95,19 +71,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
   }, []);
 
-  // Update game
-  const updateGame = useCallback(() => {
+  // Game loop
+  const gameLoop = useCallback(() => {
     if (gameState !== 'playing') return;
 
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
 
-    // Update score (faster scoring)
-    const newScore = Number((timeSinceStart / 50).toFixed(2)); // 2 points per 100ms
+    // Update score
+    const newScore = Number((timeSinceStart / 50).toFixed(2));
     currentScoreRef.current = newScore;
     setScore(newScore);
 
-    // Spawn new lasers
+    // Spawn lasers
     spawnLaser();
 
     // Update lasers
@@ -115,45 +91,70 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       return prevLasers.map(laser => {
         const updatedLaser = { ...laser };
         
-        // Check if laser should become harmful
         if (!updatedLaser.isHarmful) {
           const age = now - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
-            GameAudio.playCoinSound(); // Warning sound
+            GameAudio.playCoinSound();
           }
         }
         
         return updatedLaser;
       }).filter(laser => {
-        // Remove lasers after they've been harmful for 3 seconds
         const age = now - laser.createdAt;
         return age < laser.timeToHarmful + 3000;
       });
     });
 
-    // Check collisions with harmful lasers
+    // Check collisions
     const harmfulLasers = lasers.filter(l => l.isHarmful);
+    let collision = false;
+    
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
-        // Check if ship is on the same horizontal line (with tolerance)
         if (Math.abs(laser.position - ship.y) < 8) {
-          console.log('LaserDodge: Horizontal laser collision! Game Over!');
-          stopGame();
-          return;
+          collision = true;
+          break;
         }
       } else {
-        // Check if ship is on the same vertical line (with tolerance)
         if (Math.abs(laser.position - ship.x) < 8) {
-          console.log('LaserDodge: Vertical laser collision! Game Over!');
-          stopGame();
-          return;
+          collision = true;
+          break;
         }
       }
     }
 
-    animationRef.current = requestAnimationFrame(updateGame);
-  }, [gameState, ship, lasers, spawnLaser, stopGame]);
+    if (collision) {
+      console.log('LaserDodge: Collision detected! Game Over!');
+      endGame();
+      return;
+    }
+
+    animationRef.current = requestAnimationFrame(gameLoop);
+  }, [gameState, ship, lasers, spawnLaser]);
+
+  // End game
+  const endGame = useCallback(() => {
+    setGameState('ended');
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    GameAudio.playGameEnd();
+    
+    const gameResult = {
+      score: currentScoreRef.current,
+      accuracy: 100,
+      avgReactionTime: 0
+    };
+    
+    console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
+    onGameEnd(gameResult);
+  }, [onGameEnd]);
 
   // Handle mouse movement
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -166,7 +167,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     
-    // Keep ship within bounds
     const boundedX = Math.max(5, Math.min(95, x));
     const boundedY = Math.max(5, Math.min(95, y));
     
@@ -203,38 +203,42 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   };
 
   const handleCountdownComplete = () => {
-    // Reset game state
+    console.log('LaserDodge: Starting game...');
+    
+    // Reset everything
     setScore(0);
     currentScoreRef.current = 0;
     setLasers([]);
     setShip({ x: 50, y: 50 });
+    setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
     
     setGameState('playing');
-    startGame();
+    
+    // Start timer
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          endGame();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     
     // Start game loop
-    animationRef.current = requestAnimationFrame(updateGame);
+    animationRef.current = requestAnimationFrame(gameLoop);
   };
-
-  useEffect(() => {
-    if (gameState === 'playing') {
-      animationRef.current = requestAnimationFrame(updateGame);
-    }
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [gameState, updateGame]);
 
   // Cleanup
   useEffect(() => {
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
       }
     };
   }, []);
@@ -247,7 +251,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
         <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
-          {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
@@ -320,7 +323,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 onClick={handleStartGame}
                 className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
               >
-                🔥 {isCompetitionMode ? 'START EXTREME' : 'START EXTREME'}
+                🔥 START EXTREME
               </button>
             </div>
           </div>
@@ -348,7 +351,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             🔥 Laser Dodge EXTREME
           </div>
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">Time: {timer.timeLeft}s</div>
+            <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
             <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
             {!isCompetitionMode && onExit && (
               <button 
@@ -391,7 +394,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 ))}
               </div>
 
-              {/* Horizontal Lasers (full width) */}
+              {/* Horizontal Lasers */}
               {lasers.filter(l => l.type === 'horizontal').map((laser) => (
                 <div
                   key={laser.id}
@@ -408,7 +411,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 />
               ))}
 
-              {/* Vertical Lasers (full height) */}
+              {/* Vertical Lasers */}
               {lasers.filter(l => l.type === 'vertical').map((laser) => (
                 <div
                   key={laser.id}
@@ -445,7 +448,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           </div>
         )}
 
-        {/* Instructions */}
         <div className="mt-8 text-sm text-gray-600 space-y-2">
           <div>🔥 <strong>EXTREME MODE:</strong> Full-screen horizontal and vertical laser beams!</div>
           <div>🔵 Blue lasers are safe but turn red when deadly</div>
