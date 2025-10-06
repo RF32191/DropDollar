@@ -164,9 +164,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     currentScoreRef.current = score;
     setScore(score);
 
-    // Spawn attacks with difficulty based on time remaining (gets harder as time runs out)
-    const difficultyLevel = Math.max(1, 61 - timeLeft); // Level 1-60 based on time remaining
-    const baseSpawnRate = Math.max(400, 2000 - (difficultyLevel * 25)); // Faster spawning as time runs out
+    // Spawn attacks with much more forgiving difficulty
+    const difficultyLevel = Math.max(1, Math.floor((61 - timeLeft) / 10)); // Level 1-6 based on time (every 10 seconds)
+    const baseSpawnRate = Math.max(1500, 3500 - (difficultyLevel * 300)); // Much slower spawning
     const attackSpawnRate = baseSpawnRate;
     
     if (now - lastAttackSpawnRef.current > attackSpawnRate) {
@@ -203,7 +203,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         angle: angle + (Math.random() - 0.5) * 60, // Required parry angle with some variance
         x: startX,
         y: startY,
-        speed: Math.min(1.5, 0.4 + (difficultyLevel * 0.02)), // Slower base speed, gradual increase
+        speed: Math.min(0.8, 0.2 + (difficultyLevel * 0.1)), // Much slower attacks
         createdAt: now,
         parried: false,
         perfectTiming: false
@@ -253,8 +253,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           Math.pow(attack.x - 50, 2) + Math.pow(attack.y - 50, 2)
         );
         
-        // Larger protection zone - attacks must get within 8 units to hit center
-        if (distanceToCenter < 8 && !attack.parried) {
+        // MUCH larger protection zone - attacks must get within 12 units to hit center
+        if (distanceToCenter < 12 && !attack.parried) {
           // Attack hit player
           console.log('SwordParry: Attack hit center! Game Over!');
           endGame();
@@ -262,7 +262,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         }
         
         // Keep attacks that are still moving toward center or have been parried
-        return distanceToCenter > 8 || attack.parried;
+        return distanceToCenter > 12 || attack.parried;
       });
     });
 
@@ -279,22 +279,22 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   useEffect(() => {
     if (gameState !== 'playing') return;
 
-    // Check for parries - improved collision detection
+    // Check for parries - MUCH more forgiving collision detection
     const nearbyAttacks = attacks.filter(attack => {
       const distance = Math.sqrt(
         Math.pow(attack.x - mousePos.x, 2) + Math.pow(attack.y - mousePos.y, 2)
       );
-      // Larger parry zone - easier to intercept attacks
-      return distance < 20 && !attack.parried;
+      // HUGE parry zone - very easy to intercept attacks
+      return distance < 30 && !attack.parried;
     });
 
     for (const attack of nearbyAttacks) {
       const angleDiff = Math.abs(attack.angle - mousePos.angle);
       const normalizedDiff = Math.min(angleDiff, 360 - angleDiff);
       
-      if (normalizedDiff < 40) { // Increased tolerance - 40 degree tolerance for parry
+      if (normalizedDiff < 60) { // VERY forgiving - 60 degree tolerance for parry
         // Successful parry!
-        const isPerfect = normalizedDiff < 15; // Perfect parry within 15 degrees
+        const isPerfect = normalizedDiff < 20; // Perfect parry within 20 degrees
         
         setAttacks(prev => prev.map(a => 
           a.id === attack.id ? { ...a, parried: true, perfectTiming: isPerfect } : a
@@ -484,11 +484,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-orange-300 font-semibold">Parry Attacks:</span> Match your sword angle to incoming attacks (40° tolerance)</p>
+                  <p><span className="text-orange-300 font-semibold">Parry Attacks:</span> Match your sword angle to incoming attacks (60° tolerance)</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-yellow-300 font-semibold">Perfect Timing:</span> Within 15° = perfect parry bonus</p>
+                  <p><span className="text-yellow-300 font-semibold">Perfect Timing:</span> Within 20° = perfect parry bonus</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
@@ -502,8 +502,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
                 <p className="text-xs text-red-200">
-                  <span className="text-yellow-300 font-bold">⚔️ Master Tip:</span> Difficulty increases as time runs out! 
-                  Stay near the center to intercept attacks. Larger parry zone makes it easier to defend.
+                  <span className="text-yellow-300 font-bold">⚔️ Easy Mode:</span> Much slower attacks and huge parry zones! 
+                  Green circle shows your parry area. Blue circle shows protection zone.
                 </p>
               </div>
             </div>
@@ -563,9 +563,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               Perfect: {perfectParries}
             </div>
             <div className="text-sm text-gray-600">
-              Difficulty: {Math.max(1, 61 - timeLeft)}/60
+              Difficulty: {Math.max(1, Math.floor((61 - timeLeft) / 10))}/6
               {timeLeft <= 10 && (
-                <span className="text-red-500 font-bold animate-pulse ml-1">EXTREME!</span>
+                <span className="text-red-500 font-bold animate-pulse ml-1">FINAL WAVE!</span>
               )}
             </div>
             {!isCompetitionMode && onExit && (
@@ -594,8 +594,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
             >
-              {/* Center target (player position) - larger protection zone */}
-              <div className="absolute w-6 h-6 bg-blue-400 rounded-full border-2 border-blue-200 animate-pulse"
+              {/* Center target (player position) - MUCH larger protection zone */}
+              <div className="absolute w-8 h-8 bg-blue-400 rounded-full border-2 border-blue-200 animate-pulse"
                 style={{
                   left: '50%',
                   top: '50%',
@@ -604,8 +604,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 }}
               />
               
-              {/* Protection zone indicator */}
-              <div className="absolute w-16 h-16 border-2 border-blue-300 border-dashed rounded-full opacity-30"
+              {/* HUGE protection zone indicator */}
+              <div className="absolute w-24 h-24 border-2 border-blue-300 border-dashed rounded-full opacity-40"
                 style={{
                   left: '50%',
                   top: '50%',
@@ -682,6 +682,17 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                   zIndex: 14
                 }}
               />
+              
+              {/* Parry zone indicator around sword */}
+              <div
+                className="absolute w-16 h-16 border border-green-400 border-dashed rounded-full opacity-20"
+                style={{
+                  left: `${mousePos.x}%`,
+                  top: `${mousePos.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 13
+                }}
+              />
             </div>
 
             <div className="text-sm text-gray-600 text-center">
@@ -692,11 +703,12 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
         {/* Instructions */}
         <div className="mt-8 text-sm text-gray-600 space-y-2">
-          <div>⚔️ <strong>Parry:</strong> Match your sword angle to incoming attacks (40° tolerance)</div>
-          <div>🎯 <strong>Perfect:</strong> Within 15° for bonus points and perfect parry status</div>
+          <div>⚔️ <strong>Parry:</strong> Match your sword angle to incoming attacks (60° tolerance - VERY forgiving!)</div>
+          <div>🎯 <strong>Perfect:</strong> Within 20° for bonus points and perfect parry status</div>
           <div>💎 <strong>Targets:</strong> Cut optional purple targets for bonus points</div>
-          <div>🛡️ <strong>Protect:</strong> Don't let red attacks reach the blue center circle!</div>
-          <div>⏰ <strong>Difficulty:</strong> Gets harder as time runs out - more attacks, faster movement!</div>
+          <div>🛡️ <strong>Protect:</strong> Don't let red attacks reach the large blue center circle!</div>
+          <div>⏰ <strong>Difficulty:</strong> 6 levels total - increases every 10 seconds (much more gradual!)</div>
+          <div>🔍 <strong>Visual Aids:</strong> Green circle = parry zone, Blue circle = protection zone</div>
         </div>
       </div>
     </div>
