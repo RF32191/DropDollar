@@ -219,7 +219,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       clearInterval(timerRef.current);
     }
 
-    GameAudio.playGameEnd();
+    try {
+      GameAudio.playGameEnd();
+    } catch (e) {
+      console.log('Audio failed, continuing silently');
+    }
     
     const gameResult = {
       score: currentScoreRef.current,

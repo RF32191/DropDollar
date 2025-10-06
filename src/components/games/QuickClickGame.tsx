@@ -21,6 +21,10 @@ interface Round {
   roundNumber: number;
   reactionTime: number | null;
   clicked: boolean;
+  isBonus?: boolean;
+  targetX?: number;
+  targetY?: number;
+  accuracy?: number;
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: QuickClickGameProps) {
@@ -29,21 +33,31 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   const [rounds, setRounds] = useState<Round[]>([]);
   const [countdown, setCountdown] = useState(3);
   const [flashStartTime, setFlashStartTime] = useState<number>(0);
+  const [targetPosition, setTargetPosition] = useState<{x: number, y: number} | null>(null);
+  const [clickPosition, setClickPosition] = useState<{x: number, y: number} | null>(null);
   
   const flashTimeoutRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
-  // Initialize audio
+  // Initialize audio with error handling
   useEffect(() => {
-    GameAudio.init();
+    try {
+      GameAudio.init();
+    } catch (e) {
+      console.log('Audio initialization failed, continuing without audio');
+    }
   }, []);
 
   // Countdown logic
   useEffect(() => {
     if (gameState === 'countdown') {
       if (countdown > 0) {
-        GameAudio.playCountdown(countdown);
+        try {
+          GameAudio.playCountdown(countdown);
+        } catch (e) {
+          console.log('Audio failed, continuing silently');
+        }
         countdownRef.current = setTimeout(() => {
           setCountdown(prev => prev - 1);
         }, 1000);
@@ -62,6 +76,18 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   // Start a round
   const startRound = useCallback(() => {
     console.log(`QuickClick: Starting round ${currentRound}`);
+    const isBonus = currentRound === 4;
+    
+    if (isBonus) {
+      // Bonus round - generate random target position
+      const targetX = 20 + Math.random() * 60; // 20% to 80% of screen width
+      const targetY = 20 + Math.random() * 60; // 20% to 80% of screen height
+      setTargetPosition({ x: targetX, y: targetY });
+      console.log(`QuickClick: Bonus round - target at ${targetX}%, ${targetY}%`);
+    } else {
+      setTargetPosition(null);
+    }
+    
     setGameState('waiting');
     
     // Random wait time between 2-6 seconds
@@ -71,24 +97,56 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       console.log('QuickClick: FLASH!');
       setGameState('flash');
       setFlashStartTime(Date.now());
-      GameAudio.playCountdown(1); // Flash sound
+      try {
+        GameAudio.playCountdown(1); // Flash sound
+      } catch (e) {
+        console.log('Audio failed, continuing silently');
+      }
     }, waitTime);
   }, [currentRound]);
 
   // Handle click
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState === 'flash') {
       const reactionTime = Date.now() - flashStartTime;
       console.log(`QuickClick: Clicked! Reaction time: ${reactionTime}ms`);
       
+      const isBonus = currentRound === 4;
+      let accuracy = 100;
+      
+      if (isBonus && targetPosition && gameAreaRef.current) {
+        // Calculate click accuracy for bonus round
+        const rect = gameAreaRef.current.getBoundingClientRect();
+        const clickX = ((event.clientX - rect.left) / rect.width) * 100;
+        const clickY = ((event.clientY - rect.top) / rect.height) * 100;
+        setClickPosition({ x: clickX, y: clickY });
+        
+        // Calculate distance from target (in percentage points)
+        const distance = Math.sqrt(
+          Math.pow(clickX - targetPosition.x, 2) + Math.pow(clickY - targetPosition.y, 2)
+        );
+        
+        // Convert distance to accuracy (closer = higher accuracy)
+        accuracy = Math.max(0, 100 - (distance * 2)); // 2% penalty per percentage point distance
+        console.log(`QuickClick: Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)})`);
+      }
+      
       // Play success sound
-      GameAudio.playTargetHit();
+      try {
+        GameAudio.playTargetHit();
+      } catch (e) {
+        console.log('Audio failed, continuing silently');
+      }
       
       // Record the round
       const newRound: Round = {
         roundNumber: currentRound,
         reactionTime,
-        clicked: true
+        clicked: true,
+        isBonus,
+        targetX: targetPosition?.x,
+        targetY: targetPosition?.y,
+        accuracy: isBonus ? accuracy : undefined
       };
       
       setRounds(prev => [...prev, newRound]);
@@ -96,25 +154,30 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       // Move to next round or end game
       setTimeout(() => {
-        if (currentRound < 3) {
+        if (currentRound < 4) {
           setCurrentRound(prev => prev + 1);
           setCountdown(3);
           setGameState('countdown');
         } else {
           endGame([...rounds, newRound]);
         }
-      }, 1500);
+      }, 2000); // Longer delay for bonus round to show results
       
     } else if (gameState === 'waiting') {
       // Clicked too early
       console.log('QuickClick: Clicked too early!');
-      GameAudio.playTargetMiss();
+      try {
+        GameAudio.playTargetMiss();
+      } catch (e) {
+        console.log('Audio failed, continuing silently');
+      }
       
       // Record failed round
       const newRound: Round = {
         roundNumber: currentRound,
         reactionTime: null,
-        clicked: false
+        clicked: false,
+        isBonus: currentRound === 4
       };
       
       setRounds(prev => [...prev, newRound]);
@@ -122,7 +185,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       // Move to next round or end game
       setTimeout(() => {
-        if (currentRound < 3) {
+        if (currentRound < 4) {
           setCurrentRound(prev => prev + 1);
           setCountdown(3);
           setGameState('countdown');
@@ -131,26 +194,31 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         }
       }, 1500);
     }
-  }, [gameState, flashStartTime, currentRound, rounds]);
+  }, [gameState, flashStartTime, currentRound, rounds, targetPosition]);
 
   // Auto-fail if no click during flash
   useEffect(() => {
     if (gameState === 'flash') {
       const timeout = setTimeout(() => {
         console.log('QuickClick: No click - auto fail');
-        GameAudio.playTargetMiss();
+        try {
+          GameAudio.playTargetMiss();
+        } catch (e) {
+          console.log('Audio failed, continuing silently');
+        }
         
         const newRound: Round = {
           roundNumber: currentRound,
           reactionTime: null,
-          clicked: false
+          clicked: false,
+          isBonus: currentRound === 4
         };
         
         setRounds(prev => [...prev, newRound]);
         setGameState('clicked');
         
         setTimeout(() => {
-          if (currentRound < 3) {
+          if (currentRound < 4) {
             setCurrentRound(prev => prev + 1);
             setCountdown(3);
             setGameState('countdown');
@@ -169,7 +237,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     console.log('QuickClick: Game ended', finalRounds);
     setGameState('ended');
     
-    GameAudio.playGameEnd();
+    try {
+      GameAudio.playGameEnd();
+    } catch (e) {
+      console.log('Audio failed, continuing silently');
+    }
     
     // Calculate results
     const validRounds = finalRounds.filter(r => r.reactionTime !== null);
@@ -177,12 +249,24 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       ? validRounds.reduce((sum, r) => sum + r.reactionTime!, 0) / validRounds.length 
       : 0;
     
-    const accuracy = (validRounds.length / 3) * 100;
+    const accuracy = (validRounds.length / 4) * 100; // Now 4 rounds total
     
     // Score based on speed and accuracy
     const speedScore = avgReactionTime > 0 ? Math.max(0, 1000 - avgReactionTime) : 0;
     const accuracyBonus = accuracy * 10;
-    const finalScore = Number((speedScore + accuracyBonus).toFixed(2));
+    
+    // Bonus round scoring
+    const bonusRound = finalRounds.find(r => r.isBonus);
+    let bonusScore = 0;
+    if (bonusRound && bonusRound.reactionTime && bonusRound.accuracy) {
+      // Bonus: reaction time + accuracy bonus
+      const bonusSpeed = Math.max(0, 500 - bonusRound.reactionTime); // Up to 500 points for speed
+      const bonusAccuracy = bonusRound.accuracy * 5; // Up to 500 points for accuracy
+      bonusScore = bonusSpeed + bonusAccuracy;
+      console.log(`Bonus scoring: Speed=${bonusSpeed}, Accuracy=${bonusAccuracy}, Total=${bonusScore}`);
+    }
+    
+    const finalScore = Number((speedScore + accuracyBonus + bonusScore).toFixed(2));
     
     const gameResult = {
       score: finalScore,
@@ -263,7 +347,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-purple-300 font-semibold">Accuracy:</span> Don't click too early!</p>
+                  <p><span className="text-purple-300 font-semibold">Bonus:</span> 4th round - click the target circle!</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-orange-300 font-semibold">Accuracy:</span> Closer to center = more bonus points!</p>
                 </div>
               </div>
               
@@ -301,12 +389,21 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     return (
       <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Round {currentRound} of 3</h2>
-          <p className="text-lg text-gray-600 mb-8">Get ready to click when the screen flashes green!</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            {currentRound === 4 ? 'BONUS ROUND!' : `Round ${currentRound} of 3`}
+          </h2>
+          <p className="text-lg text-gray-600 mb-8">
+            {currentRound === 4 
+              ? 'Click the target circle when it appears!' 
+              : 'Get ready to click when the screen flashes green!'
+            }
+          </p>
           <div className="text-8xl font-bold text-blue-500 animate-pulse">
             {countdown}
           </div>
-          <p className="text-sm text-gray-500 mt-4">Prepare yourself...</p>
+          <p className="text-sm text-gray-500 mt-4">
+            {currentRound === 4 ? 'Accuracy + Speed = Bonus Points!' : 'Prepare yourself...'}
+          </p>
         </div>
       </div>
     );
@@ -318,11 +415,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div className="text-lg font-bold text-gray-900">
-            ⚡ QuickClick - Round {currentRound}/3
+            ⚡ QuickClick - {currentRound === 4 ? 'BONUS ROUND' : `Round ${currentRound}/3`}
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600">
-              Completed: {rounds.length}/3
+              Completed: {rounds.length}/{currentRound === 4 ? '3+Bonus' : '3'}
             </div>
             {!isCompetitionMode && onExit && (
               <button 
@@ -350,13 +447,19 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
             {gameState === 'waiting' && (
               <div className="text-center">
                 <div className="text-6xl font-bold mb-4">WAIT...</div>
-                <div className="text-xl">Don't click yet!</div>
+                <div className="text-xl">
+                  {currentRound === 4 ? "Don't click until you see the target!" : "Don't click yet!"}
+                </div>
               </div>
             )}
             {gameState === 'flash' && (
               <div className="text-center">
-                <div className="text-8xl font-bold mb-4 animate-bounce">CLICK!</div>
-                <div className="text-2xl">Click NOW!</div>
+                <div className="text-8xl font-bold mb-4 animate-bounce">
+                  {currentRound === 4 ? 'TARGET!' : 'CLICK!'}
+                </div>
+                <div className="text-2xl">
+                  {currentRound === 4 ? 'Click the circle!' : 'Click NOW!'}
+                </div>
               </div>
             )}
             {gameState === 'clicked' && (
@@ -366,8 +469,14 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                     <div className="text-4xl font-bold mb-4">
                       {rounds[rounds.length - 1].reactionTime}ms
                     </div>
+                    {rounds[rounds.length - 1].isBonus && rounds[rounds.length - 1].accuracy && (
+                      <div className="text-2xl font-bold mb-2 text-yellow-300">
+                        Accuracy: {rounds[rounds.length - 1].accuracy!.toFixed(1)}%
+                      </div>
+                    )}
                     <div className="text-xl">
-                      {rounds[rounds.length - 1].reactionTime! < 200 ? 'Lightning Fast! ⚡' :
+                      {rounds[rounds.length - 1].isBonus ? 'Bonus Complete! 🎯' :
+                       rounds[rounds.length - 1].reactionTime! < 200 ? 'Lightning Fast! ⚡' :
                        rounds[rounds.length - 1].reactionTime! < 300 ? 'Excellent! 🎯' :
                        rounds[rounds.length - 1].reactionTime! < 400 ? 'Good! 👍' :
                        'Keep practicing! 💪'}
@@ -376,25 +485,73 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                 ) : (
                   <div>
                     <div className="text-4xl font-bold mb-4">Too Early!</div>
-                    <div className="text-xl">Wait for green next time!</div>
+                    <div className="text-xl">
+                      {currentRound === 4 ? 'Wait for the target circle!' : 'Wait for green next time!'}
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
+
+          {/* Target circle for bonus round */}
+          {gameState === 'flash' && currentRound === 4 && targetPosition && (
+            <>
+              <div
+                className="absolute w-16 h-16 bg-yellow-400 rounded-full border-4 border-yellow-200 animate-pulse shadow-lg"
+                style={{
+                  left: `${targetPosition.x}%`,
+                  top: `${targetPosition.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 10
+                }}
+              />
+              <div
+                className="absolute w-8 h-8 bg-red-500 rounded-full border-2 border-red-300"
+                style={{
+                  left: `${targetPosition.x}%`,
+                  top: `${targetPosition.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 11
+                }}
+              />
+            </>
+          )}
+
+          {/* Show click position for bonus round */}
+          {gameState === 'clicked' && currentRound === 4 && clickPosition && (
+            <div
+              className="absolute w-4 h-4 bg-blue-400 rounded-full border-2 border-blue-200"
+              style={{
+                left: `${clickPosition.x}%`,
+                top: `${clickPosition.y}%`,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 12
+              }}
+            />
+          )}
         </div>
 
         {/* Round Results */}
         {rounds.length > 0 && (
           <div className="mt-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Round Results:</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               {rounds.map((round) => (
-                <div key={round.roundNumber} className="bg-gray-100 rounded-lg p-4 text-center">
-                  <div className="text-sm text-gray-600">Round {round.roundNumber}</div>
+                <div key={round.roundNumber} className={`rounded-lg p-4 text-center ${
+                  round.isBonus ? 'bg-yellow-100 border-2 border-yellow-400' : 'bg-gray-100'
+                }`}>
+                  <div className="text-sm text-gray-600">
+                    {round.isBonus ? 'Bonus' : `Round ${round.roundNumber}`}
+                  </div>
                   <div className="text-lg font-bold">
                     {round.reactionTime ? `${round.reactionTime}ms` : 'Failed'}
                   </div>
+                  {round.isBonus && round.accuracy && (
+                    <div className="text-sm text-yellow-600 font-semibold">
+                      {round.accuracy.toFixed(1)}% accuracy
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -406,6 +563,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           <div>⚡ <strong>Goal:</strong> Click as fast as possible when the screen turns green</div>
           <div>🔴 <strong>Red:</strong> Wait - don't click yet!</div>
           <div>🟢 <strong>Green:</strong> Click immediately for best score!</div>
+          <div>🎯 <strong>Bonus Round:</strong> Click the target circle for accuracy + speed points!</div>
         </div>
       </div>
     </div>
