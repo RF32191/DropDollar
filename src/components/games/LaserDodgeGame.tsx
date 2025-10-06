@@ -1,369 +1,242 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import GameCountdown from './GameCountdown';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useGameEngine } from '@/lib/gameEngine';
 import { GameAudio } from '@/utils/gameAudio';
+import GameCountdown from './GameCountdown';
 
-interface LaserDodgeGameProps {
-  onGameEnd: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
-  onExit?: () => void;
-  listingId?: string;
-  entryNumber?: number;
-  isPractice?: boolean;
+interface GameResult {
+  score: number;
+  accuracy: number;
+  avgReactionTime: number;
 }
 
-interface Position {
-  x: number;
-  y: number;
+interface LaserDodgeGameProps {
+  onGameEnd: (result: GameResult) => void;
+  onExit?: () => void;
+  listingId?: string; // For competition mode
+  entryNumber?: number; // For competition mode
+  isCompetitionMode?: boolean;
 }
 
 interface Laser {
   id: number;
   x: number;
   y: number;
-  width: number;
-  height: number;
-  speed: number;
   isHarmful: boolean;
   timeToHarmful: number;
-  angle: number;
+  speed: number;
 }
 
-const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({ 
-  onGameEnd, 
-  onExit,
-  listingId, 
-  entryNumber,
-  isPractice = false 
-}) => {
-  const { user } = useAuth();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const gameLoopRef = useRef<number>();
-  const lastTimeRef = useRef<number>(0);
-  const shipRef = useRef<Position>({ x: 400, y: 500 });
-  const lasersRef = useRef<Laser[]>([]);
+interface Ship {
+  x: number;
+  y: number;
+}
+
+export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: LaserDodgeGameProps) {
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [lasers, setLasers] = useState<Laser[]>([]);
+  const [ship, setShip] = useState<Ship>({ x: 50, y: 80 }); // Percentage positions
+  const [score, setScore] = useState(0);
+  const currentScoreRef = useRef(0);
+  const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
   const lastLaserSpawnRef = useRef<number>(0);
-  const scoreRef = useRef<number>(0);
-  const levelRef = useRef<number>(1);
+  const animationRef = useRef<number>();
 
-  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
-  const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(1);
-
-  // Game constants
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
-  const SHIP_SIZE = 30;
-  const LASER_SPAWN_RATE = 1000; // Start with 1 laser per second
-  const LEVEL_INCREASE_INTERVAL = 10000; // Increase difficulty every 10 seconds
-
-  // Handle mouse movement
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (gameState !== 'playing') return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    // Keep ship within bounds
-    const boundedX = Math.max(SHIP_SIZE/2, Math.min(CANVAS_WIDTH - SHIP_SIZE/2, x));
-    const boundedY = Math.max(SHIP_SIZE/2, Math.min(CANVAS_HEIGHT - SHIP_SIZE/2, y));
-    
-    shipRef.current = { x: boundedX, y: boundedY };
-  }, [gameState]);
-
-  // Handle touch movement (iPhone support)
-  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    if (gameState !== 'playing') return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    
-    // Keep ship within bounds
-    const boundedX = Math.max(SHIP_SIZE/2, Math.min(CANVAS_WIDTH - SHIP_SIZE/2, x));
-    const boundedY = Math.max(SHIP_SIZE/2, Math.min(CANVAS_HEIGHT - SHIP_SIZE/2, y));
-    
-    shipRef.current = { x: boundedX, y: boundedY };
-  }, [gameState]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    handleTouchMove(e);
-  }, [handleTouchMove]);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-  }, []);
+  // Game engine with proper timer
+  const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
+    gameType: 'laser-dodge',
+    totalTime: 60,
+    rng: {
+      isPractice: !isCompetitionMode,
+      listingId,
+      entryNumber
+    },
+    onGameEnd: () => {
+      console.log('LaserDodge: Game engine onGameEnd callback triggered');
+      GameAudio.playGameEnd();
+      
+      setGameState('ended');
+      const gameResult = {
+        score: currentScoreRef.current,
+        accuracy: 100, // Survival game - if you're alive, you're 100% accurate
+        avgReactionTime: 0 // Not applicable for this game type
+      };
+      
+      console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
+      onGameEnd(gameResult);
+    }
+  });
 
   // Spawn laser
   const spawnLaser = useCallback(() => {
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
-    const currentLevel = Math.floor(timeSinceStart / LEVEL_INCREASE_INTERVAL) + 1;
+    const level = Math.floor(timeSinceStart / 10000) + 1; // Level up every 10 seconds
     
     // Increase spawn rate with level
-    const spawnRate = Math.max(300, LASER_SPAWN_RATE - (currentLevel * 100));
+    const spawnRate = Math.max(800, 2000 - (level * 200));
     
     if (now - lastLaserSpawnRef.current > spawnRate) {
-      const laser: Laser = {
+      const newLaser: Laser = {
         id: now,
-        x: Math.random() * (CANVAS_WIDTH - 20),
-        y: -50,
-        width: 8 + Math.random() * 12, // Random width between 8-20
-        height: 40 + Math.random() * 30, // Random height between 40-70
-        speed: 2 + (currentLevel * 0.5) + Math.random() * 2,
+        x: Math.random() * 90 + 5, // Random X position (5% to 95%)
+        y: -5, // Start above the screen
         isHarmful: false,
-        timeToHarmful: 1500 + Math.random() * 1000, // 1.5-2.5 seconds
-        angle: Math.random() * Math.PI * 2 // Random rotation
+        timeToHarmful: 2000 + Math.random() * 1000, // 2-3 seconds
+        speed: 0.5 + (level * 0.1) + Math.random() * 0.3 // Increase speed with level
       };
       
-      lasersRef.current.push(laser);
+      setLasers(prev => [...prev, newLaser]);
       lastLaserSpawnRef.current = now;
     }
   }, []);
 
-  // Update lasers
-  const updateLasers = useCallback(() => {
+  // Update game
+  const updateGame = useCallback(() => {
+    if (gameState !== 'playing') return;
+
     const now = Date.now();
-    
-    lasersRef.current = lasersRef.current.filter(laser => {
-      // Move laser down
-      laser.y += laser.speed;
-      
-      // Check if laser should become harmful
-      if (!laser.isHarmful) {
-        const age = now - laser.id;
-        if (age > laser.timeToHarmful) {
-          laser.isHarmful = true;
-          // Play warning sound when laser becomes dangerous
-          GameAudio.playCoinSound();
-        }
-      }
-      
-      // Remove lasers that are off screen
-      return laser.y < CANVAS_HEIGHT + 100;
-    });
-  }, []);
+    const timeSinceStart = now - gameStartTimeRef.current;
+    const level = Math.floor(timeSinceStart / 10000) + 1;
 
-  // Check collision
-  const checkCollision = useCallback(() => {
-    const ship = shipRef.current;
-    
-    for (const laser of lasersRef.current) {
-      if (!laser.isHarmful) continue;
-      
-      // Simple rectangular collision detection
-      const shipLeft = ship.x - SHIP_SIZE / 2;
-      const shipRight = ship.x + SHIP_SIZE / 2;
-      const shipTop = ship.y - SHIP_SIZE / 2;
-      const shipBottom = ship.y + SHIP_SIZE / 2;
-      
-      const laserLeft = laser.x;
-      const laserRight = laser.x + laser.width;
-      const laserTop = laser.y;
-      const laserBottom = laser.y + laser.height;
-      
-      if (shipLeft < laserRight && 
-          shipRight > laserLeft && 
-          shipTop < laserBottom && 
-          shipBottom > laserTop) {
-        // Collision detected!
-        return true;
-      }
-    }
-    
-    return false;
-  }, []);
-
-  // Update score
-  const updateScore = useCallback(() => {
-    // Score increases over time (survival)
-    const timeAlive = Date.now() - gameStartTimeRef.current;
-    const baseScore = timeAlive / 100; // 1 point per 100ms survived
-    
-    // Bonus for dodging harmful lasers
-    const harmfulLasers = lasersRef.current.filter(l => l.isHarmful).length;
-    const difficultyBonus = harmfulLasers * 0.1;
-    
-    const newScore = Number((baseScore + difficultyBonus).toFixed(2));
-    scoreRef.current = newScore;
+    // Update score (survival time based)
+    const newScore = Number((timeSinceStart / 100).toFixed(2));
+    currentScoreRef.current = newScore;
     setScore(newScore);
-    
-    const currentLevel = Math.floor(timeAlive / LEVEL_INCREASE_INTERVAL) + 1;
-    levelRef.current = currentLevel;
-    setLevel(currentLevel);
-  }, []);
 
-  // Render game
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    // Spawn new lasers
+    spawnLaser();
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Clear canvas
-    ctx.fillStyle = '#000011';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Draw stars background
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 50; i++) {
-      const x = (i * 137) % CANVAS_WIDTH;
-      const y = (i * 211) % CANVAS_HEIGHT;
-      ctx.fillRect(x, y, 1, 1);
-    }
-
-    // Draw lasers
-    lasersRef.current.forEach(laser => {
-      ctx.save();
-      ctx.translate(laser.x + laser.width/2, laser.y + laser.height/2);
-      ctx.rotate(laser.angle);
-      
-      if (laser.isHarmful) {
-        // Dangerous laser - dark red
-        ctx.fillStyle = '#cc0000';
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 10;
-      } else {
-        // Safe laser - light blue
-        ctx.fillStyle = '#88ccff';
-        ctx.shadowColor = '#aaddff';
-        ctx.shadowBlur = 5;
-      }
-      
-      ctx.fillRect(-laser.width/2, -laser.height/2, laser.width, laser.height);
-      ctx.restore();
+    // Update lasers
+    setLasers(prevLasers => {
+      return prevLasers.map(laser => {
+        const updatedLaser = { ...laser };
+        
+        // Move laser down
+        updatedLaser.y += updatedLaser.speed;
+        
+        // Check if laser should become harmful
+        if (!updatedLaser.isHarmful) {
+          const age = now - laser.id;
+          if (age > laser.timeToHarmful) {
+            updatedLaser.isHarmful = true;
+            GameAudio.playCoinSound(); // Warning sound
+          }
+        }
+        
+        return updatedLaser;
+      }).filter(laser => laser.y < 105); // Remove lasers that went off screen
     });
 
-    // Draw ship
-    const ship = shipRef.current;
-    ctx.save();
-    ctx.translate(ship.x, ship.y);
-    
-    // Ship body (triangle)
-    ctx.fillStyle = '#00ff88';
-    ctx.shadowColor = '#00ff88';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.moveTo(0, -SHIP_SIZE/2);
-    ctx.lineTo(-SHIP_SIZE/3, SHIP_SIZE/2);
-    ctx.lineTo(SHIP_SIZE/3, SHIP_SIZE/2);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Ship details
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-2, -5, 4, 10);
-    
-    ctx.restore();
-
-    // Draw UI
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '20px Arial';
-    ctx.fillText(`Score: ${scoreRef.current.toFixed(2)}`, 20, 30);
-    ctx.fillText(`Level: ${levelRef.current}`, 20, 60);
-    
-    // Draw instructions
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('Move mouse/finger to control ship', 20, CANVAS_HEIGHT - 40);
-    ctx.fillText('Avoid red lasers! Blue lasers are harmless', 20, CANVAS_HEIGHT - 20);
-  }, []);
-
-  // Game loop
-  const gameLoop = useCallback(() => {
-    if (gameState !== 'playing') {
-      return;
+    // Check collisions
+    const harmfulLasers = lasers.filter(l => l.isHarmful);
+    for (const laser of harmfulLasers) {
+      // Simple collision detection (laser and ship overlap)
+      if (Math.abs(laser.x - ship.x) < 8 && Math.abs(laser.y - ship.y) < 8) {
+        // Game Over!
+        console.log('LaserDodge: Collision detected! Game Over!');
+        stopGame();
+        return;
+      }
     }
 
-    // Update game logic
-    spawnLaser();
-    updateLasers();
-    updateScore();
+    animationRef.current = requestAnimationFrame(updateGame);
+  }, [gameState, ship, lasers, spawnLaser, stopGame]);
 
-    // Check for collisions
-    if (checkCollision()) {
-      // Game over
-      console.log('🚀 Laser Dodge: Game Over! Final Score:', scoreRef.current);
-      setGameState('ended');
-      
-      // Play game over sound
-      GameAudio.playCoinSound();
-      
-      // Pass result object with required format
-      const gameResult = {
-        score: scoreRef.current,
-        accuracy: 100, // Survival game - if you're alive, you're 100% accurate
-        avgReactionTime: 0 // Not applicable for this game type
-      };
-      
-      onGameEnd(gameResult);
-      return;
-    }
-
-    // Render
-    render();
-
-    // Continue loop
-    gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, spawnLaser, updateLasers, updateScore, checkCollision, render, onGameEnd]);
-
-  // Start game from countdown
-  const startGame = useCallback(() => {
-    console.log('🚀 Laser Dodge: Starting game...');
+  // Handle mouse movement
+  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return;
     
-    // Initialize game state
-    shipRef.current = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 100 };
-    lasersRef.current = [];
+    const gameArea = gameAreaRef.current;
+    if (!gameArea) return;
+    
+    const rect = gameArea.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    
+    // Keep ship within bounds
+    const boundedX = Math.max(5, Math.min(95, x));
+    const boundedY = Math.max(5, Math.min(95, y));
+    
+    setShip({ x: boundedX, y: boundedY });
+  }, [gameState]);
+
+  // Handle touch movement (iPhone support)
+  const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (gameState !== 'playing') return;
+    
+    const gameArea = gameAreaRef.current;
+    if (!gameArea) return;
+    
+    const rect = gameArea.getBoundingClientRect();
+    const touch = event.touches[0];
+    const x = ((touch.clientX - rect.left) / rect.width) * 100;
+    const y = ((touch.clientY - rect.top) / rect.height) * 100;
+    
+    // Keep ship within bounds
+    const boundedX = Math.max(5, Math.min(95, x));
+    const boundedY = Math.max(5, Math.min(95, y));
+    
+    setShip({ x: boundedX, y: boundedY });
+  }, [gameState]);
+
+  const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    handleTouchMove(event);
+  }, [handleTouchMove]);
+
+  // Start game
+  const handleStartGame = () => {
+    console.log('LaserDodge: Starting countdown...');
+    setGameState('countdown');
+  };
+
+  const handleCountdownComplete = () => {
+    console.log('LaserDodge: Countdown complete, starting game...');
+    
+    // Reset game state
+    setScore(0);
+    currentScoreRef.current = 0;
+    setLasers([]);
+    setShip({ x: 50, y: 80 });
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
-    scoreRef.current = 0;
-    levelRef.current = 1;
     
     setGameState('playing');
-    setScore(0);
-    setLevel(1);
+    startGame();
     
     // Start game loop
-    gameLoopRef.current = requestAnimationFrame(gameLoop);
-    console.log('🚀 Laser Dodge: Game started!');
-  }, [gameLoop]);
+    animationRef.current = requestAnimationFrame(updateGame);
+  };
 
-  // Start countdown from ready state
-  const handleStartGame = useCallback(() => {
-    setGameState('countdown');
-  }, []);
-
-  // Restart game
-  const restartGame = useCallback(() => {
-    if (gameLoopRef.current) {
-      cancelAnimationFrame(gameLoopRef.current);
+  useEffect(() => {
+    if (gameState === 'playing') {
+      animationRef.current = requestAnimationFrame(updateGame);
     }
-    setGameState('ready');
-  }, []);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [gameState, updateGame]);
 
   // Cleanup
   useEffect(() => {
     return () => {
-      if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
   }, []);
 
-  // Render component
+  if (gameState === 'ended') {
+    return null; // Parent handles the results
+  }
+
   if (gameState === 'ready') {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -426,7 +299,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
             </div>
             
             <div className="flex space-x-4">
-              {onExit && (
+              {!isCompetitionMode && onExit && (
                 <button
                   onClick={onExit}
                   className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
@@ -436,9 +309,9 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
               )}
               <button
                 onClick={handleStartGame}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse"
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
               >
-                🚀 Start Game
+                ⚡ {isCompetitionMode ? 'Start Competition' : 'Start Game'}
               </button>
             </div>
           </div>
@@ -447,74 +320,114 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     );
   }
 
+  // Show countdown overlay
   if (gameState === 'countdown') {
     return (
       <GameCountdown
-        onCountdownComplete={startGame}
+        onCountdownComplete={handleCountdownComplete}
         gameName="Laser Dodge"
         instructions="Move your mouse or finger to control the ship. Avoid red lasers!"
       />
     );
   }
 
-  if (gameState === 'ended') {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-gray-800 rounded-lg p-8 text-center">
-          <h3 className="text-2xl font-bold text-white mb-4">Game Over!</h3>
-          <p className="text-lg text-yellow-400 mb-2">
-            Final Score: {score.toFixed(2)}
-          </p>
-          <p className="text-sm text-gray-300 mb-6">
-            Survived {level} levels
-          </p>
-          <button
-            onClick={restartGame}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-          >
-            Play Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Playing state
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className="bg-gray-800 rounded-lg p-6 shadow-2xl">
-        <div className="mb-4 text-center">
-          <h2 className="text-2xl font-bold text-white mb-2">Laser Dodge</h2>
-          <div className="flex justify-center gap-6 text-sm text-gray-300">
-            <span>Score: {score.toFixed(2)}</span>
-            <span>Level: {level}</span>
-            <span className="text-yellow-400">
-              {isPractice ? '🎮 Practice Mode' : '🏆 Competition Mode'}
-            </span>
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="text-lg font-bold text-gray-900">
+            ⚡ Laser Dodge
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-600">Time: {timer.timeLeft}s</div>
+            <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
+            {!isCompetitionMode && onExit && (
+              <button 
+                onClick={onExit}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className="border-2 border-gray-600 rounded cursor-none"
-          onMouseMove={handleMouseMove}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{ touchAction: 'none' }}
-        />
+        {gameState === 'playing' && (
+          <div className="space-y-6">
+            <div className="text-xl font-bold text-gray-900">
+              ⚡ Dodge the red lasers with your ship! 🚀
+            </div>
+            
+            {/* Game Area */}
+            <div 
+              ref={gameAreaRef}
+              className="relative bg-gradient-to-b from-indigo-900 via-purple-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
+              style={{ touchAction: 'none' }}
+              onMouseMove={handleMouseMove}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+            >
+              {/* Stars background */}
+              <div className="absolute inset-0">
+                {Array.from({ length: 50 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                    style={{
+                      left: `${(i * 137) % 100}%`,
+                      top: `${(i * 211) % 100}%`,
+                      animationDelay: `${i * 0.1}s`
+                    }}
+                  />
+                ))}
+              </div>
 
-        <div className="mt-4 text-xs text-gray-400 text-center max-w-lg">
-          <p className="mb-1">🎯 <strong>How to Play:</strong></p>
-          <p className="mb-1">• Move mouse/finger to control your ship</p>
-          <p className="mb-1">• <span className="text-blue-400">Blue lasers</span> are harmless - they turn <span className="text-red-400">red</span> when dangerous</p>
-          <p>• Survive as long as possible for higher scores!</p>
+              {/* Lasers */}
+              {lasers.map((laser) => (
+                <div
+                  key={laser.id}
+                  className={`absolute w-2 h-8 rounded-full transition-colors duration-300 ${
+                    laser.isHarmful 
+                      ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
+                      : 'bg-blue-400 shadow-lg shadow-blue-400/50'
+                  }`}
+                  style={{
+                    left: `${laser.x}%`,
+                    top: `${laser.y}%`,
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                />
+              ))}
+              
+              {/* Ship */}
+              <div
+                className="absolute w-6 h-6 bg-green-400 rounded-full shadow-lg shadow-green-400/50 animate-pulse"
+                style={{
+                  left: `${ship.x}%`,
+                  top: `${ship.y}%`,
+                  transform: 'translate(-50%, -50%)'
+                }}
+              >
+                <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
+                  🚀
+                </div>
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-600 text-center">
+              <strong>Desktop:</strong> Move mouse to control ship • <strong>Mobile:</strong> Touch and drag
+            </div>
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="mt-8 text-sm text-gray-600 space-y-2">
+          <div>⚡ Move your ship to avoid red lasers</div>
+          <div>🔵 Blue lasers are harmless but turn red when dangerous</div>
+          <div>🚀 Survive as long as possible for higher scores</div>
         </div>
       </div>
     </div>
   );
-};
-
-export default LaserDodgeGame;
+}
