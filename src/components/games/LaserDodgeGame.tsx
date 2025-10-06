@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameAudio } from '@/utils/gameAudio';
 import GameCountdown from './GameCountdown';
 
@@ -45,13 +45,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const animationRef = useRef<number>();
   const timerRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
+  const isGameRunningRef = useRef(false);
 
-  // Spawn laser
-  const spawnLaser = useCallback(() => {
+  // Game loop - simplified without useCallback
+  const gameLoop = () => {
+    if (!isGameRunningRef.current) return;
+
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
+
+    // Update score
+    const newScore = Number((timeSinceStart / 50).toFixed(2));
+    currentScoreRef.current = newScore;
+    setScore(newScore);
+
+    // Spawn lasers
     const level = Math.floor(timeSinceStart / 5000) + 1;
-    
     const spawnRate = Math.max(200, 800 - (level * 50));
     
     if (now - lastLaserSpawnRef.current > spawnRate) {
@@ -70,26 +79,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       setLasers(prev => [...prev, newLaser]);
       lastLaserSpawnRef.current = now;
     }
-  }, []);
 
-  // Game loop
-  const gameLoop = useCallback(() => {
-    if (gameState !== 'playing') return;
-
-    console.log('LaserDodge: Game loop running, lasers count:', lasers.length);
-
-    const now = Date.now();
-    const timeSinceStart = now - gameStartTimeRef.current;
-
-    // Update score
-    const newScore = Number((timeSinceStart / 50).toFixed(2));
-    currentScoreRef.current = newScore;
-    setScore(newScore);
-
-    // Spawn lasers
-    spawnLaser();
-
-    // Update lasers
+    // Update existing lasers
     setLasers(prevLasers => {
       return prevLasers.map(laser => {
         const updatedLaser = { ...laser };
@@ -109,7 +100,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       });
     });
 
-    // Check collisions
+    // Continue loop
+    if (isGameRunningRef.current) {
+      animationRef.current = requestAnimationFrame(gameLoop);
+    }
+  };
+
+  // Check collisions - separate from game loop to avoid dependency issues
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
     const harmfulLasers = lasers.filter(l => l.isHarmful);
     let collision = false;
     
@@ -130,14 +130,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     if (collision) {
       console.log('LaserDodge: Collision detected! Game Over!');
       endGame();
-      return;
     }
-
-    animationRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, ship, lasers, spawnLaser, endGame]);
+  }, [lasers, ship, gameState]);
 
   // End game
-  const endGame = useCallback(() => {
+  const endGame = () => {
+    console.log('LaserDodge: Ending game...');
+    isGameRunningRef.current = false;
     setGameState('ended');
     
     if (animationRef.current) {
@@ -157,10 +156,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);
-  }, [onGameEnd]);
+  };
 
   // Handle mouse movement
-  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing') return;
     
     const gameArea = gameAreaRef.current;
@@ -174,10 +173,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedY = Math.max(5, Math.min(95, y));
     
     setShip({ x: boundedX, y: boundedY });
-  }, [gameState]);
+  };
 
   // Handle touch movement
-  const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (gameState !== 'playing') return;
     
@@ -193,12 +192,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedY = Math.max(5, Math.min(95, y));
     
     setShip({ x: boundedX, y: boundedY });
-  }, [gameState]);
+  };
 
-  const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
     handleTouchMove(event);
-  }, [handleTouchMove]);
+  };
 
   // Start game
   const handleStartGame = () => {
@@ -216,6 +215,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
+    isGameRunningRef.current = true;
     
     setGameState('playing');
     
@@ -229,26 +229,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         return prev - 1;
       });
     }, 1000);
+    
+    // Start game loop
+    console.log('LaserDodge: Starting game loop...');
+    animationRef.current = requestAnimationFrame(gameLoop);
   };
-
-  // Start game loop when playing
-  useEffect(() => {
-    if (gameState === 'playing') {
-      console.log('LaserDodge: Starting game loop...');
-      const startLoop = () => {
-        animationRef.current = requestAnimationFrame(gameLoop);
-      };
-      startLoop();
-    } else {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    }
-  }, [gameState, gameLoop]);
 
   // Cleanup
   useEffect(() => {
     return () => {
+      isGameRunningRef.current = false;
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
