@@ -1,0 +1,683 @@
+'use client';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+interface GameResult {
+  score: number;
+  accuracy: number;
+  avgReactionTime: number;
+}
+
+interface SwordParryGameProps {
+  onGameEnd: (result: GameResult) => void;
+  onExit?: () => void;
+  listingId?: string;
+  entryNumber?: number;
+  isCompetitionMode?: boolean;
+}
+
+interface Attack {
+  id: number;
+  type: 'slash' | 'thrust' | 'overhead';
+  angle: number; // Degrees for required parry direction
+  x: number;
+  y: number;
+  speed: number;
+  createdAt: number;
+  parried: boolean;
+  perfectTiming: boolean;
+}
+
+interface OptionalTarget {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  createdAt: number;
+  cut: boolean;
+  points: number;
+}
+
+interface MousePosition {
+  x: number;
+  y: number;
+  angle: number;
+}
+
+export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: SwordParryGameProps) {
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [attacks, setAttacks] = useState<Attack[]>([]);
+  const [optionalTargets, setOptionalTargets] = useState<OptionalTarget[]>([]);
+  const [mousePos, setMousePos] = useState<MousePosition>({ x: 50, y: 50, angle: 0 });
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [countdown, setCountdown] = useState(3);
+  const [parriedAttacks, setParriedAttacks] = useState(0);
+  const [totalAttacks, setTotalAttacks] = useState(0);
+  const [perfectParries, setPerfectParries] = useState(0);
+  
+  const gameAreaRef = useRef<HTMLDivElement>(null);
+  const gameStartTimeRef = useRef<number>(0);
+  const lastAttackSpawnRef = useRef<number>(0);
+  const lastTargetSpawnRef = useRef<number>(0);
+  const animationRef = useRef<number>();
+  const timerRef = useRef<NodeJS.Timeout>();
+  const countdownRef = useRef<NodeJS.Timeout>();
+  const currentScoreRef = useRef(0);
+  const isGameRunningRef = useRef(false);
+  const lastMouseAngleRef = useRef<number>(0);
+
+  // Countdown logic
+  useEffect(() => {
+    if (gameState === 'countdown') {
+      if (countdown > 0) {
+        // Simple countdown beep
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = 0.1;
+          audio.play().catch(() => {});
+        } catch (e) {
+          // Audio failed, continue silently
+        }
+        countdownRef.current = setTimeout(() => {
+          setCountdown(prev => prev - 1);
+        }, 1000);
+      } else {
+        handleCountdownComplete();
+      }
+    }
+    
+    return () => {
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, [gameState, countdown]);
+
+  // Calculate mouse angle from center
+  const calculateAngle = useCallback((clientX: number, clientY: number) => {
+    if (!gameAreaRef.current) return 0;
+    
+    const rect = gameAreaRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const deltaX = clientX - centerX;
+    const deltaY = clientY - centerY;
+    
+    return Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+  }, []);
+
+  // Handle mouse movement
+  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return;
+    
+    const gameArea = gameAreaRef.current;
+    if (!gameArea) return;
+    
+    const rect = gameArea.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const angle = calculateAngle(event.clientX, event.clientY);
+    
+    const boundedX = Math.max(5, Math.min(95, x));
+    const boundedY = Math.max(5, Math.min(95, y));
+    
+    setMousePos({ x: boundedX, y: boundedY, angle });
+    lastMouseAngleRef.current = angle;
+  }, [gameState, calculateAngle]);
+
+  // Handle touch movement
+  const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (gameState !== 'playing') return;
+    
+    const gameArea = gameAreaRef.current;
+    if (!gameArea) return;
+    
+    const rect = gameArea.getBoundingClientRect();
+    const touch = event.touches[0];
+    const x = ((touch.clientX - rect.left) / rect.width) * 100;
+    const y = ((touch.clientY - rect.top) / rect.height) * 100;
+    const angle = calculateAngle(touch.clientX, touch.clientY);
+    
+    const boundedX = Math.max(5, Math.min(95, x));
+    const boundedY = Math.max(5, Math.min(95, y));
+    
+    setMousePos({ x: boundedX, y: boundedY, angle });
+    lastMouseAngleRef.current = angle;
+  }, [gameState, calculateAngle]);
+
+  const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    handleTouchMove(event);
+  }, [handleTouchMove]);
+
+  // Game loop
+  const gameLoop = useCallback(() => {
+    if (!isGameRunningRef.current) return;
+
+    const now = Date.now();
+    const timeSinceStart = now - gameStartTimeRef.current;
+
+    // Update score
+    currentScoreRef.current = score;
+    setScore(score);
+
+    // Spawn attacks
+    const level = Math.floor(timeSinceStart / 5000) + 1;
+    const attackSpawnRate = Math.max(800, 2000 - (level * 200));
+    
+    if (now - lastAttackSpawnRef.current > attackSpawnRate) {
+      const attackTypes = ['slash', 'thrust', 'overhead'];
+      const attackType = attackTypes[Math.floor(Math.random() * attackTypes.length)] as Attack['type'];
+      
+      // Random spawn position from edges
+      const side = Math.floor(Math.random() * 4);
+      let startX, startY, targetX = 50, targetY = 50;
+      
+      switch (side) {
+        case 0: // Top
+          startX = Math.random() * 100;
+          startY = 0;
+          break;
+        case 1: // Right
+          startX = 100;
+          startY = Math.random() * 100;
+          break;
+        case 2: // Bottom
+          startX = Math.random() * 100;
+          startY = 100;
+          break;
+        default: // Left
+          startX = 0;
+          startY = Math.random() * 100;
+      }
+      
+      const angle = Math.atan2(targetY - startY, targetX - startX) * (180 / Math.PI);
+      
+      const newAttack: Attack = {
+        id: now + Math.random(),
+        type: attackType,
+        angle: angle + (Math.random() - 0.5) * 60, // Required parry angle with some variance
+        x: startX,
+        y: startY,
+        speed: 0.8 + (level * 0.1),
+        createdAt: now,
+        parried: false,
+        perfectTiming: false
+      };
+      
+      setAttacks(prev => [...prev, newAttack]);
+      setTotalAttacks(prev => prev + 1);
+      lastAttackSpawnRef.current = now;
+    }
+
+    // Spawn optional targets
+    const targetSpawnRate = 3000;
+    if (now - lastTargetSpawnRef.current > targetSpawnRate) {
+      const newTarget: OptionalTarget = {
+        id: now + Math.random(),
+        x: 20 + Math.random() * 60,
+        y: 20 + Math.random() * 60,
+        size: 15 + Math.random() * 10,
+        createdAt: now,
+        cut: false,
+        points: 50 + Math.floor(Math.random() * 100)
+      };
+      
+      setOptionalTargets(prev => [...prev, newTarget]);
+      lastTargetSpawnRef.current = now;
+    }
+
+    // Update attacks
+    setAttacks(prevAttacks => {
+      return prevAttacks.map(attack => {
+        const updatedAttack = { ...attack };
+        
+        // Move attack towards center
+        const deltaX = 50 - attack.x;
+        const deltaY = 50 - attack.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (distance > 1) {
+          updatedAttack.x += (deltaX / distance) * attack.speed;
+          updatedAttack.y += (deltaY / distance) * attack.speed;
+        }
+        
+        return updatedAttack;
+      }).filter(attack => {
+        // Remove attacks that reached center without being parried
+        const distanceToCenter = Math.sqrt(
+          Math.pow(attack.x - 50, 2) + Math.pow(attack.y - 50, 2)
+        );
+        
+        if (distanceToCenter < 5 && !attack.parried) {
+          // Attack hit player
+          console.log('SwordParry: Attack hit player! Game Over!');
+          endGame();
+          return false;
+        }
+        
+        return distanceToCenter > 5 || attack.parried;
+      });
+    });
+
+    // Remove old optional targets
+    setOptionalTargets(prev => prev.filter(target => {
+      const age = now - target.createdAt;
+      return age < 5000; // Remove after 5 seconds
+    }));
+
+    animationRef.current = requestAnimationFrame(gameLoop);
+  }, [score]);
+
+  // Check for parries and cuts
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    // Check for parries
+    const nearbyAttacks = attacks.filter(attack => {
+      const distance = Math.sqrt(
+        Math.pow(attack.x - mousePos.x, 2) + Math.pow(attack.y - mousePos.y, 2)
+      );
+      return distance < 15 && !attack.parried;
+    });
+
+    for (const attack of nearbyAttacks) {
+      const angleDiff = Math.abs(attack.angle - mousePos.angle);
+      const normalizedDiff = Math.min(angleDiff, 360 - angleDiff);
+      
+      if (normalizedDiff < 30) { // 30 degree tolerance for parry
+        // Successful parry!
+        const isPerfect = normalizedDiff < 10; // Perfect parry within 10 degrees
+        
+        setAttacks(prev => prev.map(a => 
+          a.id === attack.id ? { ...a, parried: true, perfectTiming: isPerfect } : a
+        ));
+        
+        setParriedAttacks(prev => prev + 1);
+        if (isPerfect) setPerfectParries(prev => prev + 1);
+        
+        // Award points
+        const basePoints = 100;
+        const perfectBonus = isPerfect ? 50 : 0;
+        const timingBonus = Math.max(0, 50 - normalizedDiff * 2);
+        const totalPoints = basePoints + perfectBonus + timingBonus;
+        
+        setScore(prev => prev + totalPoints);
+        currentScoreRef.current += totalPoints;
+        
+        // Play success sound
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = isPerfect ? 0.3 : 0.2;
+          audio.play().catch(() => {});
+        } catch (e) {
+          // Audio failed, continue silently
+        }
+        
+        console.log(`SwordParry: ${isPerfect ? 'Perfect' : 'Good'} parry! +${totalPoints} points`);
+      }
+    }
+
+    // Check for optional target cuts
+    const nearbyCuttableTargets = optionalTargets.filter(target => {
+      const distance = Math.sqrt(
+        Math.pow(target.x - mousePos.x, 2) + Math.pow(target.y - mousePos.y, 2)
+      );
+      return distance < target.size / 2 && !target.cut;
+    });
+
+    for (const target of nearbyCuttableTargets) {
+      setOptionalTargets(prev => prev.map(t => 
+        t.id === target.id ? { ...t, cut: true } : t
+      ));
+      
+      setScore(prev => prev + target.points);
+      currentScoreRef.current += target.points;
+      
+      // Play cut sound
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = 0.15;
+        audio.play().catch(() => {});
+      } catch (e) {
+        // Audio failed, continue silently
+      }
+      
+      console.log(`SwordParry: Cut target! +${target.points} points`);
+    }
+  }, [gameState, attacks, optionalTargets, mousePos]);
+
+  // End game
+  const endGame = useCallback(() => {
+    console.log('SwordParry: Ending game...');
+    isGameRunningRef.current = false;
+    setGameState('ended');
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    // Simple game end sound
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+      audio.volume = 0.2;
+      audio.play().catch(() => {});
+    } catch (e) {
+      // Audio failed, continue silently
+    }
+    
+    const accuracy = totalAttacks > 0 ? (parriedAttacks / totalAttacks) * 100 : 0;
+    const avgReactionTime = 250; // Estimate based on parry timing
+    
+    const gameResult = {
+      score: currentScoreRef.current,
+      accuracy,
+      avgReactionTime
+    };
+    
+    console.log('SwordParryGame calling onGameEnd with:', gameResult);
+    onGameEnd(gameResult);
+  }, [totalAttacks, parriedAttacks, onGameEnd]);
+
+  // Start game
+  const handleStartGame = () => {
+    setCountdown(3);
+    setGameState('countdown');
+  };
+
+  const handleCountdownComplete = () => {
+    console.log('SwordParry: Starting game...');
+    
+    // Reset everything
+    setScore(0);
+    currentScoreRef.current = 0;
+    setAttacks([]);
+    setOptionalTargets([]);
+    setParriedAttacks(0);
+    setTotalAttacks(0);
+    setPerfectParries(0);
+    setTimeLeft(60);
+    gameStartTimeRef.current = Date.now();
+    lastAttackSpawnRef.current = Date.now();
+    lastTargetSpawnRef.current = Date.now();
+    isGameRunningRef.current = true;
+    
+    setGameState('playing');
+    
+    // Start timer
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          endGame();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    // Start game loop
+    animationRef.current = requestAnimationFrame(gameLoop);
+  };
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      isGameRunningRef.current = false;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, []);
+
+  if (gameState === 'ended') {
+    return null;
+  }
+
+  if (gameState === 'ready') {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-red-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
+          </div>
+          
+          <div className="relative z-10">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-3xl">⚔️</span>
+            </div>
+            
+            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
+              Sword Parry
+            </h2>
+            <p className="text-red-200 text-sm mb-6 font-medium">Master of Blade Defense</p>
+            
+            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">⚔️</span>
+                </div>
+                <p className="text-white font-semibold">How to Play:</p>
+              </div>
+              
+              <div className="space-y-3 pl-11">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-red-300 font-semibold">Mouse = Sword:</span> Move mouse to control your blade</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-orange-300 font-semibold">Parry Attacks:</span> Match your sword angle to incoming attacks</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-yellow-300 font-semibold">Perfect Timing:</span> Within 10° = perfect parry bonus</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-semibold">Optional Targets:</span> Cut floating objects for bonus points</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-blue-300 font-semibold">Survive:</span> Don't let attacks reach the center!</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
+                <p className="text-xs text-red-200">
+                  <span className="text-yellow-300 font-bold">⚔️ Master Tip:</span> Watch attack angles carefully! 
+                  Perfect parries give huge bonuses. Cut optional targets between attacks for extra points.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex space-x-4">
+              {!isCompetitionMode && onExit && (
+                <button
+                  onClick={onExit}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                >
+                  ← Back
+                </button>
+              )}
+              <button
+                onClick={handleStartGame}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
+              >
+                ⚔️ Begin Training
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'countdown') {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl p-12 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Sword Parry Training</h2>
+          <p className="text-lg text-gray-600 mb-8">Prepare your blade! Match attack angles to parry successfully.</p>
+          <div className="text-8xl font-bold text-red-500 animate-pulse">
+            {countdown}
+          </div>
+          <p className="text-sm text-gray-500 mt-4">Focus on the incoming attacks...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="text-lg font-bold text-gray-900">
+            ⚔️ Sword Parry Training
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
+            <div className="text-sm text-gray-600">Score: {score}</div>
+            <div className="text-sm text-gray-600">
+              Parries: {parriedAttacks}/{totalAttacks}
+            </div>
+            <div className="text-sm text-gray-600">
+              Perfect: {perfectParries}
+            </div>
+            {!isCompetitionMode && onExit && (
+              <button 
+                onClick={onExit}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {gameState === 'playing' && (
+          <div className="space-y-6">
+            <div className="text-xl font-bold text-gray-900">
+              ⚔️ Defend the center! Parry incoming attacks and cut bonus targets! 🎯
+            </div>
+            
+            {/* Game Area */}
+            <div 
+              ref={gameAreaRef}
+              className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
+              style={{ touchAction: 'none' }}
+              onMouseMove={handleMouseMove}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+            >
+              {/* Center target (player position) */}
+              <div className="absolute w-4 h-4 bg-blue-400 rounded-full border-2 border-blue-200 animate-pulse"
+                style={{
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 5
+                }}
+              />
+
+              {/* Attacks */}
+              {attacks.map((attack) => (
+                <div
+                  key={attack.id}
+                  className={`absolute transition-all duration-100 ${
+                    attack.parried 
+                      ? (attack.perfectTiming ? 'bg-green-500' : 'bg-yellow-500')
+                      : 'bg-red-500 animate-pulse'
+                  } rounded-lg shadow-lg`}
+                  style={{
+                    left: `${attack.x}%`,
+                    top: `${attack.y}%`,
+                    width: attack.type === 'thrust' ? '8px' : '16px',
+                    height: attack.type === 'overhead' ? '20px' : '12px',
+                    transform: `translate(-50%, -50%) rotate(${attack.angle}deg)`,
+                    zIndex: 10
+                  }}
+                />
+              ))}
+
+              {/* Optional targets */}
+              {optionalTargets.map((target) => (
+                <div
+                  key={target.id}
+                  className={`absolute rounded-full border-2 transition-all duration-200 ${
+                    target.cut 
+                      ? 'bg-green-400 border-green-200 animate-ping' 
+                      : 'bg-purple-400 border-purple-200 animate-bounce'
+                  }`}
+                  style={{
+                    left: `${target.x}%`,
+                    top: `${target.y}%`,
+                    width: `${target.size}px`,
+                    height: `${target.size}px`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 8
+                  }}
+                >
+                  {!target.cut && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
+                      {target.points}
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {/* Mouse sword */}
+              <div
+                className="absolute w-1 h-12 bg-silver-400 border border-gray-300 shadow-lg"
+                style={{
+                  left: `${mousePos.x}%`,
+                  top: `${mousePos.y}%`,
+                  transform: `translate(-50%, -50%) rotate(${mousePos.angle}deg)`,
+                  background: 'linear-gradient(to bottom, #e5e7eb, #9ca3af)',
+                  zIndex: 15
+                }}
+              />
+              
+              {/* Sword handle */}
+              <div
+                className="absolute w-2 h-4 bg-amber-600 rounded-sm"
+                style={{
+                  left: `${mousePos.x}%`,
+                  top: `${mousePos.y}%`,
+                  transform: `translate(-50%, -50%) rotate(${mousePos.angle}deg) translateY(8px)`,
+                  zIndex: 14
+                }}
+              />
+            </div>
+
+            <div className="text-sm text-gray-600 text-center">
+              <strong>Desktop:</strong> Move mouse to control sword angle • <strong>Mobile:</strong> Touch and drag
+            </div>
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="mt-8 text-sm text-gray-600 space-y-2">
+          <div>⚔️ <strong>Parry:</strong> Match your sword angle to incoming attacks (30° tolerance)</div>
+          <div>🎯 <strong>Perfect:</strong> Within 10° for bonus points and perfect parry status</div>
+          <div>💎 <strong>Targets:</strong> Cut optional purple targets for bonus points</div>
+          <div>🛡️ <strong>Survive:</strong> Don't let red attacks reach the center!</div>
+        </div>
+      </div>
+    </div>
+  );
+}

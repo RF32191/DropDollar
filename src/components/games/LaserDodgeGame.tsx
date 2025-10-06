@@ -98,14 +98,30 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     currentScoreRef.current = newScore;
     setScore(newScore);
 
-    // Spawn lasers with EXTREME intensity after 30 seconds
+    // Spawn lasers with gradual buildup to EXTREME at 52 seconds
     const level = Math.floor(timeSinceStart / 5000) + 1;
     const isExtremeMode = timeSinceStart > 30000; // Extreme mode after 30 seconds
+    const isCrazyMode = timeSinceStart > 52000; // CRAZY mode after 52 seconds
     
     let spawnRate;
-    if (isExtremeMode) {
-      // EXTREME MODE: Much faster spawning (50-150ms)
-      spawnRate = Math.max(50, 150 - (level * 10));
+    let laserCount = 1;
+    
+    if (isCrazyMode) {
+      // CRAZY MODE: Absolute laser apocalypse (25-75ms)
+      spawnRate = Math.max(25, 75 - (level * 5));
+      laserCount = Math.random() < 0.7 ? 3 : 2; // 70% chance for 3 lasers, 30% for 2
+    } else if (isExtremeMode) {
+      // EXTREME MODE: Gradual buildup from 30s to 52s
+      const extremeProgress = (timeSinceStart - 30000) / 22000; // 0 to 1 over 22 seconds
+      const baseRate = 800 - (extremeProgress * 600); // 800ms down to 200ms
+      spawnRate = Math.max(200, baseRate - (level * 20));
+      
+      // Gradually increase laser count as we approach 52 seconds
+      if (extremeProgress > 0.8) {
+        laserCount = Math.random() < 0.4 ? 2 : 1; // 40% chance for 2 lasers
+      } else if (extremeProgress > 0.5) {
+        laserCount = Math.random() < 0.2 ? 2 : 1; // 20% chance for 2 lasers
+      }
     } else {
       // Normal mode: 200-800ms
       spawnRate = Math.max(200, 800 - (level * 50));
@@ -114,22 +130,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     if (now - lastLaserSpawnRef.current > spawnRate) {
       const isHorizontal = Math.random() < 0.5;
       
-      // In extreme mode, spawn multiple lasers sometimes
-      const laserCount = isExtremeMode && Math.random() < 0.3 ? 2 : 1;
-      
       for (let i = 0; i < laserCount; i++) {
         const newLaser: Laser = {
           id: now + Math.random() + i,
           type: isHorizontal ? 'horizontal' : 'vertical',
           position: Math.random() * 100,
           isHarmful: false,
-          timeToHarmful: isExtremeMode 
+          timeToHarmful: isCrazyMode 
+            ? Math.max(600, 1200 - (level * 50)) // Very fast transition in crazy mode
+            : isExtremeMode 
             ? Math.max(2400, 4000 - (level * 100)) // MUCH SLOWER transition in extreme mode (2.4-4s)
             : Math.max(800, 1500 - (level * 100)), // Normal mode timing
           createdAt: now
         };
         
-        console.log(`LaserDodge: Spawning ${isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
+        console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
         setLasers(prev => [...prev, newLaser]);
       }
       
@@ -475,9 +490,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           <div className="space-y-6">
             <div className="text-xl font-bold text-gray-900">
               🔥 Avoid the full-screen laser beams! 🚀
-              {timeLeft <= 30 && (
+              {timeLeft <= 30 && timeLeft > 8 && (
                 <div className="text-lg text-red-600 font-bold animate-pulse mt-2">
                   ⚡ EXTREME MODE ACTIVATED! ⚡
+                </div>
+              )}
+              {timeLeft <= 8 && (
+                <div className="text-xl text-red-800 font-bold animate-bounce mt-2 bg-red-200 px-4 py-2 rounded-lg">
+                  🔥 CRAZY MODE! LASER APOCALYPSE! 🔥
                 </div>
               )}
               {/* Show bonus indicator */}

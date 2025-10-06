@@ -8,6 +8,7 @@ import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
+import SwordParryGame from '@/components/games/SwordParryGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +27,8 @@ import {
   ExclamationTriangleIcon,
   MapPinIcon,
   ShieldCheckIcon,
-  BoltIcon
+  BoltIcon,
+  ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -79,6 +81,16 @@ const GAMES = [
     avgTime: '30s',
     skills: ['Reaction Time', 'Focus', 'Precision'],
     component: QuickClickGame
+  },
+  {
+    id: 'sword-parry',
+    name: 'Sword Parry',
+    description: 'Master blade defense - parry attacks with precise sword angles!',
+    icon: ShieldExclamationIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Timing', 'Precision', 'Defense'],
+    component: SwordParryGame
   }
 ];
 
