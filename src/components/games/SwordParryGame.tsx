@@ -68,6 +68,12 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const currentScoreRef = useRef(0);
   const isGameRunningRef = useRef(false);
   const lastMouseAngleRef = useRef<number>(0);
+  const timeLeftRef = useRef(60); // Add timeLeft ref to avoid dependency issues
+
+  // Update timeLeft ref when state changes
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   // Countdown logic
   useEffect(() => {
@@ -180,12 +186,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
 
-    // Update score
-    currentScoreRef.current = score;
-    setScore(score);
+    // Update score from ref (no need to set state in game loop)
+    // Score updates happen in collision detection
 
     // Spawn attacks with much more forgiving difficulty
-    const difficultyLevel = Math.max(1, Math.floor((61 - timeLeft) / 10)); // Level 1-6 based on time (every 10 seconds)
+    const difficultyLevel = Math.max(1, Math.floor((61 - timeLeftRef.current) / 10)); // Level 1-6 based on time (every 10 seconds)
     const baseSpawnRate = Math.max(1500, 3500 - (difficultyLevel * 300)); // Much slower spawning
     const attackSpawnRate = baseSpawnRate;
     
@@ -294,7 +299,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     }));
 
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [score, timeLeft, endGame]);
+  }, [endGame]); // Only depend on endGame
 
   // Check for slashing attacks and cuts
   useEffect(() => {
@@ -426,6 +431,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     setTotalAttacks(0);
     setPerfectDestroys(0);
     setTimeLeft(60);
+    timeLeftRef.current = 60; // Reset the ref too
     gameStartTimeRef.current = Date.now();
     lastAttackSpawnRef.current = Date.now();
     lastTargetSpawnRef.current = Date.now();
@@ -436,11 +442,13 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     // Start timer
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) {
+        const newTime = prev - 1;
+        timeLeftRef.current = newTime; // Update ref immediately
+        if (newTime <= 0) {
           endGame();
           return 0;
         }
-        return prev - 1;
+        return newTime;
       });
     }, 1000);
     
