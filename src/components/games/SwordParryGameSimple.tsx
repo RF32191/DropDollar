@@ -21,6 +21,7 @@ interface Attack {
   x: number;
   y: number;
   destroyed: boolean;
+  hitType?: string; // Track the type of hit for visual feedback
 }
 
 export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }: SwordParryGameProps) {
@@ -131,21 +132,53 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
     });
   };
 
-  const handleMouseDown = () => {
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     setIsClicking(true);
     
-    // Check for hits
+    // Get click position for accuracy calculation
+    const rect = gameAreaRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const clickX = ((event.clientX - rect.left) / rect.width) * 100;
+    const clickY = ((event.clientY - rect.top) / rect.height) * 100;
+    
+    // Check for hits with accuracy-based bonus points
     setAttacks(prev => prev.map(attack => {
       if (attack.destroyed) return attack;
       
       const distance = Math.sqrt(
-        Math.pow(attack.x - mousePos.x, 2) + Math.pow(attack.y - mousePos.y, 2)
+        Math.pow(attack.x - clickX, 2) + Math.pow(attack.y - clickY, 2)
       );
       
       if (distance < 15) { // Hit!
-        setScore(s => s + 100);
+        let basePoints = 100;
+        let bonusPoints = 0;
+        let hitType = 'Hit';
+        
+        // Calculate accuracy bonus based on distance from center
+        if (distance < 3) {
+          // PERFECT HIT - very close to center
+          bonusPoints = 100;
+          hitType = 'PERFECT HIT';
+        } else if (distance < 6) {
+          // EXCELLENT HIT - close to center
+          bonusPoints = 50;
+          hitType = 'EXCELLENT';
+        } else if (distance < 10) {
+          // GOOD HIT - moderate accuracy
+          bonusPoints = 25;
+          hitType = 'GOOD HIT';
+        }
+        // else: Regular hit, no bonus
+        
+        const totalPoints = basePoints + bonusPoints;
+        setScore(s => s + totalPoints);
         setDestroyedCount(d => d + 1);
-        return { ...attack, destroyed: true };
+        
+        // Show hit feedback
+        console.log(`${hitType}! +${totalPoints} points (${bonusPoints} bonus)`);
+        
+        return { ...attack, destroyed: true, hitType };
       }
       
       return attack;
@@ -220,7 +253,15 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
               </div>
               <div className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-yellow-300 font-semibold">Survive:</span> Don't let attacks expire without destroying them</p>
+                <p><span className="text-yellow-300 font-semibold">Accuracy Bonus:</span> Direct hits give bonus points!</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                <p><span className="text-green-300 font-semibold">Perfect (🎯):</span> +100 bonus • Excellent (✨): +50 • Good (👍): +25</p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                <p><span className="text-red-300 font-semibold">Survive:</span> Don't let attacks expire without destroying them</p>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
@@ -320,20 +361,42 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
               key={attack.id}
               className={`absolute w-8 h-8 rounded-full transition-all duration-200 ${
                 attack.destroyed 
-                  ? 'bg-green-500 animate-ping' 
+                  ? attack.hitType === 'PERFECT HIT' 
+                    ? 'bg-yellow-400 animate-ping border-4 border-yellow-200' // Perfect hit - gold
+                    : attack.hitType === 'EXCELLENT'
+                    ? 'bg-green-400 animate-ping border-2 border-green-200' // Excellent - green
+                    : attack.hitType === 'GOOD HIT'
+                    ? 'bg-blue-400 animate-ping border-2 border-blue-200' // Good - blue
+                    : 'bg-green-500 animate-ping' // Regular hit - standard green
                   : 'bg-red-500 border-2 border-red-300 animate-pulse'
               }`}
               style={{
                 left: `${attack.x}%`,
                 top: `${attack.y}%`,
                 transform: 'translate(-50%, -50%)',
-                boxShadow: attack.destroyed ? 'none' : '0 0 20px rgba(239, 68, 68, 0.8)',
+                boxShadow: attack.destroyed 
+                  ? attack.hitType === 'PERFECT HIT'
+                    ? '0 0 30px rgba(251, 191, 36, 0.8)' // Gold glow for perfect
+                    : attack.hitType === 'EXCELLENT'
+                    ? '0 0 25px rgba(34, 197, 94, 0.8)' // Green glow for excellent
+                    : attack.hitType === 'GOOD HIT'
+                    ? '0 0 20px rgba(59, 130, 246, 0.8)' // Blue glow for good
+                    : 'none'
+                  : '0 0 20px rgba(239, 68, 68, 0.8)',
                 zIndex: 10
               }}
             >
               {!attack.destroyed && (
                 <div className="absolute inset-0 flex items-center justify-center text-white text-sm font-bold">
                   ⚔️
+                </div>
+              )}
+              {/* Show hit type text briefly */}
+              {attack.destroyed && attack.hitType && attack.hitType !== 'Hit' && (
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white bg-black/50 px-2 py-1 rounded animate-bounce">
+                  {attack.hitType === 'PERFECT HIT' ? '🎯 PERFECT!' : 
+                   attack.hitType === 'EXCELLENT' ? '✨ EXCELLENT!' : 
+                   attack.hitType === 'GOOD HIT' ? '👍 GOOD!' : ''}
                 </div>
               )}
             </div>
@@ -367,7 +430,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
         </div>
 
         <div className="mt-4 text-sm text-gray-600 text-center">
-          Move mouse to position sword • Click to slash red attacks • Don't let them expire! • More attacks every 10 seconds!
+          Move mouse to position sword • Click to slash red attacks • Aim for center for bonus points! • More attacks every 10 seconds!
         </div>
       </div>
     </div>
