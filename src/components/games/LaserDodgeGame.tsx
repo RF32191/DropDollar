@@ -66,6 +66,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         createdAt: now
       };
       
+      console.log('LaserDodge: Spawning laser:', newLaser.type, 'at position', newLaser.position);
       setLasers(prev => [...prev, newLaser]);
       lastLaserSpawnRef.current = now;
     }
@@ -74,6 +75,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Game loop
   const gameLoop = useCallback(() => {
     if (gameState !== 'playing') return;
+
+    console.log('LaserDodge: Game loop running, lasers count:', lasers.length);
 
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
@@ -131,7 +134,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
 
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, ship, lasers, spawnLaser]);
+  }, [gameState, ship, lasers, spawnLaser, endGame]);
 
   // End game
   const endGame = useCallback(() => {
@@ -226,10 +229,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         return prev - 1;
       });
     }, 1000);
-    
-    // Start game loop
-    animationRef.current = requestAnimationFrame(gameLoop);
   };
+
+  // Start game loop when playing
+  useEffect(() => {
+    if (gameState === 'playing') {
+      console.log('LaserDodge: Starting game loop...');
+      const startLoop = () => {
+        animationRef.current = requestAnimationFrame(gameLoop);
+      };
+      startLoop();
+    } else {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    }
+  }, [gameState, gameLoop]);
 
   // Cleanup
   useEffect(() => {
