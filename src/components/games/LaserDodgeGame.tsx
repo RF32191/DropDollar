@@ -74,8 +74,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
 
-    // Update score
-    const newScore = Number((timeSinceStart / 50).toFixed(2));
+    // Update score with bonus for staying on blue lasers
+    const baseScore = Number((timeSinceStart / 50).toFixed(2));
+    
+    // Calculate blue laser bonus
+    let blueBonus = 0;
+    const blueLasers = lasers.filter(l => !l.isHarmful);
+    for (const laser of blueLasers) {
+      if (laser.type === 'horizontal') {
+        // Ship is on blue horizontal laser
+        if (Math.abs(laser.position - ship.y) < 2) {
+          blueBonus += 0.5; // 0.5 points per frame on blue laser
+        }
+      } else {
+        // Ship is on blue vertical laser
+        if (Math.abs(laser.position - ship.x) < 2) {
+          blueBonus += 0.5; // 0.5 points per frame on blue laser
+        }
+      }
+    }
+    
+    const newScore = baseScore + blueBonus;
     currentScoreRef.current = newScore;
     setScore(newScore);
 
@@ -105,7 +124,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           position: Math.random() * 100,
           isHarmful: false,
           timeToHarmful: isExtremeMode 
-            ? Math.max(1200, 2000 - (level * 50)) // SLOWER transition in extreme mode (1.2-2s)
+            ? Math.max(2400, 4000 - (level * 100)) // MUCH SLOWER transition in extreme mode (2.4-4s)
             : Math.max(800, 1500 - (level * 100)), // Normal mode timing
           createdAt: now
         };
@@ -348,7 +367,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-blue-300 font-semibold">Blue Lasers:</span> Full-screen beams (safe)</p>
+                  <p><span className="text-blue-300 font-semibold">Blue Lasers:</span> Full-screen beams (safe + bonus points!)</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-cyan-300 font-semibold">Risk/Reward:</span> Stay ON blue lasers for bonus points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
@@ -368,14 +391,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-red-300 font-semibold">Extreme:</span> More lasers, slower transitions, faster clearing!</p>
+                  <p><span className="text-red-300 font-semibold">Extreme:</span> More lasers, MUCH slower transitions, bonus hunting!</p>
                 </div>
               </div>
               
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
                 <p className="text-xs text-red-200">
-                  <span className="text-yellow-300 font-bold">🔥 STRATEGY:</span> In extreme mode, lasers spawn faster but give you more time to react! 
-                  Navigate through the laser maze by timing your movements between the blue-to-red transitions.
+                  <span className="text-yellow-300 font-bold">🎯 RISK/REWARD:</span> After 30 seconds, stay ON blue lasers for bonus points! 
+                  They take 2.4-4 seconds to turn red, giving you time to earn big bonuses before escaping.
                 </p>
               </div>
             </div>
@@ -448,6 +471,26 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   ⚡ EXTREME MODE ACTIVATED! ⚡
                 </div>
               )}
+              {/* Show bonus indicator */}
+              {(() => {
+                const blueLasers = lasers.filter(l => !l.isHarmful);
+                let onBlue = false;
+                for (const laser of blueLasers) {
+                  if (laser.type === 'horizontal' && Math.abs(laser.position - ship.y) < 2) {
+                    onBlue = true;
+                    break;
+                  }
+                  if (laser.type === 'vertical' && Math.abs(laser.position - ship.x) < 2) {
+                    onBlue = true;
+                    break;
+                  }
+                }
+                return onBlue ? (
+                  <div className="text-lg text-blue-500 font-bold animate-bounce mt-2">
+                    💎 BONUS POINTS! 💎
+                  </div>
+                ) : null;
+              })()}
             </div>
             
             {/* Game Area */}
