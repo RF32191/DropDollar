@@ -72,17 +72,24 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
       if (!gameRunning.current) return;
 
       const now = Date.now();
+      const gameTime = Math.floor((60 - timeLeft) / 10) + 1; // Level 1-6 based on 10-second intervals
       
-      // Spawn attacks every 2 seconds
-      if (now - lastSpawn.current > 2000) {
-        const newAttack: Attack = {
-          id: now,
-          x: Math.random() * 80 + 10, // 10-90% of screen
-          y: Math.random() * 80 + 10,
-          destroyed: false
-        };
-        setAttacks(prev => [...prev, newAttack]);
-        setTotalCount(prev => prev + 1);
+      // Progressive difficulty: more attacks every 10 seconds
+      const attacksPerSpawn = Math.min(gameTime, 5); // Max 5 attacks at once
+      const spawnRate = Math.max(1500, 2500 - (gameTime * 200)); // Faster spawning too
+      
+      // Spawn multiple attacks based on difficulty level
+      if (now - lastSpawn.current > spawnRate) {
+        for (let i = 0; i < attacksPerSpawn; i++) {
+          const newAttack: Attack = {
+            id: now + i, // Unique ID for each attack
+            x: Math.random() * 80 + 10, // 10-90% of screen
+            y: Math.random() * 80 + 10,
+            destroyed: false
+          };
+          setAttacks(prev => [...prev, newAttack]);
+          setTotalCount(prev => prev + 1);
+        }
         lastSpawn.current = now;
       }
 
@@ -106,7 +113,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
     return () => {
       gameRunning.current = false;
     };
-  }, [gameState]);
+  }, [gameState, timeLeft]); // Add timeLeft dependency to track difficulty changes
 
   // Mouse handling
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -215,6 +222,10 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
                 <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
                 <p><span className="text-yellow-300 font-semibold">Survive:</span> Don't let attacks expire without destroying them</p>
               </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
+                <p><span className="text-blue-300 font-semibold">Difficulty:</span> More attacks spawn every 10 seconds (1→5 per wave)</p>
+              </div>
             </div>
           </div>
           
@@ -267,6 +278,12 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
             <div className="text-sm text-gray-600">
               Hits: {destroyedCount}/{totalCount}
             </div>
+            <div className="text-sm text-gray-600">
+              Level: {Math.floor((60 - timeLeft) / 10) + 1}/6
+              {timeLeft <= 10 && (
+                <span className="text-red-500 font-bold animate-pulse ml-1">FINAL!</span>
+              )}
+            </div>
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
@@ -279,6 +296,17 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
         </div>
 
         {/* Game Area */}
+        <div className="mb-4">
+          <div className="text-xl font-bold text-gray-900 text-center">
+            🗡️ Slash the red attacks! Level {Math.floor((60 - timeLeft) / 10) + 1} - {Math.min(Math.floor((60 - timeLeft) / 10) + 1, 5)} attacks per wave!
+            {timeLeft <= 10 && (
+              <div className="text-lg text-red-600 font-bold animate-pulse mt-2">
+                🔥 FINAL LEVEL - MAXIMUM CHAOS! 🔥
+              </div>
+            )}
+          </div>
+        </div>
+
         <div 
           ref={gameAreaRef}
           className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
@@ -339,7 +367,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
         </div>
 
         <div className="mt-4 text-sm text-gray-600 text-center">
-          Move mouse to position sword • Click to slash red attacks • Don't let them expire!
+          Move mouse to position sword • Click to slash red attacks • Don't let them expire! • More attacks every 10 seconds!
         </div>
       </div>
     </div>
