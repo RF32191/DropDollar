@@ -8,7 +8,7 @@ import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
-import SwordParryGame from '@/components/games/SwordParryGame';
+import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -84,12 +84,12 @@ const GAMES = [
   },
   {
     id: 'sword-parry',
-    name: 'Sword Parry',
-    description: 'Master blade defense - parry attacks with precise sword angles!',
+    name: 'Sword Slash',
+    description: 'Click to destroy red attacks before they expire - simple and fun!',
     icon: ShieldExclamationIcon,
-    difficulty: 'Hard',
+    difficulty: 'Easy',
     avgTime: '60s',
-    skills: ['Timing', 'Precision', 'Defense'],
+    skills: ['Clicking', 'Timing', 'Reflexes'],
     component: SwordParryGame
   }
 ];
