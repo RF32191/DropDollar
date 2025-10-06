@@ -253,6 +253,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
     if (!gameStateRef.current.isPlaying || gameStateRef.current.isGameOver) {
+      console.log('🚀 Laser Dodge: Game loop stopped - isPlaying:', gameStateRef.current.isPlaying, 'isGameOver:', gameStateRef.current.isGameOver);
       return;
     }
 
@@ -267,6 +268,7 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
     // Check for collisions
     if (checkCollision()) {
       // Game over
+      console.log('🚀 Laser Dodge: Game Over! Final Score:', gameStateRef.current.score);
       gameStateRef.current.isPlaying = false;
       const finalScore = gameStateRef.current.score;
       
@@ -301,10 +303,16 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
   // Render game
   const render = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('🚀 Laser Dodge: Canvas not found');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('🚀 Laser Dodge: Canvas context not found');
+      return;
+    }
 
     // Clear canvas
     ctx.fillStyle = '#000011';
@@ -386,10 +394,12 @@ const LaserDodgeGame: React.FC<LaserDodgeGameProps> = ({
 
   // Start game from countdown
   const startGame = useCallback(() => {
+    console.log('🚀 Laser Dodge: Starting game...');
     setGameState(prev => ({ ...prev, showCountdown: false }));
     initGame();
     lastTimeRef.current = performance.now();
     gameLoopRef.current = requestAnimationFrame(gameLoop);
+    console.log('🚀 Laser Dodge: Game loop started');
   }, [initGame, gameLoop]);
 
   // Restart game
