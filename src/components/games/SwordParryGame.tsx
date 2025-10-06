@@ -19,13 +19,14 @@ interface SwordParryGameProps {
 interface Attack {
   id: number;
   type: 'slash' | 'thrust' | 'overhead';
-  angle: number; // Degrees for required parry direction
+  angle: number; // Visual angle for attack direction
   x: number;
   y: number;
   speed: number;
   createdAt: number;
-  parried: boolean;
+  destroyed: boolean; // Changed from 'parried' to 'destroyed'
   perfectTiming: boolean;
+  health: number; // Attacks need to be slashed to be destroyed
 }
 
 interface OptionalTarget {
@@ -52,9 +53,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(3);
-  const [parriedAttacks, setParriedAttacks] = useState(0);
+  const [destroyedAttacks, setDestroyedAttacks] = useState(0);
   const [totalAttacks, setTotalAttacks] = useState(0);
-  const [perfectParries, setPerfectParries] = useState(0);
+  const [perfectDestroys, setPerfectDestroys] = useState(0);
+  const [isSlashing, setIsSlashing] = useState(false); // Track if user is actively slashing
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
@@ -108,7 +110,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     return Math.atan2(deltaY, deltaX) * (180 / Math.PI);
   }, []);
 
-  // Handle mouse movement
+  // Handle mouse movement and clicking
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing') return;
     
@@ -127,7 +129,20 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     lastMouseAngleRef.current = angle;
   }, [gameState, calculateAngle]);
 
-  // Handle touch movement
+  // Handle mouse clicks for slashing
+  const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return;
+    setIsSlashing(true);
+    
+    // Update position on click too
+    handleMouseMove(event);
+  }, [gameState, handleMouseMove]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsSlashing(false);
+  }, []);
+
+  // Handle touch movement and tapping
   const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (gameState !== 'playing') return;
@@ -150,8 +165,13 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
+    setIsSlashing(true);
     handleTouchMove(event);
   }, [handleTouchMove]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsSlashing(false);
+  }, []);
 
   // Game loop
   const gameLoop = useCallback(() => {
@@ -200,13 +220,14 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       const newAttack: Attack = {
         id: now + Math.random(),
         type: attackType,
-        angle: angle + (Math.random() - 0.5) * 60, // Required parry angle with some variance
+        angle: angle, // Visual direction only
         x: startX,
         y: startY,
         speed: Math.min(0.8, 0.2 + (difficultyLevel * 0.1)), // Much slower attacks
         createdAt: now,
-        parried: false,
-        perfectTiming: false
+        destroyed: false,
+        perfectTiming: false,
+        health: 1 // Attacks start with 1 health, destroyed when slashed
       };
       
       setAttacks(prev => [...prev, newAttack]);
@@ -248,21 +269,21 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         
         return updatedAttack;
       }).filter(attack => {
-        // Remove attacks that reached center without being parried
+        // Remove attacks that reached center without being destroyed
         const distanceToCenter = Math.sqrt(
           Math.pow(attack.x - 50, 2) + Math.pow(attack.y - 50, 2)
         );
         
         // MUCH larger protection zone - attacks must get within 12 units to hit center
-        if (distanceToCenter < 12 && !attack.parried) {
+        if (distanceToCenter < 12 && !attack.destroyed) {
           // Attack hit player
           console.log('SwordParry: Attack hit center! Game Over!');
           endGame();
           return false;
         }
         
-        // Keep attacks that are still moving toward center or have been parried
-        return distanceToCenter > 12 || attack.parried;
+        // Keep attacks that are still moving toward center or have been destroyed
+        return distanceToCenter > 12 || attack.destroyed;
       });
     });
 
@@ -275,57 +296,51 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     animationRef.current = requestAnimationFrame(gameLoop);
   }, [score]);
 
-  // Check for parries and cuts
+  // Check for slashing attacks and cuts
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || !isSlashing) return;
 
-    // Check for parries - MUCH more forgiving collision detection
+    // Check for slashing attacks - when user is actively clicking/touching
     const nearbyAttacks = attacks.filter(attack => {
       const distance = Math.sqrt(
         Math.pow(attack.x - mousePos.x, 2) + Math.pow(attack.y - mousePos.y, 2)
       );
-      // HUGE parry zone - very easy to intercept attacks
-      return distance < 30 && !attack.parried;
+      // HUGE slash zone - very easy to hit attacks
+      return distance < 30 && !attack.destroyed && attack.health > 0;
     });
 
     for (const attack of nearbyAttacks) {
-      const angleDiff = Math.abs(attack.angle - mousePos.angle);
-      const normalizedDiff = Math.min(angleDiff, 360 - angleDiff);
+      // Successful slash! No angle matching required
+      const isPerfect = Math.random() < 0.3; // 30% chance for perfect slash
       
-      if (normalizedDiff < 60) { // VERY forgiving - 60 degree tolerance for parry
-        // Successful parry!
-        const isPerfect = normalizedDiff < 20; // Perfect parry within 20 degrees
-        
-        setAttacks(prev => prev.map(a => 
-          a.id === attack.id ? { ...a, parried: true, perfectTiming: isPerfect } : a
-        ));
-        
-        setParriedAttacks(prev => prev + 1);
-        if (isPerfect) setPerfectParries(prev => prev + 1);
-        
-        // Award points
-        const basePoints = 100;
-        const perfectBonus = isPerfect ? 50 : 0;
-        const timingBonus = Math.max(0, 50 - normalizedDiff * 2);
-        const totalPoints = basePoints + perfectBonus + timingBonus;
-        
-        setScore(prev => prev + totalPoints);
-        currentScoreRef.current += totalPoints;
-        
-        // Play success sound
-        try {
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-          audio.volume = isPerfect ? 0.3 : 0.2;
-          audio.play().catch(() => {});
-        } catch (e) {
-          // Audio failed, continue silently
-        }
-        
-        console.log(`SwordParry: ${isPerfect ? 'Perfect' : 'Good'} parry! +${totalPoints} points`);
+      setAttacks(prev => prev.map(a => 
+        a.id === attack.id ? { ...a, destroyed: true, health: 0, perfectTiming: isPerfect } : a
+      ));
+      
+      setDestroyedAttacks(prev => prev + 1);
+      if (isPerfect) setPerfectDestroys(prev => prev + 1);
+      
+      // Award points
+      const basePoints = 100;
+      const perfectBonus = isPerfect ? 50 : 0;
+      const totalPoints = basePoints + perfectBonus;
+      
+      setScore(prev => prev + totalPoints);
+      currentScoreRef.current += totalPoints;
+      
+      // Play success sound
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = isPerfect ? 0.3 : 0.2;
+        audio.play().catch(() => {});
+      } catch (e) {
+        // Audio failed, continue silently
       }
+      
+      console.log(`SwordParry: ${isPerfect ? 'Perfect' : 'Good'} slash! +${totalPoints} points`);
     }
 
-    // Check for optional target cuts
+    // Check for optional target cuts (same as before)
     const nearbyCuttableTargets = optionalTargets.filter(target => {
       const distance = Math.sqrt(
         Math.pow(target.x - mousePos.x, 2) + Math.pow(target.y - mousePos.y, 2)
@@ -352,7 +367,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       
       console.log(`SwordParry: Cut target! +${target.points} points`);
     }
-  }, [gameState, attacks, optionalTargets, mousePos]);
+  }, [gameState, attacks, optionalTargets, mousePos, isSlashing]);
 
   // End game
   const endGame = useCallback(() => {
@@ -376,7 +391,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       // Audio failed, continue silently
     }
     
-    const accuracy = totalAttacks > 0 ? (parriedAttacks / totalAttacks) * 100 : 0;
+    const accuracy = totalAttacks > 0 ? (destroyedAttacks / totalAttacks) * 100 : 0;
     const avgReactionTime = 250; // Estimate based on parry timing
     
     const gameResult = {
@@ -403,9 +418,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     currentScoreRef.current = 0;
     setAttacks([]);
     setOptionalTargets([]);
-    setParriedAttacks(0);
+    setDestroyedAttacks(0);
     setTotalAttacks(0);
-    setPerfectParries(0);
+    setPerfectDestroys(0);
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
     lastAttackSpawnRef.current = Date.now();
@@ -429,8 +444,15 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     animationRef.current = requestAnimationFrame(gameLoop);
   };
 
-  // Cleanup
+  // Cleanup and global mouse up listener
   useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsSlashing(false);
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('touchend', handleGlobalMouseUp);
+
     return () => {
       isGameRunningRef.current = false;
       if (animationRef.current) {
@@ -442,6 +464,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       if (countdownRef.current) {
         clearTimeout(countdownRef.current);
       }
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchend', handleGlobalMouseUp);
     };
   }, []);
 
@@ -480,15 +504,15 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               <div className="space-y-3 pl-11">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-red-300 font-semibold">Mouse = Sword:</span> Move mouse to control your blade</p>
+                  <p><span className="text-red-300 font-semibold">Mouse = Sword:</span> Move mouse to control your blade position</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-orange-300 font-semibold">Parry Attacks:</span> Match your sword angle to incoming attacks (60° tolerance)</p>
+                  <p><span className="text-orange-300 font-semibold">Click to Slash:</span> Click/tap to destroy bright red attacks!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-yellow-300 font-semibold">Perfect Timing:</span> Within 20° = perfect parry bonus</p>
+                  <p><span className="text-yellow-300 font-semibold">Perfect Slashes:</span> Random chance for bonus points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
@@ -502,8 +526,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
                 <p className="text-xs text-red-200">
-                  <span className="text-yellow-300 font-bold">⚔️ Easy Mode:</span> Much slower attacks and huge parry zones! 
-                  Green circle shows your parry area. Blue circle shows protection zone.
+                  <span className="text-yellow-300 font-bold">⚔️ Slash Mode:</span> Bright red attacks with glowing effects! 
+                  Just click/tap when your sword is near them to destroy them instantly!
                 </p>
               </div>
             </div>
@@ -557,10 +581,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
             <div className="text-sm text-gray-600">Score: {score}</div>
             <div className="text-sm text-gray-600">
-              Parries: {parriedAttacks}/{totalAttacks}
+              Slashes: {destroyedAttacks}/{totalAttacks}
             </div>
             <div className="text-sm text-gray-600">
-              Perfect: {perfectParries}
+              Perfect: {perfectDestroys}
             </div>
             <div className="text-sm text-gray-600">
               Difficulty: {Math.max(1, Math.floor((61 - timeLeft) / 10))}/6
@@ -582,7 +606,12 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         {gameState === 'playing' && (
           <div className="space-y-6">
             <div className="text-xl font-bold text-gray-900">
-              ⚔️ Defend the center! Parry incoming attacks and cut bonus targets! 🎯
+              ⚔️ SLASH the bright red attacks before they reach the center! 🔥
+              {isSlashing && (
+                <div className="text-lg text-green-600 font-bold animate-pulse mt-2">
+                  ⚡ SLASHING! ⚡
+                </div>
+              )}
             </div>
             
             {/* Game Area */}
@@ -591,8 +620,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
               style={{ touchAction: 'none' }}
               onMouseMove={handleMouseMove}
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               {/* Center target (player position) - MUCH larger protection zone */}
               <div className="absolute w-8 h-8 bg-blue-400 rounded-full border-2 border-blue-200 animate-pulse"
@@ -614,24 +646,33 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 }}
               />
 
-              {/* Attacks */}
+              {/* Attacks - BRIGHT RED and highly visible */}
               {attacks.map((attack) => (
                 <div
                   key={attack.id}
                   className={`absolute transition-all duration-100 ${
-                    attack.parried 
-                      ? (attack.perfectTiming ? 'bg-green-500' : 'bg-yellow-500')
-                      : 'bg-red-500 animate-pulse'
-                  } rounded-lg shadow-lg`}
+                    attack.destroyed 
+                      ? 'bg-green-500 animate-ping' // Green flash when destroyed
+                      : 'bg-red-500 border-2 border-red-300 shadow-lg animate-pulse' // BRIGHT RED with border and shadow
+                  } rounded-lg`}
                   style={{
                     left: `${attack.x}%`,
                     top: `${attack.y}%`,
-                    width: attack.type === 'thrust' ? '8px' : '16px',
-                    height: attack.type === 'overhead' ? '20px' : '12px',
+                    width: attack.type === 'thrust' ? '12px' : '20px', // Larger for visibility
+                    height: attack.type === 'overhead' ? '24px' : '16px', // Larger for visibility
                     transform: `translate(-50%, -50%) rotate(${attack.angle}deg)`,
-                    zIndex: 10
+                    zIndex: 10,
+                    // Extra bright red glow effect
+                    boxShadow: attack.destroyed ? 'none' : '0 0 15px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.4)'
                   }}
-                />
+                >
+                  {/* Attack type indicator */}
+                  {!attack.destroyed && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
+                      {attack.type === 'slash' ? '⚔️' : attack.type === 'thrust' ? '🗡️' : '🔨'}
+                    </div>
+                  )}
+                </div>
               ))}
 
               {/* Optional targets */}
@@ -696,19 +737,20 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             </div>
 
             <div className="text-sm text-gray-600 text-center">
-              <strong>Desktop:</strong> Move mouse to control sword angle • <strong>Mobile:</strong> Touch and drag
+              <strong>Desktop:</strong> Move mouse to control sword, CLICK to slash attacks • <strong>Mobile:</strong> Touch and drag, TAP to slash
             </div>
           </div>
         )}
 
         {/* Instructions */}
         <div className="mt-8 text-sm text-gray-600 space-y-2">
-          <div>⚔️ <strong>Parry:</strong> Match your sword angle to incoming attacks (60° tolerance - VERY forgiving!)</div>
-          <div>🎯 <strong>Perfect:</strong> Within 20° for bonus points and perfect parry status</div>
+          <div>⚔️ <strong>Slash:</strong> Click/tap to destroy bright red glowing attacks when your sword is near them!</div>
+          <div>🎯 <strong>Perfect:</strong> Random chance for perfect slash bonus points</div>
           <div>💎 <strong>Targets:</strong> Cut optional purple targets for bonus points</div>
           <div>🛡️ <strong>Protect:</strong> Don't let red attacks reach the large blue center circle!</div>
           <div>⏰ <strong>Difficulty:</strong> 6 levels total - increases every 10 seconds (much more gradual!)</div>
-          <div>🔍 <strong>Visual Aids:</strong> Green circle = parry zone, Blue circle = protection zone</div>
+          <div>🔍 <strong>Visual Aids:</strong> Green circle = slash zone, Blue circle = protection zone</div>
+          <div>🔥 <strong>Attacks:</strong> Bright red with glow effects and emoji indicators - very easy to see!</div>
         </div>
       </div>
     </div>
