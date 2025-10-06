@@ -105,8 +105,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           position: Math.random() * 100,
           isHarmful: false,
           timeToHarmful: isExtremeMode 
-            ? Math.max(400, 800 - (level * 50)) // Faster warning time in extreme mode
-            : Math.max(800, 1500 - (level * 100)),
+            ? Math.max(1200, 2000 - (level * 50)) // SLOWER transition in extreme mode (1.2-2s)
+            : Math.max(800, 1500 - (level * 100)), // Normal mode timing
           createdAt: now
         };
         
@@ -119,11 +119,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
     // Update existing lasers
     setLasers(prevLasers => {
+      const currentTime = Date.now();
+      const currentTimeSinceStart = currentTime - gameStartTimeRef.current;
+      const currentIsExtremeMode = currentTimeSinceStart > 30000;
+      
       return prevLasers.map(laser => {
         const updatedLaser = { ...laser };
         
         if (!updatedLaser.isHarmful) {
-          const age = now - laser.createdAt;
+          const age = currentTime - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
             // Simple audio without GameAudio
@@ -139,8 +143,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         
         return updatedLaser;
       }).filter(laser => {
-        const age = now - laser.createdAt;
-        return age < laser.timeToHarmful + 3000;
+        const age = currentTime - laser.createdAt;
+        const totalLifetime = currentIsExtremeMode 
+          ? laser.timeToHarmful + 1500  // Red lasers disappear after 1.5s in extreme mode
+          : laser.timeToHarmful + 3000; // Red lasers disappear after 3s in normal mode
+        return age < totalLifetime;
       });
     });
 
@@ -361,14 +368,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-red-300 font-semibold">Extreme:</span> 10x faster lasers, multiple spawns!</p>
+                  <p><span className="text-red-300 font-semibold">Extreme:</span> More lasers, slower transitions, faster clearing!</p>
                 </div>
               </div>
               
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
                 <p className="text-xs text-red-200">
-                  <span className="text-yellow-300 font-bold">🔥 WARNING:</span> This is the most intense version! 
-                  Full-screen lasers will cover the entire map. Find safe spots quickly!
+                  <span className="text-yellow-300 font-bold">🔥 STRATEGY:</span> In extreme mode, lasers spawn faster but give you more time to react! 
+                  Navigate through the laser maze by timing your movements between the blue-to-red transitions.
                 </p>
               </div>
             </div>
