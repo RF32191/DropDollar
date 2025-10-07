@@ -352,7 +352,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
           ref={gameAreaRef}
           className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden"
           style={{
-            cursor: 'url("/SWORD.png") 16 16, crosshair' // Custom sword cursor with crosshair fallback
+            cursor: 'url("/SWORD.png") 32 32, crosshair' // Bigger cursor with larger hotspot
           }}
           onMouseMove={handleMouseMove}
           onMouseDown={handleMouseDown}
@@ -405,16 +405,23 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
             </div>
           ))}
           
-          {/* Sword cursor */}
+          {/* Visual Sword - Using SWORD.png */}
           <div
-            className={`absolute w-2 h-8 transition-all duration-100 ${
-              isClicking ? 'bg-yellow-400' : 'bg-gray-300'
+            className={`absolute w-12 h-12 transition-all duration-100 ${
+              isClicking ? 'scale-125' : 'scale-100'
             }`}
             style={{
               left: `${mousePos.x}%`,
               top: `${mousePos.y}%`,
               transform: 'translate(-50%, -50%)',
-              zIndex: 15
+              zIndex: 15,
+              backgroundImage: 'url("/SWORD.png")',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              filter: isClicking 
+                ? 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.8)) brightness(1.2)' 
+                : 'drop-shadow(0 0 6px rgba(156, 163, 175, 0.6))'
             }}
           />
           
