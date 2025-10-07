@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
 
 interface GameResult {
   score: number;
@@ -46,6 +47,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const countdownRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
   const isGameRunningRef = useRef(false);
+  
+  // Get fair RNG configuration based on listing and attempt number
+  const rngConfig = (listingId && entryNumber) 
+    ? FairRNGService.getLaserDodgeConfig(listingId, entryNumber)
+    : null;
 
   // Simple countdown without GameCountdown component
   useEffect(() => {
@@ -74,81 +80,103 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
 
-    // Update score with bonus for staying on blue lasers
+    // Update score with bonus for staying on blue lasers - decimal scoring
     const baseScore = Number((timeSinceStart / 50).toFixed(2));
     
-    // Calculate blue laser bonus
+    // Calculate blue laser bonus with decimal precision
     let blueBonus = 0;
     const blueLasers = lasers.filter(l => !l.isHarmful);
     for (const laser of blueLasers) {
       if (laser.type === 'horizontal') {
         // Ship is on blue horizontal laser
         if (Math.abs(laser.position - ship.y) < 2) {
-          blueBonus += 0.5; // 0.5 points per frame on blue laser
+          blueBonus += 0.01; // 0.01 points per frame on blue laser (decimal precision)
         }
       } else {
         // Ship is on blue vertical laser
         if (Math.abs(laser.position - ship.x) < 2) {
-          blueBonus += 0.5; // 0.5 points per frame on blue laser
+          blueBonus += 0.01; // 0.01 points per frame on blue laser (decimal precision)
         }
       }
     }
     
-    const newScore = baseScore + blueBonus;
+    const newScore = Number((baseScore + blueBonus).toFixed(2));
     currentScoreRef.current = newScore;
     setScore(newScore);
 
-    // Spawn lasers with gradual buildup to EXTREME at 52 seconds
-    const level = Math.floor(timeSinceStart / 5000) + 1;
-    const isExtremeMode = timeSinceStart > 30000; // Extreme mode after 30 seconds
-    const isCrazyMode = timeSinceStart > 52000; // CRAZY mode after 52 seconds
-    
-    let spawnRate;
-    let laserCount = 1;
-    
-    if (isCrazyMode) {
-      // CRAZY MODE: Absolute laser apocalypse (25-75ms)
-      spawnRate = Math.max(25, 75 - (level * 5));
-      laserCount = Math.random() < 0.7 ? 3 : 2; // 70% chance for 3 lasers, 30% for 2
-    } else if (isExtremeMode) {
-      // EXTREME MODE: Gradual buildup from 30s to 52s
-      const extremeProgress = (timeSinceStart - 30000) / 22000; // 0 to 1 over 22 seconds
-      const baseRate = 800 - (extremeProgress * 600); // 800ms down to 200ms
-      spawnRate = Math.max(200, baseRate - (level * 20));
+    // Spawn lasers - use RNG config if available (competition mode)
+    if (rngConfig && isCompetitionMode) {
+      // Spawn lasers based on RNG configuration
+      const upcomingLasers = rngConfig.laserSpawns.filter(spawn => 
+        spawn.time <= timeSinceStart && spawn.time > timeSinceStart - 100
+      );
       
-      // Gradually increase laser count as we approach 52 seconds
-      if (extremeProgress > 0.8) {
-        laserCount = Math.random() < 0.4 ? 2 : 1; // 40% chance for 2 lasers
-      } else if (extremeProgress > 0.5) {
-        laserCount = Math.random() < 0.2 ? 2 : 1; // 20% chance for 2 lasers
-      }
-    } else {
-      // Normal mode: 200-800ms
-      spawnRate = Math.max(200, 800 - (level * 50));
-    }
-    
-    if (now - lastLaserSpawnRef.current > spawnRate) {
-      const isHorizontal = Math.random() < 0.5;
-      
-      for (let i = 0; i < laserCount; i++) {
+      for (const spawnConfig of upcomingLasers) {
         const newLaser: Laser = {
-          id: now + Math.random() + i,
-          type: isHorizontal ? 'horizontal' : 'vertical',
-          position: Math.random() * 100,
+          id: now + Math.random(),
+          type: spawnConfig.type,
+          position: spawnConfig.position,
           isHarmful: false,
-          timeToHarmful: isCrazyMode 
-            ? Math.max(600, 1200 - (level * 50)) // Very fast transition in crazy mode
-            : isExtremeMode 
-            ? Math.max(2400, 4000 - (level * 100)) // MUCH SLOWER transition in extreme mode (2.4-4s)
-            : Math.max(800, 1500 - (level * 100)), // Normal mode timing
+          timeToHarmful: spawnConfig.timeToHarmful,
           createdAt: now
         };
         
-        console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
+        console.log(`LaserDodge: Spawned RNG laser at ${timeSinceStart}ms:`, spawnConfig);
         setLasers(prev => [...prev, newLaser]);
       }
+    } else {
+      // Practice mode: Original progressive difficulty system
+      const level = Math.floor(timeSinceStart / 5000) + 1;
+      const isExtremeMode = timeSinceStart > 30000; // Extreme mode after 30 seconds
+      const isCrazyMode = timeSinceStart > 52000; // CRAZY mode after 52 seconds
       
-      lastLaserSpawnRef.current = now;
+      let spawnRate;
+      let laserCount = 1;
+      
+      if (isCrazyMode) {
+        // CRAZY MODE: Absolute laser apocalypse (25-75ms)
+        spawnRate = Math.max(25, 75 - (level * 5));
+        laserCount = Math.random() < 0.7 ? 3 : 2; // 70% chance for 3 lasers, 30% for 2
+      } else if (isExtremeMode) {
+        // EXTREME MODE: Gradual buildup from 30s to 52s
+        const extremeProgress = (timeSinceStart - 30000) / 22000; // 0 to 1 over 22 seconds
+        const baseRate = 800 - (extremeProgress * 600); // 800ms down to 200ms
+        spawnRate = Math.max(200, baseRate - (level * 20));
+        
+        // Gradually increase laser count as we approach 52 seconds
+        if (extremeProgress > 0.8) {
+          laserCount = Math.random() < 0.4 ? 2 : 1; // 40% chance for 2 lasers
+        } else if (extremeProgress > 0.5) {
+          laserCount = Math.random() < 0.2 ? 2 : 1; // 20% chance for 2 lasers
+        }
+      } else {
+        // Normal mode: 200-800ms
+        spawnRate = Math.max(200, 800 - (level * 50));
+      }
+      
+      if (now - lastLaserSpawnRef.current > spawnRate) {
+        const isHorizontal = Math.random() < 0.5;
+        
+        for (let i = 0; i < laserCount; i++) {
+          const newLaser: Laser = {
+            id: now + Math.random() + i,
+            type: isHorizontal ? 'horizontal' : 'vertical',
+            position: Math.random() * 100,
+            isHarmful: false,
+            timeToHarmful: isCrazyMode 
+              ? Math.max(600, 1200 - (level * 50)) // Very fast transition in crazy mode
+              : isExtremeMode 
+              ? Math.max(2400, 4000 - (level * 100)) // MUCH SLOWER transition in extreme mode (2.4-4s)
+              : Math.max(800, 1500 - (level * 100)), // Normal mode timing
+            createdAt: now
+          };
+          
+          console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
+          setLasers(prev => [...prev, newLaser]);
+        }
+        
+        lastLaserSpawnRef.current = now;
+      }
     }
 
     // Update existing lasers

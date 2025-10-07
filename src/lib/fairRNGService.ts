@@ -33,6 +33,34 @@ export interface FallingObjectRNGConfig {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
+export interface LaserDodgeRNGConfig {
+  id: number;
+  name: string;
+  laserSpawns: {
+    time: number; // when laser spawns (ms from start)
+    type: 'horizontal' | 'vertical';
+    position: number; // position percentage (0-100)
+    timeToHarmful: number; // how long until laser turns red (ms)
+    duration: number; // how long laser stays active (ms)
+  }[];
+  duration: number; // total game duration (60000ms)
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface SwordSlashRNGConfig {
+  id: number;
+  name: string;
+  attackSpawns: {
+    time: number; // when attack spawns (ms from start)
+    x: number; // position percentage (0-100)
+    y: number; // position percentage (0-100)
+    lifetime: number; // how long attack stays active (ms)
+    size: number; // attack size multiplier (0.8-1.2)
+  }[];
+  duration: number; // total game duration (60000ms)
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
 // 20 Multi-Target RNG Configurations
 export const MULTI_TARGET_RNG_CONFIGS: MultiTargetRNGConfig[] = [
   {
@@ -308,6 +336,158 @@ for (let i = 4; i <= 20; i++) {
   });
 }
 
+// 20 Laser Dodge RNG Configurations
+export const LASER_DODGE_RNG_CONFIGS: LaserDodgeRNGConfig[] = [
+  {
+    id: 1,
+    name: "Balanced Pattern",
+    laserSpawns: [
+      { time: 1000, type: 'horizontal', position: 25, timeToHarmful: 2000, duration: 4000 },
+      { time: 2500, type: 'vertical', position: 75, timeToHarmful: 2200, duration: 4200 },
+      { time: 4000, type: 'horizontal', position: 60, timeToHarmful: 1800, duration: 3800 },
+      { time: 6000, type: 'vertical', position: 30, timeToHarmful: 2100, duration: 4100 },
+      { time: 8500, type: 'horizontal', position: 80, timeToHarmful: 1900, duration: 3900 },
+      { time: 11000, type: 'vertical', position: 50, timeToHarmful: 2000, duration: 4000 },
+      { time: 14000, type: 'horizontal', position: 15, timeToHarmful: 1700, duration: 3700 },
+      { time: 17000, type: 'vertical', position: 85, timeToHarmful: 1800, duration: 3800 }
+    ],
+    duration: 60000,
+    difficulty: 'medium'
+  },
+  {
+    id: 2,
+    name: "Edge Focus",
+    laserSpawns: [
+      { time: 800, type: 'horizontal', position: 10, timeToHarmful: 2500, duration: 4500 },
+      { time: 2000, type: 'vertical', position: 90, timeToHarmful: 2300, duration: 4300 },
+      { time: 3500, type: 'horizontal', position: 90, timeToHarmful: 2100, duration: 4100 },
+      { time: 5500, type: 'vertical', position: 10, timeToHarmful: 2400, duration: 4400 },
+      { time: 8000, type: 'horizontal', position: 20, timeToHarmful: 1900, duration: 3900 },
+      { time: 10500, type: 'vertical', position: 80, timeToHarmful: 2000, duration: 4000 },
+      { time: 13500, type: 'horizontal', position: 85, timeToHarmful: 1800, duration: 3800 },
+      { time: 16000, type: 'vertical', position: 15, timeToHarmful: 1700, duration: 3700 }
+    ],
+    duration: 60000,
+    difficulty: 'easy'
+  },
+  {
+    id: 3,
+    name: "Speed Challenge",
+    laserSpawns: [
+      { time: 500, type: 'horizontal', position: 40, timeToHarmful: 1500, duration: 3000 },
+      { time: 1200, type: 'vertical', position: 60, timeToHarmful: 1400, duration: 2900 },
+      { time: 2000, type: 'horizontal', position: 70, timeToHarmful: 1300, duration: 2800 },
+      { time: 3000, type: 'vertical', position: 35, timeToHarmful: 1600, duration: 3100 },
+      { time: 4200, type: 'horizontal', position: 55, timeToHarmful: 1200, duration: 2700 },
+      { time: 5800, type: 'vertical', position: 25, timeToHarmful: 1400, duration: 2900 },
+      { time: 7500, type: 'horizontal', position: 75, timeToHarmful: 1100, duration: 2600 },
+      { time: 9200, type: 'vertical', position: 45, timeToHarmful: 1300, duration: 2800 }
+    ],
+    duration: 60000,
+    difficulty: 'hard'
+  }
+];
+
+// Generate remaining 17 laser dodge configurations
+for (let i = 4; i <= 20; i++) {
+  const laserSpawns = [];
+  const numLasers = 6 + (i % 4); // 6-9 lasers per game
+  
+  for (let j = 0; j < numLasers; j++) {
+    const time = 1000 + (j * 2000) + ((i * j * 150) % 800);
+    const type: 'horizontal' | 'vertical' = (i + j) % 2 === 0 ? 'horizontal' : 'vertical';
+    const position = 15 + ((i * 11 + j * 13) % 70);
+    const timeToHarmful = 1200 + ((i + j) % 8) * 200;
+    const duration = 3000 + ((i * j) % 1500);
+    
+    laserSpawns.push({ time, type, position, timeToHarmful, duration });
+  }
+  
+  LASER_DODGE_RNG_CONFIGS.push({
+    id: i,
+    name: `Pattern ${i}`,
+    laserSpawns,
+    duration: 60000,
+    difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard'
+  });
+}
+
+// 20 Sword Slash RNG Configurations
+export const SWORD_SLASH_RNG_CONFIGS: SwordSlashRNGConfig[] = [
+  {
+    id: 1,
+    name: "Balanced Assault",
+    attackSpawns: [
+      { time: 1000, x: 30, y: 40, lifetime: 4000, size: 1.0 },
+      { time: 2500, x: 70, y: 60, lifetime: 3800, size: 1.1 },
+      { time: 4200, x: 50, y: 25, lifetime: 4200, size: 0.9 },
+      { time: 6000, x: 25, y: 75, lifetime: 3600, size: 1.0 },
+      { time: 8500, x: 80, y: 30, lifetime: 4000, size: 1.0 },
+      { time: 11000, x: 40, y: 80, lifetime: 3400, size: 1.1 },
+      { time: 14000, x: 65, y: 45, lifetime: 3800, size: 0.9 },
+      { time: 17000, x: 15, y: 55, lifetime: 3200, size: 1.0 }
+    ],
+    duration: 60000,
+    difficulty: 'medium'
+  },
+  {
+    id: 2,
+    name: "Corner Strikes",
+    attackSpawns: [
+      { time: 800, x: 15, y: 15, lifetime: 4500, size: 1.0 },
+      { time: 2200, x: 85, y: 15, lifetime: 4300, size: 1.0 },
+      { time: 4000, x: 15, y: 85, lifetime: 4100, size: 1.0 },
+      { time: 6200, x: 85, y: 85, lifetime: 4400, size: 1.0 },
+      { time: 9000, x: 20, y: 20, lifetime: 3800, size: 0.9 },
+      { time: 11800, x: 80, y: 20, lifetime: 3600, size: 0.9 },
+      { time: 14500, x: 20, y: 80, lifetime: 3400, size: 0.9 },
+      { time: 17200, x: 80, y: 80, lifetime: 3200, size: 0.9 }
+    ],
+    duration: 60000,
+    difficulty: 'easy'
+  },
+  {
+    id: 3,
+    name: "Rapid Fire",
+    attackSpawns: [
+      { time: 500, x: 45, y: 35, lifetime: 2800, size: 0.8 },
+      { time: 1200, x: 55, y: 65, lifetime: 2600, size: 0.8 },
+      { time: 2000, x: 35, y: 55, lifetime: 2400, size: 0.9 },
+      { time: 2900, x: 65, y: 45, lifetime: 2700, size: 0.8 },
+      { time: 4000, x: 25, y: 35, lifetime: 2500, size: 0.8 },
+      { time: 5200, x: 75, y: 65, lifetime: 2300, size: 0.9 },
+      { time: 6500, x: 50, y: 50, lifetime: 2200, size: 0.8 },
+      { time: 8000, x: 40, y: 70, lifetime: 2100, size: 0.8 }
+    ],
+    duration: 60000,
+    difficulty: 'hard'
+  }
+];
+
+// Generate remaining 17 sword slash configurations
+for (let i = 4; i <= 20; i++) {
+  const attackSpawns = [];
+  const numAttacks = 7 + (i % 3); // 7-9 attacks per game
+  
+  for (let j = 0; j < numAttacks; j++) {
+    const time = 1000 + (j * 2500) + ((i * j * 200) % 1000);
+    const x = 20 + ((i * 7 + j * 11) % 60);
+    const y = 25 + ((i * 13 + j * 17) % 50);
+    const lifetime = 3000 + ((i + j) % 10) * 200;
+    const size = 0.8 + ((i + j) % 5) * 0.1;
+    
+    attackSpawns.push({ time, x, y, lifetime, size });
+  }
+  
+  SWORD_SLASH_RNG_CONFIGS.push({
+    id: i,
+    name: `Pattern ${i}`,
+    attackSpawns,
+    duration: 60000,
+    difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard'
+  });
+}
+
 // Fair RNG Assignment System
 export class FairRNGService {
   /**
@@ -348,12 +528,42 @@ export class FairRNGService {
   }
   
   /**
+   * Get Laser Dodge RNG config based on listing ID and attempt number
+   */
+  static getLaserDodgeConfig(listingId: string, attemptNumber: number): LaserDodgeRNGConfig {
+    const listingHash = this.hashString(listingId);
+    const baseIndex = listingHash % 20;
+    
+    // Use different prime offset for laser dodge to ensure variety
+    const attemptOffset = (attemptNumber - 1) * 13;
+    const configIndex = (baseIndex + attemptOffset) % 20;
+    
+    return LASER_DODGE_RNG_CONFIGS[configIndex];
+  }
+  
+  /**
+   * Get Sword Slash RNG config based on listing ID and attempt number
+   */
+  static getSwordSlashConfig(listingId: string, attemptNumber: number): SwordSlashRNGConfig {
+    const listingHash = this.hashString(listingId);
+    const baseIndex = listingHash % 20;
+    
+    // Use different prime offset for sword slash to ensure variety
+    const attemptOffset = (attemptNumber - 1) * 17;
+    const configIndex = (baseIndex + attemptOffset) % 20;
+    
+    return SWORD_SLASH_RNG_CONFIGS[configIndex];
+  }
+  
+  /**
    * Get all 3 RNG configs that will be used for a listing/match
    * Useful for preview or admin purposes
    */
   static getListingRNGPreview(listingId: string): {
     multiTarget: { attempt: number; config: MultiTargetRNGConfig }[];
     fallingObject: { attempt: number; config: FallingObjectRNGConfig }[];
+    laserDodge: { attempt: number; config: LaserDodgeRNGConfig }[];
+    swordSlash: { attempt: number; config: SwordSlashRNGConfig }[];
   } {
     return {
       multiTarget: [
@@ -365,6 +575,16 @@ export class FairRNGService {
         { attempt: 1, config: this.getFallingObjectConfig(listingId, 1) },
         { attempt: 2, config: this.getFallingObjectConfig(listingId, 2) },
         { attempt: 3, config: this.getFallingObjectConfig(listingId, 3) }
+      ],
+      laserDodge: [
+        { attempt: 1, config: this.getLaserDodgeConfig(listingId, 1) },
+        { attempt: 2, config: this.getLaserDodgeConfig(listingId, 2) },
+        { attempt: 3, config: this.getLaserDodgeConfig(listingId, 3) }
+      ],
+      swordSlash: [
+        { attempt: 1, config: this.getSwordSlashConfig(listingId, 1) },
+        { attempt: 2, config: this.getSwordSlashConfig(listingId, 2) },
+        { attempt: 3, config: this.getSwordSlashConfig(listingId, 3) }
       ]
     };
   }
@@ -413,7 +633,9 @@ Falling Object: Attempt 1=${preview.fallingObject[0].config.id}, Attempt 2=${pre
   static getAllConfigs() {
     return {
       multiTarget: MULTI_TARGET_RNG_CONFIGS,
-      fallingObject: FALLING_OBJECT_RNG_CONFIGS
+      fallingObject: FALLING_OBJECT_RNG_CONFIGS,
+      laserDodge: LASER_DODGE_RNG_CONFIGS,
+      swordSlash: SWORD_SLASH_RNG_CONFIGS
     };
   }
 }

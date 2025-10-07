@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { FairRNGService, SwordSlashRNGConfig } from '@/lib/fairRNGService';
 
 interface GameResult {
   score: number;
@@ -24,7 +25,7 @@ interface Attack {
   hitType?: string; // Track the type of hit for visual feedback
 }
 
-export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }: SwordParryGameProps) {
+export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: SwordParryGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [attacks, setAttacks] = useState<Attack[]>([]);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
@@ -39,6 +40,12 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
   const gameRunning = useRef(false);
   const lastSpawn = useRef(0);
   const currentScoreRef = useRef(0); // Track current score for endGame
+  const gameStartTimeRef = useRef(0); // Track game start time for speed scoring
+  
+  // Get fair RNG configuration based on listing and attempt number
+  const rngConfig = (listingId && entryNumber) 
+    ? FairRNGService.getSwordSlashConfig(listingId, entryNumber)
+    : null;
 
   // Simple countdown
   useEffect(() => {
@@ -74,25 +81,48 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
       if (!gameRunning.current) return;
 
       const now = Date.now();
-      const gameTime = Math.floor((60 - timeLeft) / 10) + 1; // Level 1-6 based on 10-second intervals
+      const timeSinceStart = now - gameStartTimeRef.current;
       
-      // Progressive difficulty: more attacks every 10 seconds
-      const attacksPerSpawn = Math.min(gameTime, 5); // Max 5 attacks at once
-      const spawnRate = Math.max(1500, 2500 - (gameTime * 200)); // Faster spawning too
-      
-      // Spawn multiple attacks based on difficulty level
-      if (now - lastSpawn.current > spawnRate) {
-        for (let i = 0; i < attacksPerSpawn; i++) {
+      // Use RNG configuration if available (competition mode)
+      if (rngConfig && isCompetitionMode) {
+        // Spawn attacks based on RNG configuration
+        const upcomingAttacks = rngConfig.attackSpawns.filter(spawn => 
+          spawn.time <= timeSinceStart && spawn.time > timeSinceStart - 100
+        );
+        
+        for (const spawnConfig of upcomingAttacks) {
           const newAttack: Attack = {
-            id: now + i, // Unique ID for each attack
-            x: Math.random() * 80 + 10, // 10-90% of screen
-            y: Math.random() * 80 + 10,
+            id: now + Math.random(), // Unique ID
+            x: spawnConfig.x,
+            y: spawnConfig.y,
             destroyed: false
           };
+          
+          console.log(`Spawned RNG attack at ${timeSinceStart}ms:`, spawnConfig);
           setAttacks(prev => [...prev, newAttack]);
           setTotalCount(prev => prev + 1);
         }
-        lastSpawn.current = now;
+      } else {
+        // Practice mode: Progressive difficulty
+        const gameTime = Math.floor((60 - timeLeft) / 10) + 1; // Level 1-6 based on 10-second intervals
+        
+        const attacksPerSpawn = Math.min(gameTime, 5); // Max 5 attacks at once
+        const spawnRate = Math.max(1500, 2500 - (gameTime * 200)); // Faster spawning too
+        
+        // Spawn multiple attacks based on difficulty level
+        if (now - lastSpawn.current > spawnRate) {
+          for (let i = 0; i < attacksPerSpawn; i++) {
+            const newAttack: Attack = {
+              id: now + i, // Unique ID for each attack
+              x: Math.random() * 80 + 10, // 10-90% of screen
+              y: Math.random() * 80 + 10,
+              destroyed: false
+            };
+            setAttacks(prev => [...prev, newAttack]);
+            setTotalCount(prev => prev + 1);
+          }
+          lastSpawn.current = now;
+        }
       }
 
       // Remove old attacks after 5 seconds
@@ -176,11 +206,18 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
         
         const totalPoints = basePoints + bonusPoints;
         
+        // Add speed bonus - faster destruction = more points
+        const timeSinceStart = Date.now() - gameStartTimeRef.current;
+        const speedMultiplier = Math.max(0.5, (60000 - timeSinceStart) / 60000); // 1.0 at start, 0.5 at end
+        const speedBonus = totalPoints * speedMultiplier * 0.2; // Up to 20% speed bonus
+        
+        const finalPoints = Number((totalPoints + speedBonus).toFixed(2)); // Decimal scoring
+        
         // Update score immediately
         setScore(currentScore => {
-          const newScore = currentScore + totalPoints;
+          const newScore = Number((currentScore + finalPoints).toFixed(2));
           currentScoreRef.current = newScore; // Keep ref in sync
-          console.log(`SwordParry: ${hitType}! Score: ${currentScore} + ${totalPoints} = ${newScore}`);
+          console.log(`SwordParry: ${hitType}! Score: ${currentScore} + ${finalPoints.toFixed(2)} = ${newScore} (speed bonus: ${speedBonus.toFixed(2)})`);
           return newScore;
         });
         
@@ -201,6 +238,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
     setGameState('playing');
     setScore(0);
     currentScoreRef.current = 0; // Reset score ref
+    gameStartTimeRef.current = Date.now(); // Track start time for speed scoring
     setAttacks([]);
     setDestroyedCount(0);
     setTotalCount(0);
@@ -327,7 +365,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
-            <div className="text-sm text-gray-600">Score: {score}</div>
+            <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
             <div className="text-sm text-gray-600">
               Hits: {destroyedCount}/{totalCount}
             </div>
