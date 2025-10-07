@@ -153,13 +153,13 @@ export default function HowItWorksPage() {
           </div>
         </div>
 
-        {/* The 3 Current Games */}
+        {/* The 6 Current Games */}
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
-            🎮 The 3 Skill-Based Games
+            🎮 The 6 Skill-Based Games
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Multi-Target Reaction */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
               <div className="bg-green-100 dark:bg-green-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4">
@@ -204,12 +204,57 @@ export default function HowItWorksPage() {
                 <span className="text-gray-500 dark:text-gray-400">Progressive rounds</span>
               </div>
             </div>
+
+            {/* Laser Dodge EXTREME */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+              <div className="bg-orange-100 dark:bg-orange-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                <FireIcon className="h-6 w-6 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">🔥 Laser Dodge EXTREME</h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">
+                Pilot your ship through full-screen laser grids. Blue lasers are safe but turn deadly red - risk vs reward!
+              </p>
+              <div className="flex justify-between text-xs">
+                <span className="text-red-600 font-medium">Extreme Difficulty</span>
+                <span className="text-gray-500 dark:text-gray-400">Survival mode</span>
+              </div>
+            </div>
+
+            {/* QuickClick Challenge */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+              <div className="bg-blue-100 dark:bg-blue-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                <ClockIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">⚡ QuickClick Challenge</h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">
+                Lightning-fast reaction test! Click instantly when the screen flashes green, plus accuracy bonus round.
+              </p>
+              <div className="flex justify-between text-xs">
+                <span className="text-blue-600 font-medium">Easy-Medium</span>
+                <span className="text-gray-500 dark:text-gray-400">4 rounds</span>
+              </div>
+            </div>
+
+            {/* Sword Slash */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
+              <div className="bg-purple-100 dark:bg-purple-900/30 w-12 h-12 rounded-full flex items-center justify-center mb-4">
+                <span className="text-purple-600 text-xl font-bold">⚔️</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">⚔️ Sword Slash</h3>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">
+                Destroy red attacks with precise sword slashes. Progressive difficulty with accuracy bonuses for center hits.
+              </p>
+              <div className="flex justify-between text-xs">
+                <span className="text-purple-600 font-medium">Medium-Hard</span>
+                <span className="text-gray-500 dark:text-gray-400">Progressive waves</span>
+              </div>
+            </div>
           </div>
 
           {/* Game Features */}
           <div className="mt-8 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">🎮 Enhanced Game Features</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="text-green-500">✓</span>
                 <span className="text-gray-700 dark:text-gray-300">5-second countdown with audio cues</span>
@@ -220,11 +265,31 @@ export default function HowItWorksPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-green-500">✓</span>
-                <span className="text-gray-700 dark:text-gray-300">Audio effects for better gameplay</span>
+                <span className="text-gray-700 dark:text-gray-300">Rich audio effects for gameplay</span>
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-green-500">✓</span>
                 <span className="text-gray-700 dark:text-gray-300">Private score tracking</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-500">✓</span>
+                <span className="text-gray-700 dark:text-gray-300">Mobile-friendly touch controls</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-500">✓</span>
+                <span className="text-gray-700 dark:text-gray-300">Fair RNG system for competition</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-500">✓</span>
+                <span className="text-gray-700 dark:text-gray-300">Progressive difficulty scaling</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-500">✓</span>
+                <span className="text-gray-700 dark:text-gray-300">Visual feedback and animations</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-green-500">✓</span>
+                <span className="text-gray-700 dark:text-gray-300">Custom cursors and game assets</span>
               </div>
             </div>
           </div>
@@ -310,10 +375,11 @@ export default function HowItWorksPage() {
               <div>
                 <h4 className="font-bold text-green-800 dark:text-green-200 mb-2">Original & Legal Game Design</h4>
                 <ul className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                  <li>• All 3 games are completely original creations by DropDollar</li>
+                  <li>• All 6 games are completely original creations by DropDollar</li>
                   <li>• No copyrighted material or trademarked game mechanics used</li>
                   <li>• Games designed specifically for skill-based competition</li>
                   <li>• Advanced bot-protection through randomization and human cognition</li>
+                  <li>• Mobile-optimized with touch controls for accessibility</li>
                   <li>• Legally compliant with gaming and intellectual property laws</li>
                 </ul>
               </div>
