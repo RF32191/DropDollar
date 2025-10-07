@@ -525,8 +525,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             {/* Game Area */}
             <div 
               ref={gameAreaRef}
-              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
-              style={{ touchAction: 'none' }}
+              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-96 border-4 border-gray-300 overflow-hidden"
+              style={{ 
+                touchAction: 'none',
+                cursor: 'url(/SHIP.png) 16 16, auto' // Custom ship cursor with hotspot at center
+              }}
               onMouseMove={handleMouseMove}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
@@ -548,50 +551,59 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
               {/* Horizontal Lasers */}
               {lasers.filter(l => l.type === 'horizontal').map((laser) => (
-                <div
-                  key={laser.id}
-                  className={`absolute w-full h-4 transition-all duration-300 ${
-                    laser.isHarmful 
-                      ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                      : 'bg-blue-400 shadow-lg shadow-blue-400/30'
-                  }`}
-                  style={{
-                    left: '0%',
-                    top: `${laser.position}%`,
-                    transform: 'translateY(-50%)'
-                  }}
-                />
+                <div key={laser.id} className="absolute w-full h-4" style={{
+                  left: '0%',
+                  top: `${laser.position}%`,
+                  transform: 'translateY(-50%)'
+                }}>
+                  {/* Main laser beam */}
+                  <div
+                    className={`absolute w-full h-full transition-all duration-300 ${
+                      laser.isHarmful 
+                        ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
+                        : 'bg-blue-400 shadow-lg shadow-blue-400/30'
+                    }`}
+                  />
+                  {/* White center line for realism */}
+                  <div className="absolute w-full h-0.5 bg-white/80 top-1/2 transform -translate-y-1/2 shadow-sm" />
+                </div>
               ))}
 
               {/* Vertical Lasers */}
               {lasers.filter(l => l.type === 'vertical').map((laser) => (
-                <div
-                  key={laser.id}
-                  className={`absolute h-full w-4 transition-all duration-300 ${
-                    laser.isHarmful 
-                      ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                      : 'bg-blue-400 shadow-lg shadow-blue-400/30'
-                  }`}
-                  style={{
-                    left: `${laser.position}%`,
-                    top: '0%',
-                    transform: 'translateX(-50%)'
-                  }}
-                />
+                <div key={laser.id} className="absolute h-full w-4" style={{
+                  left: `${laser.position}%`,
+                  top: '0%',
+                  transform: 'translateX(-50%)'
+                }}>
+                  {/* Main laser beam */}
+                  <div
+                    className={`absolute h-full w-full transition-all duration-300 ${
+                      laser.isHarmful 
+                        ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
+                        : 'bg-blue-400 shadow-lg shadow-blue-400/30'
+                    }`}
+                  />
+                  {/* White center line for realism */}
+                  <div className="absolute h-full w-0.5 bg-white/80 left-1/2 transform -translate-x-1/2 shadow-sm" />
+                </div>
               ))}
               
-              {/* Ship */}
+              {/* Ship - Using SHIP.png */}
               <div
-                className="absolute w-8 h-8 bg-green-400 rounded-full shadow-lg shadow-green-400/50 animate-pulse flex items-center justify-center text-white text-sm font-bold"
+                className="absolute w-8 h-8 shadow-lg shadow-green-400/50 animate-pulse flex items-center justify-center"
                 style={{
                   left: `${ship.x}%`,
                   top: `${ship.y}%`,
                   transform: 'translate(-50%, -50%)',
-                  zIndex: 10
+                  zIndex: 10,
+                  backgroundImage: 'url(/SHIP.png)',
+                  backgroundSize: 'contain',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'center',
+                  filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))' // Green glow effect
                 }}
-              >
-                🚀
-              </div>
+              />
             </div>
 
             <div className="text-sm text-gray-600 text-center">
