@@ -38,6 +38,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameRunning = useRef(false);
   const lastSpawn = useRef(0);
+  const currentScoreRef = useRef(0); // Track current score for endGame
 
   // Simple countdown
   useEffect(() => {
@@ -143,14 +144,16 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
     const clickY = ((event.clientY - rect.top) / rect.height) * 100;
     
     // Check for hits with accuracy-based bonus points
+    let hitDetected = false;
     setAttacks(prev => prev.map(attack => {
-      if (attack.destroyed) return attack;
+      if (attack.destroyed || hitDetected) return attack;
       
       const distance = Math.sqrt(
         Math.pow(attack.x - clickX, 2) + Math.pow(attack.y - clickY, 2)
       );
       
       if (distance < 15) { // Hit!
+        hitDetected = true;
         let basePoints = 100;
         let bonusPoints = 0;
         let hitType = 'Hit';
@@ -172,11 +175,16 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
         // else: Regular hit, no bonus
         
         const totalPoints = basePoints + bonusPoints;
-        setScore(s => s + totalPoints);
-        setDestroyedCount(d => d + 1);
         
-        // Show hit feedback
-        console.log(`${hitType}! +${totalPoints} points (${bonusPoints} bonus)`);
+        // Update score immediately
+        setScore(currentScore => {
+          const newScore = currentScore + totalPoints;
+          currentScoreRef.current = newScore; // Keep ref in sync
+          console.log(`SwordParry: ${hitType}! Score: ${currentScore} + ${totalPoints} = ${newScore}`);
+          return newScore;
+        });
+        
+        setDestroyedCount(d => d + 1);
         
         return { ...attack, destroyed: true, hitType };
       }
@@ -192,6 +200,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
   const startGame = () => {
     setGameState('playing');
     setScore(0);
+    currentScoreRef.current = 0; // Reset score ref
     setAttacks([]);
     setDestroyedCount(0);
     setTotalCount(0);
@@ -204,9 +213,12 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
     setGameState('ended');
     
     const accuracy = totalCount > 0 ? (destroyedCount / totalCount) * 100 : 0;
+    const finalScore = currentScoreRef.current; // Use ref for most current score
+    
+    console.log(`SwordParry: Game ended. Final score: ${finalScore}, Accuracy: ${accuracy.toFixed(1)}%`);
     
     onGameEnd({
-      score,
+      score: finalScore,
       accuracy,
       avgReactionTime: 250
     });
