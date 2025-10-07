@@ -11,6 +11,8 @@ import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
+import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
+import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdSystem } from '@/hooks/useAdSystem';
 import { useGameLocationGuard } from '@/hooks/useLocationGuard';
@@ -120,6 +122,8 @@ export default function GamesPage() {
   const isCompetitionMode = !!listingId;
   const { user } = useAuth();
   const locationGuard = useGameLocationGuard();
+  const deviceInfo = useDeviceDetection();
+  const responsiveClasses = getResponsiveClasses(deviceInfo);
   
   // Ad System Integration
   const { 
@@ -627,18 +631,18 @@ export default function GamesPage() {
       )}
       {/* GAMING Header */}
       <header className="bg-gradient-to-r from-purple-900 via-indigo-800 to-purple-900 dark:from-purple-950 dark:via-indigo-900 dark:to-purple-950 shadow-2xl border-b-4 border-purple-500/50 transition-all duration-300 relative overflow-hidden">
-        {/* Animated Gaming Background */}
+        {/* Animated Gaming Background - Smaller on mobile */}
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-1/4 w-32 h-32 bg-purple-500/30 rounded-full blur-xl animate-pulse"></div>
-          <div className="absolute top-10 right-1/3 w-24 h-24 bg-pink-500/40 rounded-full blur-xl animate-pulse delay-1000"></div>
-          <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-indigo-500/20 rounded-full blur-xl animate-pulse delay-2000"></div>
+          <div className={`absolute ${deviceInfo.isMobile ? 'top-0 left-1/4 w-16 h-16' : 'top-0 left-1/4 w-32 h-32'} bg-purple-500/30 rounded-full blur-xl animate-pulse`}></div>
+          <div className={`absolute ${deviceInfo.isMobile ? 'top-5 right-1/3 w-12 h-12' : 'top-10 right-1/3 w-24 h-24'} bg-pink-500/40 rounded-full blur-xl animate-pulse delay-1000`}></div>
+          <div className={`absolute ${deviceInfo.isMobile ? 'bottom-0 left-1/2 w-20 h-20' : 'bottom-0 left-1/2 w-40 h-40'} bg-indigo-500/20 rounded-full blur-xl animate-pulse delay-2000`}></div>
         </div>
-        <div className="max-w-8xl mx-auto px-3 lg:px-4 relative z-10">
-          <div className="flex justify-between items-center py-3">
+        <ResponsiveLayout className="max-w-8xl mx-auto relative z-10">
+          <div className={`flex justify-between items-center ${deviceInfo.isMobile ? 'py-2' : 'py-3'}`}>
             {/* Logo Section */}
-            <Link href="/" className="flex items-center space-x-4 group">
+            <Link href="/" className={`flex items-center ${deviceInfo.isMobile ? 'space-x-2' : 'space-x-4'} group`}>
               <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 via-pink-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xl group-hover:shadow-purple-500/25 transition-all duration-300 group-hover:scale-105">
+                <div className={`${deviceInfo.isMobile ? 'w-8 h-8' : 'w-12 h-12'} bg-gradient-to-br from-purple-400 via-pink-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-xl group-hover:shadow-purple-500/25 transition-all duration-300 group-hover:scale-105`}>
                   <img 
                     src="/DropCoin.png" 
                     alt="DropDollar Logo"
@@ -648,92 +652,100 @@ export default function GamesPage() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+                <span className={`${deviceInfo.isMobile ? 'text-lg' : 'text-2xl'} font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent`}>
                   DropDollar
                 </span>
-                <span className="text-xs text-gray-400 font-medium tracking-wide">PRACTICE GAMES</span>
+                <span className="text-xs text-gray-400 font-medium tracking-wide">
+                  {deviceInfo.isMobile ? 'PRACTICE' : 'PRACTICE GAMES'}
+                </span>
               </div>
             </Link>
 
-            {/* GAMING Navigation - Accessible Layout */}
-            <div className="flex items-center justify-center flex-1 mx-4">
-              <nav className="hidden lg:flex items-center space-x-4">
-                {/* Primary Navigation */}
-                <div className="flex items-center space-x-2">
-                  <Link href="/listings" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
-                    <span className="relative z-10">Browse</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </Link>
-                  <Link href="/categories" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
-                    <span className="relative z-10">Categories</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </Link>
-                  <Link href="/how-it-works" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
-                    <span className="relative z-10">How It Works</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </Link>
-                </div>
+            {/* GAMING Navigation - Desktop Only */}
+            {!deviceInfo.isMobile && (
+              <div className="flex items-center justify-center flex-1 mx-4">
+                <nav className="hidden lg:flex items-center space-x-4">
+                  {/* Primary Navigation */}
+                  <div className="flex items-center space-x-2">
+                    <Link href="/listings" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                      <span className="relative z-10">Browse</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </Link>
+                    <Link href="/categories" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                      <span className="relative z-10">Categories</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </Link>
+                    <Link href="/how-it-works" className="relative group px-2 py-2 text-purple-200 hover:text-white font-medium transition-all duration-300 text-sm">
+                      <span className="relative z-10">How It Works</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </Link>
+                  </div>
 
-                {/* GAMES - Center Focus */}
-                <div className="flex items-center space-x-1 px-4 py-2 bg-gradient-to-r from-purple-600/60 to-pink-600/60 rounded-xl border-2 border-purple-400/50 backdrop-blur-sm shadow-lg shadow-purple-500/25">
-                  <Link href="/games" className="relative group px-3 py-1 text-purple-100 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 bg-gradient-to-r from-purple-500/40 to-pink-500/40 rounded-lg border border-purple-300/30 text-xs">
-                    <span className="animate-pulse">🎮</span>
-                    <span className="relative z-10">GAMES</span>
-                  </Link>
-                  <Link href="/tournaments" className="relative group px-2 py-1 text-yellow-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
-                    <span>🏆</span>
-                    <span className="relative z-10">Tournaments</span>
-                  </Link>
-                  <Link href="/hot-sell" className="relative group px-2 py-1 text-red-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
-                    <span>🔥</span>
-                    <span className="relative z-10">Hot Sell</span>
-                  </Link>
-                </div>
+                  {/* GAMES - Center Focus */}
+                  <div className="flex items-center space-x-1 px-4 py-2 bg-gradient-to-r from-purple-600/60 to-pink-600/60 rounded-xl border-2 border-purple-400/50 backdrop-blur-sm shadow-lg shadow-purple-500/25">
+                    <Link href="/games" className="relative group px-3 py-1 text-purple-100 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 bg-gradient-to-r from-purple-500/40 to-pink-500/40 rounded-lg border border-purple-300/30 text-xs">
+                      <span className="animate-pulse">🎮</span>
+                      <span className="relative z-10">GAMES</span>
+                    </Link>
+                    <Link href="/tournaments" className="relative group px-2 py-1 text-yellow-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                      <span>🏆</span>
+                      <span className="relative z-10">Tournaments</span>
+                    </Link>
+                    <Link href="/hot-sell" className="relative group px-2 py-1 text-red-200 hover:text-white font-bold transition-all duration-300 flex items-center space-x-1 text-xs">
+                      <span>🔥</span>
+                      <span className="relative z-10">Hot Sell</span>
+                    </Link>
+                  </div>
 
-                {/* Secondary Navigation */}
-                <div className="flex items-center space-x-2">
-                  <Link href="/tournament-results" className="relative group px-2 py-2 text-cyan-200 hover:text-white font-medium transition-all duration-300 flex items-center space-x-1 text-sm">
-                    <span>📊</span>
-                    <span className="relative z-10">Results</span>
-                  </Link>
-                  <Link href="/buy-tokens" className="relative group px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold rounded-lg transition-all duration-300 flex items-center space-x-1 shadow-lg hover:shadow-green-500/30 hover:scale-105 text-sm">
-                    <span>💰</span>
-                    <span>Tokens</span>
-                  </Link>
-                </div>
-              </nav>
-            </div>
+                  {/* Secondary Navigation */}
+                  <div className="flex items-center space-x-2">
+                    <Link href="/tournament-results" className="relative group px-2 py-2 text-cyan-200 hover:text-white font-medium transition-all duration-300 flex items-center space-x-1 text-sm">
+                      <span>📊</span>
+                      <span className="relative z-10">Results</span>
+                    </Link>
+                    <Link href="/buy-tokens" className="relative group px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold rounded-lg transition-all duration-300 flex items-center space-x-1 shadow-lg hover:shadow-green-500/30 hover:scale-105 text-sm">
+                      <span>💰</span>
+                      <span>Tokens</span>
+                    </Link>
+                  </div>
+                </nav>
+              </div>
+            )}
 
             {/* User Actions - Always Visible */}
-            <div className="flex items-center space-x-2">
-              <Link href="/settings" className="hidden md:flex items-center space-x-1 px-2 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm">
-                <span>⚙️</span>
-                <span>Settings</span>
-              </Link>
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              {!deviceInfo.isMobile && (
+                <Link href="/settings" className="hidden md:flex items-center space-x-1 px-2 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm">
+                  <span>⚙️</span>
+                  <span>Settings</span>
+                </Link>
+              )}
               
-              <Link href="/auth/login" className="px-3 py-2 text-purple-200 hover:text-white font-medium transition-colors duration-300 text-sm">
+              <Link href="/auth/login" className={`${deviceInfo.isMobile ? 'px-2 py-1 text-sm' : 'px-3 py-2'} text-purple-200 hover:text-white font-medium transition-colors duration-300`}>
                 Sign In
               </Link>
-              <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+              <Link href="/auth/register" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
                 Sign Up
               </Link>
-              <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+              <Link href="/seller/apply" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
                 Sell
               </Link>
             </div>
           </div>
 
           {/* Mobile Navigation */}
-          <div className="lg:hidden pb-4">
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Link href="/games" className="px-3 py-1.5 bg-purple-600/30 text-purple-300 rounded-lg text-sm font-medium border border-purple-500/30">🎮 Games</Link>
-              <Link href="/tournaments" className="px-3 py-1.5 bg-yellow-600/20 text-yellow-300 rounded-lg text-sm font-medium">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="px-3 py-1.5 bg-red-600/20 text-red-300 rounded-lg text-sm font-medium">🔥 Hot Sell</Link>
-              <Link href="/listings" className="px-3 py-1.5 bg-gray-600/20 text-gray-300 rounded-lg text-sm font-medium">Browse</Link>
-              <Link href="/buy-tokens" className="px-3 py-1.5 bg-green-600/20 text-green-300 rounded-lg text-sm font-medium">💰 Tokens</Link>
+          {deviceInfo.isMobile && (
+            <div className="pb-3">
+              <div className="flex flex-wrap gap-1 justify-center">
+                <Link href="/games" className="px-2 py-1 bg-purple-600/30 text-purple-300 rounded-lg text-xs font-medium border border-purple-500/30">🎮 Games</Link>
+                <Link href="/tournaments" className="px-2 py-1 bg-yellow-600/20 text-yellow-300 rounded-lg text-xs font-medium">🏆 Tournaments</Link>
+                <Link href="/hot-sell" className="px-2 py-1 bg-red-600/20 text-red-300 rounded-lg text-xs font-medium">🔥 Hot Sell</Link>
+                <Link href="/listings" className="px-2 py-1 bg-gray-600/20 text-gray-300 rounded-lg text-xs font-medium">Browse</Link>
+                <Link href="/buy-tokens" className="px-2 py-1 bg-green-600/20 text-green-300 rounded-lg text-xs font-medium">💰 Tokens</Link>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+        </ResponsiveLayout>
       </header>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
