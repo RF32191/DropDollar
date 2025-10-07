@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd } from '@/lib/gameAudio';
 
 interface GameResult {
   score: number;
@@ -96,13 +97,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       setGameState('flash');
       setFlashStartTime(Date.now());
       // Simple flash sound
-      try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-        audio.volume = 0.15;
-        audio.play().catch(() => {});
-      } catch (e) {
-        // Audio failed, continue silently
-      }
+      playCountdownBeep();
     }, waitTime);
   }, [currentRound]);
 
@@ -133,35 +128,10 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       }
       
       // Play success sound based on performance
-      try {
-        let audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
-        let volume = 0.2;
-        
-        if (isBonus) {
-          // Different sound for bonus round based on accuracy
-          if (accuracy > 80) {
-            // Perfect hit sound - higher pitch
-            audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
-            volume = 0.3;
-          } else if (accuracy > 50) {
-            // Good hit sound
-            audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
-            volume = 0.25;
-          } else {
-            // Weak hit sound
-            audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
-            volume = 0.15;
-          }
-        } else if (reactionTime < 200) {
-          // Super fast reaction - special sound
-          volume = 0.3;
-        }
-        
-        const audio = new Audio(audioData);
-        audio.volume = volume;
-        audio.play().catch(() => {});
-      } catch (e) {
-        // Audio failed, continue silently
+      if (isBonus) {
+        playQuickClickBonusHit(accuracy);
+      } else {
+        playQuickClickSuccess(reactionTime);
       }
       
       // Record the round
@@ -216,13 +186,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       setTimeout(() => {
         if (currentRound < 4) {
           // Play round transition sound
-          try {
-            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-            audio.volume = 0.15;
-            audio.play().catch(() => {});
-          } catch (e) {
-            // Audio failed, continue silently
-          }
+          playRoundTransition();
           
           setCurrentRound(prev => prev + 1);
           setCountdown(3);
@@ -278,15 +242,6 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     console.log('QuickClick: Game ended', finalRounds);
     setGameState('ended');
     
-    // Simple game end sound
-    try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-      audio.volume = 0.2;
-      audio.play().catch(() => {});
-    } catch (e) {
-      // Audio failed, continue silently
-    }
-    
     // Calculate results
     const validRounds = finalRounds.filter(r => r.reactionTime !== null);
     const avgReactionTime = validRounds.length > 0 
@@ -294,6 +249,10 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       : 0;
     
     const accuracy = (validRounds.length / 4) * 100; // Now 4 rounds total
+    
+    // Play game end sound based on performance
+    const performance = accuracy > 75 ? 'great' : accuracy < 50 ? 'poor' : 'good';
+    playGameEnd(performance);
     
     // Score based on speed and accuracy
     const speedScore = avgReactionTime > 0 ? Math.max(0, 1000 - avgReactionTime) : 0;

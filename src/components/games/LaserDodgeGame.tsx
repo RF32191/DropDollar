@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
+import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd } from '@/lib/gameAudio';
 
 interface GameResult {
   score: number;
@@ -135,22 +136,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       // Play mode transition audio
       if (isCrazyMode && !crazyModeTriggeredRef.current) {
         crazyModeTriggeredRef.current = true;
-        try {
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-          audio.volume = 0.3;
-          audio.play().catch(() => {});
-        } catch (e) {
-          // Audio failed, continue silently
-        }
+        playCrazyModeActivation();
       } else if (isExtremeMode && !extremeModeTriggeredRef.current) {
         extremeModeTriggeredRef.current = true;
-        try {
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-          audio.volume = 0.25;
-          audio.play().catch(() => {});
-        } catch (e) {
-          // Audio failed, continue silently
-        }
+        playExtremeModeActivation();
       }
       
       let spawnRate;
@@ -215,14 +204,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           const age = currentTime - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
-            // Simple audio warning
-            try {
-              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-              audio.volume = 0.1;
-              audio.play().catch(() => {});
-            } catch (e) {
-              // Audio failed, continue silently
-            }
+            // Play laser warning sound
+            playLaserWarning();
           }
         }
         
@@ -275,13 +258,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       console.log('LaserDodge: Collision detected! Game Over!');
       
       // Play collision/death sound
-      try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-        audio.volume = 0.4; // Louder for collision
-        audio.play().catch(() => {});
-      } catch (e) {
-        // Audio failed, continue silently
-      }
+      playCollision();
       
       endGame();
     }
@@ -300,14 +277,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       clearInterval(timerRef.current);
     }
 
-    // Simple game end audio
-    try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-      audio.volume = 0.2;
-      audio.play().catch(() => {});
-    } catch (e) {
-      // Audio failed, continue silently
-    }
+    // Play game end sound based on score
+    const performance = currentScoreRef.current > 1000 ? 'great' : currentScoreRef.current < 300 ? 'poor' : 'good';
+    playGameEnd(performance);
     
     const gameResult = {
       score: currentScoreRef.current,
