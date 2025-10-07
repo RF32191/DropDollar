@@ -38,6 +38,12 @@ export default function LocationPermissionModal({
           setTimeout(() => {
             onLocationVerified(result.location!);
             onClose();
+            // Set flag to indicate location was just verified
+            sessionStorage.setItem('location_just_verified', 'true');
+            // Reload the page to ensure the site recognizes the user's allowed location
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           }, 2000);
         } else {
           setStep('denied');
@@ -168,9 +174,20 @@ export default function LocationPermissionModal({
               <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
                 {LocationService.getComplianceMessage(locationData)}
               </p>
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 mb-4">
                 <p className="text-green-700 dark:text-green-300 text-sm font-medium">
                   📍 {locationData.city}, {LocationService.getStateName(locationData.stateCode)}
+                </p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
+                <div className="flex items-center justify-center space-x-2 mb-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-blue-700 dark:text-blue-300 text-sm font-medium">
+                    Refreshing page...
+                  </span>
+                </div>
+                <p className="text-blue-600 dark:text-blue-400 text-xs">
+                  The page will reload to ensure all features are available in your location.
                 </p>
               </div>
             </div>

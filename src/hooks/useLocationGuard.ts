@@ -142,6 +142,17 @@ export function useLocationGuard() {
   // Initialize location check on mount
   useEffect(() => {
     checkLocationStatus();
+    
+    // Also check if we just returned from a location verification
+    // by looking for a specific flag in sessionStorage
+    const justVerified = sessionStorage.getItem('location_just_verified');
+    if (justVerified) {
+      sessionStorage.removeItem('location_just_verified');
+      // Force a recheck after a short delay to ensure localStorage is updated
+      setTimeout(() => {
+        checkLocationStatus();
+      }, 100);
+    }
   }, [checkLocationStatus]);
 
   return {
