@@ -148,7 +148,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     };
   }, [gameState, timeLeft]); // Add timeLeft dependency to track difficulty changes
 
-  // Mouse handling
+  // Mouse and Touch handling
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing') return;
     
@@ -157,6 +157,23 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
+    
+    setMousePos({ 
+      x: Math.max(0, Math.min(100, x)), 
+      y: Math.max(0, Math.min(100, y)) 
+    });
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return;
+    
+    event.preventDefault(); // Prevent scrolling
+    const rect = gameAreaRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const touch = event.touches[0];
+    const x = ((touch.clientX - rect.left) / rect.width) * 100;
+    const y = ((touch.clientY - rect.top) / rect.height) * 100;
     
     setMousePos({ 
       x: Math.max(0, Math.min(100, x)), 
@@ -174,6 +191,25 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     const clickX = ((event.clientX - rect.left) / rect.width) * 100;
     const clickY = ((event.clientY - rect.top) / rect.height) * 100;
     
+    performAttack(clickX, clickY);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    setIsClicking(true);
+    
+    event.preventDefault(); // Prevent default touch behavior
+    const rect = gameAreaRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const touch = event.touches[0];
+    const clickX = ((touch.clientX - rect.left) / rect.width) * 100;
+    const clickY = ((touch.clientY - rect.top) / rect.height) * 100;
+    
+    performAttack(clickX, clickY);
+  };
+
+  // Unified attack logic for both mouse and touch
+  const performAttack = (clickX: number, clickY: number) => {
     // Check for hits with accuracy-based bonus points
     let hitDetected = false;
     setAttacks(prev => prev.map(attack => {
@@ -243,6 +279,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     setIsClicking(false);
   };
 
+  const handleTouchEnd = () => {
+    setIsClicking(false);
+  };
+
   const startGame = () => {
     setGameState('playing');
     setScore(0);
@@ -286,68 +326,80 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-red-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
-          <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
-            <span className="text-3xl">⚔️</span>
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-red-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
           </div>
           
-          <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
-            Sword Slash
-          </h2>
-          <p className="text-red-200 text-sm mb-6 font-medium">Click to Destroy Attacks</p>
-          
-          <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-bold">⚔️</span>
-              </div>
-              <p className="text-white font-semibold">How to Play:</p>
+          <div className="relative z-10">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-2xl sm:text-3xl">⚔️</span>
             </div>
             
-            <div className="space-y-3 pl-11">
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-red-300 font-semibold">Move:</span> Move mouse to control sword position</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
+              Sword Slash
+            </h2>
+            <p className="text-red-200 text-sm mb-4 sm:mb-6 font-medium">Click to Destroy Attacks</p>
+            
+            <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs sm:text-sm font-bold">⚔️</span>
+                </div>
+                <p className="text-white font-semibold">How to Play:</p>
               </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-orange-300 font-semibold">Click:</span> Click to slash and destroy red attacks</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-yellow-300 font-semibold">Accuracy Bonus:</span> Direct hits give bonus points!</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-green-300 font-semibold">Perfect (🎯):</span> +100 bonus • Excellent (✨): +50 • Good (👍): +25</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-red-300 font-semibold">Survive:</span> Don't let attacks expire without destroying them</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-blue-300 font-semibold">Difficulty:</span> More attacks spawn every 10 seconds (1→5 per wave)</p>
+              
+              <div className="space-y-3 pl-8 sm:pl-11">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-red-300 font-semibold">Desktop:</span> Move mouse to control sword position</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-red-300 font-semibold">Mobile:</span> Touch and drag to move sword</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-orange-300 font-semibold">Attack:</span> Click/tap to slash and destroy red attacks</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-yellow-300 font-semibold">Accuracy Bonus:</span> Direct hits give bonus points!</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-semibold">Perfect (🎯):</span> +100 bonus • Excellent (✨): +50 • Good (👍): +25</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-red-300 font-semibold">Survive:</span> Don't let attacks expire without destroying them</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-semibold">Difficulty:</span> More attacks spawn every 10 seconds (1→5 per wave)</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex space-x-4">
-            {!isCompetitionMode && onExit && (
+            
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              {!isCompetitionMode && onExit && (
+                <button
+                  onClick={onExit}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base"
+                >
+                  ← Back
+                </button>
+              )}
               <button
-                onClick={onExit}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                onClick={handleStartGame}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse text-sm sm:text-base`}
               >
-                ← Back
+                ⚔️ Start Slashing
               </button>
-            )}
-            <button
-              onClick={handleStartGame}
-              className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
-            >
-              ⚔️ Start Slashing
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -356,33 +408,34 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'countdown') {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Sword Slash</h2>
-          <p className="text-lg text-gray-600 mb-8">Click to destroy the red attacks!</p>
-          <div className="text-8xl font-bold text-red-500 animate-pulse">
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl p-6 sm:p-12 text-center max-w-md w-full">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Sword Slash</h2>
+          <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">Click/tap to destroy the red attacks!</p>
+          <div className="text-6xl sm:text-8xl font-bold text-red-500 animate-pulse">
             {countdown}
           </div>
+          <p className="text-xs sm:text-sm text-gray-500 mt-4">Get ready...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
           <div className="text-lg font-bold text-gray-900">
             ⚔️ Sword Slash
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
-            <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="text-gray-600">Time: {timeLeft}s</div>
+            <div className="text-gray-600">Score: {score.toFixed(2)}</div>
+            <div className="text-gray-600">
               Hits: {destroyedCount}/{totalCount}
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-gray-600">
               Level: {Math.floor((60 - timeLeft) / 10) + 1}/6
               {timeLeft <= 10 && (
                 <span className="text-red-500 font-bold animate-pulse ml-1">FINAL!</span>
@@ -401,10 +454,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
         {/* Game Area */}
         <div className="mb-4">
-          <div className="text-xl font-bold text-gray-900 text-center">
+          <div className="text-base sm:text-xl font-bold text-gray-900 text-center">
             🗡️ Slash the red attacks! Level {Math.floor((60 - timeLeft) / 10) + 1} - {Math.min(Math.floor((60 - timeLeft) / 10) + 1, 5)} attacks per wave!
             {timeLeft <= 10 && (
-              <div className="text-lg text-red-600 font-bold animate-pulse mt-2">
+              <div className="text-sm sm:text-lg text-red-600 font-bold animate-pulse mt-2">
                 🔥 FINAL LEVEL - MAXIMUM CHAOS! 🔥
               </div>
             )}
@@ -413,13 +466,17 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
         <div 
           ref={gameAreaRef}
-          className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden"
+          className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden touch-none select-none"
           style={{
-            cursor: 'url("/SWORD.png") 32 32, crosshair' // Bigger cursor with larger hotspot
+            cursor: 'url("/SWORD.png") 32 32, crosshair', // Bigger cursor with larger hotspot
+            touchAction: 'none' // Prevent default touch behaviors
           }}
           onMouseMove={handleMouseMove}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           {/* Attacks */}
           {attacks.map((attack) => (
@@ -502,8 +559,16 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           )}
         </div>
 
-        <div className="mt-4 text-sm text-gray-600 text-center">
-          Move mouse to position sword • Click to slash red attacks • Aim for center for bonus points! • More attacks every 10 seconds!
+        <div className="mt-4 text-xs sm:text-sm text-gray-600 text-center">
+          <div className="hidden sm:block">
+            <strong>Desktop:</strong> Move mouse to position sword • Click to slash red attacks • Aim for center for bonus points!
+          </div>
+          <div className="block sm:hidden">
+            <strong>Mobile:</strong> Touch and drag to move sword • Tap to slash red attacks • Aim for center for bonus points!
+          </div>
+          <div className="mt-1">
+            More attacks every 10 seconds! • Perfect hits give maximum bonus!
+          </div>
         </div>
       </div>
     </div>

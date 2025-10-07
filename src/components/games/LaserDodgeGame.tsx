@@ -500,16 +500,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
           <div className="text-lg font-bold text-gray-900">
             🔥 Laser Dodge EXTREME
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
-            <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="text-gray-600">Time: {timeLeft}s</div>
+            <div className="text-gray-600">Score: {score.toFixed(2)}</div>
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
@@ -560,7 +560,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             {/* Game Area */}
             <div 
               ref={gameAreaRef}
-              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-96 border-4 border-gray-300 overflow-hidden"
+              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden"
               style={{ 
                 touchAction: 'none',
                 cursor: 'url("/SHIP.png") 16 16, crosshair' // Custom ship cursor with crosshair fallback
@@ -641,13 +641,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               />
             </div>
 
-            <div className="text-sm text-gray-600 text-center">
-              <strong>Desktop:</strong> Move mouse to control ship • <strong>Mobile:</strong> Touch and drag
+            <div className="text-xs sm:text-sm text-gray-600 text-center">
+              <div className="hidden sm:block">
+                <strong>Desktop:</strong> Move mouse to control ship
+              </div>
+              <div className="block sm:hidden">
+                <strong>Mobile:</strong> Touch and drag to move ship
+              </div>
             </div>
           </div>
         )}
 
-        <div className="mt-8 text-sm text-gray-600 space-y-2">
+        <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-600 space-y-2">
           <div>🔥 <strong>EXTREME MODE:</strong> Full-screen horizontal and vertical laser beams!</div>
           <div>🔵 Blue lasers are safe but turn red when deadly</div>
           <div>🚀 Find safe spots between the laser grids to survive</div>
