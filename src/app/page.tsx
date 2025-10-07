@@ -12,18 +12,23 @@ import {
   CursorArrowRaysIcon,
   DevicePhoneMobileIcon
 } from '@heroicons/react/24/outline';
+import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
+import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 
 export default function HomePage() {
+  const deviceInfo = useDeviceDetection();
+  const responsiveClasses = getResponsiveClasses(deviceInfo);
+
   return (
     <div className="min-h-screen bg-gray-900 transition-colors">
       {/* Gaming-Inspired Header */}
       <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-black dark:via-gray-900 dark:to-black shadow-2xl border-b-2 border-green-500/30 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+        <ResponsiveLayout className="max-w-7xl mx-auto">
+          <div className={`flex items-center justify-between ${deviceInfo.isMobile ? 'h-16' : 'h-20'}`}>
             {/* Logo Section */}
-            <Link href="/" className="flex items-center space-x-4 group">
+            <Link href="/" className="flex items-center space-x-2 sm:space-x-4 group">
               <div className="relative">
-                <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
+                <div className={`${deviceInfo.isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-green-600 rounded-full flex items-center justify-center overflow-hidden`}>
                   <img 
                     src="/DropCoin.png" 
                     alt="DropDollar Logo"
@@ -32,64 +37,72 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-white">DropDollar</span>
-                <span className="text-xs text-gray-400 font-medium tracking-wide">GAMING MARKETPLACE</span>
+                <span className={`${deviceInfo.isMobile ? 'text-lg' : 'text-xl'} font-bold text-white`}>DropDollar</span>
+                <span className={`${deviceInfo.isMobile ? 'text-xs' : 'text-xs'} text-gray-400 font-medium tracking-wide`}>
+                  {deviceInfo.isMobile ? 'GAMING' : 'GAMING MARKETPLACE'}
+                </span>
               </div>
             </Link>
 
-            {/* Main Navigation */}
-            <nav className="hidden lg:flex items-center flex-1 justify-center mx-12">
-              <div className="flex items-center space-x-2">
-                <Link href="/listings" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
-                  Browse
-                </Link>
-                <Link href="/games" className="text-purple-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
-                  <span>🎮</span>
-                  <span>Games</span>
-                </Link>
-                <Link href="/hot-sell" className="text-red-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
-                  <span>🔥</span>
-                  <span>Hot Sell</span>
-                </Link>
-                <Link href="/tournaments" className="text-yellow-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
-                  <span>🏆</span>
-                  <span>Tournaments</span>
-                </Link>
-                <Link href="/how-it-works" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
-                  How It Works
-                </Link>
-              </div>
-            </nav>
+            {/* Main Navigation - Desktop Only */}
+            {!deviceInfo.isMobile && (
+              <nav className="hidden lg:flex items-center flex-1 justify-center mx-12">
+                <div className="flex items-center space-x-2">
+                  <Link href="/listings" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
+                    Browse
+                  </Link>
+                  <Link href="/games" className="text-purple-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
+                    <span>🎮</span>
+                    <span>Games</span>
+                  </Link>
+                  <Link href="/hot-sell" className="text-red-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
+                    <span>🔥</span>
+                    <span>Hot Sell</span>
+                  </Link>
+                  <Link href="/tournaments" className="text-yellow-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
+                    <span>🏆</span>
+                    <span>Tournaments</span>
+                  </Link>
+                  <Link href="/how-it-works" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
+                    How It Works
+                  </Link>
+                </div>
+              </nav>
+            )}
 
             {/* User Actions */}
-            <div className="flex items-center space-x-3">
-              <Link href="/settings" className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-white transition-colors duration-300">
-                <span>⚙️</span>
-                <span className="text-sm font-medium">Settings</span>
-              </Link>
-              <Link href="/auth/login" className="px-4 py-2 text-gray-300 hover:text-white font-medium transition-colors duration-300">
+            <div className="flex items-center space-x-1 sm:space-x-3">
+              {!deviceInfo.isMobile && (
+                <Link href="/settings" className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-white transition-colors duration-300">
+                  <span>⚙️</span>
+                  <span className="text-sm font-medium">Settings</span>
+                </Link>
+              )}
+              <Link href="/auth/login" className={`${deviceInfo.isMobile ? 'px-2 py-1 text-sm' : 'px-4 py-2'} text-gray-300 hover:text-white font-medium transition-colors duration-300`}>
                 Sign In
               </Link>
-              <Link href="/auth/register" className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl">
+              <Link href="/auth/register" className={`${deviceInfo.isMobile ? 'px-3 py-1.5 text-sm' : 'px-5 py-2.5'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl`}>
                 Sign Up
               </Link>
-              <Link href="/seller/apply" className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl">
+              <Link href="/seller/apply" className={`${deviceInfo.isMobile ? 'px-3 py-1.5 text-sm' : 'px-5 py-2.5'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl`}>
                 Sell
               </Link>
             </div>
           </div>
 
           {/* Mobile Navigation */}
-          <div className="lg:hidden pb-4">
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Link href="/games" className="px-3 py-1.5 bg-purple-600/20 text-purple-300 rounded-lg text-sm font-medium">🎮 Games</Link>
-              <Link href="/tournaments" className="px-3 py-1.5 bg-yellow-600/20 text-yellow-300 rounded-lg text-sm font-medium">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="px-3 py-1.5 bg-red-600/20 text-red-300 rounded-lg text-sm font-medium">🔥 Hot Sell</Link>
-              <Link href="/listings" className="px-3 py-1.5 bg-gray-600/20 text-gray-300 rounded-lg text-sm font-medium">Browse</Link>
-              <Link href="/buy-tokens" className="px-3 py-1.5 bg-green-600/20 text-green-300 rounded-lg text-sm font-medium">💰 Tokens</Link>
+          {deviceInfo.isMobile && (
+            <div className="pb-3">
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                <Link href="/games" className="px-2 py-1 bg-purple-600/20 text-purple-300 rounded-lg text-xs font-medium">🎮 Games</Link>
+                <Link href="/tournaments" className="px-2 py-1 bg-yellow-600/20 text-yellow-300 rounded-lg text-xs font-medium">🏆 Tournaments</Link>
+                <Link href="/hot-sell" className="px-2 py-1 bg-red-600/20 text-red-300 rounded-lg text-xs font-medium">🔥 Hot Sell</Link>
+                <Link href="/listings" className="px-2 py-1 bg-gray-600/20 text-gray-300 rounded-lg text-xs font-medium">Browse</Link>
+                <Link href="/buy-tokens" className="px-2 py-1 bg-green-600/20 text-green-300 rounded-lg text-xs font-medium">💰 Tokens</Link>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+        </ResponsiveLayout>
       </header>
       
       {/* Hero Section - Gaming Style */}
