@@ -528,7 +528,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-96 border-4 border-gray-300 overflow-hidden"
               style={{ 
                 touchAction: 'none',
-                cursor: 'url(/SHIP.png) 16 16, auto' // Custom ship cursor with hotspot at center
+                cursor: 'url("/SHIP.png") 16 16, crosshair' // Custom ship cursor with crosshair fallback
               }}
               onMouseMove={handleMouseMove}
               onTouchStart={handleTouchStart}
@@ -591,13 +591,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               
               {/* Ship - Using SHIP.png */}
               <div
-                className="absolute w-8 h-8 shadow-lg shadow-green-400/50 animate-pulse flex items-center justify-center"
+                className="absolute w-8 h-8"
                 style={{
                   left: `${ship.x}%`,
                   top: `${ship.y}%`,
                   transform: 'translate(-50%, -50%)',
                   zIndex: 10,
-                  backgroundImage: 'url(/SHIP.png)',
+                  backgroundImage: 'url("/SHIP.png")',
                   backgroundSize: 'contain',
                   backgroundRepeat: 'no-repeat',
                   backgroundPosition: 'center',

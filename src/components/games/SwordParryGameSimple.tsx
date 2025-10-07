@@ -352,7 +352,7 @@ export default function SwordParryGame({ onGameEnd, onExit, isCompetitionMode }:
           ref={gameAreaRef}
           className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden"
           style={{
-            cursor: 'url(/SWORD.png) 16 16, auto' // Custom sword cursor with hotspot at center
+            cursor: 'url("/SWORD.png") 16 16, crosshair' // Custom sword cursor with crosshair fallback
           }}
           onMouseMove={handleMouseMove}
           onMouseDown={handleMouseDown}
