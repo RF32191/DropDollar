@@ -305,8 +305,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-blue-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
@@ -314,51 +314,55 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           </div>
           
           <div className="relative z-10">
-            <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
-              <span className="text-3xl">⚡</span>
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-2xl sm:text-3xl">⚡</span>
             </div>
             
-            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">
               QuickClick
             </h2>
-            <p className="text-green-200 text-sm mb-6 font-medium">Lightning Reaction Challenge</p>
+            <p className="text-green-200 text-sm mb-4 sm:mb-6 font-medium">Lightning Reaction Challenge</p>
             
-            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+            <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">⚡</span>
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs sm:text-sm font-bold">⚡</span>
                 </div>
                 <p className="text-white font-semibold">How to Play:</p>
               </div>
               
-              <div className="space-y-3 pl-11">
+              <div className="space-y-3 pl-8 sm:pl-11">
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-yellow-300 font-semibold">3 Rounds:</span> Test your reflexes 3 times</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-red-300 font-semibold">Wait:</span> Screen will be red - don't click!</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-green-300 font-semibold">Flash:</span> Click instantly when screen turns green!</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-blue-300 font-semibold">Speed:</span> Faster clicks = higher scores</p>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-semibold">Desktop:</span> Click anywhere when green</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-semibold">Mobile:</span> Tap anywhere when green</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-purple-300 font-semibold">Bonus:</span> 4th round - click the target circle!</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-orange-300 font-semibold">Accuracy:</span> Closer to center = more bonus points!</p>
                 </div>
               </div>
               
-              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-400/30 rounded-xl p-4 mt-6">
+              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
                 <p className="text-xs text-green-200">
                   <span className="text-yellow-300 font-bold">⚡ Pro Tip:</span> Stay focused and click the moment you see green! 
                   Average human reaction time is ~250ms. Can you beat it?
@@ -366,18 +370,18 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               {!isCompetitionMode && onExit && (
                 <button
                   onClick={onExit}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base"
                 >
                   ← Back
                 </button>
               )}
               <button
                 onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse text-sm sm:text-base`}
               >
                 ⚡ Start Challenge
               </button>
@@ -390,21 +394,21 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'countdown') {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl p-6 sm:p-12 text-center max-w-md w-full">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
             {currentRound === 4 ? 'BONUS ROUND!' : `Round ${currentRound} of 3`}
           </h2>
-          <p className="text-lg text-gray-600 mb-8">
+          <p className="text-sm sm:text-lg text-gray-600 mb-6 sm:mb-8">
             {currentRound === 4 
               ? 'Click the target circle when it appears!' 
               : 'Get ready to click when the screen flashes green!'
             }
           </p>
-          <div className="text-8xl font-bold text-blue-500 animate-pulse">
+          <div className="text-6xl sm:text-8xl font-bold text-blue-500 animate-pulse">
             {countdown}
           </div>
-          <p className="text-sm text-gray-500 mt-4">
+          <p className="text-xs sm:text-sm text-gray-500 mt-4">
             {currentRound === 4 ? 'Accuracy + Speed = Bonus Points!' : 'Prepare yourself...'}
           </p>
         </div>
@@ -413,15 +417,15 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
           <div className="text-lg font-bold text-gray-900">
             ⚡ QuickClick - {currentRound === 4 ? 'BONUS ROUND' : `Round ${currentRound}/3`}
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="text-gray-600">
               Completed: {rounds.length}/{currentRound === 4 ? '3+Bonus' : '3'}
             </div>
             {!isCompetitionMode && onExit && (
@@ -438,7 +442,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         {/* Game Area */}
         <div 
           ref={gameAreaRef}
-          className={`relative rounded-xl h-96 border-4 cursor-pointer transition-all duration-100 ${
+          className={`relative rounded-xl h-64 sm:h-96 border-4 cursor-pointer transition-all duration-100 ${
             gameState === 'waiting' ? 'bg-red-500 border-red-600' :
             gameState === 'flash' ? 'bg-green-500 border-green-600 animate-pulse' :
             gameState === 'clicked' ? 'bg-blue-500 border-blue-600' :
@@ -449,18 +453,18 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           <div className="absolute inset-0 flex items-center justify-center text-white">
             {gameState === 'waiting' && (
               <div className="text-center">
-                <div className="text-6xl font-bold mb-4">WAIT...</div>
-                <div className="text-xl">
+                <div className="text-4xl sm:text-6xl font-bold mb-4">WAIT...</div>
+                <div className="text-lg sm:text-xl">
                   {currentRound === 4 ? "Don't click until you see the target!" : "Don't click yet!"}
                 </div>
               </div>
             )}
             {gameState === 'flash' && (
               <div className="text-center">
-                <div className="text-8xl font-bold mb-4 animate-bounce">
+                <div className="text-6xl sm:text-8xl font-bold mb-4 animate-bounce">
                   {currentRound === 4 ? 'TARGET!' : 'CLICK!'}
                 </div>
-                <div className="text-2xl">
+                <div className="text-xl sm:text-2xl">
                   {currentRound === 4 ? 'Click the circle!' : 'Click NOW!'}
                 </div>
               </div>
@@ -469,15 +473,15 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
               <div className="text-center">
                 {rounds.length > 0 && rounds[rounds.length - 1].reactionTime ? (
                   <div>
-                    <div className="text-4xl font-bold mb-4">
+                    <div className="text-3xl sm:text-4xl font-bold mb-4">
                       {rounds[rounds.length - 1].reactionTime}ms
                     </div>
                     {rounds[rounds.length - 1].isBonus && rounds[rounds.length - 1].accuracy && (
-                      <div className="text-2xl font-bold mb-2 text-yellow-300">
+                      <div className="text-xl sm:text-2xl font-bold mb-2 text-yellow-300">
                         Accuracy: {rounds[rounds.length - 1].accuracy!.toFixed(1)}%
                       </div>
                     )}
-                    <div className="text-xl">
+                    <div className="text-lg sm:text-xl">
                       {rounds[rounds.length - 1].isBonus ? 'Bonus Complete! 🎯' :
                        rounds[rounds.length - 1].reactionTime! < 200 ? 'Lightning Fast! ⚡' :
                        rounds[rounds.length - 1].reactionTime! < 300 ? 'Excellent! 🎯' :
@@ -487,8 +491,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                   </div>
                 ) : (
                   <div>
-                    <div className="text-4xl font-bold mb-4">Too Early!</div>
-                    <div className="text-xl">
+                    <div className="text-3xl sm:text-4xl font-bold mb-4">Too Early!</div>
+                    <div className="text-lg sm:text-xl">
                       {currentRound === 4 ? 'Wait for the target circle!' : 'Wait for green next time!'}
                     </div>
                   </div>
@@ -562,11 +566,14 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         )}
 
         {/* Instructions */}
-        <div className="mt-8 text-sm text-gray-600 space-y-2">
+        <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-600 space-y-2">
           <div>⚡ <strong>Goal:</strong> Click as fast as possible when the screen turns green</div>
           <div>🔴 <strong>Red:</strong> Wait - don't click yet!</div>
           <div>🟢 <strong>Green:</strong> Click immediately for best score!</div>
           <div>🎯 <strong>Bonus Round:</strong> Click the target circle for accuracy + speed points!</div>
+          <div className="block sm:hidden text-blue-600">
+            📱 <strong>Mobile:</strong> Tap anywhere on the colored area when it turns green!
+          </div>
         </div>
       </div>
     </div>

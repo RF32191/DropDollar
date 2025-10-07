@@ -393,8 +393,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+      <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
@@ -402,59 +402,63 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           </div>
           
           <div className="relative z-10">
-            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg animate-bounce">
-              <span className="text-3xl">🔥</span>
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-2xl sm:text-3xl">🔥</span>
             </div>
             
-            <h2 className="text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
               Laser Dodge EXTREME
             </h2>
-            <p className="text-orange-200 text-sm mb-6 font-medium">Ultimate Survival Challenge</p>
+            <p className="text-orange-200 text-sm mb-4 sm:mb-6 font-medium">Ultimate Survival Challenge</p>
             
-            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+            <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">!</span>
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs sm:text-sm font-bold">!</span>
                 </div>
                 <p className="text-white font-semibold">EXTREME MODE:</p>
               </div>
               
-              <div className="space-y-3 pl-11">
+              <div className="space-y-3 pl-8 sm:pl-11">
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-green-300 font-semibold">Control:</span> Move mouse/finger to pilot ship</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-semibold">Desktop:</span> Move mouse to pilot ship</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-semibold">Mobile:</span> Touch and drag to pilot ship</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-blue-300 font-semibold">Blue Lasers:</span> Full-screen beams (safe + bonus points!)</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-cyan-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-cyan-300 font-semibold">Risk/Reward:</span> Stay ON blue lasers for bonus points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-red-300 font-semibold">Red Lasers:</span> DEADLY when they turn red!</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-yellow-300 font-semibold">Horizontal:</span> Avoid being on same row</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-purple-300 font-semibold">Vertical:</span> Avoid being on same column</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-orange-300 font-semibold">30 Seconds:</span> EXTREME MODE activates!</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-red-300 font-semibold">Extreme:</span> More lasers, MUCH slower transitions, bonus hunting!</p>
                 </div>
               </div>
               
-              <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-4 mt-6">
+              <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
                 <p className="text-xs text-red-200">
                   <span className="text-yellow-300 font-bold">🎯 RISK/REWARD:</span> After 30 seconds, stay ON blue lasers for bonus points! 
                   They take 2.4-4 seconds to turn red, giving you time to earn big bonuses before escaping.
@@ -462,18 +466,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
               {!isCompetitionMode && onExit && (
                 <button
                   onClick={onExit}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base"
                 >
                   ← Back
                 </button>
               )}
               <button
                 onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse text-sm sm:text-base`}
               >
                 🔥 START EXTREME
               </button>
@@ -486,14 +490,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'countdown') {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="bg-white rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Laser Dodge EXTREME</h2>
-          <p className="text-lg text-gray-600 mb-8">Avoid full-screen horizontal and vertical lasers! Blue = safe, Red = DEADLY!</p>
-          <div className="text-8xl font-bold text-red-500 animate-pulse">
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl p-6 sm:p-12 text-center max-w-md w-full">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Laser Dodge EXTREME</h2>
+          <p className="text-sm sm:text-lg text-gray-600 mb-6 sm:mb-8">Avoid full-screen horizontal and vertical lasers! Blue = safe, Red = DEADLY!</p>
+          <div className="text-6xl sm:text-8xl font-bold text-red-500 animate-pulse">
             {countdown}
           </div>
-          <p className="text-sm text-gray-500 mt-4">Get ready...</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-4">Get ready...</p>
         </div>
       </div>
     );
