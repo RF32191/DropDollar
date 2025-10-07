@@ -132,10 +132,33 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         console.log(`QuickClick: Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)})`);
       }
       
-      // Play success sound
+      // Play success sound based on performance
       try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-        audio.volume = 0.2;
+        let audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
+        let volume = 0.2;
+        
+        if (isBonus) {
+          // Different sound for bonus round based on accuracy
+          if (accuracy > 80) {
+            // Perfect hit sound - higher pitch
+            audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
+            volume = 0.3;
+          } else if (accuracy > 50) {
+            // Good hit sound
+            audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
+            volume = 0.25;
+          } else {
+            // Weak hit sound
+            audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
+            volume = 0.15;
+          }
+        } else if (reactionTime < 200) {
+          // Super fast reaction - special sound
+          volume = 0.3;
+        }
+        
+        const audio = new Audio(audioData);
+        audio.volume = volume;
         audio.play().catch(() => {});
       } catch (e) {
         // Audio failed, continue silently
@@ -192,6 +215,15 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       // Move to next round or end game
       setTimeout(() => {
         if (currentRound < 4) {
+          // Play round transition sound
+          try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+            audio.volume = 0.15;
+            audio.play().catch(() => {});
+          } catch (e) {
+            // Audio failed, continue silently
+          }
+          
           setCurrentRound(prev => prev + 1);
           setCountdown(3);
           setGameState('countdown');

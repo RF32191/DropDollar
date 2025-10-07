@@ -47,6 +47,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const countdownRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
   const isGameRunningRef = useRef(false);
+  const extremeModeTriggeredRef = useRef(false); // Track if extreme mode audio played
+  const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
   
   // Get fair RNG configuration based on listing and attempt number
   const rngConfig = (listingId && entryNumber) 
@@ -129,6 +131,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       const level = Math.floor(timeSinceStart / 5000) + 1;
       const isExtremeMode = timeSinceStart > 30000; // Extreme mode after 30 seconds
       const isCrazyMode = timeSinceStart > 52000; // CRAZY mode after 52 seconds
+      
+      // Play mode transition audio
+      if (isCrazyMode && !crazyModeTriggeredRef.current) {
+        crazyModeTriggeredRef.current = true;
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = 0.3;
+          audio.play().catch(() => {});
+        } catch (e) {
+          // Audio failed, continue silently
+        }
+      } else if (isExtremeMode && !extremeModeTriggeredRef.current) {
+        extremeModeTriggeredRef.current = true;
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = 0.25;
+          audio.play().catch(() => {});
+        } catch (e) {
+          // Audio failed, continue silently
+        }
+      }
       
       let spawnRate;
       let laserCount = 1;
@@ -250,6 +273,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
     if (collision) {
       console.log('LaserDodge: Collision detected! Game Over!');
+      
+      // Play collision/death sound
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = 0.4; // Louder for collision
+        audio.play().catch(() => {});
+      } catch (e) {
+        // Audio failed, continue silently
+      }
+      
       endGame();
     }
   }, [lasers, ship, gameState]);
@@ -345,6 +378,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
     isGameRunningRef.current = true;
+    extremeModeTriggeredRef.current = false; // Reset mode triggers
+    crazyModeTriggeredRef.current = false;
     
     setGameState('playing');
     

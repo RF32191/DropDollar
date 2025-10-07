@@ -213,6 +213,32 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         
         const finalPoints = Number((totalPoints + speedBonus).toFixed(2)); // Decimal scoring
         
+        // Play hit sound based on hit type
+        try {
+          let audioData = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj';
+          let volume = 0.2;
+          
+          if (hitType === 'PERFECT HIT') {
+            // Perfect hit - higher pitch, louder
+            volume = 0.35;
+          } else if (hitType === 'EXCELLENT') {
+            // Excellent hit - medium pitch
+            volume = 0.3;
+          } else if (hitType === 'GOOD HIT') {
+            // Good hit - standard
+            volume = 0.25;
+          } else {
+            // Regular hit
+            volume = 0.2;
+          }
+          
+          const audio = new Audio(audioData);
+          audio.volume = volume;
+          audio.play().catch(() => {});
+        } catch (e) {
+          // Audio failed, continue silently
+        }
+        
         // Update score immediately
         setScore(currentScore => {
           const newScore = Number((currentScore + finalPoints).toFixed(2));
@@ -228,6 +254,17 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       
       return attack;
     }));
+    
+    // Play miss sound if no hit was detected
+    if (!hitDetected) {
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+        audio.volume = 0.1; // Quieter miss sound
+        audio.play().catch(() => {});
+      } catch (e) {
+        // Audio failed, continue silently
+      }
+    }
   };
 
   const handleMouseUp = () => {
@@ -252,6 +289,24 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     const accuracy = totalCount > 0 ? (destroyedCount / totalCount) * 100 : 0;
     const finalScore = currentScoreRef.current; // Use ref for most current score
+    
+    // Play game end sound based on performance
+    try {
+      let volume = 0.25;
+      if (accuracy > 80) {
+        // Great performance
+        volume = 0.35;
+      } else if (accuracy < 50) {
+        // Poor performance
+        volume = 0.15;
+      }
+      
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+      audio.volume = volume;
+      audio.play().catch(() => {});
+    } catch (e) {
+      // Audio failed, continue silently
+    }
     
     console.log(`SwordParry: Game ended. Final score: ${finalScore}, Accuracy: ${accuracy.toFixed(1)}%`);
     
