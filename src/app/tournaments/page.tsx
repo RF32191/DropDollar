@@ -1,9 +1,41 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 
+const AVAILABLE_GAMES = [
+  { id: 'multi-target', name: 'Multi-Target Reaction', icon: '🎯' },
+  { id: 'falling-objects', name: 'Falling Object Catch', icon: '💰' },
+  { id: 'color-sequence', name: 'Color Sequence Memory', icon: '🌈' },
+  { id: 'laser-dodge', name: 'Laser Dodge EXTREME', icon: '🔥' },
+  { id: 'quick-click', name: 'QuickClick Challenge', icon: '⚡' },
+  { id: 'sword-slash', name: 'Sword Slash', icon: '⚔️' }
+];
+
 export default function TournamentsPage() {
+  const [selectedGames, setSelectedGames] = useState({
+    '$1': 'multi-target',
+    '$5': 'falling-objects', 
+    '$10': 'color-sequence',
+    '$25': 'multi-target'
+  });
+
+  const handleGameChange = (matchType: string, gameId: string) => {
+    setSelectedGames(prev => ({
+      ...prev,
+      [matchType]: gameId
+    }));
+  };
+
+  const getSelectedGame = (matchType: string) => {
+    const gameId = selectedGames[matchType as keyof typeof selectedGames];
+    return AVAILABLE_GAMES.find(game => game.id === gameId) || AVAILABLE_GAMES[0];
+  };
+
+  const handleCreateMatch = (type: string, amount: string, gameType: string) => {
+    console.log(`Creating ${type} match for ${amount} with game: ${gameType}`);
+    // TODO: Implement actual match creation logic
+  };
   return (
     <div className="min-h-screen bg-gray-900 transition-colors">
       {/* GOLD TOURNAMENTS Header */}
@@ -267,6 +299,22 @@ export default function TournamentsPage() {
                 <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
               </div>
               
+              {/* Game Selection */}
+              <div className="relative z-10 mb-4">
+                <label className="block text-xs text-gray-300 mb-2 text-center">Choose Game:</label>
+                <select 
+                  value={selectedGames['$1']}
+                  onChange={(e) => handleGameChange('$1', e.target.value)}
+                  className="w-full bg-white/10 backdrop-blur-sm border border-green-500/30 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-green-400"
+                >
+                  {AVAILABLE_GAMES.map(game => (
+                    <option key={game.id} value={game.id} className="bg-gray-800 text-white">
+                      {game.icon} {game.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="relative z-10 space-y-3 mb-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-green-500/20">
                   <div className="text-lg font-bold text-white">$1</div>
@@ -281,7 +329,7 @@ export default function TournamentsPage() {
               
               <div className="relative z-10">
                 <button 
-                  onClick={() => handleCreateMatch('1v1', '$1', 'Multi-Target')}
+                  onClick={() => handleCreateMatch('1v1', '$1', getSelectedGame('$1').name)}
                   className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-green-500/50 text-sm"
                 >
                   💚 CREATE MATCH - $1
@@ -305,6 +353,22 @@ export default function TournamentsPage() {
                 <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
               </div>
               
+              {/* Game Selection */}
+              <div className="relative z-10 mb-4">
+                <label className="block text-xs text-gray-300 mb-2 text-center">Choose Game:</label>
+                <select 
+                  value={selectedGames['$5']}
+                  onChange={(e) => handleGameChange('$5', e.target.value)}
+                  className="w-full bg-white/10 backdrop-blur-sm border border-blue-500/30 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-blue-400"
+                >
+                  {AVAILABLE_GAMES.map(game => (
+                    <option key={game.id} value={game.id} className="bg-gray-800 text-white">
+                      {game.icon} {game.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="relative z-10 space-y-3 mb-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-blue-500/20">
                   <div className="text-lg font-bold text-white">$5</div>
@@ -319,7 +383,7 @@ export default function TournamentsPage() {
               
               <div className="relative z-10">
                 <button 
-                  onClick={() => handleCreateMatch('1v1', '$5', 'Falling Object')}
+                  onClick={() => handleCreateMatch('1v1', '$5', getSelectedGame('$5').name)}
                   className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-blue-500/50 text-sm"
                 >
                   🛡️ CREATE MATCH - $5
@@ -343,6 +407,22 @@ export default function TournamentsPage() {
                 <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
               </div>
               
+              {/* Game Selection */}
+              <div className="relative z-10 mb-4">
+                <label className="block text-xs text-gray-300 mb-2 text-center">Choose Game:</label>
+                <select 
+                  value={selectedGames['$10']}
+                  onChange={(e) => handleGameChange('$10', e.target.value)}
+                  className="w-full bg-white/10 backdrop-blur-sm border border-purple-500/30 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-purple-400"
+                >
+                  {AVAILABLE_GAMES.map(game => (
+                    <option key={game.id} value={game.id} className="bg-gray-800 text-white">
+                      {game.icon} {game.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="relative z-10 space-y-3 mb-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-purple-500/20">
                   <div className="text-lg font-bold text-white">$10</div>
@@ -357,7 +437,7 @@ export default function TournamentsPage() {
               
               <div className="relative z-10">
                 <button 
-                  onClick={() => handleCreateMatch('1v1', '$10', 'Color Sequence')}
+                  onClick={() => handleCreateMatch('1v1', '$10', getSelectedGame('$10').name)}
                   className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-purple-500/50 text-sm"
                 >
                   ⚔️ CREATE MATCH - $10
@@ -381,6 +461,22 @@ export default function TournamentsPage() {
                 <div className="text-xs text-gray-400 mt-1">(-15% platform fee)</div>
               </div>
               
+              {/* Game Selection */}
+              <div className="relative z-10 mb-4">
+                <label className="block text-xs text-gray-300 mb-2 text-center">Choose Game:</label>
+                <select 
+                  value={selectedGames['$25']}
+                  onChange={(e) => handleGameChange('$25', e.target.value)}
+                  className="w-full bg-white/10 backdrop-blur-sm border border-red-500/30 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-red-400"
+                >
+                  {AVAILABLE_GAMES.map(game => (
+                    <option key={game.id} value={game.id} className="bg-gray-800 text-white">
+                      {game.icon} {game.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="relative z-10 space-y-3 mb-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-center border border-red-500/20">
                   <div className="text-lg font-bold text-white">$25</div>
@@ -395,7 +491,7 @@ export default function TournamentsPage() {
               
               <div className="relative z-10">
                 <button 
-                  onClick={() => handleCreateMatch('1v1', '$25', 'Multi-Target')}
+                  onClick={() => handleCreateMatch('1v1', '$25', getSelectedGame('$25').name)}
                   className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg border border-red-500/50 text-sm"
                 >
                   👑 CREATE MATCH - $25

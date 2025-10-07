@@ -39,12 +39,9 @@ export default function HomePage() {
 
             {/* Main Navigation */}
             <nav className="hidden lg:flex items-center flex-1 justify-center mx-12">
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-2">
                 <Link href="/listings" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
                   Browse
-                </Link>
-                <Link href="/categories" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
-                  Categories
                 </Link>
                 <Link href="/games" className="text-purple-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
                   <span>🎮</span>
@@ -57,14 +54,6 @@ export default function HomePage() {
                 <Link href="/tournaments" className="text-yellow-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
                   <span>🏆</span>
                   <span>Tournaments</span>
-                </Link>
-                <Link href="/categories/dropafund" className="text-cyan-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
-                  <span>💧</span>
-                  <span>DropAFund</span>
-                </Link>
-                <Link href="/advertising/register" className="text-orange-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-bold flex items-center space-x-2">
-                  <span>📺</span>
-                  <span>Advertise</span>
                 </Link>
                 <Link href="/how-it-works" className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors font-medium">
                   How It Works

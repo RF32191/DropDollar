@@ -35,9 +35,9 @@ const GAMES = [
   {
     id: 'multi-target',
     name: 'Multi-Target Reaction',
-    description: 'Click the correct highlighted target among multiple shapes',
+    description: 'Click all highlighted targets as quickly as possible - speed and accuracy matter!',
     icon: CursorArrowRaysIcon,
-    difficulty: 'Easy',
+    difficulty: 'Medium',
     avgTime: '60s',
     skills: ['Visual Processing', 'Speed', 'Accuracy'],
     component: MultiTargetGame
@@ -45,7 +45,7 @@ const GAMES = [
   {
     id: 'falling-objects',
     name: 'Falling Object Catch',
-    description: 'Catch coins and dollars with your cash case using realistic physics',
+    description: 'Catch coins and dollars with your cash case - now with mouse movement for mobile!',
     icon: DevicePhoneMobileIcon,
     difficulty: 'Medium',
     avgTime: '60s',
@@ -55,9 +55,9 @@ const GAMES = [
   {
     id: 'color-sequence',
     name: 'Color Sequence Memory',
-    description: 'Remember color sequences with unique audio cues',
+    description: 'Remember and repeat color sequences with unique audio cues for each color',
     icon: PuzzlePieceIcon,
-    difficulty: 'Medium',
+    difficulty: 'Hard',
     avgTime: '90s',
     skills: ['Audio-Visual Memory', 'Sequential Processing', 'Multi-Sensory'],
     component: ColorSequenceGame
@@ -65,7 +65,7 @@ const GAMES = [
   {
     id: 'laser-dodge',
     name: 'Laser Dodge EXTREME',
-    description: 'Survive full-screen laser beams and earn bonus points on blue lasers',
+    description: 'Pilot your ship through full-screen laser grids - stay on blue lasers for bonus points!',
     icon: BoltIcon,
     difficulty: 'Extreme',
     avgTime: '60s',
@@ -74,9 +74,9 @@ const GAMES = [
   },
   {
     id: 'quick-click',
-    name: 'QuickClick',
-    description: 'Test your reaction time - click when the screen flashes green!',
-    icon: CursorArrowRaysIcon,
+    name: 'QuickClick Challenge',
+    description: 'Lightning-fast reaction test with 4 rounds including a bonus accuracy challenge!',
+    icon: ClockIcon,
     difficulty: 'Easy',
     avgTime: '30s',
     skills: ['Reaction Time', 'Focus', 'Precision'],
@@ -85,9 +85,9 @@ const GAMES = [
   {
     id: 'sword-parry',
     name: 'Sword Slash',
-    description: 'Click to destroy red attacks before they expire - simple and fun!',
+    description: 'Destroy red attacks with precise sword slashes - progressive difficulty with accuracy bonuses!',
     icon: ShieldExclamationIcon,
-    difficulty: 'Easy',
+    difficulty: 'Medium',
     avgTime: '60s',
     skills: ['Clicking', 'Timing', 'Reflexes'],
     component: SwordParryGame
@@ -760,7 +760,7 @@ export default function GamesPage() {
             </div>
           ) : (
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-4">
-              Master all 3 skill-based games before entering real competitions. 
+              Master all 6 skill-based games before entering real competitions. 
               Practice <strong className="text-green-600">unlimited times</strong> to perfect your skills!
             </p>
           )}
