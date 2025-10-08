@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Navigation from '@/components/navigation/Navigation';
 
 export default function HotSellPage() {
   return (
@@ -51,17 +52,7 @@ export default function HotSellPage() {
             </div>
 
             {/* User Actions */}
-            <div className="flex items-center space-x-2">
-              <Link href="/auth/login" className="px-3 py-2 text-orange-200 hover:text-white font-medium transition-colors duration-300 text-sm">
-                Sign In
-              </Link>
-              <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
-                Sign Up
-              </Link>
-              <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
-                Sell
-              </Link>
-            </div>
+            <Navigation variant="dark" />
           </div>
         </div>
       </header>

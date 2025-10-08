@@ -15,6 +15,7 @@ import {
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 import Navigation from '@/components/navigation/Navigation';
+import UserStatusBanner from '@/components/navigation/UserStatusBanner';
 
 export default function HomePage() {
   const deviceInfo = useDeviceDetection();
@@ -22,6 +23,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-900 transition-colors">
+      {/* User Status Banner */}
+      <UserStatusBanner />
       {/* Gaming-Inspired Header */}
       <header className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-black dark:via-gray-900 dark:to-black shadow-2xl border-b-2 border-green-500/30 transition-all duration-300">
         <ResponsiveLayout className="max-w-7xl mx-auto">

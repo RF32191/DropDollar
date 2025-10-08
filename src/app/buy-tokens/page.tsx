@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Navigation from '@/components/navigation/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import PaymentModal from '@/components/payments/PaymentModal';
 
@@ -92,16 +93,8 @@ export default function BuyTokensPage() {
               <Link href="/hot-sell" className="text-red-600 dark:text-green-400 hover:text-red-700 dark:hover:text-green-300 font-bold transition-colors">🔥 Hot Sell</Link>
               <Link href="/tournaments" className="text-blue-600 dark:text-green-400 hover:text-blue-700 dark:hover:text-green-300 font-bold transition-colors">🏆 Tournaments</Link>
               <Link href="/dashboard" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold transition-colors">💰 Dashboard</Link>
-              <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
-                <Link href="/settings" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold transition-colors">⚙️ Settings</Link>
-                {user ? (
-                  <span className="text-gray-700 dark:text-gray-300">Welcome, {user.email}</span>
-                ) : (
-                  <>
-                    <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
-                    <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                  </>
-                )}
+              <div className="ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
+                <Navigation variant="light" />
               </div>
             </nav>
           </div>

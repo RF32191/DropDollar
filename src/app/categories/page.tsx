@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Navigation from '@/components/navigation/Navigation';
 import PageLayout from '@/components/layout/PageLayout';
 import GameCard from '@/components/ui/GameCard';
 import {
@@ -342,20 +343,7 @@ export default function CategoriesPage() {
             </nav>
 
             {/* User Actions */}
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/auth/login" 
-                className="text-purple-200 hover:text-white transition-colors font-medium"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/auth/register" 
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-lg"
-              >
-                Sign Up
-              </Link>
-            </div>
+            <Navigation variant="default" />
 
             {/* Mobile menu button */}
             <div className="md:hidden">
