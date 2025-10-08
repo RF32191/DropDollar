@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Navigation from '@/components/navigation/Navigation';
+import UserMenu from '@/components/navigation/UserMenu';
 import { 
   FireIcon, 
   ClockIcon, 
@@ -290,7 +290,12 @@ export default function ListingsPage() {
             </div>
 
             {/* User Actions - Always Visible */}
-            <Navigation variant="dark" />
+            <div className="flex items-center space-x-2">
+              <UserMenu variant="dark" />
+              <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
+                Sell
+              </Link>
+            </div>
           </div>
 
           {/* Mobile Navigation */}

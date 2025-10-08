@@ -1,0 +1,174 @@
+'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { ChevronDownIcon, UserIcon, CogIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+
+interface UserMenuProps {
+  className?: string;
+  variant?: 'default' | 'dark' | 'light';
+}
+
+export default function UserMenu({ className = '', variant = 'default' }: UserMenuProps) {
+  const { user, isLoading } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'dark':
+        return {
+          button: 'text-gray-300 hover:text-white',
+          dropdown: 'bg-gray-800 border-gray-700',
+          item: 'text-gray-300 hover:bg-gray-700 hover:text-white'
+        };
+      case 'light':
+        return {
+          button: 'text-gray-700 hover:text-green-600',
+          dropdown: 'bg-white border-gray-200',
+          item: 'text-gray-700 hover:bg-gray-50 hover:text-green-600'
+        };
+      default:
+        return {
+          button: 'text-gray-200 hover:text-white',
+          dropdown: 'bg-white border-gray-200',
+          item: 'text-gray-700 hover:bg-gray-50 hover:text-green-600'
+        };
+    }
+  };
+
+  const styles = getVariantStyles();
+
+  const getUserDisplayName = () => {
+    if (!user) return '';
+    
+    if (user.full_name) {
+      return user.full_name.split(' ')[0];
+    }
+    if (user.username) {
+      return user.username;
+    }
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  };
+
+  const handleLogout = () => {
+    // Clear any cached data
+    localStorage.removeItem('user_location_data');
+    localStorage.removeItem('location_permission_granted');
+    // Redirect to login page
+    window.location.href = '/auth/login';
+  };
+
+  if (isLoading) {
+    return (
+      <div className={`flex items-center space-x-2 ${className}`}>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+        <span className="text-sm text-gray-400">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className={`flex items-center space-x-3 ${className}`}>
+        <Link 
+          href="/auth/login" 
+          className={`px-4 py-2 ${styles.button} font-medium transition-colors duration-300`}
+        >
+          Sign In
+        </Link>
+        <Link 
+          href="/auth/register" 
+          className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
+        >
+          Sign Up
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      {/* User Menu Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center space-x-2 px-4 py-2 ${styles.button} font-medium transition-colors duration-300 hover:bg-white/10 rounded-lg`}
+      >
+        <UserIcon className="h-5 w-5" />
+        <span>{getUserDisplayName()}</span>
+        <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className={`absolute right-0 mt-2 w-48 ${styles.dropdown} rounded-lg shadow-lg border z-50`}>
+          <div className="py-1">
+            {/* User Info */}
+            <div className="px-4 py-2 border-b border-gray-200">
+              <p className="text-sm font-semibold text-gray-900">{getUserDisplayName()}</p>
+              <p className="text-xs text-gray-500">{user.email}</p>
+            </div>
+
+            {/* Menu Items */}
+            <Link
+              href="/dashboard"
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+              onClick={() => setIsOpen(false)}
+            >
+              <CogIcon className="h-4 w-4 mr-3" />
+              Dashboard
+            </Link>
+            
+            <Link
+              href="/profile"
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+              onClick={() => setIsOpen(false)}
+            >
+              <UserIcon className="h-4 w-4 mr-3" />
+              Profile
+            </Link>
+
+            <Link
+              href="/settings"
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+              onClick={() => setIsOpen(false)}
+            >
+              <CogIcon className="h-4 w-4 mr-3" />
+              Settings
+            </Link>
+
+            {/* Logout */}
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                handleLogout();
+              }}
+              className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+            >
+              <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

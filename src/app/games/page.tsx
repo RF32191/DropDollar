@@ -13,7 +13,7 @@ import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
-import Navigation from '@/components/navigation/Navigation';
+import UserMenu from '@/components/navigation/UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdSystem } from '@/hooks/useAdSystem';
 import { useGameLocationGuard } from '@/hooks/useLocationGuard';
@@ -715,33 +715,7 @@ export default function GamesPage() {
 
             {/* User Actions - Always Visible */}
             <div className="flex items-center space-x-1 sm:space-x-2">
-              {isLoading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span className="text-sm text-purple-200">Loading...</span>
-                </div>
-              ) : user ? (
-                <div className="flex items-center space-x-3">
-                  <span className="text-purple-200 text-sm font-semibold">
-                    👤 Welcome, {user.email?.split('@')[0] || 'User'}!
-                  </span>
-                  <Link href="/dashboard" className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
-                    Dashboard
-                  </Link>
-                  <Link href="/auth/login" className="px-3 py-2 text-purple-200 hover:text-white font-medium transition-colors duration-300">
-                    Logout
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  <Link href="/auth/login" className={`${deviceInfo.isMobile ? 'px-2 py-1 text-sm' : 'px-3 py-2'} text-purple-200 hover:text-white font-medium transition-colors duration-300`}>
-                    Sign In
-                  </Link>
-                  <Link href="/auth/register" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
-                    Sign Up
-                  </Link>
-                </>
-              )}
+              <UserMenu variant="dark" />
               <Link href="/seller/apply" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
                 Sell
               </Link>

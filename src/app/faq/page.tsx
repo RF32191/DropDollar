@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import UserMenu from '@/components/navigation/UserMenu';
 import { Search, ChevronDown, ChevronUp, HelpCircle, Star, Shield, CreditCard, Trophy, Gamepad2, Users, Zap } from 'lucide-react';
 
 interface FAQItem {
@@ -247,7 +248,7 @@ export default function FAQPage() {
               <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
               <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
               <div className="ml-4 pl-4 border-l border-gray-200">
-                <Navigation variant="light" />
+                <UserMenu variant="light" />
               </div>
             </nav>
           </div>

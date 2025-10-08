@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import UserMenu from '@/components/navigation/UserMenu';
 
 const AVAILABLE_GAMES = [
   { id: 'multi-target', name: 'Multi-Target Reaction', icon: '🎯' },
@@ -83,33 +84,7 @@ export default function TournamentsPage() {
 
             {/* User Actions */}
             <div className="flex items-center space-x-4">
-              {isLoading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span className="text-sm text-white">Loading...</span>
-                </div>
-              ) : user ? (
-                <div className="flex items-center space-x-3">
-                  <span className="text-white text-sm font-semibold">
-                    👤 Welcome, {user.email?.split('@')[0] || 'User'}!
-                  </span>
-                  <Link href="/dashboard" className="bg-gradient-to-r from-white to-yellow-100 hover:from-yellow-50 hover:to-white text-yellow-800 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg">
-                    Dashboard
-                  </Link>
-                  <Link href="/auth/login" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-2.5 rounded-xl font-semibold transition-all hover:scale-105 border border-white/30">
-                    Logout
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  <Link href="/auth/login" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-2.5 rounded-xl font-semibold transition-all hover:scale-105 border border-white/30">
-                    Sign In
-                  </Link>
-                  <Link href="/auth/register" className="bg-gradient-to-r from-white to-yellow-100 hover:from-yellow-50 hover:to-white text-yellow-800 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg">
-                    Sign Up
-                  </Link>
-                </>
-              )}
+              <UserMenu variant="default" />
               <Link href="/seller/apply" className="bg-gradient-to-r from-yellow-300 to-amber-400 hover:from-yellow-400 hover:to-amber-500 text-yellow-900 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg">
                 Sell
               </Link>
