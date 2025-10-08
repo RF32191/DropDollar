@@ -69,12 +69,29 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
     return 'User';
   };
 
-  const handleLogout = () => {
-    // Clear any cached data
-    localStorage.removeItem('user_location_data');
-    localStorage.removeItem('location_permission_granted');
-    // Redirect to login page
-    window.location.href = '/auth/login';
+  const handleLogout = async () => {
+    try {
+      // Import supabase client dynamically to avoid build issues
+      const { supabase } = await import('@/lib/supabase/client');
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      
+      // Clear any cached data
+      localStorage.removeItem('user_location_data');
+      localStorage.removeItem('location_permission_granted');
+      
+      // Redirect to login page
+      window.location.href = '/auth/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: just redirect to login page
+      window.location.href = '/auth/login';
+    }
   };
 
   if (isLoading) {
@@ -110,7 +127,12 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
       {/* User Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
+        onDoubleClick={() => {
+          // Double-click to go to dashboard
+          window.location.href = '/dashboard';
+        }}
         className={`flex items-center space-x-2 px-4 py-2 ${styles.button} font-medium transition-colors duration-300 hover:bg-white/10 rounded-lg`}
+        title="Click to open menu, double-click to go to dashboard"
       >
         <UserIcon className="h-5 w-5" />
         <span>{getUserDisplayName()}</span>
@@ -130,17 +152,23 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
             {/* Menu Items */}
             <Link
               href="/dashboard"
-              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
-              onClick={() => setIsOpen(false)}
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold`}
+              onClick={() => {
+                console.log('Dashboard clicked');
+                setIsOpen(false);
+              }}
             >
               <CogIcon className="h-4 w-4 mr-3" />
-              Dashboard
+              🏠 Dashboard
             </Link>
             
             <Link
               href="/profile"
               className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                console.log('Profile clicked');
+                setIsOpen(false);
+              }}
             >
               <UserIcon className="h-4 w-4 mr-3" />
               Profile
@@ -149,22 +177,29 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
             <Link
               href="/settings"
               className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                console.log('Settings clicked');
+                setIsOpen(false);
+              }}
             >
               <CogIcon className="h-4 w-4 mr-3" />
               Settings
             </Link>
 
+            {/* Divider */}
+            <div className="border-t border-gray-200 my-1"></div>
+
             {/* Logout */}
             <button
               onClick={() => {
+                console.log('Logout clicked');
                 setIsOpen(false);
                 handleLogout();
               }}
-              className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+              className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-600 hover:text-red-800 hover:bg-red-50`}
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
-              Sign Out
+              🚪 Sign Out
             </button>
           </div>
         </div>
