@@ -74,6 +74,9 @@ export default function TournamentsPage() {
               <Link href="/testimonials" className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
                 ⭐ Victory Stories
               </Link>
+              <Link href="/faq" className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
+                ❓ FAQ
+              </Link>
             </nav>
 
             {/* User Actions */}
