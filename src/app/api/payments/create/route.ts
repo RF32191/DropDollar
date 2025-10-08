@@ -15,6 +15,10 @@ const stripe = config.stripe.enabled ? new Stripe(config.stripe.secretKey!, {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔧 Payment API called');
+    console.log('🔧 Stripe enabled:', config.stripe.enabled);
+    console.log('🔧 Stripe secret key exists:', !!config.stripe.secretKey);
+    
     const body = await request.json();
     const { 
       paymentMethod, 
@@ -24,6 +28,10 @@ export async function POST(request: NextRequest) {
       userId,
       useWebsiteWallet = false 
     } = body;
+
+    console.log('🔧 Payment method:', paymentMethod);
+    console.log('🔧 Token amount:', tokenAmount);
+    console.log('🔧 Customer email:', customerEmail);
 
     // Validate input
     if (!paymentMethod || !tokenAmount || !customerEmail) {
@@ -99,14 +107,21 @@ async function handleStripePayment(
   userId: string
 ) {
   try {
+    console.log('🔧 handleStripePayment called');
+    console.log('🔧 Stripe instance exists:', !!stripe);
+    
     // Check if Stripe is configured
     if (!stripe) {
+      console.error('❌ Stripe not configured - missing secret key');
       return {
         success: false,
-        error: 'Stripe not configured'
+        error: 'Stripe not configured - please check environment variables'
       };
     }
 
+    console.log('🔧 Creating Stripe payment intent...');
+    console.log('🔧 Amount (cents):', Math.round(totalCostUSD * 100));
+    
     // Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalCostUSD * 100), // Convert to cents
@@ -120,6 +135,8 @@ async function handleStripePayment(
         userId: userId
       }
     });
+
+    console.log('✅ Stripe payment intent created:', paymentIntent.id);
 
     // Store payment in database for webhook processing
     await storePaymentRecord({
@@ -141,10 +158,16 @@ async function handleStripePayment(
     };
 
   } catch (error) {
-    console.error('Stripe payment error:', error);
+    console.error('❌ Stripe payment error:', error);
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: typeof error
+    });
+    
     return {
       success: false,
-      error: 'Failed to create Stripe payment'
+      error: error instanceof Error ? error.message : 'Failed to create Stripe payment'
     };
   }
 }
