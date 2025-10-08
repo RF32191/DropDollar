@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DropDollar - Gaming Marketplace</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { 
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 700px;
+            margin: 2rem;
+        }
+        h1 { 
+            color: #4F46E5;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+        }
+        .slogan {
+            color: #6B7280;
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            font-style: italic;
+        }
+        .description {
+            color: #374151;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        .features {
+            background: #F3F4F6;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+        .features h3 {
+            color: #1F2937;
+            margin-bottom: 1rem;
+        }
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        .features li {
+            padding: 0.5rem 0;
+            color: #4B5563;
+        }
+        .features li:before {
+            content: "✅ ";
+            margin-right: 0.5rem;
+        }
+        .buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        .btn {
+            background: linear-gradient(135deg, #4F46E5, #7C3AED);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+        .btn.secondary {
+            background: linear-gradient(135deg, #10B981, #059669);
+        }
+        .btn.secondary:hover {
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+        .status {
+            background: #DBEAFE;
+            border: 1px solid #3B82F6;
+            padding: 1rem;
+            border-radius: 8px;
+            color: #1E40AF;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .supabase-info {
+            background: #F0FDF4;
+            border: 1px solid #22C55E;
+            padding: 1rem;
+            border-radius: 8px;
+            color: #15803D;
+            font-size: 0.9rem;
+        }
+        .emoji { font-size: 1.5rem; margin-right: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 DropDollar</h1>
+        <div class="slogan">"Don't drop out, drop a dollar!"</div>
+        
+        <div class="description">
+            <p>Welcome to DropDollar - the ultimate gaming marketplace where you can play exciting games, list items, and compete in tournaments!</p>
+        </div>
+        
+        <div class="features">
+            <h3>🚀 Now with Supabase Integration!</h3>
+            <ul>
+                <li>User profiles and authentication</li>
+                <li>Persistent game score tracking</li>
+                <li>Digital wallet system</li>
+                <li>Seller profiles and verification</li>
+                <li>Real-time leaderboards</li>
+                <li>Secure transaction history</li>
+            </ul>
+        </div>
+        
+        <div class="buttons">
+            <a href="/games" class="btn">
+                <span class="emoji">🎯</span>Play Games
+            </a>
+            <a href="/listings" class="btn secondary">
+                <span class="emoji">🛍️</span>Browse Listings
+            </a>
+            <a href="/hot-sell" class="btn">
+                <span class="emoji">🔥</span>Hot Sell
+            </a>
+        </div>
+        
+        <div class="status">
+            <strong>🎮 Game Features:</strong> All games now save scores to your profile!<br>
+            <strong>💰 Wallet System:</strong> Manage your balance and transactions<br>
+            <strong>🏆 Leaderboards:</strong> Compete with other players globally
+        </div>
+        
+        <div class="supabase-info">
+            <strong>🔒 Powered by Supabase:</strong> Secure, scalable, and real-time database<br>
+            <small>All your data is safely stored and synchronized across devices</small>
+        </div>
+    </div>
+    
+    <script>
+        // Simple client-side routing for testing
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DropDollar with Supabase loaded successfully!');
+            
+            // Test localStorage
+            try {
+                localStorage.setItem('test', 'working');
+                localStorage.removeItem('test');
+                console.log('✅ localStorage working');
+            } catch(e) {
+                console.log('⚠️ localStorage not available');
+            }
+            
+            // Test Supabase connection (basic check)
+            console.log('🔗 Supabase URL configured:', 'https://evcmkemuczvfdyedvwcu.supabase.co');
+        });
+    </script>
+</body>
+</html>

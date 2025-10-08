@@ -117,7 +117,7 @@ export default function DropCoinInterface() {
     setSuccess('');
 
     try {
-      // Call the payment API
+      // In production, call your payment gateway API
       const response = await fetch('/api/create_payment', {
         method: 'POST',
         headers: {
@@ -131,38 +131,24 @@ export default function DropCoinInterface() {
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Payment request failed');
-      }
-
       const result = await response.json();
 
       if (result.error) {
         setError(result.error);
       } else {
         setSuccess(`Payment initiated! Payment ID: ${result.payment_id}`);
-        
         // Handle different payment methods
         if (selectedPaymentMethod === 'card' || selectedPaymentMethod === 'apple_pay') {
-          // For Stripe payments, we would typically redirect to Stripe Checkout
-          // or show a payment form with the client_secret
+          // Redirect to Stripe checkout
           setSuccess('Redirecting to secure payment...');
-          
-          // In a real implementation, you would:
-          // 1. Use Stripe Elements or Stripe Checkout
-          // 2. Handle the payment confirmation
-          // 3. Update the UI based on payment status
-          
         } else if (selectedPaymentMethod === 'eth') {
-          setSuccess(`Send ${result.amount_eth?.toFixed(6)} ETH to contract: ${result.contract_address}`);
+          setSuccess(`Send ${result.amount_eth.toFixed(6)} ETH to contract: ${result.contract_address}`);
         } else if (selectedPaymentMethod === 'bitcoin') {
-          setSuccess(`Send ${result.amount_btc?.toFixed(8)} BTC to: ${result.btc_address}`);
+          setSuccess(`Send ${result.amount_btc.toFixed(8)} BTC to: ${result.btc_address}`);
         }
       }
     } catch (err) {
-      console.error('Payment error:', err);
-      setError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
+      setError('Payment failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

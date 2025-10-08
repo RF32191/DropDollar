@@ -30,26 +30,31 @@ class DropCoinDeployer:
         self.networks = {
             "mainnet": {
                 "rpc_url": "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
+                "rpc_url_public": "https://eth.llamarpc.com",
                 "chain_id": 1,
                 "gas_price_gwei": 20
             },
             "goerli": {
                 "rpc_url": "https://goerli.infura.io/v3/YOUR_INFURA_PROJECT_ID",
+                "rpc_url_public": "https://rpc.ankr.com/eth_goerli",
                 "chain_id": 5,
                 "gas_price_gwei": 10
             },
             "sepolia": {
                 "rpc_url": "https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID",
+                "rpc_url_public": "https://1rpc.io/sepolia",
                 "chain_id": 11155111,
                 "gas_price_gwei": 10
             },
             "polygon": {
                 "rpc_url": "https://polygon-rpc.com/",
+                "rpc_url_public": "https://polygon-rpc.com/",
                 "chain_id": 137,
                 "gas_price_gwei": 30
             },
             "mumbai": {
                 "rpc_url": "https://rpc-mumbai.maticvigil.com/",
+                "rpc_url_public": "https://rpc-mumbai.maticvigil.com/",
                 "chain_id": 80001,
                 "gas_price_gwei": 1
             }
@@ -65,10 +70,14 @@ class DropCoinDeployer:
         """
         network_config = self.networks[self.network]
         
-        # Replace placeholder with actual Infura project ID
+        # Replace placeholder with actual Infura project ID or use public RPC
         rpc_url = network_config["rpc_url"]
         if infura_project_id and "YOUR_INFURA_PROJECT_ID" in rpc_url:
             rpc_url = rpc_url.replace("YOUR_INFURA_PROJECT_ID", infura_project_id)
+        elif "YOUR_INFURA_PROJECT_ID" in rpc_url:
+            # Use public RPC if no Infura project ID
+            rpc_url = network_config["rpc_url_public"]
+            print(f"🌐 Using public RPC: {rpc_url}")
         
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
         
@@ -98,9 +107,18 @@ class DropCoinDeployer:
         
         # Install Solidity compiler if needed
         try:
-            install_solc('0.8.19')
-        except:
-            pass  # Already installed
+            from solcx import set_solc_version
+            install_solc('0.8.20')
+            set_solc_version('0.8.20')
+        except Exception as e:
+            print(f"Solc installation error: {e}")
+            try:
+                # Try installing latest version
+                install_solc('0.8.30')
+                set_solc_version('0.8.30')
+            except Exception as e2:
+                print(f"Failed to install Solc: {e2}")
+                raise
         
         # Read the contract source
         with open('DropCoin.sol', 'r') as file:
@@ -185,7 +203,7 @@ class DropCoinDeployer:
         
         # Sign and send transaction
         signed_txn = self.w3.eth.account.sign_transaction(transaction, self.account.key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
         
         print(f"📝 Transaction hash: {tx_hash.hex()}")
         print("⏳ Waiting for confirmation...")
@@ -302,10 +320,9 @@ def main():
         return
     
     if not infura_project_id and NETWORK in ['mainnet', 'goerli', 'sepolia']:
-        print("⚠️  Please set your INFURA_PROJECT_ID environment variable")
-        print("   export INFURA_PROJECT_ID='your_infura_project_id_here'")
-        print("   Or use a different network like 'polygon' or 'mumbai'")
-        return
+        print("ℹ️  No Infura project ID found - using public RPC endpoints")
+        print("   (This is fine for deployment, but may be slower)")
+        print("   To use Infura: export INFURA_PROJECT_ID='your_infura_project_id_here'")
     
     try:
         # Initialize deployer

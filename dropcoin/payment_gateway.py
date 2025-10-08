@@ -2,7 +2,6 @@
 """
 Drop Coin Payment Gateway for DollarDrop Website
 Handles multiple payment methods: Credit/Debit Cards, Apple Pay, ETH, and Bitcoin
-Now integrated with Supabase instead of SQLite
 """
 
 import stripe
@@ -13,28 +12,18 @@ import hashlib
 from web3 import Web3
 from price_oracle import PriceOracle
 from datetime import datetime, timedelta
+import sqlite3
 import os
-from supabase import create_client, Client
 
 class PaymentGateway:
-    def __init__(self, stripe_secret_key=None, supabase_url=None, supabase_key=None):
+    def __init__(self, stripe_secret_key=None):
         """
         Initialize payment gateway with multiple payment processors
         
         Args:
             stripe_secret_key (str): Stripe secret key for card/Apple Pay processing
-            supabase_url (str): Supabase project URL
-            supabase_key (str): Supabase service role key
         """
         self.price_oracle = PriceOracle()
-        
-        # Supabase setup
-        if supabase_url and supabase_key:
-            self.supabase: Client = create_client(supabase_url, supabase_key)
-            self.supabase_enabled = True
-        else:
-            self.supabase_enabled = False
-            print("⚠️  Supabase not configured. Using fallback mode.")
         
         # Stripe setup for credit cards and Apple Pay
         if stripe_secret_key:
@@ -47,6 +36,9 @@ class PaymentGateway:
         # Bitcoin payment setup
         self.bitcoin_enabled = True
         self.bitcoin_addresses = {}  # Store generated addresses for payments
+        
+        # Database setup for payment tracking
+        self.init_database()
     
     def init_database(self):
         """Initialize SQLite database for payment tracking"""
@@ -108,31 +100,15 @@ class PaymentGateway:
         # Generate unique payment ID
         payment_id = self._generate_payment_id()
         
-        # Store payment in Supabase
-        if self.supabase_enabled:
-            try:
-                payment_data = {
-                    'id': payment_id,
-                    'payment_method': payment_method,
-                    'amount_usd': total_usd,
-                    'token_amount': token_amount,
-                    'status': 'pending',
-                    'customer_email': customer_email,
-                    'customer_address': customer_address,
-                    'created_at': datetime.now().isoformat()
-                }
-                
-                result = self.supabase.table('payment_transactions').insert(payment_data).execute()
-                
-                if not result.data:
-                    raise Exception("Failed to create payment record in Supabase")
-                    
-            except Exception as e:
-                print(f"Supabase payment creation failed: {e}")
-                raise
-        else:
-            # Fallback to local storage (for development)
-            print(f"⚠️  Supabase not available. Payment {payment_id} created locally.")
+        # Store payment in database
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO payments (id, payment_method, amount_usd, token_amount, status, customer_email, customer_address)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (payment_id, payment_method, total_usd, token_amount, 'pending', customer_email, customer_address))
+        conn.commit()
+        conn.close()
         
         if payment_method in ['card', 'apple_pay']:
             return self._create_stripe_payment(payment_id, total_usd, payment_method, customer_email)
@@ -163,18 +139,14 @@ class PaymentGateway:
                 description=f"Drop Coin Token Purchase - Payment ID: {payment_id}"
             )
             
-            # Update payment record in Supabase
-            if self.supabase_enabled:
-                try:
-                    update_data = {
-                        'payment_data': {
-                            'stripe_intent_id': intent.id,
-                            'stripe_client_secret': intent.client_secret
-                        }
-                    }
-                    self.supabase.table('payment_transactions').update(update_data).eq('id', payment_id).execute()
-                except Exception as e:
-                    print(f"Failed to update Supabase payment record: {e}")
+            # Update payment record
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE payments SET payment_data = ? WHERE id = ?
+            ''', (json.dumps({'stripe_intent_id': intent.id}), payment_id))
+            conn.commit()
+            conn.close()
             
             return {
                 'payment_id': payment_id,
@@ -394,18 +366,12 @@ class PaymentGateway:
 def setup_payment_gateway():
     """Setup payment gateway with environment variables"""
     stripe_secret = os.getenv('STRIPE_SECRET_KEY')
-    supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
-    supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
     
     if not stripe_secret:
         print("⚠️  STRIPE_SECRET_KEY not set. Card payments will be disabled.")
         print("   Get your keys at: https://dashboard.stripe.com/apikeys")
     
-    if not supabase_url or not supabase_key:
-        print("⚠️  Supabase credentials not set. Using fallback mode.")
-        print("   Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
-    
-    gateway = PaymentGateway(stripe_secret, supabase_url, supabase_key)
+    gateway = PaymentGateway(stripe_secret)
     return gateway
 
 if __name__ == "__main__":
