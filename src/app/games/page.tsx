@@ -639,7 +639,7 @@ export default function GamesPage() {
           <div className={`absolute ${deviceInfo.isMobile ? 'bottom-0 left-1/2 w-20 h-20' : 'bottom-0 left-1/2 w-40 h-40'} bg-indigo-500/20 rounded-full blur-xl animate-pulse delay-2000`}></div>
         </div>
         <ResponsiveLayout className="max-w-8xl mx-auto relative z-10">
-          <div className={`flex justify-between items-center ${deviceInfo.isMobile ? 'py-2' : 'py-3'}`}>
+          <div className={`flex justify-between items-center ${deviceInfo.isMobile ? 'py-1' : 'py-2'}`}>
             {/* Logo Section */}
             <Link href="/" className={`flex items-center ${deviceInfo.isMobile ? 'space-x-2' : 'space-x-4'} group`}>
               <div className="relative">

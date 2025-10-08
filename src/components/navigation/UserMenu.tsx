@@ -141,7 +141,7 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-48 ${styles.dropdown} rounded-lg shadow-lg border z-50`}>
+        <div className={`absolute right-0 mt-2 w-48 ${styles.dropdown} rounded-lg shadow-lg border z-[9999]`}>
           <div className="py-1">
             {/* User Info */}
             <div className="px-4 py-2 border-b border-gray-200">

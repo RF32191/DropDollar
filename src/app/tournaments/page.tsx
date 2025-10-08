@@ -43,7 +43,7 @@ export default function TournamentsPage() {
     <div className="min-h-screen bg-gray-900 transition-colors">
       {/* GOLD TOURNAMENTS Header */}
       <header className="bg-gradient-to-r from-yellow-600 via-yellow-700 to-amber-800 shadow-2xl border-b-4 border-yellow-500">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="flex justify-between items-center">
             {/* Logo Section */}
             <Link href="/" className="flex items-center group">

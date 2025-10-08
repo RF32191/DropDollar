@@ -1,7 +1,7 @@
 import React from 'react';
 // Using inline header/footer to avoid component issues
 import Link from 'next/link';
-import Navigation from '@/components/navigation/Navigation';
+import UserMenu from '@/components/navigation/UserMenu';
 import { StarIcon } from '@heroicons/react/20/solid';
 import { 
   UserCircleIcon, 
@@ -79,7 +79,7 @@ export default function TestimonialsPage() {
       {/* Simple Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-12">
             <Link href="/" className="flex items-center">
               <div className="w-10 h-10 mr-3">
                 <img
@@ -98,7 +98,7 @@ export default function TestimonialsPage() {
                      <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
                      <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
                      <div className="ml-4 pl-4 border-l border-gray-200">
-                       <Navigation variant="light" />
+                       <UserMenu variant="light" />
                      </div>
                    </nav>
           </div>

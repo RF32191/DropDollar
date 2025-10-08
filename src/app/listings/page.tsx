@@ -222,7 +222,7 @@ export default function ListingsPage() {
           <div className="absolute bottom-0 left-1/2 w-40 h-40 bg-teal-500/20 rounded-full blur-xl animate-pulse delay-2000"></div>
         </div>
         <div className="max-w-8xl mx-auto px-3 lg:px-4 relative z-10">
-          <div className="flex justify-between items-center py-3">
+          <div className="flex justify-between items-center py-2">
             {/* Logo Section */}
             <Link href="/" className="flex items-center space-x-4 group">
               <div className="relative">

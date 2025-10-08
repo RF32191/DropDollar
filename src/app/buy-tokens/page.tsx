@@ -75,7 +75,7 @@ export default function BuyTokensPage() {
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-12">
             <Link href="/" className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
                 <img
@@ -94,7 +94,7 @@ export default function BuyTokensPage() {
               <Link href="/tournaments" className="text-blue-600 dark:text-green-400 hover:text-blue-700 dark:hover:text-green-300 font-bold transition-colors">🏆 Tournaments</Link>
               <Link href="/dashboard" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold transition-colors">💰 Dashboard</Link>
               <div className="ml-4 pl-4 border-l border-gray-200 dark:border-gray-700">
-                <Navigation variant="light" />
+                <UserMenu variant="light" />
               </div>
             </nav>
           </div>
