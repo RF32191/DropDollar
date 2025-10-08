@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import PaymentModal from '@/components/payments/PaymentModal';
+import TestimonialSubmissionForm from '@/components/dashboard/TestimonialSubmissionForm';
 
 interface UserBalance {
   tokens: number;
@@ -612,9 +613,14 @@ export default function MoneyDashboard() {
                     </div>
                   )}
                 </div>
-              </div>
+            </div>
 
-              {/* Recent Transactions */}
+            {/* Testimonial Submission Form */}
+            <div className="mb-8">
+              <TestimonialSubmissionForm />
+            </div>
+
+            {/* Recent Transactions */}
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
                 <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h3>

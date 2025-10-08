@@ -31,144 +31,8 @@ interface Testimonial {
   difficulty: 'Easy' | 'Medium' | 'Hard';
 }
 
-const testimonials: Testimonial[] = [
-  {
-    id: '1',
-    name: 'Sarah "GameMaster47" Johnson',
-    location: 'Seattle, WA',
-    rating: 5,
-    title: 'Won iPhone 15 Pro Max with Multi-Target Skills!',
-    content: 'I practiced Multi-Target Reaction for weeks on the games page. When I entered the competition, I scored 47 points and beat 1,200+ other players! Won a $1,200 iPhone for just $1. My reflexes and practice paid off big time!',
-    productWon: 'iPhone 15 Pro Max 256GB',
-    gameType: 'Multi-Target Reaction',
-    gameScore: 47,
-    entryFee: 1,
-    retailPrice: 1200,
-    savings: 1199,
-    verified: true,
-    gameIcon: CursorArrowRaysIcon,
-    difficulty: 'Easy'
-  },
-  {
-    id: '2',
-    name: 'Mike "BrainAce" Chen',
-    location: 'Austin, TX',
-    rating: 5,
-    title: 'MacBook Pro M3 through Falling Object Mastery!',
-    content: 'As a computer science student, I dominated the Falling Object Catch game with 89 points! The physics predictions and coordination were perfect for my analytical brain. Won a $2,500 MacBook Pro for $1 - now I can code anywhere!',
-    productWon: 'MacBook Pro M3 14-inch',
-    gameType: 'Falling Object Catch',
-    gameScore: 89,
-    entryFee: 1,
-    retailPrice: 2500,
-    savings: 2499,
-    verified: true,
-    gameIcon: DevicePhoneMobileIcon,
-    difficulty: 'Medium'
-  },
-  {
-    id: '3',
-    name: 'Jessica "RhythmQueen" Martinez',
-    location: 'Miami, FL',
-    rating: 5,
-    title: 'Rolex Submariner with Perfect Color Memory!',
-    content: 'My musical background helped me master the Color Sequence Memory game! I scored 156 points following those complex color patterns with audio cues. Won a $10,000 Rolex for just $1 - the most expensive thing I own, and it only cost me a dollar!',
-    productWon: 'Rolex Submariner Watch',
-    gameType: 'Color Sequence Memory',
-    gameScore: 156,
-    entryFee: 1,
-    retailPrice: 10000,
-    savings: 9999,
-    verified: true,
-    gameIcon: PuzzlePieceIcon,
-    difficulty: 'Medium'
-  },
-  {
-    id: '4',
-    name: 'David "ReflexKing" Thompson',
-    location: 'Chicago, IL',
-    rating: 5,
-    title: 'Gaming Setup Dreams via Multi-Target!',
-    content: 'The Multi-Target Reaction game was intense! Those multiple targets and rapid clicking almost got me, but I stayed focused and scored 73 points. Won an entire RTX 4090 gaming setup worth $3,800 for just $1. Pure skill beats luck every time!',
-    productWon: 'RTX 4090 Gaming PC Setup',
-    gameType: 'Multi-Target Reaction',
-    gameScore: 73,
-    entryFee: 1,
-    retailPrice: 3800,
-    savings: 3799,
-    verified: true,
-    gameIcon: CursorArrowRaysIcon,
-    difficulty: 'Easy'
-  },
-  {
-    id: '5',
-    name: 'Emily "CatchMaster" Rodriguez',
-    location: 'Denver, CO',
-    rating: 5,
-    title: 'Designer Handbag with Falling Objects!',
-    content: 'The Falling Object Catch game was so fun! Those physics were tricky, but my hand-eye coordination was on point. Scored 82 points and won an authentic $1,800 Louis Vuitton bag for $1. Skill-based gaming is the future!',
-    productWon: 'Louis Vuitton Neverfull MM',
-    gameType: 'Falling Object Catch',
-    gameScore: 82,
-    entryFee: 1,
-    retailPrice: 1800,
-    savings: 1799,
-    verified: true,
-    gameIcon: DevicePhoneMobileIcon,
-    difficulty: 'Medium'
-  },
-  {
-    id: '6',
-    name: 'Robert "SharpShooter" Kim',
-    location: 'San Francisco, CA',
-    rating: 5,
-    title: 'Professional Camera via Target Mastery!',
-    content: 'Photography requires precision, and so does Multi-Target Reaction! I scored 91 points clicking targets faster than anyone. Won a $4,000 Canon R5 for $1. Now I can shoot professional photos thanks to my gaming skills!',
-    productWon: 'Canon EOS R5 Camera Kit',
-    gameType: 'Multi-Target Reaction',
-    gameScore: 91,
-    entryFee: 1,
-    retailPrice: 4000,
-    savings: 3999,
-    verified: true,
-    gameIcon: CursorArrowRaysIcon,
-    difficulty: 'Easy'
-  },
-  {
-    id: '7',
-    name: 'Amanda "SpeedDemon" Foster',
-    location: 'Phoenix, AZ',
-    rating: 5,
-    title: 'Tesla Model 3 Through Color Memory!',
-    content: 'The biggest win of my life! Color Sequence Memory game with 127 points - my memory and reflexes were unstoppable. Won a $35,000 Tesla Model 3 for just $0.20. Electric car, $0.20 entry fee, pure skill. This platform is revolutionary!',
-    productWon: 'Tesla Model 3 Long Range',
-    gameType: 'Color Sequence Memory',
-    gameScore: 127,
-    entryFee: 0.20,
-    retailPrice: 35000,
-    savings: 34999.80,
-    verified: true,
-    gameIcon: PuzzlePieceIcon,
-    difficulty: 'Hard'
-  },
-  {
-    id: '8',
-    name: 'Carlos "BeatMaster" Gonzalez',
-    location: 'Los Angeles, CA',
-    rating: 5,
-    title: 'Home Theater System with Color Memory Skills!',
-    content: 'As a drummer, the Color Sequence Memory game was perfect for me! Scored 134 points following those complex color patterns with audio cues. Won a $5,200 Dolby Atmos home theater system for $1. My music skills translated to gaming wins!',
-    productWon: 'Dolby Atmos 9.1 Theater System',
-    gameType: 'Color Sequence Memory',
-    gameScore: 134,
-    entryFee: 1,
-    retailPrice: 5200,
-    savings: 5199,
-    verified: true,
-    gameIcon: PuzzlePieceIcon,
-    difficulty: 'Medium'
-  }
-];
+// Empty array - testimonials will be populated from user submissions
+const testimonials: Testimonial[] = [];
 
 const stats = [
   { label: 'Gaming Winners', value: '47,000+' },
@@ -347,92 +211,129 @@ export default function TestimonialsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {testimonials.map((testimonial) => {
-            const GameIcon = testimonial.gameIcon;
-            return (
-              <div key={testimonial.id} className="bg-white border-2 border-gray-200 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-full p-3">
-                      <UserCircleIcon className="h-10 w-10 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-gray-900 text-lg flex items-center">
-                        {testimonial.name}
-                        <div className="ml-3 bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full flex items-center">
-                          <TrophyIcon className="h-3 w-3 mr-1" />
-                          Gaming Champion
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-500">{testimonial.location}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <StarIcon
-                        key={i}
-                        className={`h-5 w-5 ${
-                          i < testimonial.rating ? 'text-yellow-400' : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Game Type & Score */}
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 mb-6 border border-purple-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <GameIcon className="h-6 w-6 text-purple-600 mr-3" />
-                      <div>
-                        <div className="font-bold text-purple-800">{testimonial.gameType}</div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(testimonial.difficulty)}`}>
-                          {testimonial.difficulty}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-purple-600">{testimonial.gameScore}</div>
-                      <div className="text-xs text-purple-700">Winning Score</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Title */}
-                <h3 className="font-bold text-gray-900 text-xl mb-4">{testimonial.title}</h3>
-
-                {/* Content */}
-                <p className="text-gray-600 mb-6 leading-relaxed">{testimonial.content}</p>
-
-                {/* Win Stats */}
-                <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-lg font-bold text-green-600">${testimonial.entryFee}</div>
-                      <div className="text-xs text-green-700">Entry Cost</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-green-600">${testimonial.retailPrice.toLocaleString()}</div>
-                      <div className="text-xs text-green-700">Prize Value</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-green-600">${testimonial.savings.toLocaleString()}</div>
-                      <div className="text-xs text-green-700">Total Saved</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Product Won */}
-                <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                  <div className="text-sm text-gray-500">Prize Won:</div>
-                  <div className="font-bold text-gray-900 text-lg">{testimonial.productWon}</div>
+        {testimonials.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="bg-white rounded-2xl p-12 shadow-lg max-w-2xl mx-auto">
+              <TrophyIcon className="h-24 w-24 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">No Victory Stories Yet</h3>
+              <p className="text-gray-600 mb-8 text-lg">
+                Be the first to share your gaming victory story! Win a tournament and tell us about your success.
+              </p>
+              <div className="space-y-4">
+                <p className="text-gray-500">
+                  <strong>How to share your story:</strong>
+                </p>
+                <div className="text-left space-y-2 text-gray-600">
+                  <p>1. 🎮 Win a tournament or competition</p>
+                  <p>2. 📝 Go to your dashboard</p>
+                  <p>3. ✍️ Write about your victory</p>
+                  <p>4. 🌟 Your story will appear here!</p>
                 </div>
               </div>
-            );
-          })}
-        </div>
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <a
+                  href="/games"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-colors"
+                >
+                  🎮 Start Gaming
+                </a>
+                <a
+                  href="/tournaments"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors"
+                >
+                  🏆 Join Tournaments
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {testimonials.map((testimonial) => {
+              const GameIcon = testimonial.gameIcon;
+              return (
+                <div key={testimonial.id} className="bg-white border-2 border-gray-200 rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-full p-3">
+                        <UserCircleIcon className="h-10 w-10 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-gray-900 text-lg flex items-center">
+                          {testimonial.name}
+                          <div className="ml-3 bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full flex items-center">
+                            <TrophyIcon className="h-3 w-3 mr-1" />
+                            Gaming Champion
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">{testimonial.location}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <StarIcon
+                          key={i}
+                          className={`h-5 w-5 ${
+                            i < testimonial.rating ? 'text-yellow-400' : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Game Type & Score */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 mb-6 border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <GameIcon className="h-6 w-6 text-purple-600 mr-3" />
+                        <div>
+                          <div className="font-bold text-purple-800">{testimonial.gameType}</div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(testimonial.difficulty)}`}>
+                            {testimonial.difficulty}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-purple-600">{testimonial.gameScore}</div>
+                        <div className="text-xs text-purple-700">Winning Score</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="font-bold text-gray-900 text-xl mb-4">{testimonial.title}</h3>
+
+                  {/* Content */}
+                  <p className="text-gray-600 mb-6 leading-relaxed">{testimonial.content}</p>
+
+                  {/* Win Stats */}
+                  <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-green-600">${testimonial.entryFee}</div>
+                        <div className="text-xs text-green-700">Entry Cost</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-green-600">${testimonial.retailPrice.toLocaleString()}</div>
+                        <div className="text-xs text-green-700">Prize Value</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-green-600">${testimonial.savings.toLocaleString()}</div>
+                        <div className="text-xs text-green-700">Total Saved</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Product Won */}
+                  <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+                    <div className="text-sm text-gray-500">Prize Won:</div>
+                    <div className="font-bold text-gray-900 text-lg">{testimonial.productWon}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Practice Games CTA */}
