@@ -343,7 +343,7 @@ export default function CategoriesPage() {
             </nav>
 
             {/* User Actions */}
-            <Navigation variant="default" />
+            <UserMenu variant="default" />
 
             {/* Mobile menu button */}
             <div className="md:hidden">

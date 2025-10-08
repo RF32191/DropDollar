@@ -52,7 +52,7 @@ export default function HotSellPage() {
             </div>
 
             {/* User Actions */}
-            <Navigation variant="dark" />
+            <UserMenu variant="dark" />
           </div>
         </div>
       </header>

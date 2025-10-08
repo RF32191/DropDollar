@@ -1,5 +1,6 @@
 // Using inline header/footer to avoid component issues
 import Link from 'next/link';
+import UserMenu from '@/components/navigation/UserMenu';
 import { 
   CurrencyDollarIcon, 
   ClockIcon, 
@@ -55,11 +56,7 @@ export default function HowItWorksPage() {
             </nav>
 
             {/* User Actions */}
-            <div className="flex items-center space-x-2">
-              <Link href="/auth/login" className="text-blue-100 dark:text-blue-200 hover:text-white dark:hover:text-blue-100 font-medium transition-colors text-sm px-3 py-2 rounded-lg hover:bg-blue-600/30">Sign In</Link>
-              <Link href="/auth/register" className="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-white/30">Sign Up</Link>
-              <Link href="/seller/apply" className="bg-blue-300 hover:bg-blue-200 text-blue-900 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-lg">Sell</Link>
-            </div>
+            <UserMenu variant="default" />
           </div>
         </div>
       </header>
