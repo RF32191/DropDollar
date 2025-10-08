@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
+import Navigation from '@/components/navigation/Navigation';
 
 export default function HomePage() {
   const deviceInfo = useDeviceDetection();
@@ -71,23 +72,7 @@ export default function HomePage() {
             )}
 
             {/* User Actions */}
-            <div className="flex items-center space-x-1 sm:space-x-3">
-              {!deviceInfo.isMobile && (
-                <Link href="/settings" className="hidden md:flex items-center space-x-2 px-3 py-2 text-gray-400 hover:text-white transition-colors duration-300">
-                  <span>⚙️</span>
-                  <span className="text-sm font-medium">Settings</span>
-                </Link>
-              )}
-              <Link href="/auth/login" className={`${deviceInfo.isMobile ? 'px-2 py-1 text-sm' : 'px-4 py-2'} text-gray-300 hover:text-white font-medium transition-colors duration-300`}>
-                Sign In
-              </Link>
-              <Link href="/auth/register" className={`${deviceInfo.isMobile ? 'px-3 py-1.5 text-sm' : 'px-5 py-2.5'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl`}>
-                Sign Up
-              </Link>
-              <Link href="/seller/apply" className={`${deviceInfo.isMobile ? 'px-3 py-1.5 text-sm' : 'px-5 py-2.5'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl`}>
-                Sell
-              </Link>
-            </div>
+            <Navigation variant="default" />
           </div>
 
           {/* Mobile Navigation */}

@@ -247,6 +247,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await loadUserProfile(data.user);
 
       console.log('🎉 Login completed successfully');
+      
+      // Force a small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       return { success: true };
     } catch (error: any) {
       console.error('💥 Unexpected login error:', error);

@@ -13,6 +13,7 @@ import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
+import Navigation from '@/components/navigation/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdSystem } from '@/hooks/useAdSystem';
 import { useGameLocationGuard } from '@/hooks/useLocationGuard';
@@ -713,24 +714,7 @@ export default function GamesPage() {
             )}
 
             {/* User Actions - Always Visible */}
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {!deviceInfo.isMobile && (
-                <Link href="/settings" className="hidden md:flex items-center space-x-1 px-2 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm">
-                  <span>⚙️</span>
-                  <span>Settings</span>
-                </Link>
-              )}
-              
-              <Link href="/auth/login" className={`${deviceInfo.isMobile ? 'px-2 py-1 text-sm' : 'px-3 py-2'} text-purple-200 hover:text-white font-medium transition-colors duration-300`}>
-                Sign In
-              </Link>
-              <Link href="/auth/register" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
-                Sign Up
-              </Link>
-              <Link href="/seller/apply" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
-                Sell
-              </Link>
-            </div>
+            <Navigation variant="dark" />
           </div>
 
           {/* Mobile Navigation */}

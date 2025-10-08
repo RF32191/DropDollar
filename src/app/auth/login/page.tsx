@@ -31,7 +31,11 @@ export default function LoginPage() {
       
       if (result.success) {
         console.log('🎉 Login successful, redirecting to dashboard...');
-        router.push('/dashboard');
+        // Add a small delay to ensure auth state is updated
+        setTimeout(() => {
+          router.push('/dashboard');
+          router.refresh(); // Force a refresh to update the UI
+        }, 150);
       } else {
         console.error('❌ Login failed:', result.error);
         setError(result.error || 'Login failed. Please check your credentials.');

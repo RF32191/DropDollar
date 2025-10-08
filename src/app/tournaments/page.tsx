@@ -80,26 +80,7 @@ export default function TournamentsPage() {
             </nav>
 
             {/* User Actions */}
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/auth/login"
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-2.5 rounded-xl font-semibold transition-all hover:scale-105 border border-white/30"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/auth/register"
-                className="bg-gradient-to-r from-white to-yellow-100 hover:from-yellow-50 hover:to-white text-yellow-800 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg"
-              >
-                Sign Up
-              </Link>
-              <Link
-                href="/seller/apply"
-                className="bg-gradient-to-r from-yellow-300 to-amber-400 hover:from-yellow-400 hover:to-amber-500 text-yellow-900 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg"
-              >
-                Sell
-              </Link>
-            </div>
+            <Navigation variant="default" />
           </div>
         </div>
       </header>

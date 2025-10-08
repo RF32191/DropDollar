@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Navigation from '@/components/navigation/Navigation';
 import { 
   FireIcon, 
   ClockIcon, 
@@ -289,22 +290,7 @@ export default function ListingsPage() {
             </div>
 
             {/* User Actions - Always Visible */}
-            <div className="flex items-center space-x-2">
-              <Link href="/settings" className="hidden md:flex items-center space-x-1 px-2 py-2 text-gray-400 hover:text-white transition-colors duration-300 text-sm">
-                <span>⚙️</span>
-                <span>Settings</span>
-              </Link>
-              
-              <Link href="/auth/login" className="px-3 py-2 text-green-200 hover:text-white font-medium transition-colors duration-300 text-sm">
-                Sign In
-              </Link>
-              <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
-                Sign Up
-              </Link>
-              <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
-                Sell
-              </Link>
-            </div>
+            <Navigation variant="dark" />
           </div>
 
           {/* Mobile Navigation */}

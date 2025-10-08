@@ -246,10 +246,8 @@ export default function FAQPage() {
               <Link href="/hot-sell" className="text-red-600 hover:text-red-700 font-bold">🔥 Hot Sell</Link>
               <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
               <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
-              <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-                <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
-                <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
+              <div className="ml-4 pl-4 border-l border-gray-200">
+                <Navigation variant="light" />
               </div>
             </nav>
           </div>
