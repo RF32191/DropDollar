@@ -1,0 +1,19 @@
+🔧 VERCEL ENVIRONMENT VARIABLES SETUP
+
+1. Go to: https://vercel.com/dashboard
+2. Find your "drop-dollar" project
+3. Click: Settings → Environment Variables
+4. Add these (set to "Production"):
+
+NEXT_PUBLIC_SUPABASE_URL=https://evcmkemuczvfdyedvwcu.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2Y21rZW11Y3p2ZmR5ZWR2d2N1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDUxNDksImV4cCI6MjA3NDYyMTE0OX0.U09DpOctbNJSdxZJI2K6WqwU5VzKIjOyldO6f1aQTQU
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2Y21rZW11Y3p2ZmR5ZWR2d2N1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA0NTE0OSwiZXhwIjoyMDc0NjIxMTQ5fQ.3o0iWQxPQWSqw3cLusAPboTQajsM7MBOBCYzH9wZX-k
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51Q9vXfEMlzOaQXPNKGxLRqPKJxKjMdMCl4w0fPGKv3VQKqBjEQEtXhkD9wNKKtSZlhXKGsL7JzDLKpNfz9R5VxVx00dKcGt9Gq
+STRIPE_SECRET_KEY=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
+NEXT_PUBLIC_APP_URL=https://drop-dollar.com
+
+5. Click "Save" for each one
+6. Click "Redeploy" when done
+7. Wait for deployment to finish
+
+This should fix the "fetch failed" error!
