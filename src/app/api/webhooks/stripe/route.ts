@@ -4,14 +4,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
+import { getEnvironmentConfig } from '@/lib/config';
+
+// Get environment configuration
+const config = getEnvironmentConfig();
 
 // Initialize Stripe only if secret key is available
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
+const stripe = config.stripe.enabled ? new Stripe(config.stripe.secretKey!, {
   apiVersion: '2024-06-20'
 }) : null;
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+const webhookSecret = config.stripe.webhookSecret || '';
 
 export async function POST(request: NextRequest) {
   try {

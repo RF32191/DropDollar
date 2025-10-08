@@ -1,8 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { getEnvironmentConfig } from '@/lib/config';
+
+// Get environment configuration
+const config = getEnvironmentConfig();
+
+// Only import Supabase if it's configured
+let supabase: any = null;
+if (config.supabase.enabled) {
+  try {
+    const { supabase: supabaseClient } = await import('@/lib/supabase/client');
+    supabase = supabaseClient;
+  } catch (error) {
+    console.warn('Supabase not available:', error);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Supabase is available
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+
     const campaignData = await request.json();
 
     // Validate required fields

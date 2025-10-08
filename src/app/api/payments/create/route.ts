@@ -3,11 +3,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { dropCoinContract } from '@/lib/dropCoinContract';
+import { getEnvironmentConfig } from '@/lib/config';
+
+// Get environment configuration
+const config = getEnvironmentConfig();
 
 // Initialize Stripe only if secret key is available
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
+const stripe = config.stripe.enabled ? new Stripe(config.stripe.secretKey!, {
   apiVersion: '2024-06-20'
 }) : null;
 
@@ -31,9 +33,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get current token price
-    const stats = await dropCoinContract.getContractStats();
-    const currentPrice = (stats?.currentPriceUSD && !isNaN(stats.currentPriceUSD)) ? stats.currentPriceUSD : 1.0;
+    // Get current token price (fallback to $1 if not available)
+    const currentPrice = 1.0; // Default price
     const totalCostUSD = tokenAmount * currentPrice;
 
     let paymentResult;

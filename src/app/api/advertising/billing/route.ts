@@ -1,5 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { getEnvironmentConfig } from '@/lib/config';
+
+// Get environment configuration
+const config = getEnvironmentConfig();
+
+// Only import Supabase if it's configured
+let supabase: any = null;
+if (config.supabase.enabled) {
+  try {
+    const { supabase: supabaseClient } = await import('@/lib/supabase/client');
+    supabase = supabaseClient;
+  } catch (error) {
+    console.warn('Supabase not available:', error);
+  }
+}
 
 // Mock Stripe integration - replace with actual Stripe SDK
 interface PaymentIntent {
@@ -24,6 +38,14 @@ interface PaymentMethod {
 // POST /api/advertising/billing/payment-intent
 export async function POST(request: NextRequest) {
   try {
+    // Check if Supabase is available
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+
     const { amount, currency = 'usd', campaign_id, user_email } = await request.json();
 
     if (!amount || !campaign_id || !user_email) {
@@ -96,6 +118,14 @@ export async function POST(request: NextRequest) {
 // GET /api/advertising/billing/invoices
 export async function GET(request: NextRequest) {
   try {
+    // Check if Supabase is available
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const userEmail = searchParams.get('email');
     const invoiceId = searchParams.get('invoice_id');
@@ -161,6 +191,14 @@ export async function GET(request: NextRequest) {
 // PUT /api/advertising/billing/pay-invoice
 export async function PUT(request: NextRequest) {
   try {
+    // Check if Supabase is available
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+
     const { invoice_id, payment_method_id, user_email } = await request.json();
 
     if (!invoice_id || !payment_method_id || !user_email) {

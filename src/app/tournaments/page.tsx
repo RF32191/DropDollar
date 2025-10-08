@@ -71,6 +71,9 @@ export default function TournamentsPage() {
               <Link href="/games" className="text-white hover:text-yellow-200 font-medium transition-colors">
                 Games
               </Link>
+              <Link href="/testimonials" className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
+                ⭐ Victory Stories
+              </Link>
             </nav>
 
             {/* User Actions */}
