@@ -162,12 +162,30 @@ async function handleStripePayment(
     console.error('❌ Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      type: typeof error
+      type: typeof error,
+      name: error instanceof Error ? error.name : undefined,
+      code: (error as any)?.code,
+      statusCode: (error as any)?.statusCode,
+      type: (error as any)?.type
     });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to create Stripe payment';
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid API Key')) {
+        errorMessage = 'Stripe API key is invalid or missing';
+      } else if (error.message.includes('network') || error.message.includes('timeout')) {
+        errorMessage = 'Network error connecting to Stripe. Please try again.';
+      } else if (error.message.includes('rate limit')) {
+        errorMessage = 'Too many requests to Stripe. Please wait a moment and try again.';
+      } else {
+        errorMessage = `Stripe error: ${error.message}`;
+      }
+    }
     
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create Stripe payment'
+      error: errorMessage
     };
   }
 }
