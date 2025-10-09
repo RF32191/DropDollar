@@ -1,93 +1,103 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  UserCircleIcon, 
-  Cog6ToothIcon, 
-  ArrowRightOnRectangleIcon,
-  BellIcon,
-  CreditCardIcon,
-  ShieldCheckIcon,
-  ClockIcon,
-  ChevronDownIcon
-} from '@heroicons/react/24/outline';
+import { ChevronDownIcon, UserIcon, CogIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 interface UserMenuProps {
-  variant?: 'light' | 'dark';
+  className?: string;
+  variant?: 'default' | 'dark' | 'light';
 }
 
-export default function UserMenu({ variant = 'light' }: UserMenuProps) {
+export default function UserMenu({ className = '', variant = 'default' }: UserMenuProps) {
+  const { user, isLoading, logout, forceLogout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [showSessionWarning, setShowSessionWarning] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { user, logout, sessionExpiry, extendSession } = useAuth();
-  const router = useRouter();
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
-    };
+    }
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  // Session warning logic
-  useEffect(() => {
-    if (sessionExpiry) {
-      const timeUntilExpiry = sessionExpiry.getTime() - Date.now();
-      const warningTime = 5 * 60 * 1000; // 5 minutes
-
-      if (timeUntilExpiry <= warningTime && timeUntilExpiry > 0) {
-        setShowSessionWarning(true);
-      } else {
-        setShowSessionWarning(false);
-      }
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'dark':
+        return {
+          button: 'text-gray-300 hover:text-white',
+          dropdown: 'bg-gray-800 border-gray-700',
+          item: 'text-gray-300 hover:bg-gray-700 hover:text-white'
+        };
+      case 'light':
+        return {
+          button: 'text-gray-700 hover:text-green-600',
+          dropdown: 'bg-white border-gray-200',
+          item: 'text-gray-700 hover:bg-gray-50 hover:text-green-600'
+        };
+      default:
+        return {
+          button: 'text-gray-200 hover:text-white',
+          dropdown: 'bg-white border-gray-200',
+          item: 'text-gray-700 hover:bg-gray-50 hover:text-green-600'
+        };
     }
-  }, [sessionExpiry]);
+  };
+
+  const styles = getVariantStyles();
+
+  const getUserDisplayName = () => {
+    if (!user) return '';
+    
+    if (user.full_name) {
+      return user.full_name.split(' ')[0];
+    }
+    if (user.username) {
+      return user.username;
+    }
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  };
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/');
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const handleExtendSession = async () => {
-    await extendSession();
-    setShowSessionWarning(false);
-  };
-
-  const getTimeUntilExpiry = () => {
-    if (!sessionExpiry) return '';
-    const minutes = Math.max(0, Math.floor((sessionExpiry.getTime() - Date.now()) / 60000));
-    return `${minutes} minutes`;
-  };
+  if (isLoading) {
+    return (
+      <div className={`flex items-center space-x-2 ${className}`}>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+        <span className="text-sm text-gray-400">Loading...</span>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
-      <div className="flex items-center space-x-4">
-        <Link
-          href="/auth/login"
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            variant === 'dark' 
-              ? 'text-white hover:bg-white/10' 
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
+      <div className={`flex items-center space-x-3 ${className}`}>
+        <Link 
+          href="/auth/login" 
+          className={`px-4 py-2 ${styles.button} font-medium transition-colors duration-300`}
         >
           Sign In
         </Link>
-        <Link
-          href="/auth/register"
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            variant === 'dark'
-              ? 'bg-white text-gray-900 hover:bg-gray-100'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
+        <Link 
+          href="/auth/register" 
+          className="px-4 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
         >
           Sign Up
         </Link>
@@ -96,165 +106,99 @@ export default function UserMenu({ variant = 'light' }: UserMenuProps) {
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Session Warning Banner */}
-      {showSessionWarning && (
-        <div className="absolute top-0 right-0 transform translate-y-full mb-2 w-80 bg-yellow-50 border border-yellow-200 rounded-lg p-3 shadow-lg z-50">
-          <div className="flex items-start">
-            <ClockIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-2" />
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-yellow-800">Session Expiring Soon</h4>
-              <p className="text-sm text-yellow-700 mt-1">
-                Your session will expire in {getTimeUntilExpiry()}. Click below to extend.
-              </p>
-              <button
-                onClick={handleExtendSession}
-                className="mt-2 text-sm bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 transition-colors"
-              >
-                Extend Session
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* User Avatar Button */}
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      {/* User Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-          variant === 'dark'
-            ? 'text-white hover:bg-white/10'
-            : 'text-gray-700 hover:bg-gray-100'
-        }`}
+        onDoubleClick={() => {
+          // Double-click to go to dashboard
+          window.location.href = '/dashboard';
+        }}
+        className={`flex items-center space-x-2 px-4 py-2 ${styles.button} font-medium transition-colors duration-300 hover:bg-white/10 rounded-lg`}
+        title="Click to open menu, double-click to go to dashboard"
       >
-        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-          {user.avatar ? (
-            <img
-              src={user.avatar}
-              alt={user.firstName}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          ) : (
-            <span className="text-white text-sm font-medium">
-              {user.firstName.charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
-        <span className="hidden sm:block font-medium">
-          {user.firstName} {user.lastName}
-        </span>
-        <ChevronDownIcon className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <UserIcon className="h-5 w-5" />
+        <span>{getUserDisplayName()}</span>
+        <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-40">
-          {/* User Info Header */}
-          <div className="px-4 py-3 border-b border-gray-100">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                {user.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt={user.firstName}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-medium">
-                    {user.firstName.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                <div className="flex items-center mt-1">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                    user.role === 'seller' ? 'bg-green-100 text-green-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                  </span>
-                  {user.isVerified && (
-                    <ShieldCheckIcon className="h-4 w-4 text-green-500 ml-2" />
-                  )}
-                </div>
-              </div>
+        <div className={`absolute right-0 mt-2 w-48 ${styles.dropdown} rounded-lg shadow-lg border z-[9999]`}>
+          <div className="py-1">
+            {/* User Info */}
+            <div className="px-4 py-2 border-b border-gray-200">
+              <p className="text-sm font-semibold text-gray-900">{getUserDisplayName()}</p>
+              <p className="text-xs text-gray-500">{user.email}</p>
             </div>
-          </div>
 
-          {/* Menu Items */}
-          <div className="py-2">
+            {/* Menu Items */}
             <Link
               href="/dashboard"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              onClick={() => setIsOpen(false)}
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold`}
+              onClick={() => {
+                console.log('Dashboard clicked');
+                setIsOpen(false);
+              }}
             >
-              <UserCircleIcon className="h-5 w-5 mr-3 text-gray-400" />
-              Dashboard
+              <CogIcon className="h-4 w-4 mr-3" />
+              🏠 Dashboard
             </Link>
-
+            
             <Link
               href="/profile"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              onClick={() => setIsOpen(false)}
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+              onClick={() => {
+                console.log('Profile clicked');
+                setIsOpen(false);
+              }}
             >
-              <Cog6ToothIcon className="h-5 w-5 mr-3 text-gray-400" />
-              Profile Settings
+              <UserIcon className="h-4 w-4 mr-3" />
+              Profile
             </Link>
 
             <Link
-              href="/notifications"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              onClick={() => setIsOpen(false)}
+              href="/settings"
+              className={`flex items-center px-4 py-2 text-sm ${styles.item} transition-colors duration-200`}
+              onClick={() => {
+                console.log('Settings clicked');
+                setIsOpen(false);
+              }}
             >
-              <BellIcon className="h-5 w-5 mr-3 text-gray-400" />
-              Notifications
+              <CogIcon className="h-4 w-4 mr-3" />
+              Settings
             </Link>
 
-            <Link
-              href="/billing"
-              className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              <CreditCardIcon className="h-5 w-5 mr-3 text-gray-400" />
-              Billing & Payments
-            </Link>
+                {/* Divider */}
+                <div className="border-t border-gray-200 my-1"></div>
 
-            {user.role === 'seller' && (
-              <Link
-                href="/seller/dashboard"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                <Cog6ToothIcon className="h-5 w-5 mr-3 text-gray-400" />
-                Seller Dashboard
-              </Link>
-            )}
+                {/* Logout */}
+                <button
+                  onClick={() => {
+                    console.log('Logout clicked');
+                    setIsOpen(false);
+                    handleLogout();
+                  }}
+                  className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-600 hover:text-red-800 hover:bg-red-50`}
+                >
+                  <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                  🚪 Sign Out
+                </button>
 
-            <div className="border-t border-gray-100 mt-2 pt-2">
-              <button
-                onClick={handleLogout}
-                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />
-                Sign Out
-              </button>
-            </div>
+                {/* Force Logout */}
+                <button
+                  onClick={() => {
+                    console.log('Force logout clicked');
+                    setIsOpen(false);
+                    forceLogout();
+                  }}
+                  className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-800 hover:text-red-900 hover:bg-red-100 border-l-2 border-red-300`}
+                  title="Use this if you're having login issues"
+                >
+                  <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                  🚨 Force Logout
+                </button>
           </div>
-
-          {/* Session Info */}
-          {sessionExpiry && (
-            <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
-              <div className="flex items-center text-xs text-gray-500">
-                <ClockIcon className="h-4 w-4 mr-1" />
-                Session expires in {getTimeUntilExpiry()}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
