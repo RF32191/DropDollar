@@ -709,10 +709,6 @@ export default function GamesPage() {
 
                   {/* Secondary Navigation */}
                   <div className="flex items-center space-x-2">
-                    <Link href="/tournament-results" className="relative group px-2 py-2 text-cyan-200 hover:text-white font-medium transition-all duration-300 flex items-center space-x-1 text-sm">
-                      <span>📊</span>
-                      <span className="relative z-10">Results</span>
-                    </Link>
                     <Link href="/buy-tokens" className="relative group px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold rounded-lg transition-all duration-300 flex items-center space-x-1 shadow-lg hover:shadow-green-500/30 hover:scale-105 text-sm">
                       <span>💰</span>
                       <span>Tokens</span>

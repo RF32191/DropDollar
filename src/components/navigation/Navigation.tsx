@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
 import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
 interface NavigationProps {
@@ -18,7 +17,6 @@ export default function Navigation({
   showSellButton = true,
   className = ''
 }: NavigationProps) {
-  const { user, isLoading } = useAuth();
   const deviceInfo = useDeviceDetection();
 
   const getVariantStyles = () => {
@@ -52,102 +50,45 @@ export default function Navigation({
 
   const styles = getVariantStyles();
 
-  const getUserDisplayName = () => {
-    if (!user) return '';
-    
-    // Try to get a display name from various sources
-    if (user.full_name) {
-      return user.full_name.split(' ')[0]; // First name only
-    }
-    if (user.username) {
-      return user.username;
-    }
-    if (user.email) {
-      return user.email.split('@')[0]; // Username part of email
-    }
-    return 'User';
-  };
-
   return (
     <div className={`flex items-center space-x-1 sm:space-x-3 ${className}`}>
-      {/* Settings Link */}
-      {showSettings && !deviceInfo.isMobile && (
+      {/* Primary Navigation */}
+      <div className="flex items-center space-x-1 sm:space-x-3">
         <Link 
-          href="/settings" 
-          className={`hidden md:flex items-center space-x-2 px-3 py-2 ${styles.navLink} transition-colors duration-300`}
+          href="/listings" 
+          className={`px-2 py-1 ${styles.navLink} font-medium transition-all duration-300 text-sm hover:scale-105`}
         >
-          <span>⚙️</span>
-          <span className="text-sm font-medium">Settings</span>
+          Browse
         </Link>
-      )}
-
-      {/* User Authentication Section */}
-      {isLoading ? (
-        <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-          <span className={`text-sm ${styles.userText}`}>Loading...</span>
-        </div>
-      ) : user ? (
-        <div className="flex items-center space-x-3">
-          {/* User Name */}
-          <Link 
-            href="/dashboard" 
-            className={`px-3 py-2 ${styles.userText} hover:text-white font-medium transition-colors duration-300 flex items-center space-x-2`}
-          >
-            <span className="text-lg">👤</span>
-            <span className="text-sm font-semibold">Welcome, {getUserDisplayName()}</span>
-          </Link>
-          
-          {/* Dashboard Link */}
-          <Link 
-            href="/dashboard" 
-            className={`px-3 py-2 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl ${deviceInfo.isMobile ? 'text-sm px-2 py-1' : ''}`}
-          >
-            Dashboard
-          </Link>
-          
-          {/* Logout Button */}
-          <Link 
-            href="/auth/login" 
-            className={`px-3 py-2 ${styles.navLink} font-medium transition-colors duration-300 ${deviceInfo.isMobile ? 'text-sm px-2 py-1' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              // Handle logout here if needed
-              window.location.href = '/auth/login';
-            }}
-          >
-            Logout
-          </Link>
-        </div>
-      ) : (
-        <div className="flex items-center space-x-2">
-          {/* Sign In Link */}
-          <Link 
-            href="/auth/login" 
-            className={`${deviceInfo.isMobile ? 'px-2 py-1 text-sm' : 'px-3 py-2'} ${styles.navLink} font-medium transition-colors duration-300`}
-          >
-            Sign In
-          </Link>
-          
-          {/* Sign Up Link */}
-          <Link 
-            href="/auth/register" 
-            className={`${deviceInfo.isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl`}
-          >
-            Sign Up
-          </Link>
-        </div>
-      )}
-
-      {/* Sell Button */}
-      {showSellButton && (
         <Link 
-          href="/seller/apply" 
-          className={`${deviceInfo.isMobile ? 'px-3 py-1.5 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl`}
+          href="/games" 
+          className={`px-2 py-1 ${styles.navLinkBold} font-bold transition-all duration-300 text-sm hover:scale-105`}
         >
-          Sell
+          🎮 Games
         </Link>
-      )}
+        <Link 
+          href="/tournaments" 
+          className={`px-2 py-1 ${styles.navLinkBold} font-bold transition-all duration-300 text-sm hover:scale-105`}
+        >
+          🏆 Tournaments
+        </Link>
+        <Link 
+          href="/hot-sell" 
+          className={`px-2 py-1 ${styles.navLinkBold} font-bold transition-all duration-300 text-sm hover:scale-105`}
+        >
+          🔥 Hot Sell
+        </Link>
+      </div>
+
+      {/* Secondary Navigation */}
+      <div className="flex items-center space-x-2">
+        <Link 
+          href="/buy-tokens" 
+          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white font-bold px-3 py-1.5 rounded-lg transition-all duration-300 text-sm shadow-lg hover:shadow-xl hover:scale-105"
+        >
+          💰 Tokens
+        </Link>
+      </div>
     </div>
   );
 }
