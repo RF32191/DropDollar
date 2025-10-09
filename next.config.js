@@ -15,9 +15,11 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   // Disable static optimization completely
-  output: 'export',
-  distDir: 'out',
-  trailingSlash: true,
+  experimental: {
+    staticPageGenerationTimeout: 1,
+  },
+  // Force all pages to be dynamic
+  output: 'standalone',
 }
 
 module.exports = nextConfig
