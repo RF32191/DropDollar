@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import { AuthProvider } from '@/contexts/AuthContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'DropDollar - Gaming Marketplace',
-  description: 'Gaming marketplace where you can buy, sell, and compete',
+  title: 'DropDollar - Professional Gaming Marketplace',
+  description: 'Professional gaming marketplace with secure authentication and session management',
 }
 
 export default function RootLayout({
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
