@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+
+// Conditionally import Supabase only if environment variables are available
+let supabase: any = null;
+if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  try {
+    const { supabase: supabaseClient } = require('@/lib/supabase/client');
+    supabase = supabaseClient;
+  } catch (error) {
+    console.warn('Supabase not available:', error);
+  }
+}
 import { LocationService, type LocationData } from '@/lib/locationService';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database not configured' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     
     // Validate required fields
