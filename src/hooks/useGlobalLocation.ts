@@ -42,7 +42,9 @@ export function useGlobalLocation(): LocationStatus {
         if (permission.state === 'granted') {
           // Try to get cached location data
           const cachedLocation = localStorage.getItem('userLocation');
-          if (cachedLocation) {
+          const cachedPermission = localStorage.getItem('locationPermission');
+          
+          if (cachedLocation && cachedPermission === 'granted') {
             try {
               const locationData = JSON.parse(cachedLocation);
               setStatus({

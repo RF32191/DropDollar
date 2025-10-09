@@ -25,6 +25,28 @@ export default function GlobalLocationCheck({
     country: string;
   } | null>(null);
 
+  // Force refresh location data
+  const refreshLocationData = async () => {
+    try {
+      setIsCheckingLocation(true);
+      
+      // Clear cached data
+      localStorage.removeItem('userLocation');
+      localStorage.removeItem('locationPermission');
+      
+      // Reset state
+      setLocationStatus('unknown');
+      setLocationData(null);
+      
+      // Request new location
+      await requestLocationPermission();
+    } catch (error) {
+      console.error('Error refreshing location:', error);
+    } finally {
+      setIsCheckingLocation(false);
+    }
+  };
+
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
     const stateLower = state.toLowerCase();
@@ -116,8 +138,8 @@ export default function GlobalLocationCheck({
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000 // 5 minutes
+          timeout: 15000, // Increased timeout
+          maximumAge: 0 // Always get fresh location
         });
       });
 
@@ -207,15 +229,11 @@ export default function GlobalLocationCheck({
                   🎮 GAMING ENABLED
                 </span>
                 <button
-                  onClick={() => {
-                    // Clear cached location to force re-check
-                    localStorage.removeItem('userLocation');
-                    localStorage.removeItem('locationPermission');
-                    window.location.reload();
-                  }}
-                  className="text-xs text-white/80 hover:text-white underline"
+                  onClick={refreshLocationData}
+                  disabled={isCheckingLocation}
+                  className="text-xs text-white/80 hover:text-white underline disabled:opacity-50"
                 >
-                  Update Location
+                  {isCheckingLocation ? 'Updating...' : 'Update Location'}
                 </button>
               </div>
             </div>
