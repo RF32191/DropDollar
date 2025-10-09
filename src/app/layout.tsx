@@ -20,8 +20,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <AuthProvider>
-          {children}
           <GlobalLocationCheck />
+          <div className="location-banner-spacer">
+            {children}
+          </div>
         </AuthProvider>
       </body>
     </html>

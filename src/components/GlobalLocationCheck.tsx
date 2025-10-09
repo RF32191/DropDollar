@@ -55,6 +55,19 @@ export default function GlobalLocationCheck({
     }
   };
 
+  // Update body class when location banner is shown
+  useEffect(() => {
+    if (locationStatus === 'granted' && locationData) {
+      document.body.setAttribute('data-location-banner', 'true');
+    } else {
+      document.body.removeAttribute('data-location-banner');
+    }
+    
+    return () => {
+      document.body.removeAttribute('data-location-banner');
+    };
+  }, [locationStatus, locationData]);
+
   // Check if location permission is already granted
   useEffect(() => {
     const checkExistingPermission = async () => {
@@ -170,27 +183,69 @@ export default function GlobalLocationCheck({
   }
 
   return (
-    <div className={`fixed top-4 right-4 z-50 ${className}`}>
-      {/* Location Status Indicator */}
-      {locationStatus === 'denied' && (
-        <div className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg mb-2 flex items-center space-x-2">
-          <ExclamationTriangleIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Location access denied</span>
+    <div className={`fixed top-0 left-0 right-0 z-50 ${className}`}>
+      {/* Top Location Confirmation Banner */}
+      {locationStatus === 'granted' && locationData && (
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg border-b-2 border-green-500">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  <ShieldCheckIcon className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold">
+                    ✅ LOCATION VERIFIED: {locationData.city}, {locationData.state}
+                  </span>
+                  <span className="text-xs opacity-90">
+                    {isGamingAllowed(locationData.state).message}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs bg-white/20 px-2 py-1 rounded-full font-medium">
+                  🎮 GAMING ENABLED
+                </span>
+                <button
+                  onClick={() => {
+                    // Clear cached location to force re-check
+                    localStorage.removeItem('userLocation');
+                    localStorage.removeItem('locationPermission');
+                    window.location.reload();
+                  }}
+                  className="text-xs text-white/80 hover:text-white underline"
+                >
+                  Update Location
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Location Request Button */}
-      {locationStatus === 'unknown' && (
-        <button
-          onClick={requestLocationPermission}
-          disabled={isCheckingLocation}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 hover:scale-105 disabled:scale-100 flex items-center space-x-2"
-        >
-          <MapPinIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">
-            {isCheckingLocation ? 'Checking...' : 'Enable Location'}
-          </span>
-        </button>
+      {/* Location Request Button - Only show when not granted */}
+      {locationStatus !== 'granted' && (
+        <div className="fixed top-4 right-4 z-50">
+          {locationStatus === 'denied' && (
+            <div className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg mb-2 flex items-center space-x-2">
+              <ExclamationTriangleIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Location access denied</span>
+            </div>
+          )}
+
+          {locationStatus === 'unknown' && (
+            <button
+              onClick={requestLocationPermission}
+              disabled={isCheckingLocation}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 hover:scale-105 disabled:scale-100 flex items-center space-x-2"
+            >
+              <MapPinIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                {isCheckingLocation ? 'Checking...' : 'Enable Location'}
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       {/* Location Prompt Modal */}
@@ -265,20 +320,6 @@ export default function GlobalLocationCheck({
         </div>
       )}
 
-      {/* Success Message */}
-      {locationStatus === 'granted' && locationData && (
-        <div className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-          <ShieldCheckIcon className="h-5 w-5" />
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">
-              Location: {locationData.city}, {locationData.state}
-            </span>
-            <span className="text-xs opacity-90">
-              {isGamingAllowed(locationData.state).message}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

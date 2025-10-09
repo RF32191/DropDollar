@@ -290,38 +290,6 @@ export default function HotSellPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Location Verification Status */}
-      {globalLocation.status === 'granted' && globalLocation.data && (
-        <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-700">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <ShieldCheckIcon className="h-5 w-5 text-green-600" />
-                <div className="flex flex-col">
-                  <span className="text-sm text-green-800 dark:text-green-300 font-medium">
-                    Location verified: {globalLocation.data.city}, {globalLocation.data.state}
-                  </span>
-                  <span className="text-xs text-green-700 dark:text-green-400">
-                    {isGamingAllowed(globalLocation.data.state).message}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  // Clear cached location to force re-check
-                  localStorage.removeItem('userLocation');
-                  localStorage.removeItem('locationPermission');
-                  window.location.reload();
-                }}
-                className="text-xs text-green-600 hover:text-green-800 underline"
-              >
-                Update Location
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* FIRE-THEMED Header */}
       <header className="bg-gradient-to-r from-red-900 via-orange-800 to-red-900 dark:from-red-950 dark:via-orange-900 dark:to-red-950 shadow-2xl border-b-4 border-orange-500/50 transition-all duration-300 relative overflow-hidden">
         {/* Animated Fire Background */}
