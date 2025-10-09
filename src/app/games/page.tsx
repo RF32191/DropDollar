@@ -573,7 +573,7 @@ export default function GamesPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Location Restriction Banner */}
       {locationGuard.hasChecked && !locationGuard.canAccessGames() && (
         <div className="bg-red-50 dark:bg-red-900/20 border-b-4 border-red-500">

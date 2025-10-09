@@ -54,6 +54,8 @@ interface AuthContextType {
   loginWithGitHub: () => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  forceLogout: () => Promise<void>;
+  clearAllAccounts: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -430,6 +432,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const forceLogout = async (): Promise<void> => {
+    try {
+      // Clear all local storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear all cookies
+      document.cookie.split(";").forEach((c) => {
+        const eqPos = c.indexOf("=");
+        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+      });
+
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clear all state
+      setUser(null);
+      setIsAuthenticated(false);
+      setSessionExpiry(null);
+      
+      // Clear any timers
+      if (typeof window !== 'undefined') {
+        // Clear all intervals and timeouts
+        for (let i = 1; i < 10000; i++) {
+          clearInterval(i);
+          clearTimeout(i);
+        }
+      }
+      
+      console.log('Force logout completed - all accounts cleared');
+    } catch (error) {
+      console.error('Force logout error:', error);
+    }
+  };
+
+  const clearAllAccounts = async (): Promise<void> => {
+    try {
+      // Clear all browser data
+      if (typeof window !== 'undefined') {
+        // Clear IndexedDB
+        if ('indexedDB' in window) {
+          const databases = await indexedDB.databases();
+          databases.forEach(db => {
+            if (db.name) {
+              indexedDB.deleteDatabase(db.name);
+            }
+          });
+        }
+        
+        // Clear WebSQL (if supported)
+        if ('openDatabase' in window) {
+          // WebSQL is deprecated but clear if exists
+        }
+        
+        // Clear Cache API
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+      }
+      
+      // Force logout
+      await forceLogout();
+      
+      console.log('All accounts and data cleared');
+    } catch (error) {
+      console.error('Clear all accounts error:', error);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -445,6 +520,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithGitHub,
     resetPassword,
     updatePassword,
+    forceLogout,
+    clearAllAccounts,
   };
 
   return (

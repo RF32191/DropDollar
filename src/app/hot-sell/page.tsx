@@ -256,7 +256,7 @@ export default function HotSellPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* FIRE-THEMED Header */}
       <header className="bg-gradient-to-r from-red-900 via-orange-800 to-red-900 dark:from-red-950 dark:via-orange-900 dark:to-red-950 shadow-2xl border-b-4 border-orange-500/50 transition-all duration-300 relative overflow-hidden">
         {/* Animated Fire Background */}

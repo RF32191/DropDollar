@@ -40,7 +40,7 @@ export default function TournamentsPage() {
     // TODO: Implement actual match creation logic
   };
   return (
-    <div className="min-h-screen bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* GOLD TOURNAMENTS Header */}
       <header className="bg-gradient-to-r from-yellow-600 via-yellow-700 to-amber-800 shadow-2xl border-b-4 border-yellow-500">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2">

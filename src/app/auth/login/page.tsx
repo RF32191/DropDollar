@@ -15,7 +15,7 @@ export default function ProfessionalLoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  const { login, isAuthenticated, isLoading: authLoading, forceLogout } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, forceLogout, clearAllAccounts } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -60,6 +60,12 @@ export default function ProfessionalLoginPage() {
     setError(null);
   };
 
+  const handleClearAllAccounts = async () => {
+    await clearAllAccounts();
+    setError(null);
+    window.location.reload();
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
@@ -93,13 +99,19 @@ export default function ProfessionalLoginPage() {
           </Link>
         </div>
 
-        {/* Force Logout Button */}
-        <div className="mb-6 text-center">
+        {/* Account Management Buttons */}
+        <div className="mb-6 text-center space-y-3">
           <button
             onClick={handleForceLogout}
-            className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300 font-bold text-sm shadow-lg hover:shadow-2xl hover:scale-105"
+            className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300 font-bold text-sm shadow-lg hover:shadow-2xl hover:scale-105 mr-3"
           >
-            🚨 Force Logout (Clear Account)
+            🚨 Force Logout
+          </button>
+          <button
+            onClick={handleClearAllAccounts}
+            className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-2 rounded-lg hover:from-orange-700 hover:to-red-700 transition-all duration-300 font-bold text-sm shadow-lg hover:shadow-2xl hover:scale-105"
+          >
+            🗑️ Clear ALL Accounts & Data
           </button>
         </div>
 

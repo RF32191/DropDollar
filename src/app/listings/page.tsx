@@ -215,7 +215,7 @@ export default function ListingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* GREEN BROWSE Header */}
       <header className="bg-gradient-to-r from-green-900 via-emerald-800 to-green-900 dark:from-green-950 dark:via-emerald-900 dark:to-green-950 shadow-2xl border-b-4 border-green-500/50 transition-all duration-300 relative overflow-hidden">
         {/* Animated Green Background */}
