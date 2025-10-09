@@ -25,6 +25,32 @@ export default function GlobalLocationCheck({
     country: string;
   } | null>(null);
 
+  // 12-hour re-verification system
+  const LOCATION_VERIFICATION_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+  const [needsReVerification, setNeedsReVerification] = useState(false);
+
+  // Check if location verification has expired
+  const checkLocationExpiry = () => {
+    const lastVerification = localStorage.getItem('locationVerificationTime');
+    if (lastVerification) {
+      const verificationTime = parseInt(lastVerification);
+      const now = Date.now();
+      const timeSinceVerification = now - verificationTime;
+      
+      if (timeSinceVerification >= LOCATION_VERIFICATION_DURATION) {
+        setNeedsReVerification(true);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Set location verification timestamp
+  const setLocationVerificationTime = () => {
+    localStorage.setItem('locationVerificationTime', Date.now().toString());
+    setNeedsReVerification(false);
+  };
+
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
     const stateLower = state.toLowerCase();
@@ -74,7 +100,14 @@ export default function GlobalLocationCheck({
       try {
         if ('geolocation' in navigator) {
           const permission = await navigator.permissions.query({ name: 'geolocation' });
-          if (permission.state === 'granted') {
+        if (permission.state === 'granted') {
+          // Check if location verification has expired
+          const hasExpired = checkLocationExpiry();
+          
+          if (hasExpired) {
+            setLocationStatus('unknown');
+            setNeedsReVerification(true);
+          } else {
             setLocationStatus('granted');
             // Try to get cached location
             const cachedLocation = localStorage.getItem('userLocation');
@@ -85,11 +118,12 @@ export default function GlobalLocationCheck({
                 console.error('Error parsing cached location:', error);
               }
             }
-          } else if (permission.state === 'denied') {
-            setLocationStatus('denied');
-          } else {
-            setLocationStatus('unknown');
           }
+        } else if (permission.state === 'denied') {
+          setLocationStatus('denied');
+        } else {
+          setLocationStatus('unknown');
+        }
         } else {
           setLocationStatus('unavailable');
         }
@@ -141,9 +175,10 @@ export default function GlobalLocationCheck({
         setLocationData(locationInfo);
         setLocationStatus('granted');
         
-        // Cache the location
+        // Cache the location and set verification timestamp
         localStorage.setItem('userLocation', JSON.stringify(locationInfo));
         localStorage.setItem('locationPermission', 'granted');
+        setLocationVerificationTime();
         
         console.log('Location verified:', locationInfo);
         onLocationVerified?.();
@@ -153,6 +188,7 @@ export default function GlobalLocationCheck({
         // Still grant permission even if geocoding fails
         setLocationStatus('granted');
         localStorage.setItem('locationPermission', 'granted');
+        setLocationVerificationTime();
         onLocationVerified?.();
       }
 
@@ -222,7 +258,7 @@ export default function GlobalLocationCheck({
             </div>
           )}
 
-          {locationStatus === 'unknown' && (
+          {(locationStatus === 'unknown' || needsReVerification) && (
             <button
               onClick={requestLocationPermission}
               disabled={isCheckingLocation}
@@ -230,7 +266,7 @@ export default function GlobalLocationCheck({
             >
               <MapPinIcon className="h-5 w-5" />
               <span className="text-sm font-medium">
-                {isCheckingLocation ? 'Checking...' : 'Enable Location'}
+                {isCheckingLocation ? 'Checking...' : needsReVerification ? 'Re-verify Location' : 'Enable Location'}
               </span>
             </button>
           )}
@@ -247,7 +283,7 @@ export default function GlobalLocationCheck({
                   <MapPinIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Location Access Required
+                  {needsReVerification ? 'Location Re-verification Required' : 'Location Access Required'}
                 </h3>
               </div>
               <button
@@ -260,7 +296,10 @@ export default function GlobalLocationCheck({
 
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                DropDollar needs your location to verify compliance with gaming regulations and provide location-based features.
+                {needsReVerification 
+                  ? 'Your location verification has expired (12 hours). Please re-verify your location to continue gaming.'
+                  : 'DropDollar needs your location to verify compliance with gaming regulations and provide location-based features.'
+                }
               </p>
               
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
@@ -297,13 +336,13 @@ export default function GlobalLocationCheck({
               >
                 Not Now
               </button>
-              <button
-                onClick={requestLocationPermission}
-                disabled={isCheckingLocation}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:scale-105 disabled:scale-100"
-              >
-                {isCheckingLocation ? 'Checking...' : 'Allow Location'}
-              </button>
+                <button
+                  onClick={requestLocationPermission}
+                  disabled={isCheckingLocation}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:scale-105 disabled:scale-100"
+                >
+                  {isCheckingLocation ? 'Checking...' : needsReVerification ? 'Re-verify Location' : 'Allow Location'}
+                </button>
             </div>
           </div>
         </div>
