@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
+import GlobalLocationCheck from '@/components/GlobalLocationCheck'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body className="antialiased">
         <AuthProvider>
           {children}
+          <GlobalLocationCheck />
         </AuthProvider>
       </body>
     </html>

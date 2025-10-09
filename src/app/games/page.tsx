@@ -14,6 +14,7 @@ import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 import { useGameLocationGuard } from '@/hooks/useLocationGuard';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import { 
@@ -119,6 +120,7 @@ export default function GamesPage() {
   const entryNumber = parseInt(searchParams.get('entryNumber') || '1');
   const isCompetitionMode = !!listingId;
   const locationGuard = useGameLocationGuard();
+  const globalLocation = useGlobalLocation();
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
 
@@ -138,26 +140,20 @@ export default function GamesPage() {
 
   // Check location permission before allowing game access
   const checkLocationBeforeGame = (gameId: string) => {
-    // For practice games (non-competition), be more lenient with location checks
-    if (!isCompetitionMode) {
-      console.log('🎮 Practice mode - skipping strict location checks');
-      return true; // Allow practice games without strict location verification
-    }
-    
-    // For competition mode, enforce location checks
-    if (locationGuard.needsLocationModal()) {
+    // Use global location status for all games
+    if (globalLocation.status === 'granted') {
+      console.log('✅ Location verified via global system');
+      return true;
+    } else if (globalLocation.status === 'denied') {
+      console.log('❌ Location access denied - games restricted');
+      return false;
+    } else {
+      // Location not yet requested, show modal
+      console.log('📍 Location not verified - showing modal');
       setShowLocationModal(true);
       setPendingGameStart(gameId);
       return false;
     }
-    
-    if (!locationGuard.canAccessGames()) {
-      // Location is restricted
-      return false;
-    }
-    
-    // Location is verified and allowed, proceed with game
-    return true;
   };
 
   const handleLocationVerified = (location: LocationData) => {
