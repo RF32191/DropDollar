@@ -5,7 +5,6 @@ import React, { useState, useEffect } from 'react';
 // Force dynamic rendering to prevent build timeouts
 export const dynamic = 'force-dynamic';
 import Link from 'next/link';
-import UserMenu from '@/components/navigation/UserMenu';
 import { 
   FireIcon, 
   ClockIcon, 
@@ -294,7 +293,6 @@ export default function ListingsPage() {
 
             {/* User Actions - Always Visible */}
             <div className="flex items-center space-x-2">
-              <UserMenu variant="dark" />
               <Link href="/seller/apply" className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm">
                 Sell
               </Link>
@@ -317,10 +315,13 @@ export default function ListingsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            🛍️ Browse Listings
+          <h1 className="text-6xl font-extrabold mb-6">
+            <span className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent animate-pulse">
+              🛍️ Browse Listings
+            </span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+          <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-6"></div>
+          <p className="text-xl text-transparent bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text animate-pulse max-w-3xl mx-auto mb-8">
             Discover amazing products and compete in skill-based games to win them! 
             Each competition uses our fair gaming system.
           </p>

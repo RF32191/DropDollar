@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Navigation from '@/components/navigation/Navigation';
 import PageLayout from '@/components/layout/PageLayout';
 import GameCard from '@/components/ui/GameCard';
-import UserMenu from '@/components/navigation/UserMenu';
 import {
   MagnifyingGlassIcon,
   DevicePhoneMobileIcon,
@@ -252,8 +251,6 @@ export default function CategoriesPage() {
 
             {/* Navigation */}
             <Navigation variant="default" />
-
-            <UserMenu variant="default" />
 
             {/* Mobile menu button */}
             <div className="md:hidden">

@@ -724,7 +724,6 @@ export default function GamesPage() {
 
             {/* User Actions - Always Visible */}
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <UserMenu variant="dark" />
               <Link href="/seller/apply" className={`${deviceInfo.isMobile ? 'px-3 py-1 text-sm' : 'px-4 py-2'} bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105`}>
                 Sell
               </Link>
@@ -749,10 +748,13 @@ export default function GamesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            {isCompetitionMode ? '🏆 Competition Mode' : '🎮 Practice Gaming Arena'}
+          <h1 className="text-6xl font-extrabold mb-6">
+            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-indigo-500 bg-clip-text text-transparent animate-pulse">
+              {isCompetitionMode ? '🏆 Competition Mode' : '🎮 Practice Gaming Arena'}
+            </span>
           </h1>
-          <p className="text-lg font-bold text-green-600 mb-4 italic">
+          <div className="w-32 h-1 bg-gradient-to-r from-purple-400 to-pink-500 mx-auto rounded-full animate-pulse mb-6"></div>
+          <p className="text-2xl font-bold text-transparent bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text mb-4 italic animate-pulse">
             "Don't drop out, drop a dollar."
           </p>
           {isCompetitionMode ? (

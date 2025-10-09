@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import UserMenu from '@/components/navigation/UserMenu';
 
 const AVAILABLE_GAMES = [
   { id: 'multi-target', name: 'Multi-Target Reaction', icon: '🎯' },
@@ -84,7 +83,6 @@ export default function TournamentsPage() {
 
             {/* User Actions */}
             <div className="flex items-center space-x-4">
-              <UserMenu variant="default" />
               <Link href="/seller/apply" className="bg-gradient-to-r from-yellow-300 to-amber-400 hover:from-yellow-400 hover:to-amber-500 text-yellow-900 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg">
                 Sell
               </Link>
@@ -97,8 +95,13 @@ export default function TournamentsPage() {
         {/* Enhanced Tournament Banners (Hot Sell Style) */}
         <div className="mb-12">
           <div className="text-center mb-8">
-            <h2 className="text-4xl font-black text-yellow-600 dark:text-yellow-400 mb-4">🏆 LIVE SKILL TOURNAMENTS</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">Join high-stakes tournaments with winner tracking and weekly limits!</p>
+            <h2 className="text-6xl font-extrabold mb-6">
+              <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
+                🏆 LIVE SKILL TOURNAMENTS
+              </span>
+            </h2>
+            <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-red-500 mx-auto rounded-full animate-pulse mb-6"></div>
+            <p className="text-xl text-transparent bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text animate-pulse">Join high-stakes tournaments with winner tracking and weekly limits!</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
           {/* $500 Tournament */}
