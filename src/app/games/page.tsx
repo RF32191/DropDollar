@@ -9,6 +9,7 @@ import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
+import AdOverlay from '@/components/ads/AdOverlay';
 import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
@@ -130,6 +131,8 @@ export default function GamesPage() {
   const [totalGamesPlayed, setTotalGamesPlayed] = useState(0);
   const [showSponsoredListings, setShowSponsoredListings] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
+  const [showAd, setShowAd] = useState(false);
+  const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Check location permission before allowing game access
@@ -299,10 +302,28 @@ export default function GamesPage() {
       return; // Location check failed, modal will be shown or user is restricted
     }
 
-    // Location is verified, start game immediately
-    console.log('✅ Location verified, starting game immediately');
-    setCurrentGame(gameId);
-    setGameResults(null);
+    // For competition mode, start immediately without ads
+    if (isCompetitionMode) {
+      console.log('🏆 Competition mode - starting game immediately');
+      setCurrentGame(gameId);
+      setGameResults(null);
+      return;
+    }
+
+    // For practice mode, show ad for 10 seconds
+    console.log('🎮 Practice mode - showing ad for 10 seconds');
+    setPendingGameStart(gameId);
+    setShowAd(true);
+    
+    // Auto-hide ad after 10 seconds
+    setTimeout(() => {
+      setShowAd(false);
+      if (pendingGameStart) {
+        setCurrentGame(pendingGameStart);
+        setGameResults(null);
+        setPendingGameStart(null);
+      }
+    }, 10000);
   };
 
   // New function to start game after location verification
@@ -313,6 +334,7 @@ export default function GamesPage() {
 
   // Handle ad completion and start the pending game
   const handleAdCompleteAndStartGame = () => {
+    setShowAd(false);
     if (pendingGameStart) {
       setCurrentGame(pendingGameStart);
       setPendingGameStart(null);
@@ -322,6 +344,7 @@ export default function GamesPage() {
 
   // Handle ad skip and start the pending game
   const handleAdSkipAndStartGame = () => {
+    setShowAd(false);
     if (pendingGameStart) {
       setCurrentGame(pendingGameStart);
       setPendingGameStart(null);
@@ -1106,6 +1129,16 @@ export default function GamesPage() {
       </div>
       
       {/* Ad Overlay - Shows before practice games */}
+      {showAd && (
+        <AdOverlay
+          onAdComplete={handleAdCompleteAndStartGame}
+          onSkip={handleAdSkipAndStartGame}
+          duration={10}
+          allowSkip={true}
+          skipAfter={5}
+        />
+      )}
+
       {/* Location Permission Modal */}
       <LocationPermissionModal
         isOpen={showLocationModal}
