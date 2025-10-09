@@ -94,6 +94,38 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
     }
   };
 
+  const handleForceLogout = async () => {
+    try {
+      console.log('🚨 Force logout initiated');
+      
+      // Clear ALL localStorage and sessionStorage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear any cookies (if any)
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
+      
+      // Try to sign out from Supabase if possible
+      try {
+        const { supabase } = await import('@/lib/supabase/client');
+        await supabase.auth.signOut();
+      } catch (supabaseError) {
+        console.log('Supabase logout failed, but continuing with force logout');
+      }
+      
+      // Force page reload to clear all state
+      window.location.href = '/auth/login';
+    } catch (error) {
+      console.error('Force logout error:', error);
+      // Even if there's an error, try to clear everything and redirect
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = '/auth/login';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
@@ -186,21 +218,35 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
               Settings
             </Link>
 
-            {/* Divider */}
-            <div className="border-t border-gray-200 my-1"></div>
+                {/* Divider */}
+                <div className="border-t border-gray-200 my-1"></div>
 
-            {/* Logout */}
-            <button
-              onClick={() => {
-                console.log('Logout clicked');
-                setIsOpen(false);
-                handleLogout();
-              }}
-              className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-600 hover:text-red-800 hover:bg-red-50`}
-            >
-              <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
-              🚪 Sign Out
-            </button>
+                {/* Logout */}
+                <button
+                  onClick={() => {
+                    console.log('Logout clicked');
+                    setIsOpen(false);
+                    handleLogout();
+                  }}
+                  className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-600 hover:text-red-800 hover:bg-red-50`}
+                >
+                  <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                  🚪 Sign Out
+                </button>
+
+                {/* Force Logout */}
+                <button
+                  onClick={() => {
+                    console.log('Force logout clicked');
+                    setIsOpen(false);
+                    handleForceLogout();
+                  }}
+                  className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-800 hover:text-red-900 hover:bg-red-100 border-l-2 border-red-300`}
+                  title="Use this if you're having login issues"
+                >
+                  <ArrowRightOnRectangleIcon className="h-4 w-4 mr-3" />
+                  🚨 Force Logout
+                </button>
           </div>
         </div>
       )}

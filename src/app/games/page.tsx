@@ -150,6 +150,13 @@ export default function GamesPage() {
 
   // Check location permission before allowing game access
   const checkLocationBeforeGame = (gameId: string) => {
+    // For practice games (non-competition), be more lenient with location checks
+    if (!isCompetitionMode) {
+      console.log('🎮 Practice mode - skipping strict location checks');
+      return true; // Allow practice games without strict location verification
+    }
+    
+    // For competition mode, enforce location checks
     if (locationGuard.needsLocationModal()) {
       setShowLocationModal(true);
       setPendingGameStart(gameId);
@@ -300,6 +307,8 @@ export default function GamesPage() {
 
   const handleGameStart = (gameId: string) => {
     console.log('🎮 Game start requested:', gameId);
+    console.log('🎮 Competition mode:', isCompetitionMode);
+    console.log('🎮 User:', user?.id || 'anonymous');
     
     // First check location permission for all game modes
     if (!checkLocationBeforeGame(gameId)) {
