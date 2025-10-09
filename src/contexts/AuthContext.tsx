@@ -52,6 +52,9 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
+  disableAutoLoad: () => void;
+  enableAutoLoad: () => void;
+  forceLogout: () => Promise<void>;
   role: 'buyer' | 'seller' | 'admin';
 }
 
@@ -60,12 +63,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [autoLoadDisabled, setAutoLoadDisabled] = useState(false);
 
-  // Load user session on mount
+  // Load user session on mount - but only if auto-load is enabled
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
+        
+        // Check if auto-loading is disabled (for debugging/testing)
+        const disableAutoLoad = localStorage.getItem('disable_auto_auth_load') === 'true';
+        if (disableAutoLoad) {
+          console.log('🚫 Auto auth loading disabled by user preference');
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
         
         // Get current session from storage
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -448,6 +461,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Control auto-loading behavior
+  const disableAutoLoad = () => {
+    localStorage.setItem('disable_auto_auth_load', 'true');
+    setAutoLoadDisabled(true);
+    console.log('🚫 Auto auth loading disabled');
+  };
+
+  const enableAutoLoad = () => {
+    localStorage.removeItem('disable_auto_auth_load');
+    setAutoLoadDisabled(false);
+    console.log('✅ Auto auth loading enabled');
+  };
+
+  // Force logout - clears everything
+  const forceLogout = async (): Promise<void> => {
+    try {
+      console.log('🚨 Force logout initiated');
+      
+      // Clear ALL localStorage and sessionStorage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear any cookies (if any)
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
+      
+      // Try to sign out from Supabase if possible
+      try {
+        await supabase.auth.signOut();
+      } catch (supabaseError) {
+        console.log('Supabase logout failed, but continuing with force logout');
+      }
+      
+      // Clear user state
+      setUser(null);
+      
+      // Force page reload to clear all state
+      window.location.href = '/auth/login';
+    } catch (error) {
+      console.error('Force logout error:', error);
+      // Even if there's an error, try to clear everything and redirect
+      localStorage.clear();
+      sessionStorage.clear();
+      setUser(null);
+      window.location.href = '/auth/login';
+    }
+  };
+
   // OAuth Login Methods
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -503,6 +565,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updatePassword,
     updateProfile,
     refreshUser,
+    disableAutoLoad,
+    enableAutoLoad,
+    forceLogout,
     role: user?.role || 'buyer'
   };
 

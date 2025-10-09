@@ -11,7 +11,7 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ className = '', variant = 'default' }: UserMenuProps) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout, forceLogout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -71,58 +71,9 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
 
   const handleLogout = async () => {
     try {
-      // Import supabase client dynamically to avoid build issues
-      const { supabase } = await import('@/lib/supabase/client');
-      
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Logout error:', error);
-      }
-      
-      // Clear any cached data
-      localStorage.removeItem('user_location_data');
-      localStorage.removeItem('location_permission_granted');
-      
-      // Redirect to login page
-      window.location.href = '/auth/login';
+      await logout();
     } catch (error) {
       console.error('Logout error:', error);
-      // Fallback: just redirect to login page
-      window.location.href = '/auth/login';
-    }
-  };
-
-  const handleForceLogout = async () => {
-    try {
-      console.log('🚨 Force logout initiated');
-      
-      // Clear ALL localStorage and sessionStorage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Clear any cookies (if any)
-      document.cookie.split(";").forEach(function(c) { 
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-      });
-      
-      // Try to sign out from Supabase if possible
-      try {
-        const { supabase } = await import('@/lib/supabase/client');
-        await supabase.auth.signOut();
-      } catch (supabaseError) {
-        console.log('Supabase logout failed, but continuing with force logout');
-      }
-      
-      // Force page reload to clear all state
-      window.location.href = '/auth/login';
-    } catch (error) {
-      console.error('Force logout error:', error);
-      // Even if there's an error, try to clear everything and redirect
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.href = '/auth/login';
     }
   };
 
@@ -239,7 +190,7 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
                   onClick={() => {
                     console.log('Force logout clicked');
                     setIsOpen(false);
-                    handleForceLogout();
+                    forceLogout();
                   }}
                   className={`flex items-center w-full px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold text-red-800 hover:text-red-900 hover:bg-red-100 border-l-2 border-red-300`}
                   title="Use this if you're having login issues"

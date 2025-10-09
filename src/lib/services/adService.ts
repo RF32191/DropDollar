@@ -40,11 +40,11 @@ export class AdService {
   private static config: AdConfig = {
     enabled: true,
     practiceGameAds: {
-      enabled: false, // Disabled for practice games to prevent blocking
+      enabled: true,
       duration: 10,
       allowSkip: true,
       skipAfter: 3,
-      frequency: 'every_5_games' // Changed to less frequent
+      frequency: 'every_game' // Reverted to original
     },
     bannerAds: {
       enabled: true,
