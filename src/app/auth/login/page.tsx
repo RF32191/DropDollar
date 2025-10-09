@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { login, loginWithGoogle, loginWithGitHub } = useAuth();
+  const { login, loginWithGoogle, loginWithGitHub, forceLogout } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,6 +170,23 @@ export default function LoginPage() {
                   <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded-lg font-mono text-xs">password</code>
                 </p>
               </div>
+            </div>
+
+            {/* Force Logout Section */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-2 border-red-200 dark:border-red-700 rounded-2xl">
+              <h3 className="text-sm font-bold text-red-800 dark:text-red-200 mb-3 flex items-center">
+                🚨 Having Login Issues?
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                If you're stuck in an authentication loop or can't logout, use this button to force clear everything:
+              </p>
+              <button
+                type="button"
+                onClick={forceLogout}
+                className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors shadow-lg hover:shadow-xl"
+              >
+                🚨 Force Logout & Clear Everything
+              </button>
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
