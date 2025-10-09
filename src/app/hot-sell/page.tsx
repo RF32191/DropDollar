@@ -12,7 +12,8 @@ import {
   ChartBarIcon,
   BoltIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import TournamentPaymentService from '@/lib/tournamentPayments';
 import GameEntryFlow from '@/components/games/GameEntryFlow';
@@ -20,10 +21,12 @@ import ViewResultsButton from '@/components/games/ViewResultsButton';
 import PaymentModal from '@/components/payments/PaymentModal';
 import { usePayment } from '@/hooks/usePayment';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 
 export default function HotSellPage() {
   const { user } = useAuth();
   const { getPaymentAmounts } = usePayment();
+  const globalLocation = useGlobalLocation();
   const [isProcessingEntry, setIsProcessingEntry] = useState(false);
   const [entryResult, setEntryResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedDollars, setSelectedDollars] = useState<{ [key: string]: number }>({});
@@ -45,6 +48,36 @@ export default function HotSellPage() {
   } | null>(null);
   
   const paymentAmounts = getPaymentAmounts();
+  
+  // Check if gaming is allowed in the user's state
+  const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
+    const stateLower = state.toLowerCase();
+    
+    // States where skill-based gaming is generally allowed
+    const allowedStates = [
+      'california', 'texas', 'florida', 'new york', 'illinois', 'pennsylvania',
+      'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia',
+      'washington', 'arizona', 'massachusetts', 'tennessee', 'indiana', 'missouri',
+      'maryland', 'wisconsin', 'colorado', 'minnesota', 'south carolina', 'alabama',
+      'louisiana', 'kentucky', 'oregon', 'oklahoma', 'connecticut', 'utah',
+      'iowa', 'nevada', 'arkansas', 'mississippi', 'kansas', 'new mexico',
+      'nebraska', 'west virginia', 'idaho', 'hawaii', 'new hampshire', 'maine',
+      'montana', 'rhode island', 'delaware', 'south dakota', 'north dakota',
+      'alaska', 'vermont', 'wyoming'
+    ];
+
+    if (allowedStates.includes(stateLower)) {
+      return {
+        allowed: true,
+        message: `✅ Gaming allowed in ${state}! You can participate in skill-based competitions.`
+      };
+    } else {
+      return {
+        allowed: false,
+        message: `⚠️ Gaming restrictions may apply in ${state}. Please check local regulations.`
+      };
+    }
+  };
   
   // Mock token price for display
   const tokenPrice = 2.45; // $2.45 per token
@@ -257,6 +290,38 @@ export default function HotSellPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Location Verification Status */}
+      {globalLocation.status === 'granted' && globalLocation.data && (
+        <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShieldCheckIcon className="h-5 w-5 text-green-600" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-green-800 dark:text-green-300 font-medium">
+                    Location verified: {globalLocation.data.city}, {globalLocation.data.state}
+                  </span>
+                  <span className="text-xs text-green-700 dark:text-green-400">
+                    {isGamingAllowed(globalLocation.data.state).message}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  // Clear cached location to force re-check
+                  localStorage.removeItem('userLocation');
+                  localStorage.removeItem('locationPermission');
+                  window.location.reload();
+                }}
+                className="text-xs text-green-600 hover:text-green-800 underline"
+              >
+                Update Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FIRE-THEMED Header */}
       <header className="bg-gradient-to-r from-red-900 via-orange-800 to-red-900 dark:from-red-950 dark:via-orange-900 dark:to-red-950 shadow-2xl border-b-4 border-orange-500/50 transition-all duration-300 relative overflow-hidden">
         {/* Animated Fire Background */}

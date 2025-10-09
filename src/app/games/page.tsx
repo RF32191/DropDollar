@@ -138,6 +138,36 @@ export default function GamesPage() {
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
+  // Check if gaming is allowed in the user's state
+  const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
+    const stateLower = state.toLowerCase();
+    
+    // States where skill-based gaming is generally allowed
+    const allowedStates = [
+      'california', 'texas', 'florida', 'new york', 'illinois', 'pennsylvania',
+      'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia',
+      'washington', 'arizona', 'massachusetts', 'tennessee', 'indiana', 'missouri',
+      'maryland', 'wisconsin', 'colorado', 'minnesota', 'south carolina', 'alabama',
+      'louisiana', 'kentucky', 'oregon', 'oklahoma', 'connecticut', 'utah',
+      'iowa', 'nevada', 'arkansas', 'mississippi', 'kansas', 'new mexico',
+      'nebraska', 'west virginia', 'idaho', 'hawaii', 'new hampshire', 'maine',
+      'montana', 'rhode island', 'delaware', 'south dakota', 'north dakota',
+      'alaska', 'vermont', 'wyoming'
+    ];
+
+    if (allowedStates.includes(stateLower)) {
+      return {
+        allowed: true,
+        message: `✅ Gaming allowed in ${state}! You can participate in skill-based competitions.`
+      };
+    } else {
+      return {
+        allowed: false,
+        message: `⚠️ Gaming restrictions may apply in ${state}. Please check local regulations.`
+      };
+    }
+  };
+
   // Check location permission before allowing game access
   const checkLocationBeforeGame = (gameId: string) => {
     // Use global location status for all games
@@ -617,18 +647,28 @@ export default function GamesPage() {
       )}
 
       {/* Location Verification Status */}
-      {locationGuard.hasChecked && locationGuard.location && locationGuard.canAccessGames() && (
+      {globalLocation.status === 'granted' && globalLocation.data && (
         <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <ShieldCheckIcon className="h-5 w-5 text-green-600" />
-                <span className="text-sm text-green-800 dark:text-green-300 font-medium">
-                  Location verified: {locationGuard.getComplianceMessage()}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-sm text-green-800 dark:text-green-300 font-medium">
+                    Location verified: {globalLocation.data.city}, {globalLocation.data.state}
+                  </span>
+                  <span className="text-xs text-green-700 dark:text-green-400">
+                    {isGamingAllowed(globalLocation.data.state).message}
+                  </span>
+                </div>
               </div>
               <button
-                onClick={() => locationGuard.clearLocation()}
+                onClick={() => {
+                  // Clear cached location to force re-check
+                  localStorage.removeItem('userLocation');
+                  localStorage.removeItem('locationPermission');
+                  window.location.reload();
+                }}
                 className="text-xs text-green-600 hover:text-green-800 underline"
               >
                 Update Location

@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 const AVAILABLE_GAMES = [
   { id: 'multi-target', name: 'Multi-Target Reaction', icon: '🎯' },
@@ -21,6 +23,37 @@ export default function TournamentsPage() {
     '$25': 'multi-target'
   });
   const { user, isLoading } = useAuth();
+  const globalLocation = useGlobalLocation();
+
+  // Check if gaming is allowed in the user's state
+  const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
+    const stateLower = state.toLowerCase();
+    
+    // States where skill-based gaming is generally allowed
+    const allowedStates = [
+      'california', 'texas', 'florida', 'new york', 'illinois', 'pennsylvania',
+      'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia',
+      'washington', 'arizona', 'massachusetts', 'tennessee', 'indiana', 'missouri',
+      'maryland', 'wisconsin', 'colorado', 'minnesota', 'south carolina', 'alabama',
+      'louisiana', 'kentucky', 'oregon', 'oklahoma', 'connecticut', 'utah',
+      'iowa', 'nevada', 'arkansas', 'mississippi', 'kansas', 'new mexico',
+      'nebraska', 'west virginia', 'idaho', 'hawaii', 'new hampshire', 'maine',
+      'montana', 'rhode island', 'delaware', 'south dakota', 'north dakota',
+      'alaska', 'vermont', 'wyoming'
+    ];
+
+    if (allowedStates.includes(stateLower)) {
+      return {
+        allowed: true,
+        message: `✅ Gaming allowed in ${state}! You can participate in skill-based competitions.`
+      };
+    } else {
+      return {
+        allowed: false,
+        message: `⚠️ Gaming restrictions may apply in ${state}. Please check local regulations.`
+      };
+    }
+  };
 
   const handleGameChange = (matchType: string, gameId: string) => {
     setSelectedGames(prev => ({
@@ -40,6 +73,38 @@ export default function TournamentsPage() {
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Location Verification Status */}
+      {globalLocation.status === 'granted' && globalLocation.data && (
+        <div className="bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <ShieldCheckIcon className="h-5 w-5 text-green-600" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-green-800 dark:text-green-300 font-medium">
+                    Location verified: {globalLocation.data.city}, {globalLocation.data.state}
+                  </span>
+                  <span className="text-xs text-green-700 dark:text-green-400">
+                    {isGamingAllowed(globalLocation.data.state).message}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  // Clear cached location to force re-check
+                  localStorage.removeItem('userLocation');
+                  localStorage.removeItem('locationPermission');
+                  window.location.reload();
+                }}
+                className="text-xs text-green-600 hover:text-green-800 underline"
+              >
+                Update Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* GOLD TOURNAMENTS Header */}
       <header className="bg-gradient-to-r from-yellow-600 via-yellow-700 to-amber-800 shadow-2xl border-b-4 border-yellow-500">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2">

@@ -25,6 +25,36 @@ export default function GlobalLocationCheck({
     country: string;
   } | null>(null);
 
+  // Check if gaming is allowed in the user's state
+  const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
+    const stateLower = state.toLowerCase();
+    
+    // States where skill-based gaming is generally allowed
+    const allowedStates = [
+      'california', 'texas', 'florida', 'new york', 'illinois', 'pennsylvania',
+      'ohio', 'georgia', 'north carolina', 'michigan', 'new jersey', 'virginia',
+      'washington', 'arizona', 'massachusetts', 'tennessee', 'indiana', 'missouri',
+      'maryland', 'wisconsin', 'colorado', 'minnesota', 'south carolina', 'alabama',
+      'louisiana', 'kentucky', 'oregon', 'oklahoma', 'connecticut', 'utah',
+      'iowa', 'nevada', 'arkansas', 'mississippi', 'kansas', 'new mexico',
+      'nebraska', 'west virginia', 'idaho', 'hawaii', 'new hampshire', 'maine',
+      'montana', 'rhode island', 'delaware', 'south dakota', 'north dakota',
+      'alaska', 'vermont', 'wyoming'
+    ];
+
+    if (allowedStates.includes(stateLower)) {
+      return {
+        allowed: true,
+        message: `✅ Gaming allowed in ${state}! You can participate in skill-based competitions.`
+      };
+    } else {
+      return {
+        allowed: false,
+        message: `⚠️ Gaming restrictions may apply in ${state}. Please check local regulations.`
+      };
+    }
+  };
+
   // Check if location permission is already granted
   useEffect(() => {
     const checkExistingPermission = async () => {
@@ -239,9 +269,14 @@ export default function GlobalLocationCheck({
       {locationStatus === 'granted' && locationData && (
         <div className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
           <ShieldCheckIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">
-            Location verified: {locationData.city}, {locationData.state}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">
+              Location: {locationData.city}, {locationData.state}
+            </span>
+            <span className="text-xs opacity-90">
+              {isGamingAllowed(locationData.state).message}
+            </span>
+          </div>
         </div>
       )}
     </div>
