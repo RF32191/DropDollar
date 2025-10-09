@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description: 'Professional gaming marketplace with secure authentication and session management',
 }
 
+// Force dynamic rendering to prevent build timeouts
+export const dynamic = 'force-dynamic'
+
 export default function RootLayout({
   children,
 }: {

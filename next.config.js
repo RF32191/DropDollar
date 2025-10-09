@@ -14,6 +14,10 @@ const nextConfig = {
     // Skip ESLint during build for now
     ignoreDuringBuilds: true,
   },
+  // Disable static optimization completely
+  output: 'export',
+  distDir: 'out',
+  trailingSlash: true,
 }
 
 module.exports = nextConfig

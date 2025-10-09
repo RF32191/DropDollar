@@ -1,9 +1,18 @@
 import Stripe from 'stripe';
 
-// Initialize Stripe with your secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20',
-});
+// Initialize Stripe with your secret key - only if available
+let stripe: Stripe | null = null;
+
+if (process.env.STRIPE_SECRET_KEY) {
+  try {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-06-20',
+    });
+  } catch (error) {
+    console.warn('Failed to initialize Stripe:', error);
+    stripe = null;
+  }
+}
 
 export interface PaymentIntent {
   id: string;
@@ -33,6 +42,10 @@ export class StripePaymentService {
     currency: string = 'usd',
     metadata: PaymentMetadata
   ): Promise<PaymentIntent> {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       const paymentIntent = await stripe.paymentIntents.create({
         amount,
@@ -68,6 +81,10 @@ export class StripePaymentService {
    * Confirm a payment intent
    */
   static async confirmPaymentIntent(paymentIntentId: string): Promise<PaymentIntent> {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
       
@@ -92,6 +109,10 @@ export class StripePaymentService {
     amount?: number, // Optional partial refund amount in cents
     reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer'
   ): Promise<Stripe.Refund> {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       const refund = await stripe.refunds.create({
         payment_intent: paymentIntentId,
@@ -113,6 +134,10 @@ export class StripePaymentService {
     amount: number, // Amount in cents
     currency: string = 'usd'
   ): Promise<Stripe.Transfer> {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       const transfer = await stripe.transfers.create({
         amount,
@@ -130,6 +155,10 @@ export class StripePaymentService {
    * Get payment methods for a customer
    */
   static async getPaymentMethods(customerId: string): Promise<Stripe.PaymentMethod[]> {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       const paymentMethods = await stripe.paymentMethods.list({
         customer: customerId,
@@ -150,6 +179,10 @@ export class StripePaymentService {
     email: string,
     name?: string
   ): Promise<Stripe.Customer> {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       // First, try to find existing customer by metadata
       const existingCustomers = await stripe.customers.list({
@@ -184,6 +217,10 @@ export class StripePaymentService {
     signature: string,
     secret: string
   ): Stripe.Event {
+    if (!stripe) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
+    }
+    
     try {
       return stripe.webhooks.constructEvent(payload, signature, secret);
     } catch (error: any) {

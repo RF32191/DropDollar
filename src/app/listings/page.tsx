@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+
+// Force dynamic rendering to prevent build timeouts
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import UserMenu from '@/components/navigation/UserMenu';
 import { 

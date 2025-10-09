@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+
+// Force dynamic rendering to prevent build timeouts
+export const dynamic = 'force-dynamic';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import PageLayout from '@/components/layout/PageLayout';
