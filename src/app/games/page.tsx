@@ -133,6 +133,7 @@ export default function GamesPage() {
   const [isLoadingScores, setIsLoadingScores] = useState(false);
   const [showAd, setShowAd] = useState(false);
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
+  const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Check location permission before allowing game access
@@ -292,6 +293,15 @@ export default function GamesPage() {
     setShowSponsoredListings(totalPlayed >= 3);
   }, []);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (adTimeoutId) {
+        clearTimeout(adTimeoutId);
+      }
+    };
+  }, [adTimeoutId]);
+
   const handleGameStart = (gameId: string) => {
     console.log('🎮 Game start requested:', gameId);
     console.log('🎮 Competition mode:', isCompetitionMode);
@@ -316,14 +326,13 @@ export default function GamesPage() {
     setShowAd(true);
     
     // Auto-hide ad after 10 seconds
-    setTimeout(() => {
-      setShowAd(false);
-      if (pendingGameStart) {
-        setCurrentGame(pendingGameStart);
-        setGameResults(null);
-        setPendingGameStart(null);
-      }
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Ad timeout reached, starting game');
+      // Use the gameId directly instead of pendingGameStart to avoid stale closure
+      startGameAfterAd(gameId);
     }, 10000);
+    
+    setAdTimeoutId(timeoutId);
   };
 
   // New function to start game after location verification
@@ -332,23 +341,38 @@ export default function GamesPage() {
     setGameResults(null);
   };
 
+  // Unified function to start game after ad completion
+  const startGameAfterAd = (gameId: string) => {
+    console.log('🎮 Starting game after ad completion:', gameId);
+    
+    // Clear any existing timeout
+    if (adTimeoutId) {
+      clearTimeout(adTimeoutId);
+      setAdTimeoutId(null);
+    }
+    
+    // Hide ad and start game
+    setShowAd(false);
+    setPendingGameStart(null);
+    setCurrentGame(gameId);
+    setGameResults(null);
+    
+    console.log('✅ Game started successfully after ad');
+  };
+
   // Handle ad completion and start the pending game
   const handleAdCompleteAndStartGame = () => {
-    setShowAd(false);
+    console.log('📺 Ad completed, starting game');
     if (pendingGameStart) {
-      setCurrentGame(pendingGameStart);
-      setPendingGameStart(null);
-      setGameResults(null);
+      startGameAfterAd(pendingGameStart);
     }
   };
 
   // Handle ad skip and start the pending game
   const handleAdSkipAndStartGame = () => {
-    setShowAd(false);
+    console.log('⏭️ Ad skipped, starting game');
     if (pendingGameStart) {
-      setCurrentGame(pendingGameStart);
-      setPendingGameStart(null);
-      setGameResults(null);
+      startGameAfterAd(pendingGameStart);
     }
   };
 
