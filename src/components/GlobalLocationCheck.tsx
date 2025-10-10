@@ -22,6 +22,16 @@ export default function GlobalLocationCheck({
   const [confirmationType, setConfirmationType] = useState<'success' | 'denied' | null>(null);
   const [confirmationMessage, setConfirmationMessage] = useState('');
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 GlobalLocationCheck - Status changed:', {
+      status: globalLocation.status,
+      data: globalLocation.data,
+      isLoading: globalLocation.isLoading,
+      isGamingAllowed: globalLocation.isGamingAllowed
+    });
+  }, [globalLocation.status, globalLocation.data, globalLocation.isLoading, globalLocation.isGamingAllowed]);
+
   // Update body class when location banner is shown
   useEffect(() => {
     if (globalLocation.status === 'granted' && globalLocation.data) {

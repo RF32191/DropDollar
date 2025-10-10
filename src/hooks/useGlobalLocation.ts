@@ -51,7 +51,9 @@ export function useGlobalLocation(): LocationStatus {
 
   // Request location permission and get coordinates
   const requestLocation = () => {
+    console.log('🌍 requestLocation called');
     if (!('geolocation' in navigator)) {
+      console.log('❌ Geolocation not available');
       setStatus(prev => ({
         ...prev,
         status: 'unavailable',
@@ -60,16 +62,20 @@ export function useGlobalLocation(): LocationStatus {
       return;
     }
 
+    console.log('📍 Starting location request...');
     setStatus(prev => ({ ...prev, isLoading: true }));
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
+          console.log('📍 Location received:', position.coords);
           // Get location data using reverse geocoding
           const response = await fetch(
             `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
           );
           const data = await response.json();
+          
+          console.log('🌍 Reverse geocoding data:', data);
           
           const locationData: LocationData = {
             latitude: position.coords.latitude,
@@ -80,6 +86,7 @@ export function useGlobalLocation(): LocationStatus {
           };
 
           const isAllowed = checkGamingAllowed(locationData.state);
+          console.log('🎮 Gaming allowed:', isAllowed, 'for state:', locationData.state);
           
           // Cache location data for 4 hours
           const cacheData = {
