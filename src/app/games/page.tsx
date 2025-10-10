@@ -171,13 +171,9 @@ export default function GamesPage() {
     console.log('🔍 Global location data:', globalLocation.data);
     console.log('🔍 Global location loading:', globalLocation.isLoading);
     
-    // Use global location status - if granted, allow all games
+    // STRICT LOCATION VERIFICATION - Only allow games if location is explicitly granted
     if (globalLocation.status === 'granted') {
       console.log('✅ Location verified - allowing game:', gameId);
-      return true;
-    } else if (globalLocation.status === 'unknown' && !globalLocation.isLoading) {
-      // If location is unknown and not loading, allow games (user can verify later)
-      console.log('⚠️ Location unknown but allowing game:', gameId);
       return true;
     } else {
       console.log('❌ Location not verified - blocking game:', gameId, 'Status:', globalLocation.status);
@@ -929,12 +925,27 @@ export default function GamesPage() {
                 </div>
                 
                 {/* Play Button */}
-                <button 
-                  onClick={() => handleGameStart(game.id)}
-                  className="w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg transform bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-                >
-                  🎮 Practice Game
-                </button>
+                {globalLocation.status === 'granted' ? (
+                  <button 
+                    onClick={() => handleGameStart(game.id)}
+                    className="w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg transform bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                  >
+                    🎮 Practice Game
+                  </button>
+                ) : (
+                  <div className="w-full py-3 px-4 rounded-xl bg-gray-700 border border-gray-600 text-center">
+                    <div className="text-gray-400 text-sm mb-2">
+                      <MapPinIcon className="h-5 w-5 inline mr-2" />
+                      Location Required
+                    </div>
+                    <button 
+                      onClick={() => globalLocation.requestLocation()}
+                      className="text-blue-400 hover:text-blue-300 font-medium text-sm"
+                    >
+                      Enable Location to Play
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

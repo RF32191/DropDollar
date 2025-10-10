@@ -18,10 +18,10 @@ import {
 import TournamentPaymentService from '@/lib/tournamentPayments';
 import GameEntryFlow from '@/components/games/GameEntryFlow';
 import ViewResultsButton from '@/components/games/ViewResultsButton';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import PaymentModal from '@/components/payments/PaymentModal';
 import { usePayment } from '@/hooks/usePayment';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 
 export default function HotSellPage() {
   const { user } = useAuth();
@@ -656,19 +656,34 @@ export default function HotSellPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <button
-                      onClick={() => handleTournamentEntry(tournament.id)}
-                      disabled={isProcessingEntry || (availableSlots === 0 && availableSlots !== Infinity)}
-                      className={`w-full font-bold py-3 rounded-lg transition-colors ${
-                        isProcessingEntry || (availableSlots === 0 && availableSlots !== Infinity)
-                          ? 'bg-gray-400 cursor-not-allowed text-white'
-                          : `bg-${tournament.color}-600 hover:bg-${tournament.color}-700 text-white`
-                      }`}
-                    >
-                      {isProcessingEntry ? '⏳ Processing...' : 
-                       (availableSlots === 0 && availableSlots !== Infinity) ? '🚫 No Slots Available' :
-                       `🪙 Enter with $${dollarsToUse} worth of tokens`}
-                    </button>
+                    {globalLocation.status === 'granted' ? (
+                      <button
+                        onClick={() => handleTournamentEntry(tournament.id)}
+                        disabled={isProcessingEntry || (availableSlots === 0 && availableSlots !== Infinity)}
+                        className={`w-full font-bold py-3 rounded-lg transition-colors ${
+                          isProcessingEntry || (availableSlots === 0 && availableSlots !== Infinity)
+                            ? 'bg-gray-400 cursor-not-allowed text-white'
+                            : `bg-${tournament.color}-600 hover:bg-${tournament.color}-700 text-white`
+                        }`}
+                      >
+                        {isProcessingEntry ? '⏳ Processing...' : 
+                         (availableSlots === 0 && availableSlots !== Infinity) ? '🚫 No Slots Available' :
+                         `🪙 Enter with $${dollarsToUse} worth of tokens`}
+                      </button>
+                    ) : (
+                      <div className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center">
+                        <div className="text-gray-400 text-sm mb-2">
+                          <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                          Location Verification Required
+                        </div>
+                        <button 
+                          onClick={() => globalLocation.requestLocation()}
+                          className="text-blue-400 hover:text-blue-300 font-medium text-sm"
+                        >
+                          Enable Location to Enter Tournament
+                        </button>
+                      </div>
+                    )}
 
                     {/* View Results Button */}
                     <ViewResultsButton

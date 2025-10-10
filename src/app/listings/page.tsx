@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 // Force dynamic rendering to prevent build timeouts
 export const dynamic = 'force-dynamic';
 import Link from 'next/link';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { 
   FireIcon, 
   ClockIcon, 
@@ -46,6 +47,7 @@ export default function ListingsPage() {
   const [totalListings, setTotalListings] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price_low' | 'price_high' | 'popular'>('newest');
+  const globalLocation = useGlobalLocation();
   const LISTINGS_PER_PAGE = 12;
 
   // Example listings for each category
@@ -532,13 +534,28 @@ export default function ListingsPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        <Link
-                          href={`/listings/${listing.id}`}
-                          className="block w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-xl text-center transition-all transform hover:scale-105"
-                        >
-                          <TrophyIcon className="h-5 w-5 inline mr-2" />
-                          Enter Competition
-                        </Link>
+                        {globalLocation.status === 'granted' ? (
+                          <Link
+                            href={`/listings/${listing.id}`}
+                            className="block w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-xl text-center transition-all transform hover:scale-105"
+                          >
+                            <TrophyIcon className="h-5 w-5 inline mr-2" />
+                            Enter Competition
+                          </Link>
+                        ) : (
+                          <div className="w-full py-3 px-4 rounded-xl bg-gray-700 border border-gray-600 text-center">
+                            <div className="text-gray-400 text-sm mb-2">
+                              <TrophyIcon className="h-5 w-5 inline mr-2" />
+                              Location Verification Required
+                            </div>
+                            <button 
+                              onClick={() => globalLocation.requestLocation()}
+                              className="text-green-400 hover:text-green-300 font-medium text-sm"
+                            >
+                              Enable Location to Enter Competition
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
