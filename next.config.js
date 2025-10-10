@@ -14,11 +14,7 @@ const nextConfig = {
     // Skip ESLint during build for now
     ignoreDuringBuilds: true,
   },
-  // Disable static optimization completely
-  experimental: {
-    staticPageGenerationTimeout: 1,
-  },
-  // Force all pages to be dynamic
+  // Force all pages to be dynamic to prevent build timeouts
   output: 'standalone',
 }
 
