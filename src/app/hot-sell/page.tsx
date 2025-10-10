@@ -701,7 +701,7 @@ export default function HotSellPage() {
                           onClick={() => globalLocation.requestLocation()}
                           className="text-blue-400 hover:text-blue-300 font-medium text-sm"
                         >
-                          Enable Location to Enter Tournament
+                          Enable Location to Enter Competition
                         </button>
                       </div>
                     )}
