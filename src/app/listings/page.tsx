@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { 
   FireIcon, 
   ClockIcon, 
@@ -48,6 +49,16 @@ export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price_low' | 'price_high' | 'popular'>('newest');
   const globalLocation = useGlobalLocation();
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Listings page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
   const LISTINGS_PER_PAGE = 12;
 
   // Example listings for each category

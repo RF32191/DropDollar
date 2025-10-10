@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 const AVAILABLE_GAMES = [
@@ -24,6 +25,16 @@ export default function TournamentsPage() {
   });
   const { user, isLoading } = useAuth();
   const globalLocation = useGlobalLocation();
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Tournaments page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
 
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {

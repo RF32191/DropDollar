@@ -13,6 +13,7 @@ import AdOverlay from '@/components/ads/AdOverlay';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import { 
@@ -120,6 +121,16 @@ export default function GamesPage() {
   const globalLocation = useGlobalLocation();
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Games page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
 
   const [currentGame, setCurrentGame] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<GameResult | null>(null);

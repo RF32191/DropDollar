@@ -19,6 +19,7 @@ import TournamentPaymentService from '@/lib/tournamentPayments';
 import GameEntryFlow from '@/components/games/GameEntryFlow';
 import ViewResultsButton from '@/components/games/ViewResultsButton';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import PaymentModal from '@/components/payments/PaymentModal';
 import { usePayment } from '@/hooks/usePayment';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +28,16 @@ export default function HotSellPage() {
   const { user } = useAuth();
   const { getPaymentAmounts } = usePayment();
   const globalLocation = useGlobalLocation();
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Hot-sell page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
   const [isProcessingEntry, setIsProcessingEntry] = useState(false);
   const [entryResult, setEntryResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedDollars, setSelectedDollars] = useState<{ [key: string]: number }>({});
