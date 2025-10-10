@@ -2,6 +2,6 @@
 
 import ProfessionalTokenWallet from '@/components/ProfessionalTokenWallet';
 
-export default function BuyTokensPage() {
+export default function TokenWalletPage() {
   return <ProfessionalTokenWallet />;
 }
