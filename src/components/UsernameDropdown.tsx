@@ -21,10 +21,15 @@ export default function UsernameDropdown() {
   useEffect(() => {
     const getUserInfo = () => {
       try {
+        console.log('🔍 UsernameDropdown: Checking for user data...');
+        
         // Try to get user info from localStorage
         const userData = localStorage.getItem('user');
+        console.log('🔍 UsernameDropdown: User data from localStorage:', userData);
+        
         if (userData) {
           const parsedUser = JSON.parse(userData);
+          console.log('🔍 UsernameDropdown: Parsed user:', parsedUser);
           setUser({
             username: parsedUser.username || parsedUser.firstName || 'User',
             firstName: parsedUser.firstName || 'User',
@@ -33,20 +38,39 @@ export default function UsernameDropdown() {
         } else {
           // Check if there's a simple login session
           const isLoggedIn = localStorage.getItem('isLoggedIn');
+          console.log('🔍 UsernameDropdown: isLoggedIn flag:', isLoggedIn);
+          
           if (isLoggedIn === 'true') {
+            console.log('🔍 UsernameDropdown: Setting user from isLoggedIn flag');
             setUser({
               username: 'User',
               firstName: 'User',
               lastName: ''
             });
+          } else {
+            console.log('🔍 UsernameDropdown: No user data found');
           }
         }
       } catch (error) {
-        console.log('No user data found');
+        console.log('🔍 UsernameDropdown: Error getting user data:', error);
       }
     };
 
     getUserInfo();
+    
+    // Also listen for storage changes (in case user logs in on another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' || e.key === 'isLoggedIn') {
+        console.log('🔍 UsernameDropdown: Storage changed, rechecking user data');
+        getUserInfo();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Close dropdown when clicking outside
