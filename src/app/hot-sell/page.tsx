@@ -695,13 +695,13 @@ export default function HotSellPage() {
                     ) : (
                       <button
                         onClick={() => globalLocation.requestLocation()}
-                        className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-colors"
+                        className={`w-full font-bold py-3 rounded-lg transition-colors bg-${tournament.color}-600 hover:bg-${tournament.color}-700 text-white`}
                       >
-                        <div className="text-gray-400 text-sm mb-2">
+                        <div className="text-white text-sm mb-1">
                           <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
                           Location Verification Required
                         </div>
-                        <div className="text-blue-400 hover:text-blue-300 font-medium text-sm">
+                        <div className="text-white font-medium text-sm">
                           Enable Location to Enter Competition
                         </div>
                       </button>
