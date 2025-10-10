@@ -60,20 +60,16 @@ export default function GlobalLocationCheck({
     onLocationDenied?.();
   };
 
-  // Don't show anything if location is already granted
-  if (globalLocation.status === 'granted') {
-    return null;
-  }
-
-  // Don't show if unavailable
+  // Don't show anything if unavailable
   if (globalLocation.status === 'unavailable') {
     return null;
   }
 
-  return (
-    <div className={`fixed top-0 left-0 right-0 z-50 ${className}`}>
-      {/* Top Location Confirmation Banner */}
-      {globalLocation.status === 'granted' && globalLocation.data && (
+  // Show banner when location is granted and we have data
+  if (globalLocation.status === 'granted' && globalLocation.data) {
+    return (
+      <div className={`fixed top-0 left-0 right-0 z-50 ${className}`}>
+        {/* Top Location Confirmation Banner */}
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg border-b-2 border-green-500">
           <div className="max-w-7xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
@@ -110,8 +106,12 @@ export default function GlobalLocationCheck({
             </div>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
+  return (
+    <div className={`fixed top-0 left-0 right-0 z-50 ${className}`}>
       {/* Location Request Button - Only show when not granted */}
       {globalLocation.status !== 'granted' && (
         <div className="fixed top-4 right-4 z-50">
@@ -208,7 +208,6 @@ export default function GlobalLocationCheck({
           </div>
         </div>
       )}
-
     </div>
   );
 }

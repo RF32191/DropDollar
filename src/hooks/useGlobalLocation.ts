@@ -169,14 +169,17 @@ export function useGlobalLocation(): LocationStatus {
             }
           }
           
-          // No valid cache, but permission is granted
+          // No valid cache, but permission is granted - try to get location
           setStatus({
             status: 'granted',
             data: null,
-            isLoading: false,
+            isLoading: true,
             isGamingAllowed: false,
             requestLocation
           });
+          
+          // Automatically request location if permission is granted but no cache
+          requestLocation();
         } else if (permission.state === 'denied') {
           setStatus({
             status: 'denied',
