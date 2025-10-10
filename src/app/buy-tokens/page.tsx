@@ -86,17 +86,44 @@ function CheckoutForm({ selectedPackage, onSuccess, onError }: {
 
     try {
       // Get current user info
-      let userData = localStorage.getItem('user');
-      if (!userData) {
-        const cookies = document.cookie.split(';');
-        const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
-        if (userCookie) {
-          const cookieValue = userCookie.split('=')[1];
-          userData = decodeURIComponent(cookieValue);
+      const getUserInfo = () => {
+        try {
+          // First check if user is logged in
+          const isLoggedIn = localStorage.getItem('isLoggedIn');
+          if (isLoggedIn === 'true') {
+            let userData = localStorage.getItem('user');
+            
+            // If not in localStorage, try to get from cookies
+            if (!userData) {
+              const cookies = document.cookie.split(';');
+              const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
+              if (userCookie) {
+                const cookieValue = userCookie.split('=')[1];
+                userData = decodeURIComponent(cookieValue);
+              }
+            }
+            
+            if (userData) {
+              return JSON.parse(userData);
+            } else {
+              // User is logged in but no data found, create basic user
+              return {
+                id: 'user_' + Date.now(),
+                username: 'User',
+                firstName: 'User',
+                lastName: '',
+                email: 'user@dropdollar.com'
+              };
+            }
+          }
+        } catch (error) {
+          console.log('Error getting user info:', error);
         }
-      }
+        
+        return { id: 'anonymous', username: 'Guest' };
+      };
       
-      const user = userData ? JSON.parse(userData) : { id: 'anonymous', username: 'Guest' };
+      const user = getUserInfo();
       
       // Create payment intent
       const paymentIntent = await StripePaymentService.createPaymentIntent(
@@ -191,33 +218,62 @@ export default function BuyTokensPage() {
   const [userTokens, setUserTokens] = useState(0);
   const [customAmount, setCustomAmount] = useState('');
   const [isCustomAmount, setIsCustomAmount] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load user's current token balance and user info
   useEffect(() => {
     // Get user info to ensure we're purchasing for the correct account
     const getUserInfo = () => {
       try {
-        let userData = localStorage.getItem('user');
+        console.log('💰 Buy Tokens: Checking for user data...');
         
-        // If not in localStorage, try to get from cookies
-        if (!userData) {
-          const cookies = document.cookie.split(';');
-          const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
-          if (userCookie) {
-            const cookieValue = userCookie.split('=')[1];
-            userData = decodeURIComponent(cookieValue);
+        // First check if user is logged in flag exists
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        console.log('💰 Buy Tokens: isLoggedIn flag:', isLoggedIn);
+        
+        if (isLoggedIn === 'true') {
+          // User is logged in, try to get user data
+          let userData = localStorage.getItem('user');
+          console.log('💰 Buy Tokens: User data from localStorage:', userData);
+          
+          // If not in localStorage, try to get from cookies
+          if (!userData) {
+            const cookies = document.cookie.split(';');
+            const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
+            if (userCookie) {
+              const cookieValue = userCookie.split('=')[1];
+              userData = decodeURIComponent(cookieValue);
+              console.log('💰 Buy Tokens: User data from cookie:', userData);
+              
+              // Restore to localStorage for faster access
+              localStorage.setItem('user', userData);
+            }
+          }
+          
+          if (userData) {
+            const parsedUser = JSON.parse(userData);
+            console.log('💰 Buy Tokens: User logged in as:', parsedUser.username);
+            return parsedUser;
+          } else {
+            // User is marked as logged in but no user data found
+            // Create a basic user object
+            console.log('💰 Buy Tokens: Creating basic user object');
+            return {
+              id: 'user_' + Date.now(),
+              username: 'User',
+              firstName: 'User',
+              lastName: '',
+              email: 'user@dropdollar.com'
+            };
           }
         }
         
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          console.log('💰 Buy Tokens: User logged in as:', parsedUser.username);
-          return parsedUser;
-        }
+        console.log('💰 Buy Tokens: No user logged in');
+        return null;
       } catch (error) {
         console.log('💰 Buy Tokens: Error getting user data:', error);
+        return null;
       }
-      return null;
     };
 
     const user = getUserInfo();
@@ -228,11 +284,15 @@ export default function BuyTokensPage() {
       setUserTokens(parseInt(savedTokens));
     }
     
-    // If no user is logged in, redirect to login
+    // Only redirect to login if no user is found AND not logged in
     if (!user) {
       console.log('💰 Buy Tokens: No user logged in, redirecting to login');
       window.location.href = '/auth/login';
+    } else {
+      console.log('💰 Buy Tokens: User verified, proceeding with token purchase page');
     }
+    
+    setIsLoading(false);
   }, []);
 
   const handlePaymentSuccess = (paymentIntent: any) => {
@@ -279,6 +339,25 @@ export default function BuyTokensPage() {
     });
     setShowCheckout(false);
   };
+
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <img 
+              src="/DropCoin.png" 
+              alt="DropDollar Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Loading Token Purchase...</h2>
+          <p className="text-gray-300">Verifying your account...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
