@@ -7,8 +7,29 @@ import {
   StarIcon, 
   HeartIcon,
   XMarkIcon,
-  CheckIcon
+  CheckIcon,
+  BanknotesIcon,
+  CreditCardIcon,
+  ArrowDownTrayIcon,
+  ShieldCheckIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+
+interface BankAccount {
+  id: string;
+  bankName: string;
+  accountType: string;
+  last4: string;
+  isVerified: boolean;
+}
+
+interface WithdrawalRequest {
+  id: string;
+  amount: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  requestedAt: string;
+  completedAt?: string;
+}
 
 export default function SimpleDashboard() {
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
@@ -20,6 +41,13 @@ export default function SimpleDashboard() {
     rating: 5
   });
   const [user, setUser] = useState<{username: string} | null>(null);
+  const [userTokens, setUserTokens] = useState(0);
+  const [userBalance, setUserBalance] = useState(0); // Cash balance for withdrawals
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [showBankLinking, setShowBankLinking] = useState(false);
+  const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
 
   useEffect(() => {
     // Get user info from localStorage
@@ -28,6 +56,29 @@ export default function SimpleDashboard() {
       if (userData) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
+      }
+      
+      // Load user tokens and balance
+      const savedTokens = localStorage.getItem('userTokens');
+      if (savedTokens) {
+        setUserTokens(parseInt(savedTokens));
+      }
+      
+      const savedBalance = localStorage.getItem('userBalance');
+      if (savedBalance) {
+        setUserBalance(parseFloat(savedBalance));
+      }
+      
+      // Load bank accounts
+      const savedAccounts = localStorage.getItem('userBankAccounts');
+      if (savedAccounts) {
+        setBankAccounts(JSON.parse(savedAccounts));
+      }
+      
+      // Load withdrawal requests
+      const savedWithdrawals = localStorage.getItem('userWithdrawals');
+      if (savedWithdrawals) {
+        setWithdrawalRequests(JSON.parse(savedWithdrawals));
       }
     } catch (error) {
       console.log('No user data found');
@@ -74,6 +125,61 @@ export default function SimpleDashboard() {
     }
   };
 
+  const handleBankAccountLink = async () => {
+    // In a real implementation, this would integrate with Stripe Connect
+    // For now, we'll simulate adding a bank account
+    const newAccount: BankAccount = {
+      id: Date.now().toString(),
+      bankName: 'Chase Bank',
+      accountType: 'Checking',
+      last4: '1234',
+      isVerified: true
+    };
+    
+    const updatedAccounts = [...bankAccounts, newAccount];
+    setBankAccounts(updatedAccounts);
+    localStorage.setItem('userBankAccounts', JSON.stringify(updatedAccounts));
+    setShowBankLinking(false);
+    
+    alert('Bank account linked successfully!');
+  };
+
+  const handleWithdrawalRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const amount = parseFloat(withdrawalAmount);
+    if (amount <= 0 || amount > userBalance) {
+      alert('Invalid withdrawal amount');
+      return;
+    }
+    
+    if (bankAccounts.length === 0) {
+      alert('Please link a bank account first');
+      return;
+    }
+    
+    const withdrawal: WithdrawalRequest = {
+      id: Date.now().toString(),
+      amount,
+      status: 'pending',
+      requestedAt: new Date().toISOString()
+    };
+    
+    const updatedWithdrawals = [...withdrawalRequests, withdrawal];
+    setWithdrawalRequests(updatedWithdrawals);
+    localStorage.setItem('userWithdrawals', JSON.stringify(updatedWithdrawals));
+    
+    // Update balance
+    const newBalance = userBalance - amount;
+    setUserBalance(newBalance);
+    localStorage.setItem('userBalance', newBalance.toString());
+    
+    setWithdrawalAmount('');
+    setShowWithdrawalForm(false);
+    
+    alert(`Withdrawal request submitted for $${amount.toFixed(2)}`);
+  };
+
   const renderStars = (rating: number, onRatingChange?: (rating: number) => void) => {
     return Array.from({ length: 5 }, (_, i) => (
       <button
@@ -88,6 +194,7 @@ export default function SimpleDashboard() {
       </button>
     ));
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Header */}
@@ -136,23 +243,63 @@ export default function SimpleDashboard() {
           </p>
         </div>
 
+        {/* Balance Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          {/* Token Balance */}
+          <div className="bg-gradient-to-br from-purple-800 to-pink-800 p-8 rounded-2xl border-2 border-purple-400 hover:border-purple-300 transition-all duration-300 hover:scale-105 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white">🎮 DropTokens</h3>
+              <BanknotesIcon className="h-8 w-8 text-purple-300" />
+            </div>
+            <div className="text-4xl font-bold text-white mb-4">{userTokens}</div>
+            <p className="text-purple-200 mb-6">Available for gaming competitions</p>
+            <Link href="/buy-tokens" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105 inline-block">
+              Buy More Tokens
+            </Link>
+          </div>
+
+          {/* Cash Balance */}
+          <div className="bg-gradient-to-br from-green-800 to-emerald-800 p-8 rounded-2xl border-2 border-green-400 hover:border-green-300 transition-all duration-300 hover:scale-105 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white">💰 Cash Balance</h3>
+              <CreditCardIcon className="h-8 w-8 text-green-300" />
+            </div>
+            <div className="text-4xl font-bold text-white mb-4">${userBalance.toFixed(2)}</div>
+            <p className="text-green-200 mb-6">Available for withdrawal</p>
+            <button 
+              onClick={() => setShowWithdrawalForm(true)}
+              disabled={userBalance <= 0 || bankAccounts.length === 0}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed inline-block"
+            >
+              Request Withdrawal
+            </button>
+          </div>
+
+          {/* Bank Accounts */}
+          <div className="bg-gradient-to-br from-blue-800 to-indigo-800 p-8 rounded-2xl border-2 border-blue-400 hover:border-blue-300 transition-all duration-300 hover:scale-105 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-white">🏦 Bank Accounts</h3>
+              <ShieldCheckIcon className="h-8 w-8 text-blue-300" />
+            </div>
+            <div className="text-4xl font-bold text-white mb-4">{bankAccounts.length}</div>
+            <p className="text-blue-200 mb-6">Linked for withdrawals</p>
+            <button 
+              onClick={() => setShowBankLinking(true)}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105 inline-block"
+            >
+              Link Bank Account
+            </button>
+          </div>
+        </div>
+
         {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {/* Games Card */}
           <div className="bg-gradient-to-br from-purple-800 to-pink-800 p-8 rounded-2xl border-2 border-purple-400 hover:border-purple-300 transition-all duration-300 hover:scale-105 shadow-2xl">
             <h3 className="text-3xl font-bold text-white mb-6">🎮 Play Games</h3>
             <p className="text-purple-200 mb-8 text-lg">Compete in tournaments and win prizes with our secure gaming platform</p>
             <Link href="/games" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 inline-block">
               Start Playing
-            </Link>
-          </div>
-
-          {/* Tokens Card */}
-          <div className="bg-gradient-to-br from-green-800 to-emerald-800 p-8 rounded-2xl border-2 border-green-400 hover:border-green-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <h3 className="text-3xl font-bold text-white mb-6">💰 Buy Tokens</h3>
-            <p className="text-green-200 mb-8 text-lg">Purchase tokens securely with our professional payment system</p>
-            <Link href="/buy-tokens" className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 inline-block">
-              Buy Now
             </Link>
           </div>
 
@@ -164,7 +311,190 @@ export default function SimpleDashboard() {
               View Tournaments
             </Link>
           </div>
+
+          {/* Hot Sell Card */}
+          <div className="bg-gradient-to-br from-red-800 to-pink-800 p-8 rounded-2xl border-2 border-red-400 hover:border-red-300 transition-all duration-300 hover:scale-105 shadow-2xl">
+            <h3 className="text-3xl font-bold text-white mb-6">🔥 Hot Sell</h3>
+            <p className="text-red-200 mb-8 text-lg">Fast-paced cash competitions with real money prizes</p>
+            <Link href="/hot-sell" className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl hover:from-red-700 hover:to-pink-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 inline-block">
+              Enter Hot Sell
+            </Link>
+          </div>
         </div>
+
+        {/* Bank Account Linking Modal */}
+        {showBankLinking && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-2xl p-8 max-w-md mx-4 text-center">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-white">Link Bank Account</h3>
+                <button
+                  onClick={() => setShowBankLinking(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <div className="bg-blue-900/30 rounded-lg p-4 mb-4">
+                  <ShieldCheckIcon className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                  <p className="text-blue-200 text-sm">
+                    Bank account linking is powered by Stripe Connect for secure withdrawals.
+                  </p>
+                </div>
+                <p className="text-gray-300 text-sm">
+                  In a production environment, this would integrate with Stripe Connect to securely link your bank account for withdrawals.
+                </p>
+              </div>
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={handleBankAccountLink}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-lg font-bold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                >
+                  Link Account
+                </button>
+                <button
+                  onClick={() => setShowBankLinking(false)}
+                  className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Withdrawal Request Modal */}
+        {showWithdrawalForm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-2xl p-8 max-w-md mx-4 text-center">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-white">Request Withdrawal</h3>
+                <button
+                  onClick={() => setShowWithdrawalForm(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <div className="bg-green-900/30 rounded-lg p-4 mb-4">
+                  <div className="text-green-400 font-bold text-lg">Available Balance: ${userBalance.toFixed(2)}</div>
+                </div>
+                
+                <form onSubmit={handleWithdrawalRequest} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Withdrawal Amount ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max={userBalance}
+                      value={withdrawalAmount}
+                      onChange={(e) => setWithdrawalAmount(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="flex gap-4">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-bold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                    >
+                      <ArrowDownTrayIcon className="h-5 w-5 inline mr-2" />
+                      Request Withdrawal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowWithdrawalForm(false)}
+                      className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bank Accounts List */}
+        {bankAccounts.length > 0 && (
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold text-white mb-8 text-center">Linked Bank Accounts</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {bankAccounts.map((account) => (
+                <div key={account.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-white">{account.bankName}</h3>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      account.isVerified 
+                        ? 'bg-green-900 text-green-200' 
+                        : 'bg-yellow-900 text-yellow-200'
+                    }`}>
+                      {account.isVerified ? 'Verified' : 'Pending'}
+                    </div>
+                  </div>
+                  <div className="text-gray-300">
+                    <div className="mb-2">{account.accountType} Account</div>
+                    <div className="text-sm">**** **** **** {account.last4}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Withdrawal History */}
+        {withdrawalRequests.length > 0 && (
+          <div className="mb-16">
+            <h2 className="text-3xl font-bold text-white mb-8 text-center">Withdrawal History</h2>
+            <div className="bg-gray-800 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-white font-semibold">Amount</th>
+                      <th className="px-6 py-4 text-left text-white font-semibold">Status</th>
+                      <th className="px-6 py-4 text-left text-white font-semibold">Requested</th>
+                      <th className="px-6 py-4 text-left text-white font-semibold">Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {withdrawalRequests.map((withdrawal) => (
+                      <tr key={withdrawal.id} className="border-t border-gray-700">
+                        <td className="px-6 py-4 text-white font-semibold">${withdrawal.amount.toFixed(2)}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            withdrawal.status === 'completed' ? 'bg-green-900 text-green-200' :
+                            withdrawal.status === 'processing' ? 'bg-blue-900 text-blue-200' :
+                            withdrawal.status === 'failed' ? 'bg-red-900 text-red-200' :
+                            'bg-yellow-900 text-yellow-200'
+                          }`}>
+                            {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-300">
+                          {new Date(withdrawal.requestedAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-gray-300">
+                          {withdrawal.completedAt ? new Date(withdrawal.completedAt).toLocaleDateString() : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Victory Story Section */}
         <div className="mt-16 text-center">

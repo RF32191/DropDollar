@@ -1,23 +1,215 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { 
+  CreditCardIcon, 
+  CurrencyDollarIcon, 
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  BanknotesIcon,
+  ShieldCheckIcon
+} from '@heroicons/react/24/outline';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import StripePaymentService from '@/lib/payments/stripeService';
 
-export default function SimpleBuyTokensPage() {
-  const [tokenAmount, setTokenAmount] = useState(10);
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-  // Simple pricing: 1 DropToken = $1.00
-  const TOKEN_PRICE = 100; // $1.00 in cents
-  const totalCost = tokenAmount * TOKEN_PRICE;
+interface TokenPackage {
+  id: string;
+  tokens: number;
+  price: number; // in cents
+  bonus: number;
+  popular?: boolean;
+  description: string;
+}
 
-  const handlePurchase = () => {
-    alert('🚧 Payment system temporarily disabled for maintenance. Please check back soon!');
+const tokenPackages: TokenPackage[] = [
+  {
+    id: 'starter',
+    tokens: 10,
+    price: 1000, // $10.00
+    bonus: 0,
+    description: 'Perfect for trying out games'
+  },
+  {
+    id: 'popular',
+    tokens: 50,
+    price: 4500, // $45.00 (10% bonus)
+    bonus: 5,
+    popular: true,
+    description: 'Most popular choice'
+  },
+  {
+    id: 'pro',
+    tokens: 100,
+    price: 8500, // $85.00 (15% bonus)
+    bonus: 15,
+    description: 'Great for regular players'
+  },
+  {
+    id: 'champion',
+    tokens: 250,
+    price: 20000, // $200.00 (20% bonus)
+    bonus: 50,
+    description: 'For serious competitors'
+  },
+  {
+    id: 'elite',
+    tokens: 500,
+    price: 37500, // $375.00 (25% bonus)
+    bonus: 125,
+    description: 'Maximum value package'
+  }
+];
+
+function CheckoutForm({ selectedPackage, onSuccess, onError }: {
+  selectedPackage: TokenPackage;
+  onSuccess: (paymentIntent: any) => void;
+  onError: (error: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Create payment intent
+      const paymentIntent = await StripePaymentService.createPaymentIntent(
+        selectedPackage.price,
+        'usd',
+        {
+          userId: 'current-user', // Replace with actual user ID
+          type: 'tokens',
+          gameType: 'token_purchase'
+        }
+      );
+
+      // Confirm payment
+      const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(
+        paymentIntent.client_secret,
+        {
+          payment_method: {
+            card: elements.getElement(CardElement)!,
+            billing_details: {
+              name: 'DropDollar User', // Replace with actual user name
+            },
+          },
+        }
+      );
+
+      if (error) {
+        onError(error.message || 'Payment failed');
+      } else if (confirmedPayment?.status === 'succeeded') {
+        onSuccess(confirmedPayment);
+      }
+    } catch (error: any) {
+      onError(error.message || 'Payment processing failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Payment Information</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Card Details
+            </label>
+            <div className="bg-white rounded-lg p-4">
+              <CardElement
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      color: '#424770',
+                      '::placeholder': {
+                        color: '#aab7c4',
+                      },
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={!stripe || isProcessing}
+        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 flex items-center justify-center space-x-2"
+      >
+        {isProcessing ? (
+          <>
+            <ArrowPathIcon className="h-5 w-5 animate-spin" />
+            <span>Processing Payment...</span>
+          </>
+        ) : (
+          <>
+            <CreditCardIcon className="h-5 w-5" />
+            <span>Purchase {selectedPackage.tokens + selectedPackage.bonus} Tokens for ${(selectedPackage.price / 100).toFixed(2)}</span>
+          </>
+        )}
+      </button>
+    </form>
+  );
+}
+
+export default function BuyTokensPage() {
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(tokenPackages[1]); // Default to popular
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [userTokens, setUserTokens] = useState(0);
+
+  // Load user's current token balance
+  useEffect(() => {
+    // In a real app, this would fetch from your backend
+    const savedTokens = localStorage.getItem('userTokens');
+    if (savedTokens) {
+      setUserTokens(parseInt(savedTokens));
+    }
+  }, []);
+
+  const handlePaymentSuccess = (paymentIntent: any) => {
+    const totalTokens = selectedPackage.tokens + selectedPackage.bonus;
+    const newBalance = userTokens + totalTokens;
+    setUserTokens(newBalance);
+    localStorage.setItem('userTokens', newBalance.toString());
+    
+    setPaymentResult({
+      success: true,
+      message: `Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
+    });
+    setShowCheckout(false);
+  };
+
+  const handlePaymentError = (error: string) => {
+    setPaymentResult({
+      success: false,
+      message: `Payment failed: ${error}`
+    });
+    setShowCheckout(false);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Header */}
-      <header className="bg-gradient-to-r from-green-600 via-emerald-500 to-teal-500 shadow-2xl border-b-4 border-green-400">
+      <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-2xl border-b-4 border-green-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
@@ -32,223 +224,182 @@ export default function SimpleBuyTokensPage() {
               <div className="flex flex-col">
                 <span className="text-3xl font-extrabold text-white drop-shadow-lg">DropDollar</span>
                 <span className="text-sm text-green-200 font-bold tracking-wider animate-pulse">
-                  ⚡ TOKEN PURCHASE SYSTEM ⚡
+                  💰 TOKEN PURCHASE CENTER 💰
                 </span>
               </div>
             </Link>
 
+            {/* Current Balance */}
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30">
+              <div className="flex items-center space-x-3">
+                <BanknotesIcon className="h-8 w-8 text-yellow-300" />
+                <div className="text-right">
+                  <div className="text-sm text-green-200">Current Balance</div>
+                  <div className="text-2xl font-bold text-white">{userTokens} Tokens</div>
+                </div>
+              </div>
+            </div>
+
             {/* Navigation */}
-            <nav className="flex items-center space-x-8">
-              <Link href="/listings" className="text-white hover:text-green-300 font-bold text-lg transition-all duration-300 hover:scale-105">Browse</Link>
+            <nav className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-white hover:text-green-300 font-bold text-lg transition-all duration-300 hover:scale-105">Dashboard</Link>
               <Link href="/games" className="text-purple-300 hover:text-purple-200 font-bold text-lg transition-all duration-300 hover:scale-105">🎮 Games</Link>
               <Link href="/tournaments" className="text-yellow-300 hover:text-yellow-200 font-bold text-lg transition-all duration-300 hover:scale-105">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="text-red-300 hover:text-red-200 font-bold text-lg transition-all duration-300 hover:scale-105">🔥 Hot Sell</Link>
             </nav>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Header */}
-        <div className="text-center mb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
           <h1 className="text-6xl font-extrabold mb-6">
             <span className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent animate-pulse">
               💰 Buy DropTokens
             </span>
           </h1>
           <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-6"></div>
-          <p className="text-xl text-transparent bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text animate-pulse max-w-3xl mx-auto mb-8">
-            Purchase DropTokens to participate in gaming competitions, tournaments, and win amazing prizes. 
-            Simple pricing: <strong className="text-yellow-300">1 DropToken = $1.00</strong>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            Purchase DropTokens to participate in competitions, tournaments, and skill-based gaming. 
+            Secure payments powered by Stripe.
           </p>
         </div>
 
-        {/* Pricing Info Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
-          <div className="bg-gradient-to-br from-green-800 to-emerald-800 p-8 rounded-2xl border-2 border-green-400 hover:border-green-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">💰</span>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Simple Pricing</h3>
-              <p className="text-4xl font-bold text-green-300">$1.00</p>
-              <p className="text-lg text-green-200">per DropToken</p>
-              <p className="text-sm text-green-300 mt-2">No complex calculations!</p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-800 to-indigo-800 p-8 rounded-2xl border-2 border-blue-400 hover:border-blue-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">🔒</span>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Secure Payment</h3>
-              <p className="text-lg text-blue-200">Credit/Debit cards only</p>
-              <p className="text-sm text-blue-300 mt-2">Powered by Stripe</p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-800 to-pink-800 p-8 rounded-2xl border-2 border-purple-400 hover:border-purple-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">⚡</span>
-              </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Instant Access</h3>
-              <p className="text-lg text-purple-200">Tokens added immediately</p>
-              <p className="text-sm text-purple-300 mt-2">Start playing right away</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Purchase Form */}
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border-2 border-gray-600 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-500 to-blue-600 px-8 py-6">
-            <h2 className="text-3xl font-bold text-white">Purchase DropTokens</h2>
-            <p className="text-green-100 mt-2 text-lg">Choose your amount - pay with credit or debit card</p>
-          </div>
-
-          <div className="p-8">
-            <div className="max-w-md mx-auto">
-              {/* Token Amount Selection */}
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-white mb-6">Select Token Amount</h3>
-                
-                {/* Quick Select Buttons */}
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                  {[10, 25, 50, 100, 250, 500].map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setTokenAmount(amount)}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        tokenAmount === amount
-                          ? 'border-green-500 bg-green-600 text-white shadow-lg'
-                          : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-green-400 hover:bg-gray-600'
-                      }`}
-                    >
-                      <div className="font-bold text-lg">{amount} Tokens</div>
-                      <div className="text-sm">${amount}.00</div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom Amount Input */}
-                <div className="mb-8">
-                  <label className="block text-lg font-bold text-white mb-3">
-                    Custom Amount
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10000"
-                    value={tokenAmount}
-                    onChange={(e) => setTokenAmount(parseInt(e.target.value) || 1)}
-                    className="w-full px-4 py-4 border-2 border-gray-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-gray-700 text-white text-lg"
-                    placeholder="Enter number of tokens"
-                  />
-                  <p className="text-sm text-gray-400 mt-2">
-                    1 DropToken = $1.00 (no fees, no complexity!)
-                  </p>
-                </div>
-
-                {/* Cost Display */}
-                <div className="bg-gray-700 rounded-xl p-6 mb-8 border border-gray-600">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-gray-300 text-lg">{tokenAmount} DropTokens:</span>
-                    <span className="font-bold text-white text-xl">${tokenAmount}.00</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-gray-300 text-lg">Stripe processing fee:</span>
-                    <span className="font-bold text-white text-xl">
-                      ${((tokenAmount * 100 * 0.029 + 30) / 100).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="border-t border-gray-600 pt-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-white font-bold text-xl">Total Cost:</span>
-                      <span className="text-3xl font-bold text-green-400">
-                        ${((tokenAmount * 100 + 30 + (tokenAmount * 100 * 0.029)) / 100).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-3 text-center">
-                    Stripe processing fees are industry standard
-                  </p>
-                </div>
-
-                {/* Purchase Button */}
-                <button
-                  onClick={handlePurchase}
-                  className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-bold py-6 px-8 rounded-xl transition-all transform hover:scale-105 text-xl shadow-lg hover:shadow-2xl"
-                >
-                  💳 Buy {tokenAmount} DropTokens - ${((tokenAmount * 100 + 30 + (tokenAmount * 100 * 0.029)) / 100).toFixed(2)}
-                </button>
-
-                <div className="mt-6 text-center">
-                  <Link href="/auth/register" className="text-green-400 hover:text-green-300 font-bold text-lg mr-4">
-                    Create Account
-                  </Link>
-                  <span className="text-gray-400 mx-2">or</span>
-                  <Link href="/auth/login" className="text-green-400 hover:text-green-300 font-bold text-lg">
-                    Sign In
-                  </Link>
-                </div>
-
-                <p className="text-sm text-gray-400 mt-6 text-center">
-                  💳 Credit/Debit cards only • 🔒 Secure payment by Stripe<br/>
-                  Tokens added to your account instantly after payment
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Token Usage Info */}
-        <div className="mt-16 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-2xl p-8 border-2 border-purple-400">
-          <h3 className="text-4xl font-bold text-transparent bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text mb-8 text-center">
-            What Can You Do with DropTokens?
-          </h3>
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="w-20 h-20 bg-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">🎮</span>
-              </div>
-              <h4 className="font-bold text-white mb-3 text-xl">Gaming Competitions</h4>
-              <p className="text-purple-200">Enter skill-based games for $0.20 per entry</p>
-            </div>
-            <div className="text-center">
-              <div className="w-20 h-20 bg-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">🏆</span>
-              </div>
-              <h4 className="font-bold text-white mb-3 text-xl">Tournaments</h4>
-              <p className="text-green-200">Join daily tournaments ($5) and 1v1 matches ($5-$25)</p>
-            </div>
-            <div className="text-center">
-              <div className="w-20 h-20 bg-red-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">🔥</span>
-              </div>
-              <h4 className="font-bold text-white mb-3 text-xl">Hot Sell Competitions</h4>
-              <p className="text-red-200">Big cash prizes: $10, $100, $500, $2500, $25000</p>
-            </div>
-            <div className="text-center">
-              <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <span className="text-3xl">🛍️</span>
-              </div>
-              <h4 className="font-bold text-white mb-3 text-xl">Product Listings</h4>
-              <p className="text-blue-200">Win real products by playing skill games</p>
-            </div>
-          </div>
-          
-          <div className="mt-8 text-center">
-            <div className="bg-gray-800 rounded-xl p-6 inline-block border border-gray-600">
-              <h4 className="font-bold text-white mb-3 text-xl">💡 Simple Math</h4>
-              <p className="text-gray-300 text-lg">
-                1 DropToken = $1.00 • No blockchain • No complexity • Just fun gaming!
+        {/* Payment Result */}
+        {paymentResult && (
+          <div className={`mb-8 p-6 rounded-xl text-center ${
+            paymentResult.success 
+              ? 'bg-green-900 border-2 border-green-500' 
+              : 'bg-red-900 border-2 border-red-500'
+          }`}>
+            <div className="flex items-center justify-center space-x-3">
+              {paymentResult.success ? (
+                <CheckCircleIcon className="h-8 w-8 text-green-400" />
+              ) : (
+                <ExclamationTriangleIcon className="h-8 w-8 text-red-400" />
+              )}
+              <p className={`text-lg font-semibold ${
+                paymentResult.success ? 'text-green-200' : 'text-red-200'
+              }`}>
+                {paymentResult.message}
               </p>
             </div>
           </div>
+        )}
+
+        {/* Token Packages */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          {tokenPackages.map((pkg) => (
+            <div
+              key={pkg.id}
+              className={`relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 cursor-pointer ${
+                selectedPackage.id === pkg.id
+                  ? 'border-green-500 shadow-2xl shadow-green-500/25'
+                  : 'border-gray-600 hover:border-green-400'
+              } ${pkg.popular ? 'ring-2 ring-yellow-400 ring-opacity-50' : ''}`}
+              onClick={() => setSelectedPackage(pkg)}
+            >
+              {pkg.popular && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold">
+                    MOST POPULAR
+                  </span>
+                </div>
+              )}
+
+              <div className="text-center">
+                <div className="text-4xl font-bold text-white mb-2">
+                  {pkg.tokens + pkg.bonus} Tokens
+                </div>
+                {pkg.bonus > 0 && (
+                  <div className="text-green-400 text-sm font-semibold mb-2">
+                    +{pkg.bonus} Bonus Tokens
+                  </div>
+                )}
+                <div className="text-3xl font-bold text-green-400 mb-4">
+                  ${(pkg.price / 100).toFixed(2)}
+                </div>
+                <p className="text-gray-400 text-sm mb-6">{pkg.description}</p>
+                
+                <div className="space-y-2 text-sm text-gray-300">
+                  <div className="flex justify-between">
+                    <span>Base Tokens:</span>
+                    <span>{pkg.tokens}</span>
+                  </div>
+                  {pkg.bonus > 0 && (
+                    <div className="flex justify-between text-green-400">
+                      <span>Bonus:</span>
+                      <span>+{pkg.bonus}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold text-white border-t border-gray-600 pt-2">
+                    <span>Total:</span>
+                    <span>{pkg.tokens + pkg.bonus}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+
+        {/* Checkout Section */}
+        {showCheckout ? (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-bold text-white mb-4">Complete Your Purchase</h2>
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-green-400 mb-2">
+                    {selectedPackage.tokens + selectedPackage.bonus} Tokens
+                  </div>
+                  <div className="text-xl text-white">
+                    ${(selectedPackage.price / 100).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              <Elements stripe={stripePromise}>
+                <CheckoutForm
+                  selectedPackage={selectedPackage}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                />
+              </Elements>
+
+              <button
+                onClick={() => setShowCheckout(false)}
+                className="w-full mt-4 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            <button
+              onClick={() => setShowCheckout(true)}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 inline-flex items-center space-x-3"
+            >
+              <CreditCardIcon className="h-8 w-8" />
+              <span>Purchase {selectedPackage.tokens + selectedPackage.bonus} Tokens</span>
+              <span className="text-green-200">${(selectedPackage.price / 100).toFixed(2)}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Security Notice */}
+        <div className="mt-16 bg-blue-900/30 rounded-xl p-8 border border-blue-500/30">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <ShieldCheckIcon className="h-8 w-8 text-blue-400" />
+            <h3 className="text-2xl font-bold text-blue-200">Secure Payment Processing</h3>
+          </div>
+          <p className="text-blue-300 text-center max-w-3xl mx-auto">
+            All payments are processed securely through Stripe. Your payment information is encrypted and never stored on our servers. 
+            We support all major credit cards and digital wallets.
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
