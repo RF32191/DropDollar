@@ -109,20 +109,18 @@ export default function SellerApplicationPage() {
 
   const totalSteps = 5;
   const productCategoryOptions = [
-    'Electronics & Technology',
-    'Fashion & Apparel',
+    'Electronics',
+    'Automotive', 
+    'Fashion',
     'Home & Garden',
-    'Health & Beauty',
     'Sports & Outdoors',
-    'Toys & Games',
+    'Collectibles',
     'Books & Media',
-    'Automotive',
-    'Jewelry & Accessories',
+    'Music & Instruments',
     'Art & Crafts',
-    'Food & Beverages',
-    'Pet Supplies',
-    'Office & Business',
-    'Baby & Kids',
+    'Photography',
+    'Tools & Equipment',
+    'DropAFund',
     'Other'
   ];
 

@@ -5,31 +5,36 @@ export interface StoredListing {
   id: string;
   title: string;
   description: string;
-  categoryId: string;
-  categoryName: string; // Cache category name for performance
+  category: string; // Changed from categoryId to match CategoryPage
+  price: number; // Changed from currentPrice to match CategoryPage
   basePrice: number;
-  currentPrice: number;
-  targetPrice: number; // Add target price for timer activation
-  timerDuration: number;
+  currentCollected: number; // Changed from currentPrice to match CategoryPage
+  participantCount: number; // Changed from uniqueBidders to match CategoryPage
   gameType: string; // Game type for competition
-  quantity: number; // Number of items available
-  quantitySold: number; // Number of items sold
-  images: string[]; // Base64 encoded images for demo
+  imageUrl: string; // Changed from images array to single URL
   sellerId: string;
   sellerName: string;
-  sellerRating: number; // Cache seller rating
-  sellerTotalSales: number; // Cache seller sales count
   status: 'active' | 'timer_active' | 'ended' | 'sold';
-  condition: 'new' | 'like-new' | 'good' | 'fair' | 'poor';
   createdAt: string;
   updatedAt: string;
+  timeRemaining: string; // Changed from endTime to match CategoryPage
+  isHotSale: boolean; // Changed from isHot to match CategoryPage
+  // Additional fields for enhanced functionality
+  categoryName?: string; // Cache category name for performance
+  targetPrice?: number; // Add target price for timer activation
+  timerDuration?: number;
+  quantity?: number; // Number of items available
+  quantitySold?: number; // Number of items sold
+  images?: string[]; // Base64 encoded images for demo
+  sellerRating?: number; // Cache seller rating
+  sellerTotalSales?: number; // Cache seller sales count
+  condition?: 'new' | 'like-new' | 'good' | 'fair' | 'poor';
   endTime?: string; // When timer ends
-  totalEntries: number;
-  totalBids: number;
-  uniqueBidders: number;
-  viewCount: number; // Track views for analytics
-  isHot: boolean; // Hot listing indicator
-  tags: string[]; // Search tags for better discovery
+  totalEntries?: number;
+  totalBids?: number;
+  uniqueBidders?: number;
+  viewCount?: number; // Track views for analytics
+  tags?: string[]; // Search tags for better discovery
   shippingInfo?: {
     weight: number;
     dimensions: { length: number; width: number; height: number; };
@@ -105,7 +110,7 @@ export class ListingStorageService {
       condition?: StoredListing['condition'][];
       sortBy?: 'newest' | 'oldest' | 'price_low' | 'price_high' | 'popular';
     }
-  ): { listings: StoredListing[]; total: number; hasMore: boolean } {
+  ): StoredListing[] {
     const cacheKey = `category_${categoryId}_${page}_${limit}_${JSON.stringify(filters)}`;
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
@@ -114,7 +119,7 @@ export class ListingStorageService {
     
     // Filter by category
     if (categoryId !== 'all') {
-      allListings = allListings.filter(listing => listing.categoryId === categoryId);
+      allListings = allListings.filter(listing => listing.category === categoryId);
     }
     
     // Apply filters
@@ -124,8 +129,8 @@ export class ListingStorageService {
       }
       if (filters.priceRange) {
         allListings = allListings.filter(listing => 
-          listing.currentPrice >= filters.priceRange!.min && 
-          listing.currentPrice <= filters.priceRange!.max
+          listing.price >= filters.priceRange!.min && 
+          listing.price <= filters.priceRange!.max
         );
       }
       if (filters.condition) {
@@ -138,10 +143,10 @@ export class ListingStorageService {
           allListings.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           break;
         case 'price_low':
-          allListings.sort((a, b) => a.currentPrice - b.currentPrice);
+          allListings.sort((a, b) => a.price - b.price);
           break;
         case 'price_high':
-          allListings.sort((a, b) => b.currentPrice - a.currentPrice);
+          allListings.sort((a, b) => b.price - a.price);
           break;
         case 'popular':
           allListings.sort((a, b) => (b.viewCount + b.totalBids) - (a.viewCount + a.totalBids));
@@ -153,94 +158,79 @@ export class ListingStorageService {
       }
     }
     
-    const total = allListings.length;
     const startIndex = page * limit;
     const listings = allListings.slice(startIndex, startIndex + limit);
-    const hasMore = startIndex + limit < total;
     
-    const result = { listings, total, hasMore };
-    this.setCache(cacheKey, result);
-    return result;
+    this.setCache(cacheKey, listings);
+    return listings;
   }
 
   // Create new listing with enhanced fields
   static createListing(listingData: {
     title: string;
     description: string;
-    categoryId: string;
-    categoryName: string;
+    category: string;
+    price: number;
     basePrice: number;
-    timerDuration: number;
     gameType: string;
-    quantity: number;
-    images: File[];
+    imageUrl: string;
     sellerId: string;
     sellerName: string;
     sellerRating?: number;
     sellerTotalSales?: number;
     condition?: StoredListing['condition'];
     tags?: string[];
-  }): Promise<StoredListing> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Convert images to base64 for demo storage
-        const imagePromises = listingData.images.map(file => {
-          return new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-        });
+  }): StoredListing {
+    try {
+      const newListing: StoredListing = {
+        id: `listing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: listingData.title,
+        description: listingData.description,
+        category: listingData.category,
+        price: listingData.price,
+        basePrice: listingData.basePrice,
+        currentCollected: 0,
+        participantCount: 0,
+        gameType: listingData.gameType,
+        imageUrl: listingData.imageUrl,
+        sellerId: listingData.sellerId,
+        sellerName: listingData.sellerName,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        timeRemaining: '24:00:00',
+        isHotSale: false,
+        // Additional fields
+        categoryName: listingData.category,
+        targetPrice: Math.floor(listingData.basePrice * 0.8),
+        timerDuration: 24 * 60, // 24 hours in minutes
+        quantity: 1,
+        quantitySold: 0,
+        sellerRating: listingData.sellerRating || 4.5,
+        sellerTotalSales: listingData.sellerTotalSales || 0,
+        condition: listingData.condition || 'new',
+        totalEntries: 0,
+        totalBids: 0,
+        uniqueBidders: 0,
+        viewCount: 0,
+        tags: listingData.tags || []
+      };
 
-        const imageBase64Array = await Promise.all(imagePromises);
+      // Save to localStorage and clear cache
+      const allListings = this.getAllListings();
+      allListings.push(newListing);
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(allListings));
+      this.clearCache();
 
-        // Calculate target price (80% of base price for timer activation)
-        const targetPrice = Math.floor(listingData.basePrice * 0.8);
+      // Backup to Supabase (async, don't wait for it)
+      this.backupToSupabase(newListing);
 
-        const newListing: StoredListing = {
-          id: `listing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          title: listingData.title,
-          description: listingData.description,
-          categoryId: listingData.categoryId,
-          categoryName: listingData.categoryName,
-          basePrice: listingData.basePrice,
-          currentPrice: listingData.basePrice,
-          targetPrice: targetPrice,
-          timerDuration: listingData.timerDuration,
-          gameType: listingData.gameType,
-          quantity: listingData.quantity,
-          quantitySold: 0,
-          images: imageBase64Array,
-          sellerId: listingData.sellerId,
-          sellerName: listingData.sellerName,
-          sellerRating: listingData.sellerRating || 4.5,
-          sellerTotalSales: listingData.sellerTotalSales || 0,
-          status: 'active',
-          condition: listingData.condition || 'new',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          totalEntries: 0,
-          totalBids: 0,
-          uniqueBidders: 0,
-          viewCount: 0,
-          isHot: false,
-          tags: listingData.tags || []
-        };
-
-        // Save to localStorage and clear cache
-        const allListings = this.getAllListings();
-        allListings.push(newListing);
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(allListings));
-        this.clearCache();
-
-        console.log('✅ Listing created successfully:', newListing.id);
-        resolve(newListing);
-      } catch (error) {
-        console.error('Error creating listing:', error);
-        reject(error);
-      }
-    });
+      console.log('✅ Listing created successfully:', newListing.id);
+      return newListing;
+    } catch (error) {
+      console.error('Error creating listing:', error);
+      throw error;
+    }
   }
 
   // Get listing by ID with view tracking
@@ -489,5 +479,129 @@ export class ListingStorageService {
       console.error('Error batch updating listings:', error);
       return false;
     }
+  }
+
+  // Supabase backup methods
+  private static async backupToSupabase(listing: StoredListing): Promise<void> {
+    try {
+      // This would integrate with Supabase in a real implementation
+      // For now, we'll just log that we would backup to Supabase
+      console.log('🔄 Backing up listing to Supabase:', listing.id);
+      
+      // In a real implementation, you would:
+      // 1. Import Supabase client
+      // 2. Insert/update the listing in the database
+      // 3. Handle errors appropriately
+      
+      // Example:
+      // const { data, error } = await supabase
+      //   .from('listings')
+      //   .upsert({
+      //     id: listing.id,
+      //     title: listing.title,
+      //     description: listing.description,
+      //     category: listing.category,
+      //     price: listing.price,
+      //     base_price: listing.basePrice,
+      //     current_collected: listing.currentCollected,
+      //     participant_count: listing.participantCount,
+      //     game_type: listing.gameType,
+      //     image_url: listing.imageUrl,
+      //     seller_id: listing.sellerId,
+      //     seller_name: listing.sellerName,
+      //     status: listing.status,
+      //     created_at: listing.createdAt,
+      //     updated_at: listing.updatedAt,
+      //     time_remaining: listing.timeRemaining,
+      //     is_hot_sale: listing.isHotSale
+      //   });
+      
+      // if (error) {
+      //   console.error('Supabase backup error:', error);
+      // } else {
+      //   console.log('✅ Successfully backed up to Supabase:', listing.id);
+      // }
+      
+    } catch (error) {
+      console.error('Error backing up to Supabase:', error);
+    }
+  }
+
+  // Load listings from Supabase (for initial sync)
+  static async loadFromSupabase(): Promise<void> {
+    try {
+      console.log('🔄 Loading listings from Supabase...');
+      
+      // In a real implementation, you would:
+      // 1. Import Supabase client
+      // 2. Fetch all listings from the database
+      // 3. Merge with localStorage data
+      // 4. Handle conflicts appropriately
+      
+      // Example:
+      // const { data, error } = await supabase
+      //   .from('listings')
+      //   .select('*')
+      //   .order('created_at', { ascending: false });
+      
+      // if (error) {
+      //   console.error('Error loading from Supabase:', error);
+      //   return;
+      // }
+      
+      // if (data) {
+      //   const supabaseListings: StoredListing[] = data.map(row => ({
+      //     id: row.id,
+      //     title: row.title,
+      //     description: row.description,
+      //     category: row.category,
+      //     price: row.price,
+      //     basePrice: row.base_price,
+      //     currentCollected: row.current_collected,
+      //     participantCount: row.participant_count,
+      //     gameType: row.game_type,
+      //     imageUrl: row.image_url,
+      //     sellerId: row.seller_id,
+      //     sellerName: row.seller_name,
+      //     status: row.status,
+      //     createdAt: row.created_at,
+      //     updatedAt: row.updated_at,
+      //     timeRemaining: row.time_remaining,
+      //     isHotSale: row.is_hot_sale
+      //   }));
+      
+      //   // Merge with localStorage data
+      //   const localListings = this.getAllListings();
+      //   const mergedListings = this.mergeListings(localListings, supabaseListings);
+      
+      //   localStorage.setItem(this.STORAGE_KEY, JSON.stringify(mergedListings));
+      //   this.clearCache();
+      
+      //   console.log('✅ Successfully loaded listings from Supabase');
+      // }
+      
+    } catch (error) {
+      console.error('Error loading from Supabase:', error);
+    }
+  }
+
+  // Merge local and Supabase listings (handles conflicts)
+  private static mergeListings(localListings: StoredListing[], supabaseListings: StoredListing[]): StoredListing[] {
+    const merged = new Map<string, StoredListing>();
+    
+    // Add all local listings
+    localListings.forEach(listing => {
+      merged.set(listing.id, listing);
+    });
+    
+    // Add/update with Supabase listings (newer data wins)
+    supabaseListings.forEach(listing => {
+      const existing = merged.get(listing.id);
+      if (!existing || new Date(listing.updatedAt) > new Date(existing.updatedAt)) {
+        merged.set(listing.id, listing);
+      }
+    });
+    
+    return Array.from(merged.values());
   }
 }
