@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import Link from 'next/link'; location checks ti
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function SimpleLoginPage() {
@@ -34,6 +34,17 @@ export default function SimpleLoginPage() {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Set user data in localStorage for the username dropdown
+      const userData = {
+        username: email.split('@')[0], // Use email prefix as username
+        firstName: email.split('@')[0],
+        lastName: '',
+        email: email
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('isLoggedIn', 'true');
       
       // For now, just redirect to dashboard
       window.location.href = '/dashboard';

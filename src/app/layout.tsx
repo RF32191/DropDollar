@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
 import GlobalLocationCheck from '@/components/GlobalLocationCheck'
+import UsernameDropdown from '@/components/UsernameDropdown'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -22,6 +23,14 @@ export default function RootLayout({
         <AuthProvider>
           <GlobalLocationCheck />
           <div className="location-banner-spacer">
+            {/* Username Dropdown - appears beneath location banner */}
+            <div className="w-full bg-gray-800 border-b border-gray-700">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+                <div className="flex justify-end">
+                  <UsernameDropdown />
+                </div>
+              </div>
+            </div>
             {children}
           </div>
         </AuthProvider>
