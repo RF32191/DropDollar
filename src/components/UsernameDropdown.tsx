@@ -146,7 +146,7 @@ export default function UsernameDropdown() {
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef} data-username-dropdown="true">
       {/* Username Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}

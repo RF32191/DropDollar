@@ -222,77 +222,99 @@ export default function BuyTokensPage() {
 
   // Load user's current token balance and user info
   useEffect(() => {
-    // Get user info to ensure we're purchasing for the correct account
-    const getUserInfo = () => {
-      try {
-        console.log('💰 Buy Tokens: Checking for user data...');
-        
-        // First check if user is logged in flag exists
-        const isLoggedIn = localStorage.getItem('isLoggedIn');
-        console.log('💰 Buy Tokens: isLoggedIn flag:', isLoggedIn);
-        
-        if (isLoggedIn === 'true') {
-          // User is logged in, try to get user data
-          let userData = localStorage.getItem('user');
-          console.log('💰 Buy Tokens: User data from localStorage:', userData);
+    const checkAuthentication = async () => {
+      // Add a small delay to ensure localStorage is fully loaded
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Get user info to ensure we're purchasing for the correct account
+      const getUserInfo = () => {
+        try {
+          console.log('💰 Buy Tokens: Checking for user data...');
           
-          // If not in localStorage, try to get from cookies
-          if (!userData) {
-            const cookies = document.cookie.split(';');
-            const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
-            if (userCookie) {
-              const cookieValue = userCookie.split('=')[1];
-              userData = decodeURIComponent(cookieValue);
-              console.log('💰 Buy Tokens: User data from cookie:', userData);
+          // Check multiple indicators of login status
+          const isLoggedIn = localStorage.getItem('isLoggedIn');
+          const userData = localStorage.getItem('user');
+          const sessionId = localStorage.getItem('sessionId');
+          const loginTime = localStorage.getItem('loginTime');
+          
+          console.log('💰 Buy Tokens: isLoggedIn flag:', isLoggedIn);
+          console.log('💰 Buy Tokens: userData exists:', !!userData);
+          console.log('💰 Buy Tokens: sessionId exists:', !!sessionId);
+          console.log('💰 Buy Tokens: loginTime exists:', !!loginTime);
+          
+          // Also check if UsernameDropdown would render (has user data)
+          const usernameDropdownExists = document.querySelector('[data-username-dropdown]');
+          console.log('💰 Buy Tokens: UsernameDropdown exists:', !!usernameDropdownExists);
+          
+          // If any login indicator exists, consider user logged in
+          if (isLoggedIn === 'true' || userData || sessionId || loginTime) {
+            console.log('💰 Buy Tokens: User appears to be logged in');
+            
+            if (userData) {
+              const parsedUser = JSON.parse(userData);
+              console.log('💰 Buy Tokens: User logged in as:', parsedUser.username);
+              return parsedUser;
+            } else {
+              // User is logged in but no user data found
+              // Try to get from cookies
+              const cookies = document.cookie.split(';');
+              const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
+              if (userCookie) {
+                const cookieValue = userCookie.split('=')[1];
+                const cookieUserData = decodeURIComponent(cookieValue);
+                console.log('💰 Buy Tokens: User data from cookie:', cookieUserData);
+                
+                // Restore to localStorage for faster access
+                localStorage.setItem('user', cookieUserData);
+                return JSON.parse(cookieUserData);
+              }
               
-              // Restore to localStorage for faster access
-              localStorage.setItem('user', userData);
+              // Create a basic user object if logged in but no data
+              console.log('💰 Buy Tokens: Creating basic user object for logged-in user');
+              return {
+                id: 'user_' + Date.now(),
+                username: 'User',
+                firstName: 'User',
+                lastName: '',
+                email: 'user@dropdollar.com'
+              };
             }
           }
           
-          if (userData) {
-            const parsedUser = JSON.parse(userData);
-            console.log('💰 Buy Tokens: User logged in as:', parsedUser.username);
-            return parsedUser;
-          } else {
-            // User is marked as logged in but no user data found
-            // Create a basic user object
-            console.log('💰 Buy Tokens: Creating basic user object');
-            return {
-              id: 'user_' + Date.now(),
-              username: 'User',
-              firstName: 'User',
-              lastName: '',
-              email: 'user@dropdollar.com'
-            };
-          }
+          console.log('💰 Buy Tokens: No user logged in');
+          return null;
+        } catch (error) {
+          console.log('💰 Buy Tokens: Error getting user data:', error);
+          return null;
         }
-        
-        console.log('💰 Buy Tokens: No user logged in');
-        return null;
-      } catch (error) {
-        console.log('💰 Buy Tokens: Error getting user data:', error);
-        return null;
+      };
+
+      const user = getUserInfo();
+      
+      // Load user's token balance
+      const savedTokens = localStorage.getItem('userTokens');
+      if (savedTokens) {
+        setUserTokens(parseInt(savedTokens));
       }
+      
+      // Only redirect to login if no user is found AND not logged in
+      if (!user) {
+        console.log('💰 Buy Tokens: No user logged in, redirecting to login');
+        // Add a small delay before redirect to prevent race conditions
+        setTimeout(() => {
+          // Double-check that we're not already on login page to prevent loops
+          if (window.location.pathname !== '/auth/login') {
+            window.location.href = '/auth/login';
+          }
+        }, 200);
+      } else {
+        console.log('💰 Buy Tokens: User verified, proceeding with token purchase page');
+      }
+      
+      setIsLoading(false);
     };
 
-    const user = getUserInfo();
-    
-    // Load user's token balance
-    const savedTokens = localStorage.getItem('userTokens');
-    if (savedTokens) {
-      setUserTokens(parseInt(savedTokens));
-    }
-    
-    // Only redirect to login if no user is found AND not logged in
-    if (!user) {
-      console.log('💰 Buy Tokens: No user logged in, redirecting to login');
-      window.location.href = '/auth/login';
-    } else {
-      console.log('💰 Buy Tokens: User verified, proceeding with token purchase page');
-    }
-    
-    setIsLoading(false);
+    checkAuthentication();
   }, []);
 
   const handlePaymentSuccess = (paymentIntent: any) => {
