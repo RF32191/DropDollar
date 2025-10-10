@@ -55,63 +55,6 @@ export default function SimpleLoginPage() {
     setIsSubmitting(false);
   };
 
-  const handleForceLogout = async () => {
-    // Clear all browser data
-    if (typeof window !== 'undefined') {
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Clear all cookies
-      document.cookie.split(";").forEach((c) => {
-        const eqPos = c.indexOf("=");
-        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
-      });
-    }
-    
-    setError(null);
-    window.location.reload();
-  };
-
-  const handleClearAllAccounts = async () => {
-    // Clear all browser data
-    if (typeof window !== 'undefined') {
-      // Clear IndexedDB
-      if ('indexedDB' in window) {
-        const databases = await indexedDB.databases();
-        databases.forEach(db => {
-          if (db.name) {
-            indexedDB.deleteDatabase(db.name);
-          }
-        });
-      }
-      
-      // Clear Cache API
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
-      }
-      
-      // Clear storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Clear cookies
-      document.cookie.split(";").forEach((c) => {
-        const eqPos = c.indexOf("=");
-        const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
-      });
-    }
-    
-    setError(null);
-    window.location.reload();
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -129,21 +72,6 @@ export default function SimpleLoginPage() {
         </div>
 
         {/* Account Management Buttons */}
-        <div className="mb-6 text-center space-y-3">
-          <button
-            onClick={handleForceLogout}
-            className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300 font-bold text-sm shadow-lg hover:shadow-2xl hover:scale-105 mr-3"
-          >
-            🚨 Force Logout
-          </button>
-          <button
-            onClick={handleClearAllAccounts}
-            className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-2 rounded-lg hover:from-orange-700 hover:to-red-700 transition-all duration-300 font-bold text-sm shadow-lg hover:shadow-2xl hover:scale-105"
-          >
-            🗑️ Clear ALL Accounts & Data
-          </button>
-        </div>
-
         <div className="bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-700">
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-white text-center">

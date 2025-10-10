@@ -22,7 +22,7 @@ interface Testimonial {
   rating: number;
 }
 
-export default function VictoryStoriesPage() {
+export default function TestimonialsPage() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,7 +67,7 @@ export default function VictoryStoriesPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading victory stories...</div>
+        <div className="text-white text-xl">Loading testimonials...</div>
       </div>
     );
   }
@@ -90,7 +90,7 @@ export default function VictoryStoriesPage() {
               <div className="flex flex-col">
                 <span className="text-3xl font-extrabold text-white drop-shadow-lg">DropDollar</span>
                 <span className="text-sm text-yellow-200 font-bold tracking-wider animate-pulse">
-                  ⚡ VICTORY STORIES ⚡
+                  ⚡ TESTIMONIALS ⚡
                 </span>
               </div>
             </Link>

@@ -290,7 +290,7 @@ export default function SimpleDashboard() {
           
           <div className="mt-8">
             <Link
-              href="/victory-stories"
+              href="/testimonials"
               className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
             >
               View All Victory Stories →
