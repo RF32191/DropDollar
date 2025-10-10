@@ -186,10 +186,20 @@ export default function TournamentsPage() {
             </div>
             
             <div className="relative z-10">
-              {globalLocation.status === 'granted' ? (
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-red-500/50">
                   ⚡ JOIN TOURNAMENT - $5
                 </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-4 px-6 rounded-xl bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-sm mb-2">
+                    <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                    Gaming Not Allowed in Your Location
+                  </div>
+                  <div className="text-red-200 text-xs">
+                    Skill-based gaming is restricted in your state
+                  </div>
+                </div>
               ) : (
                 <div className="w-full py-4 px-6 rounded-xl bg-gray-700 border border-gray-600 text-center">
                   <div className="text-gray-400 text-sm mb-2">
@@ -257,10 +267,20 @@ export default function TournamentsPage() {
             </div>
             
             <div className="relative z-10">
-              {globalLocation.status === 'granted' ? (
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-orange-500/50">
                   🔥 JOIN TOURNAMENT - $5
                 </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-4 px-6 rounded-xl bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-sm mb-2">
+                    <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                    Gaming Not Allowed in Your Location
+                  </div>
+                  <div className="text-red-200 text-xs">
+                    Skill-based gaming is restricted in your state
+                  </div>
+                </div>
               ) : (
                 <div className="w-full py-4 px-6 rounded-xl bg-gray-700 border border-gray-600 text-center">
                   <div className="text-gray-400 text-sm mb-2">
@@ -328,10 +348,20 @@ export default function TournamentsPage() {
             </div>
             
             <div className="relative z-10">
-              {globalLocation.status === 'granted' ? (
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-yellow-500/50">
                   💫 JOIN TOURNAMENT - $5
                 </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-4 px-6 rounded-xl bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-sm mb-2">
+                    <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                    Gaming Not Allowed in Your Location
+                  </div>
+                  <div className="text-red-200 text-xs">
+                    Skill-based gaming is restricted in your state
+                  </div>
+                </div>
               ) : (
                 <div className="w-full py-4 px-6 rounded-xl bg-gray-700 border border-gray-600 text-center">
                   <div className="text-gray-400 text-sm mb-2">

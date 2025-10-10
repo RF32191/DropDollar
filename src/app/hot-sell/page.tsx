@@ -656,7 +656,7 @@ export default function HotSellPage() {
                   </div>
 
                   <div className="space-y-3">
-                    {globalLocation.status === 'granted' ? (
+                    {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                       <button
                         onClick={() => handleTournamentEntry(tournament.id)}
                         disabled={isProcessingEntry || (availableSlots === 0 && availableSlots !== Infinity)}
@@ -670,6 +670,16 @@ export default function HotSellPage() {
                          (availableSlots === 0 && availableSlots !== Infinity) ? '🚫 No Slots Available' :
                          `🪙 Enter with $${dollarsToUse} worth of tokens`}
                       </button>
+                    ) : globalLocation.status === 'restricted' ? (
+                      <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
+                        <div className="text-red-300 text-sm mb-2">
+                          <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                          Gaming Not Allowed in Your Location
+                        </div>
+                        <div className="text-red-200 text-xs">
+                          Skill-based gaming is restricted in your state
+                        </div>
+                      </div>
                     ) : (
                       <div className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center">
                         <div className="text-gray-400 text-sm mb-2">

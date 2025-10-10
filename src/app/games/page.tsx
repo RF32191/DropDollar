@@ -170,11 +170,15 @@ export default function GamesPage() {
     console.log('🔍 Global location status:', globalLocation.status);
     console.log('🔍 Global location data:', globalLocation.data);
     console.log('🔍 Global location loading:', globalLocation.isLoading);
+    console.log('🔍 Gaming allowed:', globalLocation.isGamingAllowed);
     
-    // STRICT LOCATION VERIFICATION - Only allow games if location is explicitly granted
-    if (globalLocation.status === 'granted') {
-      console.log('✅ Location verified - allowing game:', gameId);
+    // AUTO-UNLOCK FOR APPROVED STATES - Allow games if location is granted and gaming is allowed
+    if (globalLocation.status === 'granted' && globalLocation.isGamingAllowed) {
+      console.log('✅ Location verified and gaming allowed - allowing game:', gameId);
       return true;
+    } else if (globalLocation.status === 'restricted') {
+      console.log('❌ Location restricted - blocking game:', gameId, 'State not allowed');
+      return false;
     } else {
       console.log('❌ Location not verified - blocking game:', gameId, 'Status:', globalLocation.status);
       return false;
@@ -925,13 +929,23 @@ export default function GamesPage() {
                 </div>
                 
                 {/* Play Button */}
-                {globalLocation.status === 'granted' ? (
+                {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                   <button 
                     onClick={() => handleGameStart(game.id)}
                     className="w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg transform bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-1 cursor-pointer"
                   >
                     🎮 Practice Game
                   </button>
+                ) : globalLocation.status === 'restricted' ? (
+                  <div className="w-full py-3 px-4 rounded-xl bg-red-700 border border-red-600 text-center">
+                    <div className="text-red-300 text-sm mb-2">
+                      <MapPinIcon className="h-5 w-5 inline mr-2" />
+                      Gaming Not Allowed in Your Location
+                    </div>
+                    <div className="text-red-200 text-xs">
+                      Skill-based gaming is restricted in your state
+                    </div>
+                  </div>
                 ) : (
                   <div className="w-full py-3 px-4 rounded-xl bg-gray-700 border border-gray-600 text-center">
                     <div className="text-gray-400 text-sm mb-2">

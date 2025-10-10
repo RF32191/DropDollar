@@ -534,7 +534,7 @@ export default function ListingsPage() {
                       </div>
                       
                       <div className="space-y-3">
-                        {globalLocation.status === 'granted' ? (
+                        {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                           <Link
                             href={`/listings/${listing.id}`}
                             className="block w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-xl text-center transition-all transform hover:scale-105"
@@ -542,6 +542,16 @@ export default function ListingsPage() {
                             <TrophyIcon className="h-5 w-5 inline mr-2" />
                             Enter Competition
                           </Link>
+                        ) : globalLocation.status === 'restricted' ? (
+                          <div className="w-full py-3 px-4 rounded-xl bg-red-700 border border-red-600 text-center">
+                            <div className="text-red-300 text-sm mb-2">
+                              <TrophyIcon className="h-5 w-5 inline mr-2" />
+                              Gaming Not Allowed in Your Location
+                            </div>
+                            <div className="text-red-200 text-xs">
+                              Skill-based gaming is restricted in your state
+                            </div>
+                          </div>
                         ) : (
                           <div className="w-full py-3 px-4 rounded-xl bg-gray-700 border border-gray-600 text-center">
                             <div className="text-gray-400 text-sm mb-2">
