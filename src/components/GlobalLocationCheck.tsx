@@ -18,6 +18,9 @@ export default function GlobalLocationCheck({
   const globalLocation = useGlobalLocation();
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [isCheckingLocation, setIsCheckingLocation] = useState(false);
+  const [showConfirmationBanner, setShowConfirmationBanner] = useState(false);
+  const [confirmationType, setConfirmationType] = useState<'success' | 'denied' | null>(null);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
 
   // Update body class when location banner is shown
   useEffect(() => {
@@ -34,12 +37,44 @@ export default function GlobalLocationCheck({
 
   // Handle location verification success
   useEffect(() => {
-    if (globalLocation.status === 'granted' && globalLocation.isGamingAllowed) {
-      onLocationVerified?.();
+    if (globalLocation.status === 'granted' && globalLocation.data) {
+      if (globalLocation.isGamingAllowed) {
+        // Show success banner for approved states
+        setConfirmationType('success');
+        setConfirmationMessage(`✅ Location verified! Gaming allowed in ${globalLocation.data.state}. You can now participate in competitions.`);
+        setShowConfirmationBanner(true);
+        
+        // Hide banner after 10 seconds
+        setTimeout(() => {
+          setShowConfirmationBanner(false);
+        }, 10000);
+        
+        onLocationVerified?.();
+      } else {
+        // Show denied banner for restricted states
+        setConfirmationType('denied');
+        setConfirmationMessage(`❌ Gaming not allowed in ${globalLocation.data.state}. Skill-based gaming is restricted in your location.`);
+        setShowConfirmationBanner(true);
+        
+        // Hide banner after 10 seconds
+        setTimeout(() => {
+          setShowConfirmationBanner(false);
+        }, 10000);
+      }
     } else if (globalLocation.status === 'denied') {
+      // Show denied banner for denied permission
+      setConfirmationType('denied');
+      setConfirmationMessage('❌ Location access denied. Some features may be unavailable.');
+      setShowConfirmationBanner(true);
+      
+      // Hide banner after 10 seconds
+      setTimeout(() => {
+        setShowConfirmationBanner(false);
+      }, 10000);
+      
       onLocationDenied?.();
     }
-  }, [globalLocation.status, globalLocation.isGamingAllowed, onLocationVerified, onLocationDenied]);
+  }, [globalLocation.status, globalLocation.isGamingAllowed, globalLocation.data, onLocationVerified, onLocationDenied]);
 
   const requestLocationPermission = async () => {
     setIsCheckingLocation(true);
@@ -112,6 +147,39 @@ export default function GlobalLocationCheck({
 
   return (
     <div className={`fixed top-0 left-0 right-0 z-50 ${className}`}>
+      {/* 10-Second Confirmation Banner */}
+      {showConfirmationBanner && (
+        <div className={`${confirmationType === 'success' 
+          ? 'bg-gradient-to-r from-green-600 to-emerald-600 border-green-500' 
+          : 'bg-gradient-to-r from-red-600 to-red-700 border-red-500'
+        } text-white shadow-lg border-b-2`}>
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                  {confirmationType === 'success' ? (
+                    <ShieldCheckIcon className="h-5 w-5 text-white" />
+                  ) : (
+                    <ExclamationTriangleIcon className="h-5 w-5 text-white" />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold">
+                    {confirmationMessage}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConfirmationBanner(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Location Request Button - Only show when not granted */}
       {globalLocation.status !== 'granted' && (
         <div className="fixed top-4 right-4 z-50">
