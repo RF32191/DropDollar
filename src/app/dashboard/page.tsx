@@ -17,10 +17,16 @@ import {
 
 interface BankAccount {
   id: string;
+  accountId: string;
   bankName: string;
   accountType: string;
   last4: string;
   isVerified: boolean;
+  isOnboarded: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  country: string;
+  email: string;
 }
 
 interface WithdrawalRequest {
@@ -126,25 +132,65 @@ export default function SimpleDashboard() {
   };
 
   const handleBankAccountLink = async () => {
-    // In a real implementation, this would integrate with Stripe Connect
-    // For now, we'll simulate adding a bank account
-    const newAccount: BankAccount = {
-      id: Date.now().toString(),
-      bankName: 'Chase Bank',
-      accountType: 'Checking',
-      last4: '1234',
-      isVerified: true
-    };
-    
-    const updatedAccounts = [...bankAccounts, newAccount];
-    setBankAccounts(updatedAccounts);
-    localStorage.setItem('userBankAccounts', JSON.stringify(updatedAccounts));
-    setShowBankLinking(false);
-    
-    alert('Bank account linked successfully!');
+    try {
+      // Get current user info
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        alert('Please log in to link a bank account');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      
+      // Create Stripe Connect account
+      const response = await fetch('/api/stripe/connect/create-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          country: 'US'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create Stripe Connect account');
+      }
+
+      const { accountId, onboardingUrl } = await response.json();
+      
+      // Store account ID for later use
+      const newAccount: BankAccount = {
+        id: Date.now().toString(),
+        accountId: accountId,
+        bankName: 'Pending Setup',
+        accountType: 'Checking',
+        last4: '****',
+        isVerified: false,
+        isOnboarded: false,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        country: 'US',
+        email: user.email
+      };
+      
+      const updatedAccounts = [...bankAccounts, newAccount];
+      setBankAccounts(updatedAccounts);
+      localStorage.setItem('userBankAccounts', JSON.stringify(updatedAccounts));
+      setShowBankLinking(false);
+      
+      // Redirect to Stripe Connect onboarding
+      window.location.href = onboardingUrl;
+      
+    } catch (error) {
+      console.error('Error linking bank account:', error);
+      alert('Failed to link bank account. Please try again.');
+    }
   };
 
-  const handleWithdrawalRequest = (e: React.FormEvent) => {
+  const handleWithdrawalRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const amount = parseFloat(withdrawalAmount);
@@ -158,26 +204,59 @@ export default function SimpleDashboard() {
       return;
     }
     
-    const withdrawal: WithdrawalRequest = {
-      id: Date.now().toString(),
-      amount,
-      status: 'pending',
-      requestedAt: new Date().toISOString()
-    };
+    // Find a verified bank account
+    const verifiedAccount = bankAccounts.find(account => account.isOnboarded && account.payoutsEnabled);
+    if (!verifiedAccount) {
+      alert('Please complete bank account verification first');
+      return;
+    }
     
-    const updatedWithdrawals = [...withdrawalRequests, withdrawal];
-    setWithdrawalRequests(updatedWithdrawals);
-    localStorage.setItem('userWithdrawals', JSON.stringify(updatedWithdrawals));
-    
-    // Update balance
-    const newBalance = userBalance - amount;
-    setUserBalance(newBalance);
-    localStorage.setItem('userBalance', newBalance.toString());
-    
-    setWithdrawalAmount('');
-    setShowWithdrawalForm(false);
-    
-    alert(`Withdrawal request submitted for $${amount.toFixed(2)}`);
+    try {
+      // Create Stripe payout
+      const response = await fetch('/api/stripe/connect/create-payout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId: verifiedAccount.accountId,
+          amount: amount,
+          currency: 'usd'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create payout');
+      }
+
+      const payoutData = await response.json();
+      
+      const withdrawal: WithdrawalRequest = {
+        id: payoutData.payoutId,
+        amount,
+        status: payoutData.status === 'paid' ? 'completed' : 'processing',
+        requestedAt: new Date().toISOString(),
+        completedAt: payoutData.status === 'paid' ? new Date().toISOString() : undefined
+      };
+      
+      const updatedWithdrawals = [...withdrawalRequests, withdrawal];
+      setWithdrawalRequests(updatedWithdrawals);
+      localStorage.setItem('userWithdrawals', JSON.stringify(updatedWithdrawals));
+      
+      // Update balance
+      const newBalance = userBalance - amount;
+      setUserBalance(newBalance);
+      localStorage.setItem('userBalance', newBalance.toString());
+      
+      setWithdrawalAmount('');
+      setShowWithdrawalForm(false);
+      
+      alert(`Withdrawal ${payoutData.status === 'paid' ? 'completed' : 'processing'} for $${amount.toFixed(2)}`);
+      
+    } catch (error) {
+      console.error('Error processing withdrawal:', error);
+      alert('Failed to process withdrawal. Please try again.');
+    }
   };
 
   const renderStars = (rating: number, onRatingChange?: (rating: number) => void) => {

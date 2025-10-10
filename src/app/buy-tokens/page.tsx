@@ -297,16 +297,14 @@ export default function BuyTokensPage() {
         setUserTokens(parseInt(savedTokens));
       }
       
-      // Only redirect to login if no user is found AND not logged in
+      // Check if user is logged in, but don't redirect automatically
       if (!user) {
-        console.log('💰 Buy Tokens: No user logged in, redirecting to login');
-        // Add a small delay before redirect to prevent race conditions
-        setTimeout(() => {
-          // Double-check that we're not already on login page to prevent loops
-          if (window.location.pathname !== '/auth/login') {
-            window.location.href = '/auth/login';
-          }
-        }, 200);
+        console.log('💰 Buy Tokens: No user logged in, showing login prompt');
+        // Instead of redirecting, we'll show a message and let the user choose
+        setPaymentResult({
+          success: false,
+          message: 'Please log in to purchase tokens. Click the login button below.'
+        });
       } else {
         console.log('💰 Buy Tokens: User verified, proceeding with token purchase page');
       }
@@ -460,6 +458,17 @@ export default function BuyTokensPage() {
                 {paymentResult.message}
               </p>
             </div>
+            {!paymentResult.success && (
+              <div className="mt-4">
+                <Link
+                  href="/auth/login"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 inline-flex items-center space-x-2"
+                >
+                  <span>🔐</span>
+                  <span>Sign In to Purchase Tokens</span>
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
