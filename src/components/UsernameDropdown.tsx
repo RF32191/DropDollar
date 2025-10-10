@@ -9,7 +9,8 @@ import {
   ChevronDownIcon,
   HomeIcon,
   TrophyIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
 
 export default function UsernameDropdown() {
@@ -166,6 +167,15 @@ export default function UsernameDropdown() {
             >
               <TrophyIcon className="h-5 w-5" />
               <span>Tournaments</span>
+            </Link>
+
+            <Link
+              href="/hot-sell"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center space-x-3 px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+            >
+              <FireIcon className="h-5 w-5" />
+              <span>Hot Sell</span>
             </Link>
 
             <Link
