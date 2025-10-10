@@ -175,6 +175,8 @@ export default function BuyTokensPage() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
   const [userTokens, setUserTokens] = useState(0);
+  const [customAmount, setCustomAmount] = useState('');
+  const [isCustomAmount, setIsCustomAmount] = useState(false);
 
   // Load user's current token balance
   useEffect(() => {
@@ -186,7 +188,7 @@ export default function BuyTokensPage() {
   }, []);
 
   const handlePaymentSuccess = (paymentIntent: any) => {
-    const totalTokens = selectedPackage.tokens + selectedPackage.bonus;
+    const totalTokens = isCustomAmount ? parseInt(customAmount) : (selectedPackage.tokens + selectedPackage.bonus);
     const newBalance = userTokens + totalTokens;
     setUserTokens(newBalance);
     localStorage.setItem('userTokens', newBalance.toString());
@@ -196,6 +198,30 @@ export default function BuyTokensPage() {
       message: `Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
     });
     setShowCheckout(false);
+  };
+
+  const getCurrentPackage = () => {
+    if (isCustomAmount && customAmount) {
+      const tokens = parseInt(customAmount);
+      const price = tokens * 100; // $1 per token in cents
+      return {
+        id: 'custom',
+        tokens,
+        price,
+        bonus: 0,
+        description: 'Custom amount'
+      };
+    }
+    return selectedPackage;
+  };
+
+  const handleCustomAmountChange = (value: string) => {
+    const numValue = parseInt(value);
+    if (numValue >= 1) {
+      setCustomAmount(value);
+    } else if (value === '') {
+      setCustomAmount('');
+    }
   };
 
   const handlePaymentError = (error: string) => {
@@ -294,11 +320,14 @@ export default function BuyTokensPage() {
             <div
               key={pkg.id}
               className={`relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 cursor-pointer ${
-                selectedPackage.id === pkg.id
+                selectedPackage.id === pkg.id && !isCustomAmount
                   ? 'border-green-500 shadow-2xl shadow-green-500/25'
                   : 'border-gray-600 hover:border-green-400'
               } ${pkg.popular ? 'ring-2 ring-yellow-400 ring-opacity-50' : ''}`}
-              onClick={() => setSelectedPackage(pkg)}
+              onClick={() => {
+                setSelectedPackage(pkg);
+                setIsCustomAmount(false);
+              }}
             >
               {pkg.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -341,6 +370,60 @@ export default function BuyTokensPage() {
               </div>
             </div>
           ))}
+          
+          {/* Custom Amount Option */}
+          <div
+            className={`relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 cursor-pointer ${
+              isCustomAmount
+                ? 'border-blue-500 shadow-2xl shadow-blue-500/25'
+                : 'border-gray-600 hover:border-blue-400'
+            }`}
+            onClick={() => setIsCustomAmount(true)}
+          >
+            <div className="text-center">
+              <div className="text-4xl font-bold text-white mb-2">
+                Custom Amount
+              </div>
+              <div className="text-3xl font-bold text-blue-400 mb-4">
+                $1.00+ per Token
+              </div>
+              <p className="text-gray-400 text-sm mb-6">Choose your own amount</p>
+              
+              {isCustomAmount && (
+                <div className="mt-4">
+                  <input
+                    type="number"
+                    min="1"
+                    value={customAmount}
+                    onChange={(e) => handleCustomAmountChange(e.target.value)}
+                    placeholder="Enter tokens"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-xl font-bold"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  {customAmount && parseInt(customAmount) >= 1 && (
+                    <div className="mt-3 text-lg font-bold text-blue-400">
+                      ${(parseInt(customAmount) * 1).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="space-y-2 text-sm text-gray-300 mt-4">
+                <div className="flex justify-between">
+                  <span>Price per Token:</span>
+                  <span>$1.00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Minimum:</span>
+                  <span>1 Token</span>
+                </div>
+                <div className="flex justify-between font-semibold text-white border-t border-gray-600 pt-2">
+                  <span>No Bonus:</span>
+                  <span>Standard Rate</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Checkout Section */}
@@ -351,17 +434,17 @@ export default function BuyTokensPage() {
                 <h2 className="text-3xl font-bold text-white mb-4">Complete Your Purchase</h2>
                 <div className="bg-gray-700 rounded-lg p-4">
                   <div className="text-2xl font-bold text-green-400 mb-2">
-                    {selectedPackage.tokens + selectedPackage.bonus} Tokens
+                    {getCurrentPackage().tokens + getCurrentPackage().bonus} Tokens
                   </div>
                   <div className="text-xl text-white">
-                    ${(selectedPackage.price / 100).toFixed(2)}
+                    ${(getCurrentPackage().price / 100).toFixed(2)}
                   </div>
                 </div>
               </div>
 
               <Elements stripe={stripePromise}>
                 <CheckoutForm
-                  selectedPackage={selectedPackage}
+                  selectedPackage={getCurrentPackage()}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />
@@ -378,12 +461,19 @@ export default function BuyTokensPage() {
         ) : (
           <div className="text-center">
             <button
-              onClick={() => setShowCheckout(true)}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 inline-flex items-center space-x-3"
+              onClick={() => {
+                if (isCustomAmount && (!customAmount || parseInt(customAmount) < 1)) {
+                  alert('Please enter a valid amount (1 or more tokens)');
+                  return;
+                }
+                setShowCheckout(true);
+              }}
+              disabled={isCustomAmount && (!customAmount || parseInt(customAmount) < 1)}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 inline-flex items-center space-x-3"
             >
               <CreditCardIcon className="h-8 w-8" />
-              <span>Purchase {selectedPackage.tokens + selectedPackage.bonus} Tokens</span>
-              <span className="text-green-200">${(selectedPackage.price / 100).toFixed(2)}</span>
+              <span>Purchase {getCurrentPackage().tokens + getCurrentPackage().bonus} Tokens</span>
+              <span className="text-green-200">${(getCurrentPackage().price / 100).toFixed(2)}</span>
             </button>
           </div>
         )}
