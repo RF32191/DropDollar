@@ -13,7 +13,8 @@ import {
   BoltIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
 import TournamentPaymentService from '@/lib/tournamentPayments';
 import GameEntryFlow from '@/components/games/GameEntryFlow';
@@ -679,12 +680,12 @@ export default function HotSellPage() {
                       >
                         {isProcessingEntry ? '⏳ Processing...' : 
                          (availableSlots === 0 && availableSlots !== Infinity) ? '🚫 No Slots Available' :
-                         `🪙 Enter with $${dollarsToUse} worth of tokens`}
+                         `🔥 Enter Competition - $${dollarsToUse}`}
                       </button>
                     ) : globalLocation.status === 'restricted' ? (
                       <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
                         <div className="text-red-300 text-sm mb-2">
-                          <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                          <ShieldExclamationIcon className="h-5 w-5 inline mr-2" />
                           Gaming Not Allowed in Your Location
                         </div>
                         <div className="text-red-200 text-xs">
@@ -692,18 +693,18 @@ export default function HotSellPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center">
+                      <button
+                        onClick={() => globalLocation.requestLocation()}
+                        className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-colors"
+                      >
                         <div className="text-gray-400 text-sm mb-2">
                           <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
                           Location Verification Required
                         </div>
-                        <button 
-                          onClick={() => globalLocation.requestLocation()}
-                          className="text-blue-400 hover:text-blue-300 font-medium text-sm"
-                        >
+                        <div className="text-blue-400 hover:text-blue-300 font-medium text-sm">
                           Enable Location to Enter Competition
-                        </button>
-                      </div>
+                        </div>
+                      </button>
                     )}
 
                     {/* View Results Button */}
