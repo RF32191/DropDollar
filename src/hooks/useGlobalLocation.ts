@@ -97,6 +97,12 @@ export function useGlobalLocation(): LocationStatus {
             isGamingAllowed: isAllowed,
             requestLocation
           });
+          console.log('🟢 Location status set from requestLocation:', {
+            status: isAllowed ? 'granted' : 'restricted',
+            city: locationData.city,
+            state: locationData.state,
+            isGamingAllowed: isAllowed
+          });
         } catch (error) {
           console.error('Error getting location data:', error);
           setStatus(prev => ({
@@ -126,6 +132,7 @@ export function useGlobalLocation(): LocationStatus {
 
   useEffect(() => {
     const checkLocationStatus = async () => {
+      console.log('🔍 Checking location status...');
       try {
         // Check if geolocation is available
         if (!('geolocation' in navigator)) {
@@ -169,17 +176,14 @@ export function useGlobalLocation(): LocationStatus {
             }
           }
           
-          // No valid cache, but permission is granted - try to get location
+          // No valid cache, but permission is granted - don't auto-request
           setStatus({
             status: 'granted',
             data: null,
-            isLoading: true,
+            isLoading: false,
             isGamingAllowed: false,
             requestLocation
           });
-          
-          // Automatically request location if permission is granted but no cache
-          requestLocation();
         } else if (permission.state === 'denied') {
           setStatus({
             status: 'denied',
@@ -225,8 +229,8 @@ export function useGlobalLocation(): LocationStatus {
 
     window.addEventListener('storage', handleStorageChange);
     
-    // Check periodically for permission changes
-    const interval = setInterval(checkLocationStatus, 5000);
+    // Check periodically for permission changes (reduced frequency)
+    const interval = setInterval(checkLocationStatus, 30000); // 30 seconds instead of 5
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
