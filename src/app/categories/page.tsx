@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Navigation from '@/components/navigation/Navigation';
 import PageLayout from '@/components/layout/PageLayout';
 import GameCard from '@/components/ui/GameCard';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import {
   MagnifyingGlassIcon,
   DevicePhoneMobileIcon,
@@ -225,6 +227,17 @@ const categories = [
 
 export default function CategoriesPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const globalLocation = useGlobalLocation();
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Categories page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
 
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

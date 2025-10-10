@@ -2,13 +2,16 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { 
   ClockIcon, 
   FireIcon, 
   CurrencyDollarIcon, 
   UserGroupIcon,
   EyeSlashIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { getCategoryProducts, getHotSaleProducts, getRegularProducts, categories } from '@/data/categoryProducts';
 import LocationVerificationService from '@/lib/locationVerification';
@@ -22,6 +25,17 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
   const [selectedDollars, setSelectedDollars] = useState<{ [key: string]: number }>({});
   const [isProcessingEntry, setIsProcessingEntry] = useState(false);
   const [entryResult, setEntryResult] = useState<{ success: boolean; message: string } | null>(null);
+  const globalLocation = useGlobalLocation();
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Category page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
   
   // Mock token price for display
   const tokenPrice = 2.45;
@@ -37,25 +51,11 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
     setEntryResult(null);
 
     try {
-      // Verify location before allowing game entry
-      const userId = `user_${Date.now()}`; // Mock user ID
-      const locationVerification = await LocationVerificationService.verifyBeforeGameEntry(userId, productId);
-      
-      if (!locationVerification.isAllowed) {
+      // Check location verification using global location system
+      if (globalLocation.status !== 'granted' || !globalLocation.isGamingAllowed) {
         setEntryResult({
           success: false,
-          message: `Game entry blocked: ${locationVerification.reason}`
-        });
-        return;
-      }
-
-      // Verify location before payment
-      const paymentVerification = await LocationVerificationService.verifyBeforePayment(userId, productId, dollarsToUse);
-      
-      if (!paymentVerification.isAllowed) {
-        setEntryResult({
-          success: false,
-          message: `Payment blocked: ${paymentVerification.reason}`
+          message: 'Location verification required. Please enable location to participate in competitions.'
         });
         return;
       }
@@ -70,7 +70,7 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
       const tokensUsed = (dollarsToUse / tokenPrice).toFixed(4);
       setEntryResult({
         success: true,
-        message: `Successfully entered game for ${productId} with $${dollarsToUse} (${tokensUsed} tokens)! Location: ${locationVerification.location?.city}, ${locationVerification.location?.regionName}`
+        message: `Successfully entered game for ${productId} with $${dollarsToUse} (${tokensUsed} tokens)! Location verified: ${globalLocation.data?.city}, ${globalLocation.data?.state}`
       });
       
     } catch (error) {
@@ -343,13 +343,38 @@ export default function CategoryPage({ categoryId, categoryIcon }: CategoryPageP
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => handleGameEntry(product.id)}
-                    disabled={isProcessingEntry}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition-colors"
-                  >
-                    {isProcessingEntry ? '⏳ Processing...' : `🎯 Enter Competition ($${selectedDollars[product.id] || 1})`}
-                  </button>
+                  {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+                    <button 
+                      onClick={() => handleGameEntry(product.id)}
+                      disabled={isProcessingEntry}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition-colors"
+                    >
+                      {isProcessingEntry ? '⏳ Processing...' : `🎯 Enter Competition ($${selectedDollars[product.id] || 1})`}
+                    </button>
+                  ) : globalLocation.status === 'restricted' ? (
+                    <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
+                      <div className="text-red-300 text-sm mb-2">
+                        <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                        Gaming Not Allowed in Your Location
+                      </div>
+                      <div className="text-red-200 text-xs">
+                        Skill-based gaming is restricted in your state
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center">
+                      <div className="text-gray-400 text-sm mb-2">
+                        <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
+                        Location Verification Required
+                      </div>
+                      <button 
+                        onClick={() => globalLocation.requestLocation()}
+                        className="text-blue-400 hover:text-blue-300 font-medium text-sm"
+                      >
+                        Enable Location to Enter Competition
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

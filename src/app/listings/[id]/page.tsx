@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 
 // Force dynamic rendering to prevent build timeouts
 export const dynamic = 'force-dynamic';
@@ -32,6 +34,17 @@ export default function ListingDetailPage() {
   const params = useParams();
   const router = useRouter();
   const listingId = params.id as string;
+  const globalLocation = useGlobalLocation();
+  
+  // 10-minute inactivity timeout
+  useInactivityTimeout({
+    timeout: 10 * 60 * 1000, // 10 minutes
+    onTimeout: () => {
+      console.log('🕐 Listing detail page timeout - reloading for fresh content');
+      window.location.reload();
+    },
+    enabled: true
+  });
   
   const [listing, setListing] = useState<StoredListing | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
