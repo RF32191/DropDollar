@@ -182,7 +182,8 @@ export default function DropAFundCategoryPage() {
               ✨ What Makes DropAFund Special?
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-              Unlike traditional competitions with single winners, DropAFund campaigns support multiple winners and meaningful causes.
+              Unlike traditional competitions with single winners, DropAFund campaigns support multiple winners and meaningful causes. 
+              Platform fee: Only 6% (vs 15% for regular tournaments).
             </p>
           </div>
           

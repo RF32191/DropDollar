@@ -8,7 +8,12 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-900 text-white;
+  }
+  
+  /* Force dark mode for all elements */
+  * {
+    color-scheme: dark;
   }
 }
 
@@ -34,23 +39,23 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
   }
   
   .btn-secondary {
-    @apply bg-green-100 hover:bg-green-200 text-green-800 font-semibold py-3 px-6 rounded-lg transition-all duration-200 border-2 border-green-300 hover:border-green-400;
+    @apply bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 border-2 border-gray-600 hover:border-gray-500;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-md p-6 border border-gray-200;
+    @apply bg-gray-800 rounded-lg shadow-md p-6 border border-gray-700;
   }
   
   .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500;
+    @apply w-full px-4 py-3 border border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-gray-700 text-white placeholder-gray-400;
   }
   
   .listing-card {
-    @apply bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-200;
+    @apply bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 border border-gray-700;
   }
   
   .countdown-timer {
-    @apply text-red-600 font-bold animate-pulse-slow;
+    @apply text-red-400 font-bold animate-pulse-slow;
   }
   
   .crypto-gradient {
@@ -70,7 +75,7 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
   }
   
   .tagline-emphasis {
-    @apply text-green-600 font-bold;
+    @apply text-green-400 font-bold;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
   

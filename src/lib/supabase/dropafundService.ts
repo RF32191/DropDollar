@@ -140,6 +140,19 @@ export interface ListingScoreboard {
 }
 
 export class DropAFundService {
+  // Platform fee for DropAFund campaigns (6%)
+  static readonly PLATFORM_FEE_PERCENTAGE = 6;
+  
+  // Calculate platform fee for DropAFund
+  static calculatePlatformFee(amount: number): number {
+    return Math.round(amount * (this.PLATFORM_FEE_PERCENTAGE / 100) * 100) / 100;
+  }
+  
+  // Calculate net amount after platform fee
+  static calculateNetAmount(amount: number): number {
+    return Math.round((amount - this.calculatePlatformFee(amount)) * 100) / 100;
+  }
+  
   // Create a new DropAFund campaign
   static async createCampaign(campaignData: Partial<DropAFundCampaign>): Promise<DropAFundCampaign | null> {
     try {

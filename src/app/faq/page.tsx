@@ -156,7 +156,7 @@ const faqData: FAQItem[] = [
   {
     id: 'platform-fees',
     question: 'What are the platform fees?',
-    answer: 'We charge a 15% platform fee on tournament entry fees. This fee covers platform maintenance, prize distribution, and customer support. Winners receive 85% of the total prize pool.',
+    answer: 'Regular tournaments have a 15% platform fee on entry fees (winners get 85% of prize pool). DropAFund campaigns have a reduced 6% platform fee (winners get 94% of prize pool). This covers platform maintenance, prize distribution, and customer support.',
     category: 'Platform & Community'
   },
   {
