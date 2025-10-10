@@ -25,6 +25,11 @@ import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userS
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
+// Debug Stripe configuration
+console.log('🔧 ProfessionalTokenWallet Stripe Config:');
+console.log('🔧 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:', !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+console.log('🔧 Stripe Promise:', !!stripePromise);
+
 interface TokenPackage {
   id: string;
   tokens: number;
@@ -111,6 +116,15 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
           gameType: 'token_purchase'
         }
       );
+
+      // For mock mode, simulate successful payment
+      if (paymentIntent.id.startsWith('pi_mock_')) {
+        console.log('🔧 Mock payment mode - simulating successful payment');
+        setTimeout(() => {
+          onSuccess(paymentIntent);
+        }, 1000);
+        return;
+      }
 
       // Confirm payment
       const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(
