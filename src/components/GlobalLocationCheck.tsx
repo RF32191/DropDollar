@@ -130,10 +130,11 @@ export default function GlobalLocationCheck({
                 </span>
                 <button
                   onClick={() => {
-                    document.body.removeAttribute('data-location-banner');
-                    setShowLocationPrompt(false);
+                    // Hide the banner by updating the global location state
+                    globalLocation.clearLocation();
                   }}
-                  className="text-white/80 hover:text-white transition-colors"
+                  className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+                  title="Hide location banner"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>

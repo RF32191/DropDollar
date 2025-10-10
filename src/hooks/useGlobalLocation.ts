@@ -16,6 +16,7 @@ interface LocationStatus {
   isLoading: boolean;
   isGamingAllowed: boolean;
   requestLocation: () => void;
+  clearLocation: () => void;
 }
 
 export function useGlobalLocation(): LocationStatus {
@@ -24,7 +25,8 @@ export function useGlobalLocation(): LocationStatus {
     data: null,
     isLoading: true,
     isGamingAllowed: false,
-    requestLocation: () => {}
+    requestLocation: () => {},
+    clearLocation: () => {}
   });
 
   // Check if gaming is allowed in the user's state
@@ -95,7 +97,8 @@ export function useGlobalLocation(): LocationStatus {
             data: locationData,
             isLoading: false,
             isGamingAllowed: isAllowed,
-            requestLocation
+            requestLocation,
+            clearLocation
           });
           console.log('🟢 Location status set from requestLocation:', {
             status: isAllowed ? 'granted' : 'restricted',
@@ -130,6 +133,21 @@ export function useGlobalLocation(): LocationStatus {
     );
   };
 
+  // Clear location data and reset to unknown status
+  const clearLocation = () => {
+    console.log('🗑️ Clearing location data...');
+    localStorage.removeItem('userLocation');
+    localStorage.removeItem('locationPermission');
+    setStatus({
+      status: 'unknown',
+      data: null,
+      isLoading: false,
+      isGamingAllowed: false,
+      requestLocation,
+      clearLocation
+    });
+  };
+
   useEffect(() => {
     const checkLocationStatus = async () => {
       console.log('🔍 Checking location status...');
@@ -139,7 +157,10 @@ export function useGlobalLocation(): LocationStatus {
           setStatus({
             status: 'unavailable',
             data: null,
-            isLoading: false
+            isLoading: false,
+            isGamingAllowed: false,
+            requestLocation,
+            clearLocation
           });
           return;
         }
@@ -167,7 +188,8 @@ export function useGlobalLocation(): LocationStatus {
                   data: locationData,
                   isLoading: false,
                   isGamingAllowed: isAllowed,
-                  requestLocation
+                  requestLocation,
+                  clearLocation
                 });
                 return;
               }
@@ -182,7 +204,8 @@ export function useGlobalLocation(): LocationStatus {
             data: null,
             isLoading: false,
             isGamingAllowed: false,
-            requestLocation
+            requestLocation,
+            clearLocation
           });
         } else if (permission.state === 'denied') {
           setStatus({
@@ -190,7 +213,8 @@ export function useGlobalLocation(): LocationStatus {
             data: null,
             isLoading: false,
             isGamingAllowed: false,
-            requestLocation
+            requestLocation,
+            clearLocation
           });
         } else {
           setStatus({
@@ -198,7 +222,8 @@ export function useGlobalLocation(): LocationStatus {
             data: null,
             isLoading: false,
             isGamingAllowed: false,
-            requestLocation
+            requestLocation,
+            clearLocation
           });
         }
       } catch (error) {
@@ -208,7 +233,8 @@ export function useGlobalLocation(): LocationStatus {
           data: null,
           isLoading: false,
           isGamingAllowed: false,
-          requestLocation
+          requestLocation,
+          clearLocation
         });
       }
     };
