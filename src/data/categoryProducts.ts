@@ -424,6 +424,108 @@ export const categoryProducts = {
       participantCount: 6234,
       features: ['PSA 10', 'Rookie Card', '1986-87 Fleer', 'Perfect Condition']
     }
+  ],
+  'books-media': [
+    {
+      id: 'books-media-1',
+      title: 'First Edition Harry Potter',
+      basePrice: 200,
+      currentCollected: 45,
+      isHotSale: false,
+      image: '/products/harry-potter-first-edition.jpg',
+      description: 'First edition Harry Potter and the Philosopher\'s Stone in excellent condition',
+      condition: 'Like New' as const,
+      seller: 'Book Collectors',
+      category: 'books-media',
+      gameType: 'Quick Click',
+      participantCount: 45,
+      features: ['First Edition', 'Hardcover', 'Excellent Condition', 'Rare']
+    }
+  ],
+  'music-instruments': [
+    {
+      id: 'music-instruments-1',
+      title: 'Fender Stratocaster',
+      basePrice: 800,
+      currentCollected: 120,
+      isHotSale: false,
+      image: '/products/fender-stratocaster.jpg',
+      description: 'Classic Fender Stratocaster electric guitar in sunburst finish',
+      condition: 'Good' as const,
+      seller: 'Music Store Pro',
+      category: 'music-instruments',
+      gameType: 'Sword Parry',
+      participantCount: 120,
+      features: ['Sunburst Finish', 'Maple Neck', '3 Single Coils', 'Classic Design']
+    }
+  ],
+  'art-crafts': [
+    {
+      id: 'art-crafts-1',
+      title: 'Professional Art Set',
+      basePrice: 150,
+      currentCollected: 78,
+      isHotSale: false,
+      image: '/products/professional-art-set.jpg',
+      description: 'Complete professional art set with paints, brushes, and canvas',
+      condition: 'Brand New' as const,
+      seller: 'Art Supplies Co',
+      category: 'art-crafts',
+      gameType: 'Falling Object Catch',
+      participantCount: 78,
+      features: ['Complete Set', 'Professional Grade', 'All Materials', 'Beginner Friendly']
+    }
+  ],
+  photography: [
+    {
+      id: 'photography-1',
+      title: 'Canon EOS R5 Camera',
+      basePrice: 2500,
+      currentCollected: 320,
+      isHotSale: false,
+      image: '/products/canon-eos-r5.jpg',
+      description: 'Professional mirrorless camera with 45MP sensor and 8K video',
+      condition: 'Brand New' as const,
+      seller: 'Camera Pro',
+      category: 'photography',
+      gameType: 'Laser Dodge EXTREME',
+      participantCount: 320,
+      features: ['45MP Sensor', '8K Video', 'Mirrorless', 'Professional Grade']
+    }
+  ],
+  'tools-equipment': [
+    {
+      id: 'tools-equipment-1',
+      title: 'Professional Tool Set',
+      basePrice: 300,
+      currentCollected: 95,
+      isHotSale: false,
+      image: '/products/professional-tool-set.jpg',
+      description: 'Complete professional tool set with 200+ pieces',
+      condition: 'Brand New' as const,
+      seller: 'Tool Masters',
+      category: 'tools-equipment',
+      gameType: 'Multi-Target Reaction',
+      participantCount: 95,
+      features: ['200+ Pieces', 'Professional Grade', 'Lifetime Warranty', 'Complete Set']
+    }
+  ],
+  dropafund: [
+    {
+      id: 'dropafund-1',
+      title: 'Community Fundraiser',
+      basePrice: 1000,
+      currentCollected: 450,
+      isHotSale: false,
+      image: '/products/community-fundraiser.jpg',
+      description: 'Help raise funds for local community projects and initiatives',
+      condition: 'Brand New' as const,
+      seller: 'Community Fund',
+      category: 'dropafund',
+      gameType: 'Color Sequence Memory',
+      participantCount: 450,
+      features: ['Community Project', 'Multiple Winners', 'Charity Focus', 'Local Impact']
+    }
   ]
 };
 
@@ -433,7 +535,13 @@ export const categories = [
   { id: 'fashion', name: 'Fashion', icon: '👗' },
   { id: 'home', name: 'Home & Garden', icon: '🏠' },
   { id: 'sports', name: 'Sports & Outdoors', icon: '⚽' },
-  { id: 'collectibles', name: 'Collectibles', icon: '🎨' }
+  { id: 'collectibles', name: 'Collectibles', icon: '🎨' },
+  { id: 'books-media', name: 'Books & Media', icon: '📚' },
+  { id: 'music-instruments', name: 'Music & Instruments', icon: '🎵' },
+  { id: 'art-crafts', name: 'Art & Crafts', icon: '🎨' },
+  { id: 'photography', name: 'Photography', icon: '📸' },
+  { id: 'tools-equipment', name: 'Tools & Equipment', icon: '🔧' },
+  { id: 'dropafund', name: 'DropAFund', icon: '💰' }
 ];
 
 export function getCategoryProducts(categoryId: string): Product[] {

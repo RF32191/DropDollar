@@ -3,5 +3,5 @@
 import CategoryPage from '@/components/CategoryPage';
 
 export default function PhotographyPage() {
-  return <CategoryPage categoryId="electronics" categoryIcon="📸" />;
+  return <CategoryPage categoryId="photography" categoryIcon="📸" />;
 }

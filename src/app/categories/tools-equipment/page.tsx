@@ -3,5 +3,5 @@
 import CategoryPage from '@/components/CategoryPage';
 
 export default function ToolsEquipmentPage() {
-  return <CategoryPage categoryId="home" categoryIcon="🔧" />;
+  return <CategoryPage categoryId="tools-equipment" categoryIcon="🔧" />;
 }
