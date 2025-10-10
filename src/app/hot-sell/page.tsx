@@ -424,27 +424,27 @@ export default function HotSellPage() {
             
             {/* Fire Stats Bar */}
             <div className="mt-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 max-w-6xl mx-auto">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-600/50">
                 <div className="text-2xl font-bold text-yellow-300">5 MIN</div>
                 <div className="text-orange-200 text-xs">$10 Tournaments</div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-600/50">
                 <div className="text-2xl font-bold text-green-300">10 MIN</div>
                 <div className="text-orange-200 text-xs">$100 Tournaments</div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-600/50">
                 <div className="text-2xl font-bold text-blue-300">30 MIN</div>
                 <div className="text-orange-200 text-xs">$500 Tournaments</div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-600/50">
                 <div className="text-2xl font-bold text-purple-300">1 HOUR</div>
                 <div className="text-orange-200 text-xs">$2500 Tournaments</div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-600/50">
                 <div className="text-2xl font-bold text-pink-300">2 HOURS</div>
                 <div className="text-orange-200 text-xs">$25000 Tournaments</div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-600/50">
                 <div className="text-2xl font-bold text-red-300">LIVE</div>
                 <div className="text-orange-200 text-xs">Active Now</div>
               </div>
@@ -453,10 +453,10 @@ export default function HotSellPage() {
         </div>
       </div>
 
-      <div className="max-w-full mx-auto px-2 sm:px-4 lg:px-6 py-16 bg-gradient-to-br from-gray-50 to-orange-50 dark:from-gray-900 dark:to-red-950 transition-colors">
+      <div className="max-w-full mx-auto px-2 sm:px-4 lg:px-6 py-16 bg-gradient-to-br from-gray-900 to-red-950">
 
         {entryResult && (
-          <div className={`mb-6 p-4 rounded-lg text-center ${entryResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          <div className={`mb-6 p-4 rounded-lg text-center ${entryResult.success ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'}`}>
             {entryResult.message}
           </div>
         )}
@@ -641,7 +641,7 @@ export default function HotSellPage() {
                           className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
                             (selectedDollars[tournament.id] || 1) === dollars
                               ? `bg-${tournament.color}-600 text-white`
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                         >
                           <div className="text-center">
@@ -734,14 +734,14 @@ export default function HotSellPage() {
       {/* Entry Result Modal */}
       {entryResult && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md mx-4 text-center">
+          <div className="bg-gray-800 rounded-2xl p-8 max-w-md mx-4 text-center">
             <div className={`text-6xl mb-4 ${entryResult.success ? 'text-green-500' : 'text-red-500'}`}>
               {entryResult.success ? '✅' : '❌'}
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            <h3 className="text-2xl font-bold text-white mb-4">
               {entryResult.success ? 'Success!' : 'Error'}
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
+            <p className="text-gray-300 mb-6">
               {entryResult.message}
             </p>
             <button
