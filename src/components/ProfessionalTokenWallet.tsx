@@ -117,14 +117,8 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
         }
       );
 
-      // For mock mode, simulate successful payment
-      if (paymentIntent.id.startsWith('pi_mock_')) {
-        console.log('🔧 Mock payment mode - simulating successful payment');
-        setTimeout(() => {
-          onSuccess(paymentIntent);
-        }, 1000);
-        return;
-      }
+      // Real Stripe payment processing
+      console.log('🔧 Processing real Stripe payment:', paymentIntent.id);
 
       // Confirm payment
       const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(

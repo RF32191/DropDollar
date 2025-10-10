@@ -16,7 +16,7 @@ if (stripeSecretKey && stripeSecretKey.length > 50) { // Check if key is long en
     stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2024-06-20',
     });
-    console.log('✅ Stripe initialized successfully');
+    console.log('✅ Stripe initialized successfully with live keys');
   } catch (error) {
     console.error('❌ Failed to initialize Stripe:', error);
     stripe = null;
