@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -37,14 +37,26 @@ export default function SimpleLoginPage() {
       
       // Set user data in localStorage for the username dropdown
       const userData = {
+        id: Date.now().toString(), // Generate unique user ID
         username: email.split('@')[0], // Use email prefix as username
         firstName: email.split('@')[0],
         lastName: '',
-        email: email
+        email: email,
+        loginTime: new Date().toISOString(),
+        sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       };
       
+      // Store user data and login state
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('loginTime', new Date().toISOString());
+      localStorage.setItem('sessionId', userData.sessionId);
+      
+      // Set session cookie for additional persistence
+      document.cookie = `dropdollar_session=${userData.sessionId}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
+      document.cookie = `dropdollar_user=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
+      
+      console.log('✅ Login successful, user data stored:', userData);
       
       // For now, just redirect to dashboard
       window.location.href = '/dashboard';

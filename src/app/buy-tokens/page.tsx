@@ -85,12 +85,25 @@ function CheckoutForm({ selectedPackage, onSuccess, onError }: {
     setIsProcessing(true);
 
     try {
+      // Get current user info
+      let userData = localStorage.getItem('user');
+      if (!userData) {
+        const cookies = document.cookie.split(';');
+        const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
+        if (userCookie) {
+          const cookieValue = userCookie.split('=')[1];
+          userData = decodeURIComponent(cookieValue);
+        }
+      }
+      
+      const user = userData ? JSON.parse(userData) : { id: 'anonymous', username: 'Guest' };
+      
       // Create payment intent
       const paymentIntent = await StripePaymentService.createPaymentIntent(
         selectedPackage.price,
         'usd',
         {
-          userId: 'current-user', // Replace with actual user ID
+          userId: user.id || user.username || 'anonymous',
           type: 'tokens',
           gameType: 'token_purchase'
         }
@@ -103,7 +116,8 @@ function CheckoutForm({ selectedPackage, onSuccess, onError }: {
           payment_method: {
             card: elements.getElement(CardElement)!,
             billing_details: {
-              name: 'DropDollar User', // Replace with actual user name
+              name: `${user.firstName || user.username} ${user.lastName || ''}`.trim(),
+              email: user.email || '',
             },
           },
         }
@@ -178,12 +192,46 @@ export default function BuyTokensPage() {
   const [customAmount, setCustomAmount] = useState('');
   const [isCustomAmount, setIsCustomAmount] = useState(false);
 
-  // Load user's current token balance
+  // Load user's current token balance and user info
   useEffect(() => {
-    // In a real app, this would fetch from your backend
+    // Get user info to ensure we're purchasing for the correct account
+    const getUserInfo = () => {
+      try {
+        let userData = localStorage.getItem('user');
+        
+        // If not in localStorage, try to get from cookies
+        if (!userData) {
+          const cookies = document.cookie.split(';');
+          const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
+          if (userCookie) {
+            const cookieValue = userCookie.split('=')[1];
+            userData = decodeURIComponent(cookieValue);
+          }
+        }
+        
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          console.log('💰 Buy Tokens: User logged in as:', parsedUser.username);
+          return parsedUser;
+        }
+      } catch (error) {
+        console.log('💰 Buy Tokens: Error getting user data:', error);
+      }
+      return null;
+    };
+
+    const user = getUserInfo();
+    
+    // Load user's token balance
     const savedTokens = localStorage.getItem('userTokens');
     if (savedTokens) {
       setUserTokens(parseInt(savedTokens));
+    }
+    
+    // If no user is logged in, redirect to login
+    if (!user) {
+      console.log('💰 Buy Tokens: No user logged in, redirecting to login');
+      window.location.href = '/auth/login';
     }
   }, []);
 

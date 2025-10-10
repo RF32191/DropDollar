@@ -18,15 +18,30 @@ export default function UsernameDropdown() {
   const [user, setUser] = useState<{username: string, firstName: string, lastName: string} | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Get user info from localStorage to avoid AuthContext issues
+  // Get user info from localStorage and cookies for persistence
   useEffect(() => {
     const getUserInfo = () => {
       try {
         console.log('🔍 UsernameDropdown: Checking for user data...');
         
-        // Try to get user info from localStorage
-        const userData = localStorage.getItem('user');
+        // First try to get user info from localStorage
+        let userData = localStorage.getItem('user');
         console.log('🔍 UsernameDropdown: User data from localStorage:', userData);
+        
+        // If not in localStorage, try to get from cookies
+        if (!userData) {
+          const cookies = document.cookie.split(';');
+          const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
+          if (userCookie) {
+            const cookieValue = userCookie.split('=')[1];
+            userData = decodeURIComponent(cookieValue);
+            console.log('🔍 UsernameDropdown: User data from cookie:', userData);
+            
+            // Restore to localStorage for faster access
+            localStorage.setItem('user', userData);
+            localStorage.setItem('isLoggedIn', 'true');
+          }
+        }
         
         if (userData) {
           const parsedUser = JSON.parse(userData);
@@ -34,7 +49,9 @@ export default function UsernameDropdown() {
           setUser({
             username: parsedUser.username || parsedUser.firstName || 'User',
             firstName: parsedUser.firstName || 'User',
-            lastName: parsedUser.lastName || ''
+            lastName: parsedUser.lastName || '',
+            id: parsedUser.id,
+            email: parsedUser.email
           });
         } else {
           // Check if there's a simple login session
@@ -89,20 +106,36 @@ export default function UsernameDropdown() {
   }, []);
 
   const handleLogout = () => {
-    // Clear all user data
+    console.log('🚪 Logging out user...');
+    
+    // Clear all user data from localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('loginTime');
+    localStorage.removeItem('sessionId');
     localStorage.removeItem('sb-access-token');
     localStorage.removeItem('sb-refresh-token');
+    localStorage.removeItem('userTokens');
+    localStorage.removeItem('userBalance');
+    localStorage.removeItem('userBankAccounts');
+    localStorage.removeItem('userWithdrawals');
     
-    // Clear all cookies
+    // Clear DropDollar specific cookies
+    document.cookie = 'dropdollar_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = 'dropdollar_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    
+    // Clear all other cookies
     document.cookie.split(";").forEach((c) => {
       const eqPos = c.indexOf("=");
-      const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim();
+      if (name) {
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      }
     });
     
+    console.log('✅ Logout complete, all data cleared');
     setIsOpen(false);
+    
     // Redirect to home page
     window.location.href = '/';
   };
