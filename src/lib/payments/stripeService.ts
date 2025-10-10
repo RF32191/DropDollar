@@ -297,7 +297,7 @@ export class StripePaymentService {
 
   /**
    * Get payment amount for different purchase types
-   * Simple pricing: 1 DropToken = $1.00
+   * Equivalent pricing: 1 DropToken = $1.00 (no bonuses)
    */
   static getPaymentAmounts(): {
     listing: { basic: number; priority: number };
@@ -327,7 +327,7 @@ export class StripePaymentService {
         tier5: 2500000 // $25000.00 (25000 DropTokens)
       },
       tokens: {
-        price: 100 // $1.00 per DropToken (in cents)
+        price: 100 // $1.00 per DropToken (in cents) - equivalent pricing, no bonuses
       }
     };
   }

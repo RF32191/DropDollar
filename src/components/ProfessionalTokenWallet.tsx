@@ -44,7 +44,7 @@ const tokenPackages: TokenPackage[] = [
   { 
     id: 'starter', 
     tokens: 10, 
-    price: 1000, 
+    price: 1000, // $10.00 (1 token = $1.00)
     bonus: 0, 
     description: 'Perfect for new players',
     icon: '🎮'
@@ -52,8 +52,8 @@ const tokenPackages: TokenPackage[] = [
   { 
     id: 'popular', 
     tokens: 50, 
-    price: 4500, 
-    bonus: 5, 
+    price: 5000, // $50.00 (1 token = $1.00, no bonus)
+    bonus: 0, 
     description: 'Most popular choice', 
     popular: true,
     icon: '⭐'
@@ -61,24 +61,24 @@ const tokenPackages: TokenPackage[] = [
   { 
     id: 'pro', 
     tokens: 100, 
-    price: 8500, 
-    bonus: 15, 
+    price: 10000, // $100.00 (1 token = $1.00, no bonus)
+    bonus: 0, 
     description: 'For serious competitors',
     icon: '💪'
   },
   { 
     id: 'champion', 
     tokens: 250, 
-    price: 20000, 
-    bonus: 50, 
+    price: 25000, // $250.00 (1 token = $1.00, no bonus)
+    bonus: 0, 
     description: 'Dominate the leaderboards',
     icon: '🏆'
   },
   { 
     id: 'elite', 
     tokens: 500, 
-    price: 37500, 
-    bonus: 125, 
+    price: 50000, // $500.00 (1 token = $1.00, no bonus)
+    bonus: 0, 
     description: 'Ultimate gaming power',
     icon: '👑'
   },
@@ -271,7 +271,7 @@ export default function ProfessionalTokenWallet() {
   const handlePaymentSuccess = async (paymentIntent: any) => {
     if (!userProfile) return;
     
-    const totalTokens = isCustomAmount ? parseInt(customAmount) : (selectedPackage.tokens + selectedPackage.bonus);
+    const totalTokens = isCustomAmount ? parseInt(customAmount) : selectedPackage.tokens;
     const newBalance = userProfile.tokens + totalTokens;
     
     // Update tokens in Supabase
@@ -557,14 +557,9 @@ export default function ProfessionalTokenWallet() {
 
                   <div className="text-center">
                     <div className="text-4xl mb-4">{pkg.icon}</div>
-                    <div className="text-4xl font-bold text-white mb-2">
-                      {pkg.tokens + pkg.bonus} Tokens
-                    </div>
-                    {pkg.bonus > 0 && (
-                      <div className="text-green-400 text-sm font-semibold mb-2">
-                        +{pkg.bonus} Bonus Tokens
+                      <div className="text-4xl font-bold text-white mb-2">
+                        {pkg.tokens} Tokens
                       </div>
-                    )}
                     <div className="text-3xl font-bold text-green-400 mb-4">
                       ${(pkg.price / 100).toFixed(2)}
                     </div>
@@ -622,7 +617,7 @@ export default function ProfessionalTokenWallet() {
                     <h2 className="text-3xl font-bold text-white mb-4">Complete Your Purchase</h2>
                     <div className="bg-gray-700 rounded-lg p-4">
                       <div className="text-2xl font-bold text-green-400 mb-2">
-                        {getCurrentPackage().tokens + getCurrentPackage().bonus} Tokens
+                        {getCurrentPackage().tokens} Tokens
                       </div>
                       <div className="text-xl text-white">
                         ${(getCurrentPackage().price / 100).toFixed(2)}
@@ -661,7 +656,7 @@ export default function ProfessionalTokenWallet() {
                   className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 inline-flex items-center space-x-3"
                 >
                   <CreditCardIcon className="h-8 w-8" />
-                  <span>Purchase {getCurrentPackage().tokens + getCurrentPackage().bonus} Tokens</span>
+                  <span>Purchase {getCurrentPackage().tokens} Tokens</span>
                   <span className="text-green-200">${(getCurrentPackage().price / 100).toFixed(2)}</span>
                 </button>
               </div>
