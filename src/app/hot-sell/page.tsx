@@ -700,7 +700,7 @@ export default function HotSellPage() {
                         onClick={() => globalLocation.requestLocation()}
                         className={`w-full font-bold py-3 rounded-lg transition-colors bg-${tournament.color}-600 hover:bg-${tournament.color}-700 text-white`}
                       >
-                        🔒 Location Verification Required
+                        Location Verification Required
                       </button>
                     )}
 
