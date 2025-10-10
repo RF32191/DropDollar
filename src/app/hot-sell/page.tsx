@@ -650,8 +650,11 @@ export default function HotSellPage() {
                         <button
                           key={dollars}
                           onClick={() => setSelectedDollars(prev => ({ ...prev, [tournament.id]: dollars }))}
+                          disabled={!(globalLocation.status === 'granted' && globalLocation.isGamingAllowed)}
                           className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors ${
-                            (selectedDollars[tournament.id] || 1) === dollars
+                            !(globalLocation.status === 'granted' && globalLocation.isGamingAllowed)
+                              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                              : (selectedDollars[tournament.id] || 1) === dollars
                               ? `bg-${tournament.color}-600 text-white`
                               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
@@ -697,13 +700,7 @@ export default function HotSellPage() {
                         onClick={() => globalLocation.requestLocation()}
                         className={`w-full font-bold py-3 rounded-lg transition-colors bg-${tournament.color}-600 hover:bg-${tournament.color}-700 text-white`}
                       >
-                        <div className="text-white text-sm mb-1">
-                          <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
-                          Location Verification Required
-                        </div>
-                        <div className="text-white font-medium text-sm">
-                          Enable Location to Enter Competition
-                        </div>
+                        🔒 Location Verification Required
                       </button>
                     )}
 
