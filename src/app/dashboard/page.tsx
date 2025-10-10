@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { UserService, UserProfile, TokenTransaction, WithdrawalRequest } from '@/lib/supabase/userService';
 import { 
   TrophyIcon, 
   StarIcon, 
@@ -46,52 +47,50 @@ export default function SimpleDashboard() {
     prizeWon: '',
     rating: 5
   });
-  const [user, setUser] = useState<{username: string} | null>(null);
-  const [userTokens, setUserTokens] = useState(0);
-  const [userBalance, setUserBalance] = useState(0); // Cash balance for withdrawals
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
   const [showBankLinking, setShowBankLinking] = useState(false);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
 
   useEffect(() => {
-    // Get user info from localStorage
-    try {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
+    const loadUserData = async () => {
+      try {
+        // Get current user using UserService
+        const currentUser = UserService.getCurrentUser();
+        
+        if (currentUser) {
+          // Get or create user profile in Supabase
+          const profile = await UserService.getOrCreateUser(currentUser);
+          setUserProfile(profile);
+          
+          // Load token transactions
+          const transactions = await UserService.getUserTokenTransactions(profile.id);
+          setTokenTransactions(transactions);
+          
+          // Load withdrawal requests
+          const withdrawals = await UserService.getUserWithdrawalRequests(profile.id);
+          setWithdrawalRequests(withdrawals);
+          
+          console.log('Dashboard: User profile loaded:', profile);
+        } else {
+          console.log('Dashboard: No user logged in');
+          // Redirect to login if no user
+          window.location.href = '/auth/login';
+        }
+      } catch (error) {
+        console.error('Dashboard: Error loading user data:', error);
+        // Redirect to login on error
+        window.location.href = '/auth/login';
       }
-      
-      // Load user tokens and balance
-      const savedTokens = localStorage.getItem('userTokens');
-      if (savedTokens) {
-        setUserTokens(parseInt(savedTokens));
-      }
-      
-      const savedBalance = localStorage.getItem('userBalance');
-      if (savedBalance) {
-        setUserBalance(parseFloat(savedBalance));
-      }
-      
-      // Load bank accounts
-      const savedAccounts = localStorage.getItem('userBankAccounts');
-      if (savedAccounts) {
-        setBankAccounts(JSON.parse(savedAccounts));
-      }
-      
-      // Load withdrawal requests
-      const savedWithdrawals = localStorage.getItem('userWithdrawals');
-      if (savedWithdrawals) {
-        setWithdrawalRequests(JSON.parse(savedWithdrawals));
-      }
-    } catch (error) {
-      console.log('No user data found');
-    }
+    };
+
+    loadUserData();
   }, []);
 
-  const handleTestimonialSubmit = (e: React.FormEvent) => {
+  const handleTestimonialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!testimonialData.title || !testimonialData.story || !testimonialData.gameType || !testimonialData.prizeWon) {
@@ -99,16 +98,21 @@ export default function SimpleDashboard() {
       return;
     }
 
-    // Create testimonial object
-    const testimonial = {
-      id: Date.now().toString(),
-      username: user?.username || 'Anonymous',
-      ...testimonialData,
-      createdAt: new Date().toISOString()
-    };
+    if (!userProfile) {
+      alert('Please log in to submit a testimonial');
+      return;
+    }
 
-    // Save to localStorage
     try {
+      // Create testimonial object
+      const testimonial = {
+        id: Date.now().toString(),
+        username: userProfile.username,
+        ...testimonialData,
+        createdAt: new Date().toISOString()
+      };
+
+      // Save to localStorage for now (can be moved to Supabase later)
       const existingTestimonials = localStorage.getItem('victoryTestimonials');
       const testimonials = existingTestimonials ? JSON.parse(existingTestimonials) : [];
       testimonials.push(testimonial);
@@ -133,14 +137,10 @@ export default function SimpleDashboard() {
 
   const handleBankAccountLink = async () => {
     try {
-      // Get current user info
-      const userData = localStorage.getItem('user');
-      if (!userData) {
+      if (!userProfile) {
         alert('Please log in to link a bank account');
         return;
       }
-
-      const user = JSON.parse(userData);
       
       // Create Stripe Connect account
       const response = await fetch('/api/stripe/connect/create-account', {
@@ -149,8 +149,8 @@ export default function SimpleDashboard() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: user.id,
-          email: user.email,
+          userId: userProfile.id,
+          email: userProfile.email,
           country: 'US'
         }),
       });
@@ -173,7 +173,7 @@ export default function SimpleDashboard() {
         chargesEnabled: false,
         payoutsEnabled: false,
         country: 'US',
-        email: user.email
+        email: userProfile.email
       };
       
       const updatedAccounts = [...bankAccounts, newAccount];
@@ -193,8 +193,13 @@ export default function SimpleDashboard() {
   const handleWithdrawalRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!userProfile) {
+      alert('Please log in to request a withdrawal');
+      return;
+    }
+    
     const amount = parseFloat(withdrawalAmount);
-    if (amount <= 0 || amount > userBalance) {
+    if (amount <= 0 || amount > userProfile.balance) {
       alert('Invalid withdrawal amount');
       return;
     }
@@ -233,20 +238,28 @@ export default function SimpleDashboard() {
       
       const withdrawal: WithdrawalRequest = {
         id: payoutData.payoutId,
+        userId: userProfile.id,
         amount,
         status: payoutData.status === 'paid' ? 'completed' : 'processing',
+        stripeAccountId: verifiedAccount.accountId,
+        payoutId: payoutData.payoutId,
         requestedAt: new Date().toISOString(),
         completedAt: payoutData.status === 'paid' ? new Date().toISOString() : undefined
       };
       
+      // Save to Supabase
+      await UserService.addWithdrawalRequest(withdrawal);
+      
+      // Update local state
       const updatedWithdrawals = [...withdrawalRequests, withdrawal];
       setWithdrawalRequests(updatedWithdrawals);
-      localStorage.setItem('userWithdrawals', JSON.stringify(updatedWithdrawals));
       
-      // Update balance
-      const newBalance = userBalance - amount;
-      setUserBalance(newBalance);
-      localStorage.setItem('userBalance', newBalance.toString());
+      // Update user balance in Supabase
+      const newBalance = userProfile.balance - amount;
+      await UserService.updateUserBalance(userProfile.id, newBalance);
+      
+      // Update local profile
+      setUserProfile(prev => prev ? { ...prev, balance: newBalance } : null);
       
       setWithdrawalAmount('');
       setShowWithdrawalForm(false);
@@ -317,9 +330,9 @@ export default function SimpleDashboard() {
             </span>
           </h1>
           <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-6"></div>
-          <p className="text-xl text-transparent bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text animate-pulse">
-            Welcome to your DropDollar dashboard!
-          </p>
+              <p className="text-xl text-transparent bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text animate-pulse">
+                Welcome to your DropDollar dashboard, {userProfile?.username}!
+              </p>
         </div>
 
         {/* Balance Cards */}
@@ -330,7 +343,7 @@ export default function SimpleDashboard() {
               <h3 className="text-2xl font-bold text-white">🎮 DropTokens</h3>
               <BanknotesIcon className="h-8 w-8 text-purple-300" />
             </div>
-            <div className="text-4xl font-bold text-white mb-4">{userTokens}</div>
+                <div className="text-4xl font-bold text-white mb-4">{userProfile?.tokens || 0}</div>
             <p className="text-purple-200 mb-6">Available for gaming competitions</p>
             <Link href="/buy-tokens" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105 inline-block">
               Buy More Tokens
@@ -343,11 +356,11 @@ export default function SimpleDashboard() {
               <h3 className="text-2xl font-bold text-white">💰 Cash Balance</h3>
               <CreditCardIcon className="h-8 w-8 text-green-300" />
             </div>
-            <div className="text-4xl font-bold text-white mb-4">${userBalance.toFixed(2)}</div>
+                <div className="text-4xl font-bold text-white mb-4">${(userProfile?.balance || 0).toFixed(2)}</div>
             <p className="text-green-200 mb-6">Available for withdrawal</p>
             <button 
               onClick={() => setShowWithdrawalForm(true)}
-              disabled={userBalance <= 0 || bankAccounts.length === 0}
+              disabled={(userProfile?.balance || 0) <= 0 || bankAccounts.length === 0}
               className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-3 rounded-xl transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed inline-block"
             >
               Request Withdrawal
@@ -460,9 +473,9 @@ export default function SimpleDashboard() {
               </div>
               
               <div className="mb-6">
-                <div className="bg-green-900/30 rounded-lg p-4 mb-4">
-                  <div className="text-green-400 font-bold text-lg">Available Balance: ${userBalance.toFixed(2)}</div>
-                </div>
+                    <div className="bg-green-900/30 rounded-lg p-4 mb-4">
+                      <div className="text-green-400 font-bold text-lg">Available Balance: ${(userProfile?.balance || 0).toFixed(2)}</div>
+                    </div>
                 
                 <form onSubmit={handleWithdrawalRequest} className="space-y-4">
                   <div>
@@ -473,7 +486,7 @@ export default function SimpleDashboard() {
                       type="number"
                       step="0.01"
                       min="0.01"
-                      max={userBalance}
+                          max={userProfile?.balance || 0}
                       value={withdrawalAmount}
                       onChange={(e) => setWithdrawalAmount(e.target.value)}
                       className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"

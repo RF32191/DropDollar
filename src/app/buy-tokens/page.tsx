@@ -9,11 +9,13 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon,
   BanknotesIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
+import { UserService, UserProfile } from '@/lib/supabase/userService';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -219,107 +221,66 @@ export default function BuyTokensPage() {
   const [customAmount, setCustomAmount] = useState('');
   const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Load user's current token balance and user info
   useEffect(() => {
     const checkAuthentication = async () => {
-      // Add a small delay to ensure localStorage is fully loaded
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Get user info to ensure we're purchasing for the correct account
-      const getUserInfo = () => {
-        try {
-          console.log('💰 Buy Tokens: Checking for user data...');
+      try {
+        console.log('💰 Buy Tokens: Checking authentication...');
+        
+        // Get current user using UserService
+        const currentUser = UserService.getCurrentUser();
+        
+        if (currentUser) {
+          console.log('💰 Buy Tokens: User found:', currentUser.username);
           
-          // Check multiple indicators of login status
-          const isLoggedIn = localStorage.getItem('isLoggedIn');
-          const userData = localStorage.getItem('user');
-          const sessionId = localStorage.getItem('sessionId');
-          const loginTime = localStorage.getItem('loginTime');
+          // Get or create user profile in Supabase
+          const profile = await UserService.getOrCreateUser(currentUser);
+          setUserProfile(profile);
+          setUserTokens(profile.tokens);
+          setIsLoggedIn(true);
           
-          console.log('💰 Buy Tokens: isLoggedIn flag:', isLoggedIn);
-          console.log('💰 Buy Tokens: userData exists:', !!userData);
-          console.log('💰 Buy Tokens: sessionId exists:', !!sessionId);
-          console.log('💰 Buy Tokens: loginTime exists:', !!loginTime);
-          
-          // Also check if UsernameDropdown would render (has user data)
-          const usernameDropdownExists = document.querySelector('[data-username-dropdown]');
-          console.log('💰 Buy Tokens: UsernameDropdown exists:', !!usernameDropdownExists);
-          
-          // If any login indicator exists, consider user logged in
-          if (isLoggedIn === 'true' || userData || sessionId || loginTime) {
-            console.log('💰 Buy Tokens: User appears to be logged in');
-            
-            if (userData) {
-              const parsedUser = JSON.parse(userData);
-              console.log('💰 Buy Tokens: User logged in as:', parsedUser.username);
-              return parsedUser;
-            } else {
-              // User is logged in but no user data found
-              // Try to get from cookies
-              const cookies = document.cookie.split(';');
-              const userCookie = cookies.find(cookie => cookie.trim().startsWith('dropdollar_user='));
-              if (userCookie) {
-                const cookieValue = userCookie.split('=')[1];
-                const cookieUserData = decodeURIComponent(cookieValue);
-                console.log('💰 Buy Tokens: User data from cookie:', cookieUserData);
-                
-                // Restore to localStorage for faster access
-                localStorage.setItem('user', cookieUserData);
-                return JSON.parse(cookieUserData);
-              }
-              
-              // Create a basic user object if logged in but no data
-              console.log('💰 Buy Tokens: Creating basic user object for logged-in user');
-              return {
-                id: 'user_' + Date.now(),
-                username: 'User',
-                firstName: 'User',
-                lastName: '',
-                email: 'user@dropdollar.com'
-              };
-            }
-          }
-          
+          console.log('💰 Buy Tokens: User profile loaded:', profile);
+        } else {
           console.log('💰 Buy Tokens: No user logged in');
-          return null;
-        } catch (error) {
-          console.log('💰 Buy Tokens: Error getting user data:', error);
-          return null;
+          setIsLoggedIn(false);
+          setUserProfile(null);
         }
-      };
-
-      const user = getUserInfo();
-      
-      // Load user's token balance
-      const savedTokens = localStorage.getItem('userTokens');
-      if (savedTokens) {
-        setUserTokens(parseInt(savedTokens));
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('💰 Buy Tokens: Error checking authentication:', error);
+        setIsLoggedIn(false);
+        setUserProfile(null);
+        setIsLoading(false);
       }
-      
-      // Check if user is logged in, but don't redirect automatically
-      if (!user) {
-        console.log('💰 Buy Tokens: No user logged in, showing login prompt');
-        // Instead of redirecting, we'll show a message and let the user choose
-        setPaymentResult({
-          success: false,
-          message: 'Please log in to purchase tokens. Click the login button below.'
-        });
-      } else {
-        console.log('💰 Buy Tokens: User verified, proceeding with token purchase page');
-      }
-      
-      setIsLoading(false);
     };
 
     checkAuthentication();
   }, []);
 
-  const handlePaymentSuccess = (paymentIntent: any) => {
+  const handlePaymentSuccess = async (paymentIntent: any) => {
+    if (!userProfile) return;
+    
     const totalTokens = isCustomAmount ? parseInt(customAmount) : (selectedPackage.tokens + selectedPackage.bonus);
     const newBalance = userTokens + totalTokens;
+    
+    // Update tokens in Supabase
+    await UserService.updateUserTokens(userProfile.id, newBalance);
+    
+    // Add transaction record
+    await UserService.addTokenTransaction({
+      userId: userProfile.id,
+      type: 'purchase',
+      amount: totalTokens,
+      description: `Purchased ${totalTokens} tokens via Stripe`
+    });
+    
+    // Update local state
     setUserTokens(newBalance);
-    localStorage.setItem('userTokens', newBalance.toString());
+    setUserProfile(prev => prev ? { ...prev, tokens: newBalance } : null);
     
     setPaymentResult({
       success: true,
@@ -402,16 +363,38 @@ export default function BuyTokensPage() {
               </div>
             </Link>
 
-            {/* Current Balance */}
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30">
-              <div className="flex items-center space-x-3">
-                <BanknotesIcon className="h-8 w-8 text-yellow-300" />
-                <div className="text-right">
-                  <div className="text-sm text-green-200">Current Balance</div>
-                  <div className="text-2xl font-bold text-white">{userTokens} Tokens</div>
+            {/* User Info and Balance */}
+            {isLoggedIn && userProfile ? (
+              <div className="flex items-center space-x-6">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl px-6 py-3 border border-blue-400">
+                  <div className="flex items-center space-x-3">
+                    <UserIcon className="h-6 w-6 text-white" />
+                    <span className="text-lg font-bold text-white">Welcome, {userProfile.username}!</span>
+                  </div>
+                </div>
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30">
+                  <div className="flex items-center space-x-3">
+                    <BanknotesIcon className="h-8 w-8 text-yellow-300" />
+                    <div className="text-right">
+                      <div className="text-sm text-green-200">Current Balance</div>
+                      <div className="text-2xl font-bold text-white">{userTokens} Tokens</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-blue-900/30 rounded-xl px-6 py-3 border border-blue-500/30">
+                <div className="flex items-center space-x-3">
+                  <UserIcon className="h-6 w-6 text-blue-400" />
+                  <div>
+                    <div className="text-sm text-blue-200">Please sign in to purchase tokens</div>
+                    <Link href="/auth/login" className="text-blue-300 hover:text-blue-200 font-medium">
+                      Sign In →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Navigation */}
             <nav className="flex items-center space-x-6">
@@ -584,8 +567,8 @@ export default function BuyTokensPage() {
           </div>
         </div>
 
-        {/* Checkout Section */}
-        {showCheckout ? (
+            {/* Checkout Section */}
+            {isLoggedIn && userProfile && showCheckout ? (
           <div className="max-w-2xl mx-auto">
             <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700">
               <div className="text-center mb-8">
@@ -616,25 +599,41 @@ export default function BuyTokensPage() {
               </button>
             </div>
           </div>
-        ) : (
-          <div className="text-center">
-            <button
-              onClick={() => {
-                if (isCustomAmount && (!customAmount || parseInt(customAmount) < 1)) {
-                  alert('Please enter a valid amount (1 or more tokens)');
-                  return;
-                }
-                setShowCheckout(true);
-              }}
-              disabled={isCustomAmount && (!customAmount || parseInt(customAmount) < 1)}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 inline-flex items-center space-x-3"
-            >
-              <CreditCardIcon className="h-8 w-8" />
-              <span>Purchase {getCurrentPackage().tokens + getCurrentPackage().bonus} Tokens</span>
-              <span className="text-green-200">${(getCurrentPackage().price / 100).toFixed(2)}</span>
-            </button>
-          </div>
-        )}
+            ) : isLoggedIn && userProfile ? (
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    if (isCustomAmount && (!customAmount || parseInt(customAmount) < 1)) {
+                      alert('Please enter a valid amount (1 or more tokens)');
+                      return;
+                    }
+                    setShowCheckout(true);
+                  }}
+                  disabled={isCustomAmount && (!customAmount || parseInt(customAmount) < 1)}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-12 py-6 rounded-xl font-bold text-xl shadow-lg hover:shadow-2xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed transition-all duration-300 inline-flex items-center space-x-3"
+                >
+                  <CreditCardIcon className="h-8 w-8" />
+                  <span>Purchase {getCurrentPackage().tokens + getCurrentPackage().bonus} Tokens</span>
+                  <span className="text-green-200">${(getCurrentPackage().price / 100).toFixed(2)}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="bg-blue-900/30 rounded-xl p-8 border border-blue-500/30">
+                  <h3 className="text-2xl font-bold text-blue-300 mb-4">Sign In Required</h3>
+                  <p className="text-blue-200 mb-6">
+                    Please sign in to purchase tokens and access your account.
+                  </p>
+                  <Link
+                    href="/auth/login"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 inline-flex items-center space-x-2"
+                  >
+                    <UserIcon className="h-6 w-6" />
+                    <span>Sign In to Purchase Tokens</span>
+                  </Link>
+                </div>
+              </div>
+            )}
 
         {/* Security Notice */}
         <div className="mt-16 bg-blue-900/30 rounded-xl p-8 border border-blue-500/30">
