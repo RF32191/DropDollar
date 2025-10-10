@@ -10,10 +10,8 @@ import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import AdOverlay from '@/components/ads/AdOverlay';
-import LocationPermissionModal from '@/components/LocationPermissionModal';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
-import { useGameLocationGuard } from '@/hooks/useLocationGuard';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { LocationService, type LocationData } from '@/lib/locationService';
@@ -119,7 +117,6 @@ export default function GamesPage() {
   const listingId = searchParams.get('listingId');
   const entryNumber = parseInt(searchParams.get('entryNumber') || '1');
   const isCompetitionMode = !!listingId;
-  const locationGuard = useGameLocationGuard();
   const globalLocation = useGlobalLocation();
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
@@ -136,7 +133,6 @@ export default function GamesPage() {
   const [showAd, setShowAd] = useState(false);
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
-  const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
@@ -170,38 +166,16 @@ export default function GamesPage() {
 
   // Check location permission before allowing game access
   const checkLocationBeforeGame = (gameId: string) => {
-    // Use global location status for all games
+    // Use global location status - if granted, allow all games
     if (globalLocation.status === 'granted') {
-      console.log('✅ Location verified via global system');
+      console.log('✅ Location verified - allowing game:', gameId);
       return true;
-    } else if (globalLocation.status === 'denied') {
-      console.log('❌ Location access denied - games restricted');
-      return false;
     } else {
-      // Location not yet requested, show modal
-      console.log('📍 Location not verified - showing modal');
-      setShowLocationModal(true);
-      setPendingGameStart(gameId);
+      console.log('❌ Location not verified - blocking game:', gameId);
       return false;
     }
   };
 
-  const handleLocationVerified = (location: LocationData) => {
-    console.log('📍 Location verified:', location);
-    setShowLocationModal(false);
-    if (pendingGameStart) {
-      console.log('🎮 Continuing with pending game after location verification');
-      // Now proceed with the normal game flow (including ads)
-      proceedWithGameStart(pendingGameStart);
-      setPendingGameStart(null);
-    }
-  };
-
-  const handleLocationDenied = (reason: string) => {
-    setShowLocationModal(false);
-    setPendingGameStart(null);
-    // User will see the restriction message in the UI
-  };
 
   // Load practice data and scores
   useEffect(() => {
@@ -1123,16 +1097,6 @@ export default function GamesPage() {
           skipAfter={5}
         />
       )}
-
-      {/* Location Permission Modal */}
-      <LocationPermissionModal
-        isOpen={showLocationModal}
-        onClose={() => {
-          setShowLocationModal(false);
-        }}
-        onLocationVerified={handleLocationVerified}
-        onLocationDenied={handleLocationDenied}
-      />
     </>
   );
 }
