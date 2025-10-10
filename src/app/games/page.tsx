@@ -166,12 +166,21 @@ export default function GamesPage() {
 
   // Check location permission before allowing game access
   const checkLocationBeforeGame = (gameId: string) => {
+    console.log('🔍 Location check for game:', gameId);
+    console.log('🔍 Global location status:', globalLocation.status);
+    console.log('🔍 Global location data:', globalLocation.data);
+    console.log('🔍 Global location loading:', globalLocation.isLoading);
+    
     // Use global location status - if granted, allow all games
     if (globalLocation.status === 'granted') {
       console.log('✅ Location verified - allowing game:', gameId);
       return true;
+    } else if (globalLocation.status === 'unknown' && !globalLocation.isLoading) {
+      // If location is unknown and not loading, allow games (user can verify later)
+      console.log('⚠️ Location unknown but allowing game:', gameId);
+      return true;
     } else {
-      console.log('❌ Location not verified - blocking game:', gameId);
+      console.log('❌ Location not verified - blocking game:', gameId, 'Status:', globalLocation.status);
       return false;
     }
   };
@@ -305,10 +314,14 @@ export default function GamesPage() {
   const handleGameStart = (gameId: string) => {
     console.log('🎮 Game start requested:', gameId);
     console.log('🎮 Competition mode:', isCompetitionMode);
+    console.log('🎮 Global location status:', globalLocation.status);
     
     // First check location permission for all game modes
-    if (!checkLocationBeforeGame(gameId)) {
-      console.log('📍 Location check required, showing modal');
+    const locationCheckResult = checkLocationBeforeGame(gameId);
+    console.log('🎮 Location check result:', locationCheckResult);
+    
+    if (!locationCheckResult) {
+      console.log('❌ Location check failed - not starting game');
       return; // Location check failed, modal will be shown or user is restricted
     }
 
@@ -363,16 +376,22 @@ export default function GamesPage() {
   // Handle ad completion and start the pending game
   const handleAdCompleteAndStartGame = () => {
     console.log('📺 Ad completed, starting game');
+    console.log('📺 Pending game:', pendingGameStart);
     if (pendingGameStart) {
       startGameAfterAd(pendingGameStart);
+    } else {
+      console.log('❌ No pending game to start');
     }
   };
 
   // Handle ad skip and start the pending game
   const handleAdSkipAndStartGame = () => {
     console.log('⏭️ Ad skipped, starting game');
+    console.log('⏭️ Pending game:', pendingGameStart);
     if (pendingGameStart) {
       startGameAfterAd(pendingGameStart);
+    } else {
+      console.log('❌ No pending game to start');
     }
   };
 
