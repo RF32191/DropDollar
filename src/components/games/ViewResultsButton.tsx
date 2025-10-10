@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { EyeIcon, LockClosedIcon, TrophyIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, LockClosedIcon, TrophyIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import GameSessionService from '@/lib/gameSessionService';
 import GameEntryFlow from './GameEntryFlow';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 
 interface ViewResultsButtonProps {
   listingId: string;
@@ -22,6 +23,7 @@ export default function ViewResultsButton({
   tournamentId
 }: ViewResultsButtonProps) {
   const { user } = useAuth();
+  const globalLocation = useGlobalLocation();
   const [showResults, setShowResults] = useState(false);
   const [showEntryFlow, setShowEntryFlow] = useState(false);
 
@@ -29,6 +31,18 @@ export default function ViewResultsButton({
   const userId = user?.id || 'guest-user';
 
   const handleViewResults = () => {
+    // Check location verification first
+    if (globalLocation.status !== 'granted' || !globalLocation.isGamingAllowed) {
+      if (globalLocation.status === 'restricted') {
+        alert('Gaming is not allowed in your location');
+        return;
+      } else {
+        // Request location verification
+        globalLocation.requestLocation();
+        return;
+      }
+    }
+
     const leaderboardAccess = GameSessionService.canUserViewLeaderboard(userId, listingId);
     
     if (leaderboardAccess.canView) {
@@ -44,6 +58,27 @@ export default function ViewResultsButton({
   };
 
   const getButtonContent = () => {
+    // Check location verification first
+    if (globalLocation.status !== 'granted' || !globalLocation.isGamingAllowed) {
+      if (globalLocation.status === 'restricted') {
+        return {
+          icon: <ShieldCheckIcon className="h-5 w-5" />,
+          text: 'Gaming Not Allowed',
+          description: 'Restricted in your location',
+          bgColor: 'bg-red-600 hover:bg-red-700',
+          disabled: true
+        };
+      } else {
+        return {
+          icon: <ShieldCheckIcon className="h-5 w-5" />,
+          text: 'Location Verification Required',
+          description: 'Enable location to play',
+          bgColor: 'bg-green-600 hover:bg-green-700',
+          disabled: false
+        };
+      }
+    }
+
     const leaderboardAccess = GameSessionService.canUserViewLeaderboard(userId, listingId);
     
     if (!leaderboardAccess.hasPlayed) {
