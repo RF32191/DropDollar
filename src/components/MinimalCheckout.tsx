@@ -75,16 +75,24 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!stripe || !elements) {
+    if (!stripe) {
       onError('Payment system not ready. Please refresh the page.');
       return;
     }
 
-    const cardElement = elements.getElement(CardElement);
-    
-    if (!cardElement) {
-      onError('Card element not found. Please refresh the page.');
-      return;
+    // Only check for card element if using a new card
+    if (!selectedSavedCard) {
+      if (!elements) {
+        onError('Payment system not ready. Please refresh the page.');
+        return;
+      }
+      
+      const cardElement = elements.getElement(CardElement);
+      
+      if (!cardElement) {
+        onError('Please enter your card details.');
+        return;
+      }
     }
 
     setIsProcessing(true);
