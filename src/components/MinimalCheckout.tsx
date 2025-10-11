@@ -20,6 +20,7 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [postalCode, setPostalCode] = useState('');
+  const [saveCard, setSaveCard] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -117,20 +118,27 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
       console.log('Payment intent created:', paymentIntent.id);
 
       // Confirm payment with Stripe Elements
-      const result = await stripe.confirmCardPayment(
-        paymentIntent.client_secret,
-        {
-          payment_method: {
-            card: cardElement,
-            billing_details: {
-              name: userProfile.username || 'User',
-              email: userProfile.email,
-              address: {
-                postal_code: postalCode || undefined,
-              },
+      const confirmOptions: any = {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: userProfile.username || 'User',
+            email: userProfile.email,
+            address: {
+              postal_code: postalCode || undefined,
             },
           },
-        }
+        },
+      };
+
+      // If user wants to save card, add setup_future_usage
+      if (saveCard) {
+        confirmOptions.setup_future_usage = 'off_session';
+      }
+
+      const result = await stripe.confirmCardPayment(
+        paymentIntent.client_secret,
+        confirmOptions
       );
 
       console.log('Payment result:', result);
@@ -181,13 +189,21 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
         iconColor: '#ef4444',
       },
     },
+    disableLink: true, // Disable Stripe Link autofill
   };
 
   return (
     <div className="bg-gray-800 rounded-xl p-6">
       <h3 className="text-xl font-bold text-white mb-4">💳 Payment Information</h3>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form 
+        onSubmit={handleSubmit} 
+        className="space-y-4"
+        autoComplete="off"
+        data-lpignore="true"
+        data-1p-ignore="true"
+        data-form-type="other"
+      >
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">Card Details</label>
           <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
@@ -206,7 +222,24 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
             onChange={(e) => setPostalCode(e.target.value)}
             placeholder="12345"
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
+            autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            data-form-type="other"
           />
+        </div>
+
+        <div className="flex items-center space-x-2 bg-gray-700 p-3 rounded-lg border border-gray-600">
+          <input
+            type="checkbox"
+            id="saveCard"
+            checked={saveCard}
+            onChange={(e) => setSaveCard(e.target.checked)}
+            className="w-4 h-4 text-green-600 bg-gray-600 border-gray-500 rounded focus:ring-green-500 focus:ring-2"
+          />
+          <label htmlFor="saveCard" className="text-sm text-gray-300 cursor-pointer select-none">
+            💾 Save card for future purchases
+          </label>
         </div>
 
         <button
