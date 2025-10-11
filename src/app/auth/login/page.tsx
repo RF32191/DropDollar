@@ -4,13 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
-export default function SimpleLoginPage() {
+export default function SimpleLoginPage() { 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true); // Default to true for better UX
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,10 +51,18 @@ export default function SimpleLoginPage() {
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('loginTime', new Date().toISOString());
       localStorage.setItem('sessionId', userData.sessionId);
+      localStorage.setItem('rememberMe', rememberMe.toString());
       
       // Set session cookie for additional persistence
-      document.cookie = `dropdollar_session=${userData.sessionId}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-      document.cookie = `dropdollar_user=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
+      // If remember me is checked, use 30 days. Otherwise, use session-only cookies
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 0; // 30 days or session-only
+      const cookieExpiry = rememberMe ? `; max-age=${maxAge}` : ''; // Session cookie if not remembering
+      
+      document.cookie = `dropdollar_session=${userData.sessionId}; path=/${cookieExpiry}`;
+      document.cookie = `dropdollar_user=${encodeURIComponent(JSON.stringify(userData))}; path=/${cookieExpiry}`;
+      document.cookie = `dropdollar_remember=${rememberMe}; path=/${cookieExpiry}`;
+      
+      console.log(`✅ Login successful, remember me: ${rememberMe ? 'enabled (30 days)' : 'disabled (session only)'}`);
       
       console.log('✅ Login successful, user data stored:', userData);
       

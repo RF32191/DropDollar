@@ -165,33 +165,56 @@ export default function ProfessionalTokenWallet() {
   const handlePaymentSuccess = async (paymentIntent: any) => {
     if (!userProfile) return;
     
-    const totalTokens = isCustomAmount ? parseInt(customAmount) : selectedPackage.tokens;
-    const newBalance = userProfile.tokens + totalTokens;
-    
-    // Update tokens in Supabase
-    await UserService.updateUserTokens(userProfile.id, newBalance);
-    
-    // Add transaction record
-    await UserService.addTokenTransaction({
-      userId: userProfile.id,
-      type: 'purchase',
-      amount: totalTokens,
-      description: `Purchased ${totalTokens} tokens via Stripe`
-    });
-    
-    // Update local state
-    setUserProfile(prev => prev ? { ...prev, tokens: newBalance } : null);
-    
-    // Reload transactions
-    const transactions = await UserService.getUserTokenTransactions(userProfile.id);
-    setTokenTransactions(transactions);
-    
-    setPaymentResult({
-      success: true,
-      message: `Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
-    });
-    setShowCheckout(false);
-    setActiveTab('wallet'); // Go back to wallet view after purchase
+    try {
+      console.log('💰 Payment successful! Processing token purchase...');
+      console.log('Payment Intent:', paymentIntent);
+      
+      const totalTokens = isCustomAmount ? parseInt(customAmount) : selectedPackage.tokens;
+      console.log(`Adding ${totalTokens} tokens to account...`);
+      
+      const newBalance = userProfile.tokens + totalTokens;
+      console.log(`New balance will be: ${newBalance} tokens`);
+      
+      // Update tokens in Supabase
+      const updateResult = await UserService.updateUserTokens(userProfile.id, newBalance);
+      console.log('✅ Tokens updated in Supabase:', updateResult);
+      
+      // Add transaction record
+      const transactionResult = await UserService.addTokenTransaction({
+        userId: userProfile.id,
+        type: 'purchase',
+        amount: totalTokens,
+        description: `Purchased ${totalTokens} tokens via Stripe (Payment ID: ${paymentIntent.id})`,
+        stripePaymentIntentId: paymentIntent.id
+      });
+      console.log('✅ Transaction recorded:', transactionResult);
+      
+      // Update local state immediately
+      setUserProfile(prev => prev ? { ...prev, tokens: newBalance } : null);
+      console.log('✅ Local state updated');
+      
+      // Reload transactions
+      const transactions = await UserService.getUserTokenTransactions(userProfile.id);
+      setTokenTransactions(transactions);
+      console.log('✅ Transaction history reloaded');
+      
+      // Show success message
+      setPaymentResult({
+        success: true,
+        message: `🎉 Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
+      });
+      
+      setShowCheckout(false);
+      setActiveTab('wallet'); // Go back to wallet view after purchase
+      
+      console.log('✅ Payment success handler completed!');
+    } catch (error) {
+      console.error('❌ Error in handlePaymentSuccess:', error);
+      setPaymentResult({
+        success: false,
+        message: `Payment succeeded but token update failed. Please contact support with payment ID: ${paymentIntent.id}`
+      });
+    }
   };
 
   const getCurrentPackage = () => {
