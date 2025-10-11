@@ -10,12 +10,14 @@ import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import AdOverlay from '@/components/ads/AdOverlay';
+import CelebrationEffect from '@/components/CelebrationEffect';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { LocationService, type LocationData } from '@/lib/locationService';
+import SoundEffects from '@/lib/SoundEffects';
 import { 
   PuzzlePieceIcon, 
   CursorArrowRaysIcon, 
@@ -144,6 +146,7 @@ export default function GamesPage() {
   const [showAd, setShowAd] = useState(false);
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
@@ -411,6 +414,18 @@ export default function GamesPage() {
 
     setGameResults(result);
     
+    // Show celebration effect and play sound for practice mode
+    if (!isCompetitionMode) {
+      console.log('🎉 Practice game completed! Showing celebration...');
+      setShowCelebration(true);
+      SoundEffects.playPracticeComplete();
+      
+      // Hide celebration after 3 seconds
+      setTimeout(() => {
+        setShowCelebration(false);
+      }, 3000);
+    }
+    
     // Save score to Supabase if user is logged in
     if (user?.id) {
       try {
@@ -551,6 +566,14 @@ export default function GamesPage() {
 
   return (
     <>
+      {/* Celebration Effect for Practice Mode */}
+      <CelebrationEffect 
+        show={showCelebration} 
+        message="Excellent!" 
+        onComplete={() => setShowCelebration(false)}
+        duration={3000}
+      />
+      
       {/* Game Components */}
       {getCurrentGameComponent()}
       

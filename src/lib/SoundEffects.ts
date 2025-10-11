@@ -44,6 +44,43 @@ export class SoundEffects {
     }
   }
 
+  static playPracticeComplete() {
+    this.initAudioContext();
+    if (!this.audioContext) return;
+
+    try {
+      // Play a celebratory multi-layered sound
+      const frequencies = [
+        [523, 659, 784],   // C major chord at start
+        [587, 739, 880],   // D major chord
+        [659, 831, 988],   // E major chord
+        [784, 988, 1175],  // G major chord
+        [1047, 1319, 1568] // C major chord (higher octave)
+      ];
+      
+      frequencies.forEach((chord, chordIndex) => {
+        setTimeout(() => {
+          chord.forEach((freq, noteIndex) => {
+            const oscillator = this.audioContext!.createOscillator();
+            const gainNode = this.audioContext!.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext!.destination);
+            
+            oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+            gainNode.gain.setValueAtTime(0.15, this.audioContext!.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext!.currentTime + 0.4);
+            
+            oscillator.start(this.audioContext!.currentTime);
+            oscillator.stop(this.audioContext!.currentTime + 0.4);
+          });
+        }, chordIndex * 200);
+      });
+    } catch (error) {
+      console.log('Practice complete sound error:', error);
+    }
+  }
+
   static playGameLoss() {
     this.initAudioContext();
     if (!this.audioContext) return;
