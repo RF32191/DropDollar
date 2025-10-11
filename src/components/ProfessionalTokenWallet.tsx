@@ -285,7 +285,7 @@ export default function ProfessionalTokenWallet() {
               <div className="flex flex-col">
                 <span className="text-3xl font-extrabold text-white drop-shadow-lg">DropDollar</span>
                 <span className="text-sm text-yellow-200 font-bold tracking-wider animate-pulse">
-                  💰 PROFESSIONAL TOKEN WALLET 💰
+                  💰 TOKEN WALLET 💰
                 </span>
               </div>
             </div>

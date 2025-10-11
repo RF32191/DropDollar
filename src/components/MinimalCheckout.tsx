@@ -52,7 +52,10 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     try {
       console.log('Starting real Stripe payment...');
       
-      // Create payment intent via API route
+      // Create payment intent via API route with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch('/api/payments/create-intent', {
         method: 'POST',
         headers: {
@@ -66,12 +69,16 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
             type: 'tokens',
             gameType: 'token_purchase'
           }
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || 'Failed to create payment intent');
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to create payment intent');
       }
 
       const data = await response.json();
@@ -127,7 +134,17 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     } catch (error: any) {
       console.error('Payment error:', error);
       SoundEffects.playError();
-      onError(error.message || 'Payment failed');
+      
+      // Provide more user-friendly error messages
+      if (error.name === 'AbortError') {
+        onError('Payment request timed out. Please try again.');
+      } else if (error.message.includes('connection')) {
+        onError('Connection error. Please check your internet and try again.');
+      } else if (error.message.includes('rate limit')) {
+        onError('Too many requests. Please wait a moment and try again.');
+      } else {
+        onError(error.message || 'Payment failed. Please try again.');
+      }
     } finally {
       setIsProcessing(false);
     }

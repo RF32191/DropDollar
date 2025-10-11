@@ -70,36 +70,70 @@ export class StripePaymentService {
     
     try {
       console.log('🔧 Creating real Stripe payment intent...');
+      console.log('🔧 Amount:', amount);
+      console.log('🔧 Currency:', currency);
+      console.log('🔧 Metadata:', metadata);
       
-      const paymentIntent = await stripeInstance.paymentIntents.create({
-        amount,
-        currency,
-        metadata: {
-          userId: metadata.userId,
-          type: metadata.type,
-          listingId: metadata.listingId || '',
-          tournamentId: metadata.tournamentId || '',
-          matchId: metadata.matchId || '',
-          gameType: metadata.gameType || '',
-          entryNumber: metadata.entryNumber?.toString() || ''
-        },
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      });
+      // Add timeout and retry logic
+      const maxRetries = 3;
+      let lastError: any;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔧 Attempt ${attempt}/${maxRetries} to create payment intent...`);
+          
+          const paymentIntent = await stripeInstance.paymentIntents.create({
+            amount,
+            currency,
+            metadata: {
+              userId: metadata.userId,
+              type: metadata.type,
+              listingId: metadata.listingId || '',
+              tournamentId: metadata.tournamentId || '',
+              matchId: metadata.matchId || '',
+              gameType: metadata.gameType || '',
+              entryNumber: metadata.entryNumber?.toString() || ''
+            },
+            automatic_payment_methods: {
+              enabled: true,
+            },
+          });
 
-      console.log('✅ Real payment intent created:', paymentIntent.id);
+          console.log('✅ Real payment intent created:', paymentIntent.id);
 
-      return {
-        id: paymentIntent.id,
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency,
-        status: paymentIntent.status,
-        client_secret: paymentIntent.client_secret!,
-        metadata: paymentIntent.metadata
-      };
+          return {
+            id: paymentIntent.id,
+            amount: paymentIntent.amount,
+            currency: paymentIntent.currency,
+            status: paymentIntent.status,
+            client_secret: paymentIntent.client_secret!,
+            metadata: paymentIntent.metadata
+          };
+        } catch (error: any) {
+          lastError = error;
+          console.error(`❌ Attempt ${attempt} failed:`, error.message);
+          
+          // If it's a connection error and we have retries left, wait and try again
+          if (attempt < maxRetries && (
+            error.message.includes('connection') ||
+            error.message.includes('timeout') ||
+            error.message.includes('network')
+          )) {
+            console.log(`⏳ Waiting 1 second before retry ${attempt + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          
+          // If it's not a connection error or we're out of retries, throw immediately
+          throw error;
+        }
+      }
+      
+      // If we get here, all retries failed
+      throw lastError;
+      
     } catch (error: any) {
-      console.error('❌ Failed to create payment intent:', error);
+      console.error('❌ Failed to create payment intent after all retries:', error);
       throw new Error(`Failed to create payment intent: ${error.message}`);
     }
   }
