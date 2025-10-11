@@ -21,6 +21,7 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
   const [isProcessing, setIsProcessing] = useState(false);
   const [postalCode, setPostalCode] = useState('');
   const [saveCard, setSaveCard] = useState(false);
+  const [customerId, setCustomerId] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,87 +41,85 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     setIsProcessing(true);
 
     try {
-      console.log('Starting real Stripe payment with Elements...');
+      console.log('💳 [Checkout] Starting secure payment with card encryption...');
       
-      // Try simple API route first
-      let apiEndpoint = '/api/payments/simple-intent';
-      let response;
+      // Step 1: Create or get Stripe customer if saving card
+      let stripeCustomerId = customerId;
       
-      try {
-        console.log('🔧 Trying simple payment intent API...');
+      if (saveCard && !stripeCustomerId) {
+        console.log('👤 [Checkout] Creating Stripe customer for card saving...');
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
-        response = await fetch(apiEndpoint, {
+        const customerResponse = await fetch('/api/payments/create-customer', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            amount: selectedPackage.price,
-            currency: 'usd',
-            metadata: {
-              userId: userProfile.id,
-              type: 'tokens',
-              gameType: 'token_purchase'
-            }
-          }),
-          signal: controller.signal
+            userId: userProfile.id,
+            email: userProfile.email,
+            name: userProfile.username
+          })
         });
 
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`Simple API failed: ${response.status}`);
+        if (customerResponse.ok) {
+          const customerData = await customerResponse.json();
+          stripeCustomerId = customerData.customerId;
+          setCustomerId(stripeCustomerId);
+          console.log('✅ [Checkout] Stripe customer ready:', stripeCustomerId);
+        } else {
+          console.warn('⚠️ [Checkout] Failed to create customer, continuing without card save');
         }
-        
-        console.log('✅ Simple API succeeded');
-        
-      } catch (simpleError) {
-        console.log('⚠️ Simple API failed, trying original API...', simpleError);
-        
-        // Fallback to original API route
-        apiEndpoint = '/api/payments/create-intent';
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        response = await fetch(apiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amount: selectedPackage.price,
-            currency: 'usd',
-            metadata: {
-              userId: userProfile.id,
-              type: 'tokens',
-              gameType: 'token_purchase'
-            }
-          }),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
       }
+      
+      // Step 2: Create payment intent
+      console.log('🔧 [Checkout] Creating payment intent...');
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
+      const response = await fetch('/api/payments/simple-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: selectedPackage.price,
+          currency: 'usd',
+          metadata: {
+            userId: userProfile.id,
+            type: 'tokens',
+            gameType: 'token_purchase',
+            tokensAmount: selectedPackage.tokens
+          },
+          customerId: stripeCustomerId,
+          saveCard: saveCard
+        }),
+        signal: controller.signal
+      });
 
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('API Error:', errorData);
+        console.error('❌ [Checkout] API Error:', errorData);
         throw new Error(errorData.error || 'Failed to create payment intent');
       }
+      
+      console.log('✅ [Checkout] Payment intent created successfully');
 
       const data = await response.json();
       const paymentIntent = data.paymentIntent;
 
-      console.log('Payment intent created:', paymentIntent.id);
+      console.log('💳 [Checkout] Payment intent ID:', paymentIntent.id);
+      console.log('💳 [Checkout] Amount:', paymentIntent.amount / 100, 'USD');
+      console.log('🔒 [Checkout] Card saving:', saveCard ? 'ENABLED' : 'DISABLED');
 
-      // Confirm payment with Stripe Elements
+      // Step 3: Confirm payment with Stripe Elements (Encrypted by Stripe)
+      console.log('🔒 [Checkout] Confirming payment with encrypted card data...');
+      
       const confirmOptions: any = {
         payment_method: {
-          card: cardElement,
+          card: cardElement, // Stripe handles encryption automatically
           billing_details: {
             name: userProfile.username || 'User',
             email: userProfile.email,
@@ -131,26 +130,31 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
         },
       };
 
-      // If user wants to save card, add setup_future_usage
-      if (saveCard) {
-        confirmOptions.setup_future_usage = 'off_session';
-      }
-
       const result = await stripe.confirmCardPayment(
         paymentIntent.client_secret,
         confirmOptions
       );
 
-      console.log('Payment result:', result);
+      console.log('💳 [Checkout] Payment confirmation result:', result.paymentIntent?.status);
 
       if (result.error) {
+        console.error('❌ [Checkout] Payment error:', result.error.message);
         SoundEffects.playError();
         onError(result.error.message || 'Payment failed');
       } else if (result.paymentIntent?.status === 'succeeded') {
+        console.log('✅ [Checkout] Payment succeeded!');
+        console.log('💰 [Checkout] Amount charged:', result.paymentIntent.amount / 100, 'USD');
+        
+        if (saveCard && stripeCustomerId) {
+          console.log('🔒 [Checkout] Card saved securely (encrypted by Stripe)');
+          console.log('👤 [Checkout] Customer ID:', stripeCustomerId);
+        }
+        
         SoundEffects.playTokenPurchase();
         SoundEffects.playSuccess();
         onSuccess(result.paymentIntent);
       } else {
+        console.error('❌ [Checkout] Payment not successful, status:', result.paymentIntent?.status);
         SoundEffects.playError();
         onError('Payment not successful');
       }
@@ -229,18 +233,23 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
           />
         </div>
 
-        <div className="flex items-center space-x-2 bg-gray-700 p-3 rounded-lg border border-gray-600">
-          <input
-            type="checkbox"
-            id="saveCard"
-            checked={saveCard}
-            onChange={(e) => setSaveCard(e.target.checked)}
-            className="w-4 h-4 text-green-600 bg-gray-600 border-gray-500 rounded focus:ring-green-500 focus:ring-2"
-          />
-          <label htmlFor="saveCard" className="text-sm text-gray-300 cursor-pointer select-none">
-            💾 Save card for future purchases
-          </label>
-        </div>
+            <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="saveCard"
+                  checked={saveCard}
+                  onChange={(e) => setSaveCard(e.target.checked)}
+                  className="w-4 h-4 text-green-600 bg-gray-600 border-gray-500 rounded focus:ring-green-500 focus:ring-2"
+                />
+                <label htmlFor="saveCard" className="text-sm font-medium text-gray-200 cursor-pointer select-none">
+                  💾 Save card for future purchases
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 ml-6">
+                🔒 Your card is encrypted and securely stored by Stripe (PCI DSS Level 1 compliant). We never see or store your card details.
+              </p>
+            </div>
 
         <button
           type="submit"
