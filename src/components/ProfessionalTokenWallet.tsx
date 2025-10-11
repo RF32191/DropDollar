@@ -120,18 +120,38 @@ export default function ProfessionalTokenWallet() {
           const currentUser = UserService.getCurrentUser();
           
           if (currentUser) {
-            console.log('🔍 User found:', currentUser.username);
+            console.log('✅ [TokenWallet] User found:', currentUser.username);
+            console.log('🔍 [TokenWallet] User ID:', currentUser.id);
             
             // Get or create user profile in Supabase
             const profile = await UserService.getOrCreateUser(currentUser);
-            setUserProfile(profile);
+            console.log('✅ [TokenWallet] Initial profile:', profile);
+            console.log('💰 [TokenWallet] Initial tokens:', profile.tokens);
+            
+            // Fetch fresh profile to ensure latest data
+            const freshProfile = await UserService.getUserProfile(currentUser.id);
+            if (freshProfile) {
+              console.log('✅ [TokenWallet] Fresh profile fetched:', freshProfile);
+              console.log('💰 [TokenWallet] Fresh tokens:', freshProfile.tokens);
+              setUserProfile(freshProfile);
+            } else {
+              setUserProfile(profile);
+            }
+            
             setIsLoggedIn(true);
             
             // Load token transactions
-            const transactions = await UserService.getUserTokenTransactions(profile.id);
+            const transactions = await UserService.getUserTokenTransactions(currentUser.id);
             setTokenTransactions(transactions);
+            console.log('✅ [TokenWallet] Loaded', transactions.length, 'transactions');
             
-            console.log('🔍 User profile loaded:', profile);
+            // Load purchase history
+            const purchases = await UserService.getUserPurchaseHistory(currentUser.id);
+            console.log('✅ [TokenWallet] Loaded', purchases.length, 'purchases');
+            
+            // Load game history
+            const games = await UserService.getUserGameHistory(currentUser.id);
+            console.log('✅ [TokenWallet] Loaded', games.length, 'games');
           } else {
             console.log('🔍 No user profile found, creating basic user...');
             // Create a basic user if logged in but no profile
@@ -169,48 +189,83 @@ export default function ProfessionalTokenWallet() {
     if (!userProfile) return;
     
     try {
-      console.log('💰 Payment successful! Processing token purchase...');
-      console.log('Payment Intent:', paymentIntent);
+      console.log('💰 [TokenWallet] Payment successful! Processing token purchase...');
+      console.log('💰 [TokenWallet] Payment Intent:', paymentIntent);
       
       const totalTokens = isCustomAmount ? parseInt(customAmount) : selectedPackage.tokens;
-      console.log(`Adding ${totalTokens} tokens to account...`);
+      const amountPaid = isCustomAmount ? parseInt(customAmount) * 100 : selectedPackage.price;
       
-      const newBalance = userProfile.tokens + totalTokens;
-      console.log(`New balance will be: ${newBalance} tokens`);
+      console.log(`💰 [TokenWallet] Adding ${totalTokens} tokens to account...`);
+      console.log(`💰 [TokenWallet] Amount paid: $${amountPaid / 100}`);
       
-      // Update tokens in Supabase
+      // Step 1: Fetch fresh user data from Supabase
+      const freshProfile = await UserService.getUserProfile(userProfile.id);
+      const currentTokens = freshProfile ? freshProfile.tokens : userProfile.tokens;
+      const newBalance = currentTokens + totalTokens;
+      
+      console.log(`💰 [TokenWallet] Current tokens in Supabase: ${currentTokens}`);
+      console.log(`💰 [TokenWallet] New balance will be: ${newBalance} tokens`);
+      
+      // Step 2: Update tokens in Supabase
       const updateResult = await UserService.updateUserTokens(userProfile.id, newBalance);
-      console.log('✅ Tokens updated in Supabase:', updateResult);
+      console.log('✅ [TokenWallet] Tokens updated in Supabase:', updateResult);
       
-      // Add transaction record
+      // Step 3: Add token transaction record
       const transactionResult = await UserService.addTokenTransaction({
         userId: userProfile.id,
         type: 'purchase',
         amount: totalTokens,
-        description: `Purchased ${totalTokens} tokens via Stripe (Payment ID: ${paymentIntent.id})`,
-        stripePaymentIntentId: paymentIntent.id
+        description: `Purchased ${totalTokens} tokens via Stripe`,
+        stripePaymentIntentId: paymentIntent.id,
+        metadata: {
+          payment_intent_id: paymentIntent.id,
+          amount_paid: amountPaid / 100,
+          timestamp: new Date().toISOString()
+        }
       });
-      console.log('✅ Transaction recorded:', transactionResult);
+      console.log('✅ [TokenWallet] Transaction recorded:', transactionResult);
       
-      // Log activity for complete tracking
+      // Step 4: Save purchase history
+      const purchaseResult = await UserService.savePurchaseHistory({
+        userId: userProfile.id,
+        purchaseType: 'tokens',
+        amount: amountPaid / 100,
+        tokensPurchased: totalTokens,
+        stripePaymentIntentId: paymentIntent.id,
+        status: 'completed',
+        description: `Purchased ${totalTokens} tokens`,
+        metadata: {
+          payment_intent_id: paymentIntent.id,
+          tokens: totalTokens,
+          price_per_token: 1,
+          timestamp: new Date().toISOString()
+        }
+      });
+      console.log('✅ [TokenWallet] Purchase history saved:', purchaseResult);
+      
+      // Step 5: Log activity for complete tracking
       await ActivityService.logActivity(userProfile.id, 'token_purchase', {
         tokens: totalTokens,
-        amount: selectedPackage.price / 100,
+        amount: amountPaid / 100,
         payment_intent_id: paymentIntent.id,
         timestamp: new Date().toISOString()
       });
-      console.log('✅ Activity logged');
+      console.log('✅ [TokenWallet] Activity logged');
       
-      // Update local state immediately
-      setUserProfile(prev => prev ? { ...prev, tokens: newBalance } : null);
-      console.log('✅ Local state updated');
+      // Step 6: Fetch fresh profile with updated data
+      const updatedProfile = await UserService.getUserProfile(userProfile.id);
+      if (updatedProfile) {
+        setUserProfile(updatedProfile);
+        console.log('✅ [TokenWallet] User profile refreshed from Supabase');
+        console.log('💰 [TokenWallet] Verified new balance:', updatedProfile.tokens);
+      }
       
-      // Reload transactions
+      // Step 7: Reload transaction history
       const transactions = await UserService.getUserTokenTransactions(userProfile.id);
       setTokenTransactions(transactions);
-      console.log('✅ Transaction history reloaded');
+      console.log('✅ [TokenWallet] Transaction history reloaded:', transactions.length, 'transactions');
       
-      // Show success message
+      // Step 8: Show success message
       setPaymentResult({
         success: true,
         message: `🎉 Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
@@ -219,15 +274,16 @@ export default function ProfessionalTokenWallet() {
       setShowCheckout(false);
       setActiveTab('wallet'); // Go back to wallet view after purchase
       
-      // Show celebration effect with confetti and sound
+      // Step 9: Show celebration effect with confetti and sound
       setShowCelebration(false); // Reset first
       setTimeout(() => {
         setShowCelebration(true);
       }, 100);
       
-      console.log('✅ Payment success handler completed!');
+      console.log('✅ [TokenWallet] Payment success handler completed!');
+      console.log('💰 [TokenWallet] Final token balance:', newBalance);
     } catch (error) {
-      console.error('❌ Error in handlePaymentSuccess:', error);
+      console.error('❌ [TokenWallet] Error in handlePaymentSuccess:', error);
       setPaymentResult({
         success: false,
         message: `Payment succeeded but token update failed. Please contact support with payment ID: ${paymentIntent.id}`
