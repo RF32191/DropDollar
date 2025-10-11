@@ -388,18 +388,8 @@ export class UserService {
 
       console.log('✅ [UserService] Token transaction added successfully:', data);
       
-      // Update user's token count
-      const userProfile = await this.getUserProfile(transaction.userId);
-      if (userProfile) {
-        let newTokens = userProfile.tokens;
-        if (transaction.type === 'purchase' || transaction.type === 'earn') {
-          newTokens += transaction.amount;
-        } else if (transaction.type === 'spend') {
-          newTokens -= transaction.amount;
-        }
-        
-        await this.updateUserTokens(transaction.userId, newTokens);
-      }
+      // NOTE: Token balance is updated separately before this method is called
+      // This ensures the exact balance we want, avoiding race conditions
       
       return true;
     } catch (error) {

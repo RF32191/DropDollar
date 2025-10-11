@@ -207,8 +207,13 @@ export default function ProfessionalTokenWallet() {
       console.log(`💰 [TokenWallet] New balance will be: ${newBalance} tokens`);
       
       // Step 2: Update tokens in Supabase
+      console.log(`🔄 [TokenWallet] Updating tokens in Supabase: ${currentTokens} → ${newBalance}`);
       const updateResult = await UserService.updateUserTokens(userProfile.id, newBalance);
       console.log('✅ [TokenWallet] Tokens updated in Supabase:', updateResult);
+      
+      if (!updateResult) {
+        throw new Error('Failed to update tokens in Supabase');
+      }
       
       // Step 3: Add token transaction record
       const transactionResult = await UserService.addTokenTransaction({
@@ -258,12 +263,31 @@ export default function ProfessionalTokenWallet() {
         setUserProfile(updatedProfile);
         console.log('✅ [TokenWallet] User profile refreshed from Supabase');
         console.log('💰 [TokenWallet] Verified new balance:', updatedProfile.tokens);
+        
+        // Verify the update was successful
+        if (updatedProfile.tokens !== newBalance) {
+          console.error(`❌ [TokenWallet] Token mismatch! Expected ${newBalance}, got ${updatedProfile.tokens}`);
+          throw new Error(`Token update verification failed. Expected ${newBalance}, got ${updatedProfile.tokens}`);
+        } else {
+          console.log('✅ [TokenWallet] Token balance verified successfully!');
+        }
+      } else {
+        console.error('❌ [TokenWallet] Could not fetch updated profile');
+        throw new Error('Failed to verify token update');
       }
       
       // Step 7: Reload transaction history
       const transactions = await UserService.getUserTokenTransactions(userProfile.id);
       setTokenTransactions(transactions);
       console.log('✅ [TokenWallet] Transaction history reloaded:', transactions.length, 'transactions');
+      
+      // Verify the new transaction exists
+      const latestTransaction = transactions[0];
+      if (latestTransaction && latestTransaction.stripePaymentIntentId === paymentIntent.id) {
+        console.log('✅ [TokenWallet] Latest transaction verified:', latestTransaction);
+      } else {
+        console.warn('⚠️ [TokenWallet] Latest transaction not found in history');
+      }
       
       // Step 8: Show success message
       setPaymentResult({
