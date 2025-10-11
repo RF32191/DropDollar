@@ -1,7 +1,19 @@
 'use client';
 
+import { useEffect } from 'react';
 import CategoryPage from '@/components/CategoryPage';
+import { BooksAnimationWrapper } from '@/lib/AnimationEffects';
+import SoundEffects from '@/lib/SoundEffects';
 
 export default function BooksPage() {
-  return <CategoryPage categoryId="books-media" categoryIcon="📚" />;
+  useEffect(() => {
+    // Play books sound when page loads
+    SoundEffects.playBooksSound();
+  }, []);
+
+  return (
+    <BooksAnimationWrapper>
+      <CategoryPage categoryId="books-media" categoryIcon="📚" />
+    </BooksAnimationWrapper>
+  );
 }

@@ -19,7 +19,7 @@ import {
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
-import SimpleCheckoutForm from '@/components/SimpleCheckoutForm';
+import MinimalCheckout from '@/components/MinimalCheckout';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -535,7 +535,7 @@ export default function ProfessionalTokenWallet() {
                     </div>
                   </div>
 
-                  <SimpleCheckoutForm
+                  <MinimalCheckout
                     selectedPackage={getCurrentPackage()}
                     userProfile={userProfile}
                     onSuccess={handlePaymentSuccess}
