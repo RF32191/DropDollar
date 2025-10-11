@@ -21,6 +21,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
+import '@/styles/stripe-autofill.css';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -149,16 +150,38 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="bg-gray-700 p-4 rounded-lg">
+    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+      {/* Hidden fields to help with autofill */}
+      <input type="text" style={{ display: 'none' }} autoComplete="off" />
+      <input type="password" style={{ display: 'none' }} autoComplete="off" />
+      
+      <div className="bg-gray-700 p-4 rounded-lg stripe-card-element">
         <CardElement
           options={{
             style: {
               base: {
                 fontSize: '16px',
                 color: '#fff',
+                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                fontSmoothing: 'antialiased',
                 '::placeholder': {
                   color: '#aab7c4',
+                },
+                ':-webkit-autofill': {
+                  color: '#fff',
+                  backgroundColor: 'transparent',
+                },
+                ':-webkit-autofill:hover': {
+                  color: '#fff',
+                  backgroundColor: 'transparent',
+                },
+                ':-webkit-autofill:focus': {
+                  color: '#fff',
+                  backgroundColor: 'transparent',
+                },
+                ':-webkit-autofill:active': {
+                  color: '#fff',
+                  backgroundColor: 'transparent',
                 },
               },
               invalid: {
@@ -166,6 +189,8 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
                 iconColor: '#fa755a',
               },
             },
+            hidePostalCode: false,
+            disableLink: false,
           }}
         />
       </div>

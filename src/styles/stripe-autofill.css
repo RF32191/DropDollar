@@ -1,0 +1,53 @@
+/* Stripe Card Element Autofill Fixes */
+.stripe-card-element {
+  /* Ensure proper autofill styling */
+  position: relative;
+}
+
+/* Override browser autofill styles for Stripe elements */
+.StripeElement--webkit-autofill {
+  color: #fff !important;
+  background-color: transparent !important;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+}
+
+/* Ensure Stripe elements work with autofill */
+.StripeElement {
+  -webkit-autofill: {
+    color: #fff !important;
+    background-color: transparent !important;
+  }
+}
+
+/* Fix for autofill interfering with Stripe input */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: #fff !important;
+  background-color: transparent !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Additional autofill fixes */
+.StripeElement input:-webkit-autofill,
+.StripeElement input:-webkit-autofill:hover,
+.StripeElement input:-webkit-autofill:focus,
+.StripeElement input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: #fff !important;
+  background-color: transparent !important;
+}
+
+/* Ensure form doesn't interfere with Stripe */
+form[autocomplete="off"] {
+  -webkit-autofill: off;
+}
+
+/* Fix for Safari autofill */
+@supports (-webkit-appearance: none) {
+  .StripeElement {
+    -webkit-appearance: none;
+  }
+}
