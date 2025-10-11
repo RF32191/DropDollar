@@ -11,6 +11,7 @@ import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import AdOverlay from '@/components/ads/AdOverlay';
 import CelebrationEffect from '@/components/CelebrationEffect';
+import GameVictoryAnimation from '@/components/GameVictoryAnimation';
 import AudioInitializer from '@/components/AudioInitializer';
 import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/ResponsiveLayout';
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
@@ -594,10 +595,11 @@ export default function GamesPage() {
       {/* Audio Initializer - Enables audio on first user interaction */}
       <AudioInitializer />
       
-      {/* Celebration Effect for Practice Mode */}
-      <CelebrationEffect 
-        show={showCelebration} 
-        message={`🎮 ${currentGame ? GAMES.find(g => g.id === currentGame)?.name : 'Game'} Complete! 🎉`}
+      {/* Game Victory Animation for Practice Mode */}
+      <GameVictoryAnimation
+        show={showCelebration}
+        gameName={currentGame ? GAMES.find(g => g.id === currentGame)?.name || 'Game' : 'Game'}
+        score={gameResults?.score || 0}
         onComplete={() => setShowCelebration(false)}
         duration={3000}
       />
