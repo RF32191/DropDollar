@@ -1,28 +1,37 @@
 import Stripe from 'stripe';
 
-// Initialize Stripe with your secret key - only if available
+// Initialize Stripe instance - will be created when needed
 let stripe: Stripe | null = null;
 
-// Check for Stripe keys
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-
-console.log('🔧 Stripe Configuration Check:');
-console.log('🔧 STRIPE_SECRET_KEY exists:', !!stripeSecretKey);
-console.log('🔧 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY exists:', !!stripePublishableKey);
-
-if (stripeSecretKey && stripeSecretKey.length > 50) { // Check if key is long enough
-  try {
-    stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2024-06-20',
-    });
-    console.log('✅ Stripe initialized successfully with live keys');
-  } catch (error) {
-    console.error('❌ Failed to initialize Stripe:', error);
-    stripe = null;
+// Function to initialize Stripe when needed
+function initializeStripe(): Stripe | null {
+  if (stripe) {
+    return stripe; // Already initialized
   }
-} else {
-  console.warn('⚠️ STRIPE_SECRET_KEY not found or too short - using mock mode');
+
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
+  console.log('🔧 Stripe Configuration Check:');
+  console.log('🔧 STRIPE_SECRET_KEY exists:', !!stripeSecretKey);
+  console.log('🔧 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY exists:', !!stripePublishableKey);
+
+  if (stripeSecretKey && stripeSecretKey.length > 50) {
+    try {
+      stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2024-06-20',
+      });
+      console.log('✅ Stripe initialized successfully with live keys');
+      return stripe;
+    } catch (error) {
+      console.error('❌ Failed to initialize Stripe:', error);
+      stripe = null;
+      return null;
+    }
+  } else {
+    console.warn('⚠️ STRIPE_SECRET_KEY not found or too short');
+    return null;
+  }
 }
 
 export interface PaymentIntent {
@@ -53,33 +62,16 @@ export class StripePaymentService {
     currency: string = 'usd',
     metadata: PaymentMetadata
   ): Promise<PaymentIntent> {
-    if (!stripe) {
-      console.log('🔧 Using mock Stripe service for development');
-      
-      // Return a mock payment intent for development
-      const mockPaymentIntent: PaymentIntent = {
-        id: `pi_mock_${Date.now()}`,
-        amount,
-        currency,
-        status: 'requires_payment_method',
-        client_secret: `pi_mock_${Date.now()}_secret_mock`,
-        metadata: {
-          userId: metadata.userId,
-          type: metadata.type,
-          listingId: metadata.listingId || '',
-          tournamentId: metadata.tournamentId || '',
-          matchId: metadata.matchId || '',
-          gameType: metadata.gameType || '',
-          entryNumber: metadata.entryNumber?.toString() || ''
-        }
-      };
-      
-      console.log('✅ Mock payment intent created:', mockPaymentIntent.id);
-      return mockPaymentIntent;
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
+      throw new Error('Stripe is not configured. Please check your environment variables. Make sure STRIPE_SECRET_KEY is set in your .env.local file.');
     }
     
     try {
-      const paymentIntent = await stripe.paymentIntents.create({
+      console.log('🔧 Creating real Stripe payment intent...');
+      
+      const paymentIntent = await stripeInstance.paymentIntents.create({
         amount,
         currency,
         metadata: {
@@ -96,6 +88,8 @@ export class StripePaymentService {
         },
       });
 
+      console.log('✅ Real payment intent created:', paymentIntent.id);
+
       return {
         id: paymentIntent.id,
         amount: paymentIntent.amount,
@@ -105,6 +99,7 @@ export class StripePaymentService {
         metadata: paymentIntent.metadata
       };
     } catch (error: any) {
+      console.error('❌ Failed to create payment intent:', error);
       throw new Error(`Failed to create payment intent: ${error.message}`);
     }
   }
@@ -113,25 +108,14 @@ export class StripePaymentService {
    * Confirm a payment intent
    */
   static async confirmPaymentIntent(paymentIntentId: string): Promise<PaymentIntent> {
-    if (!stripe) {
-      console.log('🔧 Using mock Stripe confirmation for development');
-      
-      // Return a mock confirmed payment intent
-      const mockPaymentIntent: PaymentIntent = {
-        id: paymentIntentId,
-        amount: 1000, // Mock amount
-        currency: 'usd',
-        status: 'succeeded',
-        client_secret: `${paymentIntentId}_secret_mock`,
-        metadata: {}
-      };
-      
-      console.log('✅ Mock payment confirmed:', paymentIntentId);
-      return mockPaymentIntent;
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
+      throw new Error('Stripe is not configured. Please check your environment variables.');
     }
     
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await stripeInstance.paymentIntents.retrieve(paymentIntentId);
       
       return {
         id: paymentIntent.id,
@@ -154,12 +138,14 @@ export class StripePaymentService {
     amount?: number, // Optional partial refund amount in cents
     reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer'
   ): Promise<Stripe.Refund> {
-    if (!stripe) {
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
       throw new Error('Stripe is not configured. Please check your environment variables.');
     }
     
     try {
-      const refund = await stripe.refunds.create({
+      const refund = await stripeInstance.refunds.create({
         payment_intent: paymentIntentId,
         amount,
         reason
@@ -179,12 +165,14 @@ export class StripePaymentService {
     amount: number, // Amount in cents
     currency: string = 'usd'
   ): Promise<Stripe.Transfer> {
-    if (!stripe) {
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
       throw new Error('Stripe is not configured. Please check your environment variables.');
     }
     
     try {
-      const transfer = await stripe.transfers.create({
+      const transfer = await stripeInstance.transfers.create({
         amount,
         currency,
         destination: recipientStripeAccountId,
@@ -200,12 +188,14 @@ export class StripePaymentService {
    * Get payment methods for a customer
    */
   static async getPaymentMethods(customerId: string): Promise<Stripe.PaymentMethod[]> {
-    if (!stripe) {
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
       throw new Error('Stripe is not configured. Please check your environment variables.');
     }
     
     try {
-      const paymentMethods = await stripe.paymentMethods.list({
+      const paymentMethods = await stripeInstance.paymentMethods.list({
         customer: customerId,
         type: 'card',
       });
@@ -224,13 +214,15 @@ export class StripePaymentService {
     email: string,
     name?: string
   ): Promise<Stripe.Customer> {
-    if (!stripe) {
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
       throw new Error('Stripe is not configured. Please check your environment variables.');
     }
     
     try {
       // First, try to find existing customer by metadata
-      const existingCustomers = await stripe.customers.list({
+      const existingCustomers = await stripeInstance.customers.list({
         email: email,
         limit: 1
       });
@@ -240,7 +232,7 @@ export class StripePaymentService {
       }
 
       // Create new customer
-      const customer = await stripe.customers.create({
+      const customer = await stripeInstance.customers.create({
         email,
         name,
         metadata: {
@@ -262,12 +254,14 @@ export class StripePaymentService {
     signature: string,
     secret: string
   ): Stripe.Event {
-    if (!stripe) {
+    const stripeInstance = initializeStripe();
+    
+    if (!stripeInstance) {
       throw new Error('Stripe is not configured. Please check your environment variables.');
     }
     
     try {
-      return stripe.webhooks.constructEvent(payload, signature, secret);
+      return stripeInstance.webhooks.constructEvent(payload, signature, secret);
     } catch (error: any) {
       throw new Error(`Webhook signature verification failed: ${error.message}`);
     }
