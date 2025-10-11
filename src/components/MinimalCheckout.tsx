@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { UserProfile } from '@/lib/supabase/userService';
 import SoundEffects from '@/lib/SoundEffects';
+import SavedCardsManager from './SavedCardsManager';
 
 interface MinimalCheckoutProps {
   selectedPackage: {
@@ -22,6 +23,52 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
   const [postalCode, setPostalCode] = useState('');
   const [saveCard, setSaveCard] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
+  const [showNewCardForm, setShowNewCardForm] = useState(false);
+  const [hasSavedCards, setHasSavedCards] = useState(false);
+
+  // Check for existing customer on mount
+  useEffect(() => {
+    const checkExistingCustomer = async () => {
+      try {
+        const response = await fetch('/api/payments/create-customer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userProfile.id,
+            email: userProfile.email,
+            name: userProfile.username
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCustomerId(data.customerId);
+          setHasSavedCards(data.existing);
+          console.log('✅ [Checkout] Customer loaded:', data.customerId);
+          console.log('💳 [Checkout] Has saved cards:', data.existing);
+        }
+      } catch (error) {
+        console.error('Error checking customer:', error);
+      }
+    };
+
+    checkExistingCustomer();
+  }, [userProfile]);
+
+  const handleSavedCardSelected = (paymentMethodId: string) => {
+    setSelectedSavedCard(paymentMethodId);
+    setShowNewCardForm(false);
+    console.log('💳 [Checkout] Saved card selected:', paymentMethodId);
+  };
+
+  const handleAddNewCard = () => {
+    setSelectedSavedCard(null);
+    setShowNewCardForm(true);
+    console.log('➕ [Checkout] Adding new card');
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -153,21 +200,37 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
       console.log('💳 [Checkout] Amount:', paymentIntent.amount / 100, 'USD');
       console.log('🔒 [Checkout] Card saving:', saveCard ? 'ENABLED' : 'DISABLED');
 
-      // Step 3: Confirm payment with Stripe Elements (Encrypted by Stripe)
+      // Step 3: Confirm payment with Stripe Elements (Encrypted by Stripe) or Saved Card
       console.log('🔒 [Checkout] Confirming payment with encrypted card data...');
       
-      const confirmOptions: any = {
-        payment_method: {
-          card: cardElement, // Stripe handles encryption automatically
-          billing_details: {
-            name: userProfile.username || 'User',
-            email: userProfile.email,
-            address: {
-              postal_code: postalCode || undefined,
+      let confirmOptions: any;
+      
+      if (selectedSavedCard) {
+        // Use saved card
+        console.log('💳 [Checkout] Using saved card:', selectedSavedCard);
+        confirmOptions = {
+          payment_method: selectedSavedCard,
+        };
+      } else {
+        // Use new card
+        const cardElement = elements?.getElement(CardElement);
+        if (!cardElement) {
+          throw new Error('Card element not found');
+        }
+        
+        confirmOptions = {
+          payment_method: {
+            card: cardElement, // Stripe handles encryption automatically
+            billing_details: {
+              name: userProfile.username || 'User',
+              email: userProfile.email,
+              address: {
+                postal_code: postalCode || undefined,
+              },
             },
           },
-        },
-      };
+        };
+      }
 
       const result = await stripe.confirmCardPayment(
         paymentIntent.client_secret,
@@ -247,30 +310,59 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
         data-1p-ignore="true"
         data-form-type="other"
       >
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Card Details</label>
-          <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
-            <CardElement options={cardElementOptions} />
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            Secure payment powered by Stripe
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Postal Code (Optional)</label>
-          <input
-            type="text"
-            value={postalCode}
-            onChange={(e) => setPostalCode(e.target.value)}
-            placeholder="12345"
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
-            autoComplete="off"
-            data-lpignore="true"
-            data-1p-ignore="true"
-            data-form-type="other"
+        {/* Saved Cards Manager */}
+        {hasSavedCards && !showNewCardForm && (
+          <SavedCardsManager
+            customerId={customerId}
+            onCardSelected={handleSavedCardSelected}
+            onAddNewCard={handleAddNewCard}
           />
-        </div>
+        )}
+
+        {/* New Card Form */}
+        {(!hasSavedCards || showNewCardForm) && (
+          <>
+            {showNewCardForm && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewCardForm(false);
+                    setSelectedSavedCard(null);
+                  }}
+                  className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                >
+                  ← Back to saved cards
+                </button>
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {showNewCardForm ? 'New Card Details' : 'Card Details'}
+              </label>
+              <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
+                <CardElement options={cardElementOptions} />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                🔒 Secure payment powered by Stripe
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Postal Code (Optional)</label>
+              <input
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="12345"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-form-type="other"
+              />
+            </div>
 
             <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
               <div className="flex items-center space-x-2 mb-2">
@@ -289,6 +381,8 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
                 🔒 Your card is encrypted and securely stored by Stripe (PCI DSS Level 1 compliant). We never see or store your card details.
               </p>
             </div>
+          </>
+        )}
 
         <button
           type="submit"
