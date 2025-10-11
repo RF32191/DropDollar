@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useStripe } from '@stripe/react-stripe-js';
+import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { UserProfile } from '@/lib/supabase/userService';
 import SoundEffects from '@/lib/SoundEffects';
 
@@ -17,40 +17,29 @@ interface MinimalCheckoutProps {
 
 export default function MinimalCheckout({ selectedPackage, onSuccess, onError, userProfile }: MinimalCheckoutProps) {
   const stripe = useStripe();
+  const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvc, setCvc] = useState('');
   const [postalCode, setPostalCode] = useState('');
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
-    if (!stripe) {
+    if (!stripe || !elements) {
       onError('Payment system not ready. Please refresh the page.');
       return;
     }
 
-    // Validate inputs
-    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
-      onError('Please enter a valid card number');
-      return;
-    }
-
-    if (!expiryDate || !expiryDate.includes('/')) {
-      onError('Please enter expiry date as MM/YY');
-      return;
-    }
-
-    if (!cvc || cvc.length < 3) {
-      onError('Please enter a valid CVC');
+    const cardElement = elements.getElement(CardElement);
+    
+    if (!cardElement) {
+      onError('Card element not found. Please refresh the page.');
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      console.log('Starting real Stripe payment...');
+      console.log('Starting real Stripe payment with Elements...');
       
       // Try simple API route first
       let apiEndpoint = '/api/payments/simple-intent';
@@ -127,32 +116,17 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
 
       console.log('Payment intent created:', paymentIntent.id);
 
-      // Parse expiry date
-      const [month, year] = expiryDate.split('/');
-      const expMonth = parseInt(month);
-      const expYear = parseInt('20' + year);
-
-      if (isNaN(expMonth) || isNaN(expYear) || expMonth < 1 || expMonth > 12) {
-        onError('Please enter a valid expiry date');
-        return;
-      }
-
-      // Confirm payment with Stripe
+      // Confirm payment with Stripe Elements
       const result = await stripe.confirmCardPayment(
         paymentIntent.client_secret,
         {
           payment_method: {
-            card: {
-              number: cardNumber.replace(/\s/g, ''),
-              exp_month: expMonth,
-              exp_year: expYear,
-              cvc: cvc,
-            },
+            card: cardElement,
             billing_details: {
               name: userProfile.username || 'User',
               email: userProfile.email,
               address: {
-                postal_code: postalCode || '00000',
+                postal_code: postalCode || undefined,
               },
             },
           },
@@ -191,86 +165,72 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     }
   };
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = matches && matches[0] || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    return parts.length ? parts.join(' ') : v;
-  };
-
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + '/' + v.substring(2, 4);
-    }
-    return v;
+  const cardElementOptions = {
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#fff',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        '::placeholder': {
+          color: '#9ca3af',
+        },
+        backgroundColor: '#374151',
+      },
+      invalid: {
+        color: '#ef4444',
+        iconColor: '#ef4444',
+      },
+    },
   };
 
   return (
     <div className="bg-gray-800 rounded-xl p-6">
-      <h3 className="text-xl font-bold text-white mb-4">Payment Information</h3>
+      <h3 className="text-xl font-bold text-white mb-4">💳 Payment Information</h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Card Number</label>
-          <input
-            type="text"
-            value={cardNumber}
-            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-            placeholder="1234 5678 9012 3456"
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-            maxLength={19}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Expiry</label>
-            <input
-              type="text"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
-              placeholder="MM/YY"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              maxLength={5}
-            />
+          <label className="block text-sm font-medium text-gray-300 mb-2">Card Details</label>
+          <div className="bg-gray-700 p-3 rounded-lg border border-gray-600">
+            <CardElement options={cardElementOptions} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">CVC</label>
-            <input
-              type="text"
-              value={cvc}
-              onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="123"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              maxLength={4}
-            />
-          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            Secure payment powered by Stripe
+          </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Postal Code</label>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Postal Code (Optional)</label>
           <input
             type="text"
             value={postalCode}
             onChange={(e) => setPostalCode(e.target.value)}
             placeholder="12345"
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
           />
         </div>
 
         <button
           type="submit"
-          disabled={isProcessing}
+          disabled={isProcessing || !stripe}
           onClick={() => SoundEffects.playButtonClick()}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50"
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
-          {isProcessing ? 'Processing...' : `Pay $${(selectedPackage.price / 100).toFixed(2)}`}
+          {isProcessing ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </span>
+          ) : (
+            `Pay $${(selectedPackage.price / 100).toFixed(2)}`
+          )}
         </button>
+
+        <div className="text-center text-xs text-gray-400">
+          🔒 Your payment information is encrypted and secure
+        </div>
       </form>
     </div>
   );
