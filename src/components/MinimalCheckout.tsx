@@ -43,6 +43,45 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     try {
       console.log('💳 [Checkout] Starting secure payment with card encryption...');
       
+      // PRE-FLIGHT CHECK: Verify Supabase connection and user exists
+      console.log('🔍 [Checkout] PRE-FLIGHT: Verifying database connection...');
+      
+      try {
+        const { UserService } = await import('@/lib/supabase/userService');
+        
+        // Test 1: Can we reach Supabase?
+        console.log('🔍 [Checkout] PRE-FLIGHT: Testing Supabase connection...');
+        const testProfile = await UserService.getUserProfile(userProfile.id);
+        
+        if (!testProfile) {
+          console.error('❌ [Checkout] PRE-FLIGHT FAILED: User profile not found in database');
+          throw new Error('Cannot verify your account in the database. Please try signing in again or contact support before making a payment.');
+        }
+        
+        console.log('✅ [Checkout] PRE-FLIGHT: User found in database');
+        console.log('✅ [Checkout] PRE-FLIGHT: Current token balance:', testProfile.tokens);
+        
+        // Test 2: Can we update tokens?
+        console.log('🔍 [Checkout] PRE-FLIGHT: Testing token update capability...');
+        const currentTokens = testProfile.tokens;
+        const testUpdate = await UserService.updateUserTokens(userProfile.id, currentTokens);
+        
+        if (!testUpdate) {
+          console.error('❌ [Checkout] PRE-FLIGHT FAILED: Cannot update tokens in database');
+          throw new Error('Database is currently read-only. Please wait a moment and try again.');
+        }
+        
+        console.log('✅ [Checkout] PRE-FLIGHT: Token update capability verified');
+        console.log('✅ [Checkout] PRE-FLIGHT: All systems operational');
+        console.log('💳 [Checkout] PRE-FLIGHT PASSED - Safe to proceed with payment');
+        
+      } catch (preflightError: any) {
+        console.error('❌ [Checkout] PRE-FLIGHT CHECK FAILED:', preflightError);
+        setIsProcessing(false);
+        onError(`⚠️ Cannot process payment at this time: ${preflightError.message || 'Database connection issue'}. Your card has NOT been charged.`);
+        return;
+      }
+      
       // Step 1: Create or get Stripe customer if saving card
       let stripeCustomerId = customerId;
       

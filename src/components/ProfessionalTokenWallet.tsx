@@ -100,6 +100,63 @@ export default function ProfessionalTokenWallet() {
   const [purchasedTokens, setPurchasedTokens] = useState(0);
 
   // Enhanced user detection
+  // Helper function to attempt token credit recovery
+  const attemptTokenCredit = async (paymentIntentId: string, userId: string) => {
+    console.log('🔄 [TokenWallet] Attempting token credit recovery...');
+    console.log('💳 [TokenWallet] Payment ID:', paymentIntentId);
+    console.log('👤 [TokenWallet] User ID:', userId);
+    
+    try {
+      const creditResponse = await fetch('/api/payments/credit-tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentIntentId,
+          userId
+        })
+      });
+
+      const creditResult = await creditResponse.json();
+      
+      if (creditResult.success) {
+        console.log('✅ [TokenWallet] Token credit recovery successful!');
+        
+        // Refresh user profile
+        const recoveredProfile = await UserService.getUserProfile(userId);
+        if (recoveredProfile) {
+          setUserProfile(recoveredProfile);
+        }
+        
+        setPaymentResult({
+          success: true,
+          message: `🎉 Payment successful! ${creditResult.tokensAdded} tokens have been added to your account. New balance: ${creditResult.newBalance} tokens.`
+        });
+        
+        // Show success animations
+        setPurchasedTokens(creditResult.tokensAdded);
+        setShowCoinDrop(true);
+        setTimeout(() => setShowCelebration(true), 500);
+        
+        setShowCheckout(false);
+        setActiveTab('wallet');
+        
+        // Reload transaction history
+        const transactions = await UserService.getUserTokenTransactions(userId);
+        setTokenTransactions(transactions);
+        
+        return true;
+      } else {
+        console.error('❌ [TokenWallet] Credit recovery failed:', creditResult.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ [TokenWallet] Credit recovery exception:', error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     const checkAuthentication = async () => {
       try {
@@ -190,11 +247,27 @@ export default function ProfessionalTokenWallet() {
   }, []);
 
   const handlePaymentSuccess = async (paymentIntent: any) => {
-    if (!userProfile) return;
+    if (!userProfile) {
+      console.error('❌ [TokenWallet] No user profile available!');
+      
+      // Immediate fallback to recovery
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          await attemptTokenCredit(paymentIntent.id, userData.id || userData.sessionId);
+        }
+      } catch (e) {
+        console.error('❌ [TokenWallet] Recovery also failed:', e);
+      }
+      return;
+    }
     
     try {
       console.log('💰 [TokenWallet] Payment successful! Processing token purchase...');
       console.log('💰 [TokenWallet] Payment Intent:', paymentIntent);
+      console.log('👤 [TokenWallet] User ID:', userProfile.id);
+      console.log('👤 [TokenWallet] User Email:', userProfile.email);
       
       const totalTokens = isCustomAmount ? parseInt(customAmount) : selectedPackage.tokens;
       const amountPaid = isCustomAmount ? parseInt(customAmount) * 100 : selectedPackage.price;
@@ -202,21 +275,66 @@ export default function ProfessionalTokenWallet() {
       console.log(`💰 [TokenWallet] Adding ${totalTokens} tokens to account...`);
       console.log(`💰 [TokenWallet] Amount paid: $${amountPaid / 100}`);
       
-      // Step 1: Fetch fresh user data from Supabase
-      const freshProfile = await UserService.getUserProfile(userProfile.id);
-      const currentTokens = freshProfile ? freshProfile.tokens : userProfile.tokens;
-      const newBalance = currentTokens + totalTokens;
+      // Step 1: Retry-wrapped token update
+      let updateSuccess = false;
+      let newBalance = 0;
       
-      console.log(`💰 [TokenWallet] Current tokens in Supabase: ${currentTokens}`);
-      console.log(`💰 [TokenWallet] New balance will be: ${newBalance} tokens`);
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`🔄 [TokenWallet] Update attempt ${attempt}/3...`);
+          
+          // Fetch fresh user data from Supabase
+          const freshProfile = await UserService.getUserProfile(userProfile.id);
+          
+          if (!freshProfile) {
+            console.error(`❌ [TokenWallet] User profile not found in Supabase on attempt ${attempt}`);
+            
+            if (attempt === 3) {
+              throw new Error('User profile not found in database after 3 attempts');
+            }
+            
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          
+          const currentTokens = freshProfile.tokens || 0;
+          newBalance = currentTokens + totalTokens;
+          
+          console.log(`💰 [TokenWallet] Current tokens: ${currentTokens}`);
+          console.log(`💰 [TokenWallet] New balance: ${newBalance}`);
+          
+          // Update tokens in Supabase
+          const updateResult = await UserService.updateUserTokens(userProfile.id, newBalance);
+          
+          if (!updateResult) {
+            throw new Error('Update returned false');
+          }
+          
+          // Verify the update
+          const verifyProfile = await UserService.getUserProfile(userProfile.id);
+          if (verifyProfile && verifyProfile.tokens === newBalance) {
+            console.log(`✅ [TokenWallet] Tokens updated and verified on attempt ${attempt}`);
+            updateSuccess = true;
+            break;
+          } else {
+            throw new Error(`Verification failed: Expected ${newBalance}, got ${verifyProfile?.tokens}`);
+          }
+          
+        } catch (attemptError: any) {
+          console.error(`❌ [TokenWallet] Attempt ${attempt} failed:`, attemptError.message);
+          
+          if (attempt === 3) {
+            throw attemptError;
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
       
-      // Step 2: Update tokens in Supabase
-      console.log(`🔄 [TokenWallet] Updating tokens in Supabase: ${currentTokens} → ${newBalance}`);
-      const updateResult = await UserService.updateUserTokens(userProfile.id, newBalance);
-      console.log('✅ [TokenWallet] Tokens updated in Supabase:', updateResult);
-      
-      if (!updateResult) {
-        throw new Error('Failed to update tokens in Supabase');
+      if (!updateSuccess) {
+        throw new Error('Failed to update tokens after 3 attempts');
       }
       
       // Step 3: Add token transaction record
@@ -319,63 +437,52 @@ export default function ProfessionalTokenWallet() {
       
       console.log('✅ [TokenWallet] Payment success handler completed!');
       console.log('💰 [TokenWallet] Final token balance:', newBalance);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [TokenWallet] Error in handlePaymentSuccess:', error);
+      console.error('❌ [TokenWallet] Error details:', error.message);
+      console.error('❌ [TokenWallet] Error stack:', error.stack);
       
-      // Try to recover by calling the manual credit endpoint
-      console.log('🔄 [TokenWallet] Attempting automatic token credit recovery...');
+      // Immediate auto-recovery attempt
+      console.log('🔄 [TokenWallet] Starting immediate auto-recovery...');
       
-      try {
-        const creditResponse = await fetch('/api/payments/credit-tokens', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentIntentId: paymentIntent.id,
-            userId: userProfile.id
-          })
-        });
-
-        const creditResult = await creditResponse.json();
-        
-        if (creditResult.success) {
-          console.log('✅ [TokenWallet] Token credit recovery successful!');
-          
-          // Refresh user profile
-          const recoveredProfile = await UserService.getUserProfile(userProfile.id);
-          if (recoveredProfile) {
-            setUserProfile(recoveredProfile);
-          }
-          
-          setPaymentResult({
-            success: true,
-            message: `🎉 Payment successful! ${creditResult.tokensAdded} tokens have been added to your account. New balance: ${creditResult.newBalance} tokens.`
-          });
-          
-          // Show success animations
-          setPurchasedTokens(creditResult.tokensAdded);
-          setShowCoinDrop(true);
-          setTimeout(() => setShowCelebration(true), 500);
-          
-          setShowCheckout(false);
-          setActiveTab('wallet');
-          
-          // Reload transaction history
-          const transactions = await UserService.getUserTokenTransactions(userProfile.id);
-          setTokenTransactions(transactions);
-          
-          return;
-        }
-      } catch (recoveryError) {
-        console.error('❌ [TokenWallet] Token credit recovery failed:', recoveryError);
+      const recoverySuccess = await attemptTokenCredit(paymentIntent.id, userProfile.id);
+      
+      if (recoverySuccess) {
+        console.log('✅ [TokenWallet] Auto-recovery succeeded!');
+        return; // Success handled in attemptTokenCredit
       }
       
-      // If recovery failed, show error with payment ID
+      // If recovery failed, show detailed error with recovery link
+      console.error('❌ [TokenWallet] All recovery attempts failed');
+      
       setPaymentResult({
         success: false,
-        message: `⚠️ Payment succeeded but token update failed. Your payment has been processed successfully. Please contact support with payment ID: ${paymentIntent.id} to have your tokens credited manually. We apologize for the inconvenience.`
+        message: (
+          <div className="space-y-3">
+            <p className="font-bold text-red-200">⚠️ Payment Succeeded But Token Update Failed</p>
+            <p className="text-red-100">Your payment has been processed successfully.</p>
+            <div className="bg-red-900 bg-opacity-50 p-3 rounded-lg">
+              <p className="text-sm text-red-100 mb-2"><strong>Payment ID:</strong></p>
+              <p className="text-xs font-mono text-red-200 break-all">{paymentIntent.id}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <a 
+                href="/support/credit-tokens"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-center transition-all"
+                onClick={() => {
+                  // Store payment ID for the credit page
+                  localStorage.setItem('pendingCreditPaymentId', paymentIntent.id);
+                }}
+              >
+                🔧 Credit Tokens Now
+              </a>
+              <p className="text-xs text-red-200">Click above to automatically credit your tokens</p>
+            </div>
+          </div>
+        ) as any
       });
+      
+      setShowCheckout(false);
     }
   };
 
