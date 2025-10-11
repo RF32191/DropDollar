@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
 import GlobalLocationCheck from '@/components/GlobalLocationCheck'
 import UsernameDropdown from '@/components/UsernameDropdown'
+import AudioInitializer from '@/components/AudioInitializer'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <AuthProvider>
+          <AudioInitializer />
           <GlobalLocationCheck />
           <div className="location-banner-spacer">
             {/* Username Dropdown - appears beneath location banner */}

@@ -10,9 +10,30 @@ export class SoundEffects {
       try {
         this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         this.isInitialized = true;
+        console.log('✅ Audio context initialized successfully');
+        
+        // Resume audio context if it's suspended (required by browsers)
+        if (this.audioContext.state === 'suspended') {
+          console.log('⚠️ Audio context suspended, attempting to resume...');
+          this.audioContext.resume().then(() => {
+            console.log('✅ Audio context resumed');
+          }).catch(err => {
+            console.error('❌ Failed to resume audio context:', err);
+          });
+        }
       } catch (error) {
-        console.log('Audio not supported:', error);
+        console.error('❌ Audio not supported:', error);
       }
+    }
+  }
+
+  // Call this on first user interaction to enable audio
+  static enableAudio() {
+    this.initAudioContext();
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().then(() => {
+        console.log('✅ Audio enabled after user interaction');
+      });
     }
   }
 
