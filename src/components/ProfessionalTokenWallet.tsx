@@ -1,44 +1,36 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  CreditCardIcon, 
-  CurrencyDollarIcon, 
+import Link from 'next/link';
+import {
+  CreditCardIcon,
+  CurrencyDollarIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  ArrowPathIcon,
   BanknotesIcon,
-  ShieldCheckIcon,
   UserIcon,
   EyeIcon,
   EyeSlashIcon,
-  ChartBarIcon,
   ClockIcon,
+  ChartBarIcon,
   PlusIcon,
   MinusIcon
 } from '@heroicons/react/24/outline';
-import { useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
-import CoinAnimation from '@/components/CoinAnimation';
-import '@/styles/stripe-autofill.css';
+import SimpleCheckoutForm from '@/components/SimpleCheckoutForm';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
-
-// Debug Stripe configuration
-console.log('🔧 ProfessionalTokenWallet Stripe Config:');
-console.log('🔧 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:', !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
-console.log('🔧 Stripe Promise:', !!stripePromise);
 
 interface TokenPackage {
   id: string;
   tokens: number;
   price: number; // in cents
   bonus: number;
-  description: string;
   popular?: boolean;
+  description: string;
   icon: string;
 }
 
@@ -86,239 +78,17 @@ const tokenPackages: TokenPackage[] = [
   },
 ];
 
-interface CheckoutFormProps {
-  selectedPackage: TokenPackage;
-  onSuccess: (paymentIntent: any) => void;
-  onError: (error: string) => void;
-  userProfile: UserProfile;
-}
-
-function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: CheckoutFormProps) {
-  const stripe = useStripe();
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Custom card input state
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!stripe) {
-      onError('Stripe not loaded. Please refresh the page.');
-      return;
-    }
-
-    // Validate card inputs
-    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
-      onError('Please enter a valid card number');
-      return;
-    }
-
-    if (!expiryDate || !expiryDate.includes('/')) {
-      onError('Please enter a valid expiry date (MM/YY)');
-      return;
-    }
-
-    if (!cvc || cvc.length < 3) {
-      onError('Please enter a valid CVC');
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      // Create payment intent
-      const paymentIntent = await StripePaymentService.createPaymentIntent(
-        selectedPackage.price,
-        'usd',
-        {
-          userId: userProfile.id,
-          type: 'tokens',
-          gameType: 'token_purchase'
-        }
-      );
-
-      // Real Stripe payment processing
-      console.log('🔧 Processing real Stripe payment:', paymentIntent.id);
-
-      // Parse expiry date safely
-      const [month, year] = expiryDate.split('/');
-      const expMonth = parseInt(month);
-      const expYear = parseInt('20' + year);
-
-      if (isNaN(expMonth) || isNaN(expYear) || expMonth < 1 || expMonth > 12) {
-        onError('Please enter a valid expiry date');
-        return;
-      }
-
-      // Confirm payment with custom card data
-      const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(
-        paymentIntent.client_secret,
-        {
-          payment_method: {
-            card: {
-              number: cardNumber.replace(/\s/g, ''),
-              exp_month: expMonth,
-              exp_year: expYear,
-              cvc: cvc,
-            },
-            billing_details: {
-              name: `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() || userProfile.username,
-              email: userProfile.email,
-              address: {
-                postal_code: postalCode || '00000',
-              },
-            },
-          },
-        }
-      );
-
-      if (error) {
-        onError(error.message || 'Payment failed');
-      } else if (confirmedPayment?.status === 'succeeded') {
-        onSuccess(confirmedPayment);
-      } else {
-        onError('Payment not successful. Status: ' + confirmedPayment?.status);
-      }
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      onError(error.message || 'An unexpected error occurred.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Format card number with spaces
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = matches && matches[0] || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return v;
-    }
-  };
-
-  // Format expiry date
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + '/' + v.substring(2, 4);
-    }
-    return v;
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
-      <div className="bg-gray-700 p-4 rounded-lg space-y-4" data-lpignore="true" data-1p-ignore="true">
-        {/* Card Number */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Card Number
-          </label>
-          <input
-            type="text"
-            value={cardNumber}
-            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-            placeholder="1234 5678 9012 3456"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            autoComplete="off"
-            data-lpignore="true"
-            data-1p-ignore="true"
-            maxLength={19}
-          />
-        </div>
-
-        {/* Expiry Date and CVC */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Expiry Date
-            </label>
-            <input
-              type="text"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
-              placeholder="MM/YY"
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              autoComplete="off"
-              data-lpignore="true"
-              data-1p-ignore="true"
-              maxLength={5}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              CVC
-            </label>
-            <input
-              type="text"
-              value={cvc}
-              onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="123"
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              autoComplete="off"
-              data-lpignore="true"
-              data-1p-ignore="true"
-              maxLength={4}
-            />
-          </div>
-        </div>
-
-        {/* Postal Code */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Postal Code
-          </label>
-          <input
-            type="text"
-            value={postalCode}
-            onChange={(e) => setPostalCode(e.target.value)}
-            placeholder="12345"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            autoComplete="off"
-            data-lpignore="true"
-            data-1p-ignore="true"
-          />
-        </div>
-      </div>
-      <button
-        type="submit"
-        disabled={!stripe || isProcessing}
-        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isProcessing ? (
-          <ArrowPathIcon className="h-6 w-6 animate-spin mr-2" />
-        ) : (
-          <CreditCardIcon className="h-6 w-6 mr-2" />
-        )}
-        {isProcessing ? 'Processing...' : `Pay $${(selectedPackage.price / 100).toFixed(2)}`}
-      </button>
-    </form>
-  );
-}
-
 export default function ProfessionalTokenWallet() {
-  const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(tokenPackages[1]);
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(tokenPackages[1]); // Default to popular
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [customAmount, setCustomAmount] = useState('');
   const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
-  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
-  const [purchasedTokens, setPurchasedTokens] = useState(0);
   const [activeTab, setActiveTab] = useState<'wallet' | 'purchase' | 'history'>('wallet');
 
   // Enhanced user detection
@@ -415,10 +185,6 @@ export default function ProfessionalTokenWallet() {
     const transactions = await UserService.getUserTokenTransactions(userProfile.id);
     setTokenTransactions(transactions);
     
-    // Trigger coin animation
-    setPurchasedTokens(totalTokens);
-    setShowCoinAnimation(true);
-    
     setPaymentResult({
       success: true,
       message: `Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
@@ -479,15 +245,29 @@ export default function ProfessionalTokenWallet() {
     );
   }
 
+  if (!isLoggedIn || !userProfile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center bg-gray-800 rounded-2xl p-10 shadow-2xl border border-gray-700 max-w-md mx-auto">
+          <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-6" />
+          <h2 className="text-3xl font-bold text-white mb-4">Sign In Required</h2>
+          <p className="text-gray-300 mb-8">
+            Please sign in to access your token wallet and purchase DropTokens.
+          </p>
+          <Link
+            href="/auth/login"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 inline-flex items-center space-x-2"
+          >
+            <UserIcon className="h-6 w-6" />
+            <span>Sign In Now</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Coin Animation */}
-      <CoinAnimation 
-        isActive={showCoinAnimation} 
-        onComplete={() => setShowCoinAnimation(false)}
-        tokenAmount={purchasedTokens}
-      />
-      
       {/* Header */}
       <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-2xl border-b-4 border-green-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -523,149 +303,129 @@ export default function ProfessionalTokenWallet() {
                     <BanknotesIcon className="h-8 w-8 text-yellow-300" />
                     <div className="text-right">
                       <div className="text-sm text-green-200">Token Balance</div>
-                      <div className="text-2xl font-bold text-white">
-                        {showBalance ? `${userProfile.tokens} Tokens` : '••••••'}
-                      </div>
+                      <div className="text-2xl font-bold text-white">{userProfile.tokens} Tokens</div>
                     </div>
-                    <button
-                      onClick={() => setShowBalance(!showBalance)}
-                      className="text-gray-300 hover:text-white transition-colors"
-                    >
-                      {showBalance ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                    </button>
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="bg-red-900/30 rounded-xl px-6 py-3 border border-red-500/30">
-                <div className="flex items-center space-x-3">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
-                  <div>
-                    <div className="text-sm text-red-200">Please sign in to access token wallet</div>
-                    <a href="/auth/login" className="text-red-300 hover:text-red-200 font-medium">
-                      Sign In →
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
+            ) : null}
+
+            {/* Navigation */}
+            <nav className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-white hover:text-green-300 font-bold text-lg transition-all duration-300 hover:scale-105">Dashboard</Link>
+              <Link href="/games" className="text-purple-300 hover:text-purple-200 font-bold text-lg transition-all duration-300 hover:scale-105">🎮 Games</Link>
+              <Link href="/tournaments" className="text-yellow-300 hover:text-yellow-200 font-bold text-lg transition-all duration-300 hover:scale-105">🏆 Tournaments</Link>
+              <Link href="/hot-sell" className="text-red-300 hover:text-red-200 font-bold text-lg transition-all duration-300 hover:scale-105">🔥 Hot Sell</Link>
+            </nav>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Tab Navigation */}
-        <div className="flex justify-center mb-12">
-          <div className="bg-gray-800 rounded-xl p-2 border border-gray-700">
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setActiveTab('wallet')}
-                className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 ${
-                  activeTab === 'wallet'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <BanknotesIcon className="h-5 w-5 inline mr-2" />
-                Wallet
-              </button>
-              <button
-                onClick={() => setActiveTab('purchase')}
-                className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 ${
-                  activeTab === 'purchase'
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <CreditCardIcon className="h-5 w-5 inline mr-2" />
-                Purchase
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`px-6 py-3 rounded-lg font-bold transition-all duration-300 ${
-                  activeTab === 'history'
-                    ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <ChartBarIcon className="h-5 w-5 inline mr-2" />
-                History
-              </button>
-            </div>
-          </div>
+        <div className="text-center mb-12">
+          <h1 className="text-6xl font-extrabold mb-6">
+            <span className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent animate-pulse">
+              {activeTab === 'wallet' ? 'My Token Wallet' : activeTab === 'purchase' ? 'Buy DropTokens' : 'Transaction History'}
+            </span>
+          </h1>
+          <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-6"></div>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            {activeTab === 'wallet' && 'Manage your DropTokens, view your balance, and track your activity.'}
+            {activeTab === 'purchase' && 'Fuel your competitive spirit! Purchase DropTokens to enter competitions and unlock features.'}
+            {activeTab === 'history' && 'Review your past token purchases and spending activities.'}
+          </p>
         </div>
 
-        {/* Payment Result */}
-        {paymentResult && (
-          <div className={`mb-8 p-6 rounded-xl text-center ${
-            paymentResult.success 
-              ? 'bg-green-900 border-2 border-green-500' 
-              : 'bg-red-900 border-2 border-red-500'
-          }`}>
-            <div className="flex items-center justify-center space-x-3">
-              {paymentResult.success ? (
-                <CheckCircleIcon className="h-8 w-8 text-green-400" />
-              ) : (
-                <ExclamationTriangleIcon className="h-8 w-8 text-red-400" />
-              )}
-              <p className={`text-lg font-semibold ${
-                paymentResult.success ? 'text-green-200' : 'text-red-200'
-              }`}>
-                {paymentResult.message}
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Tab Navigation */}
+        <div className="flex justify-center space-x-4 mb-12">
+          <button
+            onClick={() => setActiveTab('wallet')}
+            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+              activeTab === 'wallet'
+                ? 'bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg scale-105'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            }`}
+          >
+            <CurrencyDollarIcon className="h-6 w-6 inline-block mr-2" /> Wallet
+          </button>
+          <button
+            onClick={() => setActiveTab('purchase')}
+            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+              activeTab === 'purchase'
+                ? 'bg-gradient-to-r from-green-600 to-emerald-600 shadow-lg scale-105'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            }`}
+          >
+            <CreditCardIcon className="h-6 w-6 inline-block mr-2" /> Purchase
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+              activeTab === 'history'
+                ? 'bg-gradient-to-r from-yellow-600 to-orange-600 shadow-lg scale-105'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            }`}
+          >
+            <ClockIcon className="h-6 w-6 inline-block mr-2" /> History
+          </button>
+        </div>
 
-        {/* Wallet Tab */}
-        {activeTab === 'wallet' && isLoggedIn && userProfile && (
-          <div className="text-center">
-            <h1 className="text-6xl font-extrabold mb-6">
-              <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-pulse">
-                💰 Token Wallet
-              </span>
-            </h1>
-            <div className="w-32 h-1 bg-gradient-to-r from-blue-400 to-purple-500 mx-auto rounded-full animate-pulse mb-8"></div>
-            
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-gradient-to-br from-blue-800 to-purple-800 p-8 rounded-2xl border-2 border-blue-400 shadow-2xl">
-                <div className="text-center">
-                  <div className="text-6xl font-bold text-white mb-4">
-                    {showBalance ? userProfile.tokens : '••••'}
-                  </div>
-                  <div className="text-xl text-blue-200 mb-6">DropTokens</div>
-                  <div className="flex justify-center space-x-4">
-                    <button
-                      onClick={() => setShowBalance(!showBalance)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                    >
-                      {showBalance ? <EyeSlashIcon className="h-5 w-5 inline mr-2" /> : <EyeIcon className="h-5 w-5 inline mr-2" />}
-                      {showBalance ? 'Hide' : 'Show'} Balance
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('purchase')}
-                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-                    >
-                      <PlusIcon className="h-5 w-5 inline mr-2" />
-                      Buy Tokens
-                    </button>
-                  </div>
-                </div>
+        {/* Wallet Tab Content */}
+        {activeTab === 'wallet' && (
+          <div className="max-w-3xl mx-auto bg-gray-800 rounded-2xl p-10 shadow-2xl border border-gray-700">
+            <div className="text-center mb-8">
+              <h2 className="text-4xl font-bold text-white mb-4">Your DropToken Balance</h2>
+              <div className="flex items-center justify-center space-x-4">
+                <span className="text-6xl font-extrabold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                  {showBalance ? userProfile.tokens : '••••'}
+                </span>
+                <span className="text-4xl font-bold text-gray-400">Tokens</span>
+                <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-white transition-colors">
+                  {showBalance ? <EyeSlashIcon className="h-8 w-8" /> : <EyeIcon className="h-8 w-8" />}
+                </button>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              <Link href="/dashboard" className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
+                <UserIcon className="h-6 w-6" />
+                <span>Go to Dashboard</span>
+              </Link>
+              <button
+                onClick={() => setActiveTab('purchase')}
+                className="bg-green-700 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                <CreditCardIcon className="h-6 w-6" />
+                <span>Buy More Tokens</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Purchase Tab */}
-        {activeTab === 'purchase' && isLoggedIn && userProfile && (
-          <div>
-            <h1 className="text-6xl font-extrabold mb-6 text-center">
-              <span className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent animate-pulse">
-                💳 Purchase Tokens
-              </span>
-            </h1>
-            <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-8"></div>
+        {/* Purchase Tab Content */}
+        {activeTab === 'purchase' && (
+          <>
+            {paymentResult && (
+              <div className={`mb-8 p-6 rounded-xl text-center ${
+                paymentResult.success
+                  ? 'bg-green-900 border-2 border-green-500'
+                  : 'bg-red-900 border-2 border-red-500'
+              }`}>
+                <div className="flex items-center justify-center space-x-3">
+                  {paymentResult.success ? (
+                    <CheckCircleIcon className="h-8 w-8 text-green-400" />
+                  ) : (
+                    <ExclamationTriangleIcon className="h-8 w-8 text-red-400" />
+                  )}
+                  <p className={`text-lg font-semibold ${
+                    paymentResult.success ? 'text-green-200' : 'text-red-200'
+                  }`}>
+                    {paymentResult.message}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Token Packages */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
@@ -702,7 +462,7 @@ export default function ProfessionalTokenWallet() {
                   </div>
                 </div>
               ))}
-              
+
               {/* Custom Amount Option */}
               <div
                 className={`relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 border-2 transition-all duration-300 hover:scale-105 cursor-pointer ${
@@ -740,6 +500,21 @@ export default function ProfessionalTokenWallet() {
                       )}
                     </div>
                   )}
+
+                  <div className="space-y-2 text-sm text-gray-300 mt-4">
+                    <div className="flex justify-between">
+                      <span>Price per Token:</span>
+                      <span>$1.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Minimum:</span>
+                      <span>1 Token</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-white border-t border-gray-600 pt-2">
+                      <span>No Bonus:</span>
+                      <span>Standard Rate</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -760,7 +535,7 @@ export default function ProfessionalTokenWallet() {
                     </div>
                   </div>
 
-                  <CheckoutForm
+                  <SimpleCheckoutForm
                     selectedPackage={getCurrentPackage()}
                     userProfile={userProfile}
                     onSuccess={handlePaymentSuccess}
@@ -794,89 +569,65 @@ export default function ProfessionalTokenWallet() {
                 </button>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {/* History Tab */}
-        {activeTab === 'history' && isLoggedIn && userProfile && (
-          <div>
-            <h1 className="text-6xl font-extrabold mb-6 text-center">
-              <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
-                📊 Transaction History
-              </span>
-            </h1>
-            <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-orange-500 mx-auto rounded-full animate-pulse mb-8"></div>
-
-            <div className="bg-gray-800 rounded-xl overflow-hidden">
+        {/* History Tab Content */}
+        {activeTab === 'history' && (
+          <div className="max-w-4xl mx-auto bg-gray-800 rounded-2xl p-10 shadow-2xl border border-gray-700">
+            <h2 className="text-3xl font-bold text-white mb-8 text-center">Your Transaction History</h2>
+            {tokenTransactions.length === 0 ? (
+              <div className="text-center text-gray-400 text-lg">
+                No transactions yet. Purchase some tokens to get started!
+              </div>
+            ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-700">
                     <tr>
-                      <th className="px-6 py-4 text-left text-white font-semibold">Type</th>
-                      <th className="px-6 py-4 text-left text-white font-semibold">Amount</th>
-                      <th className="px-6 py-4 text-left text-white font-semibold">Description</th>
-                      <th className="px-6 py-4 text-left text-white font-semibold">Date</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                        Description
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-700">
                     {tokenTransactions.map((transaction) => (
-                      <tr key={transaction.id} className="border-t border-gray-700">
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            transaction.type === 'purchase' ? 'bg-green-900 text-green-200' :
-                            transaction.type === 'spend' ? 'bg-red-900 text-red-200' :
-                            transaction.type === 'earn' ? 'bg-blue-900 text-blue-200' :
-                            'bg-yellow-900 text-yellow-200'
+                      <tr key={transaction.id} className="hover:bg-gray-700 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {new Date(transaction.created_at!).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            transaction.type === 'purchase' ? 'bg-green-100 text-green-800' :
+                            transaction.type === 'win' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-blue-100 text-blue-800'
                           }`}>
                             {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-white font-semibold">
-                          {transaction.type === 'purchase' || transaction.type === 'earn' ? '+' : '-'}{transaction.amount}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {transaction.amount} Tokens
                         </td>
-                        <td className="px-6 py-4 text-gray-300">{transaction.description}</td>
-                        <td className="px-6 py-4 text-gray-300">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {transaction.description}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            )}
           </div>
         )}
-
-        {/* Not Logged In Message */}
-        {!isLoggedIn && (
-          <div className="text-center">
-            <div className="bg-red-900/30 rounded-xl p-8 border border-red-500/30 max-w-2xl mx-auto">
-              <ExclamationTriangleIcon className="h-16 w-16 text-red-400 mx-auto mb-4" />
-              <h2 className="text-3xl font-bold text-red-300 mb-4">Authentication Required</h2>
-              <p className="text-red-200 mb-6 text-lg">
-                Please sign in to access your token wallet and make purchases.
-              </p>
-              <a
-                href="/auth/login"
-                className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 inline-flex items-center space-x-2"
-              >
-                <UserIcon className="h-6 w-6" />
-                <span>Sign In to Access Wallet</span>
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* Security Notice */}
-        <div className="mt-16 bg-blue-900/30 rounded-xl p-8 border border-blue-500/30">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <ShieldCheckIcon className="h-8 w-8 text-blue-400" />
-            <h3 className="text-2xl font-bold text-blue-300">Secure & Professional Token System</h3>
-          </div>
-          <p className="text-blue-200 text-center max-w-2xl mx-auto">
-            All token purchases are processed securely through Stripe, with real-time balance updates and complete transaction history. Your tokens are safely stored and synchronized across all devices.
-          </p>
-        </div>
       </main>
     </div>
   );
