@@ -97,6 +97,26 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Disable autofill completely
+  useEffect(() => {
+    // Disable autofill for all inputs
+    const disableAutofill = () => {
+      const inputs = document.querySelectorAll('input');
+      inputs.forEach(input => {
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('data-lpignore', 'true');
+        input.setAttribute('data-1p-ignore', 'true');
+      });
+    };
+
+    // Run immediately and on any changes
+    disableAutofill();
+    const observer = new MutationObserver(disableAutofill);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -150,12 +170,8 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-      {/* Hidden fields to help with autofill */}
-      <input type="text" style={{ display: 'none' }} autoComplete="off" />
-      <input type="password" style={{ display: 'none' }} autoComplete="off" />
-      
-      <div className="bg-gray-700 p-4 rounded-lg stripe-card-element">
+    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
+      <div className="bg-gray-700 p-4 rounded-lg" data-lpignore="true" data-1p-ignore="true">
         <CardElement
           options={{
             style: {
@@ -166,22 +182,6 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
                 fontSmoothing: 'antialiased',
                 '::placeholder': {
                   color: '#aab7c4',
-                },
-                ':-webkit-autofill': {
-                  color: '#fff',
-                  backgroundColor: 'transparent',
-                },
-                ':-webkit-autofill:hover': {
-                  color: '#fff',
-                  backgroundColor: 'transparent',
-                },
-                ':-webkit-autofill:focus': {
-                  color: '#fff',
-                  backgroundColor: 'transparent',
-                },
-                ':-webkit-autofill:active': {
-                  color: '#fff',
-                  backgroundColor: 'transparent',
                 },
               },
               invalid: {
