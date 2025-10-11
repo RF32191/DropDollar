@@ -26,6 +26,7 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
   const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
   const [showNewCardForm, setShowNewCardForm] = useState(false);
   const [hasSavedCards, setHasSavedCards] = useState(false);
+  const [cvcForSavedCard, setCvcForSavedCard] = useState('');
 
   // Check for existing customer on mount
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
   const handleSavedCardSelected = (paymentMethodId: string) => {
     setSelectedSavedCard(paymentMethodId);
     setShowNewCardForm(false);
+    setCvcForSavedCard(''); // Reset CVC when switching cards
     console.log('💳 [Checkout] Saved card selected:', paymentMethodId);
   };
 
@@ -206,10 +208,23 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
       let confirmOptions: any;
       
       if (selectedSavedCard) {
-        // Use saved card
+        // Use saved card with CVC verification
         console.log('💳 [Checkout] Using saved card:', selectedSavedCard);
+        console.log('🔒 [Checkout] CVC provided:', cvcForSavedCard ? 'Yes' : 'No');
+        
+        if (!cvcForSavedCard || cvcForSavedCard.length < 3) {
+          setIsProcessing(false);
+          onError('Please enter the CVC code for your saved card');
+          return;
+        }
+        
         confirmOptions = {
           payment_method: selectedSavedCard,
+          payment_method_options: {
+            card: {
+              cvc: cvcForSavedCard
+            }
+          }
         };
       } else {
         // Use new card
@@ -312,11 +327,58 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
       >
         {/* Saved Cards Manager */}
         {hasSavedCards && !showNewCardForm && (
-          <SavedCardsManager
-            customerId={customerId}
-            onCardSelected={handleSavedCardSelected}
-            onAddNewCard={handleAddNewCard}
-          />
+          <>
+            <SavedCardsManager
+              customerId={customerId}
+              onCardSelected={handleSavedCardSelected}
+              onAddNewCard={handleAddNewCard}
+            />
+            
+            {/* CVC Input for Saved Card */}
+            {selectedSavedCard && (
+              <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-blue-200 mb-2">🔒 Security Verification Required</h4>
+                    <p className="text-xs text-blue-300 mb-3">
+                      For your security, please enter the 3-digit CVC code from the back of your card.
+                    </p>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 max-w-xs">
+                        <label htmlFor="savedCardCvc" className="block text-xs font-medium text-blue-200 mb-1">
+                          CVC Code
+                        </label>
+                        <input
+                          id="savedCardCvc"
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={cvcForSavedCard}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '');
+                            setCvcForSavedCard(value);
+                          }}
+                          placeholder="123"
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-center text-lg font-mono placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          autoComplete="off"
+                          required
+                        />
+                      </div>
+                      <div className="text-xs text-blue-300 pt-5">
+                        <p>Find on back of card</p>
+                        <p className="text-blue-400">💳 (3-4 digits)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* New Card Form */}
