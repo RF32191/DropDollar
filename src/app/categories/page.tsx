@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/navigation/Navigation';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageLayout from '@/components/layout/PageLayout';
 import GameCard from '@/components/ui/GameCard';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
@@ -246,36 +247,8 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <img
-                  src="/DropCoin.png"
-                  alt="DropDollar Logo"
-                  className="w-8 h-8 object-contain"
-                />
-              </div>
-              <span className="text-xl font-bold text-white">DropDollar</span>
-            </Link>
-
-            {/* Navigation */}
-            <Navigation variant="default" />
-
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <button className="text-purple-200 hover:text-white p-2">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Clean Navigation */}
+      <CleanNavigation variant="gradient" currentPage="/categories" />
 
       <PageLayout
         title="GAMING CATEGORIES"

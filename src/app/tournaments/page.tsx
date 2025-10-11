@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 const AVAILABLE_GAMES = [
   { id: 'multi-target', name: 'Multi-Target Reaction', icon: '🎯' },
@@ -84,56 +85,8 @@ export default function TournamentsPage() {
   };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* GOLD TOURNAMENTS Header */}
-      <header className="bg-gradient-to-r from-yellow-600 via-yellow-700 to-amber-800 shadow-2xl border-b-4 border-yellow-500">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex justify-between items-center">
-            {/* Logo Section */}
-            <Link href="/" className="flex items-center group">
-              <div className="bg-gradient-to-br from-yellow-400 to-amber-600 p-3 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 mr-4">
-                <img
-                  src="/DropCoin.png"
-                  alt="DropDollar Logo"
-                  className="w-8 h-8 object-contain"
-                />
-              </div>
-              <div className="text-white">
-                <h1 className="text-2xl font-black tracking-tight">DropDollar</h1>
-                <p className="text-yellow-200 text-sm font-medium">Skill Tournaments</p>
-              </div>
-            </Link>
-
-            {/* Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/buy-tokens" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
-                💰 Buy Tokens
-              </Link>
-              <Link href="/listings" className="text-white hover:text-yellow-200 font-medium transition-colors">
-                Browse
-              </Link>
-              <Link href="/hot-sell" className="text-white hover:text-yellow-200 font-medium transition-colors">
-                Hot Sell
-              </Link>
-              <Link href="/games" className="text-white hover:text-yellow-200 font-medium transition-colors">
-                Games
-              </Link>
-              <Link href="/testimonials" className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
-                ⭐ Victory Stories
-              </Link>
-              <Link href="/faq" className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white font-bold px-4 py-2 rounded-lg transition-all hover:scale-105 shadow-lg">
-                ❓ FAQ
-              </Link>
-            </nav>
-
-            {/* User Actions */}
-            <div className="flex items-center space-x-4">
-              <Link href="/seller/apply" className="bg-gradient-to-r from-yellow-300 to-amber-400 hover:from-yellow-400 hover:to-amber-500 text-yellow-900 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105 shadow-lg">
-                Sell
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Clean Navigation */}
+      <CleanNavigation variant="gradient" currentPage="/tournaments" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Enhanced Tournament Banners (Hot Sell Style) */}

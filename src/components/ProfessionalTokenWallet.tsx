@@ -24,6 +24,7 @@ import { ActivityService } from '@/lib/supabase/activityService';
 import MinimalCheckout from '@/components/MinimalCheckout';
 import CelebrationEffect from '@/components/CelebrationEffect';
 import CoinDropAnimation from '@/components/CoinDropAnimation';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -418,58 +419,33 @@ export default function ProfessionalTokenWallet() {
         duration={3000}
       />
       
-      {/* Header */}
-      <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-2xl border-b-4 border-green-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <div className="flex items-center space-x-4 group">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-300 group-hover:scale-110">
-                <img 
-                  src="/DropCoin.png" 
-                  alt="DropDollar Logo"
-                  className="w-full h-full object-contain"
-                />
+      {/* Clean Navigation */}
+      <CleanNavigation variant="gradient" currentPage="/buy-tokens" />
+      
+      {/* User Info and Balance Banner - Only show if logged in */}
+      {isLoggedIn && userProfile && (
+        <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-lg border-b-2 border-green-400">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30">
+                <div className="flex items-center space-x-3">
+                  <UserIcon className="h-6 w-6 text-white" />
+                  <span className="text-lg font-bold text-white">Welcome, {userProfile.username}!</span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-3xl font-extrabold text-white drop-shadow-lg">DropDollar</span>
-                <span className="text-sm text-yellow-200 font-bold tracking-wider animate-pulse">
-                  💰 TOKEN WALLET 💰
-                </span>
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30">
+                <div className="flex items-center space-x-3">
+                  <BanknotesIcon className="h-8 w-8 text-yellow-300" />
+                  <div className="text-center sm:text-right">
+                    <div className="text-sm text-green-200">Token Balance</div>
+                    <div className="text-2xl font-bold text-white">{userProfile.tokens} Tokens</div>
+                  </div>
+                </div>
               </div>
             </div>
-
-            {/* User Info and Balance */}
-            {isLoggedIn && userProfile ? (
-              <div className="flex items-center space-x-6">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl px-6 py-3 border border-blue-400">
-                  <div className="flex items-center space-x-3">
-                    <UserIcon className="h-6 w-6 text-white" />
-                    <span className="text-lg font-bold text-white">Welcome, {userProfile.username}!</span>
-                  </div>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/30">
-                  <div className="flex items-center space-x-3">
-                    <BanknotesIcon className="h-8 w-8 text-yellow-300" />
-                    <div className="text-right">
-                      <div className="text-sm text-green-200">Token Balance</div>
-                      <div className="text-2xl font-bold text-white">{userProfile.tokens} Tokens</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {/* Navigation */}
-            <nav className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-white hover:text-green-300 font-bold text-lg transition-all duration-300 hover:scale-105">Dashboard</Link>
-              <Link href="/games" className="text-purple-300 hover:text-purple-200 font-bold text-lg transition-all duration-300 hover:scale-105">🎮 Games</Link>
-              <Link href="/tournaments" className="text-yellow-300 hover:text-yellow-200 font-bold text-lg transition-all duration-300 hover:scale-105">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="text-red-300 hover:text-red-200 font-bold text-lg transition-all duration-300 hover:scale-105">🔥 Hot Sell</Link>
-            </nav>
           </div>
         </div>
-      </header>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">

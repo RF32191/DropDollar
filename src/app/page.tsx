@@ -3,46 +3,15 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import UserMenu from '@/components/navigation/UserMenu';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 export default function HomePage() {
   const { user, isAuthenticated } = useAuth();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Flashy Header with Copper/Blue Theme */}
-      <header className="bg-gradient-to-r from-amber-600 via-orange-500 to-red-500 shadow-2xl border-b-4 border-amber-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            {/* Flashy Logo */}
-            <Link href="/" className="flex items-center space-x-4 group">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-300 group-hover:scale-110">
-                <img 
-                  src="/DropCoin.png" 
-                  alt="DropDollar Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-3xl font-extrabold text-white drop-shadow-lg">DropDollar</span>
-                <span className="text-sm text-yellow-200 font-bold tracking-wider animate-pulse">
-                  ⚡ PROFESSIONAL GAMING MARKETPLACE ⚡
-                </span>
-              </div>
-            </Link>
-
-            {/* Beautiful Navigation */}
-            <nav className="flex items-center space-x-8">
-              <Link href="/listings" className="text-white hover:text-yellow-300 font-bold text-lg transition-all duration-300 hover:scale-105">Browse</Link>
-              <Link href="/games" className="text-purple-300 hover:text-purple-200 font-bold text-lg transition-all duration-300 hover:scale-105">🎮 Games</Link>
-              <Link href="/tournaments" className="text-yellow-300 hover:text-yellow-200 font-bold text-lg transition-all duration-300 hover:scale-105">🏆 Tournaments</Link>
-              <Link href="/hot-sell" className="text-red-300 hover:text-red-200 font-bold text-lg transition-all duration-300 hover:scale-105">🔥 Hot Sell</Link>
-              <div className="ml-4 pl-4 border-l border-yellow-400">
-                <UserMenu variant="dark" />
-              </div>
-            </nav>
-          </div>
-        </div>
-      </header>
+      {/* Clean Navigation */}
+      <CleanNavigation variant="gradient" currentPage="/" />
 
       {/* Flashy Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
