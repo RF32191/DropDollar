@@ -20,6 +20,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
+import { ActivityService } from '@/lib/supabase/activityService';
 import MinimalCheckout from '@/components/MinimalCheckout';
 
 // Initialize Stripe
@@ -188,6 +189,15 @@ export default function ProfessionalTokenWallet() {
         stripePaymentIntentId: paymentIntent.id
       });
       console.log('✅ Transaction recorded:', transactionResult);
+      
+      // Log activity for complete tracking
+      await ActivityService.logActivity(userProfile.id, 'token_purchase', {
+        tokens: totalTokens,
+        amount: selectedPackage.price / 100,
+        payment_intent_id: paymentIntent.id,
+        timestamp: new Date().toISOString()
+      });
+      console.log('✅ Activity logged');
       
       // Update local state immediately
       setUserProfile(prev => prev ? { ...prev, tokens: newBalance } : null);

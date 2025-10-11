@@ -16,6 +16,7 @@ import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetec
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
+import { ActivityService } from '@/lib/supabase/activityService';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
 import { 
@@ -429,6 +430,7 @@ export default function GamesPage() {
     // Save score to Supabase if user is logged in
     if (user?.id) {
       try {
+        // Save to game scores
         await GameScoreService.saveGameScore({
           user_id: user.id,
           game_type: currentGame as GameScore['game_type'],
@@ -443,6 +445,19 @@ export default function GamesPage() {
             timestamp: new Date().toISOString(),
             game_version: '1.0'
           }
+        });
+        
+        // Save complete game history with ActivityService
+        await ActivityService.saveGameHistory({
+          user_id: user.id,
+          game_type: currentGame,
+          score: result.score,
+          accuracy: result.accuracy,
+          avg_reaction_time: result.avgReactionTime,
+          is_practice: !isCompetitionMode,
+          listing_id: listingId || undefined,
+          entry_number: isCompetitionMode ? entryNumber : undefined,
+          game_duration: 60
         });
 
         // Reload best scores from Supabase to get updated data
