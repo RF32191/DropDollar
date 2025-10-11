@@ -17,7 +17,7 @@ import {
   PlusIcon,
   MinusIcon
 } from '@heroicons/react/24/outline';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
@@ -94,33 +94,18 @@ interface CheckoutFormProps {
 
 function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: CheckoutFormProps) {
   const stripe = useStripe();
-  const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Disable autofill completely
-  useEffect(() => {
-    // Disable autofill for all inputs
-    const disableAutofill = () => {
-      const inputs = document.querySelectorAll('input');
-      inputs.forEach(input => {
-        input.setAttribute('autocomplete', 'off');
-        input.setAttribute('data-lpignore', 'true');
-        input.setAttribute('data-1p-ignore', 'true');
-      });
-    };
-
-    // Run immediately and on any changes
-    disableAutofill();
-    const observer = new MutationObserver(disableAutofill);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => observer.disconnect();
-  }, []);
+  
+  // Custom card input state
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [postalCode, setPostalCode] = useState('');
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    if (!stripe) {
       return;
     }
 
@@ -141,15 +126,23 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
       // Real Stripe payment processing
       console.log('🔧 Processing real Stripe payment:', paymentIntent.id);
 
-      // Confirm payment
+      // Confirm payment with custom card data
       const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(
         paymentIntent.client_secret,
         {
           payment_method: {
-            card: elements.getElement(CardElement)!,
+            card: {
+              number: cardNumber.replace(/\s/g, ''),
+              exp_month: parseInt(expiryDate.split('/')[0]),
+              exp_year: parseInt('20' + expiryDate.split('/')[1]),
+              cvc: cvc,
+            },
             billing_details: {
               name: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
               email: userProfile.email,
+              address: {
+                postal_code: postalCode,
+              },
             },
           },
         }
@@ -169,30 +162,104 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
     }
   };
 
+  // Format card number with spaces
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = matches && matches[0] || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    if (parts.length) {
+      return parts.join(' ');
+    } else {
+      return v;
+    }
+  };
+
+  // Format expiry date
+  const formatExpiryDate = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return v.substring(0, 2) + '/' + v.substring(2, 4);
+    }
+    return v;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off" data-form-type="other" data-lpignore="true" data-1p-ignore="true">
-      <div className="bg-gray-700 p-4 rounded-lg" data-lpignore="true" data-1p-ignore="true">
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#fff',
-                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
-                fontSmoothing: 'antialiased',
-                '::placeholder': {
-                  color: '#aab7c4',
-                },
-              },
-              invalid: {
-                color: '#fa755a',
-                iconColor: '#fa755a',
-              },
-            },
-            hidePostalCode: false,
-            disableLink: false,
-          }}
-        />
+      <div className="bg-gray-700 p-4 rounded-lg space-y-4" data-lpignore="true" data-1p-ignore="true">
+        {/* Card Number */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Card Number
+          </label>
+          <input
+            type="text"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+            placeholder="1234 5678 9012 3456"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            maxLength={19}
+          />
+        </div>
+
+        {/* Expiry Date and CVC */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Expiry Date
+            </label>
+            <input
+              type="text"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
+              placeholder="MM/YY"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              maxLength={5}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              CVC
+            </label>
+            <input
+              type="text"
+              value={cvc}
+              onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="123"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              maxLength={4}
+            />
+          </div>
+        </div>
+
+        {/* Postal Code */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Postal Code
+          </label>
+          <input
+            type="text"
+            value={postalCode}
+            onChange={(e) => setPostalCode(e.target.value)}
+            placeholder="12345"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            autoComplete="off"
+            data-lpignore="true"
+            data-1p-ignore="true"
+          />
+        </div>
       </div>
       <button
         type="submit"
@@ -650,14 +717,12 @@ export default function ProfessionalTokenWallet() {
                     </div>
                   </div>
 
-                  <Elements stripe={stripePromise}>
-                    <CheckoutForm
-                      selectedPackage={getCurrentPackage()}
-                      onSuccess={handlePaymentSuccess}
-                      onError={handlePaymentError}
-                      userProfile={userProfile}
-                    />
-                  </Elements>
+                  <CheckoutForm
+                    selectedPackage={getCurrentPackage()}
+                    userProfile={userProfile}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                  />
 
                   <button
                     onClick={() => setShowCheckout(false)}
