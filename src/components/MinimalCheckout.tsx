@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useStripe } from '@stripe/react-stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserProfile } from '@/lib/supabase/userService';
 import SoundEffects from '@/lib/SoundEffects';
@@ -16,6 +17,7 @@ interface MinimalCheckoutProps {
 }
 
 export default function MinimalCheckout({ selectedPackage, onSuccess, onError, userProfile }: MinimalCheckoutProps) {
+  const stripe = useStripe();
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -24,10 +26,32 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    
+    if (!stripe) {
+      onError('Payment system not ready. Please refresh the page.');
+      return;
+    }
+
+    // Validate inputs
+    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
+      onError('Please enter a valid card number');
+      return;
+    }
+
+    if (!expiryDate || !expiryDate.includes('/')) {
+      onError('Please enter expiry date as MM/YY');
+      return;
+    }
+
+    if (!cvc || cvc.length < 3) {
+      onError('Please enter a valid CVC');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
-      console.log('Starting minimal payment...');
+      console.log('Starting real Stripe payment...');
       
       // Create payment intent
       const paymentIntent = await StripePaymentService.createPaymentIntent(
@@ -47,34 +71,51 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
       const expMonth = parseInt(month);
       const expYear = parseInt('20' + year);
 
-      // Use Stripe's test card for now to avoid errors
-      const testCardNumber = '4242424242424242';
-      const testExpMonth = expMonth || 12;
-      const testExpYear = expYear || 2025;
-      const testCvc = cvc || '123';
+      if (isNaN(expMonth) || isNaN(expYear) || expMonth < 1 || expMonth > 12) {
+        onError('Please enter a valid expiry date');
+        return;
+      }
 
-      // Simulate successful payment for now
-      console.log('Simulating successful payment...');
-      
-      setTimeout(() => {
-        const mockPaymentIntent = {
-          id: paymentIntent.id,
-          status: 'succeeded',
-          amount: selectedPackage.price
-        };
-        
-        // Play success sound
+      // Confirm payment with Stripe
+      const result = await stripe.confirmCardPayment(
+        paymentIntent.client_secret,
+        {
+          payment_method: {
+            card: {
+              number: cardNumber.replace(/\s/g, ''),
+              exp_month: expMonth,
+              exp_year: expYear,
+              cvc: cvc,
+            },
+            billing_details: {
+              name: userProfile.username || 'User',
+              email: userProfile.email,
+              address: {
+                postal_code: postalCode || '00000',
+              },
+            },
+          },
+        }
+      );
+
+      console.log('Payment result:', result);
+
+      if (result.error) {
+        SoundEffects.playError();
+        onError(result.error.message || 'Payment failed');
+      } else if (result.paymentIntent?.status === 'succeeded') {
         SoundEffects.playTokenPurchase();
         SoundEffects.playSuccess();
-        
-        onSuccess(mockPaymentIntent);
-        setIsProcessing(false);
-      }, 2000);
-
+        onSuccess(result.paymentIntent);
+      } else {
+        SoundEffects.playError();
+        onError('Payment not successful');
+      }
     } catch (error: any) {
       console.error('Payment error:', error);
       SoundEffects.playError();
       onError(error.message || 'Payment failed');
+    } finally {
       setIsProcessing(false);
     }
   };

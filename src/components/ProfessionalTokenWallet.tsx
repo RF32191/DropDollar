@@ -17,6 +17,7 @@ import {
   MinusIcon
 } from '@heroicons/react/24/outline';
 import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
 import MinimalCheckout from '@/components/MinimalCheckout';
@@ -535,12 +536,14 @@ export default function ProfessionalTokenWallet() {
                     </div>
                   </div>
 
-                  <MinimalCheckout
-                    selectedPackage={getCurrentPackage()}
-                    userProfile={userProfile}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                  />
+                  <Elements stripe={stripePromise}>
+                    <MinimalCheckout
+                      selectedPackage={getCurrentPackage()}
+                      userProfile={userProfile}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                    />
+                  </Elements>
 
                   <button
                     onClick={() => setShowCheckout(false)}
