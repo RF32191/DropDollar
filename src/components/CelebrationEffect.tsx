@@ -33,8 +33,15 @@ export default function CelebrationEffect({
 
   useEffect(() => {
     if (show) {
+      console.log('🎉 Starting celebration effect...');
+      
       // Play celebration sound
-      SoundEffects.playSuccess();
+      try {
+        SoundEffects.playSuccess();
+        SoundEffects.playPracticeComplete();
+      } catch (error) {
+        console.error('Error playing celebration sound:', error);
+      }
       
       // Show message
       setShowMessage(true);
@@ -65,6 +72,7 @@ export default function CelebrationEffect({
       
       // Clean up after duration
       const timer = setTimeout(() => {
+        console.log('🎉 Hiding celebration effect');
         setShowMessage(false);
         setConfettiPieces([]);
         if (onComplete) {
@@ -72,7 +80,14 @@ export default function CelebrationEffect({
         }
       }, duration);
       
-      return () => clearTimeout(timer);
+      return () => {
+        console.log('🎉 Cleaning up celebration effect');
+        clearTimeout(timer);
+      };
+    } else {
+      // Reset when show becomes false
+      setShowMessage(false);
+      setConfettiPieces([]);
     }
   }, [show, duration, onComplete]);
 

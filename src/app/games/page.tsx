@@ -418,13 +418,22 @@ export default function GamesPage() {
     // Show celebration effect and play sound for practice mode
     if (!isCompetitionMode) {
       console.log('🎉 Practice game completed! Showing celebration...');
-      setShowCelebration(true);
-      SoundEffects.playPracticeComplete();
       
-      // Hide celebration after 3 seconds
+      // Reset any existing celebration first
+      setShowCelebration(false);
+      
+      // Small delay to ensure clean reset
       setTimeout(() => {
-        setShowCelebration(false);
-      }, 3000);
+        setShowCelebration(true);
+        
+        // Play celebration sounds
+        try {
+          SoundEffects.playGameWin();
+          setTimeout(() => SoundEffects.playPracticeComplete(), 200);
+        } catch (error) {
+          console.error('Error playing game completion sound:', error);
+        }
+      }, 50);
     }
     
     // Save score to Supabase if user is logged in

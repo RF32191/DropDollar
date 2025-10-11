@@ -22,6 +22,7 @@ import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
 import { ActivityService } from '@/lib/supabase/activityService';
 import MinimalCheckout from '@/components/MinimalCheckout';
+import CelebrationEffect from '@/components/CelebrationEffect';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -92,6 +93,7 @@ export default function ProfessionalTokenWallet() {
   const [showBalance, setShowBalance] = useState(true);
   const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
   const [activeTab, setActiveTab] = useState<'wallet' | 'purchase' | 'history'>('wallet');
+  const [showCelebration, setShowCelebration] = useState(false);
 
   // Enhanced user detection
   useEffect(() => {
@@ -217,6 +219,12 @@ export default function ProfessionalTokenWallet() {
       setShowCheckout(false);
       setActiveTab('wallet'); // Go back to wallet view after purchase
       
+      // Show celebration effect with confetti and sound
+      setShowCelebration(false); // Reset first
+      setTimeout(() => {
+        setShowCelebration(true);
+      }, 100);
+      
       console.log('✅ Payment success handler completed!');
     } catch (error) {
       console.error('❌ Error in handlePaymentSuccess:', error);
@@ -302,6 +310,14 @@ export default function ProfessionalTokenWallet() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Celebration Effect for Token Purchase */}
+      <CelebrationEffect 
+        show={showCelebration} 
+        message="Tokens Purchased!" 
+        onComplete={() => setShowCelebration(false)}
+        duration={3000}
+      />
+      
       {/* Header */}
       <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-2xl border-b-4 border-green-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
