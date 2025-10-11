@@ -23,6 +23,7 @@ import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userS
 import { ActivityService } from '@/lib/supabase/activityService';
 import MinimalCheckout from '@/components/MinimalCheckout';
 import CelebrationEffect from '@/components/CelebrationEffect';
+import CoinDropAnimation from '@/components/CoinDropAnimation';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -94,6 +95,8 @@ export default function ProfessionalTokenWallet() {
   const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
   const [activeTab, setActiveTab] = useState<'wallet' | 'purchase' | 'history'>('wallet');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showCoinDrop, setShowCoinDrop] = useState(false);
+  const [purchasedTokens, setPurchasedTokens] = useState(0);
 
   // Enhanced user detection
   useEffect(() => {
@@ -298,10 +301,19 @@ export default function ProfessionalTokenWallet() {
       setShowCheckout(false);
       setActiveTab('wallet'); // Go back to wallet view after purchase
       
-      // Step 9: Show celebration effect with confetti and sound
-      setShowCelebration(false); // Reset first
+      // Step 9: Show coin drop animation and celebration
+      setPurchasedTokens(totalTokens);
+      setShowCoinDrop(false); // Reset first
+      setShowCelebration(false);
+      
       setTimeout(() => {
-        setShowCelebration(true);
+        console.log('💰 [TokenWallet] Starting coin drop animation...');
+        setShowCoinDrop(true);
+        
+        // Start celebration shortly after coins start dropping
+        setTimeout(() => {
+          setShowCelebration(true);
+        }, 500);
       }, 100);
       
       console.log('✅ [TokenWallet] Payment success handler completed!');
@@ -390,6 +402,14 @@ export default function ProfessionalTokenWallet() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Coin Drop Animation */}
+      <CoinDropAnimation
+        show={showCoinDrop}
+        tokenCount={purchasedTokens}
+        onComplete={() => setShowCoinDrop(false)}
+        duration={3000}
+      />
+      
       {/* Celebration Effect for Token Purchase */}
       <CelebrationEffect 
         show={showCelebration} 

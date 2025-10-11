@@ -134,8 +134,10 @@ export class SoundEffects {
     if (!this.audioContext) return;
 
     try {
-      // Play multiple chimes for token purchase
-      for (let i = 0; i < 3; i++) {
+      // Play cash register sound (multiple ascending notes)
+      const notes = [523, 659, 784, 1047]; // C, E, G, C (major chord progression)
+      
+      notes.forEach((freq, i) => {
         setTimeout(() => {
           const oscillator = this.audioContext!.createOscillator();
           const gainNode = this.audioContext!.createGain();
@@ -143,16 +145,60 @@ export class SoundEffects {
           oscillator.connect(gainNode);
           gainNode.connect(this.audioContext!.destination);
           
-          oscillator.frequency.setValueAtTime(600 + (i * 200), this.audioContext!.currentTime);
+          oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
           gainNode.gain.setValueAtTime(0.2, this.audioContext!.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext!.currentTime + 0.3);
           
           oscillator.start(this.audioContext!.currentTime);
           oscillator.stop(this.audioContext!.currentTime + 0.3);
-        }, i * 150);
-      }
+        }, i * 100);
+      });
     } catch (error) {
       console.log('Token purchase sound error:', error);
+    }
+  }
+
+  // Coin drop sound (individual coin clinking)
+  static playCoinDrop() {
+    this.initAudioContext();
+    if (!this.audioContext) return;
+
+    try {
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+      
+      // Metallic clink sound (high frequency with quick decay)
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(1200, this.audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(800, this.audioContext.currentTime + 0.05);
+      
+      gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+      
+      oscillator.start(this.audioContext.currentTime);
+      oscillator.stop(this.audioContext.currentTime + 0.1);
+    } catch (error) {
+      console.log('Coin drop sound error:', error);
+    }
+  }
+
+  // Coin splash sound (multiple coins landing)
+  static playCoinSplash(count: number = 5) {
+    this.initAudioContext();
+    if (!this.audioContext) return;
+
+    try {
+      // Play multiple coin drops in quick succession
+      for (let i = 0; i < Math.min(count, 10); i++) {
+        setTimeout(() => {
+          this.playCoinDrop();
+        }, i * 50);
+      }
+    } catch (error) {
+      console.log('Coin splash sound error:', error);
     }
   }
 
