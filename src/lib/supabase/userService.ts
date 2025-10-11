@@ -50,8 +50,9 @@ export class UserService {
   }): Promise<UserProfile> {
     try {
       // First, try to get existing user
+      console.log('🔍 Fetching user from Supabase:', userData.id);
       const { data: existingUser, error: fetchError } = await supabase
-        .from('user_profiles')
+        .from('users')
         .select('*')
         .eq('id', userData.id)
         .single();
@@ -73,19 +74,42 @@ export class UserService {
         updatedAt: new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .insert([newUser])
+      console.log('📝 Creating new user in Supabase...');
+      const { data, error} = await supabase
+        .from('users')
+        .insert([{
+          id: newUser.id,
+          username: newUser.username,
+          first_name: newUser.firstName,
+          last_name: newUser.lastName,
+          email: newUser.email,
+          tokens: newUser.tokens,
+          balance: newUser.balance,
+          role: 'buyer',
+          created_at: newUser.createdAt,
+          updated_at: newUser.updatedAt
+        }])
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating user profile:', error);
+        console.error('❌ Error creating user profile:', error);
         // Return the user data even if Supabase fails
         return newUser;
       }
 
-      return data;
+      console.log('✅ User created in Supabase');
+      return {
+        id: data.id,
+        username: data.username,
+        firstName: data.first_name || '',
+        lastName: data.last_name || '',
+        email: data.email,
+        tokens: data.tokens || 0,
+        balance: data.balance || 0,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
     } catch (error) {
       console.error('Error in getOrCreateUser:', error);
       // Return basic user data if Supabase is unavailable
@@ -108,22 +132,26 @@ export class UserService {
    */
   static async updateUserTokens(userId: string, newTokenAmount: number): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
+      console.log('💰 Updating user tokens:', userId, 'New amount:', newTokenAmount);
+      
+      const { data, error } = await supabase
+        .from('users')
         .update({ 
           tokens: newTokenAmount,
-          updatedAt: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
-        console.error('Error updating user tokens:', error);
+        console.error('❌ Error updating user tokens:', error);
         return false;
       }
 
+      console.log('✅ User tokens updated successfully:', data);
       return true;
     } catch (error) {
-      console.error('Error in updateUserTokens:', error);
+      console.error('❌ Error in updateUserTokens:', error);
       return false;
     }
   }
@@ -133,22 +161,26 @@ export class UserService {
    */
   static async updateUserBalance(userId: string, newBalance: number): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
+      console.log('💵 Updating user balance:', userId, 'New amount:', newBalance);
+      
+      const { data, error } = await supabase
+        .from('users')
         .update({ 
           balance: newBalance,
-          updatedAt: new Date().toISOString()
+          updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) {
-        console.error('Error updating user balance:', error);
+        console.error('❌ Error updating user balance:', error);
         return false;
       }
 
+      console.log('✅ User balance updated successfully:', data);
       return true;
     } catch (error) {
-      console.error('Error in updateUserBalance:', error);
+      console.error('❌ Error in updateUserBalance:', error);
       return false;
     }
   }
@@ -158,21 +190,28 @@ export class UserService {
    */
   static async addTokenTransaction(transaction: Omit<TokenTransaction, 'id' | 'createdAt'>): Promise<boolean> {
     try {
-      const { error } = await supabase
+      console.log('📝 Adding token transaction:', transaction);
+      
+      const { data, error } = await supabase
         .from('token_transactions')
         .insert([{
-          ...transaction,
-          createdAt: new Date().toISOString()
-        }]);
+          user_id: transaction.userId,
+          type: transaction.type,
+          amount: transaction.amount,
+          description: transaction.description,
+          created_at: new Date().toISOString()
+        }])
+        .select();
 
       if (error) {
-        console.error('Error adding token transaction:', error);
+        console.error('❌ Error adding token transaction:', error);
         return false;
       }
 
+      console.log('✅ Token transaction added successfully:', data);
       return true;
     } catch (error) {
-      console.error('Error in addTokenTransaction:', error);
+      console.error('❌ Error in addTokenTransaction:', error);
       return false;
     }
   }
