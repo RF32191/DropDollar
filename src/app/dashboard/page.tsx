@@ -54,36 +54,102 @@ export default function SimpleDashboard() {
   const [showBankLinking, setShowBankLinking] = useState(false);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadUserData = async () => {
       try {
+        console.log('🔍 [Dashboard] Checking authentication...');
+        
+        // Multiple ways to detect logged-in user
+        const isLoggedInFlag = localStorage.getItem('isLoggedIn') === 'true';
+        const userData = localStorage.getItem('user');
+        const sessionId = localStorage.getItem('sessionId');
+        
+        console.log('🔍 [Dashboard] Auth flags:', { 
+          isLoggedInFlag, 
+          hasUserData: !!userData, 
+          hasSessionId: !!sessionId 
+        });
+        
+        // If any auth flag is present, user is logged in
+        if (!isLoggedInFlag && !userData && !sessionId) {
+          console.log('❌ [Dashboard] No authentication found, redirecting to login');
+          setTimeout(() => {
+            window.location.href = '/auth/login';
+          }, 100);
+          return;
+        }
+        
+        console.log('✅ [Dashboard] User is logged in, loading profile...');
+        
         // Get current user using UserService
         const currentUser = UserService.getCurrentUser();
         
-        if (currentUser) {
-          // Get or create user profile in Supabase
-          const profile = await UserService.getOrCreateUser(currentUser);
-          setUserProfile(profile);
+        if (!currentUser) {
+          console.log('⚠️ [Dashboard] Could not get user from localStorage');
           
-          // Load token transactions
-          const transactions = await UserService.getUserTokenTransactions(profile.id);
-          setTokenTransactions(transactions);
-          
-          // Load withdrawal requests
-          const withdrawals = await UserService.getUserWithdrawalRequests(profile.id);
-          setWithdrawalRequests(withdrawals);
-          
-          console.log('Dashboard: User profile loaded:', profile);
-        } else {
-          console.log('Dashboard: No user logged in');
-          // Redirect to login if no user
-          window.location.href = '/auth/login';
+          // Try to reconstruct user from localStorage directly
+          if (userData) {
+            const parsedUser = JSON.parse(userData);
+            const reconstructedUser = {
+              id: parsedUser.id || sessionId || 'user_' + Date.now(),
+              username: parsedUser.username || 'User',
+              firstName: parsedUser.firstName || parsedUser.username || 'User',
+              lastName: parsedUser.lastName || '',
+              email: parsedUser.email || 'user@dropdollar.com'
+            };
+            
+            console.log('🔧 [Dashboard] Reconstructed user:', reconstructedUser);
+            
+            // Get or create user profile in Supabase
+            const profile = await UserService.getOrCreateUser(reconstructedUser);
+            setUserProfile(profile);
+            
+            // Load token transactions
+            const transactions = await UserService.getUserTokenTransactions(profile.id);
+            setTokenTransactions(transactions);
+            
+            // Load withdrawal requests
+            const withdrawals = await UserService.getUserWithdrawalRequests(profile.id);
+            setWithdrawalRequests(withdrawals);
+            
+            console.log('✅ [Dashboard] User profile loaded:', profile);
+            console.log('💰 [Dashboard] Current tokens:', profile.tokens);
+            console.log('💵 [Dashboard] Current balance:', profile.balance);
+          } else {
+            console.log('❌ [Dashboard] Cannot reconstruct user, redirecting to login');
+            setTimeout(() => {
+              window.location.href = '/auth/login';
+            }, 100);
+          }
+          return;
         }
+        
+        console.log('✅ [Dashboard] User found:', currentUser.username);
+        
+        // Get or create user profile in Supabase
+        const profile = await UserService.getOrCreateUser(currentUser);
+        setUserProfile(profile);
+        
+        // Load token transactions
+        const transactions = await UserService.getUserTokenTransactions(profile.id);
+        setTokenTransactions(transactions);
+        
+        // Load withdrawal requests
+        const withdrawals = await UserService.getUserWithdrawalRequests(profile.id);
+        setWithdrawalRequests(withdrawals);
+        
+        console.log('✅ [Dashboard] User profile loaded:', profile);
+        console.log('💰 [Dashboard] Current tokens:', profile.tokens);
+        console.log('💵 [Dashboard] Current balance:', profile.balance);
+        console.log('📜 [Dashboard] Transactions loaded:', transactions.length);
       } catch (error) {
-        console.error('Dashboard: Error loading user data:', error);
-        // Redirect to login on error
-        window.location.href = '/auth/login';
+        console.error('❌ [Dashboard] Error loading user data:', error);
+        // Don't redirect on error, show error message instead
+        console.log('⚠️ [Dashboard] Continuing with limited functionality');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -286,6 +352,30 @@ export default function SimpleDashboard() {
       </button>
     ));
   };
+
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center animate-pulse">
+            <img
+              src="/DropCoin.png"
+              alt="DropDollar Logo"
+              className="w-12 h-12 object-contain"
+            />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Loading Dashboard...</h2>
+          <p className="text-gray-400">Fetching your profile and data from Supabase</p>
+          <div className="mt-6 flex justify-center space-x-2">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-3 h-3 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
