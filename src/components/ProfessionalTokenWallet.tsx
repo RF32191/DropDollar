@@ -321,9 +321,60 @@ export default function ProfessionalTokenWallet() {
       console.log('💰 [TokenWallet] Final token balance:', newBalance);
     } catch (error) {
       console.error('❌ [TokenWallet] Error in handlePaymentSuccess:', error);
+      
+      // Try to recover by calling the manual credit endpoint
+      console.log('🔄 [TokenWallet] Attempting automatic token credit recovery...');
+      
+      try {
+        const creditResponse = await fetch('/api/payments/credit-tokens', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentIntentId: paymentIntent.id,
+            userId: userProfile.id
+          })
+        });
+
+        const creditResult = await creditResponse.json();
+        
+        if (creditResult.success) {
+          console.log('✅ [TokenWallet] Token credit recovery successful!');
+          
+          // Refresh user profile
+          const recoveredProfile = await UserService.getUserProfile(userProfile.id);
+          if (recoveredProfile) {
+            setUserProfile(recoveredProfile);
+          }
+          
+          setPaymentResult({
+            success: true,
+            message: `🎉 Payment successful! ${creditResult.tokensAdded} tokens have been added to your account. New balance: ${creditResult.newBalance} tokens.`
+          });
+          
+          // Show success animations
+          setPurchasedTokens(creditResult.tokensAdded);
+          setShowCoinDrop(true);
+          setTimeout(() => setShowCelebration(true), 500);
+          
+          setShowCheckout(false);
+          setActiveTab('wallet');
+          
+          // Reload transaction history
+          const transactions = await UserService.getUserTokenTransactions(userProfile.id);
+          setTokenTransactions(transactions);
+          
+          return;
+        }
+      } catch (recoveryError) {
+        console.error('❌ [TokenWallet] Token credit recovery failed:', recoveryError);
+      }
+      
+      // If recovery failed, show error with payment ID
       setPaymentResult({
         success: false,
-        message: `Payment succeeded but token update failed. Please contact support with payment ID: ${paymentIntent.id}`
+        message: `⚠️ Payment succeeded but token update failed. Your payment has been processed successfully. Please contact support with payment ID: ${paymentIntent.id} to have your tokens credited manually. We apologize for the inconvenience.`
       });
     }
   };
