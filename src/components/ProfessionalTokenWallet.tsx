@@ -21,6 +21,7 @@ import { useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentService from '@/lib/payments/stripeService';
 import { UserService, UserProfile, TokenTransaction } from '@/lib/supabase/userService';
+import CoinAnimation from '@/components/CoinAnimation';
 import '@/styles/stripe-autofill.css';
 
 // Initialize Stripe
@@ -288,6 +289,8 @@ export default function ProfessionalTokenWallet() {
   const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const [tokenTransactions, setTokenTransactions] = useState<TokenTransaction[]>([]);
+  const [showCoinAnimation, setShowCoinAnimation] = useState(false);
+  const [purchasedTokens, setPurchasedTokens] = useState(0);
   const [activeTab, setActiveTab] = useState<'wallet' | 'purchase' | 'history'>('wallet');
 
   // Enhanced user detection
@@ -384,11 +387,16 @@ export default function ProfessionalTokenWallet() {
     const transactions = await UserService.getUserTokenTransactions(userProfile.id);
     setTokenTransactions(transactions);
     
+    // Trigger coin animation
+    setPurchasedTokens(totalTokens);
+    setShowCoinAnimation(true);
+    
     setPaymentResult({
       success: true,
       message: `Successfully purchased ${totalTokens} tokens! Your new balance is ${newBalance} tokens.`
     });
     setShowCheckout(false);
+    setActiveTab('wallet'); // Go back to wallet view after purchase
   };
 
   const getCurrentPackage = () => {
@@ -445,6 +453,13 @@ export default function ProfessionalTokenWallet() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Coin Animation */}
+      <CoinAnimation 
+        isActive={showCoinAnimation} 
+        onComplete={() => setShowCoinAnimation(false)}
+        tokenAmount={purchasedTokens}
+      />
+      
       {/* Header */}
       <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 shadow-2xl border-b-4 border-green-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
