@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useStripe } from '@stripe/react-stripe-js';
-import StripePaymentService from '@/lib/payments/stripeService';
 import { UserProfile } from '@/lib/supabase/userService';
 import SoundEffects from '@/lib/SoundEffects';
 
@@ -53,16 +52,30 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     try {
       console.log('Starting real Stripe payment...');
       
-      // Create payment intent
-      const paymentIntent = await StripePaymentService.createPaymentIntent(
-        selectedPackage.price,
-        'usd',
-        {
-          userId: userProfile.id,
-          type: 'tokens',
-          gameType: 'token_purchase'
-        }
-      );
+      // Create payment intent via API route
+      const response = await fetch('/api/payments/create-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: selectedPackage.price,
+          currency: 'usd',
+          metadata: {
+            userId: userProfile.id,
+            type: 'tokens',
+            gameType: 'token_purchase'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || 'Failed to create payment intent');
+      }
+
+      const data = await response.json();
+      const paymentIntent = data.paymentIntent;
 
       console.log('Payment intent created:', paymentIntent.id);
 
