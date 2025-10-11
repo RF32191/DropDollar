@@ -52,28 +52,69 @@ export default function MinimalCheckout({ selectedPackage, onSuccess, onError, u
     try {
       console.log('Starting real Stripe payment...');
       
-      // Create payment intent via API route with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      // Try simple API route first
+      let apiEndpoint = '/api/payments/simple-intent';
+      let response;
       
-      const response = await fetch('/api/payments/create-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: selectedPackage.price,
-          currency: 'usd',
-          metadata: {
-            userId: userProfile.id,
-            type: 'tokens',
-            gameType: 'token_purchase'
-          }
-        }),
-        signal: controller.signal
-      });
+      try {
+        console.log('🔧 Trying simple payment intent API...');
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: selectedPackage.price,
+            currency: 'usd',
+            metadata: {
+              userId: userProfile.id,
+              type: 'tokens',
+              gameType: 'token_purchase'
+            }
+          }),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Simple API failed: ${response.status}`);
+        }
+        
+        console.log('✅ Simple API succeeded');
+        
+      } catch (simpleError) {
+        console.log('⚠️ Simple API failed, trying original API...', simpleError);
+        
+        // Fallback to original API route
+        apiEndpoint = '/api/payments/create-intent';
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: selectedPackage.price,
+            currency: 'usd',
+            metadata: {
+              userId: userProfile.id,
+              type: 'tokens',
+              gameType: 'token_purchase'
+            }
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
