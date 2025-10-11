@@ -21,44 +21,54 @@ export default function CoinAnimation({ isActive, onComplete, tokenAmount }: Coi
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    if (isActive) {
-      // Create multiple coins for animation
-      const coinCount = Math.min(tokenAmount, 15); // Max 15 coins
-      const newCoins = Array.from({ length: coinCount }, (_, i) => ({
-        id: i,
-        x: Math.random() * (window.innerWidth - 100),
-        y: window.innerHeight + 50,
-        rotation: Math.random() * 360,
-        scale: 0.6 + Math.random() * 0.4,
-        delay: Math.random() * 500,
-        finalY: Math.random() * (window.innerHeight * 0.3) + 50,
-      }));
-      
-      setCoins(newCoins);
-      setShowSuccess(true);
+    if (isActive && typeof window !== 'undefined') {
+      try {
+        // Create multiple coins for animation
+        const coinCount = Math.min(tokenAmount || 1, 15); // Max 15 coins, fallback to 1
+        const newCoins = Array.from({ length: coinCount }, (_, i) => ({
+          id: i,
+          x: Math.random() * (window.innerWidth - 100),
+          y: window.innerHeight + 50,
+          rotation: Math.random() * 360,
+          scale: 0.6 + Math.random() * 0.4,
+          delay: Math.random() * 500,
+          finalY: Math.random() * (window.innerHeight * 0.3) + 50,
+        }));
+        
+        setCoins(newCoins);
+        setShowSuccess(true);
 
-      // Play multiple cash sounds
-      playCashSounds();
+        // Play multiple cash sounds
+        playCashSounds();
 
-      // Animate coins with staggered timing
-      newCoins.forEach((coin, index) => {
+        // Animate coins with staggered timing
+        newCoins.forEach((coin, index) => {
+          setTimeout(() => {
+            setCoins(prevCoins => 
+              prevCoins.map(c => 
+                c.id === coin.id 
+                  ? { ...c, y: coin.finalY, rotation: c.rotation + 720 }
+                  : c
+              )
+            );
+          }, coin.delay);
+        });
+
+        // Complete animation after duration
         setTimeout(() => {
-          setCoins(prevCoins => 
-            prevCoins.map(c => 
-              c.id === coin.id 
-                ? { ...c, y: coin.finalY, rotation: c.rotation + 720 }
-                : c
-            )
-          );
-        }, coin.delay);
-      });
-
-      // Complete animation after duration
-      setTimeout(() => {
-        setCoins([]);
-        setShowSuccess(false);
-        onComplete();
-      }, 3000);
+          setCoins([]);
+          setShowSuccess(false);
+          onComplete();
+        }, 3000);
+      } catch (error) {
+        console.error('Coin animation error:', error);
+        // Fallback: just show success message
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+          onComplete();
+        }, 2000);
+      }
     }
   }, [isActive, tokenAmount, onComplete]);
 
@@ -93,7 +103,7 @@ export default function CoinAnimation({ isActive, onComplete, tokenAmount }: Coi
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.4);
     } catch (error) {
-      console.log('Audio not available');
+      console.log('Audio not available:', error);
     }
   };
 

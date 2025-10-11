@@ -107,6 +107,23 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
     event.preventDefault();
 
     if (!stripe) {
+      onError('Stripe not loaded. Please refresh the page.');
+      return;
+    }
+
+    // Validate card inputs
+    if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
+      onError('Please enter a valid card number');
+      return;
+    }
+
+    if (!expiryDate || !expiryDate.includes('/')) {
+      onError('Please enter a valid expiry date (MM/YY)');
+      return;
+    }
+
+    if (!cvc || cvc.length < 3) {
+      onError('Please enter a valid CVC');
       return;
     }
 
@@ -127,6 +144,16 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
       // Real Stripe payment processing
       console.log('🔧 Processing real Stripe payment:', paymentIntent.id);
 
+      // Parse expiry date safely
+      const [month, year] = expiryDate.split('/');
+      const expMonth = parseInt(month);
+      const expYear = parseInt('20' + year);
+
+      if (isNaN(expMonth) || isNaN(expYear) || expMonth < 1 || expMonth > 12) {
+        onError('Please enter a valid expiry date');
+        return;
+      }
+
       // Confirm payment with custom card data
       const { error, paymentIntent: confirmedPayment } = await stripe.confirmCardPayment(
         paymentIntent.client_secret,
@@ -134,15 +161,15 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
           payment_method: {
             card: {
               number: cardNumber.replace(/\s/g, ''),
-              exp_month: parseInt(expiryDate.split('/')[0]),
-              exp_year: parseInt('20' + expiryDate.split('/')[1]),
+              exp_month: expMonth,
+              exp_year: expYear,
               cvc: cvc,
             },
             billing_details: {
-              name: `${userProfile.firstName} ${userProfile.lastName}`.trim(),
+              name: `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() || userProfile.username,
               email: userProfile.email,
               address: {
-                postal_code: postalCode,
+                postal_code: postalCode || '00000',
               },
             },
           },
@@ -157,6 +184,7 @@ function CheckoutForm({ selectedPackage, onSuccess, onError, userProfile }: Chec
         onError('Payment not successful. Status: ' + confirmedPayment?.status);
       }
     } catch (error: any) {
+      console.error('Payment error:', error);
       onError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsProcessing(false);
