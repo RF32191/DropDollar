@@ -1,167 +1,239 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
-import UserMenu from '@/components/navigation/UserMenu';
+import { useEffect, useState } from 'react';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 export default function HomePage() {
-  const { user, isAuthenticated } = useAuth();
+  const [scrollY, setScrollY] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Clean Navigation */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden">
       <CleanNavigation variant="gradient" currentPage="/" />
 
-      {/* Flashy Hero Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
-          {/* Animated Welcome Title */}
-          <div className="mb-12">
-            <h1 className="text-7xl font-extrabold mb-6">
-              <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
-                Welcome to
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                DropDollar
-              </span>
-            </h1>
-            <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-red-500 mx-auto rounded-full animate-pulse"></div>
-          </div>
+      {/* Hero Section with Parallax */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" style={{ top: '10%', left: '10%' }}></div>
+          <div className="absolute w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" style={{ top: '50%', right: '10%' }}></div>
+          <div className="absolute w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000" style={{ bottom: '10%', left: '50%' }}></div>
+        </div>
 
-          <p className="text-2xl text-white mb-12 max-w-4xl mx-auto font-medium leading-relaxed">
-            🚀 The Ultimate Gaming Marketplace with 
-            <span className="text-yellow-300 font-bold"> Amazon-Level Security</span>, 
-            <span className="text-blue-300 font-bold"> Real-Time Gaming</span>, and 
-            <span className="text-purple-300 font-bold"> Professional Features</span>
+        <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          {/* Main Title */}
+          <h1 className="text-6xl md:text-8xl font-black mb-6 leading-tight">
+            <span className="inline-block bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient">
+              Welcome to
+            </span>
+            <br />
+            <span className="inline-block bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-gradient-reverse text-7xl md:text-9xl">
+              DropDollar
+            </span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-xl md:text-3xl text-gray-200 mb-12 max-w-4xl mx-auto font-light leading-relaxed">
+            Where Gaming Meets Opportunity
           </p>
-          
-          {/* Flashy Features Banner */}
-          <div className="mb-12 p-8 bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 border-2 border-blue-400 rounded-2xl max-w-6xl mx-auto shadow-2xl">
-            <h2 className="text-4xl font-bold text-transparent bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text mb-8">
-              ⚡ Professional Features ⚡
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-              <div className="bg-gradient-to-br from-blue-800 to-purple-800 p-6 rounded-xl border border-blue-400 hover:border-blue-300 transition-all duration-300 hover:scale-105">
-                <h3 className="font-bold text-blue-200 mb-3 text-xl">🔐 Secure Authentication</h3>
-                <p className="text-blue-300">Amazon-level login system with auto-logout, session management, and 2FA support</p>
+
+          {/* Video Section */}
+          <div className="mb-16 max-w-4xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-purple-500/50 hover:border-purple-400 transition-all duration-300 transform hover:scale-105">
+              <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&mute=0&controls=1&rel=0"
+                  title="DropDollar Introduction"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                ></iframe>
               </div>
-              <div className="bg-gradient-to-br from-green-800 to-blue-800 p-6 rounded-xl border border-green-400 hover:border-green-300 transition-all duration-300 hover:scale-105">
-                <h3 className="font-bold text-green-200 mb-3 text-xl">👤 User Profiles</h3>
-                <p className="text-green-300">Comprehensive profiles with preferences, activity tracking, and security events</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-800 to-pink-800 p-6 rounded-xl border border-purple-400 hover:border-purple-300 transition-all duration-300 hover:scale-105">
-                <h3 className="font-bold text-purple-200 mb-3 text-xl">⚡ Real-time Updates</h3>
-                <p className="text-purple-300">Live session monitoring, activity logs, and instant notifications</p>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
             </div>
           </div>
 
-          {/* Authentication Status */}
-          {isAuthenticated && user ? (
-            <div className="mb-12 p-8 bg-gradient-to-r from-green-900 to-emerald-900 border-2 border-green-400 rounded-2xl max-w-3xl mx-auto shadow-2xl">
-              <h2 className="text-3xl font-bold text-green-200 mb-4">✅ Successfully Authenticated!</h2>
-              <p className="text-green-300 mb-6 text-lg">
-                Welcome back, {user.firstName}! Your session is active and secure.
-              </p>
-              <div className="flex justify-center space-x-6">
-                <Link 
-                  href="/dashboard" 
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105"
-                >
-                  Go to Dashboard
-                </Link>
-                <Link 
-                  href="/profile" 
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105"
-                >
-                  View Profile
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="mb-12 p-8 bg-gradient-to-r from-yellow-900 to-orange-900 border-2 border-yellow-400 rounded-2xl max-w-3xl mx-auto shadow-2xl">
-              <h2 className="text-3xl font-bold text-yellow-200 mb-4">🔑 Professional Login Required</h2>
-              <p className="text-yellow-300 mb-6 text-lg">
-                Experience our Amazon-level authentication system with secure session management.
-              </p>
-              <div className="flex justify-center space-x-6">
-                <Link 
-                  href="/auth/login" 
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105"
-                >
-                  Sign In
-                </Link>
-                <Link 
-                  href="/auth/register" 
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105"
-                >
-                  Create Account
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Flashy Feature Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-            <div className="bg-gradient-to-br from-purple-800 to-pink-800 p-8 rounded-2xl border-2 border-purple-400 hover:border-purple-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-              <h3 className="text-3xl font-bold text-white mb-6">🎮 Play Games</h3>
-              <p className="text-purple-200 mb-8 text-lg">Compete in tournaments and win prizes with our secure gaming platform</p>
-              <Link href="/games" className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 inline-block">
-                Start Playing
-              </Link>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-800 to-emerald-800 p-8 rounded-2xl border-2 border-green-400 hover:border-green-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-              <h3 className="text-3xl font-bold text-white mb-6">💰 Buy Tokens</h3>
-              <p className="text-green-200 mb-8 text-lg">Purchase tokens securely with our professional payment system</p>
-              <Link href="/buy-tokens" className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 inline-block">
-                Buy Now
-              </Link>
-            </div>
-
-            <div className="bg-gradient-to-br from-yellow-800 to-orange-800 p-8 rounded-2xl border-2 border-yellow-400 hover:border-yellow-300 transition-all duration-300 hover:scale-105 shadow-2xl">
-              <h3 className="text-3xl font-bold text-white mb-6">🏆 Tournaments</h3>
-              <p className="text-yellow-200 mb-8 text-lg">Join competitive tournaments with real-time leaderboards</p>
-              <Link href="/tournaments" className="bg-gradient-to-r from-yellow-600 to-orange-600 text-white px-8 py-4 rounded-xl hover:from-yellow-700 hover:to-orange-700 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-2xl hover:scale-105 inline-block">
-                View Tournaments
-              </Link>
-            </div>
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-20">
+            <Link
+              href="/auth/login"
+              className="group relative px-12 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xl font-bold rounded-full hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl"
+            >
+              <span className="relative z-10">Get Started</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full blur opacity-0 group-hover:opacity-75 transition-opacity duration-300"></div>
+            </Link>
+            <Link
+              href="/games"
+              className="group relative px-12 py-5 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xl font-bold rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl"
+            >
+              <span className="relative z-10">Explore Games</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur opacity-0 group-hover:opacity-75 transition-opacity duration-300"></div>
+            </Link>
           </div>
+        </div>
 
-          {/* Technical Details */}
-          <div className="mt-20 p-10 bg-gradient-to-r from-slate-800 to-gray-800 border-2 border-slate-600 rounded-2xl max-w-6xl mx-auto shadow-2xl">
-            <h2 className="text-4xl font-bold text-transparent bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text mb-8">
-              🛠️ Technical Implementation
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-              <div>
-                <h3 className="text-2xl font-bold text-green-400 mb-4">Authentication Features</h3>
-                <ul className="text-gray-300 space-y-3 text-lg">
-                  <li>• 30-minute session timeout with auto-logout</li>
-                  <li>• 5-minute warning before session expires</li>
-                  <li>• Automatic session refresh every 5 minutes</li>
-                  <li>• Google & GitHub OAuth integration</li>
-                  <li>• Password strength validation</li>
-                  <li>• Two-factor authentication support</li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-blue-400 mb-4">Database Features</h3>
-                <ul className="text-gray-300 space-y-3 text-lg">
-                  <li>• Supabase PostgreSQL backend</li>
-                  <li>• Row Level Security (RLS) policies</li>
-                  <li>• User activity logging</li>
-                  <li>• Security event tracking</li>
-                  <li>• Session management</li>
-                  <li>• Real-time updates</li>
-                </ul>
-              </div>
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <svg className="w-6 h-6 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+            <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+          </svg>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="relative py-32 bg-black/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-5xl md:text-6xl font-bold text-center mb-20">
+            <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              Why DropDollar?
+            </span>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="group relative bg-gradient-to-br from-blue-900/50 to-purple-900/50 backdrop-blur-xl p-8 rounded-3xl border border-blue-500/30 hover:border-blue-400 transition-all duration-500 transform hover:-translate-y-4 hover:shadow-2xl">
+              <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">🎮</div>
+              <h3 className="text-2xl font-bold text-white mb-4">Exciting Games</h3>
+              <p className="text-gray-300 leading-relaxed">
+                Play skill-based games and compete for real prizes. Fast-paced action meets strategic gameplay.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="group relative bg-gradient-to-br from-purple-900/50 to-pink-900/50 backdrop-blur-xl p-8 rounded-3xl border border-purple-500/30 hover:border-purple-400 transition-all duration-500 transform hover:-translate-y-4 hover:shadow-2xl">
+              <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">🔒</div>
+              <h3 className="text-2xl font-bold text-white mb-4">Secure Platform</h3>
+              <p className="text-gray-300 leading-relaxed">
+                Bank-level security with Stripe payments. Your data and funds are always protected.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="group relative bg-gradient-to-br from-pink-900/50 to-orange-900/50 backdrop-blur-xl p-8 rounded-3xl border border-pink-500/30 hover:border-pink-400 transition-all duration-500 transform hover:-translate-y-4 hover:shadow-2xl">
+              <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-300">⚡</div>
+              <h3 className="text-2xl font-bold text-white mb-4">Instant Payouts</h3>
+              <p className="text-gray-300 leading-relaxed">
+                Win prizes and get paid instantly. Fast, secure transactions directly to your account.
+              </p>
             </div>
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="relative py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-5xl md:text-6xl font-bold text-center mb-20">
+            <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+              How It Works
+            </span>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {/* Step 1 */}
+            <div className="text-center group">
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
+                1
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">Sign Up</h3>
+              <p className="text-gray-400">Create your free account in seconds</p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="text-center group">
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
+                2
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">Buy Tokens</h3>
+              <p className="text-gray-400">Purchase tokens to enter games</p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="text-center group">
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-pink-500 to-orange-600 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
+                3
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">Play & Win</h3>
+              <p className="text-gray-400">Compete and win amazing prizes</p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="text-center group">
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-2xl transform group-hover:scale-110 transition-transform duration-300">
+                4
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">Get Paid</h3>
+              <p className="text-gray-400">Receive your winnings instantly</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="relative py-32 bg-gradient-to-r from-blue-900/50 to-purple-900/50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-5xl md:text-6xl font-bold text-white mb-8">
+            Ready to Start Winning?
+          </h2>
+          <p className="text-xl text-gray-300 mb-12 max-w-3xl mx-auto">
+            Join thousands of players competing for real prizes every day
+          </p>
+          <Link
+            href="/auth/login"
+            className="inline-block px-16 py-6 bg-gradient-to-r from-yellow-500 to-orange-600 text-white text-2xl font-bold rounded-full hover:from-yellow-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-110 hover:shadow-2xl"
+          >
+            Join Now - It's Free!
+          </Link>
+        </div>
+      </section>
+
+      {/* Custom Animations */}
+      <style jsx global>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(20px, -50px) scale(1.1); }
+          50% { transform: translate(-20px, 20px) scale(0.9); }
+          75% { transform: translate(50px, 50px) scale(1.05); }
+        }
+
+        @keyframes gradient {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient 3s ease infinite;
+        }
+
+        .animate-gradient-reverse {
+          background-size: 200% 200%;
+          animation: gradient 3s ease infinite reverse;
+        }
+      `}</style>
     </div>
   );
 }
