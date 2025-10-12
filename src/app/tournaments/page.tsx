@@ -201,12 +201,25 @@ export default function TournamentsPage() {
           )}
         </div>
 
-        {/* 1v1 SKILL MATCHES Section */}
+        {/* 1v1 SKILL MATCHES Section - Coming Soon */}
         <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-4">⚔️ 1v1 SKILL MATCHES</h2>
-            <p className="text-lg text-gray-400">Challenge players of similar skill level in direct competition!</p>
-            <p className="text-sm text-yellow-400 mt-2">🚧 Coming Soon - Under Development</p>
+          <div className="text-center mb-8 bg-gradient-to-br from-purple-900/30 to-indigo-900/30 rounded-3xl border-2 border-purple-600/30 p-12">
+            <div className="text-6xl mb-6">⚔️</div>
+            <h2 className="text-4xl font-black text-purple-400 mb-4">1v1 SKILL MATCHES</h2>
+            <p className="text-lg text-gray-300 mb-4">Challenge players of similar skill level in direct competition!</p>
+            <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl p-4 max-w-2xl mx-auto">
+              <p className="text-yellow-300 font-bold mb-2">🚧 Coming Soon - Under Development</p>
+              <p className="text-sm text-gray-400">
+                We're building an advanced matchmaking system for 1v1 battles. This will include:
+              </p>
+              <ul className="text-sm text-gray-300 mt-3 space-y-1">
+                <li>• ELO-based skill matching</li>
+                <li>• Real-time head-to-head competitions</li>
+                <li>• $1, $5, $10, and $25 entry tiers</li>
+                <li>• Winner takes 85% (15% platform fee)</li>
+                <li>• Location verification required</li>
+              </ul>
+            </div>
           </div>
         </div>
 

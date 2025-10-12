@@ -122,8 +122,12 @@ interface GamePopularity {
 export default function GamesPage() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get('listingId');
+  const tournamentId = searchParams.get('tournament');
+  const entryId = searchParams.get('entry');
+  const gameType = searchParams.get('game');
   const entryNumber = parseInt(searchParams.get('entryNumber') || '1');
-  const isCompetitionMode = !!listingId;
+  const isCompetitionMode = !!listingId || !!tournamentId;
+  const isTournamentMode = !!tournamentId;
   const globalLocation = useGlobalLocation();
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
@@ -171,6 +175,28 @@ export default function GamesPage() {
       console.log('ℹ️ [Games] No user logged in - scores will not be saved');
     }
   }, []);
+
+  // Auto-launch game if tournament/competition entry
+  useEffect(() => {
+    if (isTournamentMode && gameType) {
+      console.log('🏆 [Games] Tournament mode detected!');
+      console.log('🎮 [Games] Auto-launching game:', gameType);
+      console.log('📋 [Games] Tournament ID:', tournamentId);
+      console.log('📋 [Games] Entry ID:', entryId);
+      
+      // Find the game
+      const game = GAMES.find(g => g.id === gameType);
+      if (game) {
+        // Start game after 1 second delay
+        setTimeout(() => {
+          setCurrentGame(gameType);
+          console.log('✅ [Games] Game launched:', game.name);
+        }, 1000);
+      } else {
+        console.error('❌ [Games] Game not found:', gameType);
+      }
+    }
+  }, [isTournamentMode, gameType, tournamentId, entryId]);
 
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
