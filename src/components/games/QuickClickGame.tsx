@@ -174,11 +174,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     }
   }, [gameState, flashStartTime, currentRound, rounds, targetPosition]);
 
-  // Auto-fail if no click during flash
+  // Auto-fail if no click during flash (Too Late)
   useEffect(() => {
     if (gameState === 'flash') {
       const timeout = setTimeout(() => {
-        console.log('QuickClick: No click - auto fail');
+        console.log('QuickClick: No click - too late');
         // Play error sound
         try {
           const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
@@ -188,9 +188,10 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           // Audio failed, continue silently
         }
         
+        // Give a penalty score (999ms = very slow reaction)
         const newRound: Round = {
           roundNumber: currentRound,
-          reactionTime: null,
+          reactionTime: 999, // Penalty score for missing
           clicked: false,
           isBonus: currentRound === 4
         };
@@ -207,7 +208,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
             endGame([...rounds, newRound]);
           }
         }, 1500);
-      }, 1000); // 1 second to click after flash
+      }, 2000); // 2 seconds to click after flash (more generous)
       
       return () => clearTimeout(timeout);
     }
@@ -467,9 +468,15 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                   </div>
                 ) : (
                   <div>
-                    <div className="text-3xl sm:text-4xl font-bold mb-4">Too Early!</div>
+                    <div className="text-3xl sm:text-4xl font-bold mb-4">
+                      {rounds[rounds.length - 1]?.clicked === false && rounds[rounds.length - 1]?.reactionTime === 999 
+                        ? 'Too Late!' 
+                        : 'Too Early!'}
+                    </div>
                     <div className="text-lg sm:text-xl">
-                      {currentRound === 4 ? 'Wait for the target circle!' : 'Wait for green next time!'}
+                      {rounds[rounds.length - 1]?.clicked === false && rounds[rounds.length - 1]?.reactionTime === 999
+                        ? 'Click faster when it turns green!'
+                        : currentRound === 4 ? 'Wait for the target circle!' : 'Wait for green next time!'}
                     </div>
                   </div>
                 )}
