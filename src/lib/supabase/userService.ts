@@ -538,22 +538,26 @@ export class UserService {
         return [];
       }
 
-      console.log('✅ [UserService] Game history fetched:', data.length);
-      return data.map(game => ({
+      console.log('✅ [UserService] Game history fetched:', data?.length || 0);
+      if (data && data.length > 0) {
+        console.log('📊 [UserService] Sample game:', data[0]);
+      }
+      
+      return (data || []).map(game => ({
         id: game.id,
         userId: game.user_id,
         gameType: game.game_type,
-        gameName: game.game_name,
+        gameName: game.game_type, // V4 schema doesn't have game_name separate
         score: game.score,
         accuracy: game.accuracy,
-        avgReactionTime: game.avg_reaction_time,
-        gameDuration: game.game_duration,
-        isPractice: game.is_practice,
-        isCompetition: game.is_competition,
-        listingId: game.listing_id,
-        entryNumber: game.entry_number,
-        placement: game.placement,
-        prizeWon: game.prize_won,
+        avgReactionTime: game.reaction_time, // V4 schema uses reaction_time
+        gameDuration: game.duration_seconds, // V4 schema uses duration_seconds
+        isPractice: game.mode === 'practice', // V4 schema uses mode field
+        isCompetition: game.mode === 'competition', // V4 schema uses mode field
+        listingId: game.metadata?.listing_id, // Stored in metadata in V4
+        entryNumber: game.metadata?.entry_number, // Stored in metadata in V4
+        placement: null, // Not in V4 schema
+        prizeWon: game.tokens_won || 0,
         metadata: game.metadata,
         createdAt: game.created_at
       }));

@@ -105,11 +105,26 @@ export class ActivityService {
   }): Promise<GameHistory | null> {
     try {
       console.log('🎮 Saving game history:', gameData.game_type, 'Score:', gameData.score);
+      console.log('📊 Mode:', gameData.is_practice ? 'practice' : 'competition');
       
+      // Map to V4 schema fields
       const { data, error } = await supabase
         .from('game_history')
         .insert([{
-          ...gameData,
+          user_id: gameData.user_id,
+          game_type: gameData.game_type,
+          mode: gameData.is_practice ? 'practice' : 'competition', // V4 schema field
+          score: gameData.score,
+          accuracy: gameData.accuracy,
+          reaction_time: gameData.avg_reaction_time, // V4 schema field name
+          duration_seconds: gameData.game_duration,
+          tokens_wagered: 0,
+          tokens_won: 0,
+          result: 'completed',
+          metadata: {
+            listing_id: gameData.listing_id,
+            entry_number: gameData.entry_number
+          },
           created_at: new Date().toISOString()
         }])
         .select()
@@ -117,10 +132,11 @@ export class ActivityService {
 
       if (error) {
         console.error('❌ Error saving game history:', error);
+        console.error('❌ Error details:', error);
         return null;
       }
 
-      console.log('✅ Game history saved');
+      console.log('✅ Game history saved successfully:', data.id);
       
       // Also log as activity
       await this.logActivity(gameData.user_id, 'game_played', {
