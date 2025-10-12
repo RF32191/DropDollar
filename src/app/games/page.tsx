@@ -513,16 +513,16 @@ export default function GamesPage() {
         });
         console.log('✅ [Games] Game history saved to game_history table');
 
-        // Reload best scores from Supabase to get updated data
-        const userBestScores = await GameScoreService.getUserBestScores(user.id);
-        const scoresMap: {[key: string]: number} = {};
-        
-        userBestScores.forEach(score => {
-          scoresMap[score.game_type] = score.best_score;
-        });
-        
-        setBestScores(scoresMap);
-        console.log('✅ [Games] Best scores updated:', scoresMap);
+        // Update best score if this is a new high
+        const currentBest = bestScores[currentGame] || 0;
+        const newBestScores = {...bestScores};
+        if (result.score > currentBest) {
+          newBestScores[currentGame] = result.score;
+          console.log('🏆 [Games] NEW BEST SCORE!', currentGame, result.score);
+        }
+        setBestScores(newBestScores);
+        localStorage.setItem('bestScores', JSON.stringify(newBestScores));
+        console.log('✅ [Games] Best scores updated:', newBestScores);
         
         // Update last scores
         const newLastScores = {
