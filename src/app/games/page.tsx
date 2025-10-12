@@ -142,6 +142,7 @@ export default function GamesPage() {
   const [gameResults, setGameResults] = useState<GameResult | null>(null);
   const [practiceAttempts, setPracticeAttempts] = useState<{[key: string]: number}>({});
   const [bestScores, setBestScores] = useState<{[key: string]: number}>({});
+  const [lastScores, setLastScores] = useState<{[key: string]: number}>({});
   const [gamePopularity, setGamePopularity] = useState<{[key: string]: GamePopularity}>({});
   const [showPopularityStats, setShowPopularityStats] = useState(false);
   const [totalGamesPlayed, setTotalGamesPlayed] = useState(0);
@@ -286,6 +287,18 @@ export default function GamesPage() {
             setBestScores({});
           }
         }
+      }
+      
+      // Load last scores from localStorage (works for all users)
+      try {
+        const savedLastScores = localStorage.getItem('lastScores');
+        if (savedLastScores) {
+          const parsedLastScores = JSON.parse(savedLastScores);
+          setLastScores(parsedLastScores);
+          console.log('📊 [Games] Last scores loaded:', parsedLastScores);
+        }
+      } catch (error) {
+        console.error('Error loading last scores from localStorage:', error);
       }
     };
 
@@ -510,6 +523,15 @@ export default function GamesPage() {
         
         setBestScores(scoresMap);
         console.log('✅ [Games] Best scores updated:', scoresMap);
+        
+        // Update last scores
+        const newLastScores = {
+          ...lastScores,
+          [currentGame]: result.score
+        };
+        setLastScores(newLastScores);
+        localStorage.setItem('lastScores', JSON.stringify(newLastScores));
+        console.log('✅ [Games] Last score updated:', currentGame, result.score);
         
         // Show success message
         console.log('🎉 [Games] ✅✅✅ SCORE SAVED SUCCESSFULLY TO YOUR DASHBOARD! ✅✅✅');
@@ -925,13 +947,26 @@ export default function GamesPage() {
                 </div>
                 
                 {/* Practice Status */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm">Best Score:</span>
-                    <span className="text-purple-600 font-bold">
-                      {bestScores[game.id] || '-'}
+                    <span className="text-gray-600 text-sm flex items-center">
+                      <TrophyIcon className="h-4 w-4 mr-1 text-yellow-500" />
+                      Best Score:
+                    </span>
+                    <span className="text-purple-600 font-bold text-lg">
+                      {bestScores[game.id]?.toLocaleString() || '-'}
                     </span>
                   </div>
+                  {lastScores[game.id] && (
+                    <div className="flex justify-between items-center border-t pt-2">
+                      <span className="text-blue-600 text-sm font-semibold">
+                        📊 Last Score:
+                      </span>
+                      <span className="text-blue-600 font-bold text-lg">
+                        {lastScores[game.id].toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Play Button */}
