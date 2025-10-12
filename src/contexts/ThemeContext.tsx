@@ -13,14 +13,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light');
+  const [theme, setThemeState] = useState<Theme>('dark'); // Default to dark
   const [mounted, setMounted] = useState(false);
 
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    const initialTheme = savedTheme || systemTheme;
+    // Default to dark mode if no saved preference
+    const initialTheme = savedTheme || 'dark';
     
     setThemeState(initialTheme);
     setMounted(true);
@@ -50,9 +50,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(newTheme);
   };
 
-  // Prevent hydration mismatch
+  // Prevent hydration mismatch - show dark bg while loading
   if (!mounted) {
-    return <div className="min-h-screen bg-white">{children}</div>;
+    return <div className="min-h-screen bg-gray-900">{children}</div>;
   }
 
   return (
@@ -65,9 +65,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    // Return default values instead of throwing error during SSR or initial render
+    // Return default dark theme during SSR or initial render
     return {
-      theme: 'light' as Theme,
+      theme: 'dark' as Theme,
       toggleTheme: () => {},
       setTheme: () => {}
     };

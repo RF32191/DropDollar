@@ -71,6 +71,7 @@ export default function SimpleDashboard() {
   const [gameHistory, setGameHistory] = useState<GameHistory[]>([]);
   const [highScores, setHighScores] = useState<Record<string, { score: number; mode: string; date: string }>>({});
 
+  // Reload data when component mounts or comes back into focus
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -193,6 +194,20 @@ export default function SimpleDashboard() {
     };
 
     loadUserData();
+
+    // Add event listener to reload data when page becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 [Dashboard] Page is visible again - reloading data...');
+        loadUserData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleTestimonialSubmit = async (e: React.FormEvent) => {
