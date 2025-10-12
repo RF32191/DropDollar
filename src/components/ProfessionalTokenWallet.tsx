@@ -360,6 +360,8 @@ export default function ProfessionalTokenWallet() {
         userId: userProfile.id,
         type: 'purchase',
         amount: totalTokens,
+        balance_before: (newBalance - totalTokens),
+        balance_after: newBalance,
         description: `Purchased ${totalTokens} tokens via Stripe`,
         stripePaymentIntentId: paymentIntent.id,
         metadata: {

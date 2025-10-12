@@ -24,14 +24,16 @@ export interface UserProfile {
 export interface TokenTransaction {
   id: string;
   userId: string;
-  type: 'purchase' | 'spend' | 'earn' | 'refund';
+  type: 'purchase' | 'game_entry' | 'game_win' | 'refund' | 'adjustment' | 'bonus';
   amount: number;
+  balance_before: number;
+  balance_after: number;
   description: string;
   stripePaymentIntentId?: string;
   relatedListingId?: string;
   relatedGameId?: string;
   metadata?: Record<string, any>;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface GameHistory {
@@ -385,7 +387,7 @@ export class UserService {
   /**
    * Add token transaction and update user tokens
    */
-  static async addTokenTransaction(transaction: Omit<TokenTransaction, 'id' | 'createdAt'>): Promise<boolean> {
+  static async addTokenTransaction(transaction: Omit<TokenTransaction, 'id' | 'created_at'>): Promise<boolean> {
     try {
       console.log('📝 [UserService] Adding token transaction:', transaction);
       
@@ -396,11 +398,11 @@ export class UserService {
           user_id: transaction.userId,
           type: transaction.type,
           amount: transaction.amount,
+          balance_before: transaction.balance_before,
+          balance_after: transaction.balance_after,
           description: transaction.description,
           stripe_payment_intent_id: transaction.stripePaymentIntentId,
-          related_listing_id: transaction.relatedListingId,
-          related_game_id: transaction.relatedGameId,
-          metadata: transaction.metadata,
+          metadata: transaction.metadata || {},
           created_at: new Date().toISOString()
         }])
         .select();
@@ -439,18 +441,24 @@ export class UserService {
         return [];
       }
 
-      console.log('✅ [UserService] Token transactions fetched:', data.length);
-      return data.map(tx => ({
+      console.log('✅ [UserService] Token transactions fetched:', data?.length || 0);
+      if (data) {
+        console.log('📊 [UserService] Sample transaction:', data[0]);
+      }
+      
+      return (data || []).map(tx => ({
         id: tx.id,
         userId: tx.user_id,
         type: tx.type,
         amount: tx.amount,
-        description: tx.description,
+        balance_before: tx.balance_before,
+        balance_after: tx.balance_after,
+        description: tx.description || 'Transaction',
         stripePaymentIntentId: tx.stripe_payment_intent_id,
         relatedListingId: tx.related_listing_id,
         relatedGameId: tx.related_game_id,
-        metadata: tx.metadata,
-        createdAt: tx.created_at
+        metadata: tx.metadata || {},
+        created_at: tx.created_at
       }));
     } catch (error) {
       console.error('❌ [UserService] Exception in getUserTokenTransactions:', error);
