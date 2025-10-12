@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { UserService, UserProfile, TokenTransaction, WithdrawalRequest } from '@/lib/supabase/userService';
+import { UserService, UserProfile, TokenTransaction, WithdrawalRequest, GameHistory } from '@/lib/supabase/userService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
   TrophyIcon, 
@@ -14,7 +14,9 @@ import {
   CreditCardIcon,
   ArrowDownTrayIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  FireIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 interface BankAccount {
@@ -56,6 +58,8 @@ export default function SimpleDashboard() {
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [gameHistory, setGameHistory] = useState<GameHistory[]>([]);
+  const [highScores, setHighScores] = useState<Record<string, { score: number; mode: string; date: string }>>({});
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -140,6 +144,26 @@ export default function SimpleDashboard() {
         // Load withdrawal requests
         const withdrawals = await UserService.getUserWithdrawalRequests(profile.id);
         setWithdrawalRequests(withdrawals);
+        
+        // Load game history
+        const games = await UserService.getUserGameHistory(profile.id);
+        setGameHistory(games);
+        console.log('✅ [Dashboard] Loaded', games.length, 'games');
+        
+        // Calculate high scores for each game
+        const scores: Record<string, { score: number; mode: string; date: string }> = {};
+        games.forEach(game => {
+          const gameKey = game.gameType || game.gameName || 'Unknown Game';
+          if (!scores[gameKey] || game.score > scores[gameKey].score) {
+            scores[gameKey] = {
+              score: game.score,
+              mode: game.isPractice ? 'Practice' : 'Competition',
+              date: game.createdAt
+            };
+          }
+        });
+        setHighScores(scores);
+        console.log('✅ [Dashboard] Calculated high scores:', scores);
         
         console.log('✅ [Dashboard] User profile loaded:', profile);
         console.log('💰 [Dashboard] Current tokens:', profile.tokens);
@@ -443,6 +467,71 @@ export default function SimpleDashboard() {
             >
               Link Bank Account
             </button>
+          </div>
+        </div>
+
+        {/* High Scores Section */}
+        <div className="mb-16">
+          <div className="bg-gradient-to-br from-yellow-900/50 to-orange-900/50 backdrop-blur-xl p-10 rounded-3xl border-2 border-yellow-500/50 shadow-2xl">
+            <div className="flex items-center justify-center mb-8">
+              <TrophyIcon className="h-12 w-12 text-yellow-400 mr-4" />
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                Your High Scores
+              </h2>
+            </div>
+            
+            {Object.keys(highScores).length === 0 ? (
+              <div className="text-center py-12">
+                <FireIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400 text-xl">
+                  No scores yet! Play some games to see your high scores here.
+                </p>
+                <Link
+                  href="/games"
+                  className="inline-block mt-6 px-8 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-xl hover:from-yellow-700 hover:to-orange-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105"
+                >
+                  Play Now
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.entries(highScores).map(([gameName, data]) => (
+                  <div
+                    key={gameName}
+                    className="bg-gradient-to-br from-purple-900/70 to-pink-900/70 p-6 rounded-2xl border border-purple-500/30 hover:border-purple-400 transition-all duration-300 transform hover:scale-105"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-white truncate">{gameName}</h3>
+                      {data.mode === 'Competition' ? (
+                        <span className="px-3 py-1 bg-gradient-to-r from-red-600 to-orange-600 text-white text-xs font-bold rounded-full">
+                          COMP
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold rounded-full">
+                          PRACTICE
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="text-center mb-4">
+                      <div className="text-5xl font-black bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                        {data.score.toLocaleString()}
+                      </div>
+                      <p className="text-gray-400 text-sm mt-2">
+                        {new Date(data.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center justify-center space-x-2">
+                      <ChartBarIcon className="h-5 w-5 text-yellow-400" />
+                      <span className="text-yellow-400 text-sm font-semibold">
+                        Personal Best
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
