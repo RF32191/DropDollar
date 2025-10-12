@@ -104,8 +104,11 @@ export class ActivityService {
     game_duration?: number;
   }): Promise<GameHistory | null> {
     try {
-      console.log('🎮 Saving game history:', gameData.game_type, 'Score:', gameData.score);
-      console.log('📊 Mode:', gameData.is_practice ? 'practice' : 'competition');
+      console.log('🎮 [ActivityService] Saving game history...');
+      console.log('📊 [ActivityService] Game:', gameData.game_type);
+      console.log('📊 [ActivityService] Score:', gameData.score);
+      console.log('📊 [ActivityService] User ID:', gameData.user_id);
+      console.log('📊 [ActivityService] Mode:', gameData.is_practice ? 'practice' : 'competition');
       
       // Map to V4 schema fields
       const { data, error } = await supabase
@@ -131,12 +134,16 @@ export class ActivityService {
         .single();
 
       if (error) {
-        console.error('❌ Error saving game history:', error);
-        console.error('❌ Error details:', error);
+        console.error('❌ [ActivityService] ERROR SAVING GAME HISTORY!');
+        console.error('❌ [ActivityService] Error message:', error.message);
+        console.error('❌ [ActivityService] Error code:', error.code);
+        console.error('❌ [ActivityService] Full error:', JSON.stringify(error, null, 2));
         return null;
       }
 
-      console.log('✅ Game history saved successfully:', data.id);
+      console.log('✅ [ActivityService] ✅✅✅ GAME HISTORY SAVED SUCCESSFULLY! ✅✅✅');
+      console.log('✅ [ActivityService] Saved game ID:', data.id);
+      console.log('✅ [ActivityService] Full saved data:', data);
       
       // Also log as activity
       await this.logActivity(gameData.user_id, 'game_played', {

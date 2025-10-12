@@ -161,6 +161,23 @@ export default function SimpleDashboard() {
         setGameHistory(games);
         console.log('✅ [Dashboard] Loaded', games.length, 'games');
         
+        // Check if there's a new game score
+        const hasNewScore = localStorage.getItem('hasNewGameScore');
+        if (hasNewScore === 'true') {
+          console.log('🎮 [Dashboard] NEW GAME SCORE DETECTED! Loading latest data...');
+          localStorage.removeItem('hasNewGameScore');
+        }
+        
+        if (games.length === 0) {
+          console.warn('⚠️ [Dashboard] NO GAME HISTORY FOUND!');
+          console.warn('⚠️ [Dashboard] This means:');
+          console.warn('   1. User may not be logged in when playing games');
+          console.warn('   2. Saves are failing silently');
+          console.warn('   3. Database query is not returning data');
+        } else {
+          console.log('📊 [Dashboard] Sample game data:', games[0]);
+        }
+        
         // Calculate high scores AND recent scores for each game
         const scores: Record<string, { 
           highScore: number; 

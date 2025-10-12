@@ -510,8 +510,16 @@ export default function GamesPage() {
         
         setBestScores(scoresMap);
         console.log('✅ [Games] Best scores updated:', scoresMap);
+        
+        // Show success message
+        console.log('🎉 [Games] ✅✅✅ SCORE SAVED SUCCESSFULLY TO YOUR DASHBOARD! ✅✅✅');
+        console.log('🔄 [Games] Go to /dashboard to see your updated scores!');
+        
+        // Store a flag so dashboard knows to refresh
+        localStorage.setItem('hasNewGameScore', 'true');
       } catch (error) {
         console.error('❌ [Games] Error saving score to Supabase:', error);
+        console.error('❌ [Games] Full error details:', JSON.stringify(error, null, 2));
         alert('⚠️ Score could not be saved to your account. Please check your connection and try again.');
         // Fallback to localStorage
         const currentBest = bestScores[currentGame] || 0;
