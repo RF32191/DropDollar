@@ -117,8 +117,8 @@ export default function TournamentsPage() {
                           <div className="text-xs text-gray-300">Participants</div>
                         </div>
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-yellow-500/20">
-                          <div className="text-2xl font-bold text-white">{tournament.entry_fee}</div>
-                          <div className="text-xs text-gray-300">Token Entry</div>
+                          <div className="text-2xl font-bold text-white">${tournament.entry_fee}</div>
+                          <div className="text-xs text-gray-300">{tournament.entry_fee} Tokens</div>
                         </div>
                       </div>
                       
@@ -139,7 +139,7 @@ export default function TournamentsPage() {
                           onClick={() => handleTournamentEntry(tournament)}
                           className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-yellow-500/50"
                         >
-                          ⚡ JOIN NOW - {tournament.entry_fee} TOKENS
+                          ⚡ PAY ${tournament.entry_fee} & PLAY NOW
                         </button>
                       ) : globalLocation.status === 'restricted' ? (
                         <div className="w-full py-4 px-6 rounded-xl bg-red-700 border border-red-600 text-center">
@@ -215,10 +215,11 @@ export default function TournamentsPage() {
           <div className="text-center">
             <h3 className="text-lg font-bold text-red-900 dark:text-red-100 mb-4">💰 Tournament Rules</h3>
             <div className="text-red-800 dark:text-red-200 text-center mb-4">
-              <p className="mb-2"><strong>Entry Fees:</strong> Pay with tokens earned or purchased.</p>
-              <p className="mb-2"><strong>15% Platform Fee:</strong> DropDollar takes 15% of the prize pool. Winners get 85%.</p>
-              <p className="mb-2"><strong>Fair Play:</strong> All players play with same RNG seed for fairness.</p>
-              <p><strong>Live Scoring:</strong> Scores hidden until all attempts complete.</p>
+              <p className="mb-2"><strong>💵 1 Token = $1 USD:</strong> Tokens held in escrow until winner determined.</p>
+              <p className="mb-2"><strong>Entry Fees:</strong> Pay with tokens - money transferred to Stripe escrow.</p>
+              <p className="mb-2"><strong>15% Platform Fee:</strong> DropDollar takes 15% of prize pool. Winners get 85%.</p>
+              <p className="mb-2"><strong>Fair Play:</strong> All players use same RNG seed for equal challenge.</p>
+              <p><strong>Winner Takes All:</strong> Highest score wins the entire prize pot when listing closes.</p>
             </div>
           </div>
         </div>

@@ -61,23 +61,51 @@ export default function LiveTournamentEntry({ tournament, onEntryComplete }: Liv
 
     try {
       console.log('🎮 [LiveEntry] Entering tournament:', tournament.id);
+      console.log('💰 [LiveEntry] Entry fee: $' + tournament.entry_fee);
 
-      // Deduct tokens
+      // Step 1: Transfer tokens to Stripe escrow (1 token = $1)
+      console.log('💵 [LiveEntry] Transferring $' + tournament.entry_fee + ' to Stripe escrow...');
+      const escrowResponse = await fetch('/api/escrow/transfer-to-stripe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          amount: tournament.entry_fee, // 1 token = $1
+          type: 'tournament_entry',
+          metadata: {
+            tournament_id: tournament.id,
+            tournament_name: tournament.name,
+            user_email: user.email || user.username
+          }
+        })
+      });
+
+      if (!escrowResponse.ok) {
+        const errorData = await escrowResponse.json();
+        throw new Error(errorData.error || 'Failed to transfer funds to escrow');
+      }
+
+      const escrowData = await escrowResponse.json();
+      console.log('✅ [LiveEntry] Funds escrowed:', escrowData.paymentIntentId);
+
+      // Step 2: Deduct tokens from user balance
       const newBalance = userTokens - tournament.entry_fee;
       await UserService.updateUserTokens(user.id, newBalance);
 
-      // Record transaction
+      // Step 3: Record transaction with escrow reference
       await UserService.addTokenTransaction({
         user_id: user.id,
         amount: -tournament.entry_fee,
         type: 'tournament_entry',
-        description: `Entered ${tournament.name}`,
+        description: `Entered ${tournament.name} - Funds in escrow`,
         balance_before: userTokens,
         balance_after: newBalance,
         metadata: {
           tournament_id: tournament.id,
           tournament_name: tournament.name,
-          entry_fee: tournament.entry_fee
+          entry_fee: tournament.entry_fee,
+          stripe_payment_intent: escrowData.paymentIntentId,
+          escrow_status: 'held'
         }
       });
 
@@ -91,13 +119,23 @@ export default function LiveTournamentEntry({ tournament, onEntryComplete }: Liv
 
       if (entry) {
         console.log('✅ [LiveEntry] Entry successful:', entry.id);
+        console.log('🎮 [LiveEntry] Redirecting to game:', tournament.game_type);
         setSuccess(true);
         setUserTokens(newBalance);
 
-        // Navigate to game with entry info
+        // Store entry info in localStorage for game to access
+        localStorage.setItem('currentTournamentEntry', JSON.stringify({
+          tournamentId: tournament.id,
+          entryId: entry.id,
+          gameType: tournament.game_type,
+          entryFee: tournament.entry_fee,
+          prizePot: tournament.prize_pool
+        }));
+
+        // Navigate to games page - user will select the game
         setTimeout(() => {
-          router.push(`/play/${tournament.game_type}?tournamentId=${tournament.id}&entryId=${entry.id}`);
-        }, 1500);
+          router.push(`/games?tournament=${tournament.id}&entry=${entry.id}&game=${tournament.game_type}`);
+        }, 1000);
 
         if (onEntryComplete) {
           onEntryComplete();
@@ -123,11 +161,14 @@ export default function LiveTournamentEntry({ tournament, onEntryComplete }: Liv
       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-300">Your Tokens:</span>
-          <span className="text-lg font-bold text-yellow-400">{userTokens}</span>
+          <span className="text-lg font-bold text-yellow-400">{userTokens} (${userTokens})</span>
         </div>
         <div className="flex items-center justify-between mt-1">
           <span className="text-sm text-gray-300">Entry Fee:</span>
-          <span className="text-lg font-bold text-white">{tournament.entry_fee}</span>
+          <span className="text-lg font-bold text-white">{tournament.entry_fee} tokens (${tournament.entry_fee})</span>
+        </div>
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <p className="text-xs text-gray-400 text-center">💰 1 Token = $1 USD</p>
         </div>
       </div>
 
@@ -166,11 +207,11 @@ export default function LiveTournamentEntry({ tournament, onEntryComplete }: Liv
           ) : isFull ? (
             '👥 Tournament Full'
           ) : !canAffordEntry ? (
-            `💰 Need ${tournament.entry_fee - userTokens} More Tokens`
+            `💰 Need ${tournament.entry_fee - userTokens} More Tokens ($${tournament.entry_fee - userTokens})`
           ) : isEntering ? (
-            '⏳ Entering...'
+            '⏳ Entering & Launching Game...'
           ) : (
-            `🎮 Enter Tournament - ${tournament.entry_fee} Tokens`
+            `🎮 PAY $${tournament.entry_fee} & PLAY NOW`
           )}
         </button>
       )}

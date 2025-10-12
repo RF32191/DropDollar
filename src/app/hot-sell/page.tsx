@@ -217,10 +217,11 @@ export default function HotSellPage() {
           <div className="text-center">
             <h3 className="text-lg font-bold text-orange-900 dark:text-orange-100 mb-4">🔥 Hot Sell Rules</h3>
             <div className="text-orange-800 dark:text-orange-200 text-center mb-4">
-              <p className="mb-2"><strong>Entry Options:</strong> Pay $1, $2, or $3 for 1-3 attempts per competition.</p>
+              <p className="mb-2"><strong>💵 1 Token = $1 USD:</strong> Tokens held in Stripe escrow until winner determined.</p>
+              <p className="mb-2"><strong>Entry Options:</strong> Pay $1, $2, or $3 (1-3 tokens) for 1-3 attempts per competition.</p>
               <p className="mb-2"><strong>15% Platform Fee:</strong> DropDollar takes 15% of the prize. Winners get 85%.</p>
-              <p className="mb-2"><strong>Fair Play:</strong> Each competition has 20 unique RNG seeds.</p>
-              <p><strong>Score Privacy:</strong> Your score is hidden until all your attempts are complete.</p>
+              <p className="mb-2"><strong>Fair Play:</strong> Each competition has 20 unique RNG seeds assigned randomly.</p>
+              <p><strong>Winner Takes All:</strong> Best score wins the entire cash prize when competition closes.</p>
             </div>
           </div>
         </div>
