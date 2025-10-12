@@ -152,6 +152,25 @@ export default function GamesPage() {
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
 
+  // Get logged-in user
+  const [user, setUser] = useState<{ id: string; email: string; username: string } | null>(null);
+
+  useEffect(() => {
+    // Load user from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        console.log('✅ [Games] User loaded:', parsedUser.username || parsedUser.email);
+      } catch (error) {
+        console.error('❌ [Games] Error parsing user data:', error);
+      }
+    } else {
+      console.log('ℹ️ [Games] No user logged in - scores will not be saved');
+    }
+  }, []);
+
   // Check if gaming is allowed in the user's state
   const isGamingAllowed = (state: string): { allowed: boolean; message: string } => {
     const stateLower = state.toLowerCase();
@@ -442,6 +461,13 @@ export default function GamesPage() {
     // Save score to Supabase if user is logged in
     if (user?.id) {
       try {
+        console.log('💾 [Games] Saving game result to Supabase...', {
+          userId: user.id,
+          gameType: currentGame,
+          score: result.score,
+          isPractice: !isCompetitionMode
+        });
+
         // Save to game scores
         await GameScoreService.saveGameScore({
           user_id: user.id,
@@ -458,6 +484,7 @@ export default function GamesPage() {
             game_version: '1.0'
           }
         });
+        console.log('✅ [Games] Game score saved to game_scores table');
         
         // Save complete game history with ActivityService
         await ActivityService.saveGameHistory({
@@ -471,6 +498,7 @@ export default function GamesPage() {
           entry_number: isCompetitionMode ? entryNumber : undefined,
           game_duration: 60
         });
+        console.log('✅ [Games] Game history saved to game_history table');
 
         // Reload best scores from Supabase to get updated data
         const userBestScores = await GameScoreService.getUserBestScores(user.id);
@@ -481,8 +509,10 @@ export default function GamesPage() {
         });
         
         setBestScores(scoresMap);
+        console.log('✅ [Games] Best scores updated:', scoresMap);
       } catch (error) {
-        console.error('Error saving score to Supabase:', error);
+        console.error('❌ [Games] Error saving score to Supabase:', error);
+        alert('⚠️ Score could not be saved to your account. Please check your connection and try again.');
         // Fallback to localStorage
         const currentBest = bestScores[currentGame] || 0;
         if (result.score > currentBest) {
@@ -500,6 +530,8 @@ export default function GamesPage() {
       }
     } else {
       // Save to localStorage for non-logged-in users
+      console.warn('⚠️ [Games] No user logged in - score will NOT be saved to dashboard');
+      console.warn('⚠️ [Games] Please sign in to save your high scores permanently!');
       const currentBest = bestScores[currentGame] || 0;
       if (result.score > currentBest) {
         const newBestScores = {
