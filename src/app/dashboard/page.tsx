@@ -172,17 +172,28 @@ export default function SimpleDashboard() {
         let bestScoresFromLocal: Record<string, number> = {};
         let lastScoresFromLocal: Record<string, number> = {};
         
+        console.log('🔍 [Dashboard] Checking localStorage for scores...');
+        console.log('🔍 [Dashboard] localStorage keys:', Object.keys(localStorage));
+        
         try {
           const savedBestScores = localStorage.getItem('bestScores');
+          console.log('🔍 [Dashboard] Raw bestScores from localStorage:', savedBestScores);
           if (savedBestScores) {
             bestScoresFromLocal = JSON.parse(savedBestScores);
-            console.log('✅ [Dashboard] Best scores from localStorage:', bestScoresFromLocal);
+            console.log('✅ [Dashboard] Parsed best scores:', bestScoresFromLocal);
+            console.log('✅ [Dashboard] Best scores keys:', Object.keys(bestScoresFromLocal));
+          } else {
+            console.warn('⚠️ [Dashboard] No bestScores found in localStorage!');
           }
           
           const savedLastScores = localStorage.getItem('lastScores');
+          console.log('🔍 [Dashboard] Raw lastScores from localStorage:', savedLastScores);
           if (savedLastScores) {
             lastScoresFromLocal = JSON.parse(savedLastScores);
-            console.log('✅ [Dashboard] Last scores from localStorage:', lastScoresFromLocal);
+            console.log('✅ [Dashboard] Parsed last scores:', lastScoresFromLocal);
+            console.log('✅ [Dashboard] Last scores keys:', Object.keys(lastScoresFromLocal));
+          } else {
+            console.warn('⚠️ [Dashboard] No lastScores found in localStorage!');
           }
         } catch (error) {
           console.error('❌ [Dashboard] Error loading scores from localStorage:', error);
@@ -202,8 +213,17 @@ export default function SimpleDashboard() {
         // Process all 6 games
         const allGames = ['multi-target', 'falling-object', 'color-sequence', 'laser-dodge', 'quick-click', 'sword-parry'];
         
+        console.log('🔄 [Dashboard] Processing games...');
         allGames.forEach(gameId => {
-          if (bestScoresFromLocal[gameId] || lastScoresFromLocal[gameId]) {
+          const hasBest = bestScoresFromLocal[gameId];
+          const hasLast = lastScoresFromLocal[gameId];
+          
+          console.log(`🎮 [Dashboard] ${gameId}:`, {
+            bestScore: hasBest,
+            lastScore: hasLast
+          });
+          
+          if (hasBest || hasLast) {
             scores[gameId] = {
               highScore: bestScoresFromLocal[gameId] || lastScoresFromLocal[gameId] || 0,
               highScoreMode: 'Practice',
@@ -213,8 +233,13 @@ export default function SimpleDashboard() {
               recentScoreDate: new Date().toISOString(),
               totalPlayed: 1
             };
+            console.log(`✅ [Dashboard] Added ${gameId} to scores:`, scores[gameId]);
+          } else {
+            console.log(`⚠️ [Dashboard] No scores for ${gameId}`);
           }
         });
+        
+        console.log('📊 [Dashboard] Scores object after localStorage processing:', scores);
         
         // Merge with Supabase data if available
         games.forEach(game => {
