@@ -211,36 +211,49 @@ export default function SimpleDashboard() {
           totalPlayed: number;
         }> = {};
         
-        // Process all 6 games
+        // Process all 6 games - ALWAYS show if localStorage has data
         const allGames = ['multi-target', 'falling-object', 'color-sequence', 'laser-dodge', 'quick-click', 'sword-parry'];
         
-        console.log('🔄 [Dashboard] Processing games...');
+        console.log('🔄 [Dashboard] Processing games from localStorage...');
+        console.log('📦 [Dashboard] Best scores available:', Object.keys(bestScoresFromLocal));
+        console.log('📦 [Dashboard] Last scores available:', Object.keys(lastScoresFromLocal));
+        
         allGames.forEach(gameId => {
           const hasBest = bestScoresFromLocal[gameId];
           const hasLast = lastScoresFromLocal[gameId];
           
           console.log(`🎮 [Dashboard] ${gameId}:`, {
             bestScore: hasBest,
-            lastScore: hasLast
+            lastScore: hasLast,
+            willAdd: !!(hasBest || hasLast)
           });
           
-          if (hasBest || hasLast) {
+          // Add to scores if we have ANY data for this game
+          if (hasBest !== undefined || hasLast !== undefined) {
+            const bestScore = bestScoresFromLocal[gameId] || 0;
+            const lastScore = lastScoresFromLocal[gameId] || 0;
+            const highScore = Math.max(bestScore, lastScore);
+            
             scores[gameId] = {
-              highScore: bestScoresFromLocal[gameId] || lastScoresFromLocal[gameId] || 0,
+              highScore: highScore,
               highScoreMode: 'Practice',
               highScoreDate: new Date().toISOString(),
-              recentScore: lastScoresFromLocal[gameId] || bestScoresFromLocal[gameId] || 0,
+              recentScore: lastScore || bestScore,
               recentScoreMode: 'Practice',
               recentScoreDate: new Date().toISOString(),
               totalPlayed: 1
             };
-            console.log(`✅ [Dashboard] Added ${gameId} to scores:`, scores[gameId]);
+            console.log(`✅ [Dashboard] Added ${gameId}:`, {
+              high: highScore,
+              recent: lastScore || bestScore
+            });
           } else {
             console.log(`⚠️ [Dashboard] No scores for ${gameId}`);
           }
         });
         
-        console.log('📊 [Dashboard] Scores object after localStorage processing:', scores);
+        console.log('📊 [Dashboard] Final scores object:', scores);
+        console.log('📊 [Dashboard] Total games with scores:', Object.keys(scores).length);
         
         // Merge with Supabase data if available
         games.forEach(game => {
