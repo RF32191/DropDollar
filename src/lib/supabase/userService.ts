@@ -686,6 +686,34 @@ export class UserService {
       return null;
     }
   }
+
+  /**
+   * Get user withdrawal requests
+   */
+  static async getUserWithdrawalRequests(userId: string): Promise<any[]> {
+    try {
+      console.log('💰 [UserService] Fetching withdrawal requests for user:', userId);
+      // For now, return empty array - this feature can be implemented later
+      return [];
+    } catch (error) {
+      console.error('❌ [UserService] Error fetching withdrawal requests:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get user bank accounts
+   */
+  static async getUserBankAccounts(userId: string): Promise<any[]> {
+    try {
+      console.log('🏦 [UserService] Fetching bank accounts for user:', userId);
+      // For now, return empty array - this feature can be implemented later
+      return [];
+    } catch (error) {
+      console.error('❌ [UserService] Error fetching bank accounts:', error);
+      return [];
+    }
+  }
 }
 
 export default UserService;
