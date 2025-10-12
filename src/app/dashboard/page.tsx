@@ -41,6 +41,16 @@ interface WithdrawalRequest {
   completedAt?: string;
 }
 
+// Game name mapping for better display
+const GAME_NAME_MAP: Record<string, string> = {
+  'multi-target': 'Multi-Target Reaction',
+  'falling-object': 'Falling Object',
+  'color-sequence': 'Color Sequence',
+  'laser-dodge': 'Laser Dodge',
+  'quick-click': 'Quick Click',
+  'sword-parry': 'Sword Parry'
+};
+
 export default function SimpleDashboard() {
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
   const [testimonialData, setTestimonialData] = useState({
@@ -153,7 +163,10 @@ export default function SimpleDashboard() {
         // Calculate high scores for each game
         const scores: Record<string, { score: number; mode: string; date: string }> = {};
         games.forEach(game => {
+          // Use gameType as the key (this is what's saved in the database)
           const gameKey = game.gameType || game.gameName || 'Unknown Game';
+          
+          // For each game, keep only the highest score
           if (!scores[gameKey] || game.score > scores[gameKey].score) {
             scores[gameKey] = {
               score: game.score,
@@ -164,6 +177,7 @@ export default function SimpleDashboard() {
         });
         setHighScores(scores);
         console.log('✅ [Dashboard] Calculated high scores:', scores);
+        console.log('📊 [Dashboard] Total games processed:', games.length);
         
         console.log('✅ [Dashboard] User profile loaded:', profile);
         console.log('💰 [Dashboard] Current tokens:', profile.tokens);
@@ -501,7 +515,7 @@ export default function SimpleDashboard() {
                     className="bg-gradient-to-br from-purple-900/70 to-pink-900/70 p-6 rounded-2xl border border-purple-500/30 hover:border-purple-400 transition-all duration-300 transform hover:scale-105"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-white truncate">{gameName}</h3>
+                      <h3 className="text-xl font-bold text-white truncate">{GAME_NAME_MAP[gameName] || gameName}</h3>
                       {data.mode === 'Competition' ? (
                         <span className="px-3 py-1 bg-gradient-to-r from-red-600 to-orange-600 text-white text-xs font-bold rounded-full">
                           COMP

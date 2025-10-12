@@ -160,8 +160,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       }, 2000); // Longer delay for bonus round to show results
       
     } else if (gameState === 'waiting') {
-      // Clicked too early
-      console.log('QuickClick: Clicked too early!');
+      // Clicked too early - just ignore it, don't end the round
+      console.log('QuickClick: Clicked too early! Waiting for green...');
       // Play error sound
       try {
         const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
@@ -170,31 +170,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       } catch (e) {
         // Audio failed, continue silently
       }
-      
-      // Record failed round
-      const newRound: Round = {
-        roundNumber: currentRound,
-        reactionTime: null,
-        clicked: false,
-        isBonus: currentRound === 4
-      };
-      
-      setRounds(prev => [...prev, newRound]);
-      setGameState('clicked');
-      
-      // Move to next round or end game
-      setTimeout(() => {
-        if (currentRound < 4) {
-          // Play round transition sound
-          playRoundTransition();
-          
-          setCurrentRound(prev => prev + 1);
-          setCountdown(3);
-          setGameState('countdown');
-        } else {
-          endGame([...rounds, newRound]);
-        }
-      }, 1500);
+      // Don't end the round - let it continue to flash state
     }
   }, [gameState, flashStartTime, currentRound, rounds, targetPosition]);
 
