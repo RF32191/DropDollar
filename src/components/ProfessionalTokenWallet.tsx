@@ -246,6 +246,24 @@ export default function ProfessionalTokenWallet() {
     checkAuthentication();
   }, []);
 
+  // Refresh transaction history when switching to history tab
+  useEffect(() => {
+    const refreshHistory = async () => {
+      if (activeTab === 'history' && userProfile) {
+        console.log('🔄 [TokenWallet] Refreshing transaction history...');
+        try {
+          const transactions = await UserService.getUserTokenTransactions(userProfile.id);
+          setTokenTransactions(transactions);
+          console.log('✅ [TokenWallet] Transaction history refreshed:', transactions.length, 'transactions');
+        } catch (error) {
+          console.error('❌ [TokenWallet] Failed to refresh transaction history:', error);
+        }
+      }
+    };
+
+    refreshHistory();
+  }, [activeTab, userProfile]);
+
   const handlePaymentSuccess = async (paymentIntent: any) => {
     if (!userProfile) {
       console.error('❌ [TokenWallet] No user profile available!');
@@ -418,7 +436,7 @@ export default function ProfessionalTokenWallet() {
       });
       
       setShowCheckout(false);
-      setActiveTab('wallet'); // Go back to wallet view after purchase
+      setActiveTab('history'); // Switch to history tab to show the new transaction
       
       // Step 9: Show coin drop animation and celebration
       setPurchasedTokens(totalTokens);
