@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { UserService, UserProfile, TokenTransaction, WithdrawalRequest, GameHistory } from '@/lib/supabase/userService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import GameHistoryTable from '@/components/GameHistoryTable';
 import { 
   TrophyIcon, 
   StarIcon, 
@@ -712,6 +713,11 @@ export default function SimpleDashboard() {
               );
             })()}
           </div>
+        </div>
+
+        {/* Complete Game History Section */}
+        <div className="mb-16">
+          <GameHistoryTable gameHistory={gameHistory} />
         </div>
 
         {/* Dashboard Cards */}
