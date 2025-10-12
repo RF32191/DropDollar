@@ -159,7 +159,7 @@ export default function SimpleDashboard() {
         // Load game history
         const games = await UserService.getUserGameHistory(profile.id);
         setGameHistory(games);
-        console.log('✅ [Dashboard] Loaded', games.length, 'games');
+        console.log('✅ [Dashboard] Loaded', games.length, 'games from Supabase');
         
         // Check if there's a new game score
         const hasNewScore = localStorage.getItem('hasNewGameScore');
@@ -168,17 +168,27 @@ export default function SimpleDashboard() {
           localStorage.removeItem('hasNewGameScore');
         }
         
-        if (games.length === 0) {
-          console.warn('⚠️ [Dashboard] NO GAME HISTORY FOUND!');
-          console.warn('⚠️ [Dashboard] This means:');
-          console.warn('   1. User may not be logged in when playing games');
-          console.warn('   2. Saves are failing silently');
-          console.warn('   3. Database query is not returning data');
-        } else {
-          console.log('📊 [Dashboard] Sample game data:', games[0]);
+        // PRIORITY: Load scores from localStorage (same as game banners)
+        let bestScoresFromLocal: Record<string, number> = {};
+        let lastScoresFromLocal: Record<string, number> = {};
+        
+        try {
+          const savedBestScores = localStorage.getItem('bestScores');
+          if (savedBestScores) {
+            bestScoresFromLocal = JSON.parse(savedBestScores);
+            console.log('✅ [Dashboard] Best scores from localStorage:', bestScoresFromLocal);
+          }
+          
+          const savedLastScores = localStorage.getItem('lastScores');
+          if (savedLastScores) {
+            lastScoresFromLocal = JSON.parse(savedLastScores);
+            console.log('✅ [Dashboard] Last scores from localStorage:', lastScoresFromLocal);
+          }
+        } catch (error) {
+          console.error('❌ [Dashboard] Error loading scores from localStorage:', error);
         }
         
-        // Calculate high scores AND recent scores for each game
+        // Build the scores object using localStorage data (most reliable)
         const scores: Record<string, { 
           highScore: number; 
           highScoreMode: string; 
@@ -189,8 +199,25 @@ export default function SimpleDashboard() {
           totalPlayed: number;
         }> = {};
         
+        // Process all 6 games
+        const allGames = ['multi-target', 'falling-object', 'color-sequence', 'laser-dodge', 'quick-click', 'sword-parry'];
+        
+        allGames.forEach(gameId => {
+          if (bestScoresFromLocal[gameId] || lastScoresFromLocal[gameId]) {
+            scores[gameId] = {
+              highScore: bestScoresFromLocal[gameId] || lastScoresFromLocal[gameId] || 0,
+              highScoreMode: 'Practice',
+              highScoreDate: new Date().toISOString(),
+              recentScore: lastScoresFromLocal[gameId] || bestScoresFromLocal[gameId] || 0,
+              recentScoreMode: 'Practice',
+              recentScoreDate: new Date().toISOString(),
+              totalPlayed: 1
+            };
+          }
+        });
+        
+        // Merge with Supabase data if available
         games.forEach(game => {
-          // Use gameType as the key (this is what's saved in the database)
           const gameKey = game.gameType || game.gameName || 'Unknown Game';
           
           if (!scores[gameKey]) {
@@ -206,14 +233,14 @@ export default function SimpleDashboard() {
           } else {
             scores[gameKey].totalPlayed++;
             
-            // Update high score if this is better
+            // Update high score if Supabase has a better one
             if (game.score > scores[gameKey].highScore) {
               scores[gameKey].highScore = game.score;
               scores[gameKey].highScoreMode = game.isPractice ? 'Practice' : 'Competition';
               scores[gameKey].highScoreDate = game.createdAt;
             }
             
-            // Update recent score if this is more recent
+            // Update recent score if Supabase has a more recent one
             if (new Date(game.createdAt) > new Date(scores[gameKey].recentScoreDate)) {
               scores[gameKey].recentScore = game.score;
               scores[gameKey].recentScoreMode = game.isPractice ? 'Practice' : 'Competition';
@@ -223,9 +250,8 @@ export default function SimpleDashboard() {
         });
         
         setHighScores(scores);
-        console.log('✅ [Dashboard] Calculated game statistics:', scores);
-        console.log('📊 [Dashboard] Total games processed:', games.length);
-        console.log('🎮 [Dashboard] Unique games played:', Object.keys(scores).length);
+        console.log('✅ [Dashboard] Final game statistics (localStorage + Supabase):', scores);
+        console.log('📊 [Dashboard] Games with scores:', Object.keys(scores).length);
         
         console.log('✅ [Dashboard] User profile loaded:', profile);
         console.log('💰 [Dashboard] Current tokens:', profile.tokens);
