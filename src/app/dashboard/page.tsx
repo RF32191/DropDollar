@@ -499,63 +499,85 @@ export default function SimpleDashboard() {
           </div>
         </div>
 
-        {/* High Scores Section */}
+        {/* High Scores Section - PROMINENT DISPLAY */}
         <div className="mb-16">
-          <div className="bg-gradient-to-br from-yellow-900/50 to-orange-900/50 backdrop-blur-xl p-10 rounded-3xl border-2 border-yellow-500/50 shadow-2xl">
-            <div className="flex items-center justify-center mb-8">
-              <TrophyIcon className="h-12 w-12 text-yellow-400 mr-4" />
-              <h2 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                Your High Scores
+          <div className="bg-gradient-to-br from-yellow-900/70 to-orange-900/70 backdrop-blur-xl p-10 rounded-3xl border-4 border-yellow-500/70 shadow-2xl hover:shadow-yellow-500/50 transition-all duration-500 hover:scale-[1.02]">
+            <div className="flex items-center justify-center mb-8 animate-pulse">
+              <TrophyIcon className="h-16 w-16 text-yellow-400 mr-4 animate-bounce" />
+              <h2 className="text-5xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent drop-shadow-lg">
+                🏆 YOUR HIGH SCORES 🏆
               </h2>
+              <TrophyIcon className="h-16 w-16 text-yellow-400 ml-4 animate-bounce" />
             </div>
             
             {Object.keys(highScores).length === 0 ? (
-              <div className="text-center py-12">
-                <FireIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400 text-xl">
-                  No scores yet! Play some games to see your high scores here.
+              <div className="text-center py-16 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl border-2 border-dashed border-yellow-500/30">
+                <div className="relative">
+                  <TrophyIcon className="h-32 w-32 text-gray-600 mx-auto mb-6 opacity-30" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-6xl">❓</span>
+                  </div>
+                </div>
+                <p className="text-yellow-400 text-2xl font-bold mb-2">
+                  No High Scores Yet!
                 </p>
-                <Link
-                  href="/games"
-                  className="inline-block mt-6 px-8 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-xl hover:from-yellow-700 hover:to-orange-700 transition-all duration-300 font-bold shadow-lg hover:shadow-xl hover:scale-105"
-                >
-                  Play Now
-                </Link>
+                <p className="text-gray-300 text-lg mb-8 max-w-md mx-auto">
+                  Your trophy collection is empty. Play games to earn high scores and they'll appear right here!
+                </p>
+                <div className="space-y-4">
+                  <p className="text-yellow-500 font-semibold text-sm">
+                    ⚠️ Make sure you're signed in to save scores to your dashboard
+                  </p>
+                  <Link
+                    href="/games"
+                    className="inline-block px-10 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl hover:from-yellow-600 hover:to-orange-700 transition-all duration-300 font-black text-xl shadow-2xl hover:shadow-yellow-500/50 hover:scale-110 transform"
+                  >
+                    🎮 PLAY NOW & EARN TROPHIES! 🎮
+                  </Link>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {Object.entries(highScores).map(([gameName, data]) => (
                   <div
                     key={gameName}
-                    className="bg-gradient-to-br from-purple-900/70 to-pink-900/70 p-6 rounded-2xl border border-purple-500/30 hover:border-purple-400 transition-all duration-300 transform hover:scale-105"
+                    className="bg-gradient-to-br from-purple-900/80 to-pink-900/80 p-8 rounded-3xl border-4 border-purple-500/50 hover:border-yellow-400 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-purple-500/50 group relative overflow-hidden"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-white truncate">{GAME_NAME_MAP[gameName] || gameName}</h3>
-                      {data.mode === 'Competition' ? (
-                        <span className="px-3 py-1 bg-gradient-to-r from-red-600 to-orange-600 text-white text-xs font-bold rounded-full">
-                          COMP
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold rounded-full">
-                          PRACTICE
-                        </span>
-                      )}
-                    </div>
+                    {/* Animated background effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     
-                    <div className="text-center mb-4">
-                      <div className="text-5xl font-black bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                        {data.score.toLocaleString()}
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-2xl font-black text-white truncate flex items-center">
+                          <TrophyIcon className="h-6 w-6 text-yellow-400 mr-2" />
+                          {GAME_NAME_MAP[gameName] || gameName}
+                        </h3>
+                        {data.mode === 'Competition' ? (
+                          <span className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white text-xs font-bold rounded-full shadow-lg">
+                            🏆 COMP
+                          </span>
+                        ) : (
+                          <span className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold rounded-full shadow-lg">
+                            ⭐ PRACTICE
+                          </span>
+                        )}
                       </div>
-                      <p className="text-gray-400 text-sm mt-2">
-                        {new Date(data.date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center justify-center space-x-2">
-                      <ChartBarIcon className="h-5 w-5 text-yellow-400" />
-                      <span className="text-yellow-400 text-sm font-semibold">
-                        Personal Best
-                      </span>
+                      
+                      <div className="text-center mb-6 py-4 bg-black/30 rounded-2xl">
+                        <div className="text-6xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent animate-pulse">
+                          {data.score.toLocaleString()}
+                        </div>
+                        <p className="text-gray-300 text-sm mt-3 font-semibold">
+                          📅 {new Date(data.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center justify-center space-x-2 bg-yellow-500/20 py-3 rounded-xl border border-yellow-400/30">
+                        <ChartBarIcon className="h-6 w-6 text-yellow-400" />
+                        <span className="text-yellow-400 text-base font-black">
+                          PERSONAL BEST
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
