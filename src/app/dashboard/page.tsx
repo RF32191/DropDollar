@@ -161,24 +161,54 @@ export default function SimpleDashboard() {
         setGameHistory(games);
         console.log('✅ [Dashboard] Loaded', games.length, 'games');
         
-        // Calculate high scores for each game
-        const scores: Record<string, { score: number; mode: string; date: string }> = {};
+        // Calculate high scores AND recent scores for each game
+        const scores: Record<string, { 
+          highScore: number; 
+          highScoreMode: string; 
+          highScoreDate: string;
+          recentScore: number;
+          recentScoreMode: string;
+          recentScoreDate: string;
+          totalPlayed: number;
+        }> = {};
+        
         games.forEach(game => {
           // Use gameType as the key (this is what's saved in the database)
           const gameKey = game.gameType || game.gameName || 'Unknown Game';
           
-          // For each game, keep only the highest score
-          if (!scores[gameKey] || game.score > scores[gameKey].score) {
+          if (!scores[gameKey]) {
             scores[gameKey] = {
-              score: game.score,
-              mode: game.isPractice ? 'Practice' : 'Competition',
-              date: game.createdAt
+              highScore: game.score,
+              highScoreMode: game.isPractice ? 'Practice' : 'Competition',
+              highScoreDate: game.createdAt,
+              recentScore: game.score,
+              recentScoreMode: game.isPractice ? 'Practice' : 'Competition',
+              recentScoreDate: game.createdAt,
+              totalPlayed: 1
             };
+          } else {
+            scores[gameKey].totalPlayed++;
+            
+            // Update high score if this is better
+            if (game.score > scores[gameKey].highScore) {
+              scores[gameKey].highScore = game.score;
+              scores[gameKey].highScoreMode = game.isPractice ? 'Practice' : 'Competition';
+              scores[gameKey].highScoreDate = game.createdAt;
+            }
+            
+            // Update recent score if this is more recent
+            if (new Date(game.createdAt) > new Date(scores[gameKey].recentScoreDate)) {
+              scores[gameKey].recentScore = game.score;
+              scores[gameKey].recentScoreMode = game.isPractice ? 'Practice' : 'Competition';
+              scores[gameKey].recentScoreDate = game.createdAt;
+            }
           }
         });
+        
         setHighScores(scores);
-        console.log('✅ [Dashboard] Calculated high scores:', scores);
+        console.log('✅ [Dashboard] Calculated game statistics:', scores);
         console.log('📊 [Dashboard] Total games processed:', games.length);
+        console.log('🎮 [Dashboard] Unique games played:', Object.keys(scores).length);
         
         console.log('✅ [Dashboard] User profile loaded:', profile);
         console.log('💰 [Dashboard] Current tokens:', profile.tokens);
@@ -510,79 +540,109 @@ export default function SimpleDashboard() {
               <TrophyIcon className="h-16 w-16 text-yellow-400 ml-4 animate-bounce" />
             </div>
             
-            {Object.keys(highScores).length === 0 ? (
-              <div className="text-center py-16 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-2xl border-2 border-dashed border-yellow-500/30">
-                <div className="relative">
-                  <TrophyIcon className="h-32 w-32 text-gray-600 mx-auto mb-6 opacity-30" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-6xl">❓</span>
-                  </div>
-                </div>
-                <p className="text-yellow-400 text-2xl font-bold mb-2">
-                  No High Scores Yet!
-                </p>
-                <p className="text-gray-300 text-lg mb-8 max-w-md mx-auto">
-                  Your trophy collection is empty. Play games to earn high scores and they'll appear right here!
-                </p>
-                <div className="space-y-4">
-                  <p className="text-yellow-500 font-semibold text-sm">
-                    ⚠️ Make sure you're signed in to save scores to your dashboard
-                  </p>
-                  <Link
-                    href="/games"
-                    className="inline-block px-10 py-4 bg-gradient-to-r from-yellow-500 to-orange-600 text-white rounded-xl hover:from-yellow-600 hover:to-orange-700 transition-all duration-300 font-black text-xl shadow-2xl hover:shadow-yellow-500/50 hover:scale-110 transform"
-                  >
-                    🎮 PLAY NOW & EARN TROPHIES! 🎮
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {Object.entries(highScores).map(([gameName, data]) => (
-                  <div
-                    key={gameName}
-                    className="bg-gradient-to-br from-purple-900/80 to-pink-900/80 p-8 rounded-3xl border-4 border-purple-500/50 hover:border-yellow-400 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-purple-500/50 group relative overflow-hidden"
-                  >
-                    {/* Animated background effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            {/* Show ALL 6 games - played or not */}
+            {(() => {
+              const allGames = ['multi-target', 'falling-object', 'color-sequence', 'laser-dodge', 'quick-click', 'sword-parry'];
+              const hasAnyScores = Object.keys(highScores).length > 0;
+              
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {allGames.map(gameId => {
+                    const gameData = highScores[gameId];
+                    const gameName = GAME_NAME_MAP[gameId] || gameId;
+                    const hasPlayed = !!gameData;
                     
-                    <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-2xl font-black text-white truncate flex items-center">
-                          <TrophyIcon className="h-6 w-6 text-yellow-400 mr-2" />
-                          {GAME_NAME_MAP[gameName] || gameName}
-                        </h3>
-                        {data.mode === 'Competition' ? (
-                          <span className="px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white text-xs font-bold rounded-full shadow-lg">
-                            🏆 COMP
-                          </span>
-                        ) : (
-                          <span className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold rounded-full shadow-lg">
-                            ⭐ PRACTICE
-                          </span>
+                    return (
+                      <div
+                        key={gameId}
+                        className={`p-8 rounded-3xl border-4 transition-all duration-300 shadow-2xl group relative overflow-hidden ${
+                          hasPlayed 
+                            ? 'bg-gradient-to-br from-purple-900/80 to-pink-900/80 border-purple-500/50 hover:border-yellow-400 transform hover:scale-105 hover:shadow-purple-500/50'
+                            : 'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-600/30 border-dashed'
+                        }`}
+                      >
+                        {/* Animated background effect */}
+                        {hasPlayed && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         )}
-                      </div>
-                      
-                      <div className="text-center mb-6 py-4 bg-black/30 rounded-2xl">
-                        <div className="text-6xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent animate-pulse">
-                          {data.score.toLocaleString()}
+                        
+                        <div className="relative z-10">
+                          {/* Game Title */}
+                          <div className="flex items-center justify-center mb-4">
+                            <h3 className={`text-2xl font-black text-center flex items-center ${hasPlayed ? 'text-white' : 'text-gray-500'}`}>
+                              <TrophyIcon className={`h-6 w-6 mr-2 ${hasPlayed ? 'text-yellow-400' : 'text-gray-600'}`} />
+                              {gameName}
+                            </h3>
+                          </div>
+                          
+                          {hasPlayed ? (
+                            <>
+                              {/* High Score */}
+                              <div className="mb-4 p-4 bg-yellow-500/10 rounded-2xl border-2 border-yellow-500/30">
+                                <div className="text-xs text-yellow-400 font-bold mb-1 text-center">🏆 HIGHEST SCORE</div>
+                                <div className="text-4xl font-black bg-gradient-to-r from-yellow-300 via-yellow-400 to-orange-500 bg-clip-text text-transparent text-center">
+                                  {gameData.highScore.toLocaleString()}
+                                </div>
+                                <div className="text-center mt-2 space-y-1">
+                                  <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full ${
+                                    gameData.highScoreMode === 'Competition' 
+                                      ? 'bg-red-600 text-white' 
+                                      : 'bg-blue-600 text-white'
+                                  }`}>
+                                    {gameData.highScoreMode === 'Competition' ? '🏆 COMP' : '⭐ PRACTICE'}
+                                  </span>
+                                  <p className="text-gray-400 text-xs">
+                                    {new Date(gameData.highScoreDate).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* Recent Score */}
+                              <div className="mb-4 p-4 bg-blue-500/10 rounded-2xl border-2 border-blue-500/30">
+                                <div className="text-xs text-blue-400 font-bold mb-1 text-center">📅 MOST RECENT</div>
+                                <div className="text-3xl font-black text-blue-300 text-center">
+                                  {gameData.recentScore.toLocaleString()}
+                                </div>
+                                <div className="text-center mt-2 space-y-1">
+                                  <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full ${
+                                    gameData.recentScoreMode === 'Competition' 
+                                      ? 'bg-red-600 text-white' 
+                                      : 'bg-blue-600 text-white'
+                                  }`}>
+                                    {gameData.recentScoreMode === 'Competition' ? '🏆 COMP' : '⭐ PRACTICE'}
+                                  </span>
+                                  <p className="text-gray-400 text-xs">
+                                    {new Date(gameData.recentScoreDate).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* Stats */}
+                              <div className="text-center bg-green-500/10 py-2 rounded-xl border border-green-400/30">
+                                <span className="text-green-400 text-sm font-bold">
+                                  🎮 Played {gameData.totalPlayed} time{gameData.totalPlayed !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-center py-8">
+                              <div className="text-6xl mb-4">❓</div>
+                              <p className="text-gray-500 font-semibold mb-4">Not Played Yet</p>
+                              <Link
+                                href="/games"
+                                className="inline-block px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-500 hover:to-gray-600 transition-all duration-300 font-bold text-sm"
+                              >
+                                Play Now
+                              </Link>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-gray-300 text-sm mt-3 font-semibold">
-                          📅 {new Date(data.date).toLocaleDateString()}
-                        </p>
                       </div>
-                      
-                      <div className="flex items-center justify-center space-x-2 bg-yellow-500/20 py-3 rounded-xl border border-yellow-400/30">
-                        <ChartBarIcon className="h-6 w-6 text-yellow-400" />
-                        <span className="text-yellow-400 text-base font-black">
-                          PERSONAL BEST
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
