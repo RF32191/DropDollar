@@ -224,7 +224,8 @@ export default function TournamentsPage() {
         <div className="mb-12">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-4">⚔️ 1v1 SKILL MATCHES</h2>
-            <p className="text-lg text-gray-300">Challenge players in direct competition!</p>
+            <p className="text-lg text-gray-300">🎮 Choose Your Game & Challenge Players!</p>
+            <p className="text-sm text-yellow-400 mt-2">✨ NEW: Game selection before matchmaking!</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
