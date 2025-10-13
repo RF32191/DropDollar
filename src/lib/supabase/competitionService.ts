@@ -10,7 +10,7 @@
  * Scores are hidden until player completes all their games
  */
 
-import { supabase } from './supabaseClient';
+import { supabase } from './client';
 import { generate20Seeds, getSeedForEntry, type RNGSeed } from '../rngSeeds';
 
 export interface CompetitionEntry {

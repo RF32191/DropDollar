@@ -15,7 +15,7 @@
  * Tested for: 1,000,000+ simultaneous players
  */
 
-import { supabase } from './supabaseClient';
+import { supabase } from './client';
 import { generate20Seeds, type RNGSeed } from '../rngSeeds';
 import CompetitionService from './competitionService';
 

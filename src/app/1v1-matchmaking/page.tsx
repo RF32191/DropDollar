@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserService } from '@/lib/supabase/userService';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
-import CleanNavigation from '@/components/CleanNavigation';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 function MatchmakingContent() {
   const router = useRouter();
