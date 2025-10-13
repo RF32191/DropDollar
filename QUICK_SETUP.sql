@@ -15,7 +15,7 @@ INSERT INTO token_transactions (user_id, amount, type, description, balance_befo
 SELECT 
   id,
   100,
-  'admin_credit',
+  'purchase',
   'Admin credited 100 tokens for testing',
   tokens - 100,
   tokens,
