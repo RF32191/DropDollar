@@ -44,7 +44,6 @@ CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments(status);
 CREATE INDEX IF NOT EXISTS idx_tournaments_game_type ON tournaments(game_type);
 CREATE INDEX IF NOT EXISTS idx_tournament_entries_tournament ON tournament_entries(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_tournament_entries_user ON tournament_entries(user_id);
-CREATE INDEX IF NOT EXISTS idx_tournament_entries_score ON tournament_entries(score DESC);
 
 -- Enable RLS
 ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
