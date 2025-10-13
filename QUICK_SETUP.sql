@@ -216,9 +216,9 @@ ORDER BY prize_pool DESC;
 SELECT 
   email,
   username,
-  tokens as 'Available Tokens',
-  tokens || ' tokens ($' || tokens || ')' as 'Dollar Value',
-  balance as 'Winnings Balance'
+  tokens as available_tokens,
+  tokens || ' tokens ($' || tokens || ')' as dollar_value,
+  balance as winnings_balance
 FROM users
 WHERE email = 'ryanfermoselle@yahoo.com';
 
