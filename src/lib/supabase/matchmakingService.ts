@@ -40,10 +40,11 @@ class MatchmakingService {
     userId: string,
     username: string,
     entryFee: number,
-    skillRating: number = 1000
+    skillRating: number = 1000,
+    gameType: string = 'quick-click'
   ): Promise<MatchmakingQueue | null> {
     try {
-      console.log(`🎮 [Matchmaking] ${username} joining queue for $${entryFee}`);
+      console.log(`🎮 [Matchmaking] ${username} joining queue for $${entryFee} - ${gameType}`);
 
       const { data, error } = await supabase
         .from('matchmaking_queue')
@@ -52,7 +53,8 @@ class MatchmakingService {
           username: username,
           entry_fee: entryFee,
           skill_rating: skillRating,
-          status: 'waiting'
+          status: 'waiting',
+          metadata: { game_type: gameType }
         })
         .select()
         .single();
@@ -69,23 +71,25 @@ class MatchmakingService {
 
   /**
    * Find a match for a user in the queue
-   * Uses skill-based matchmaking (within ±200 ELO)
+   * Uses skill-based matchmaking (within ±200 ELO) AND same game type
    */
   async findMatch(
     queueId: string,
     userId: string,
     username: string,
     entryFee: number,
-    skillRating: number
+    skillRating: number,
+    gameType: string
   ): Promise<Match | null> {
     try {
-      console.log(`🔍 [Matchmaking] Finding opponent for ${username} (ELO: ${skillRating})`);
+      console.log(`🔍 [Matchmaking] Finding opponent for ${username} (ELO: ${skillRating}, Game: ${gameType})`);
 
-      // Look for waiting opponents with similar skill level
+      // Look for waiting opponents with similar skill level AND same game
       const { data: opponents, error: searchError } = await supabase
         .from('matchmaking_queue')
         .select('*')
         .eq('entry_fee', entryFee)
+        .eq('game_type', gameType) // MUST match game type
         .eq('status', 'waiting')
         .neq('user_id', userId)
         .gte('skill_rating', skillRating - 200) // Within 200 ELO
@@ -96,7 +100,7 @@ class MatchmakingService {
       if (searchError) throw searchError;
 
       if (!opponents || opponents.length === 0) {
-        console.log(`⏳ [Matchmaking] No opponents found, waiting in queue...`);
+        console.log(`⏳ [Matchmaking] No opponents found for ${gameType}, user can play solo...`);
         return null;
       }
 

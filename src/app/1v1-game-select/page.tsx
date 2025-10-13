@@ -91,13 +91,14 @@ function GameSelectContent() {
         }
       });
 
-      // Join matchmaking queue
+      // Join matchmaking queue with selected game
       const skillRating = await MatchmakingService.getUserSkillRating(user.id);
       const queue = await MatchmakingService.joinQueue(
         user.id,
         user.username || user.email || 'Anonymous',
         entryFee,
-        skillRating
+        skillRating,
+        selectedGame // Pass the game type for matching
       );
 
       if (!queue) {

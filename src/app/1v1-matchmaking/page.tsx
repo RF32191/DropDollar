@@ -17,10 +17,8 @@ function MatchmakingContent() {
   const gameType = searchParams.get('game') || 'quick-click';
   const queueId = searchParams.get('queueId');
   
-  const [status, setStatus] = useState<'searching' | 'matched' | 'starting' | 'error'>('searching');
-  const [message, setMessage] = useState('Finding opponent with similar skill...');
-  const [matchId, setMatchId] = useState<string | null>(null);
-  const [searchTime, setSearchTime] = useState(0);
+  const [status, setStatus] = useState<'starting' | 'error'>('starting');
+  const [message, setMessage] = useState('Get ready to play!');
   const [countdown, setCountdown] = useState<number | null>(null);
 
   useEffect(() => {
@@ -28,40 +26,16 @@ function MatchmakingContent() {
       router.push('/tournaments');
       return;
     }
+
+    // Start game immediately after 1 second
+    const timer = setTimeout(() => {
+      startGameCountdown();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [user, queueId]);
 
-  // Poll for match every 2 seconds
-  useEffect(() => {
-    if (status === 'searching' && queueId) {
-      const interval = setInterval(async () => {
-        setSearchTime(prev => prev + 2);
-        const skillRating = await MatchmakingService.getUserSkillRating(user!.id);
-        const match = await MatchmakingService.findMatch(
-          queueId,
-          user!.id,
-          user!.username || user!.email || 'Anonymous',
-          entryFee,
-          skillRating
-        );
-        
-        if (match) {
-          clearInterval(interval);
-          setMatchId(match.id);
-          setStatus('matched');
-          setMessage(`Match found! Get ready...`);
-          
-          // Start countdown after 2 seconds
-          setTimeout(() => {
-            startGameCountdown(match.id);
-          }, 2000);
-        }
-      }, 2000);
-
-      return () => clearInterval(interval);
-    }
-  }, [status, queueId, user]);
-
-  const startGameCountdown = async (matchIdParam: string) => {
+  const startGameCountdown = async () => {
     setStatus('starting');
     setMessage('Game starting...');
     
@@ -76,16 +50,9 @@ function MatchmakingContent() {
     
     setCountdown(null);
     
-    // Redirect to game with match info and RNG seed
-    const gameUrl = `/games?match=${matchIdParam}&game=${gameType}&fee=${entryFee}&seed=${seeds[0]}&matchmaking=true`;
+    // Redirect to game with queue info - matchmaking will happen in background
+    const gameUrl = `/games?queue=${queueId}&game=${gameType}&fee=${entryFee}&seed=${seeds[0]}&matchmaking=true`;
     router.push(gameUrl);
-  };
-
-  const handleCancel = async () => {
-    if (queueId) {
-      await MatchmakingService.cancelQueue(queueId);
-    }
-    router.push('/tournaments');
   };
 
   return (
@@ -112,14 +79,8 @@ function MatchmakingContent() {
                 <div className="text-9xl font-black text-yellow-400 animate-pulse">
                   {countdown}
                 </div>
-              ) : status === 'searching' ? (
-                <div className="text-8xl animate-bounce">🔍</div>
-              ) : status === 'matched' ? (
-                <div className="text-8xl animate-pulse">✅</div>
-              ) : status === 'starting' ? (
-                <div className="text-8xl animate-spin">🎮</div>
               ) : (
-                <div className="text-8xl">❌</div>
+                <div className="text-8xl animate-spin">🎮</div>
               )}
             </div>
 
@@ -128,58 +89,32 @@ function MatchmakingContent() {
               {countdown !== null ? 'GET READY!' : message}
             </h2>
 
-            {/* Search Timer */}
-            {status === 'searching' && countdown === null && (
-              <div className="text-center mb-8">
-                <p className="text-gray-400 text-lg mb-2">Searching for opponent...</p>
-                <p className="text-2xl font-mono text-purple-400">{searchTime}s</p>
-                <div className="mt-4 w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full animate-pulse"
-                    style={{width: `${Math.min((searchTime / 30) * 100, 100)}%`}}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">Skill-based matching in progress...</p>
-              </div>
-            )}
-
-            {/* Match Found Animation */}
-            {status === 'matched' && countdown === null && (
-              <div className="text-center mb-8">
-                <div className="animate-bounce">
-                  <p className="text-2xl text-green-400 font-bold mb-2">🎉 OPPONENT FOUND!</p>
-                  <p className="text-gray-400">Preparing game...</p>
-                </div>
-              </div>
-            )}
-
             {/* Countdown Instructions */}
-            {countdown !== null && (
+            {countdown !== null ? (
               <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl p-4 mb-6">
                 <p className="text-yellow-300 text-center text-sm">
-                  🎮 <strong>Both players will use the same RNG seed for fairness!</strong>
+                  🎮 <strong>Play your best! You'll be matched with opponents who chose the same game.</strong>
                   <br/>Highest score wins the match!
                 </p>
               </div>
-            )}
-
-            {/* Action Buttons */}
-            {status === 'searching' && countdown === null && (
-              <div className="space-y-4">
-                <button
-                  onClick={handleCancel}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl transition-all"
-                >
-                  ❌ Cancel Search
-                </button>
+            ) : (
+              <div className="bg-purple-500/20 border border-purple-500 rounded-xl p-4 mb-6">
+                <p className="text-purple-300 text-center">
+                  ⚡ <strong>You'll play immediately!</strong>
+                  <br/>
+                  <span className="text-sm text-gray-300">
+                    We'll match you with an opponent who chose {gameType.replace('-', ' ')} at the same entry fee.
+                    If no one's available now, we'll match you when someone plays!
+                  </span>
+                </p>
               </div>
             )}
 
             {/* Info */}
             <div className="mt-8 pt-6 border-t border-white/10">
               <p className="text-sm text-gray-400 text-center">
-                💡 <strong>How 1v1 Works:</strong> We match you with players of similar skill level.
-                Both play the same game with identical RNG. Winner gets ${(entryFee * 2 * 0.85).toFixed(2)}!
+                💡 <strong>How 1v1 Works (Like Triumph):</strong> Play immediately, then we match you retroactively.
+                Both players use identical RNG. Winner gets ${(entryFee * 2 * 0.85).toFixed(2)}!
               </p>
             </div>
           </div>
