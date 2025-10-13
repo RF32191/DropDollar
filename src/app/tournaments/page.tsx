@@ -201,7 +201,157 @@ export default function TournamentsPage() {
           )}
         </div>
 
-        {/* 1v1 REMOVED - Under Development */}
+        {/* 1v1 SKILL MATCHES */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-4">⚔️ 1v1 SKILL MATCHES</h2>
+            <p className="text-lg text-gray-300">Challenge players in direct competition!</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* $1 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-green-500/30 hover:scale-105 transition-all duration-300">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-3">💚</div>
+                <h3 className="text-xl font-black text-white mb-2">$1 Quick Match</h3>
+                <div className="text-2xl font-black text-green-400 mb-1">Winner: $0.85</div>
+                <p className="text-green-300 text-sm">Entry: $1 (1 token)</p>
+              </div>
+
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+                <button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                  💚 FIND MATCH - $1
+                </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-xs">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Not Available in Your State
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => globalLocation.requestLocation()}
+                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
+                >
+                  <div className="text-gray-300 text-xs mb-1">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Location Required
+                  </div>
+                  <div className="text-green-400 text-xs font-medium">Enable Location</div>
+                </button>
+              )}
+            </div>
+
+            {/* $5 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-blue-500/30 hover:scale-105 transition-all duration-300">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-3">🛡️</div>
+                <h3 className="text-xl font-black text-white mb-2">$5 Standard</h3>
+                <div className="text-2xl font-black text-blue-400 mb-1">Winner: $4.25</div>
+                <p className="text-blue-300 text-sm">Entry: $5 (5 tokens)</p>
+              </div>
+
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+                <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                  🛡️ FIND MATCH - $5
+                </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-xs">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Not Available in Your State
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => globalLocation.requestLocation()}
+                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
+                >
+                  <div className="text-gray-300 text-xs mb-1">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Location Required
+                  </div>
+                  <div className="text-blue-400 text-xs font-medium">Enable Location</div>
+                </button>
+              )}
+            </div>
+
+            {/* $10 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-purple-500/30 hover:scale-105 transition-all duration-300">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-3">⚔️</div>
+                <h3 className="text-xl font-black text-white mb-2">$10 Advanced</h3>
+                <div className="text-2xl font-black text-purple-400 mb-1">Winner: $8.50</div>
+                <p className="text-purple-300 text-sm">Entry: $10 (10 tokens)</p>
+              </div>
+
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+                <button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                  ⚔️ FIND MATCH - $10
+                </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-xs">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Not Available in Your State
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => globalLocation.requestLocation()}
+                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
+                >
+                  <div className="text-gray-300 text-xs mb-1">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Location Required
+                  </div>
+                  <div className="text-purple-400 text-xs font-medium">Enable Location</div>
+                </button>
+              )}
+            </div>
+
+            {/* $25 Match */}
+            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-red-500/30 hover:scale-105 transition-all duration-300">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-3">👑</div>
+                <h3 className="text-xl font-black text-white mb-2">$25 Elite</h3>
+                <div className="text-2xl font-black text-red-400 mb-1">Winner: $21.25</div>
+                <p className="text-red-300 text-sm">Entry: $25 (25 tokens)</p>
+              </div>
+
+              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+                <button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                  👑 FIND MATCH - $25
+                </button>
+              ) : globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
+                  <div className="text-red-300 text-xs">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Not Available in Your State
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => globalLocation.requestLocation()}
+                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
+                >
+                  <div className="text-gray-300 text-xs mb-1">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    Location Required
+                  </div>
+                  <div className="text-red-400 text-xs font-medium">Enable Location</div>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 bg-yellow-500/20 border border-yellow-500 rounded-xl p-4">
+            <p className="text-yellow-300 text-center text-sm">
+              🚧 <strong>1v1 Matchmaking Coming Soon!</strong> ELO-based skill matching system in development.
+            </p>
+          </div>
+        </div>
 
         {/* Info Section */}
         <div className="bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 border-2 border-red-300 dark:border-red-600 rounded-2xl p-6 mb-8">
