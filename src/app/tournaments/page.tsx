@@ -56,6 +56,29 @@ export default function TournamentsPage() {
     setSelectedTournament(tournament);
   };
 
+  const handle1v1Entry = async (entryFee: number, tier: string) => {
+    if (!user) {
+      alert('Please sign in to play 1v1 matches');
+      window.location.href = '/auth/login';
+      return;
+    }
+
+    if (!globalLocation.isGamingAllowed) {
+      alert('Please enable location verification first');
+      globalLocation.requestLocation();
+      return;
+    }
+
+    console.log(`🎮 [1v1] Starting ${tier} match for $${entryFee}`);
+    
+    // TODO: Implement proper 1v1 matchmaking
+    // For now, just launch a practice game
+    alert(`1v1 matchmaking coming soon! Entry fee: $${entryFee}\n\nFor now, launching practice game...`);
+    
+    // Redirect to games page
+    window.location.href = '/games';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       <CleanNavigation variant="gradient" currentPage="/tournaments" />
@@ -219,7 +242,10 @@ export default function TournamentsPage() {
               </div>
 
               {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                <button 
+                  onClick={() => handle1v1Entry(1, '$1 Quick Match')}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                >
                   💚 FIND MATCH - $1
                 </button>
               ) : globalLocation.status === 'restricted' ? (
@@ -253,7 +279,10 @@ export default function TournamentsPage() {
               </div>
 
               {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                <button 
+                  onClick={() => handle1v1Entry(5, '$5 Standard Match')}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                >
                   🛡️ FIND MATCH - $5
                 </button>
               ) : globalLocation.status === 'restricted' ? (
@@ -287,7 +316,10 @@ export default function TournamentsPage() {
               </div>
 
               {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                <button 
+                  onClick={() => handle1v1Entry(10, '$10 Advanced Match')}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                >
                   ⚔️ FIND MATCH - $10
                 </button>
               ) : globalLocation.status === 'restricted' ? (
@@ -321,7 +353,10 @@ export default function TournamentsPage() {
               </div>
 
               {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm">
+                <button 
+                  onClick={() => handle1v1Entry(25, '$25 Elite Match')}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                >
                   👑 FIND MATCH - $25
                 </button>
               ) : globalLocation.status === 'restricted' ? (
