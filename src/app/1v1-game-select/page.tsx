@@ -28,13 +28,20 @@ function GameSelectContent() {
   const [showRules, setShowRules] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [userTokens, setUserTokens] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/auth/login');
-      return;
-    }
-    loadUserTokens();
+    // Give auth context time to load
+    const timer = setTimeout(() => {
+      if (!user) {
+        router.push('/auth/login');
+      } else {
+        loadUserTokens();
+        setIsLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [user]);
 
   const loadUserTokens = async () => {
@@ -148,6 +155,17 @@ function GameSelectContent() {
     };
     return rules[gameId] || [];
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-spin">🎮</div>
+          <p className="text-white text-xl">Loading game selection...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
