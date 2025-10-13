@@ -71,8 +71,8 @@ export default function TournamentsPage() {
 
     console.log(`🎮 [1v1] Starting ${tier} match for $${entryFee}`);
     
-    // Redirect to 1v1 matchmaking page with entry fee
-    window.location.href = `/1v1-matchmaking?fee=${entryFee}&tier=${encodeURIComponent(tier)}`;
+    // Redirect to 1v1 game selection page with entry fee
+    window.location.href = `/1v1-game-select?fee=${entryFee}&tier=${encodeURIComponent(tier)}`;
   };
 
   return (

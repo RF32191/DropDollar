@@ -3,8 +3,8 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserService } from '@/lib/supabase/userService';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
+import { generate20Seeds } from '@/lib/rngSeeds';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 function MatchmakingContent() {
@@ -14,21 +14,21 @@ function MatchmakingContent() {
   
   const entryFee = parseInt(searchParams.get('fee') || '1');
   const tier = searchParams.get('tier') || '$1 Quick Match';
+  const gameType = searchParams.get('game') || 'quick-click';
+  const queueId = searchParams.get('queueId');
   
-  const [status, setStatus] = useState<'checking' | 'joining' | 'searching' | 'matched' | 'error'>('checking');
-  const [message, setMessage] = useState('Checking your tokens...');
-  const [userTokens, setUserTokens] = useState(0);
-  const [queueId, setQueueId] = useState<string | null>(null);
+  const [status, setStatus] = useState<'searching' | 'matched' | 'starting' | 'error'>('searching');
+  const [message, setMessage] = useState('Finding opponent with similar skill...');
   const [matchId, setMatchId] = useState<string | null>(null);
   const [searchTime, setSearchTime] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      router.push('/auth/login');
+    if (!user || !queueId) {
+      router.push('/tournaments');
       return;
     }
-    checkTokensAndJoin();
-  }, [user]);
+  }, [user, queueId]);
 
   // Poll for match every 2 seconds
   useEffect(() => {
@@ -48,11 +48,11 @@ function MatchmakingContent() {
           clearInterval(interval);
           setMatchId(match.id);
           setStatus('matched');
-          setMessage(`Match found! Starting game...`);
+          setMessage(`Match found! Get ready...`);
           
-          // Redirect to game with match info
+          // Start countdown after 2 seconds
           setTimeout(() => {
-            router.push(`/games?match=${match.id}&fee=${entryFee}`);
+            startGameCountdown(match.id);
           }, 2000);
         }
       }, 2000);
@@ -61,85 +61,24 @@ function MatchmakingContent() {
     }
   }, [status, queueId, user]);
 
-  const checkTokensAndJoin = async () => {
-    if (!user) return;
-
-    try {
-      setStatus('checking');
-      setMessage('Checking your token balance...');
-
-      const profile = await UserService.getUserProfile(user.id);
-      const tokens = profile?.tokens || 0;
-      setUserTokens(tokens);
-
-      if (tokens < entryFee) {
-        setStatus('error');
-        setMessage(`Insufficient tokens! You need ${entryFee} tokens but only have ${tokens}.`);
-        setTimeout(() => router.push('/buy-tokens'), 3000);
-        return;
-      }
-
-      // Deduct tokens
-      setStatus('joining');
-      setMessage('Deducting tokens and joining queue...');
-      
-      const newBalance = tokens - entryFee;
-      await UserService.updateUserTokens(user.id, newBalance);
-
-      // Record transaction
-      await UserService.addTokenTransaction({
-        user_id: user.id,
-        amount: -entryFee,
-        type: 'game_entry',
-        description: `Joined 1v1 matchmaking - ${tier}`,
-        balance_before: tokens,
-        balance_after: newBalance,
-        metadata: {
-          match_type: '1v1',
-          entry_fee: entryFee,
-          tier: tier
-        }
-      });
-
-      // Transfer to Stripe escrow
-      await fetch('/api/escrow/transfer-to-stripe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          amount: entryFee,
-          type: '1v1_match',
-          metadata: {
-            tier: tier,
-            user_email: user.email || user.username
-          }
-        })
-      });
-
-      setUserTokens(newBalance);
-
-      // Join matchmaking queue
-      const skillRating = await MatchmakingService.getUserSkillRating(user.id);
-      const queue = await MatchmakingService.joinQueue(
-        user.id,
-        user.username || user.email || 'Anonymous',
-        entryFee,
-        skillRating
-      );
-
-      if (!queue) {
-        throw new Error('Failed to join matchmaking queue');
-      }
-
-      setQueueId(queue.id);
-      setStatus('searching');
-      setMessage(`Finding opponent with similar skill level...`);
-
-    } catch (error: any) {
-      console.error('❌ [Matchmaking] Error:', error);
-      setStatus('error');
-      setMessage(error.message || 'Failed to join matchmaking. Please try again.');
+  const startGameCountdown = async (matchIdParam: string) => {
+    setStatus('starting');
+    setMessage('Game starting...');
+    
+    // Generate RNG seeds for this match
+    const seeds = generate20Seeds();
+    
+    // 5 second countdown
+    for (let i = 5; i > 0; i--) {
+      setCountdown(i);
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
+    
+    setCountdown(null);
+    
+    // Redirect to game with match info and RNG seed
+    const gameUrl = `/games?match=${matchIdParam}&game=${gameType}&fee=${entryFee}&seed=${seeds[0]}&matchmaking=true`;
+    router.push(gameUrl);
   };
 
   const handleCancel = async () => {
@@ -161,37 +100,36 @@ function MatchmakingContent() {
               ⚔️ 1v1 MATCHMAKING
             </h1>
             <p className="text-xl text-purple-300">{tier}</p>
-            <p className="text-lg text-white mt-2">Entry Fee: ${entryFee} (Prize: ${(entryFee * 2 * 0.85).toFixed(2)})</p>
+            <p className="text-lg text-white mt-2">Game: {gameType.replace('-', ' ').toUpperCase()}</p>
+            <p className="text-sm text-gray-400 mt-2">Entry: ${entryFee} | Prize: ${(entryFee * 2 * 0.85).toFixed(2)}</p>
           </div>
 
           {/* Status Card */}
           <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-12 shadow-2xl border-2 border-purple-500/30">
             {/* Animated Icon */}
             <div className="text-center mb-8">
-              {status === 'checking' && (
-                <div className="text-8xl animate-pulse">⏳</div>
-              )}
-              {status === 'joining' && (
-                <div className="text-8xl animate-spin">🎮</div>
-              )}
-              {status === 'searching' && (
+              {countdown !== null ? (
+                <div className="text-9xl font-black text-yellow-400 animate-pulse">
+                  {countdown}
+                </div>
+              ) : status === 'searching' ? (
                 <div className="text-8xl animate-bounce">🔍</div>
-              )}
-              {status === 'matched' && (
+              ) : status === 'matched' ? (
                 <div className="text-8xl animate-pulse">✅</div>
-              )}
-              {status === 'error' && (
+              ) : status === 'starting' ? (
+                <div className="text-8xl animate-spin">🎮</div>
+              ) : (
                 <div className="text-8xl">❌</div>
               )}
             </div>
 
             {/* Status Message */}
             <h2 className="text-3xl font-bold text-white text-center mb-6">
-              {message}
+              {countdown !== null ? 'GET READY!' : message}
             </h2>
 
             {/* Search Timer */}
-            {status === 'searching' && (
+            {status === 'searching' && countdown === null && (
               <div className="text-center mb-8">
                 <p className="text-gray-400 text-lg mb-2">Searching for opponent...</p>
                 <p className="text-2xl font-mono text-purple-400">{searchTime}s</p>
@@ -205,50 +143,43 @@ function MatchmakingContent() {
               </div>
             )}
 
-            {/* Token Balance */}
-            {status !== 'error' && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Your Tokens:</span>
-                  <span className="text-xl font-bold text-yellow-400">{userTokens} tokens</span>
+            {/* Match Found Animation */}
+            {status === 'matched' && countdown === null && (
+              <div className="text-center mb-8">
+                <div className="animate-bounce">
+                  <p className="text-2xl text-green-400 font-bold mb-2">🎉 OPPONENT FOUND!</p>
+                  <p className="text-gray-400">Preparing game...</p>
                 </div>
               </div>
             )}
 
+            {/* Countdown Instructions */}
+            {countdown !== null && (
+              <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl p-4 mb-6">
+                <p className="text-yellow-300 text-center text-sm">
+                  🎮 <strong>Both players will use the same RNG seed for fairness!</strong>
+                  <br/>Highest score wins the match!
+                </p>
+              </div>
+            )}
+
             {/* Action Buttons */}
-            <div className="space-y-4">
-              {status === 'searching' && (
+            {status === 'searching' && countdown === null && (
+              <div className="space-y-4">
                 <button
                   onClick={handleCancel}
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl transition-all"
                 >
                   ❌ Cancel Search
                 </button>
-              )}
-
-              {status === 'error' && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => router.push('/buy-tokens')}
-                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 px-6 rounded-xl transition-all"
-                  >
-                    💳 Buy More Tokens
-                  </button>
-                  <button
-                    onClick={() => router.push('/tournaments')}
-                    className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
-                  >
-                    ← Back to Tournaments
-                  </button>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Info */}
             <div className="mt-8 pt-6 border-t border-white/10">
               <p className="text-sm text-gray-400 text-center">
                 💡 <strong>How 1v1 Works:</strong> We match you with players of similar skill level.
-                Both players compete in the same game. Highest score wins {(entryFee * 2 * 0.85).toFixed(2)}!
+                Both play the same game with identical RNG. Winner gets ${(entryFee * 2 * 0.85).toFixed(2)}!
               </p>
             </div>
           </div>
@@ -269,4 +200,3 @@ export default function MatchmakingPage() {
     </Suspense>
   );
 }
-
