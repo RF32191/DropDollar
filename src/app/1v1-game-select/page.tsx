@@ -37,10 +37,10 @@ const AVAILABLE_GAMES = [
     gradient: 'from-yellow-600 to-amber-500'
   },
   { 
-    id: 'number-dash', 
-    name: 'Number Dash', 
-    emoji: '🔢', 
-    description: 'Click numbers in order!',
+    id: 'multi-target', 
+    name: 'Multi-Target Reaction', 
+    emoji: '🎯', 
+    description: 'Click all highlighted targets fast!',
     gradient: 'from-blue-500 to-cyan-500'
   },
   { 
@@ -177,11 +177,11 @@ function GameSelectContent() {
         '⚠️ Avoid bombs (lose points)',
         '🏆 Most coins collected wins!'
       ],
-      'number-dash': [
-        '🔢 Click numbers in ascending order',
-        '⏱️ Race against the clock',
-        '📊 10 numbers per round',
-        '🏆 Fastest time wins!'
+      'multi-target': [
+        '🎯 Click all highlighted targets as fast as possible',
+        '⚡ Multiple targets appear at once',
+        '📊 Speed and accuracy both matter',
+        '🏆 Fastest completion time wins!'
       ],
       'shape-tap': [
         '🔷 Tap only the correct shapes',
@@ -331,22 +331,30 @@ function GameSelectContent() {
                     </div>
                   )}
                   
-                  {game.id === 'number-dash' && (
+                  {game.id === 'multi-target' && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      {/* Numbers appearing and being clicked in sequence */}
+                      {/* Colored circles highlighting on and off */}
                       <div className="relative grid grid-cols-3 gap-4 p-8">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num, idx) => (
+                        {[
+                          { color: 'bg-red-500', delay: 0 },
+                          { color: 'bg-blue-500', delay: 0.3 },
+                          { color: 'bg-green-500', delay: 0.6 },
+                          { color: 'bg-yellow-500', delay: 0.9 },
+                          { color: 'bg-purple-500', delay: 1.2 },
+                          { color: 'bg-pink-500', delay: 1.5 },
+                          { color: 'bg-orange-500', delay: 1.8 },
+                          { color: 'bg-cyan-500', delay: 2.1 },
+                          { color: 'bg-indigo-500', delay: 2.4 }
+                        ].map((target, idx) => (
                           <div
-                            key={num}
-                            className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl font-bold text-gray-900"
+                            key={idx}
+                            className={`w-12 h-12 ${target.color} rounded-full`}
                             style={{
                               animation: 'popIn 3s infinite',
-                              animationDelay: `${idx * 0.3}s`,
-                              opacity: 0
+                              animationDelay: `${target.delay}s`,
+                              opacity: 0.3
                             }}
-                          >
-                            {num}
-                          </div>
+                          />
                         ))}
                       </div>
                     </div>

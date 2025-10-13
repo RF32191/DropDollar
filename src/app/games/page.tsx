@@ -976,10 +976,31 @@ export default function GamesPage() {
                   )}
                   
                   {game.id === 'multi-target' && (
-                    <div className="absolute inset-0 flex items-center justify-center gap-2">
-                      <div className="text-4xl font-bold text-white animate-pulse">1</div>
-                      <div className="text-4xl font-bold text-white animate-pulse" style={{animationDelay: '0.2s'}}>2</div>
-                      <div className="text-4xl font-bold text-white animate-pulse" style={{animationDelay: '0.4s'}}>3</div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Colored circles highlighting on and off like the actual game */}
+                      <div className="relative grid grid-cols-3 gap-3 p-6">
+                        {[
+                          'bg-red-500',
+                          'bg-blue-500',
+                          'bg-green-500',
+                          'bg-yellow-500',
+                          'bg-purple-500',
+                          'bg-pink-500',
+                          'bg-orange-500',
+                          'bg-cyan-500',
+                          'bg-indigo-500'
+                        ].map((color, idx) => (
+                          <div
+                            key={idx}
+                            className={`w-10 h-10 ${color} rounded-full transition-all`}
+                            style={{
+                              animation: 'pulse 2s infinite',
+                              animationDelay: `${idx * 0.2}s`,
+                              opacity: 0.4
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                   
