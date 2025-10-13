@@ -50,8 +50,8 @@ function MatchmakingContent() {
     
     setCountdown(null);
     
-    // Redirect to game with queue info - matchmaking will happen in background
-    const gameUrl = `/games?queue=${queueId}&game=${gameType}&fee=${entryFee}&seed=${seeds[0]}&matchmaking=true`;
+    // Redirect to dedicated 1v1 play page with queue info
+    const gameUrl = `/1v1-play?queue=${queueId}&game=${gameType}&fee=${entryFee}&seed=${seeds[0]}`;
     router.push(gameUrl);
   };
 
