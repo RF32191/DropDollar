@@ -71,12 +71,8 @@ export default function TournamentsPage() {
 
     console.log(`🎮 [1v1] Starting ${tier} match for $${entryFee}`);
     
-    // TODO: Implement proper 1v1 matchmaking
-    // For now, just launch a practice game
-    alert(`1v1 matchmaking coming soon! Entry fee: $${entryFee}\n\nFor now, launching practice game...`);
-    
-    // Redirect to games page
-    window.location.href = '/games';
+    // Redirect to 1v1 matchmaking page with entry fee
+    window.location.href = `/1v1-matchmaking?fee=${entryFee}&tier=${encodeURIComponent(tier)}`;
   };
 
   return (
@@ -241,31 +237,35 @@ export default function TournamentsPage() {
                 <p className="text-green-300 text-sm">Entry: $1 (1 token)</p>
               </div>
 
-              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+              {globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
+                  <div className="text-red-300 text-xs font-medium">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    🔒 Not Available in Your State
+                  </div>
+                </div>
+              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button 
                   onClick={() => handle1v1Entry(1, '$1 Quick Match')}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
                 >
                   💚 FIND MATCH - $1
                 </button>
-              ) : globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
-                  <div className="text-red-300 text-xs">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Not Available in Your State
-                  </div>
-                </div>
               ) : (
-                <button 
-                  onClick={() => globalLocation.requestLocation()}
-                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
-                >
-                  <div className="text-gray-300 text-xs mb-1">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Location Required
-                  </div>
-                  <div className="text-green-400 text-xs font-medium">Enable Location</div>
-                </button>
+                <div className="w-full">
+                  <button 
+                    onClick={() => globalLocation.requestLocation()}
+                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
+                  >
+                    <div className="text-yellow-300 text-xs mb-1 font-medium">
+                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                      🔒 Location Verification Required
+                    </div>
+                    <div className="text-green-400 text-xs font-bold group-hover:text-green-300">
+                      Click to Enable Location
+                    </div>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -278,31 +278,35 @@ export default function TournamentsPage() {
                 <p className="text-blue-300 text-sm">Entry: $5 (5 tokens)</p>
               </div>
 
-              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+              {globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
+                  <div className="text-red-300 text-xs font-medium">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    🔒 Not Available in Your State
+                  </div>
+                </div>
+              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button 
                   onClick={() => handle1v1Entry(5, '$5 Standard Match')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
                 >
                   🛡️ FIND MATCH - $5
                 </button>
-              ) : globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
-                  <div className="text-red-300 text-xs">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Not Available in Your State
-                  </div>
-                </div>
               ) : (
-                <button 
-                  onClick={() => globalLocation.requestLocation()}
-                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
-                >
-                  <div className="text-gray-300 text-xs mb-1">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Location Required
-                  </div>
-                  <div className="text-blue-400 text-xs font-medium">Enable Location</div>
-                </button>
+                <div className="w-full">
+                  <button 
+                    onClick={() => globalLocation.requestLocation()}
+                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
+                  >
+                    <div className="text-yellow-300 text-xs mb-1 font-medium">
+                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                      🔒 Location Verification Required
+                    </div>
+                    <div className="text-blue-400 text-xs font-bold group-hover:text-blue-300">
+                      Click to Enable Location
+                    </div>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -315,31 +319,35 @@ export default function TournamentsPage() {
                 <p className="text-purple-300 text-sm">Entry: $10 (10 tokens)</p>
               </div>
 
-              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+              {globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
+                  <div className="text-red-300 text-xs font-medium">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    🔒 Not Available in Your State
+                  </div>
+                </div>
+              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button 
                   onClick={() => handle1v1Entry(10, '$10 Advanced Match')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
                 >
                   ⚔️ FIND MATCH - $10
                 </button>
-              ) : globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
-                  <div className="text-red-300 text-xs">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Not Available in Your State
-                  </div>
-                </div>
               ) : (
-                <button 
-                  onClick={() => globalLocation.requestLocation()}
-                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
-                >
-                  <div className="text-gray-300 text-xs mb-1">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Location Required
-                  </div>
-                  <div className="text-purple-400 text-xs font-medium">Enable Location</div>
-                </button>
+                <div className="w-full">
+                  <button 
+                    onClick={() => globalLocation.requestLocation()}
+                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
+                  >
+                    <div className="text-yellow-300 text-xs mb-1 font-medium">
+                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                      🔒 Location Verification Required
+                    </div>
+                    <div className="text-purple-400 text-xs font-bold group-hover:text-purple-300">
+                      Click to Enable Location
+                    </div>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -352,31 +360,35 @@ export default function TournamentsPage() {
                 <p className="text-red-300 text-sm">Entry: $25 (25 tokens)</p>
               </div>
 
-              {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
+              {globalLocation.status === 'restricted' ? (
+                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
+                  <div className="text-red-300 text-xs font-medium">
+                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                    🔒 Not Available in Your State
+                  </div>
+                </div>
+              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                 <button 
                   onClick={() => handle1v1Entry(25, '$25 Elite Match')}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 text-sm"
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
                 >
                   👑 FIND MATCH - $25
                 </button>
-              ) : globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700 border border-red-600 text-center">
-                  <div className="text-red-300 text-xs">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Not Available in Your State
-                  </div>
-                </div>
               ) : (
-                <button 
-                  onClick={() => globalLocation.requestLocation()}
-                  className="w-full py-3 px-4 rounded-lg bg-gray-700 border border-gray-600 text-center hover:bg-gray-600 transition-all"
-                >
-                  <div className="text-gray-300 text-xs mb-1">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    Location Required
-                  </div>
-                  <div className="text-red-400 text-xs font-medium">Enable Location</div>
-                </button>
+                <div className="w-full">
+                  <button 
+                    onClick={() => globalLocation.requestLocation()}
+                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
+                  >
+                    <div className="text-yellow-300 text-xs mb-1 font-medium">
+                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
+                      🔒 Location Verification Required
+                    </div>
+                    <div className="text-red-400 text-xs font-bold group-hover:text-red-300">
+                      Click to Enable Location
+                    </div>
+                  </button>
+                </div>
               )}
             </div>
           </div>
