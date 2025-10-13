@@ -44,10 +44,10 @@ const AVAILABLE_GAMES = [
     gradient: 'from-blue-500 to-cyan-500'
   },
   { 
-    id: 'shape-tap', 
-    name: 'Shape Tap', 
-    emoji: '🔷', 
-    description: 'Tap the right shapes!',
+    id: 'sword-parry', 
+    name: 'Sword Parry', 
+    emoji: '⚔️', 
+    description: 'Parry incoming swords!',
     gradient: 'from-green-500 to-emerald-500'
   }
 ];
@@ -183,11 +183,11 @@ function GameSelectContent() {
         '📊 Speed and accuracy both matter',
         '🏆 Fastest completion time wins!'
       ],
-      'shape-tap': [
-        '🔷 Tap only the correct shapes',
-        '⚡ Speed and accuracy both matter',
-        '❌ Wrong taps = penalty',
-        '🏆 Highest accuracy + speed wins!'
+      'sword-parry': [
+        '⚔️ Parry incoming swords at the right moment',
+        '⚡ Perfect timing is everything',
+        '❌ Miss a parry = lose points',
+        '🏆 Most successful parries wins!'
       ]
     };
     return rules[gameId] || [];
@@ -360,38 +360,41 @@ function GameSelectContent() {
                     </div>
                   )}
                   
-                  {game.id === 'shape-tap' && (
+                  {game.id === 'sword-parry' && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      {/* Shapes appearing randomly */}
+                      {/* Swords appearing and disappearing with tapping animation */}
                       <div className="relative w-full h-full">
-                        <div className="absolute w-16 h-16 bg-white rounded-full"
+                        <div className="absolute text-5xl"
                              style={{
                                top: '20%',
                                left: '20%',
                                animation: 'popScale 2s infinite',
                                animationDelay: '0s'
-                             }}></div>
-                        <div className="absolute w-16 h-16 bg-white"
+                             }}>⚔️</div>
+                        <div className="absolute text-5xl"
                              style={{
                                top: '60%',
                                right: '25%',
                                animation: 'popScale 2s infinite',
-                               animationDelay: '0.4s'
-                             }}></div>
-                        <div className="absolute w-16 h-16 bg-white rotate-45"
+                               animationDelay: '0.4s',
+                               transform: 'rotate(45deg)'
+                             }}>⚔️</div>
+                        <div className="absolute text-5xl"
                              style={{
                                top: '40%',
                                left: '50%',
                                animation: 'popScale 2s infinite',
-                               animationDelay: '0.8s'
-                             }}></div>
-                        <div className="absolute w-20 h-0 border-l-[40px] border-r-[40px] border-b-[60px] border-transparent border-b-white"
+                               animationDelay: '0.8s',
+                               transform: 'rotate(-45deg)'
+                             }}>⚔️</div>
+                        <div className="absolute text-5xl"
                              style={{
                                top: '25%',
                                right: '15%',
                                animation: 'popScale 2s infinite',
-                               animationDelay: '1.2s'
-                             }}></div>
+                               animationDelay: '1.2s',
+                               transform: 'rotate(90deg)'
+                             }}>⚔️</div>
                       </div>
                     </div>
                   )}

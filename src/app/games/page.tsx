@@ -1006,7 +1006,36 @@ export default function GamesPage() {
                   
                   {game.id === 'sword-parry' && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-6xl animate-bounce">⚔️</div>
+                      {/* Multiple swords appearing and disappearing */}
+                      <div className="relative w-full h-full">
+                        <div className="absolute text-5xl animate-pulse"
+                             style={{
+                               top: '20%',
+                               left: '20%',
+                               animationDelay: '0s'
+                             }}>⚔️</div>
+                        <div className="absolute text-5xl animate-pulse"
+                             style={{
+                               top: '60%',
+                               right: '25%',
+                               animationDelay: '0.4s',
+                               transform: 'rotate(45deg)'
+                             }}>⚔️</div>
+                        <div className="absolute text-5xl animate-pulse"
+                             style={{
+                               top: '40%',
+                               left: '50%',
+                               animationDelay: '0.8s',
+                               transform: 'rotate(-45deg)'
+                             }}>⚔️</div>
+                        <div className="absolute text-5xl animate-pulse"
+                             style={{
+                               top: '25%',
+                               right: '15%',
+                               animationDelay: '1.2s',
+                               transform: 'rotate(90deg)'
+                             }}>⚔️</div>
+                      </div>
                     </div>
                   )}
                 </div>
