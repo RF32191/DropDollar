@@ -8,12 +8,48 @@ import MatchmakingService from '@/lib/supabase/matchmakingService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 const AVAILABLE_GAMES = [
-  { id: 'quick-click', name: 'Quick Click', emoji: '⚡', description: 'Test your reaction speed!' },
-  { id: 'memory-color', name: 'Color Sequence', emoji: '🎨', description: 'Remember the pattern!' },
-  { id: 'laser-dodge', name: 'Laser Dodge EXTREME', emoji: '🔴', description: 'Dodge the lasers!' },
-  { id: 'coin-catch', name: 'Coin Catch', emoji: '💰', description: 'Catch falling coins!' },
-  { id: 'number-dash', name: 'Number Dash', emoji: '🔢', description: 'Click numbers in order!' },
-  { id: 'shape-tap', name: 'Shape Tap', emoji: '🔷', description: 'Tap the right shapes!' }
+  { 
+    id: 'quick-click', 
+    name: 'Quick Click', 
+    emoji: '⚡', 
+    description: 'Test your reaction speed!',
+    gradient: 'from-yellow-500 to-orange-500'
+  },
+  { 
+    id: 'memory-color', 
+    name: 'Color Sequence', 
+    emoji: '🎨', 
+    description: 'Remember the pattern!',
+    gradient: 'from-purple-500 to-pink-500'
+  },
+  { 
+    id: 'laser-dodge', 
+    name: 'Laser Dodge EXTREME', 
+    emoji: '🔴', 
+    description: 'Dodge the lasers!',
+    gradient: 'from-red-500 to-orange-600'
+  },
+  { 
+    id: 'coin-catch', 
+    name: 'Coin Catch', 
+    emoji: '💰', 
+    description: 'Catch falling coins!',
+    gradient: 'from-yellow-600 to-amber-500'
+  },
+  { 
+    id: 'number-dash', 
+    name: 'Number Dash', 
+    emoji: '🔢', 
+    description: 'Click numbers in order!',
+    gradient: 'from-blue-500 to-cyan-500'
+  },
+  { 
+    id: 'shape-tap', 
+    name: 'Shape Tap', 
+    emoji: '🔷', 
+    description: 'Tap the right shapes!',
+    gradient: 'from-green-500 to-emerald-500'
+  }
 ];
 
 function GameSelectContent() {
@@ -190,20 +226,226 @@ function GameSelectContent() {
               <div
                 key={game.id}
                 onClick={() => handleGameSelect(game.id)}
-                className={`relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-8 shadow-2xl border-2 cursor-pointer transition-all duration-300 hover:scale-105 ${
+                className={`relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl overflow-hidden shadow-2xl border-2 cursor-pointer transition-all duration-300 hover:scale-105 ${
                   selectedGame === game.id
                     ? 'border-yellow-500 shadow-yellow-500/50'
                     : 'border-purple-500/30 hover:border-purple-500/50'
                 }`}
               >
-                <div className="text-center">
-                  <div className="text-6xl mb-4">{game.emoji}</div>
+                {/* Game Preview/Screenshot Area */}
+                <div className={`h-48 bg-gradient-to-br ${game.gradient} relative overflow-hidden`}>
+                  {/* Animated Game Preview */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-9xl opacity-30 animate-pulse">{game.emoji}</div>
+                  </div>
+                  
+                  {/* Animated Game Simulations */}
+                  {game.id === 'quick-click' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Screen that flashes red then green */}
+                      <div className="absolute inset-0 bg-red-600 animate-pulse" style={{animationDuration: '2s'}}></div>
+                      <div className="absolute inset-0 bg-green-500 animate-ping" style={{animationDuration: '2s', animationDelay: '1s'}}></div>
+                      <div className="relative z-10 text-white text-6xl font-black animate-pulse">
+                        CLICK!
+                      </div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'memory-color' && (
+                    <div className="absolute inset-0 p-4">
+                      {/* Animated sequence showing colors lighting up */}
+                      <div className="grid grid-cols-2 gap-2 h-full">
+                        <div className="bg-red-500 rounded-lg transition-all duration-300" 
+                             style={{
+                               animation: 'flash 4s infinite',
+                               animationDelay: '0s'
+                             }}></div>
+                        <div className="bg-blue-500 rounded-lg transition-all duration-300"
+                             style={{
+                               animation: 'flash 4s infinite',
+                               animationDelay: '0.5s'
+                             }}></div>
+                        <div className="bg-green-500 rounded-lg transition-all duration-300"
+                             style={{
+                               animation: 'flash 4s infinite',
+                               animationDelay: '1s'
+                             }}></div>
+                        <div className="bg-yellow-500 rounded-lg transition-all duration-300"
+                             style={{
+                               animation: 'flash 4s infinite',
+                               animationDelay: '1.5s'
+                             }}></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'laser-dodge' && (
+                    <div className="absolute inset-0 overflow-hidden bg-black/50">
+                      {/* Moving lasers with player avatar */}
+                      <div className="absolute h-2 w-full bg-gradient-to-r from-transparent via-red-500 to-transparent top-1/4"
+                           style={{
+                             animation: 'slideRight 2s infinite linear'
+                           }}></div>
+                      <div className="absolute h-2 w-full bg-gradient-to-r from-transparent via-red-500 to-transparent top-1/2"
+                           style={{
+                             animation: 'slideLeft 1.5s infinite linear',
+                             animationDelay: '0.3s'
+                           }}></div>
+                      <div className="absolute h-2 w-full bg-gradient-to-r from-transparent via-red-500 to-transparent top-3/4"
+                           style={{
+                             animation: 'slideRight 2.5s infinite linear',
+                             animationDelay: '0.6s'
+                           }}></div>
+                      {/* Player avatar dodging */}
+                      <div className="absolute left-8 w-8 h-8 bg-white rounded-full"
+                           style={{
+                             animation: 'dodge 3s infinite ease-in-out'
+                           }}></div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'coin-catch' && (
+                    <div className="absolute inset-0 overflow-hidden">
+                      {/* Falling coins with basket at bottom */}
+                      <div className="text-4xl absolute"
+                           style={{
+                             left: '20%',
+                             animation: 'fall 2s infinite linear'
+                           }}>💰</div>
+                      <div className="text-4xl absolute"
+                           style={{
+                             left: '50%',
+                             animation: 'fall 2.5s infinite linear',
+                             animationDelay: '0.5s'
+                           }}>💰</div>
+                      <div className="text-4xl absolute"
+                           style={{
+                             left: '75%',
+                             animation: 'fall 3s infinite linear',
+                             animationDelay: '1s'
+                           }}>💰</div>
+                      {/* Moving basket */}
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                        <div className="text-5xl" style={{animation: 'moveBasket 3s infinite ease-in-out'}}>🧺</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'number-dash' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Numbers appearing and being clicked in sequence */}
+                      <div className="relative grid grid-cols-3 gap-4 p-8">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num, idx) => (
+                          <div
+                            key={num}
+                            className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl font-bold text-gray-900"
+                            style={{
+                              animation: 'popIn 3s infinite',
+                              animationDelay: `${idx * 0.3}s`,
+                              opacity: 0
+                            }}
+                          >
+                            {num}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'shape-tap' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Shapes appearing randomly */}
+                      <div className="relative w-full h-full">
+                        <div className="absolute w-16 h-16 bg-white rounded-full"
+                             style={{
+                               top: '20%',
+                               left: '20%',
+                               animation: 'popScale 2s infinite',
+                               animationDelay: '0s'
+                             }}></div>
+                        <div className="absolute w-16 h-16 bg-white"
+                             style={{
+                               top: '60%',
+                               right: '25%',
+                               animation: 'popScale 2s infinite',
+                               animationDelay: '0.4s'
+                             }}></div>
+                        <div className="absolute w-16 h-16 bg-white rotate-45"
+                             style={{
+                               top: '40%',
+                               left: '50%',
+                               animation: 'popScale 2s infinite',
+                               animationDelay: '0.8s'
+                             }}></div>
+                        <div className="absolute w-20 h-0 border-l-[40px] border-r-[40px] border-b-[60px] border-transparent border-b-white"
+                             style={{
+                               top: '25%',
+                               right: '15%',
+                               animation: 'popScale 2s infinite',
+                               animationDelay: '1.2s'
+                             }}></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* CSS Animations */}
+                  <style jsx>{`
+                    @keyframes flash {
+                      0%, 100% { opacity: 0.3; transform: scale(0.95); }
+                      25% { opacity: 1; transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.8); }
+                      50%, 75% { opacity: 0.3; transform: scale(0.95); }
+                    }
+                    @keyframes slideRight {
+                      0% { transform: translateX(-100%); }
+                      100% { transform: translateX(200%); }
+                    }
+                    @keyframes slideLeft {
+                      0% { transform: translateX(200%); }
+                      100% { transform: translateX(-100%); }
+                    }
+                    @keyframes dodge {
+                      0%, 100% { top: 20%; }
+                      33% { top: 50%; }
+                      66% { top: 75%; }
+                    }
+                    @keyframes fall {
+                      0% { top: -20%; opacity: 1; }
+                      90% { opacity: 1; }
+                      100% { top: 100%; opacity: 0; }
+                    }
+                    @keyframes moveBasket {
+                      0%, 100% { transform: translateX(-50%) translateX(-40px); }
+                      50% { transform: translateX(-50%) translateX(40px); }
+                    }
+                    @keyframes popIn {
+                      0%, 90% { opacity: 0; transform: scale(0); }
+                      10%, 80% { opacity: 1; transform: scale(1); }
+                    }
+                    @keyframes popScale {
+                      0%, 100% { opacity: 0; transform: scale(0); }
+                      50% { opacity: 1; transform: scale(1); }
+                    }
+                  `}</style>
+                  
+                  {/* Play icon overlay */}
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <div className="bg-white/90 rounded-full p-4">
+                      <svg className="w-8 h-8 text-gray-900" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Game Info */}
+                <div className="p-6 text-center">
                   <h3 className="text-2xl font-black text-white mb-2">{game.name}</h3>
                   <p className="text-gray-400 text-sm">{game.description}</p>
                 </div>
                 
+                {/* Selected Indicator */}
                 {selectedGame === game.id && (
-                  <div className="absolute top-4 right-4 bg-yellow-500 rounded-full p-2">
+                  <div className="absolute top-4 right-4 bg-yellow-500 rounded-full p-2 shadow-lg">
                     <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>

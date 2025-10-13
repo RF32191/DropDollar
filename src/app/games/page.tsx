@@ -933,11 +933,68 @@ export default function GamesPage() {
             const IconComponent = game.icon;
             
             return (
-              <div key={game.id} className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border border-gray-200">
-                {/* Game Icon */}
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <IconComponent className="h-8 w-8 text-white" />
+              <div key={game.id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all border border-gray-200">
+                {/* Animated Game Preview */}
+                <div className="h-40 bg-gradient-to-br from-blue-500 to-purple-600 relative overflow-hidden">
+                  {/* Background emoji */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                    <IconComponent className="h-24 w-24 text-white" />
+                  </div>
+                  
+                  {/* Game-specific animations */}
+                  {game.id === 'quick-click' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-24 h-24 bg-green-500 rounded-full animate-ping"></div>
+                      <div className="w-24 h-24 bg-green-500 rounded-full absolute"></div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'color-sequence' && (
+                    <div className="absolute inset-0 grid grid-cols-2 gap-1 p-6">
+                      <div className="bg-red-500 rounded animate-pulse"></div>
+                      <div className="bg-blue-500 rounded animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                      <div className="bg-green-500 rounded animate-pulse" style={{animationDelay: '0.4s'}}></div>
+                      <div className="bg-yellow-500 rounded animate-pulse" style={{animationDelay: '0.6s'}}></div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'laser-dodge' && (
+                    <div className="absolute inset-0 overflow-hidden">
+                      <div className="absolute h-1 w-full bg-red-600 top-1/4 animate-pulse"></div>
+                      <div className="absolute h-1 w-full bg-red-600 top-1/2 animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                      <div className="absolute h-1 w-full bg-red-600 top-3/4 animate-pulse" style={{animationDelay: '0.6s'}}></div>
+                      <div className="absolute left-8 top-1/2 w-6 h-6 bg-white rounded-full animate-bounce"></div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'falling-object' && (
+                    <div className="absolute inset-0 flex items-center justify-center gap-3">
+                      <div className="text-3xl animate-bounce">💰</div>
+                      <div className="text-3xl animate-bounce" style={{animationDelay: '0.2s'}}>💰</div>
+                      <div className="text-3xl animate-bounce" style={{animationDelay: '0.4s'}}>💰</div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'multi-target' && (
+                    <div className="absolute inset-0 flex items-center justify-center gap-2">
+                      <div className="text-4xl font-bold text-white animate-pulse">1</div>
+                      <div className="text-4xl font-bold text-white animate-pulse" style={{animationDelay: '0.2s'}}>2</div>
+                      <div className="text-4xl font-bold text-white animate-pulse" style={{animationDelay: '0.4s'}}>3</div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'sword-parry' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-6xl animate-bounce">⚔️</div>
+                    </div>
+                  )}
                 </div>
+                
+                <div className="p-8">
+                  {/* Game Icon - smaller now since we have preview */}
+                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <IconComponent className="h-6 w-6 text-white" />
+                  </div>
                 
                 {/* Game Info */}
                 <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">{game.name}</h3>
@@ -1027,6 +1084,7 @@ export default function GamesPage() {
                     </button>
                   </div>
                 )}
+                </div>
               </div>
             );
           })}
