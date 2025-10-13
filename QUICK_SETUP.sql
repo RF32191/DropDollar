@@ -4,9 +4,14 @@
 -- This creates everything you need!
 -- ========================================
 
--- 0. CREATE TOURNAMENTS TABLE (if not exists)
+-- 0. DROP AND RECREATE TOURNAMENTS TABLE
 -- ========================================
-CREATE TABLE IF NOT EXISTS public.tournaments (
+-- Drop existing tables to start fresh
+DROP TABLE IF EXISTS public.tournament_entries CASCADE;
+DROP TABLE IF EXISTS public.tournaments CASCADE;
+
+-- Create tournaments table
+CREATE TABLE public.tournaments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     game_type TEXT NOT NULL,
@@ -22,7 +27,8 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS public.tournament_entries (
+-- Create tournament_entries table
+CREATE TABLE public.tournament_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -40,18 +46,14 @@ CREATE TABLE IF NOT EXISTS public.tournament_entries (
 );
 
 -- Create indexes
-CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments(status);
-CREATE INDEX IF NOT EXISTS idx_tournaments_game_type ON tournaments(game_type);
-CREATE INDEX IF NOT EXISTS idx_tournament_entries_tournament ON tournament_entries(tournament_id);
-CREATE INDEX IF NOT EXISTS idx_tournament_entries_user ON tournament_entries(user_id);
+CREATE INDEX idx_tournaments_status ON tournaments(status);
+CREATE INDEX idx_tournaments_game_type ON tournaments(game_type);
+CREATE INDEX idx_tournament_entries_tournament ON tournament_entries(tournament_id);
+CREATE INDEX idx_tournament_entries_user ON tournament_entries(user_id);
 
 -- Enable RLS
 ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tournament_entries ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Tournaments are viewable by everyone" ON tournaments;
-DROP POLICY IF EXISTS "Tournament entries are viewable by everyone" ON tournament_entries;
 
 -- Create RLS Policies
 CREATE POLICY "Tournaments are viewable by everyone" ON tournaments FOR SELECT USING (true);
