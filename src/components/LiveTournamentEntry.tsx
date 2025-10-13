@@ -96,7 +96,7 @@ export default function LiveTournamentEntry({ tournament, onEntryComplete }: Liv
       await UserService.addTokenTransaction({
         user_id: user.id,
         amount: -tournament.entry_fee,
-        type: 'tournament_entry',
+        type: 'game_entry',
         description: `Entered ${tournament.name} - Funds in escrow`,
         balance_before: userTokens,
         balance_after: newBalance,
