@@ -17,6 +17,7 @@ import { ResponsiveLayout, ResponsiveGrid, ResponsiveText } from '@/components/R
 import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetection';
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
+import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { ActivityService } from '@/lib/supabase/activityService';
@@ -152,6 +153,10 @@ export default function GamesPage() {
   const [totalGamesPlayed, setTotalGamesPlayed] = useState(0);
   const [showSponsoredListings, setShowSponsoredListings] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
+  const [isGameActive, setIsGameActive] = useState(false);
+  
+  // Prevent back button navigation during active game
+  usePreventBackNavigation(isGameActive, '/games');
   const [showAd, setShowAd] = useState(false);
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
@@ -445,6 +450,7 @@ export default function GamesPage() {
     setPendingGameStart(null);
     setCurrentGame(gameId);
     setGameResults(null);
+    setIsGameActive(true);
     
     console.log('✅ Game started successfully after ad');
   };
@@ -474,6 +480,7 @@ export default function GamesPage() {
   const handleGameEnd = async (result: GameResult) => {
     if (!currentGame) return;
 
+    setIsGameActive(false);
     setGameResults(result);
     
     // Show celebration effect and play sound for practice mode
@@ -629,6 +636,7 @@ export default function GamesPage() {
   };
 
   const handleGameExit = () => {
+    setIsGameActive(false);
     setCurrentGame(null);
     setGameResults(null);
   };

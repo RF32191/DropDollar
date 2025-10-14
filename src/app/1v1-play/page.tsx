@@ -9,8 +9,10 @@ import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import FallingObjectGame from '@/components/games/FallingObjectGame';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SuddenDeathGame from '@/components/games/SuddenDeathGame';
+import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
 import { ActivityService } from '@/lib/supabase/activityService';
+import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
 
 function GamePlayContent() {
   const router = useRouter();
@@ -25,43 +27,16 @@ function GamePlayContent() {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
 
+  // Prevent back button navigation during active game
+  usePreventBackNavigation(gameStarted && !gameCompleted, '/dashboard');
+
   useEffect(() => {
     if (!user || !queueId) {
       router.push('/tournaments');
       return;
     }
     setGameStarted(true);
-    
-    // Prevent back button from replaying the game
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (gameStarted && !gameCompleted) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    
-    const handlePopState = (e: PopStateEvent) => {
-      if (gameStarted && !gameCompleted) {
-        // If they hit back during game, end it with current score
-        console.log('⚠️ [1v1] Back button pressed during game - ending game');
-        window.location.href = '/dashboard';
-      } else if (gameCompleted) {
-        // If game is done, allow back to dashboard
-        window.location.href = '/dashboard';
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('popstate', handlePopState);
-    
-    // Push a new state to prevent immediate back navigation
-    window.history.pushState(null, '', window.location.href);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [user, queueId, gameStarted, gameCompleted]);
+  }, [user, queueId, router]);
 
   const handleGameComplete = async (result: any) => {
     if (gameCompleted) return;
@@ -157,11 +132,10 @@ function GamePlayContent() {
           />
         );
       case 'shape-tap':
-      case 'sudden-death':
+      case 'sword-parry':
         return (
-          <SuddenDeathGame
+          <SwordParryGame
             onGameEnd={handleGameComplete}
-            rngSeed={seed}
           />
         );
       default:
