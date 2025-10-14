@@ -4,6 +4,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
+import { supabase } from '@/lib/supabase/client';
 
 interface MatchResult {
   matchId: string;
@@ -54,9 +55,6 @@ function ResultsContent() {
   const fetchMatchResults = async (userId: string, queueId: string) => {
     try {
       console.log('🔍 [Results] Fetching match for queue:', queueId);
-      
-      // Import supabase client
-      const supabase = (await import('@/lib/supabase/client')).default;
       
       // Query matches table for this user's match
       const { data: matches, error } = await supabase
