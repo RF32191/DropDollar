@@ -15,10 +15,16 @@
 
 -- Update users table to use NUMERIC for token balances
 ALTER TABLE public.users 
-ALTER COLUMN tokens TYPE NUMERIC(10, 2) DEFAULT 0.00;
+ALTER COLUMN tokens TYPE NUMERIC(10, 2);
 
 ALTER TABLE public.users 
-ALTER COLUMN balance TYPE NUMERIC(10, 2) DEFAULT 0.00;
+ALTER COLUMN tokens SET DEFAULT 0.00;
+
+ALTER TABLE public.users 
+ALTER COLUMN balance TYPE NUMERIC(10, 2);
+
+ALTER TABLE public.users 
+ALTER COLUMN balance SET DEFAULT 0.00;
 
 -- Update token_transactions to support decimal amounts
 ALTER TABLE public.token_transactions 
