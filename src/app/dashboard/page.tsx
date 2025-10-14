@@ -176,14 +176,58 @@ export default function SimpleDashboard() {
         let userScoresFromDB: Record<string, { best: number; last: number }> = {};
         
         try {
-          // Call the get_user_high_scores function
-          const { data: scoresData, error: scoresError } = await (await import('@/lib/supabase/client')).default
+          // Try to call the get_user_high_scores function
+          const supabaseClient = (await import('@/lib/supabase/client')).default;
+          const { data: scoresData, error: scoresError } = await supabaseClient
             .rpc('get_user_high_scores', { user_id_param: l.id });
           
           if (scoresError) {
-            console.error('❌ [Dashboard] Error loading user scores:', scoresError);
+            console.warn('⚠️ [Dashboard] RPC function not found, falling back to direct query');
+            console.error('❌ [Dashboard] Error:', scoresError);
+            
+            // Fallback: Query game_history directly
+            const { data: gameHistory, error: historyError } = await supabaseClient
+              .from('game_history')
+              .select('game_type, score, created_at')
+              .eq('user_id', l.id)
+              .eq('is_practice', true)
+              .order('created_at', { ascending: false });
+            
+            if (!historyError && gameHistory) {
+              console.log('✅ [Dashboard] Loaded game history:', gameHistory.length, 'entries');
+              
+              // Process game history to get best and last scores
+              const gameScores: Record<string, { best: number; last: number }> = {};
+              gameHistory.forEach((entry: any) => {
+                if (!gameScores[entry.game_type]) {
+                  gameScores[entry.game_type] = { best: 0, last: 0 };
+                }
+                // Track best score
+                if (entry.score > gameScores[entry.game_type].best) {
+                  gameScores[entry.game_type].best = entry.score;
+                }
+              });
+              
+              // Get last scores (most recent entry per game)
+              const lastScores: Record<string, number> = {};
+              gameHistory.forEach((entry: any) => {
+                if (!lastScores[entry.game_type]) {
+                  lastScores[entry.game_type] = entry.score;
+                }
+              });
+              
+              // Merge into userScoresFromDB
+              Object.keys(gameScores).forEach(gameType => {
+                userScoresFromDB[gameType] = {
+                  best: gameScores[gameType].best,
+                  last: lastScores[gameType] || 0
+                };
+              });
+              
+              console.log('✅ [Dashboard] Processed scores from game_history:', userScoresFromDB);
+            }
           } else if (scoresData) {
-            console.log('✅ [Dashboard] Loaded scores from database:', scoresData);
+            console.log('✅ [Dashboard] Loaded scores from RPC function:', scoresData);
             scoresData.forEach((gameScore: any) => {
               userScoresFromDB[gameScore.game_type] = {
                 best: gameScore.best_score || 0,

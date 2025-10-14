@@ -77,7 +77,7 @@ function GamePlayContent() {
 
       // Show completion screen
       setTimeout(() => {
-        router.push(`/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}`);
+        router.push(`/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}`);
       }, 2000);
 
     } catch (error) {
