@@ -48,6 +48,10 @@ CHECK (type IN ('purchase', 'game_entry', 'game_win', 'withdrawal', 'refund', 'b
 -- 2. CREATE STRIPE BANK ACCOUNTS TABLE
 -- ============================================================================
 
+-- Drop existing tables if they exist (to ensure clean schema)
+DROP TABLE IF EXISTS public.withdrawal_requests CASCADE;
+DROP TABLE IF EXISTS public.stripe_bank_accounts CASCADE;
+
 CREATE TABLE IF NOT EXISTS public.stripe_bank_accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -139,6 +143,9 @@ CREATE INDEX IF NOT EXISTS idx_game_history_user_id_created_at ON public.game_hi
 -- ============================================================================
 -- 6. CREATE PRIZE POOL TRACKING TABLE (NON-ESCROW)
 -- ============================================================================
+
+-- Drop existing prize_pools table if it exists
+DROP TABLE IF EXISTS public.prize_pools CASCADE;
 
 CREATE TABLE IF NOT EXISTS public.prize_pools (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
