@@ -68,7 +68,7 @@ function MatchmakingContent() {
             </h1>
             <p className="text-xl text-purple-300">{tier}</p>
             <p className="text-lg text-white mt-2">Game: {gameType.replace('-', ' ').toUpperCase()}</p>
-            <p className="text-sm text-gray-400 mt-2">Entry: ${entryFee} | Prize: ${(entryFee * 2 * 0.85).toFixed(2)}</p>
+            <p className="text-sm text-gray-400 mt-2">Entry: ${entryFee} | Prize: ${(entryFee + entryFee * 0.85).toFixed(2)}</p>
           </div>
 
           {/* Status Card */}
@@ -114,7 +114,7 @@ function MatchmakingContent() {
             <div className="mt-8 pt-6 border-t border-white/10">
               <p className="text-sm text-gray-400 text-center">
                 💡 <strong>How 1v1 Works (Like Triumph):</strong> Play immediately, then we match you retroactively.
-                Both players use identical RNG. Winner gets ${(entryFee * 2 * 0.85).toFixed(2)}!
+                Both players use identical RNG. Winner gets ${(entryFee + entryFee * 0.85).toFixed(2)}!
               </p>
             </div>
           </div>

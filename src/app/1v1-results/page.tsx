@@ -27,7 +27,7 @@ function ResultsContent() {
   const gameType = searchParams.get('game') || 'quick-click';
   const entryFee = parseInt(searchParams.get('fee') || '1');
   const queueId = searchParams.get('queueId');
-  const prizeAmount = (entryFee * 2 * 0.94).toFixed(2); // 94% after 6% platform fee
+  const prizeAmount = (entryFee + entryFee * 0.85).toFixed(2); // Stake back + 85% of opponent's stake
   
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);

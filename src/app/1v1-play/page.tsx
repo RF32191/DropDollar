@@ -31,7 +31,37 @@ function GamePlayContent() {
       return;
     }
     setGameStarted(true);
-  }, [user, queueId]);
+    
+    // Prevent back button from replaying the game
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (gameStarted && !gameCompleted) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    const handlePopState = (e: PopStateEvent) => {
+      if (gameStarted && !gameCompleted) {
+        // If they hit back during game, end it with current score
+        console.log('⚠️ [1v1] Back button pressed during game - ending game');
+        window.location.href = '/dashboard';
+      } else if (gameCompleted) {
+        // If game is done, allow back to dashboard
+        window.location.href = '/dashboard';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    
+    // Push a new state to prevent immediate back navigation
+    window.history.pushState(null, '', window.location.href);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [user, queueId, gameStarted, gameCompleted]);
 
   const handleGameComplete = async (result: any) => {
     if (gameCompleted) return;
@@ -169,7 +199,7 @@ function GamePlayContent() {
             <div>
               <h2 className="text-xl font-bold text-white">⚔️ 1v1 MATCH</h2>
               <p className="text-sm text-purple-300">
-                {gameType.replace('-', ' ').toUpperCase()} • ${entryFee} Entry • Win ${(entryFee * 2 * 0.85).toFixed(2)}
+                {gameType.replace('-', ' ').toUpperCase()} • ${entryFee} Entry • Win ${(entryFee + entryFee * 0.85).toFixed(2)}
               </p>
             </div>
             <div className="text-right">

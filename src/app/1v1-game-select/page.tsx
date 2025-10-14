@@ -216,7 +216,7 @@ function GameSelectContent() {
               ⚔️ SELECT YOUR GAME
             </h1>
             <p className="text-xl text-purple-300">{tier}</p>
-            <p className="text-lg text-white mt-2">Entry Fee: ${entryFee} | Prize: ${(entryFee * 2 * 0.85).toFixed(2)}</p>
+            <p className="text-lg text-white mt-2">Entry Fee: ${entryFee} | Prize: ${(entryFee + entryFee * 0.85).toFixed(2)}</p>
             <p className="text-sm text-gray-400 mt-2">Your Tokens: {userTokens}</p>
           </div>
 
@@ -509,7 +509,7 @@ function GameSelectContent() {
             <div className="bg-yellow-500/20 border border-yellow-500 rounded-xl p-4 mb-6">
               <p className="text-yellow-300 text-center text-sm">
                 ⚔️ <strong>1v1 Match:</strong> You'll play against an opponent with similar skill.
-                Both players use the same RNG seed for fairness. Highest score wins {(entryFee * 2 * 0.85).toFixed(2)}!
+                Both players use the same RNG seed for fairness. Highest score wins ${(entryFee + entryFee * 0.85).toFixed(2)}!
               </p>
             </div>
 
