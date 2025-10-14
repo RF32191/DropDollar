@@ -58,7 +58,8 @@ function GamePlayContent() {
         user!.id,
         user!.username || user!.email || 'Anonymous',
         entryFee,
-        skillRating
+        skillRating,
+        gameType // Pass the actual game type
       );
 
       if (match) {

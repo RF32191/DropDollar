@@ -109,7 +109,7 @@ class MatchmakingService {
 
       // Calculate prize pool (both entry fees minus 15% platform fee)
       const totalPot = entryFee * 2;
-      const prizePool = totalPot * 0.85;
+      const prizePool = totalPot * 0.85; // 85% to winner, 15% platform fee
 
       // Create match
       const { data: match, error: matchError } = await supabase
@@ -121,8 +121,8 @@ class MatchmakingService {
           player2_username: opponent.username,
           entry_fee: entryFee,
           prize_pool: prizePool,
-          game_type: 'Random', // Will be selected when players start
-          status: 'waiting_for_game'
+          game_type: gameType, // Use the actual game type they're playing
+          status: 'in_progress'
         })
         .select()
         .single();

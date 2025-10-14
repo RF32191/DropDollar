@@ -201,9 +201,9 @@ BEGIN
     RAISE EXCEPTION 'Both players must submit scores';
   END IF;
 
-  -- Calculate prize (entry fee × 2, minus 6% platform fee)
-  prize_amt := (match_record.entry_fee * 2) * 0.94;
-  platform_fee := (match_record.entry_fee * 2) * 0.06;
+  -- Calculate prize (entry fee × 2, minus 15% platform fee)
+  prize_amt := (match_record.entry_fee * 2) * 0.85;
+  platform_fee := (match_record.entry_fee * 2) * 0.15;
 
   -- Determine winner
   IF match_record.player1_score > match_record.player2_score THEN
