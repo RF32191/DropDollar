@@ -42,19 +42,13 @@ function GamePlayContent() {
     try {
       // Save game result to activity log
       await ActivityService.saveGameHistory({
-        userId: user!.id,
-        gameType: gameType,
+        user_id: user!.id,
+        game_type: gameType,
         score: result.score || 0,
-        isPractice: false, // This is a 1v1 match
-        avgReactionTime: result.avgReactionTime || 0,
+        is_practice: false, // This is a 1v1 match
+        avg_reaction_time: result.avgReactionTime || 0,
         accuracy: result.accuracy || 100,
-        gameDuration: result.duration || 0,
-        metadata: {
-          queue_id: queueId,
-          entry_fee: entryFee,
-          seed: seed,
-          match_type: '1v1'
-        }
+        game_duration: result.duration || 0
       });
 
       // Try to find and create match retroactively
