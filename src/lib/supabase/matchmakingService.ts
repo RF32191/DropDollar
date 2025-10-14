@@ -219,27 +219,37 @@ class MatchmakingService {
   }
 
   /**
-   * Determine winner and update match
+   * Determine winner and update match with prize payout
    */
   async determineWinner(matchId: string): Promise<void> {
     try {
+      console.log(`🏆 [Matchmaking] Determining winner for match: ${matchId}`);
+      
       const match = await this.getMatch(matchId);
-      if (!match || match.player1_score === null || match.player2_score === null) return;
+      if (!match || match.player1_score === null || match.player2_score === null) {
+        console.log('⚠️ [Matchmaking] Both scores not submitted yet');
+        return;
+      }
 
-      const winnerId = match.player1_score > match.player2_score 
-        ? match.player1_id 
-        : match.player2_id;
+      // Call the database function to determine winner and pay prize
+      const { data, error } = await supabase.rpc('determine_1v1_winner', {
+        match_id_param: matchId
+      });
 
-      await supabase
-        .from('matches')
-        .update({
-          winner_id: winnerId,
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', matchId);
+      if (error) {
+        console.error('❌ [Matchmaking] Error calling winner function:', error);
+        throw error;
+      }
 
-      console.log(`🏆 [Matchmaking] Winner determined: ${winnerId}`);
+      if (data && data.length > 0) {
+        const result = data[0];
+        console.log(`🎉 [Matchmaking] Winner: ${result.winner_id}`);
+        console.log(`💰 [Matchmaking] Prize: ${result.prize_amount} tokens`);
+        console.log(`📊 [Matchmaking] Winning score: ${result.winner_score} vs ${result.loser_score}`);
+      } else {
+        console.log('🤝 [Matchmaking] Match resulted in a tie - both players refunded');
+      }
+
     } catch (error) {
       console.error('❌ [Matchmaking] Error determining winner:', error);
     }

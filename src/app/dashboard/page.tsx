@@ -169,38 +169,34 @@ export default function SimpleDashboard() {
           localStorage.removeItem('hasNewGameScore');
         }
         
-        // PRIORITY: Load scores from localStorage (same as game banners)
-        let bestScoresFromLocal: Record<string, number> = {};
-        let lastScoresFromLocal: Record<string, number> = {};
+        // Load user-specific scores from Supabase (not localStorage)
+        console.log('🔍 [Dashboard] Loading user-specific scores from Supabase...');
+        console.log('🔍 [Dashboard] User ID:', l.id);
         
-        console.log('🔍 [Dashboard] Checking localStorage for scores...');
-        console.log('🔍 [Dashboard] localStorage keys:', Object.keys(localStorage));
+        let userScoresFromDB: Record<string, { best: number; last: number }> = {};
         
         try {
-          const savedBestScores = localStorage.getItem('bestScores');
-          console.log('🔍 [Dashboard] Raw bestScores from localStorage:', savedBestScores);
-          if (savedBestScores) {
-            bestScoresFromLocal = JSON.parse(savedBestScores);
-            console.log('✅ [Dashboard] Parsed best scores:', bestScoresFromLocal);
-            console.log('✅ [Dashboard] Best scores keys:', Object.keys(bestScoresFromLocal));
-          } else {
-            console.warn('⚠️ [Dashboard] No bestScores found in localStorage!');
-          }
+          // Call the get_user_high_scores function
+          const { data: scoresData, error: scoresError } = await (await import('@/lib/supabase/client')).default
+            .rpc('get_user_high_scores', { user_id_param: l.id });
           
-          const savedLastScores = localStorage.getItem('lastScores');
-          console.log('🔍 [Dashboard] Raw lastScores from localStorage:', savedLastScores);
-          if (savedLastScores) {
-            lastScoresFromLocal = JSON.parse(savedLastScores);
-            console.log('✅ [Dashboard] Parsed last scores:', lastScoresFromLocal);
-            console.log('✅ [Dashboard] Last scores keys:', Object.keys(lastScoresFromLocal));
-          } else {
-            console.warn('⚠️ [Dashboard] No lastScores found in localStorage!');
+          if (scoresError) {
+            console.error('❌ [Dashboard] Error loading user scores:', scoresError);
+          } else if (scoresData) {
+            console.log('✅ [Dashboard] Loaded scores from database:', scoresData);
+            scoresData.forEach((gameScore: any) => {
+              userScoresFromDB[gameScore.game_type] = {
+                best: gameScore.best_score || 0,
+                last: gameScore.last_score || 0
+              };
+            });
+            console.log('✅ [Dashboard] Processed user scores:', userScoresFromDB);
           }
         } catch (error) {
-          console.error('❌ [Dashboard] Error loading scores from localStorage:', error);
+          console.error('❌ [Dashboard] Exception loading scores:', error);
         }
         
-        // Build the scores object using localStorage data (most reliable)
+        // Build the scores object using Supabase data (user-specific)
         const scores: Record<string, { 
           highScore: number; 
           highScoreMode: string; 
@@ -211,44 +207,40 @@ export default function SimpleDashboard() {
           totalPlayed: number;
         }> = {};
         
-        // Process all 6 games - ALWAYS show if localStorage has data
+        // Process all 6 games - Use Supabase data for user-specific scores
         const allGames = ['multi-target', 'falling-object', 'color-sequence', 'laser-dodge', 'quick-click', 'sword-parry'];
         
-        console.log('🔄 [Dashboard] Processing games from localStorage...');
-        console.log('📦 [Dashboard] Best scores available:', Object.keys(bestScoresFromLocal));
-        console.log('📦 [Dashboard] Last scores available:', Object.keys(lastScoresFromLocal));
+        console.log('🔄 [Dashboard] Processing games from Supabase...');
+        console.log('📦 [Dashboard] Games with scores:', Object.keys(userScoresFromDB));
         
         allGames.forEach(gameId => {
-          const hasBest = bestScoresFromLocal[gameId];
-          const hasLast = lastScoresFromLocal[gameId];
+          const gameScore = userScoresFromDB[gameId];
           
           console.log(`🎮 [Dashboard] ${gameId}:`, {
-            bestScore: hasBest,
-            lastScore: hasLast,
-            willAdd: !!(hasBest || hasLast)
+            bestScore: gameScore?.best,
+            lastScore: gameScore?.last,
+            hasData: !!gameScore
           });
           
-          // Add to scores if we have ANY data for this game
-          if (hasBest !== undefined || hasLast !== undefined) {
-            const bestScore = bestScoresFromLocal[gameId] || 0;
-            const lastScore = lastScoresFromLocal[gameId] || 0;
-            const highScore = Math.max(bestScore, lastScore);
+          // Add to scores if we have ANY data for this game from Supabase
+          if (gameScore && (gameScore.best > 0 || gameScore.last > 0)) {
+            const highScore = Math.max(gameScore.best, gameScore.last);
             
             scores[gameId] = {
               highScore: highScore,
               highScoreMode: 'Practice',
               highScoreDate: new Date().toISOString(),
-              recentScore: lastScore || bestScore,
+              recentScore: gameScore.last || gameScore.best,
               recentScoreMode: 'Practice',
               recentScoreDate: new Date().toISOString(),
               totalPlayed: 1
             };
             console.log(`✅ [Dashboard] Added ${gameId}:`, {
               high: highScore,
-              recent: lastScore || bestScore
+              recent: gameScore.last || gameScore.best
             });
           } else {
-            console.log(`⚠️ [Dashboard] No scores for ${gameId}`);
+            console.log(`⚠️ [Dashboard] No scores for ${gameId} in database`);
           }
         });
         
