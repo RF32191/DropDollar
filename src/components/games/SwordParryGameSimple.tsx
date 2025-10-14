@@ -42,6 +42,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const lastSpawn = useRef(0);
   const currentScoreRef = useRef(0); // Track current score for endGame
   const gameStartTimeRef = useRef(0); // Track game start time for speed scoring
+  const gameEndedRef = useRef(false); // Prevent multiple endGame calls
   
   // Get fair RNG configuration based on listing and attempt number
   const rngConfig = (listingId && entryNumber) 
@@ -296,6 +297,13 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   };
 
   const endGame = () => {
+    // Prevent multiple calls
+    if (gameEndedRef.current) {
+      console.log('⚠️ SwordParry: endGame already called, ignoring duplicate');
+      return;
+    }
+    
+    gameEndedRef.current = true;
     gameRunning.current = false;
     setGameState('ended');
     

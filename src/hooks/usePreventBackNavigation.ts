@@ -39,20 +39,12 @@ export function usePreventBackNavigation(isGameActive: boolean, redirectUrl: str
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Disable browser back button with history manipulation
-    const preventBack = setInterval(() => {
-      if (isGameActive) {
-        window.history.pushState(null, '', window.location.href);
-      }
-    }, 100);
-
     // Cleanup
     return () => {
       console.log('🔓 [BackNavigation] Deactivating back button protection');
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      clearInterval(preventBack);
     };
-  }, [isGameActive, redirectUrl, router]);
+  }, [isGameActive, redirectUrl]);
 }
 
