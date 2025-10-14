@@ -52,6 +52,10 @@ function GamePlayContent() {
       });
 
       // Try to find and create match retroactively
+      console.log('🔍 [1v1 Game] Looking for match with gameType:', gameType);
+      console.log('🔍 [1v1 Game] QueueId:', queueId);
+      console.log('🔍 [1v1 Game] Entry Fee:', entryFee);
+      
       const skillRating = await MatchmakingService.getUserSkillRating(user!.id);
       const match = await MatchmakingService.findMatch(
         queueId,
@@ -61,6 +65,8 @@ function GamePlayContent() {
         skillRating,
         gameType // Pass the actual game type
       );
+      
+      console.log('🔍 [1v1 Game] Match result:', match);
 
       if (match) {
         // Submit score to match

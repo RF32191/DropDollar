@@ -107,9 +107,11 @@ class MatchmakingService {
       const opponent = opponents[0];
       console.log(`✅ [Matchmaking] Found opponent: ${opponent.username} (ELO: ${opponent.skill_rating})`);
 
-      // Calculate prize pool (both entry fees minus 15% platform fee)
-      const totalPot = entryFee * 2;
-      const prizePool = totalPot * 0.85; // 85% to winner, 15% platform fee
+      // Calculate prize: Winner gets their stake back + 85% of opponent's stake
+      // Example: $1 bet → Winner gets $1 (theirs) + $0.85 (85% of opponent's) = $1.85
+      const winnerStakeBack = entryFee; // Winner gets their money back
+      const winningsFromOpponent = entryFee * 0.85; // 85% of opponent's stake
+      const prizePool = winnerStakeBack + winningsFromOpponent; // Total: $1.85
 
       // Create match
       const { data: match, error: matchError } = await supabase
