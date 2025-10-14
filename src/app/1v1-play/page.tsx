@@ -56,29 +56,22 @@ function GamePlayContent() {
         game_duration: result.duration || 0
       });
 
-      // Try to find and create match retroactively
-      console.log('🔍 [1v1 Game] Looking for match with gameType:', gameType);
+      // Submit score - this triggers automatic matching via database trigger
+      console.log('📊 [1v1 Game] Submitting score to lot system...');
       console.log('🔍 [1v1 Game] QueueId:', queueId);
-      console.log('🔍 [1v1 Game] Entry Fee:', entryFee);
+      console.log('🎯 [1v1 Game] Score:', result.score);
       
-      const skillRating = await MatchmakingService.getUserSkillRating(user!.id);
-      const match = await MatchmakingService.findMatch(
+      const matchResult = await MatchmakingService.submitScore(
         queueId,
         user!.id,
-        user!.username || user!.email || 'Anonymous',
-        entryFee,
-        skillRating,
-        gameType // Pass the actual game type
+        result.score || 0
       );
       
-      console.log('🔍 [1v1 Game] Match result:', match);
-
-      if (match) {
-        // Submit score to match
-        await MatchmakingService.submitScore(match.id, user!.id, result.score || 0);
-        console.log('✅ [1v1 Game] Matched and score submitted!');
+      if (matchResult.matched && matchResult.match) {
+        console.log('🎉 [1v1 Game] MATCHED! Match ID:', matchResult.match.id);
+        console.log('💰 [1v1 Game] Winner will be paid automatically!');
       } else {
-        console.log('⏳ [1v1 Game] No match found yet - score saved for later matching');
+        console.log('⏳ [1v1 Game] Score saved to lot. Waiting for opponent to complete their game...');
       }
 
       // Show completion screen
