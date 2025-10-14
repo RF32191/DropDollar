@@ -82,18 +82,18 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Account */}
+          {/* Legal & Support */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">👤 Account</h3>
+            <h3 className="text-lg font-semibold mb-4">⚖️ Legal & Support</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/auth/register" className="text-gray-400 hover:text-white transition-colors">
-                  Sign Up
+                <Link href="/terms-and-conditions" className="text-gray-400 hover:text-white transition-colors">
+                  Terms & Conditions
                 </Link>
               </li>
               <li>
-                <Link href="/auth/login" className="text-gray-400 hover:text-white transition-colors">
-                  Login
+                <Link href="/privacy-policy" className="text-gray-400 hover:text-white transition-colors">
+                  Privacy Policy
                 </Link>
               </li>
               <li>
@@ -102,7 +102,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="mailto:support@drop-dollar.com" className="text-gray-400 hover:text-white transition-colors">
                   Support
                 </Link>
               </li>
@@ -129,6 +129,16 @@ export default function Footer() {
             </div>
             <div className="text-sm text-gray-400">
               © 2024 DropDollar. All rights reserved.
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              DropDollar is a skill-based gaming platform. Must be 18+ to participate. 
+              <Link href="/terms-and-conditions" className="text-blue-400 hover:text-blue-300 ml-1">
+                Terms
+              </Link>
+              {' • '}
+              <Link href="/privacy-policy" className="text-blue-400 hover:text-blue-300">
+                Privacy
+              </Link>
             </div>
           </div>
         </div>
