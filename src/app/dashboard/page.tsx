@@ -369,7 +369,7 @@ export default function SimpleDashboard() {
         
         // Load user-specific scores from Supabase (not localStorage)
         console.log('🔍 [Dashboard] Loading user-specific scores from Supabase...');
-        console.log('🔍 [Dashboard] User ID:', l.id);
+        console.log('🔍 [Dashboard] User ID:', profile.id);
         
         let userScoresFromDB: Record<string, { best: number; last: number }> = {};
         
@@ -377,7 +377,7 @@ export default function SimpleDashboard() {
           // Try to call the get_user_high_scores function
           const supabaseClient = (await import('@/lib/supabase/client')).default;
           const { data: scoresData, error: scoresError } = await supabaseClient
-            .rpc('get_user_high_scores', { user_id_param: l.id });
+            .rpc('get_user_high_scores', { user_id_param: profile.id });
           
           if (scoresError) {
             console.warn('⚠️ [Dashboard] RPC function not found, falling back to direct query');
@@ -387,7 +387,7 @@ export default function SimpleDashboard() {
             const { data: gameHistory, error: historyError } = await supabaseClient
               .from('game_history')
               .select('game_type, score, created_at')
-              .eq('user_id', l.id)
+              .eq('user_id', profile.id)
               .eq('is_practice', true)
               .order('created_at', { ascending: false });
             

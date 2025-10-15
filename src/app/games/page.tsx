@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
@@ -122,6 +122,7 @@ interface GamePopularity {
 
 export default function GamesPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const listingId = searchParams.get('listingId');
   const tournamentId = searchParams.get('tournament');
   const entryId = searchParams.get('entry');
