@@ -136,7 +136,12 @@ GRANT ALL ON public.game_history TO authenticated;
 GRANT ALL ON public.game_scores TO authenticated;
 GRANT ALL ON public.high_scores TO authenticated;
 
--- 11. Create RPC function for getting user game history
+-- 11. Drop existing functions first to avoid parameter conflicts
+DROP FUNCTION IF EXISTS get_user_game_history(UUID);
+DROP FUNCTION IF EXISTS get_user_high_scores(UUID);
+DROP FUNCTION IF EXISTS get_user_high_scores(uuid);
+
+-- 12. Create RPC function for getting user game history
 CREATE OR REPLACE FUNCTION get_user_game_history(user_uuid UUID)
 RETURNS TABLE (
     id UUID,
@@ -171,7 +176,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 12. Create RPC function for getting user high scores
+-- 13. Create RPC function for getting user high scores
 CREATE OR REPLACE FUNCTION get_user_high_scores(user_uuid UUID)
 RETURNS TABLE (
     game_type TEXT,
