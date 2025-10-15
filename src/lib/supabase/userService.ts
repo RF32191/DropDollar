@@ -610,9 +610,9 @@ export class UserService {
       console.log('✅ [UserService] Enhanced game history with opponent data:', enhancedGameHistory.length);
       
       // Debug: Check competition vs practice games
-      const competitionGames = enhancedGameHistory.filter(g => g.isCompetition);
+      const competitionGamesDebug = enhancedGameHistory.filter(g => g.isCompetition);
       const practiceGames = enhancedGameHistory.filter(g => g.isPractice);
-      console.log('🏆 [UserService] Competition games:', competitionGames.length);
+      console.log('🏆 [UserService] Competition games:', competitionGamesDebug.length);
       console.log('⭐ [UserService] Practice games:', practiceGames.length);
       
       if (enhancedGameHistory.length > 0) {

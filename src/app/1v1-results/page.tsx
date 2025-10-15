@@ -71,10 +71,7 @@ function ResultsContent() {
     
     // Try to fetch match results
     if (queueId) {
-        fetchMatchResults(user.id, queueId);
-      } else {
-        setIsLoading(false);
-      }
+      fetchMatchResults(user.id, queueId);
     } else {
       setIsLoading(false);
     }
