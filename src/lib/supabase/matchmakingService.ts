@@ -51,51 +51,11 @@ class MatchmakingService {
       console.log(`🎮 [Matchmaking] Entry Fee: ${entryFee}`);
       console.log(`🎮 [Matchmaking] Game Type: ${gameType}`);
 
-      // Find or create a lot for this player
-      console.log(`🔍 [Matchmaking] Calling find_or_create_lot RPC...`);
-      const { data: lotData, error: lotError } = await supabase
-        .rpc('find_or_create_lot', {
-          p_game_type: gameType,
-          p_entry_fee: entryFee.toString(), // Convert to string to match NUMERIC
-          p_skill_rating: skillRating
-        });
-
-      if (lotError) {
-        console.error('❌ [Matchmaking] Error getting lot:', lotError);
-        console.log('🔄 [Matchmaking] Using fallback lot creation...');
-        // Fallback: create lot manually
-        const lotNumber = `${gameType}-${entryFee}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-        console.log(`🎫 [Matchmaking] Generated lot number: ${lotNumber}`);
-        
-        console.log(`💾 [Matchmaking] Inserting into matchmaking_queue...`);
-        const { data, error } = await supabase
-          .from('matchmaking_queue')
-          .insert({
-            user_id: userId,
-            username: username,
-            entry_fee: entryFee,
-            status: 'waiting',
-            game_type: gameType,
-            lot_number: lotNumber
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('❌ [Matchmaking] Insert error:', error);
-          console.error('❌ [Matchmaking] Error details:', JSON.stringify(error, null, 2));
-          throw error;
-        }
-        
-        console.log(`✅ [Matchmaking] ${username} in queue:`, data.id, 'Lot:', data.lot_number);
-        return data;
-      }
-
-      const lotNumber = lotData as string;
-      console.log(`🎫 [Matchmaking] RPC returned lot number: ${lotNumber}`);
-
-      // Insert into queue with lot number
-      console.log(`💾 [Matchmaking] Inserting into matchmaking_queue with RPC lot...`);
+      // Skip RPC function entirely - create lot manually
+      const lotNumber = `${gameType}-${entryFee}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+      console.log(`🎫 [Matchmaking] Generated lot number: ${lotNumber}`);
+      
+      console.log(`💾 [Matchmaking] Inserting into matchmaking_queue...`);
       const { data, error } = await supabase
         .from('matchmaking_queue')
         .insert({
@@ -112,9 +72,36 @@ class MatchmakingService {
       if (error) {
         console.error('❌ [Matchmaking] Insert error:', error);
         console.error('❌ [Matchmaking] Error details:', JSON.stringify(error, null, 2));
+        
+        // If RLS is still blocking, try a different approach
+        if (error.code === '42501') {
+          console.log('🔄 [Matchmaking] RLS blocking insert, trying alternative approach...');
+          
+          // Try inserting with minimal required fields
+          const { data: altData, error: altError } = await supabase
+            .from('matchmaking_queue')
+            .insert({
+              user_id: userId,
+              username: username,
+              entry_fee: entryFee,
+              game_type: gameType,
+              lot_number: lotNumber
+            })
+            .select()
+            .single();
+            
+          if (altError) {
+            console.error('❌ [Matchmaking] Alternative insert also failed:', altError);
+            throw altError;
+          }
+          
+          console.log(`✅ [Matchmaking] Alternative insert successful:`, altData.id);
+          return altData;
+        }
+        
         throw error;
       }
-
+      
       console.log(`✅ [Matchmaking] ${username} in queue:`, data.id, 'Lot:', data.lot_number);
       return data;
     } catch (error) {

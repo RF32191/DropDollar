@@ -20,6 +20,16 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 
+interface LastGameResult {
+  score: number;
+  gameType: string;
+  entryFee: number;
+  queueId: string;
+  matchId?: string;
+  opponent?: string;
+  timestamp: string;
+}
+
 interface BankAccount {
   id: string;
   accountId: string;
@@ -51,6 +61,91 @@ const GAME_NAME_MAP: Record<string, string> = {
   'quick-click': 'Quick Click',
   'sword-parry': 'Sword Parry'
 };
+
+// Last Game Result Component
+function LastGameResultSection() {
+  const [lastGameResult, setLastGameResult] = useState<LastGameResult | null>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('lastGameResult');
+    if (stored) {
+      try {
+        const result = JSON.parse(stored);
+        setLastGameResult(result);
+      } catch (error) {
+        console.error('Error parsing last game result:', error);
+      }
+    }
+  }, []);
+
+  if (!lastGameResult) return null;
+
+  const gameTypeDisplay = lastGameResult.gameType
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  return (
+    <div className="mb-16">
+      <div className="bg-gradient-to-br from-green-900/70 to-blue-900/70 backdrop-blur-xl p-8 rounded-3xl border-4 border-green-500/70 shadow-2xl hover:shadow-green-500/50 transition-all duration-500 hover:scale-[1.02]">
+        <div className="flex items-center justify-center mb-6">
+          <TrophyIcon className="h-12 w-12 text-green-400 mr-3 animate-pulse" />
+          <h2 className="text-3xl font-black bg-gradient-to-r from-green-300 via-green-400 to-blue-500 bg-clip-text text-transparent drop-shadow-lg">
+            🎮 LAST GAME RESULT
+          </h2>
+          <TrophyIcon className="h-12 w-12 text-green-400 ml-3 animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-black/30 backdrop-blur-sm p-6 rounded-2xl border border-green-500/30">
+            <h3 className="text-xl font-bold text-green-300 mb-4 flex items-center">
+              <ChartBarIcon className="h-6 w-6 mr-2" />
+              Game Details
+            </h3>
+            <div className="space-y-2 text-white">
+              <p><span className="text-green-400 font-semibold">Game:</span> {gameTypeDisplay}</p>
+              <p><span className="text-green-400 font-semibold">Entry Fee:</span> ${lastGameResult.entryFee}</p>
+              <p><span className="text-green-400 font-semibold">Score:</span> {lastGameResult.score.toFixed(2)}</p>
+              <p><span className="text-green-400 font-semibold">Played:</span> {new Date(lastGameResult.timestamp).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="bg-black/30 backdrop-blur-sm p-6 rounded-2xl border border-green-500/30">
+            <h3 className="text-xl font-bold text-green-300 mb-4 flex items-center">
+              <FireIcon className="h-6 w-6 mr-2" />
+              Match Status
+            </h3>
+            <div className="space-y-2 text-white">
+              {lastGameResult.opponent ? (
+                <>
+                  <p><span className="text-green-400 font-semibold">Opponent:</span> {lastGameResult.opponent}</p>
+                  <p><span className="text-green-400 font-semibold">Match ID:</span> {lastGameResult.matchId || 'Processing...'}</p>
+                  <p className="text-yellow-400 font-semibold">✅ Match Found!</p>
+                </>
+              ) : (
+                <>
+                  <p><span className="text-yellow-400 font-semibold">Status:</span> Waiting for opponent...</p>
+                  <p><span className="text-yellow-400 font-semibold">Queue ID:</span> {lastGameResult.queueId}</p>
+                  <p className="text-blue-400 font-semibold">⏳ Searching for match...</p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link 
+            href={`/1v1-results?score=${lastGameResult.score}&game=${lastGameResult.gameType}&fee=${lastGameResult.entryFee}&queueId=${lastGameResult.queueId}&matchId=${lastGameResult.matchId || ''}`}
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+          >
+            <TrophyIcon className="h-5 w-5 mr-2" />
+            View Full Results
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SimpleDashboard() {
   const [showTestimonialForm, setShowTestimonialForm] = useState(false);
@@ -656,6 +751,9 @@ export default function SimpleDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Last Game Result Section */}
+        <LastGameResultSection />
 
         {/* High Scores Section - PROMINENT DISPLAY */}
         <div className="mb-16">

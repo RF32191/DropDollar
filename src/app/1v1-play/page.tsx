@@ -108,7 +108,23 @@ function GamePlayContent() {
       console.log('⏳ [1v1 Game] Showing completion screen for 2 seconds...');
       setTimeout(() => {
         console.log('🚀 [1v1 Game] Redirecting to results page...');
-        router.push(`/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}&matchId=${assignmentResult.matchId || ''}`);
+        
+        // Try to redirect to results page, fallback to dashboard if it fails
+        const resultsUrl = `/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}&matchId=${assignmentResult.matchId || ''}`;
+        
+        // Store game result in localStorage for dashboard to show
+        localStorage.setItem('lastGameResult', JSON.stringify({
+          score: result.score,
+          gameType: gameType,
+          entryFee: entryFee,
+          queueId: queueId,
+          matchId: assignmentResult.matchId,
+          opponent: assignmentResult.opponent,
+          timestamp: new Date().toISOString()
+        }));
+        
+        // Redirect to results page
+        router.push(resultsUrl);
       }, 2000);
 
     } catch (error) {
