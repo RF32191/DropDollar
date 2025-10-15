@@ -56,7 +56,7 @@ class MatchmakingService {
       const { data: lotData, error: lotError } = await supabase
         .rpc('find_or_create_lot', {
           p_game_type: gameType,
-          p_entry_fee: entryFee,
+          p_entry_fee: entryFee.toString(), // Convert to string to match NUMERIC
           p_skill_rating: skillRating
         });
 
