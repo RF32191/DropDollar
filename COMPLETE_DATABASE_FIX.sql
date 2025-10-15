@@ -24,12 +24,12 @@ CREATE TABLE matchmaking_queue (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes
-CREATE INDEX idx_matchmaking_user_id ON matchmaking_queue(user_id);
-CREATE INDEX idx_matchmaking_game_type ON matchmaking_queue(game_type);
-CREATE INDEX idx_matchmaking_status ON matchmaking_queue(status);
-CREATE INDEX idx_matchmaking_lot_number ON matchmaking_queue(lot_number);
-CREATE INDEX idx_matchmaking_player_score ON matchmaking_queue(player_score);
+-- Create indexes (with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_matchmaking_user_id ON matchmaking_queue(user_id);
+CREATE INDEX IF NOT EXISTS idx_matchmaking_game_type ON matchmaking_queue(game_type);
+CREATE INDEX IF NOT EXISTS idx_matchmaking_status ON matchmaking_queue(status);
+CREATE INDEX IF NOT EXISTS idx_matchmaking_lot_number ON matchmaking_queue(lot_number);
+CREATE INDEX IF NOT EXISTS idx_matchmaking_player_score ON matchmaking_queue(player_score);
 
 -- ============================================================================
 -- 2. CREATE/FIX MATCHES TABLE
@@ -58,13 +58,13 @@ CREATE TABLE matches (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes
-CREATE INDEX idx_matches_lot_number ON matches(lot_number);
-CREATE INDEX idx_matches_player1_id ON matches(player1_id);
-CREATE INDEX idx_matches_player2_id ON matches(player2_id);
-CREATE INDEX idx_matches_winner_id ON matches(winner_id);
-CREATE INDEX idx_matches_game_type ON matches(game_type);
-CREATE INDEX idx_matches_status ON matches(status);
+-- Create indexes (with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_matches_lot_number ON matches(lot_number);
+CREATE INDEX IF NOT EXISTS idx_matches_player1_id ON matches(player1_id);
+CREATE INDEX IF NOT EXISTS idx_matches_player2_id ON matches(player2_id);
+CREATE INDEX IF NOT EXISTS idx_matches_winner_id ON matches(winner_id);
+CREATE INDEX IF NOT EXISTS idx_matches_game_type ON matches(game_type);
+CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status);
 
 -- ============================================================================
 -- 3. CREATE/FIX GAME_HISTORY TABLE
@@ -99,12 +99,12 @@ CREATE TABLE game_history (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes
-CREATE INDEX idx_game_history_user_id ON game_history(user_id);
-CREATE INDEX idx_game_history_game_type ON game_history(game_type);
-CREATE INDEX idx_game_history_mode ON game_history(mode);
-CREATE INDEX idx_game_history_score ON game_history(score);
-CREATE INDEX idx_game_history_created_at ON game_history(created_at);
+-- Create indexes (with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_game_history_user_id ON game_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_game_history_game_type ON game_history(game_type);
+CREATE INDEX IF NOT EXISTS idx_game_history_mode ON game_history(mode);
+CREATE INDEX IF NOT EXISTS idx_game_history_score ON game_history(score);
+CREATE INDEX IF NOT EXISTS idx_game_history_created_at ON game_history(created_at);
 
 -- ============================================================================
 -- 4. CREATE/FIX USERS TABLE
@@ -126,9 +126,9 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email ON users(email);
+-- Create indexes (with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- ============================================================================
 -- 5. CREATE/FIX TOKEN_TRANSACTIONS TABLE
@@ -148,10 +148,10 @@ CREATE TABLE IF NOT EXISTS token_transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes
-CREATE INDEX idx_token_transactions_user_id ON token_transactions(user_id);
-CREATE INDEX idx_token_transactions_type ON token_transactions(type);
-CREATE INDEX idx_token_transactions_created_at ON token_transactions(created_at);
+-- Create indexes (with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS idx_token_transactions_user_id ON token_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_token_transactions_type ON token_transactions(type);
+CREATE INDEX IF NOT EXISTS idx_token_transactions_created_at ON token_transactions(created_at);
 
 -- ============================================================================
 -- 6. ENABLE ROW LEVEL SECURITY
@@ -169,6 +169,11 @@ ALTER TABLE token_transactions ENABLE ROW LEVEL SECURITY;
 -- ============================================================================
 
 -- Matchmaking Queue Policies
+DROP POLICY IF EXISTS "Users can view all queue entries" ON matchmaking_queue;
+DROP POLICY IF EXISTS "Users can insert their own queue entries" ON matchmaking_queue;
+DROP POLICY IF EXISTS "Users can update their own queue entries" ON matchmaking_queue;
+DROP POLICY IF EXISTS "Users can delete their own queue entries" ON matchmaking_queue;
+
 CREATE POLICY "Users can view all queue entries" ON matchmaking_queue
     FOR SELECT USING (true);
 
@@ -182,6 +187,10 @@ CREATE POLICY "Users can delete their own queue entries" ON matchmaking_queue
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Matches Policies
+DROP POLICY IF EXISTS "Users can view all matches" ON matches;
+DROP POLICY IF EXISTS "Users can insert matches" ON matches;
+DROP POLICY IF EXISTS "Users can update matches" ON matches;
+
 CREATE POLICY "Users can view all matches" ON matches
     FOR SELECT USING (true);
 
@@ -192,6 +201,10 @@ CREATE POLICY "Users can update matches" ON matches
     FOR UPDATE USING (true);
 
 -- Game History Policies
+DROP POLICY IF EXISTS "Users can view all game history" ON game_history;
+DROP POLICY IF EXISTS "Users can insert their own game history" ON game_history;
+DROP POLICY IF EXISTS "Users can update their own game history" ON game_history;
+
 CREATE POLICY "Users can view all game history" ON game_history
     FOR SELECT USING (true);
 
@@ -202,6 +215,10 @@ CREATE POLICY "Users can update their own game history" ON game_history
     FOR UPDATE USING (auth.uid() = user_id);
 
 -- Users Policies
+DROP POLICY IF EXISTS "Users can view all user profiles" ON users;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON users;
+DROP POLICY IF EXISTS "Users can update their own profile" ON users;
+
 CREATE POLICY "Users can view all user profiles" ON users
     FOR SELECT USING (true);
 
@@ -212,6 +229,9 @@ CREATE POLICY "Users can update their own profile" ON users
     FOR UPDATE USING (auth.uid() = id);
 
 -- Token Transactions Policies
+DROP POLICY IF EXISTS "Users can view their own transactions" ON token_transactions;
+DROP POLICY IF EXISTS "Users can insert their own transactions" ON token_transactions;
+
 CREATE POLICY "Users can view their own transactions" ON token_transactions
     FOR SELECT USING (auth.uid() = user_id);
 
@@ -223,6 +243,7 @@ CREATE POLICY "Users can insert their own transactions" ON token_transactions
 -- ============================================================================
 
 -- Function to find or create a lot
+DROP FUNCTION IF EXISTS find_or_create_lot(TEXT, DECIMAL(10,2), INTEGER);
 CREATE OR REPLACE FUNCTION find_or_create_lot(
     p_game_type TEXT,
     p_entry_fee DECIMAL(10,2),
@@ -239,6 +260,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get user high scores
+DROP FUNCTION IF EXISTS get_user_high_scores(UUID);
 CREATE OR REPLACE FUNCTION get_user_high_scores(p_user_id UUID)
 RETURNS TABLE(
     game_type TEXT,
