@@ -29,7 +29,7 @@ const TermsOfService = () => {
             className="prose prose-invert max-w-none"
           >
             <p className="text-gray-300 mb-6">
-              <strong>Last Updated:</strong> {new Date().toLocaleDateString()}
+              <strong>Last Updated:</strong> {new Date().toLocaleDateString()} - California Law Updated
             </p>
 
             <section className="mb-8">
