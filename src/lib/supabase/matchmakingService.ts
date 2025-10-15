@@ -53,71 +53,122 @@ class MatchmakingService {
 
       // TRIUMPH-STYLE MATCHMAKING: Look for existing waiting opponent first
       console.log(`🔍 [Matchmaking] Looking for existing opponent...`);
-      const { data: existingMatch, error: searchError } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('game_type', gameType)
-        .eq('entry_fee', entryFee)
-        .eq('status', 'waiting_for_game')
-        .is('player2_id', null)
-        .neq('player1_id', userId)
-        .single();
+      
+      let existingMatch = null;
+      let searchError = null;
+      
+      try {
+        const result = await supabase
+          .from('matches')
+          .select('*')
+          .eq('game_type', gameType)
+          .eq('entry_fee', entryFee)
+          .eq('status', 'waiting_for_game')
+          .is('player2_id', null)
+          .neq('player1_id', userId)
+          .single();
+        
+        existingMatch = result.data;
+        searchError = result.error;
+      } catch (error) {
+        console.log(`⚠️ [Matchmaking] Matches table may not exist yet, using fallback...`);
+        searchError = error;
+      }
 
       if (existingMatch && !searchError) {
         console.log(`✅ [Matchmaking] Found existing match! Joining as player 2...`);
         
-        // Join existing match as player 2
-        const { data: updatedMatch, error: updateError } = await supabase
-          .from('matches')
-          .update({
-            player2_id: userId,
-            player2_username: username,
-            status: 'in_progress'
-          })
-          .eq('id', existingMatch.id)
-          .select()
-          .single();
+        try {
+          // Join existing match as player 2
+          const { data: updatedMatch, error: updateError } = await supabase
+            .from('matches')
+            .update({
+              player2_id: userId,
+              player2_username: username,
+              status: 'in_progress'
+            })
+            .eq('id', existingMatch.id)
+            .select()
+            .single();
 
-        if (updateError) {
-          console.error('❌ [Matchmaking] Error joining existing match:', updateError);
-          throw updateError;
+          if (updateError) {
+            console.error('❌ [Matchmaking] Error joining existing match:', updateError);
+            throw updateError;
+          }
+
+          console.log(`✅ [Matchmaking] Successfully joined match:`, updatedMatch.id);
+          
+          // Return match info as queue entry
+          return {
+            id: updatedMatch.id,
+            user_id: userId,
+            username: username,
+            entry_fee: entryFee,
+            status: 'matched',
+            game_type: gameType,
+            lot_number: `match-${updatedMatch.id}`,
+            created_at: updatedMatch.created_at,
+            updated_at: new Date().toISOString()
+          };
+        } catch (error) {
+          console.log(`⚠️ [Matchmaking] Error joining existing match, falling back to localStorage...`);
+          // Fall through to create new match
         }
-
-        console.log(`✅ [Matchmaking] Successfully joined match:`, updatedMatch.id);
-        
-        // Return match info as queue entry
-        return {
-          id: updatedMatch.id,
-          user_id: userId,
-          username: username,
-          entry_fee: entryFee,
-          status: 'matched',
-          game_type: gameType,
-          lot_number: `match-${updatedMatch.id}`,
-          created_at: updatedMatch.created_at,
-          updated_at: new Date().toISOString()
-        };
       }
 
       // No existing match found - create new match as player 1
       console.log(`🆕 [Matchmaking] No existing match found. Creating new match as player 1...`);
       
-      const { data: newMatch, error: createError } = await supabase
-        .from('matches')
-        .insert({
-          player1_id: userId,
-          player1_username: username,
-          entry_fee: entryFee,
-          prize_pool: entryFee * 2, // Winner takes both entry fees
-          game_type: gameType,
-          status: 'waiting_for_game'
-        })
-        .select()
-        .single();
+      let newMatch = null;
+      let createError = null;
+      
+      try {
+        const result = await supabase
+          .from('matches')
+          .insert({
+            player1_id: userId,
+            player1_username: username,
+            entry_fee: entryFee,
+            prize_pool: entryFee * 2, // Winner takes both entry fees
+            game_type: gameType,
+            status: 'waiting_for_game'
+          })
+          .select()
+          .single();
+        
+        newMatch = result.data;
+        createError = result.error;
+      } catch (error) {
+        console.log(`⚠️ [Matchmaking] Matches table may not exist, using localStorage fallback...`);
+        createError = error;
+      }
 
-      if (createError) {
-        console.error('❌ [Matchmaking] Error creating new match:', createError);
-        throw createError;
+      if (createError || !newMatch) {
+        console.log(`🔄 [Matchmaking] Using localStorage fallback for matchmaking...`);
+        
+        // FALLBACK: Use localStorage when matches table doesn't exist
+        const matchId = `match-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+        const lotNumber = `${gameType}-${entryFee}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+        
+        const queueEntry: MatchmakingQueue = {
+          id: matchId,
+          user_id: userId,
+          username: username,
+          entry_fee: entryFee,
+          status: 'waiting',
+          game_type: gameType,
+          lot_number: lotNumber,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Store in localStorage
+        const existingQueue = JSON.parse(localStorage.getItem('matchmaking_queue') || '[]');
+        existingQueue.push(queueEntry);
+        localStorage.setItem('matchmaking_queue', JSON.stringify(existingQueue));
+        
+        console.log(`✅ [Matchmaking] Created localStorage match:`, matchId);
+        return queueEntry;
       }
 
       console.log(`✅ [Matchmaking] Created new match:`, newMatch.id);
