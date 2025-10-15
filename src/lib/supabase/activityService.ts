@@ -102,6 +102,8 @@ export class ActivityService {
     listing_id?: string;
     entry_number?: number;
     game_duration?: number;
+    match_id?: string;
+    lot_number?: string;
   }): Promise<GameHistory | null> {
     try {
       console.log('🎮 [ActivityService] Saving game history...');
@@ -126,7 +128,10 @@ export class ActivityService {
           result: 'completed',
           metadata: {
             listing_id: gameData.listing_id,
-            entry_number: gameData.entry_number
+            entry_number: gameData.entry_number,
+            match_id: gameData.match_id,
+            lot_number: gameData.lot_number,
+            game_mode: gameData.is_practice ? 'practice' : 'competition'
           },
           created_at: new Date().toISOString()
         }])

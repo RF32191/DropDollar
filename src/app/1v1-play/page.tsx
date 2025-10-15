@@ -11,6 +11,7 @@ import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SuddenDeathGame from '@/components/games/SuddenDeathGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
+import OpponentAssignmentService from '@/lib/supabase/opponentAssignmentService';
 import { ActivityService } from '@/lib/supabase/activityService';
 import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
 
@@ -53,30 +54,50 @@ function GamePlayContent() {
         is_practice: false, // This is a 1v1 match
         avg_reaction_time: result.avgReactionTime || 0,
         accuracy: result.accuracy || 100,
-        game_duration: result.duration || 0
+        game_duration: result.duration || 0,
+        lot_number: lotNumber
       });
 
-      // Submit score - this triggers automatic matching via database trigger
-      console.log('📊 [1v1 Game] Submitting score to lot system...');
+      // Use the new opponent assignment service
+      console.log('🎯 [1v1 Game] Attempting automatic opponent assignment...');
       console.log('🔍 [1v1 Game] QueueId:', queueId);
       console.log('🎯 [1v1 Game] Score:', result.score);
       
-      const matchResult = await MatchmakingService.submitScore(
+      const assignmentResult = await OpponentAssignmentService.assignOpponent(
         queueId,
         user!.id,
+        user!.username,
+        gameType,
+        entryFee,
+        lotNumber,
         result.score || 0
       );
       
-      if (matchResult.matched && matchResult.match) {
-        console.log('🎉 [1v1 Game] MATCHED! Match ID:', matchResult.match.id);
+      if (assignmentResult.matched && assignmentResult.opponent) {
+        console.log('🎉 [1v1 Game] OPPONENT ASSIGNED!');
+        console.log('🎉 [1v1 Game] Opponent:', assignmentResult.opponent.username);
+        console.log('🎉 [1v1 Game] Match ID:', assignmentResult.matchId);
         console.log('💰 [1v1 Game] Winner will be paid automatically!');
+        
+        // Update the game history with match information
+        await ActivityService.saveGameHistory({
+          user_id: user!.id,
+          game_type: gameType,
+          score: result.score || 0,
+          is_practice: false,
+          avg_reaction_time: result.avgReactionTime || 0,
+          accuracy: result.accuracy || 100,
+          game_duration: result.duration || 0,
+          lot_number: lotNumber,
+          match_id: assignmentResult.matchId
+        });
       } else {
-        console.log('⏳ [1v1 Game] Score saved to lot. Waiting for opponent to complete their game...');
+        console.log('⏳ [1v1 Game] No opponent found yet. Score saved for later matching...');
       }
 
       // Show completion screen
       setTimeout(() => {
-        router.push(`/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}`);
+        router.push(`/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}&matchId=${assignmentResult.matchId || ''}`);
       }, 2000);
 
     } catch (error) {

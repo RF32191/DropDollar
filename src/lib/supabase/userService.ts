@@ -51,6 +51,13 @@ export interface GameHistory {
   entryNumber?: number;
   placement?: number;
   prizeWon?: number;
+  
+  // Match information
+  opponentName?: string;
+  opponentScore?: number;
+  matchId?: string;
+  lotNumber?: string;
+  
   metadata?: Record<string, any>;
   createdAt: string;
 }
@@ -522,45 +529,90 @@ export class UserService {
   }
 
   /**
-   * Get user game history
+   * Get user game history with opponent information
    */
   static async getUserGameHistory(userId: string): Promise<GameHistory[]> {
     try {
       console.log('🎮 [UserService] Fetching game history for user:', userId);
-      const { data, error } = await supabase
+      
+      // First, get the basic game history
+      const { data: gameData, error: gameError } = await supabase
         .from('game_history')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ [UserService] Error fetching game history:', error);
+      if (gameError) {
+        console.error('❌ [UserService] Error fetching game history:', gameError);
         return [];
       }
 
-      console.log('✅ [UserService] Game history fetched:', data?.length || 0);
-      if (data && data.length > 0) {
-        console.log('📊 [UserService] Sample game:', data[0]);
-      }
+      console.log('✅ [UserService] Game history fetched:', gameData?.length || 0);
       
-      return (data || []).map(game => ({
-        id: game.id,
-        userId: game.user_id,
-        gameType: game.game_type,
-        gameName: game.game_type, // V4 schema doesn't have game_name separate
-        score: game.score,
-        accuracy: game.accuracy,
-        avgReactionTime: game.reaction_time, // V4 schema uses reaction_time
-        gameDuration: game.duration_seconds, // V4 schema uses duration_seconds
-        isPractice: game.mode === 'practice', // V4 schema uses mode field
-        isCompetition: game.mode === 'competition', // V4 schema uses mode field
-        listingId: game.metadata?.listing_id, // Stored in metadata in V4
-        entryNumber: game.metadata?.entry_number, // Stored in metadata in V4
-        placement: null, // Not in V4 schema
-        prizeWon: game.tokens_won || 0,
-        metadata: game.metadata,
-        createdAt: game.created_at
-      }));
+      if (!gameData || gameData.length === 0) {
+        return [];
+      }
+
+      // Get match information for competition games
+      const competitionGames = gameData.filter(game => game.mode === 'competition');
+      const matchIds = competitionGames
+        .map(game => game.metadata?.match_id)
+        .filter(Boolean);
+
+      let matchData: any[] = [];
+      if (matchIds.length > 0) {
+        const { data: matches, error: matchError } = await supabase
+          .from('matches')
+          .select('*')
+          .in('id', matchIds);
+
+        if (!matchError && matches) {
+          matchData = matches;
+          console.log('✅ [UserService] Match data fetched:', matches.length);
+        }
+      }
+
+      // Combine game history with match information
+      const enhancedGameHistory = gameData.map(game => {
+        const match = matchData.find(m => m.id === game.metadata?.match_id);
+        
+        return {
+          id: game.id,
+          userId: game.user_id,
+          gameType: game.game_type,
+          gameName: game.game_type,
+          score: game.score,
+          accuracy: game.accuracy,
+          avgReactionTime: game.reaction_time,
+          gameDuration: game.duration_seconds,
+          isPractice: game.mode === 'practice',
+          isCompetition: game.mode === 'competition',
+          listingId: game.metadata?.listing_id,
+          entryNumber: game.metadata?.entry_number,
+          placement: null,
+          prizeWon: game.tokens_won || 0,
+          
+          // Match information
+          opponentName: match ? 
+            (match.player1_id === userId ? match.player2_name : match.player1_name) : 
+            undefined,
+          opponentScore: match ? 
+            (match.player1_id === userId ? match.player2_score : match.player1_score) : 
+            undefined,
+          matchId: match?.id,
+          lotNumber: match?.lot_number,
+          
+          metadata: game.metadata,
+          createdAt: game.created_at
+        };
+      });
+
+      console.log('✅ [UserService] Enhanced game history with opponent data:', enhancedGameHistory.length);
+      if (enhancedGameHistory.length > 0) {
+        console.log('📊 [UserService] Sample enhanced game:', enhancedGameHistory[0]);
+      }
+
+      return enhancedGameHistory;
     } catch (error) {
       console.error('❌ [UserService] Exception in getUserGameHistory:', error);
       return [];

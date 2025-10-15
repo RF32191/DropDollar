@@ -23,6 +23,13 @@ interface GameHistory {
   isCompetition: boolean;
   listingId?: string;
   entryNumber?: number;
+  
+  // Match information
+  opponentName?: string;
+  opponentScore?: number;
+  matchId?: string;
+  lotNumber?: string;
+  
   prizeWon: number;
   createdAt: string;
 }
@@ -268,6 +275,7 @@ export default function GameHistoryTable({ gameHistory }: GameHistoryTableProps)
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Date & Time</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Game</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Mode</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Opponent</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300 cursor-pointer hover:text-purple-400" onClick={() => handleSort('score')}>
                   Score {sortBy === 'score' && (sortOrder === 'desc' ? '↓' : '↑')}
                 </th>
@@ -302,6 +310,27 @@ export default function GameHistoryTable({ gameHistory }: GameHistoryTableProps)
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-4">
+                    {game.opponentName ? (
+                      <div className="space-y-1">
+                        <div className="font-semibold text-white">{game.opponentName}</div>
+                        {game.opponentScore && (
+                          <div className="text-xs text-gray-400">
+                            Score: {game.opponentScore.toLocaleString()}
+                          </div>
+                        )}
+                        {game.lotNumber && (
+                          <div className="text-xs text-purple-400">
+                            Lot #{game.lotNumber}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-sm">
+                        {game.isPractice ? 'Solo Practice' : 'Waiting for Match'}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-4 text-right">
                     <div className="text-lg font-bold text-white">{game.score.toLocaleString()}</div>
                   </td>
@@ -319,7 +348,19 @@ export default function GameHistoryTable({ gameHistory }: GameHistoryTableProps)
                   </td>
                   <td className="px-4 py-4 text-right">
                     {game.prizeWon > 0 ? (
-                      <div className="font-bold text-green-400">${game.prizeWon.toFixed(2)}</div>
+                      <div className="space-y-1">
+                        <div className="font-bold text-green-400 text-lg">
+                          +${game.prizeWon.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-green-300">WON</div>
+                      </div>
+                    ) : game.isCompetition ? (
+                      <div className="space-y-1">
+                        <div className="font-bold text-red-400 text-lg">
+                          -$1.00
+                        </div>
+                        <div className="text-xs text-red-300">LOST</div>
+                      </div>
                     ) : (
                       <div className="text-gray-500">-</div>
                     )}
