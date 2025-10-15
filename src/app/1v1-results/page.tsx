@@ -4,7 +4,9 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
+import OpponentAssignmentService from '@/lib/supabase/opponentAssignmentService';
 import { createClient } from '@supabase/supabase-js';
+import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
 
 // Create Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -29,6 +31,9 @@ function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
+  // Prevent back navigation to prevent replay
+  usePreventBackNavigation();
+  
   const score = parseInt(searchParams.get('score') || '0');
   const gameType = searchParams.get('game') || 'quick-click';
   const entryFee = parseInt(searchParams.get('fee') || '1');
@@ -38,16 +43,34 @@ function ResultsContent() {
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [confirmationNumber, setConfirmationNumber] = useState<string>('');
 
   useEffect(() => {
-    // Get user ID
+    // Generate confirmation number
+    const confNum = `DD-${Date.now().toString().slice(-8)}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+    setConfirmationNumber(confNum);
+    console.log('🎫 [Results] Confirmation number generated:', confNum);
+    
+    // Get user ID from localStorage
     const userData = localStorage.getItem('user');
     if (userData) {
-      const user = JSON.parse(userData);
-      setUserId(user.id);
-      
-      // Try to fetch match results
-      if (queueId) {
+      try {
+        const user = JSON.parse(userData);
+        setUserId(user.id);
+        console.log('🔍 [Results] User ID loaded:', user.id);
+      } catch (error) {
+        console.error('❌ [Results] Error parsing user data:', error);
+        router.push('/signin');
+        return;
+      }
+    } else {
+      console.log('❌ [Results] No user data found, redirecting to signin');
+      router.push('/signin');
+      return;
+    }
+    
+    // Try to fetch match results
+    if (queueId) {
         fetchMatchResults(user.id, queueId);
       } else {
         setIsLoading(false);
@@ -147,6 +170,15 @@ function ResultsContent() {
                    isTie ? 'Both players refunded' : 
                    'Better luck next time!'}
                 </p>
+                
+                {/* Confirmation Number */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl border-2 border-blue-500/30">
+                  <p className="text-blue-300 text-sm mb-1">Confirmation Number</p>
+                  <p className="text-2xl font-black text-blue-400 font-mono">
+                    {confirmationNumber}
+                  </p>
+                  <p className="text-blue-200 text-xs mt-1">Save this number for your records</p>
+                </div>
               </div>
 
               {/* Match Scorecard */}
@@ -227,6 +259,15 @@ function ResultsContent() {
                   GAME COMPLETE!
                 </h1>
                 <p className="text-2xl text-purple-300">Your score: {score.toLocaleString()}</p>
+                
+                {/* Confirmation Number */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl border-2 border-blue-500/30">
+                  <p className="text-blue-300 text-sm mb-1">Confirmation Number</p>
+                  <p className="text-2xl font-black text-blue-400 font-mono">
+                    {confirmationNumber}
+                  </p>
+                  <p className="text-blue-200 text-xs mt-1">Save this number for your records</p>
+                </div>
               </div>
 
               {/* Searching Card */}

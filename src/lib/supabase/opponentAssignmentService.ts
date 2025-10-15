@@ -51,11 +51,13 @@ export class OpponentAssignmentService {
       }
 
       // Look for an opponent in the same lot who has also completed their game
+      // Exclude the current user to prevent self-matching
       const { data: opponents, error: opponentError } = await supabase
         .from('matchmaking_queue')
         .select('*')
         .eq('lot_number', lotNumber)
         .neq('id', queueId)
+        .neq('user_id', userId) // Prevent self-matching
         .not('player_score', 'is', null)
         .eq('status', 'waiting')
         .is('matched_with_queue_id', null)
