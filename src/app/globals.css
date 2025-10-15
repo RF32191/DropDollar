@@ -19,18 +19,18 @@
 
 /* Location banner spacing */
 .location-banner-spacer {
-  padding-top: 0;
+  padding-top: 4rem; /* Account for fixed header */
   transition: padding-top 0.3s ease;
 }
 
-/* When location banner is shown, add top padding */
+/* When location banner is shown, add extra top padding */
 body:has(.location-banner-spacer) .location-banner-spacer {
-  padding-top: 0;
+  padding-top: 4rem;
 }
 
-/* Add padding when location banner is visible */
+/* Add extra padding when location banner is visible */
 body:has([data-location-banner="true"]) .location-banner-spacer {
-  padding-top: 4rem;
+  padding-top: 8rem; /* Header + location banner */
 }
 
 @layer components {
