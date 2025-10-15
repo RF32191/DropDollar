@@ -59,6 +59,30 @@ export default function Header() {
             <Link href="/advertising/register" className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-bold transition-colors">
               📺 Advertise
             </Link>
+            
+            {/* Legal Documents Dropdown */}
+            <div className="relative group">
+              <button className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white font-medium transition-colors flex items-center space-x-1">
+                <span>📋</span>
+                <span>Legal</span>
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="py-2">
+                  <Link href="/terms" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    Terms of Service
+                  </Link>
+                  <Link href="/privacy" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    Privacy Policy
+                  </Link>
+                  <Link href="/seller-agreement" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    Seller Agreement
+                  </Link>
+                </div>
+              </div>
+            </div>
           </nav>
 
           {/* User Actions */}
@@ -175,6 +199,20 @@ export default function Header() {
               <Link href="/buy-tokens" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-bold">
                 💰 Buy Tokens
               </Link>
+              
+              {/* Legal Documents - Mobile */}
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-gray-600 dark:text-gray-400 text-sm font-semibold mb-2">Legal Documents</div>
+                <Link href="/terms" className="block text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium py-1">
+                  📋 Terms of Service
+                </Link>
+                <Link href="/privacy" className="block text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium py-1">
+                  🔒 Privacy Policy
+                </Link>
+                <Link href="/seller-agreement" className="block text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 font-medium py-1">
+                  📄 Seller Agreement
+                </Link>
+              </div>
               
               {!isLoading && user ? (
                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
