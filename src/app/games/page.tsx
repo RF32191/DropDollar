@@ -157,6 +157,23 @@ export default function GamesPage() {
   
   // Prevent back button navigation during active game
   usePreventBackNavigation(isGameActive, '/games');
+  
+  // Prevent back navigation after game completion
+  useEffect(() => {
+    if (gameResults) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = 'Your game has been completed and saved. Are you sure you want to leave?';
+        return 'Your game has been completed and saved. Are you sure you want to leave?';
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [gameResults]);
   const [showAd, setShowAd] = useState(false);
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
@@ -699,9 +716,24 @@ export default function GamesPage() {
         score={gameResults?.score || 0}
         onComplete={() => {
           setShowCelebration(false);
-          // Redirect to post-game results after celebration
+          // Force dashboard reload with game data
           setTimeout(() => {
-            router.push(`/post-game-results?score=${gameResults?.score || 0}&game=${currentGame}&fee=0&mode=${isCompetitionMode ? 'competition' : 'practice'}`);
+            // Store game result in localStorage for dashboard to show
+            localStorage.setItem('lastGameResult', JSON.stringify({
+              score: gameResults?.score || 0,
+              gameType: currentGame,
+              entryFee: 0,
+              mode: isCompetitionMode ? 'competition' : 'practice',
+              timestamp: new Date().toISOString(),
+              accuracy: gameResults?.accuracy || 100
+            }));
+            
+            // Force dashboard reload
+            localStorage.setItem('forceDashboardReload', 'true');
+            localStorage.setItem('hasNewGameScore', 'true');
+            
+            // Redirect to dashboard
+            router.push('/dashboard');
           }, 500);
         }}
         duration={3000}

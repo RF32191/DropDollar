@@ -123,8 +123,12 @@ function GamePlayContent() {
           timestamp: new Date().toISOString()
         }));
         
-        // Redirect to post-game results page
-        router.push(`/post-game-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}&matchId=${assignmentResult.matchId || ''}`);
+        // Force dashboard reload with game data
+        localStorage.setItem('forceDashboardReload', 'true');
+        localStorage.setItem('hasNewGameScore', 'true');
+        
+        // Redirect to dashboard
+        router.push('/dashboard');
       }, 2000);
 
     } catch (error) {

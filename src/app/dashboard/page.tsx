@@ -62,6 +62,92 @@ const GAME_NAME_MAP: Record<string, string> = {
   'sword-parry': 'Sword Parry'
 };
 
+// Latest Game Result Component - Shows immediately after game completion
+function LatestGameResultSection() {
+  const [latestGameResult, setLatestGameResult] = useState<any>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('lastGameResult');
+    if (stored) {
+      try {
+        const result = JSON.parse(stored);
+        setLatestGameResult(result);
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+          setLatestGameResult(null);
+          localStorage.removeItem('lastGameResult');
+        }, 10000);
+      } catch (error) {
+        console.error('Error parsing latest game result:', error);
+      }
+    }
+  }, []);
+
+  if (!latestGameResult) return null;
+
+  const gameTypeDisplay = latestGameResult.gameType
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  return (
+    <div className="mb-16">
+      <div className="bg-gradient-to-br from-green-900/70 to-blue-900/70 backdrop-blur-xl p-8 rounded-3xl border-4 border-green-500/70 shadow-2xl hover:shadow-green-500/50 transition-all duration-500 hover:scale-[1.02] animate-pulse">
+        <div className="flex items-center justify-center mb-6">
+          <TrophyIcon className="h-12 w-12 text-green-400 mr-3 animate-bounce" />
+          <h2 className="text-3xl font-black bg-gradient-to-r from-green-300 via-green-400 to-blue-500 bg-clip-text text-transparent drop-shadow-lg">
+            🎮 LATEST GAME COMPLETED!
+          </h2>
+          <TrophyIcon className="h-12 w-12 text-green-400 ml-3 animate-bounce" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-black/30 backdrop-blur-sm p-6 rounded-2xl border border-green-500/30">
+            <h3 className="text-xl font-bold text-green-300 mb-4 flex items-center">
+              <ChartBarIcon className="h-6 w-6 mr-2" />
+              Game Details
+            </h3>
+            <div className="space-y-2 text-white">
+              <p><span className="text-green-400 font-semibold">Game:</span> {gameTypeDisplay}</p>
+              <p><span className="text-green-400 font-semibold">Mode:</span> {latestGameResult.mode}</p>
+              <p><span className="text-green-400 font-semibold">Score:</span> {latestGameResult.score.toFixed(2)}</p>
+              <p><span className="text-green-400 font-semibold">Accuracy:</span> {latestGameResult.accuracy?.toFixed(1)}%</p>
+              <p><span className="text-green-400 font-semibold">Completed:</span> {new Date(latestGameResult.timestamp).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="bg-black/30 backdrop-blur-sm p-6 rounded-2xl border border-green-500/30">
+            <h3 className="text-xl font-bold text-green-300 mb-4 flex items-center">
+              <FireIcon className="h-6 w-6 mr-2" />
+              Status
+            </h3>
+            <div className="space-y-2 text-white">
+              <p className="text-green-400 font-semibold">✅ Game Completed Successfully!</p>
+              <p className="text-green-400 font-semibold">✅ Score Saved to Database</p>
+              <p className="text-green-400 font-semibold">✅ Added to Game History</p>
+              <p className="text-yellow-400 font-semibold">🎯 Check your high scores below!</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className="text-green-300 text-lg mb-4">This notification will disappear in 10 seconds</p>
+          <button 
+            onClick={() => {
+              setLatestGameResult(null);
+              localStorage.removeItem('lastGameResult');
+            }}
+            className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Last Game Result Component
 function LastGameResultSection() {
   const [lastGameResult, setLastGameResult] = useState<LastGameResult | null>(null);
@@ -267,11 +353,18 @@ export default function SimpleDashboard() {
           console.log('🏆 [Dashboard] Sample competition game:', competitionGames[0]);
         }
         
-        // Check if there's a new game score
+        // Check if there's a new game score or forced reload
         const hasNewScore = localStorage.getItem('hasNewGameScore');
-        if (hasNewScore === 'true') {
+        const forceReload = localStorage.getItem('forceDashboardReload');
+        if (hasNewScore === 'true' || forceReload === 'true') {
           console.log('🎮 [Dashboard] NEW GAME SCORE DETECTED! Loading latest data...');
           localStorage.removeItem('hasNewGameScore');
+          localStorage.removeItem('forceDashboardReload');
+          
+          // Force reload game history
+          const games = await UserService.getUserGameHistory(profile.id);
+          setGameHistory(games);
+          console.log('🔄 [Dashboard] Game history reloaded:', games.length, 'games');
         }
         
         // Load user-specific scores from Supabase (not localStorage)
@@ -751,6 +844,9 @@ export default function SimpleDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Latest Game Result Section - Show immediately after game */}
+        <LatestGameResultSection />
 
         {/* Last Game Result Section */}
         <LastGameResultSection />
