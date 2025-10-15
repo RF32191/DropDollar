@@ -193,7 +193,7 @@ export default function GlobalLocationCheck({
 
       {/* Location Request Button - Only show when not granted */}
       {globalLocation.status !== 'granted' && (
-        <div className="fixed top-20 left-4 z-40">
+        <div className="fixed top-24 left-4 z-40">
           {globalLocation.status === 'denied' && (
             <div className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg mb-2 flex items-center space-x-2">
               <ExclamationTriangleIcon className="h-5 w-5" />

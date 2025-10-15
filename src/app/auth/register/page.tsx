@@ -14,7 +14,9 @@ export default function SimpleRegisterPage() {
     confirmPassword: '',
     phone: '',
     location: '',
-    marketingConsent: false
+    marketingConsent: false,
+    agreeToTerms: false,
+    agreeToPrivacy: false
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -59,13 +61,60 @@ export default function SimpleRegisterPage() {
       return;
     }
 
-    // Simple registration simulation
+    // Check if user agreed to terms and privacy
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the Terms of Service to create an account.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!formData.agreeToPrivacy) {
+      setError('You must agree to the Privacy Policy to create an account.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check for duplicate email
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For now, just redirect to dashboard
-      window.location.href = '/dashboard';
+      const emailCheckResponse = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      });
+
+      if (emailCheckResponse.ok) {
+        const emailCheckData = await emailCheckResponse.json();
+        if (emailCheckData.exists) {
+          setError('An account with this email address already exists. Please use a different email or try signing in.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Email check failed:', error);
+      // Continue with registration if email check fails
+    }
+
+    // Submit registration
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      // Success - redirect to login
+      alert('Account created successfully! Please sign in.');
+      window.location.href = '/auth/login';
     } catch (error) {
       setError('Registration failed. Please try again.');
     }
@@ -298,6 +347,91 @@ export default function SimpleRegisterPage() {
               <label htmlFor="marketingConsent" className="ml-2 block text-sm text-gray-300">
                 I agree to receive marketing emails and updates
               </label>
+            </div>
+
+            {/* Terms and Privacy Policy Checkboxes */}
+            <div className="space-y-4">
+              {/* Terms of Service */}
+              <div className="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+                <div className="flex items-start space-x-3">
+                  <input
+                    id="agreeToTerms"
+                    name="agreeToTerms"
+                    type="checkbox"
+                    checked={formData.agreeToTerms}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1"
+                    disabled={isSubmitting}
+                    required
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="agreeToTerms" className="text-sm font-medium text-gray-300">
+                      I agree to the Terms of Service *
+                    </label>
+                    <div className="mt-2 max-h-32 overflow-y-auto bg-gray-900/50 rounded p-3 text-xs text-gray-400 border border-gray-700">
+                      <p className="mb-2">
+                        <strong>Key Terms:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>You must be 18+ and reside in a legal jurisdiction</li>
+                        <li>Skill-based gaming platform with real money prizes</li>
+                        <li>1 Token = $1 USD, tokens are non-refundable</li>
+                        <li>Location verification required for legal compliance</li>
+                        <li>Prohibited states: AL, AK, AZ, AR, CT, DE, HI, ID, LA, MT, NV, SC, SD, TN, UT, VT, WA, WI</li>
+                        <li>No cheating, bots, or multiple accounts</li>
+                        <li>Minimum withdrawal: $10, 3% transaction fee</li>
+                        <li>Governing law: California, arbitration in Riverside County</li>
+                      </ul>
+                      <p className="mt-2">
+                        <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline">
+                          Read full Terms of Service
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Privacy Policy */}
+              <div className="border border-gray-600 rounded-lg p-4 bg-gray-800/50">
+                <div className="flex items-start space-x-3">
+                  <input
+                    id="agreeToPrivacy"
+                    name="agreeToPrivacy"
+                    type="checkbox"
+                    checked={formData.agreeToPrivacy}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1"
+                    disabled={isSubmitting}
+                    required
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="agreeToPrivacy" className="text-sm font-medium text-gray-300">
+                      I agree to the Privacy Policy *
+                    </label>
+                    <div className="mt-2 max-h-32 overflow-y-auto bg-gray-900/50 rounded p-3 text-xs text-gray-400 border border-gray-700">
+                      <p className="mb-2">
+                        <strong>Data Collection:</strong>
+                      </p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>Personal info: name, email, username, age verification</li>
+                        <li>Payment info: processed securely through Stripe</li>
+                        <li>Location data: for legal compliance verification</li>
+                        <li>Gameplay data: scores, performance, transaction history</li>
+                        <li>Technical data: device info, IP addresses, cookies</li>
+                        <li>Data shared with: Stripe, Supabase, Vercel, analytics providers</li>
+                        <li>Data retention: 7 years after account closure</li>
+                        <li>Your rights: access, correction, deletion, portability</li>
+                      </ul>
+                      <p className="mt-2">
+                        <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline">
+                          Read full Privacy Policy
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div>
