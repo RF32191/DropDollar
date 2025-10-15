@@ -608,8 +608,20 @@ export class UserService {
       });
 
       console.log('✅ [UserService] Enhanced game history with opponent data:', enhancedGameHistory.length);
+      
+      // Debug: Check competition vs practice games
+      const competitionGames = enhancedGameHistory.filter(g => g.isCompetition);
+      const practiceGames = enhancedGameHistory.filter(g => g.isPractice);
+      console.log('🏆 [UserService] Competition games:', competitionGames.length);
+      console.log('⭐ [UserService] Practice games:', practiceGames.length);
+      
       if (enhancedGameHistory.length > 0) {
         console.log('📊 [UserService] Sample enhanced game:', enhancedGameHistory[0]);
+        console.log('📊 [UserService] Game modes:', enhancedGameHistory.map(g => ({ 
+          game: g.gameType, 
+          mode: g.isPractice ? 'practice' : g.isCompetition ? 'competition' : 'unknown',
+          score: g.score
+        })));
       }
 
       return enhancedGameHistory;

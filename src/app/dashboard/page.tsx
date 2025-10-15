@@ -162,6 +162,16 @@ export default function SimpleDashboard() {
         setGameHistory(games);
         console.log('✅ [Dashboard] Loaded', games.length, 'games from Supabase');
         
+        // Debug: Check what types of games we have
+        const competitionGames = games.filter(g => g.isCompetition);
+        const practiceGames = games.filter(g => g.isPractice);
+        console.log('🏆 [Dashboard] Competition games loaded:', competitionGames.length);
+        console.log('⭐ [Dashboard] Practice games loaded:', practiceGames.length);
+        
+        if (competitionGames.length > 0) {
+          console.log('🏆 [Dashboard] Sample competition game:', competitionGames[0]);
+        }
+        
         // Check if there's a new game score
         const hasNewScore = localStorage.getItem('hasNewGameScore');
         if (hasNewScore === 'true') {
