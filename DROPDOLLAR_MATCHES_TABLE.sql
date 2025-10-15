@@ -1,10 +1,10 @@
--- TRIUMPH-STYLE MATCHES TABLE
--- This creates the exact same table structure as Triumph uses for 1v1 matchmaking
+-- DROPDOLLAR MATCHES TABLE
+-- This creates the matches table structure for 1v1 matchmaking
 
 -- Drop existing matches table if it exists
 DROP TABLE IF EXISTS public.matches CASCADE;
 
--- Create matches table (Triumph-style)
+-- Create matches table
 CREATE TABLE public.matches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   player1_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -80,4 +80,6 @@ EXCEPTION
 END $$;
 
 -- Show table structure
-\d public.matches;
+SELECT column_name, data_type, is_nullable 
+FROM information_schema.columns 
+WHERE table_name = 'matches' AND table_schema = 'public';
