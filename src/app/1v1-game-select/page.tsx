@@ -128,12 +128,11 @@ function GameSelectContent() {
       });
 
       // Join matchmaking queue with selected game
-      const skillRating = await MatchmakingService.getUserSkillRating(user.id);
       const queue = await MatchmakingService.joinQueue(
         user.id,
         user.username || user.email || 'Anonymous',
         entryFee,
-        skillRating,
+        1000, // Default skill rating
         selectedGame // Pass the game type for matching
       );
 

@@ -7,7 +7,6 @@ export interface MatchmakingQueue {
   user_id: string;
   username: string;
   entry_fee: number;
-  skill_rating: number;
   status: 'waiting' | 'matched' | 'cancelled';
   game_type: string;
   lot_number?: string;
@@ -67,7 +66,6 @@ class MatchmakingService {
             user_id: userId,
             username: username,
             entry_fee: entryFee,
-            skill_rating: skillRating,
             status: 'waiting',
             game_type: gameType,
             lot_number: lotNumber
@@ -89,7 +87,6 @@ class MatchmakingService {
           user_id: userId,
           username: username,
           entry_fee: entryFee,
-          skill_rating: skillRating,
           status: 'waiting',
           game_type: gameType,
           lot_number: lotNumber
@@ -215,21 +212,8 @@ class MatchmakingService {
    * Get user's skill rating from stats
    */
   async getUserSkillRating(userId: string): Promise<number> {
-    try {
-      const { data, error } = await supabase
-        .from('user_stats')
-        .select('skill_rating')
-        .eq('user_id', userId)
-        .single();
-
-      if (error || !data) {
-        return 1000; // Default rating
-      }
-
-      return data.skill_rating || 1000;
-    } catch (error) {
-      return 1000;
-    }
+    // Return default rating since we removed skill_rating from the schema
+    return 1000;
   }
 
   /**
