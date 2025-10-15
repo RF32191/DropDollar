@@ -51,59 +51,90 @@ class MatchmakingService {
       console.log(`🎮 [Matchmaking] Entry Fee: ${entryFee}`);
       console.log(`🎮 [Matchmaking] Game Type: ${gameType}`);
 
-      // Skip RPC function entirely - create lot manually
-      const lotNumber = `${gameType}-${entryFee}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-      console.log(`🎫 [Matchmaking] Generated lot number: ${lotNumber}`);
-      
-      console.log(`💾 [Matchmaking] Inserting into matchmaking_queue...`);
-      const { data, error } = await supabase
-        .from('matchmaking_queue')
-        .insert({
+      // TRIUMPH-STYLE MATCHMAKING: Look for existing waiting opponent first
+      console.log(`🔍 [Matchmaking] Looking for existing opponent...`);
+      const { data: existingMatch, error: searchError } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('game_type', gameType)
+        .eq('entry_fee', entryFee)
+        .eq('status', 'waiting_for_game')
+        .is('player2_id', null)
+        .neq('player1_id', userId)
+        .single();
+
+      if (existingMatch && !searchError) {
+        console.log(`✅ [Matchmaking] Found existing match! Joining as player 2...`);
+        
+        // Join existing match as player 2
+        const { data: updatedMatch, error: updateError } = await supabase
+          .from('matches')
+          .update({
+            player2_id: userId,
+            player2_username: username,
+            status: 'in_progress'
+          })
+          .eq('id', existingMatch.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('❌ [Matchmaking] Error joining existing match:', updateError);
+          throw updateError;
+        }
+
+        console.log(`✅ [Matchmaking] Successfully joined match:`, updatedMatch.id);
+        
+        // Return match info as queue entry
+        return {
+          id: updatedMatch.id,
           user_id: userId,
           username: username,
           entry_fee: entryFee,
-          status: 'waiting',
+          status: 'matched',
           game_type: gameType,
-          lot_number: lotNumber
+          lot_number: `match-${updatedMatch.id}`,
+          created_at: updatedMatch.created_at,
+          updated_at: new Date().toISOString()
+        };
+      }
+
+      // No existing match found - create new match as player 1
+      console.log(`🆕 [Matchmaking] No existing match found. Creating new match as player 1...`);
+      
+      const { data: newMatch, error: createError } = await supabase
+        .from('matches')
+        .insert({
+          player1_id: userId,
+          player1_username: username,
+          entry_fee: entryFee,
+          prize_pool: entryFee * 2, // Winner takes both entry fees
+          game_type: gameType,
+          status: 'waiting_for_game'
         })
         .select()
         .single();
 
-      if (error) {
-        console.error('❌ [Matchmaking] Insert error:', error);
-        console.error('❌ [Matchmaking] Error details:', JSON.stringify(error, null, 2));
-        
-        // If RLS is still blocking, try a different approach
-        if (error.code === '42501') {
-          console.log('🔄 [Matchmaking] RLS blocking insert, trying alternative approach...');
-          
-          // Try inserting with minimal required fields
-          const { data: altData, error: altError } = await supabase
-            .from('matchmaking_queue')
-            .insert({
-              user_id: userId,
-              username: username,
-              entry_fee: entryFee,
-              game_type: gameType,
-              lot_number: lotNumber
-            })
-            .select()
-            .single();
-            
-          if (altError) {
-            console.error('❌ [Matchmaking] Alternative insert also failed:', altError);
-            throw altError;
-          }
-          
-          console.log(`✅ [Matchmaking] Alternative insert successful:`, altData.id);
-          return altData;
-        }
-        
-        throw error;
+      if (createError) {
+        console.error('❌ [Matchmaking] Error creating new match:', createError);
+        throw createError;
       }
+
+      console.log(`✅ [Matchmaking] Created new match:`, newMatch.id);
       
-      console.log(`✅ [Matchmaking] ${username} in queue:`, data.id, 'Lot:', data.lot_number);
-      return data;
+      // Return match info as queue entry
+      return {
+        id: newMatch.id,
+        user_id: userId,
+        username: username,
+        entry_fee: entryFee,
+        status: 'waiting',
+        game_type: gameType,
+        lot_number: `match-${newMatch.id}`,
+        created_at: newMatch.created_at,
+        updated_at: new Date().toISOString()
+      };
+      
     } catch (error) {
       console.error('❌ [Matchmaking] Error joining queue:', error);
       console.error('❌ [Matchmaking] Full error details:', JSON.stringify(error, null, 2));
