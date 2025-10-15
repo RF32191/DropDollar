@@ -697,7 +697,13 @@ export default function GamesPage() {
         show={showCelebration}
         gameName={currentGame ? GAMES.find(g => g.id === currentGame)?.name || 'Game' : 'Game'}
         score={gameResults?.score || 0}
-        onComplete={() => setShowCelebration(false)}
+        onComplete={() => {
+          setShowCelebration(false);
+          // Redirect to post-game results after celebration
+          setTimeout(() => {
+            router.push(`/post-game-results?score=${gameResults?.score || 0}&game=${currentGame}&fee=0&mode=${isCompetitionMode ? 'competition' : 'practice'}`);
+          }, 500);
+        }}
         duration={3000}
       />
       

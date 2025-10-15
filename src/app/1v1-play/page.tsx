@@ -123,8 +123,8 @@ function GamePlayContent() {
           timestamp: new Date().toISOString()
         }));
         
-        // Redirect to results page
-        router.push(resultsUrl);
+        // Redirect to post-game results page
+        router.push(`/post-game-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}&matchId=${assignmentResult.matchId || ''}`);
       }, 2000);
 
     } catch (error) {

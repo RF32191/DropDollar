@@ -872,9 +872,81 @@ export default function SimpleDashboard() {
           </div>
         </div>
 
-        {/* Complete Game History Section */}
+        {/* Competition History Section */}
         <div className="mb-16">
-          <GameHistoryTable gameHistory={gameHistory} />
+          <div className="bg-gradient-to-br from-red-900/70 to-orange-900/70 backdrop-blur-xl p-8 rounded-3xl border-4 border-red-500/70 shadow-2xl hover:shadow-red-500/50 transition-all duration-500 hover:scale-[1.02]">
+            <div className="flex items-center justify-center mb-6">
+              <TrophyIcon className="h-12 w-12 text-red-400 mr-3 animate-pulse" />
+              <h2 className="text-3xl font-black bg-gradient-to-r from-red-300 via-red-400 to-orange-500 bg-clip-text text-transparent drop-shadow-lg">
+                🏆 COMPETITION HISTORY
+              </h2>
+              <TrophyIcon className="h-12 w-12 text-red-400 ml-3 animate-pulse" />
+            </div>
+            
+            {gameHistory.filter(g => g.isCompetition).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {gameHistory.filter(g => g.isCompetition).slice(0, 6).map((game, index) => (
+                  <div key={index} className="bg-black/30 backdrop-blur-sm p-4 rounded-xl border border-red-500/30">
+                    <div className="text-red-300 font-semibold text-lg mb-2">
+                      {GAME_NAME_MAP[game.gameType] || game.gameType}
+                    </div>
+                    <div className="text-white text-sm space-y-1">
+                      <div><span className="text-red-400">Score:</span> {game.score.toFixed(2)}</div>
+                      <div><span className="text-red-400">Date:</span> {new Date(game.createdAt).toLocaleDateString()}</div>
+                      {game.placement && <div><span className="text-red-400">Place:</span> #{game.placement}</div>}
+                      {game.prizeWon && <div><span className="text-red-400">Prize:</span> ${game.prizeWon}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-red-300 text-xl mb-4">No competition games yet!</div>
+                <Link href="/tournaments" className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-xl hover:from-red-700 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
+                  <TrophyIcon className="h-5 w-5 mr-2" />
+                  Start Competing
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Practice History Section */}
+        <div className="mb-16">
+          <div className="bg-gradient-to-br from-blue-900/70 to-purple-900/70 backdrop-blur-xl p-8 rounded-3xl border-4 border-blue-500/70 shadow-2xl hover:shadow-blue-500/50 transition-all duration-500 hover:scale-[1.02]">
+            <div className="flex items-center justify-center mb-6">
+              <StarIcon className="h-12 w-12 text-blue-400 mr-3 animate-pulse" />
+              <h2 className="text-3xl font-black bg-gradient-to-r from-blue-300 via-blue-400 to-purple-500 bg-clip-text text-transparent drop-shadow-lg">
+                ⭐ PRACTICE HISTORY
+              </h2>
+              <StarIcon className="h-12 w-12 text-blue-400 ml-3 animate-pulse" />
+            </div>
+            
+            {gameHistory.filter(g => g.isPractice).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {gameHistory.filter(g => g.isPractice).slice(0, 6).map((game, index) => (
+                  <div key={index} className="bg-black/30 backdrop-blur-sm p-4 rounded-xl border border-blue-500/30">
+                    <div className="text-blue-300 font-semibold text-lg mb-2">
+                      {GAME_NAME_MAP[game.gameType] || game.gameType}
+                    </div>
+                    <div className="text-white text-sm space-y-1">
+                      <div><span className="text-blue-400">Score:</span> {game.score.toFixed(2)}</div>
+                      <div><span className="text-blue-400">Date:</span> {new Date(game.createdAt).toLocaleDateString()}</div>
+                      <div><span className="text-blue-400">Accuracy:</span> {game.accuracy?.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-blue-300 text-xl mb-4">No practice games yet!</div>
+                <Link href="/games" className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
+                  <StarIcon className="h-5 w-5 mr-2" />
+                  Start Practicing
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Dashboard Cards */}
