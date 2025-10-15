@@ -44,10 +44,14 @@ function GamePlayContent() {
     setGameCompleted(true);
 
     console.log('🎮 [1v1 Game] Completed:', result);
+    console.log('🎮 [1v1 Game] User:', user);
+    console.log('🎮 [1v1 Game] Game Type:', gameType);
+    console.log('🎮 [1v1 Game] Queue ID:', queueId);
 
     try {
       // Save game result to activity log
-      await ActivityService.saveGameHistory({
+      console.log('💾 [1v1 Game] Saving to ActivityService...');
+      const activityResult = await ActivityService.saveGameHistory({
         user_id: user!.id,
         game_type: gameType,
         score: result.score || 0,
@@ -57,6 +61,8 @@ function GamePlayContent() {
         game_duration: result.duration || 0,
         lot_number: lotNumber
       });
+      
+      console.log('✅ [1v1 Game] ActivityService result:', activityResult);
 
       // Use the new opponent assignment service
       console.log('🎯 [1v1 Game] Attempting automatic opponent assignment...');
@@ -73,6 +79,8 @@ function GamePlayContent() {
         result.score || 0
       );
       
+      console.log('🎯 [1v1 Game] Assignment result:', assignmentResult);
+      
       if (assignmentResult.matched && assignmentResult.opponent) {
         console.log('🎉 [1v1 Game] OPPONENT ASSIGNED!');
         console.log('🎉 [1v1 Game] Opponent:', assignmentResult.opponent.username);
@@ -80,6 +88,7 @@ function GamePlayContent() {
         console.log('💰 [1v1 Game] Winner will be paid automatically!');
         
         // Update the game history with match information
+        console.log('💾 [1v1 Game] Updating game history with match info...');
         await ActivityService.saveGameHistory({
           user_id: user!.id,
           game_type: gameType,
@@ -96,12 +105,15 @@ function GamePlayContent() {
       }
 
       // Show completion screen
+      console.log('⏳ [1v1 Game] Showing completion screen for 2 seconds...');
       setTimeout(() => {
+        console.log('🚀 [1v1 Game] Redirecting to results page...');
         router.push(`/1v1-results?score=${result.score}&game=${gameType}&fee=${entryFee}&queueId=${queueId}&matchId=${assignmentResult.matchId || ''}`);
       }, 2000);
 
     } catch (error) {
       console.error('❌ [1v1 Game] Error saving result:', error);
+      console.error('❌ [1v1 Game] Error details:', JSON.stringify(error, null, 2));
       router.push('/tournaments');
     }
   };
