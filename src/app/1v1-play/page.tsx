@@ -178,6 +178,24 @@ function GamePlayContent() {
     );
   }
 
+  // Show completion screen after game ends
+  if (gameCompleted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-8xl mb-6 animate-bounce">🎉</div>
+          <h1 className="text-4xl font-black text-white mb-4">GAME COMPLETE!</h1>
+          <p className="text-xl text-purple-300 mb-6">Processing your results...</p>
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
       <div className="container mx-auto px-4 py-8">

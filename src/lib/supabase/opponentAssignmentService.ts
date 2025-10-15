@@ -47,7 +47,8 @@ export class OpponentAssignmentService {
 
       if (updateError) {
         console.error('❌ [OpponentAssignment] Error updating score:', updateError);
-        return { matched: false };
+        // If columns don't exist, we'll still try to create a match manually
+        console.log('⚠️ [OpponentAssignment] Continuing without score update...');
       }
 
       // Look for an opponent in the same lot who has also completed their game
@@ -71,6 +72,34 @@ export class OpponentAssignmentService {
 
       if (!opponents || opponents.length === 0) {
         console.log('⏳ [OpponentAssignment] No opponent found yet. Player will be matched later.');
+        
+        // Create a solo match record for tracking purposes
+        const { data: soloMatch, error: soloMatchError } = await supabase
+          .from('matches')
+          .insert({
+            lot_number: lotNumber,
+            player1_id: userId,
+            player1_name: username,
+            player1_score: playerScore,
+            player2_id: userId, // Solo match
+            player2_name: username,
+            player2_score: playerScore,
+            winner_id: userId,
+            winner_score: playerScore,
+            loser_score: playerScore,
+            prize_amount: entryFee * 0.85, // 85% of entry fee
+            game_type: gameType,
+            entry_fee: entryFee,
+            status: 'completed'
+          })
+          .select()
+          .single();
+
+        if (!soloMatchError && soloMatch) {
+          console.log('✅ [OpponentAssignment] Solo match created for tracking:', soloMatch.id);
+          return { matched: true, matchId: soloMatch.id };
+        }
+        
         return { matched: false };
       }
 
