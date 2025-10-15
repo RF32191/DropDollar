@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import MatchmakingService from '@/lib/supabase/matchmakingService';
@@ -44,6 +44,82 @@ function ResultsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [confirmationNumber, setConfirmationNumber] = useState<string>('');
+  const [showTokenAnimation, setShowTokenAnimation] = useState(false);
+  const [showGraffiti, setShowGraffiti] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const tokenContainerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize audio context
+  useEffect(() => {
+    const initAudio = async () => {
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        setAudioContext(audioCtx);
+        console.log('🔊 [Results] Audio context initialized');
+      } catch (error) {
+        console.error('❌ [Results] Audio initialization failed:', error);
+      }
+    };
+    initAudio();
+  }, []);
+
+  // Play victory sound
+  const playVictorySound = () => {
+    if (!audioContext) return;
+    
+    try {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Victory melody
+      oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+      oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
+      oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.4); // G5
+      oscillator.frequency.setValueAtTime(1046.50, audioContext.currentTime + 0.6); // C6
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 1);
+      
+      console.log('🎵 [Results] Victory sound played');
+    } catch (error) {
+      console.error('❌ [Results] Sound playback failed:', error);
+    }
+  };
+
+  // Create token animation
+  const createTokenAnimation = () => {
+    if (!tokenContainerRef.current) return;
+    
+    const container = tokenContainerRef.current;
+    const tokenCount = Math.floor(matchResult?.prizeAmount || 0);
+    
+    for (let i = 0; i < tokenCount; i++) {
+      setTimeout(() => {
+        const token = document.createElement('div');
+        token.className = 'absolute text-4xl animate-bounce';
+        token.textContent = '🪙';
+        token.style.left = Math.random() * 100 + '%';
+        token.style.top = Math.random() * 100 + '%';
+        token.style.animationDelay = Math.random() * 2 + 's';
+        token.style.animationDuration = '3s';
+        
+        container.appendChild(token);
+        
+        // Remove token after animation
+        setTimeout(() => {
+          if (token.parentNode) {
+            token.parentNode.removeChild(token);
+          }
+        }, 3000);
+      }, i * 100);
+    }
+  };
 
   useEffect(() => {
     // Generate confirmation number
@@ -76,6 +152,26 @@ function ResultsContent() {
       setIsLoading(false);
     }
   }, [queueId]);
+
+  // Trigger animations when match result is found
+  useEffect(() => {
+    if (matchResult && matchResult.winnerId) {
+      const isWinner = matchResult.winnerId === userId;
+      
+      if (isWinner) {
+        // Play victory sound
+        playVictorySound();
+        
+        // Show token animation
+        setShowTokenAnimation(true);
+        setTimeout(() => createTokenAnimation(), 500);
+        
+        // Show graffiti effect
+        setShowGraffiti(true);
+        setTimeout(() => setShowGraffiti(false), 3000);
+      }
+    }
+  }, [matchResult, userId]);
 
   const fetchMatchResults = async (userId: string, queueId: string) => {
     try {
@@ -154,12 +250,40 @@ function ResultsContent() {
           {/* Match Found - Show Results */}
           {matchResult && matchResult.winnerId ? (
             <>
-              {/* Winner/Loser Animation */}
-              <div className="text-center mb-8">
+              {/* Winner/Loser Animation with Token Container */}
+              <div className="relative text-center mb-8">
+                {/* Token Animation Container */}
+                {showTokenAnimation && (
+                  <div 
+                    ref={tokenContainerRef}
+                    className="absolute inset-0 pointer-events-none z-10 overflow-hidden"
+                    style={{ width: '100%', height: '400px' }}
+                  />
+                )}
+                
+                {/* Graffiti Effect */}
+                {showGraffiti && isWinner && (
+                  <div className="absolute inset-0 pointer-events-none z-20">
+                    <div className="text-6xl font-black text-yellow-400 animate-pulse opacity-80 transform rotate-12">
+                      WINNER!
+                    </div>
+                    <div className="text-4xl font-black text-green-400 animate-pulse opacity-60 transform -rotate-12 mt-8">
+                      CHAMPION!
+                    </div>
+                    <div className="text-3xl font-black text-purple-400 animate-pulse opacity-70 transform rotate-6 mt-4">
+                      VICTORY!
+                    </div>
+                  </div>
+                )}
+                
                 <div className="text-8xl mb-4 animate-bounce">
                   {isWinner ? '🏆' : isTie ? '🤝' : '😢'}
                 </div>
-                <h1 className="text-5xl font-black text-white mb-4">
+                <h1 className={`text-5xl font-black mb-4 ${
+                  isWinner ? 'text-yellow-400 animate-pulse' : 
+                  isTie ? 'text-blue-400' : 
+                  'text-red-400'
+                }`}>
                   {isWinner ? 'YOU WON!' : isTie ? 'TIE GAME!' : 'YOU LOST'}
                 </h1>
                 <p className="text-2xl text-purple-300">
@@ -167,6 +291,19 @@ function ResultsContent() {
                    isTie ? 'Both players refunded' : 
                    'Better luck next time!'}
                 </p>
+                
+                {/* Enhanced Prize Display for Winners */}
+                {isWinner && (
+                  <div className="mt-6 p-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-2xl border-4 border-yellow-400 animate-pulse">
+                    <div className="text-6xl mb-2">💰</div>
+                    <p className="text-3xl font-black text-yellow-400">
+                      +${matchResult.prizeAmount.toFixed(2)} TOKENS ADDED!
+                    </p>
+                    <p className="text-yellow-200 text-sm mt-2">
+                      Tokens have been added to your wallet
+                    </p>
+                  </div>
+                )}
                 
                 {/* Confirmation Number */}
                 <div className="mt-6 p-4 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl border-2 border-blue-500/30">
@@ -252,10 +389,21 @@ function ResultsContent() {
               {/* Still Searching for Opponent */}
               <div className="text-center mb-8">
                 <div className="text-8xl mb-4 animate-bounce">🎉</div>
-                <h1 className="text-5xl font-black text-white mb-4">
+                <h1 className="text-5xl font-black text-white mb-4 animate-pulse">
                   GAME COMPLETE!
                 </h1>
                 <p className="text-2xl text-purple-300">Your score: {score.toLocaleString()}</p>
+                
+                {/* Score Celebration */}
+                <div className="mt-6 p-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl border-2 border-purple-400 animate-pulse">
+                  <div className="text-6xl mb-2">🎯</div>
+                  <p className="text-3xl font-black text-purple-400">
+                    SCORE: {score.toLocaleString()}
+                  </p>
+                  <p className="text-purple-200 text-sm mt-2">
+                    Waiting for opponent to complete their game...
+                  </p>
+                </div>
                 
                 {/* Confirmation Number */}
                 <div className="mt-6 p-4 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-xl border-2 border-blue-500/30">
