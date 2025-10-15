@@ -46,8 +46,13 @@ class MatchmakingService {
   ): Promise<MatchmakingQueue | null> {
     try {
       console.log(`🎮 [Matchmaking] ${username} joining queue for $${entryFee} - ${gameType}`);
+      console.log(`🎮 [Matchmaking] User ID: ${userId}`);
+      console.log(`🎮 [Matchmaking] Username: ${username}`);
+      console.log(`🎮 [Matchmaking] Entry Fee: ${entryFee}`);
+      console.log(`🎮 [Matchmaking] Game Type: ${gameType}`);
 
       // Find or create a lot for this player
+      console.log(`🔍 [Matchmaking] Calling find_or_create_lot RPC...`);
       const { data: lotData, error: lotError } = await supabase
         .rpc('find_or_create_lot', {
           p_game_type: gameType,
@@ -57,9 +62,12 @@ class MatchmakingService {
 
       if (lotError) {
         console.error('❌ [Matchmaking] Error getting lot:', lotError);
+        console.log('🔄 [Matchmaking] Using fallback lot creation...');
         // Fallback: create lot manually
         const lotNumber = `${gameType}-${entryFee}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+        console.log(`🎫 [Matchmaking] Generated lot number: ${lotNumber}`);
         
+        console.log(`💾 [Matchmaking] Inserting into matchmaking_queue...`);
         const { data, error } = await supabase
           .from('matchmaking_queue')
           .insert({
@@ -73,14 +81,21 @@ class MatchmakingService {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ [Matchmaking] Insert error:', error);
+          console.error('❌ [Matchmaking] Error details:', JSON.stringify(error, null, 2));
+          throw error;
+        }
+        
         console.log(`✅ [Matchmaking] ${username} in queue:`, data.id, 'Lot:', data.lot_number);
         return data;
       }
 
       const lotNumber = lotData as string;
+      console.log(`🎫 [Matchmaking] RPC returned lot number: ${lotNumber}`);
 
       // Insert into queue with lot number
+      console.log(`💾 [Matchmaking] Inserting into matchmaking_queue with RPC lot...`);
       const { data, error } = await supabase
         .from('matchmaking_queue')
         .insert({
@@ -94,12 +109,17 @@ class MatchmakingService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [Matchmaking] Insert error:', error);
+        console.error('❌ [Matchmaking] Error details:', JSON.stringify(error, null, 2));
+        throw error;
+      }
 
       console.log(`✅ [Matchmaking] ${username} in queue:`, data.id, 'Lot:', data.lot_number);
       return data;
     } catch (error) {
       console.error('❌ [Matchmaking] Error joining queue:', error);
+      console.error('❌ [Matchmaking] Full error details:', JSON.stringify(error, null, 2));
       return null;
     }
   }
