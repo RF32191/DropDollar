@@ -112,27 +112,20 @@ export class ActivityService {
       console.log('📊 [ActivityService] User ID:', gameData.user_id);
       console.log('📊 [ActivityService] Mode:', gameData.is_practice ? 'practice' : 'competition');
       
-      // Map to V4 schema fields
+      // Map to our new schema fields
       const { data, error } = await supabase
         .from('game_history')
         .insert([{
           user_id: gameData.user_id,
           game_type: gameData.game_type,
-          mode: gameData.is_practice ? 'practice' : 'competition', // V4 schema field
           score: gameData.score,
           accuracy: gameData.accuracy,
-          reaction_time: gameData.avg_reaction_time, // V4 schema field name
-          duration_seconds: gameData.game_duration,
-          tokens_wagered: 0,
-          tokens_won: 0,
-          result: 'completed',
-          metadata: {
-            listing_id: gameData.listing_id,
-            entry_number: gameData.entry_number,
-            match_id: gameData.match_id,
-            lot_number: gameData.lot_number,
-            game_mode: gameData.is_practice ? 'practice' : 'competition'
-          },
+          avg_reaction_time: gameData.avg_reaction_time,
+          is_practice: gameData.is_practice,
+          listing_id: gameData.listing_id,
+          entry_number: gameData.entry_number,
+          match_id: gameData.match_id,
+          opponent_id: null, // Will be set for 1v1 matches
           created_at: new Date().toISOString()
         }])
         .select()

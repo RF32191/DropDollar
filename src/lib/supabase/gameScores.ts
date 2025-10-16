@@ -7,12 +7,7 @@ export interface GameScore {
   score: number;
   accuracy?: number;
   avg_reaction_time?: number;
-  game_duration?: number;
   is_practice: boolean;
-  listing_id?: string;
-  entry_number?: number;
-  game_session_id?: string;
-  metadata?: any;
   created_at?: string;
 }
 
@@ -21,10 +16,8 @@ export interface UserBestScore {
   user_id: string;
   game_type: 'multi-target' | 'color-sequence' | 'falling-objects' | 'laser-dodge' | 'quick-click' | 'sword-parry';
   best_score: number;
-  best_accuracy?: number;
-  best_reaction_time?: number;
-  total_games_played: number;
-  last_played_at: string;
+  last_score?: number;
+  games_played: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -56,17 +49,27 @@ export class GameScoreService {
   static async getUserBestScores(userId: string): Promise<UserBestScore[]> {
     try {
       const { data, error } = await supabase
-        .from('user_best_scores')
+        .from('high_scores')
         .select('*')
         .eq('user_id', userId)
-        .order('game_type');
+        .order('best_score', { ascending: false });
 
       if (error) {
         console.error('Error fetching user best scores:', error);
         return [];
       }
 
-      return data || [];
+      // Map to UserBestScore interface
+      return (data || []).map(score => ({
+        id: score.id,
+        user_id: score.user_id,
+        game_type: score.game_type,
+        best_score: score.best_score,
+        last_score: score.last_score,
+        games_played: score.games_played,
+        created_at: score.created_at,
+        updated_at: score.updated_at
+      }));
     } catch (error) {
       console.error('Error in getUserBestScores:', error);
       return [];
@@ -77,7 +80,7 @@ export class GameScoreService {
   static async getUserBestScore(userId: string, gameType: string): Promise<UserBestScore | null> {
     try {
       const { data, error } = await supabase
-        .from('user_best_scores')
+        .from('high_scores')
         .select('*')
         .eq('user_id', userId)
         .eq('game_type', gameType)
@@ -92,7 +95,16 @@ export class GameScoreService {
         return null;
       }
 
-      return data;
+      return {
+        id: data.id,
+        user_id: data.user_id,
+        game_type: data.game_type,
+        best_score: data.best_score,
+        last_score: data.last_score,
+        games_played: data.games_played,
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      };
     } catch (error) {
       console.error('Error in getUserBestScore:', error);
       return null;
