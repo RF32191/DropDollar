@@ -532,24 +532,6 @@ export default function GamesPage() {
           isPractice: !isCompetitionMode
         });
 
-        // Save to game scores
-        await GameScoreService.saveGameScore({
-          user_id: user.id,
-          game_type: currentGame as GameScore['game_type'],
-          score: result.score,
-          accuracy: result.accuracy,
-          avg_reaction_time: result.avgReactionTime,
-          game_duration: 60, // Default game duration
-          is_practice: !isCompetitionMode,
-          listing_id: listingId || undefined,
-          entry_number: isCompetitionMode ? entryNumber : undefined,
-          metadata: {
-            timestamp: new Date().toISOString(),
-            game_version: '1.0'
-          }
-        });
-        console.log('✅ [Games] Game score saved to game_scores table');
-        
         // Save complete game history with SimpleGameService
         await SimpleGameService.saveGameHistory({
           user_id: user.id,
