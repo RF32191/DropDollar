@@ -41,7 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_game_history_listing ON public.game_history(listi
 GRANT ALL ON public.game_history TO authenticated;
 GRANT ALL ON public.game_history TO anon;
 
--- 6. Create RPC function to save game history
+-- 6. Drop existing function if it exists, then create RPC function to save game history
+DROP FUNCTION IF EXISTS save_game_history(TEXT, TEXT, DECIMAL, DECIMAL, INTEGER, INTEGER, BOOLEAN, TEXT, INTEGER, INTEGER, DECIMAL, INTEGER, INTEGER, JSONB);
+DROP FUNCTION IF EXISTS save_game_history;
+
 CREATE OR REPLACE FUNCTION save_game_history(
   p_user_id TEXT,
   p_game_type TEXT,
