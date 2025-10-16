@@ -244,6 +244,7 @@ export class OpponentAssignmentService {
           is_winner: !isWinner
         }
       };
+    }
     } catch (error) {
       console.error('❌ [OpponentAssignment] Exception:', error);
       return { matched: false };
