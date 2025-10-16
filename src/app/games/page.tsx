@@ -23,6 +23,7 @@ import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   PuzzlePieceIcon, 
   CursorArrowRaysIcon, 
@@ -123,6 +124,7 @@ interface GamePopularity {
 export default function GamesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuth(); // Use useAuth context instead of localStorage
   const listingId = searchParams.get('listingId');
   const tournamentId = searchParams.get('tournament');
   const entryId = searchParams.get('entry');
@@ -179,25 +181,6 @@ export default function GamesPage() {
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
-
-  // Get logged-in user
-  const [user, setUser] = useState<{ id: string; email: string; username: string } | null>(null);
-
-  useEffect(() => {
-    // Load user from localStorage
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        console.log('✅ [Games] User loaded:', parsedUser.username || parsedUser.email);
-      } catch (error) {
-        console.error('❌ [Games] Error parsing user data:', error);
-      }
-    } else {
-      console.log('ℹ️ [Games] No user logged in - scores will not be saved');
-    }
-  }, []);
 
   // Auto-launch game if tournament/competition entry
   useEffect(() => {
@@ -527,6 +510,7 @@ export default function GamesPage() {
       try {
         console.log('💾 [Games] Saving game result to Supabase...', {
           userId: user.id,
+          userEmail: user.email,
           gameType: currentGame,
           score: result.score,
           isPractice: !isCompetitionMode
