@@ -43,28 +43,23 @@ export class SimpleGameService {
     try {
       console.log('🎮 [SimpleGameService] Saving game history:', gameData);
 
-      const { data, error } = await supabase
-        .from('game_history')
-        .insert([{
-          user_id: gameData.user_id,
-          game_type: gameData.game_type,
-          score: gameData.score,
-          accuracy: gameData.accuracy,
-          avg_reaction_time: gameData.avg_reaction_time || 0,
-          game_duration: gameData.game_duration || 60,
-          is_practice: gameData.is_practice,
-          is_competition: !gameData.is_practice,
-          listing_id: gameData.listing_id || null,
-          entry_number: gameData.entry_number || null,
-          placement: gameData.placement || null,
-          prize_won: gameData.prize_won || 0,
-          tokens_wagered: gameData.tokens_wagered || 0,
-          tokens_won: gameData.tokens_won || 0,
-          metadata: gameData.metadata || null,
-          created_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      // Use RPC function to bypass RLS issues
+      const { data, error } = await supabase.rpc('save_game_history', {
+        p_user_id: gameData.user_id,
+        p_game_type: gameData.game_type,
+        p_score: gameData.score,
+        p_accuracy: gameData.accuracy,
+        p_avg_reaction_time: gameData.avg_reaction_time || 0,
+        p_game_duration: gameData.game_duration || 60,
+        p_is_practice: gameData.is_practice,
+        p_listing_id: gameData.listing_id,
+        p_entry_number: gameData.entry_number,
+        p_placement: gameData.placement,
+        p_prize_won: gameData.prize_won || 0,
+        p_tokens_wagered: gameData.tokens_wagered || 0,
+        p_tokens_won: gameData.tokens_won || 0,
+        p_metadata: gameData.metadata
+      });
 
       if (error) {
         console.error('❌ [SimpleGameService] Error saving game history:', error);
