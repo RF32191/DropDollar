@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
@@ -63,6 +64,7 @@ interface UserStats {
 }
 
 export default function TriumphStyleDashboard() {
+  const searchParams = useSearchParams();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [gameHistory, setGameHistory] = useState<GameHistoryRecord[]>([]);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
@@ -79,8 +81,23 @@ export default function TriumphStyleDashboard() {
   const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats'>('recent');
 
   useEffect(() => {
+    // Check URL parameters for tab selection
+    const tab = searchParams.get('tab');
+    if (tab && ['recent', 'practice', 'competition', 'stats'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+    
+    // Check for new score/match flags
+    const newScore = searchParams.get('newScore');
+    const newMatch = searchParams.get('newMatch');
+    
+    if (newScore || newMatch) {
+      // Show a brief notification
+      console.log('🎉 New game result detected!');
+    }
+    
     loadDashboardData();
-  }, []);
+  }, [searchParams]);
 
   const loadDashboardData = async () => {
     try {
