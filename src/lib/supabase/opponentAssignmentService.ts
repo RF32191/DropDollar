@@ -74,30 +74,34 @@ export class OpponentAssignmentService {
         console.log('⏳ [OpponentAssignment] No opponent found yet. Player will be matched later.');
         
         // Create a solo match record for tracking purposes
-        const { data: soloMatch, error: soloMatchError } = await supabase
-          .from('matches')
-          .insert({
-            lot_number: lotNumber,
-            player1_id: userId,
-            player1_name: username,
-            player1_score: playerScore,
-            player2_id: userId, // Solo match
-            player2_name: username,
-            player2_score: playerScore,
-            winner_id: userId,
-            winner_score: playerScore,
-            loser_score: playerScore,
-            prize_amount: entryFee * 0.85, // 85% of entry fee
-            game_type: gameType,
-            entry_fee: entryFee,
-            status: 'completed'
-          })
-          .select()
-          .single();
+        try {
+          const { data: soloMatch, error: soloMatchError } = await supabase
+            .from('matches')
+            .insert({
+              lot_number: lotNumber,
+              player1_id: userId,
+              player1_name: username,
+              player1_score: playerScore,
+              player2_id: userId, // Solo match
+              player2_name: username,
+              player2_score: playerScore,
+              winner_id: userId,
+              winner_score: playerScore,
+              loser_score: playerScore,
+              prize_amount: entryFee * 0.85, // 85% of entry fee
+              game_type: gameType,
+              entry_fee: entryFee,
+              status: 'completed'
+            })
+            .select()
+            .single();
 
-        if (!soloMatchError && soloMatch) {
-          console.log('✅ [OpponentAssignment] Solo match created for tracking:', soloMatch.id);
-          return { matched: true, matchId: soloMatch.id };
+          if (!soloMatchError && soloMatch) {
+            console.log('✅ [OpponentAssignment] Solo match created for tracking:', soloMatch.id);
+            return { matched: true, matchId: soloMatch.id };
+          }
+        } catch (error) {
+          console.log('⚠️ [OpponentAssignment] Matches table not available, skipping solo match creation');
         }
         
         return { matched: false };
@@ -124,8 +128,9 @@ export class OpponentAssignmentService {
       console.log('💰 [OpponentAssignment] Winner:', winnerId);
 
       // Create match record
-      const { data: matchData, error: matchError } = await supabase
-        .from('matches')
+      console.log('📝 [OpponentAssignment] Creating match record...');
+      try {
+        const { data: matchData, error: matchError } = await supabase
         .insert({
           lot_number: lotNumber,
           player1_id: userId,
@@ -228,6 +233,17 @@ export class OpponentAssignmentService {
         matchId: matchData.id
       };
 
+    } catch (error) {
+      console.log('⚠️ [OpponentAssignment] Matches table not available, returning match result without database record');
+      return { 
+        matched: true, 
+        opponent: {
+          user_id: opponent.user_id,
+          username: opponent.username,
+          score: opponent.player_score,
+          is_winner: !isWinner
+        }
+      };
     } catch (error) {
       console.error('❌ [OpponentAssignment] Exception:', error);
       return { matched: false };

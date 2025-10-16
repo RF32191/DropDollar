@@ -25,6 +25,9 @@ function GamePlayContent() {
   const entryFee = parseInt(searchParams.get('fee') || '1');
   const seed = parseInt(searchParams.get('seed') || '0');
   
+  // Generate lot number for this match
+  const lotNumber = `LOT-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  
   const [gameStarted, setGameStarted] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
 
