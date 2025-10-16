@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { SimpleGameService } from '@/lib/supabase/simpleGameService';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   StarIcon, 
   TrophyIcon, 
@@ -78,6 +80,7 @@ const PRACTICE_GAMES = [
 
 export default function PracticePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [userStats, setUserStats] = useState<{[key: string]: {bestScore: number, gamesPlayed: number}}>({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -87,16 +90,24 @@ export default function PracticePage() {
 
   const loadUserStats = async () => {
     try {
-      // Load user's best scores for each game
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Load user's best scores for each game from Supabase
+      const gameHistory = await SimpleGameService.getUserPracticeHistory(user.id);
+      const highScores = await SimpleGameService.getUserHighScores(user.id);
+      
       const stats: {[key: string]: {bestScore: number, gamesPlayed: number}} = {};
       
-      // Get stats from localStorage for now (will be replaced with Supabase)
       PRACTICE_GAMES.forEach(game => {
-        const bestScore = localStorage.getItem(`bestScore_${game.id}`) || '0';
-        const gamesPlayed = localStorage.getItem(`gamesPlayed_${game.id}`) || '0';
+        const gameGames = gameHistory.filter(g => g.game_type === game.id);
+        const bestScore = highScores[game.id]?.score || 0;
+        
         stats[game.id] = {
-          bestScore: parseInt(bestScore),
-          gamesPlayed: parseInt(gamesPlayed)
+          bestScore: bestScore,
+          gamesPlayed: gameGames.length
         };
       });
       
@@ -109,8 +120,8 @@ export default function PracticePage() {
   };
 
   const startPracticeGame = (gameId: string) => {
-    // Navigate to games page with practice mode
-    router.push(`/games?game=${gameId}&mode=practice`);
+    // Navigate to enhanced games page with practice mode
+    router.push(`/games/enhanced-page?game=${gameId}&mode=practice`);
   };
 
   const getDifficultyColor = (difficulty: string) => {

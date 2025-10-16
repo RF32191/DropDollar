@@ -20,7 +20,7 @@ import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
-import { ActivityService } from '@/lib/supabase/activityService';
+import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
 import { 
@@ -550,8 +550,8 @@ export default function GamesPage() {
         });
         console.log('✅ [Games] Game score saved to game_scores table');
         
-        // Save complete game history with ActivityService
-        await ActivityService.saveGameHistory({
+        // Save complete game history with SimpleGameService
+        await SimpleGameService.saveGameHistory({
           user_id: user.id,
           game_type: currentGame,
           score: result.score,
