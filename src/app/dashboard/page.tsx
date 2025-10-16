@@ -493,7 +493,7 @@ export default function TriumphStyleDashboard() {
 
         {/* Quick Actions */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/practice" className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg text-center transition-colors">
+          <Link href="/games" className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg text-center transition-colors">
             <StarIcon className="w-6 h-6 mx-auto mb-2" />
             <p className="font-medium">Practice Games</p>
             <p className="text-sm opacity-80">Improve your skills</p>
