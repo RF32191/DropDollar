@@ -11,7 +11,7 @@ import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import VictoryAnimation from '@/components/VictoryAnimation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { ActivityService } from '@/lib/supabase/activityService';
+import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { TriumphMatchmakingService } from '@/lib/supabase/triumphMatchmaking';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -108,8 +108,8 @@ export default function EnhancedGamesPage() {
       console.log('🎮 [Games] Game completed:', result);
 
       if (isPracticeMode) {
-        // Practice mode - save score and show victory animation
-        await ActivityService.saveGameHistory({
+        // Practice mode - save score using simple service
+        await SimpleGameService.saveGameHistory({
           user_id: user.id,
           game_type: currentGame,
           score: result.score,
@@ -153,7 +153,7 @@ export default function EnhancedGamesPage() {
         } else {
           console.log('❌ [Games] No match found, treating as practice');
           // Fallback to practice mode
-          await ActivityService.saveGameHistory({
+          await SimpleGameService.saveGameHistory({
             user_id: user.id,
             game_type: currentGame,
             score: result.score,

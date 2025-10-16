@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
   TrophyIcon, 
@@ -145,20 +146,9 @@ export default function TriumphStyleDashboard() {
     try {
       console.log('🎮 [Dashboard] Loading game history...');
       
-      const { data, error } = await supabase
-        .from('game_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error('❌ [Dashboard] Error loading game history:', error);
-        return;
-      }
-
-      setGameHistory(data || []);
-      console.log('✅ [Dashboard] Game history loaded:', data?.length || 0, 'games');
+      const gameHistory = await SimpleGameService.getUserGameHistory(userId);
+      setGameHistory(gameHistory);
+      console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadGameHistory:', error);
     }
@@ -168,19 +158,9 @@ export default function TriumphStyleDashboard() {
     try {
       console.log('🏆 [Dashboard] Loading high scores...');
       
-      const { data, error } = await supabase
-        .from('high_scores')
-        .select('*')
-        .eq('user_id', userId)
-        .order('best_score', { ascending: false });
-
-      if (error) {
-        console.error('❌ [Dashboard] Error loading high scores:', error);
-        return;
-      }
-
-      setHighScores(data || []);
-      console.log('✅ [Dashboard] High scores loaded:', data?.length || 0, 'records');
+      const highScores = await SimpleGameService.getUserHighScores(userId);
+      setHighScores(Object.values(highScores));
+      console.log('✅ [Dashboard] High scores loaded:', Object.keys(highScores).length, 'games');
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadHighScores:', error);
     }
@@ -190,38 +170,9 @@ export default function TriumphStyleDashboard() {
     try {
       console.log('📊 [Dashboard] Loading user stats...');
       
-      const { data, error } = await supabase
-        .from('user_game_stats')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error('❌ [Dashboard] Error loading user stats:', error);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        const stats = data.reduce((acc, stat) => ({
-          totalGames: acc.totalGames + stat.total_games_played,
-          practiceGames: acc.practiceGames + stat.practice_games_played,
-          competitionGames: acc.competitionGames + stat.competition_games_played,
-          totalTokensWagered: acc.totalTokensWagered + stat.total_tokens_wagered,
-          totalTokensWon: acc.totalTokensWon + stat.total_tokens_won,
-          totalPrizeMoney: acc.totalPrizeMoney + stat.total_prize_money,
-          averageScore: Math.max(acc.averageScore, stat.average_score)
-        }), {
-          totalGames: 0,
-          practiceGames: 0,
-          competitionGames: 0,
-          totalTokensWagered: 0,
-          totalTokensWon: 0,
-          totalPrizeMoney: 0,
-          averageScore: 0
-        });
-
-        setUserStats(stats);
-        console.log('✅ [Dashboard] User stats loaded:', stats);
-      }
+      const stats = await SimpleGameService.getUserGameStats(userId);
+      setUserStats(stats);
+      console.log('✅ [Dashboard] User stats loaded:', stats);
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadUserStats:', error);
     }
