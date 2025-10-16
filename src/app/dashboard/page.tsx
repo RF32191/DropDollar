@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameService';
+import { useAuth } from '@/contexts/AuthContext';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
   TrophyIcon, 
@@ -66,6 +67,7 @@ interface UserStats {
 
 export default function TriumphStyleDashboard() {
   const searchParams = useSearchParams();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [gameHistory, setGameHistory] = useState<GameHistoryRecord[]>([]);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
@@ -97,35 +99,30 @@ export default function TriumphStyleDashboard() {
       console.log('🎉 New game result detected!');
     }
     
-    loadDashboardData();
-  }, [searchParams]);
+    // Only load data if user is authenticated
+    if (user && isAuthenticated) {
+      loadDashboardData();
+    }
+  }, [searchParams, user, isAuthenticated]);
 
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
       console.log('🎮 [Dashboard] Loading Triumph-style dashboard data...');
 
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('❌ [Dashboard] No authenticated user');
+      // Use the same authentication method as practice games
+      if (!user || !isAuthenticated) {
+        console.log('❌ [Dashboard] No authenticated user from useAuth context');
         setIsLoading(false);
         return;
       }
 
-      console.log('✅ [Dashboard] User authenticated:', user.id);
+      console.log('✅ [Dashboard] User authenticated via useAuth:', user.id);
+      console.log('✅ [Dashboard] User email:', user.email);
 
-      // Get user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profile) {
-        setUserProfile(profile);
-        console.log('✅ [Dashboard] Profile loaded:', profile.username);
-      }
+      // Set user profile from useAuth context
+      setUserProfile(user);
+      console.log('✅ [Dashboard] Profile loaded from useAuth:', user.username);
 
       // Get comprehensive game data using direct queries (more reliable)
       await Promise.all([
@@ -215,7 +212,7 @@ export default function TriumphStyleDashboard() {
     return icons[gameType] || <TrophyIcon className="w-5 h-5 text-gray-500" />;
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
         <CleanNavigation />
@@ -223,6 +220,24 @@ export default function TriumphStyleDashboard() {
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             <span className="ml-4 text-lg">Loading dashboard...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <CleanNavigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-lg mb-4">Please log in to view your dashboard</p>
+              <Link href="/signin" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Sign In
+              </Link>
+            </div>
           </div>
         </div>
       </div>
