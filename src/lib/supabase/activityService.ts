@@ -101,9 +101,18 @@ export class ActivityService {
     is_practice: boolean;
     listing_id?: string;
     entry_number?: number;
-    game_duration?: number;
     match_id?: string;
-    lot_number?: string;
+    opponent_id?: string;
+    tournament_id?: string;
+    entry_fee?: number;
+    tokens_wagered?: number;
+    tokens_won?: number;
+    game_duration?: number;
+    difficulty_level?: number;
+    game_session_id?: string;
+    device_info?: any;
+    location_data?: any;
+    metadata?: any;
   }): Promise<GameHistory | null> {
     try {
       console.log('🎮 [ActivityService] Saving game history...');
@@ -112,7 +121,7 @@ export class ActivityService {
       console.log('📊 [ActivityService] User ID:', gameData.user_id);
       console.log('📊 [ActivityService] Mode:', gameData.is_practice ? 'practice' : 'competition');
       
-      // Map to our new schema fields
+      // Map to comprehensive game history schema
       const { data, error } = await supabase
         .from('game_history')
         .insert([{
@@ -125,7 +134,17 @@ export class ActivityService {
           listing_id: gameData.listing_id,
           entry_number: gameData.entry_number,
           match_id: gameData.match_id,
-          opponent_id: null, // Will be set for 1v1 matches
+          opponent_id: gameData.opponent_id || null,
+          tournament_id: gameData.tournament_id || null,
+          entry_fee: gameData.entry_fee || 0,
+          tokens_wagered: gameData.tokens_wagered || 0,
+          tokens_won: gameData.tokens_won || 0,
+          game_duration: gameData.game_duration || 60,
+          difficulty_level: gameData.difficulty_level || 1,
+          game_session_id: gameData.game_session_id || null,
+          device_info: gameData.device_info || null,
+          location_data: gameData.location_data || null,
+          metadata: gameData.metadata || null,
           created_at: new Date().toISOString()
         }])
         .select()
