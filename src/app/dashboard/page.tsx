@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameService';
+import { UserService } from '@/lib/supabase/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
@@ -69,6 +70,7 @@ export default function TriumphStyleDashboard() {
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [gameHistory, setGameHistory] = useState<GameHistoryRecord[]>([]);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
   const [userStats, setUserStats] = useState<UserStats>({
@@ -123,6 +125,13 @@ export default function TriumphStyleDashboard() {
       // Set user profile from useAuth context
       setUserProfile(user);
       console.log('✅ [Dashboard] Profile loaded from useAuth:', user.username);
+
+      // Load actual token balance from database
+      const profile = await UserService.getUserProfile(user.id);
+      if (profile) {
+        setTokenBalance(profile.tokens || 0);
+        console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
+      }
 
       // Get comprehensive game data using direct queries (more reliable)
       await Promise.all([
@@ -245,56 +254,69 @@ export default function TriumphStyleDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Welcome back, {userProfile?.username || 'Player'}!
-          </h1>
-          <p className="text-gray-400">Your gaming dashboard and statistics</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Welcome back, {userProfile?.username || 'Player'}!
+              </h1>
+              <p className="text-gray-400">Your gaming dashboard and statistics</p>
+            </div>
+            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl p-4 shadow-lg">
+              <div className="flex items-center">
+                <BanknotesIcon className="w-8 h-8 text-white mr-3" />
+                <div>
+                  <p className="text-yellow-100 text-sm">Token Balance</p>
+                  <p className="text-2xl font-bold text-white">{tokenBalance}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
             <div className="flex items-center">
-              <TrophyIcon className="w-8 h-8 text-yellow-500 mr-3" />
+              <TrophyIcon className="w-8 h-8 text-yellow-400 mr-3" />
               <div>
-                <p className="text-gray-400 text-sm">Total Games</p>
+                <p className="text-purple-200 text-sm">Total Games</p>
                 <p className="text-2xl font-bold text-white">{userStats.totalGames}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
             <div className="flex items-center">
-              <StarIcon className="w-8 h-8 text-blue-500 mr-3" />
+              <StarIcon className="w-8 h-8 text-blue-400 mr-3" />
               <div>
-                <p className="text-gray-400 text-sm">Practice Games</p>
+                <p className="text-purple-200 text-sm">Practice Games</p>
                 <p className="text-2xl font-bold text-white">{userStats.practiceGames}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
             <div className="flex items-center">
-              <FireIcon className="w-8 h-8 text-red-500 mr-3" />
+              <FireIcon className="w-8 h-8 text-red-400 mr-3" />
               <div>
-                <p className="text-gray-400 text-sm">Competitions</p>
+                <p className="text-purple-200 text-sm">Competitions</p>
                 <p className="text-2xl font-bold text-white">{userStats.competitionGames}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
             <div className="flex items-center">
-              <BanknotesIcon className="w-8 h-8 text-green-500 mr-3" />
+              <ChartBarIcon className="w-8 h-8 text-green-400 mr-3" />
               <div>
-                <p className="text-gray-400 text-sm">Tokens Won</p>
-                <p className="text-2xl font-bold text-white">{userStats.totalTokensWon}</p>
+                <p className="text-purple-200 text-sm">Average Score</p>
+                <p className="text-2xl font-bold text-white">{Math.round(userStats.averageScore)}</p>
               </div>
             </div>
           </div>
@@ -302,31 +324,31 @@ export default function TriumphStyleDashboard() {
 
         {/* Tab Navigation */}
         <div className="mb-6">
-          <div className="flex space-x-1 bg-gray-800 rounded-lg p-1">
-            {[
-              { id: 'recent', label: 'Recent Games', icon: ClockIcon },
-              { id: 'practice', label: 'Practice History', icon: StarIcon },
-              { id: 'competition', label: 'Competition History', icon: TrophyIcon },
-              { id: 'stats', label: 'Statistics', icon: ChartBarIcon }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }`}
-              >
-                <tab.icon className="w-4 h-4 mr-2" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20">
+            <div className="flex border-b border-white/20">
+              {[
+                { id: 'recent', label: 'Recent Games', icon: ClockIcon },
+                { id: 'practice', label: 'Practice History', icon: StarIcon },
+                { id: 'competition', label: 'Competition History', icon: TrophyIcon },
+                { id: 'stats', label: 'Statistics', icon: ChartBarIcon }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center px-6 py-4 text-sm font-medium transition-all duration-300 ${
+                    activeTab === tab.id
+                      ? 'text-blue-400 border-b-2 border-blue-400 bg-white/5'
+                      : 'text-purple-200 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <tab.icon className="w-5 h-5 mr-2" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-        {/* Tab Content */}
-        <div className="bg-gray-800 rounded-lg p-6">
+            {/* Tab Content */}
+            <div className="p-6">
           {activeTab === 'recent' && (
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center">
@@ -342,21 +364,21 @@ export default function TriumphStyleDashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {gameHistory.slice(0, 10).map((game) => (
-                    <div key={game.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                    <div key={game.id} className="flex items-center justify-between bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all duration-300">
                       <div className="flex items-center">
                         {getGameIcon(game.game_type)}
-                        <div className="ml-3">
-                          <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
-                          <p className="text-sm text-gray-400">
+                        <div className="ml-4">
+                          <p className="text-white font-medium capitalize">{formatGameType(game.game_type)}</p>
+                          <p className="text-purple-200 text-sm">
                             {game.is_practice ? 'Practice' : 'Competition'} • {formatDate(game.created_at)}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-white font-bold text-lg">{formatScore(game.score)}</p>
+                        <p className="text-purple-200 text-sm">
                           {game.accuracy ? `${game.accuracy}% accuracy` : ''}
                           {game.tokens_won ? ` • +${game.tokens_won} tokens` : ''}
                         </p>
@@ -489,26 +511,28 @@ export default function TriumphStyleDashboard() {
               )}
             </div>
           )}
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/games" className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg text-center transition-colors">
-            <StarIcon className="w-6 h-6 mx-auto mb-2" />
-            <p className="font-medium">Practice Games</p>
-            <p className="text-sm opacity-80">Improve your skills</p>
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link href="/games" className="group bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+            <StarIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
+            <p className="font-semibold text-lg">Practice Games</p>
+            <p className="text-blue-100 text-sm">Improve your skills</p>
           </Link>
           
-          <Link href="/tournaments" className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg text-center transition-colors">
-            <TrophyIcon className="w-6 h-6 mx-auto mb-2" />
-            <p className="font-medium">Enter Competition</p>
-            <p className="text-sm opacity-80">Win real prizes</p>
+          <Link href="/tournaments" className="group bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+            <TrophyIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
+            <p className="font-semibold text-lg">Enter Competition</p>
+            <p className="text-red-100 text-sm">Win real prizes</p>
           </Link>
           
-          <Link href="/buy-tokens" className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg text-center transition-colors">
-            <BanknotesIcon className="w-6 h-6 mx-auto mb-2" />
-            <p className="font-medium">Buy Tokens</p>
-            <p className="text-sm opacity-80">Get more tokens</p>
+          <Link href="/buy-tokens" className="group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+            <BanknotesIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
+            <p className="font-semibold text-lg">Buy Tokens</p>
+            <p className="text-green-100 text-sm">Get more tokens</p>
           </Link>
         </div>
       </div>
