@@ -4,7 +4,7 @@ export interface GameHistoryRecord {
   id: string;
   user_id: string;
   game_type: string;
-  score: number;
+  score: number; // Can be decimal like 147.1
   accuracy: number;
   avg_reaction_time: number;
   game_duration: number;
@@ -48,8 +48,8 @@ export class SimpleGameService {
         const { data, error } = await supabase.rpc('save_game_history', {
           p_user_id: gameData.user_id,
           p_game_type: gameData.game_type,
-          p_score: gameData.score,
-          p_accuracy: gameData.accuracy,
+          p_score: Number(gameData.score), // Ensure score is a number
+          p_accuracy: Number(gameData.accuracy), // Ensure accuracy is a number
           p_avg_reaction_time: gameData.avg_reaction_time || 0,
           p_game_duration: gameData.game_duration || 60,
           p_is_practice: gameData.is_practice,
@@ -76,8 +76,8 @@ export class SimpleGameService {
         .insert([{
           user_id: gameData.user_id,
           game_type: gameData.game_type,
-          score: gameData.score,
-          accuracy: gameData.accuracy,
+          score: Number(gameData.score), // Ensure score is a number
+          accuracy: Number(gameData.accuracy), // Ensure accuracy is a number
           avg_reaction_time: gameData.avg_reaction_time || 0,
           game_duration: gameData.game_duration || 60,
           is_practice: gameData.is_practice,
