@@ -7,6 +7,7 @@ import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } 
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
   FireIcon, 
   TrophyIcon, 
