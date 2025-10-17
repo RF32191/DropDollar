@@ -570,7 +570,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
-    lastEnemySpawnRef.current = Date.now();
+    lastEnemySpawnRef.current = Date.now() - 10000; // Allow immediate enemy spawning
     lastShotRef.current = Date.now();
     isGameRunningRef.current = true;
     extremeModeTriggeredRef.current = false; // Reset mode triggers

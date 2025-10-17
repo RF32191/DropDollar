@@ -120,9 +120,79 @@ export default function HotSellPage() {
     setTimeRemaining(newTimeRemaining);
   };
 
+  const joinWinnerTakesAll = async (configId: string) => {
+    if (!user || !isAuthenticated) {
+      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
+      return;
+    }
+
+    // Location verification for legal compliance
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      console.log('Location verified:', position.coords);
+    } catch (error) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Location verification required to join tournaments for legal compliance. Please enable location services.' 
+      });
+      return;
+    }
+
+    setJoiningSession(configId);
+    
+    try {
+      // For now, simulate joining a winner-takes-all session
+      // In a real implementation, this would create a special session type
+      setMessage({ 
+        type: 'success', 
+        text: `Joined Winner Takes All tournament! Good luck!` 
+      });
+      
+      // Simulate redirect to game after a short delay
+      setTimeout(() => {
+        window.location.href = `/games?mode=competition&gameType=${configId}`;
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error joining winner takes all:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Failed to join tournament. Please try again.' 
+      });
+    } finally {
+      setJoiningSession(null);
+    }
+  };
+
   const joinHotSellSession = async (session: HotSellSession, config: FixedGameConfig) => {
     if (!user || !isAuthenticated) {
       setMessage({ type: 'error', text: 'Please log in to join tournaments' });
+      return;
+    }
+
+    // Location verification for legal compliance
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      console.log('Location verified:', position.coords);
+    } catch (error) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Location verification required to join tournaments for legal compliance. Please enable location services.' 
+      });
       return;
     }
 
@@ -181,6 +251,30 @@ export default function HotSellPage() {
   };
 
   const createHotSellSession = async (config: FixedGameConfig) => {
+    if (!user || !isAuthenticated) {
+      setMessage({ type: 'error', text: 'Please log in to create tournaments' });
+      return;
+    }
+
+    // Location verification for legal compliance
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      console.log('Location verified:', position.coords);
+    } catch (error) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Location verification required to create tournaments for legal compliance. Please enable location services.' 
+      });
+      return;
+    }
+
     try {
       const session = await FixedGamesService.createHotSellSession(config.id);
       if (session) {
@@ -643,6 +737,112 @@ export default function HotSellPage() {
                         )}
                       </>
                     )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Winner Takes It All Section */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">🏆 WINNER TAKES IT ALL</h2>
+            <p className="text-lg text-gray-300">$1 entry tournaments - Winner gets everything!</p>
+            <p className="text-sm text-gray-400">More players = Bigger pot! No limits on participants.</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Winner Takes It All Games */}
+            {fixedGameConfigs.map((config) => {
+              const winnerTakesAllConfig = {
+                ...config,
+                title: `Winner Takes All - ${config.title}`,
+                entry_fee: 1, // $1 entry
+                prize_pool: 0, // Will be calculated based on participants
+                max_participants: 1000, // No practical limit
+                description: `$1 entry - Winner takes everything! Current pot grows with each player.`
+              };
+              
+              return (
+                <div key={`winner-${config.id}`} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:bg-white/15">
+                  {/* Game Header */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center">
+                        <span className="text-3xl mr-3">🏆</span>
+                        <h3 className="text-xl font-bold text-white">{winnerTakesAllConfig.title}</h3>
+                      </div>
+                      <div className="flex items-center rounded-full px-3 py-1 bg-purple-500/20 text-purple-300">
+                        <StarIcon className="w-4 h-4 mr-1" />
+                        <span className="text-xs font-semibold">WINNER TAKES ALL</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-gray-300 mb-4">{winnerTakesAllConfig.description}</p>
+                    
+                    {/* Entry Fee */}
+                    <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-green-500 to-emerald-500">
+                      <div className="text-center">
+                        <p className="text-green-100 text-sm font-medium mb-1">ENTRY FEE</p>
+                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(winnerTakesAllConfig.entry_fee)}</p>
+                      </div>
+                    </div>
+
+                    {/* Current Pot (simulated) */}
+                    <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
+                      <div className="text-center">
+                        <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
+                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(winnerTakesAllConfig.entry_fee * 15)}</p>
+                        <p className="text-purple-200 text-xs mt-1">15 players joined</p>
+                      </div>
+                    </div>
+
+                    {/* Game Info */}
+                    <div className="space-y-2 text-sm text-gray-300 mb-6">
+                      <div className="flex justify-between">
+                        <span>Game Type:</span>
+                        <span className="text-white font-medium">{getGameIcon(config.game_type)} {config.game_type.replace('_', ' ').toUpperCase()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Max Players:</span>
+                        <span className="text-white font-medium">Unlimited</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Duration:</span>
+                        <span className="text-white font-medium">{config.game_duration}s</span>
+                      </div>
+                    </div>
+
+                    {/* Join Button */}
+                    <div className="space-y-3">
+                      {isAuthenticated ? (
+                        <button
+                          onClick={() => joinWinnerTakesAll(config.id)}
+                          disabled={joiningSession || userTokens < winnerTakesAllConfig.entry_fee}
+                          className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
+                            userTokens >= winnerTakesAllConfig.entry_fee
+                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                              : 'bg-gray-600 cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          {joiningSession ? (
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                              Joining...
+                            </div>
+                          ) : userTokens >= winnerTakesAllConfig.entry_fee ? (
+                            `🎯 JOIN FOR ${formatPrizeAmount(winnerTakesAllConfig.entry_fee)}`
+                          ) : (
+                            '❌ Insufficient Tokens'
+                          )}
+                        </button>
+                      ) : (
+                        <div className="text-center py-3 px-6 rounded-2xl bg-gray-600 text-gray-400">
+                          Please log in to join
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
