@@ -119,6 +119,7 @@ export class FixedGamesService {
    * Create a fixed game
    */
   static async createFixedGame(gameData: {
+    gameType: string;
     tournamentType: string;
     title: string;
     description?: string;
@@ -130,6 +131,7 @@ export class FixedGamesService {
   }): Promise<{ config: FixedGameConfig; game: ActiveFixedGame } | null> {
     try {
       const { data, error } = await supabase.rpc('create_fixed_game', {
+        p_game_type: gameData.gameType,
         p_tournament_type: gameData.tournamentType,
         p_title: gameData.title,
         p_description: gameData.description || '',

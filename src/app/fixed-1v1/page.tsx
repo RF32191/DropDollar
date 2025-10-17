@@ -148,6 +148,7 @@ export default function Fixed1v1Page() {
   const createFixedGame = async (formData: any) => {
     try {
       const result = await FixedGamesService.createFixedGame({
+        gameType: formData.gameType,
         tournamentType: '1v1',
         title: formData.title,
         description: formData.description,
@@ -285,6 +286,21 @@ export default function Fixed1v1Page() {
                 createFixedGame(Object.fromEntries(formData));
               }} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Game Type</label>
+                    <select
+                      name="gameType"
+                      required
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Game Type</option>
+                      <option value="multi_target_reaction">Multi Target Reaction</option>
+                      <option value="sword_parry">Sword Parry</option>
+                      <option value="laser_dodge">Laser Dodge</option>
+                      <option value="memory_color">Memory Color</option>
+                      <option value="number_tap">Number Tap</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
                     <input

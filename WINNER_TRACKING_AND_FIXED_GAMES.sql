@@ -197,8 +197,9 @@ BEGIN
 END;
 $$;
 
-DROP FUNCTION IF EXISTS create_fixed_game(TEXT, TEXT, TEXT, INTEGER, DECIMAL, INTEGER, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS create_fixed_game(TEXT, TEXT, TEXT, TEXT, INTEGER, DECIMAL, INTEGER, INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION create_fixed_game(
+  p_game_type TEXT,
   p_tournament_type TEXT,
   p_title TEXT,
   p_description TEXT,
@@ -218,10 +219,10 @@ DECLARE
 BEGIN
   -- Create fixed game config
   INSERT INTO public.fixed_games_config (
-    tournament_type, title, description, entry_fee, prize_pool,
+    game_type, tournament_type, title, description, entry_fee, prize_pool,
     max_participants, game_duration, rng_seed
   ) VALUES (
-    p_tournament_type, p_title, p_description, p_entry_fee, p_prize_pool,
+    p_game_type, p_tournament_type, p_title, p_description, p_entry_fee, p_prize_pool,
     p_max_participants, p_game_duration, p_rng_seed
   ) RETURNING to_jsonb(fixed_games_config.*) INTO config_result;
 
@@ -301,20 +302,20 @@ GRANT EXECUTE ON FUNCTION update_fixed_game_score TO authenticated;
 GRANT EXECUTE ON FUNCTION update_fixed_game_score TO anon;
 
 -- 10. Insert default fixed games configurations
-INSERT INTO public.fixed_games_config (tournament_type, title, description, entry_fee, prize_pool, max_participants, game_duration, rng_seed) VALUES
+INSERT INTO public.fixed_games_config (game_type, tournament_type, title, description, entry_fee, prize_pool, max_participants, game_duration, rng_seed) VALUES
 -- Hot Sell Fixed Games
-('hot_sell', '$100 Daily Hot Sell', 'Daily fixed hot sell tournament', 1, 100, 50, 60, 1),
-('hot_sell', '$500 Weekend Hot Sell', 'Weekend fixed hot sell tournament', 3, 500, 100, 60, 2),
-('hot_sell', '$1,000 Weekly Hot Sell', 'Weekly fixed hot sell tournament', 5, 1000, 200, 60, 3),
-('hot_sell', '$5,000 Monthly Hot Sell', 'Monthly fixed hot sell tournament', 10, 5000, 500, 60, 4),
-('hot_sell', '$25,000 MEGA Hot Sell', 'MEGA fixed hot sell tournament', 25, 25000, 1000, 60, 5),
+('multi_target_reaction', 'hot_sell', '$100 Daily Hot Sell', 'Daily fixed hot sell tournament', 1, 100, 50, 60, 1),
+('sword_parry', 'hot_sell', '$500 Weekend Hot Sell', 'Weekend fixed hot sell tournament', 3, 500, 100, 60, 2),
+('laser_dodge', 'hot_sell', '$1,000 Weekly Hot Sell', 'Weekly fixed hot sell tournament', 5, 1000, 200, 60, 3),
+('memory_color', 'hot_sell', '$5,000 Monthly Hot Sell', 'Monthly fixed hot sell tournament', 10, 5000, 500, 60, 4),
+('number_tap', 'hot_sell', '$25,000 MEGA Hot Sell', 'MEGA fixed hot sell tournament', 25, 25000, 1000, 60, 5),
 
 -- 1v1 Fixed Games
-('1v1', '$50 Daily 1v1', 'Daily fixed 1v1 tournament', 1, 50, 2, 60, 6),
-('1v1', '$200 Weekend 1v1', 'Weekend fixed 1v1 tournament', 3, 200, 2, 60, 7),
-('1v1', '$500 Weekly 1v1', 'Weekly fixed 1v1 tournament', 5, 500, 2, 60, 8),
-('1v1', '$2,000 Monthly 1v1', 'Monthly fixed 1v1 tournament', 10, 2000, 2, 60, 9),
-('1v1', '$10,000 MEGA 1v1', 'MEGA fixed 1v1 tournament', 25, 10000, 2, 60, 10);
+('multi_target_reaction', '1v1', '$50 Daily 1v1', 'Daily fixed 1v1 tournament', 1, 50, 2, 60, 6),
+('sword_parry', '1v1', '$200 Weekend 1v1', 'Weekend fixed 1v1 tournament', 3, 200, 2, 60, 7),
+('laser_dodge', '1v1', '$500 Weekly 1v1', 'Weekly fixed 1v1 tournament', 5, 500, 2, 60, 8),
+('memory_color', '1v1', '$2,000 Monthly 1v1', 'Monthly fixed 1v1 tournament', 10, 2000, 2, 60, 9),
+('number_tap', '1v1', '$10,000 MEGA 1v1', 'MEGA fixed 1v1 tournament', 25, 10000, 2, 60, 10);
 
 -- 11. Create triggers for updated_at
 CREATE OR REPLACE FUNCTION update_fixed_games_updated_at()
