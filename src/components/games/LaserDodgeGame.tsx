@@ -32,10 +32,28 @@ interface Ship {
   y: number;
 }
 
+interface EnemyShip {
+  id: number;
+  x: number;
+  y: number;
+  direction: 'left' | 'right';
+  speed: number;
+  createdAt: number;
+}
+
+interface Bullet {
+  id: number;
+  x: number;
+  y: number;
+  createdAt: number;
+}
+
 export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: LaserDodgeGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
+  const [enemyShips, setEnemyShips] = useState<EnemyShip[]>([]);
+  const [bullets, setBullets] = useState<Bullet[]>([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(5);
@@ -43,6 +61,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
   const lastLaserSpawnRef = useRef<number>(0);
+  const lastEnemySpawnRef = useRef<number>(0);
   const animationRef = useRef<number>();
   const timerRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
@@ -50,6 +69,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const isGameRunningRef = useRef(false);
   const extremeModeTriggeredRef = useRef(false); // Track if extreme mode audio played
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
+  const lastShotRef = useRef<number>(0);
   
   // Get fair RNG configuration based on listing and attempt number
   const rngConfig = (listingId && entryNumber) 
@@ -75,6 +95,23 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     };
   }, [gameState, countdown]);
+
+  // Shooting function
+  const shoot = () => {
+    const now = Date.now();
+    if (now - lastShotRef.current < 200) return; // Rate limit shooting (5 shots per second)
+    
+    lastShotRef.current = now;
+    
+    const newBullet: Bullet = {
+      id: now + Math.random(),
+      x: ship.x,
+      y: ship.y,
+      createdAt: now
+    };
+    
+    setBullets(prev => [...prev, newBullet]);
+  };
 
   // Game loop - simplified without useCallback
   const gameLoop = () => {
@@ -103,7 +140,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     }
     
-    const newScore = Number((baseScore + blueBonus).toFixed(2));
+    // Add shooting bonus (enemies destroyed)
+    let shootingBonus = 0;
+    // This will be calculated when bullets hit enemies
+    
+    const newScore = Number((baseScore + blueBonus + shootingBonus).toFixed(2));
     currentScoreRef.current = newScore;
     setScore(newScore);
 
@@ -191,6 +232,60 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     }
 
+    // Spawn enemy ships - use RNG config if available (competition mode)
+    if (rngConfig && isCompetitionMode) {
+      // Spawn enemies based on RNG configuration
+      const upcomingEnemies = rngConfig.enemySpawns?.filter(spawn => 
+        spawn.time <= timeSinceStart && spawn.time > timeSinceStart - 100
+      ) || [];
+      
+      for (const spawnConfig of upcomingEnemies) {
+        const newEnemy: EnemyShip = {
+          id: now + Math.random(),
+          x: spawnConfig.x,
+          y: spawnConfig.y,
+          direction: spawnConfig.direction,
+          speed: spawnConfig.speed,
+          createdAt: now
+        };
+        
+        console.log(`LaserDodge: Spawned RNG enemy at ${timeSinceStart}ms:`, spawnConfig);
+        setEnemyShips(prev => [...prev, newEnemy]);
+      }
+    } else {
+      // Practice mode: Progressive enemy spawning
+      const level = Math.floor(timeSinceStart / 5000) + 1;
+      const isExtremeMode = timeSinceStart > 30000;
+      const isCrazyMode = timeSinceStart > 52000;
+      
+      let enemySpawnRate;
+      if (isCrazyMode) {
+        enemySpawnRate = Math.max(1000, 3000 - (level * 200)); // 1-3 seconds in crazy mode
+      } else if (isExtremeMode) {
+        enemySpawnRate = Math.max(2000, 5000 - (level * 300)); // 2-5 seconds in extreme mode
+      } else {
+        enemySpawnRate = Math.max(3000, 8000 - (level * 500)); // 3-8 seconds in normal mode
+      }
+      
+      if (now - lastEnemySpawnRef.current > enemySpawnRate) {
+        const direction = Math.random() < 0.5 ? 'left' : 'right';
+        const speed = isCrazyMode ? 0.3 : isExtremeMode ? 0.2 : 0.15; // pixels per frame
+        
+        const newEnemy: EnemyShip = {
+          id: now + Math.random(),
+          x: direction === 'left' ? 105 : -5, // Start off-screen
+          y: Math.random() * 100,
+          direction,
+          speed,
+          createdAt: now
+        };
+        
+        console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} enemy:`, newEnemy.direction);
+        setEnemyShips(prev => [...prev, newEnemy]);
+        lastEnemySpawnRef.current = now;
+      }
+    }
+
     // Update existing lasers
     setLasers(prevLasers => {
       const currentTime = Date.now();
@@ -219,6 +314,92 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       });
     });
 
+    // Update enemy ships
+    setEnemyShips(prevEnemies => {
+      return prevEnemies.map(enemy => {
+        const updatedEnemy = { ...enemy };
+        
+        if (enemy.direction === 'left') {
+          updatedEnemy.x -= enemy.speed;
+        } else {
+          updatedEnemy.x += enemy.speed;
+        }
+        
+        return updatedEnemy;
+      }).filter(enemy => {
+        // Remove enemies that are off-screen
+        return enemy.x > -10 && enemy.x < 110;
+      });
+    });
+
+    // Update bullets
+    setBullets(prevBullets => {
+      return prevBullets.map(bullet => {
+        const updatedBullet = { ...bullet };
+        updatedBullet.y -= 0.5; // Bullets move upward
+        return updatedBullet;
+      }).filter(bullet => {
+        // Remove bullets that are off-screen
+        return bullet.y > -5;
+      });
+    });
+
+    // Check bullet-enemy collisions
+    setBullets(prevBullets => {
+      setEnemyShips(prevEnemies => {
+        const remainingBullets: Bullet[] = [];
+        const remainingEnemies: EnemyShip[] = [];
+        
+        for (const bullet of prevBullets) {
+          let hit = false;
+          
+          for (const enemy of prevEnemies) {
+            // Check collision (within 8% distance)
+            if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
+              hit = true;
+              // Add points for destroying enemy
+              currentScoreRef.current += 10;
+              setScore(prev => Number((prev + 10).toFixed(2)));
+              console.log('LaserDodge: Enemy destroyed! +10 points');
+              break;
+            }
+          }
+          
+          if (!hit) {
+            remainingBullets.push(bullet);
+          }
+        }
+        
+        // Keep enemies that weren't hit
+        for (const enemy of prevEnemies) {
+          let destroyed = false;
+          
+          for (const bullet of prevBullets) {
+            if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
+              destroyed = true;
+              break;
+            }
+          }
+          
+          if (!destroyed) {
+            remainingEnemies.push(enemy);
+          }
+        }
+        
+        return remainingEnemies;
+      });
+      
+      return prevBullets.filter(bullet => {
+        // Keep bullets that didn't hit anything
+        for (const enemy of enemyShips) {
+          if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
+            return false; // Remove this bullet
+          }
+        }
+        return true; // Keep this bullet
+      });
+    });
+
     // Continue loop
     if (isGameRunningRef.current) {
       animationRef.current = requestAnimationFrame(gameLoop);
@@ -232,6 +413,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const harmfulLasers = lasers.filter(l => l.isHarmful);
     let collision = false;
     
+    // Check laser collisions
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
         // More precise collision: ship must be directly on the laser beam (height 4)
@@ -254,6 +436,17 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     }
 
+    // Check enemy ship collisions
+    if (!collision) {
+      for (const enemy of enemyShips) {
+        if (Math.abs(enemy.x - ship.x) < 6 && Math.abs(enemy.y - ship.y) < 6) {
+          collision = true;
+          console.log('LaserDodge: Collision with enemy ship!');
+          break;
+        }
+      }
+    }
+
     if (collision) {
       console.log('LaserDodge: Collision detected! Game Over!');
       
@@ -262,7 +455,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       endGame();
     }
-  }, [lasers, ship, gameState]);
+  }, [lasers, ship, enemyShips, gameState]);
 
   // End game
   const endGame = () => {
@@ -332,6 +525,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     handleTouchMove(event);
   };
 
+  // Keyboard event handling for shooting
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (gameState === 'playing' && (event.code === 'Space' || event.code === 'KeyX')) {
+        event.preventDefault();
+        shoot();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState]);
+
   // Start game
   const handleStartGame = () => {
     setCountdown(5);
@@ -345,10 +551,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setScore(0);
     currentScoreRef.current = 0;
     setLasers([]);
+    setEnemyShips([]);
+    setBullets([]);
     setShip({ x: 50, y: 50 });
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
+    lastEnemySpawnRef.current = Date.now();
+    lastShotRef.current = Date.now();
     isGameRunningRef.current = true;
     extremeModeTriggeredRef.current = false; // Reset mode triggers
     crazyModeTriggeredRef.current = false;
@@ -429,6 +639,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   <p><span className="text-green-300 font-semibold">Mobile:</span> Touch and drag to pilot ship</p>
                 </div>
                 <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-yellow-300 font-semibold">Shoot:</span> Spacebar/X key or shoot button</p>
+                </div>
+                <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-blue-300 font-semibold">Blue Lasers:</span> Full-screen beams (safe + bonus points!)</p>
                 </div>
@@ -447,6 +661,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-purple-300 font-semibold">Vertical:</span> Avoid being on same column</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +10 points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
@@ -628,6 +846,40 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
               
+              {/* Enemy Ships */}
+              {enemyShips.map((enemy) => (
+                <div
+                  key={enemy.id}
+                  className="absolute w-6 h-6"
+                  style={{
+                    left: `${enemy.x}%`,
+                    top: `${enemy.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 5,
+                    backgroundImage: 'url("/ENEMY_SHIP.png")',
+                    backgroundSize: 'contain',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
+                    filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))' // Red glow effect
+                  }}
+                />
+              ))}
+
+              {/* Bullets */}
+              {bullets.map((bullet) => (
+                <div
+                  key={bullet.id}
+                  className="absolute w-2 h-4 bg-yellow-400 rounded-full"
+                  style={{
+                    left: `${bullet.x}%`,
+                    top: `${bullet.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 8,
+                    boxShadow: '0 0 8px rgba(251, 191, 36, 0.8)' // Yellow glow effect
+                  }}
+                />
+              ))}
+
               {/* Ship - Using SHIP.png */}
               <div
                 className="absolute w-8 h-8"
@@ -647,11 +899,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
             <div className="text-xs sm:text-sm text-gray-600 text-center">
               <div className="hidden sm:block">
-                <strong>Desktop:</strong> Move mouse to control ship
+                <strong>Desktop:</strong> Move mouse to control ship | <strong>Shoot:</strong> Spacebar or X key
               </div>
               <div className="block sm:hidden">
                 <strong>Mobile:</strong> Touch and drag to move ship
               </div>
+            </div>
+
+            {/* Mobile Shoot Button */}
+            <div className="block sm:hidden mt-4">
+              <button
+                onClick={shoot}
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 transform"
+              >
+                🔫 SHOOT
+              </button>
             </div>
           </div>
         )}
@@ -660,6 +922,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           <div>🔥 <strong>EXTREME MODE:</strong> Full-screen horizontal and vertical laser beams!</div>
           <div>🔵 Blue lasers are safe but turn red when deadly</div>
           <div>🚀 Find safe spots between the laser grids to survive</div>
+          <div>🔫 Shoot enemy ships for +10 points each!</div>
+          <div>⚠️ Avoid collision with enemy ships!</div>
         </div>
       </div>
     </div>

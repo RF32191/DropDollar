@@ -43,6 +43,13 @@ export interface LaserDodgeRNGConfig {
     timeToHarmful: number; // how long until laser turns red (ms)
     duration: number; // how long laser stays active (ms)
   }[];
+  enemySpawns: {
+    time: number; // when enemy spawns (ms from start)
+    x: number; // starting x position (percentage 0-100)
+    y: number; // starting y position (percentage 0-100)
+    direction: 'left' | 'right'; // which direction enemy moves
+    speed: number; // movement speed multiplier (0.1-0.5)
+  }[];
   duration: number; // total game duration (60000ms)
   difficulty: 'easy' | 'medium' | 'hard';
 }
@@ -351,6 +358,13 @@ export const LASER_DODGE_RNG_CONFIGS: LaserDodgeRNGConfig[] = [
       { time: 14000, type: 'horizontal', position: 15, timeToHarmful: 1700, duration: 3700 },
       { time: 17000, type: 'vertical', position: 85, timeToHarmful: 1800, duration: 3800 }
     ],
+    enemySpawns: [
+      { time: 3000, x: 105, y: 30, direction: 'left', speed: 0.2 },
+      { time: 7000, x: -5, y: 70, direction: 'right', speed: 0.18 },
+      { time: 12000, x: 105, y: 50, direction: 'left', speed: 0.22 },
+      { time: 18000, x: -5, y: 20, direction: 'right', speed: 0.19 },
+      { time: 25000, x: 105, y: 80, direction: 'left', speed: 0.21 }
+    ],
     duration: 60000,
     difficulty: 'medium'
   },
@@ -366,6 +380,12 @@ export const LASER_DODGE_RNG_CONFIGS: LaserDodgeRNGConfig[] = [
       { time: 10500, type: 'vertical', position: 80, timeToHarmful: 2000, duration: 4000 },
       { time: 13500, type: 'horizontal', position: 85, timeToHarmful: 1800, duration: 3800 },
       { time: 16000, type: 'vertical', position: 15, timeToHarmful: 1700, duration: 3700 }
+    ],
+    enemySpawns: [
+      { time: 4000, x: -5, y: 40, direction: 'right', speed: 0.17 },
+      { time: 9000, x: 105, y: 60, direction: 'left', speed: 0.19 },
+      { time: 15000, x: -5, y: 25, direction: 'right', speed: 0.18 },
+      { time: 22000, x: 105, y: 75, direction: 'left', speed: 0.20 }
     ],
     duration: 60000,
     difficulty: 'easy'
@@ -383,6 +403,13 @@ export const LASER_DODGE_RNG_CONFIGS: LaserDodgeRNGConfig[] = [
       { time: 7500, type: 'horizontal', position: 75, timeToHarmful: 1100, duration: 2600 },
       { time: 9200, type: 'vertical', position: 45, timeToHarmful: 1300, duration: 2800 }
     ],
+    enemySpawns: [
+      { time: 2000, x: 105, y: 50, direction: 'left', speed: 0.25 },
+      { time: 5000, x: -5, y: 30, direction: 'right', speed: 0.23 },
+      { time: 10000, x: 105, y: 70, direction: 'left', speed: 0.27 },
+      { time: 15000, x: -5, y: 40, direction: 'right', speed: 0.24 },
+      { time: 20000, x: 105, y: 60, direction: 'left', speed: 0.26 }
+    ],
     duration: 60000,
     difficulty: 'hard'
   }
@@ -391,7 +418,9 @@ export const LASER_DODGE_RNG_CONFIGS: LaserDodgeRNGConfig[] = [
 // Generate remaining 17 laser dodge configurations
 for (let i = 4; i <= 20; i++) {
   const laserSpawns = [];
+  const enemySpawns = [];
   const numLasers = 6 + (i % 4); // 6-9 lasers per game
+  const numEnemies = 3 + (i % 3); // 3-5 enemies per game
   
   for (let j = 0; j < numLasers; j++) {
     const time = 1000 + (j * 2000) + ((i * j * 150) % 800);
@@ -403,10 +432,21 @@ for (let i = 4; i <= 20; i++) {
     laserSpawns.push({ time, type, position, timeToHarmful, duration });
   }
   
+  for (let k = 0; k < numEnemies; k++) {
+    const time = 2000 + (k * 8000) + ((i * k * 200) % 2000);
+    const direction: 'left' | 'right' = (i + k) % 2 === 0 ? 'left' : 'right';
+    const x = direction === 'left' ? 105 : -5;
+    const y = 20 + ((i * 7 + k * 11) % 60);
+    const speed = 0.15 + ((i + k) % 5) * 0.02; // 0.15-0.23
+    
+    enemySpawns.push({ time, x, y, direction, speed });
+  }
+  
   LASER_DODGE_RNG_CONFIGS.push({
     id: i,
     name: `Pattern ${i}`,
     laserSpawns,
+    enemySpawns,
     duration: 60000,
     difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard'
   });
