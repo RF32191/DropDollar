@@ -20,8 +20,7 @@ import {
   CheckCircleIcon,
   EyeIcon,
   PlayIcon,
-  BoltIcon,
-  TimerIcon
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 export default function HotSellPage() {
@@ -330,14 +329,6 @@ export default function HotSellPage() {
     };
   };
 
-  const formatPrizeAmount = (amount: number) => {
-    return FixedGamesService.formatPrizeAmount(amount);
-  };
-
-  const calculatePrizeDistribution = (prizePool: number) => {
-    return FixedGamesService.calculatePrizeDistribution(prizePool, 'hot_sell');
-  };
-
   const getGameIcon = (gameType: string) => {
     switch (gameType) {
       case 'multi_target_reaction': return '🎯';
@@ -347,6 +338,13 @@ export default function HotSellPage() {
       case 'number_tap': return '🔢';
       default: return '🎮';
     }
+  };
+
+  const formatTimeRemaining = (minutes: number, seconds: number): string => {
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
   };
 
   if (isLoading) {
@@ -481,7 +479,7 @@ export default function HotSellPage() {
                           </>
                         ) : (
                           <>
-                            <TimerIcon className="w-4 h-4 mr-1" />
+                            <ClockIcon className="w-4 h-4 mr-1" />
                             <span className="text-xs font-semibold">WAITING</span>
                           </>
                         )}
@@ -521,7 +519,7 @@ export default function HotSellPage() {
                           </span>
                         </div>
                         <p className={`text-lg font-bold ${isHotSell ? 'text-red-300' : 'text-blue-300'}`}>
-                          {FixedGamesService.formatTimeRemaining(timer.minutes, timer.seconds)}
+                          {formatTimeRemaining(timer.minutes, timer.seconds)}
                         </p>
                       </div>
                     </div>
