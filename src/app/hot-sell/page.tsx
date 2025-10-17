@@ -28,7 +28,7 @@ export default function HotSellPage() {
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
   const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
-  const [userParticipations, setUserParticipations] = useState<Set<string>>(new Set());
+  const [userParticipations, setUserParticipations] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [joiningListing, setJoiningListing] = useState<string | null>(null);
   const [joiningSession, setJoiningSession] = useState<string | null>(null);
@@ -424,12 +424,12 @@ export default function HotSellPage() {
 
   // Check if user has already joined a competition
   const hasUserJoined = (competitionId: string) => {
-    return userParticipations.has(competitionId);
+    return userParticipations.includes(competitionId);
   };
 
   // Add user participation tracking
   const addUserParticipation = (competitionId: string) => {
-    setUserParticipations(prev => new Set(prev).add(competitionId));
+    setUserParticipations(prev => [...prev, competitionId]);
   };
 
   const formatPrizeAmount = (amount: number) => {
