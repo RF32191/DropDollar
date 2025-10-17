@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import UserMenu from './UserMenu';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { isMobile } from '@/lib/utils/mobileOptimization';
+import MobileOptimizedNavigation from './MobileOptimizedNavigation';
 
 interface CleanNavigationProps {
   variant?: 'light' | 'dark' | 'gradient';
@@ -11,6 +9,11 @@ interface CleanNavigationProps {
 }
 
 export default function CleanNavigation({ variant = 'gradient', currentPage }: CleanNavigationProps) {
+  // Mobile detection and redirect
+  if (typeof window !== 'undefined' && isMobile()) {
+    return <MobileOptimizedNavigation variant={variant} currentPage={currentPage} />;
+  }
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [

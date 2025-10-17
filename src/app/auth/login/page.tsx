@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { isMobile } from '@/lib/utils/mobileOptimization';
+import MobileOptimizedLoginPage from './mobile-optimized';
 
-export default function SimpleLoginPage() { 
+export default function SimpleLoginPage() {
+  // Mobile detection and redirect
+  if (typeof window !== 'undefined' && isMobile()) {
+    return <MobileOptimizedLoginPage />;
+  }
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

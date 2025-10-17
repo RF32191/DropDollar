@@ -874,7 +874,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     top: `${enemy.y}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 5,
-                    backgroundImage: 'url("/ENEMY_SHIP.png")',
+                    backgroundImage: 'url("/SHIP.png")',
                     backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',

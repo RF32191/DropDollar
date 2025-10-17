@@ -8,6 +8,7 @@ import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { isMobile } from '@/lib/utils/mobileOptimization';
 import MobileOptimizedHotSell from './mobile-optimized';
+import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -34,12 +35,17 @@ export default function HotSellPage() {
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
   const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
-  const [userTokens, setUserTokens] = useState<number>(0);
+  const [userParticipations, setUserParticipations] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [joiningListing, setJoiningListing] = useState<string | null>(null);
   const [joiningSession, setJoiningSession] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [currentView, setCurrentView] = useState<'listings' | 'game' | 'scoreboard'>('listings');
+  const [selectedGameFlow, setSelectedGameFlow] = useState<{
+    gameType: string;
+    sessionId: string;
+    configId: string;
+  } | null>(null);
   const [selectedListing, setSelectedListing] = useState<HotSellListing | null>(null);
   const [locationVerified, setLocationVerified] = useState(false);
   const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
@@ -182,6 +188,12 @@ export default function HotSellPage() {
       return;
     }
 
+    // Check if user has already joined this competition
+    if (hasUserJoined(session.id)) {
+      setMessage({ type: 'error', text: 'You have already joined this competition!' });
+      return;
+    }
+
     // Location verification for legal compliance
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -236,7 +248,16 @@ export default function HotSellPage() {
 
       if (participant) {
         setUserTokens(newTokenBalance);
+        addUserParticipation(session.id); // Track user participation
         setMessage({ type: 'success', text: `Successfully joined ${config.title}!` });
+        
+        // Start the game flow immediately
+        setSelectedGameFlow({
+          gameType: config.game_type,
+          sessionId: session.id,
+          configId: config.id
+        });
+        setCurrentView('game');
         
         // Refresh sessions
         const updatedSessions = await FixedGamesService.getHotSellSessions();
@@ -408,6 +429,16 @@ export default function HotSellPage() {
     setLocationVerified(false);
   };
 
+  // Check if user has already joined a competition
+  const hasUserJoined = (competitionId: string) => {
+    return userParticipations.has(competitionId);
+  };
+
+  // Add user participation tracking
+  const addUserParticipation = (competitionId: string) => {
+    setUserParticipations(prev => new Set(prev).add(competitionId));
+  };
+
   const formatPrizeAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -461,7 +492,27 @@ export default function HotSellPage() {
     );
   }
 
-  // Render game view
+  // Render game flow view
+  if (currentView === 'game' && selectedGameFlow) {
+    return (
+      <CompetitionGameFlow
+        gameType={selectedGameFlow.gameType}
+        sessionId={selectedGameFlow.sessionId}
+        configId={selectedGameFlow.configId}
+        onComplete={(score, accuracy) => {
+          console.log('Game completed:', { score, accuracy });
+          setCurrentView('listings');
+          setSelectedGameFlow(null);
+        }}
+        onCancel={() => {
+          setCurrentView('listings');
+          setSelectedGameFlow(null);
+        }}
+      />
+    );
+  }
+
+  // Render legacy game view
   if (currentView === 'game' && selectedListing) {
     return (
       <HotSellGame
@@ -735,7 +786,7 @@ export default function HotSellPage() {
                         {session ? (
                           <button
                             onClick={() => joinHotSellSession(session, config)}
-                            disabled={joiningSession === session.id}
+                            disabled={joiningSession === session.id || hasUserJoined(session.id)}
                             className={`w-full font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
                               isHotSell 
                                 ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white'
@@ -746,6 +797,10 @@ export default function HotSellPage() {
                               <div className="flex items-center justify-center">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                 Joining...
+                              </div>
+                            ) : hasUserJoined(session.id) ? (
+                              <div className="flex items-center justify-center">
+                                ✅ ALREADY JOINED
                               </div>
                             ) : (
                               <div className="flex items-center justify-center">
