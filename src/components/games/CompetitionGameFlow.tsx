@@ -21,6 +21,7 @@ interface CompetitionGameFlowProps {
   gameType: string;
   sessionId: string;
   configId: string;
+  rngSeed?: number; // Add RNG seed prop
   onComplete: (score: number, accuracy: number) => void;
   onCancel: () => void;
 }
@@ -29,6 +30,7 @@ export default function CompetitionGameFlow({
   gameType, 
   sessionId, 
   configId, 
+  rngSeed = 1, // Default to 1 if not provided
   onComplete, 
   onCancel 
 }: CompetitionGameFlowProps) {
@@ -112,7 +114,7 @@ export default function CompetitionGameFlow({
       onGameEnd: handleGameEnd,
       isCompetitionMode: true,
       gameDuration: 60, // 60 seconds for competitions
-      rngSeed: 1 // Use consistent RNG for competitions
+      rngSeed: rngSeed // Use the assigned RNG seed for this listing
     };
 
     switch (gameType) {

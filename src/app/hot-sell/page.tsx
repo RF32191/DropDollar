@@ -132,6 +132,13 @@ export default function HotSellPage() {
       return;
     }
 
+    // Find the config for this game
+    const config = fixedGameConfigs.find(c => c.id === configId);
+    if (!config) {
+      setMessage({ type: 'error', text: 'Game configuration not found' });
+      return;
+    }
+
     // Location verification for legal compliance
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -151,26 +158,74 @@ export default function HotSellPage() {
       return;
     }
 
+    if (userTokens < winnerTakesAllConfig.entry_fee) {
+      setMessage({ type: 'error', text: `You need ${winnerTakesAllConfig.entry_fee} tokens to join this tournament` });
+      return;
+    }
+
     setJoiningSession(configId);
     
     try {
-      // For now, simulate joining a winner-takes-all session
-      // In a real implementation, this would create a special session type
-      setMessage({ 
-        type: 'success', 
-        text: `Joined Winner Takes All tournament! Good luck!` 
-      });
+      // Deduct tokens from user
+      const newTokenBalance = userTokens - winnerTakesAllConfig.entry_fee;
+      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
       
-      // Simulate redirect to game after a short delay
-      setTimeout(() => {
-        window.location.href = `/games?mode=competition&gameType=${configId}`;
-      }, 2000);
+      if (!tokenUpdateSuccess) {
+        setMessage({ type: 'error', text: 'Failed to deduct tokens. Please try again.' });
+        return;
+      }
+
+      // Create a winner-takes-all session (or join existing one)
+      // For now, use the regular hot sell session creation
+      let session = await FixedGamesService.createHotSellSession(configId);
+      
+      if (!session) {
+        // If creation failed, try to find an existing session
+        const existingSessions = await FixedGamesService.getHotSellSessions();
+        session = existingSessions.find(s => s.config_id === configId);
+      }
+      
+      if (session) {
+        // Join the session
+        const participant = await FixedGamesService.joinHotSellSession(
+          session.id,
+          user.id,
+          winnerTakesAllConfig.entry_fee
+        );
+        
+        if (participant) {
+          setUserTokens(newTokenBalance);
+          setMessage({ type: 'success', text: `Successfully joined Winner Takes All tournament!` });
+          
+          // Start the game flow immediately with proper competitive mode
+          setSelectedGameFlow({
+            gameType: config.game_type,
+            sessionId: session.id,
+            configId: config.id
+          });
+          setCurrentView('game');
+        } else {
+          // Refund tokens if join failed
+          await UserService.updateUserTokens(user.id, userTokens);
+          setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+        }
+      } else {
+        // Refund tokens if session creation/join failed
+        await UserService.updateUserTokens(user.id, userTokens);
+        setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+      }
       
     } catch (error) {
       console.error('Error joining winner takes all:', error);
+      // Refund tokens on error
+      try {
+        await UserService.updateUserTokens(user.id, userTokens);
+      } catch (refundError) {
+        console.error('Failed to refund tokens:', refundError);
+      }
       setMessage({ 
         type: 'error', 
-        text: 'Failed to join tournament. Please try again.' 
+        text: 'Failed to join tournament. Tokens refunded.' 
       });
     } finally {
       setJoiningSession(null);
@@ -489,11 +544,16 @@ export default function HotSellPage() {
 
   // Render game flow view
   if (currentView === 'game' && selectedGameFlow) {
+    // Find the game configuration to get the RNG seed
+    const gameConfig = fixedGameConfigs.find(config => config.id === selectedGameFlow.configId);
+    const rngSeed = gameConfig?.rng_seed || 1;
+    
     return (
       <CompetitionGameFlow
         gameType={selectedGameFlow.gameType}
         sessionId={selectedGameFlow.sessionId}
         configId={selectedGameFlow.configId}
+        rngSeed={rngSeed}
         onComplete={(score, accuracy) => {
           console.log('Game completed:', { score, accuracy });
           setCurrentView('listings');
