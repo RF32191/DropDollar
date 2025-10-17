@@ -391,6 +391,57 @@ export class TournamentService {
       maximumFractionDigits: 0
     }).format(amount);
   }
+
+  /**
+   * Get hot sell participants
+   */
+  static async getHotSellParticipants(listingId: string): Promise<HotSellParticipant[]> {
+    try {
+      const { data, error } = await supabase
+        .from('hot_sell_participants')
+        .select('*')
+        .eq('listing_id', listingId)
+        .order('joined_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ [TournamentService] Error fetching hot sell participants:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ [TournamentService] Exception in getHotSellParticipants:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Update hot sell participant score
+   */
+  static async updateHotSellParticipantScore(listingId: string, userId: string, score: number): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('hot_sell_participants')
+        .update({ 
+          score: score,
+          updated_at: new Date().toISOString()
+        })
+        .eq('listing_id', listingId)
+        .eq('user_id', userId)
+        .select();
+
+      if (error) {
+        console.error('❌ [TournamentService] Error updating hot sell participant score:', error);
+        return false;
+      }
+
+      console.log('✅ [TournamentService] Hot sell participant score updated:', data);
+      return true;
+    } catch (error) {
+      console.error('❌ [TournamentService] Exception in updateHotSellParticipantScore:', error);
+      return false;
+    }
+  }
 }
 
 export default TournamentService;

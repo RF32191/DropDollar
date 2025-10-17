@@ -354,6 +354,21 @@ export class UserService {
 
       console.log('✅ [UserService] User tokens updated successfully:', data);
       console.log('💰 [UserService] New token balance:', newTokenAmount);
+      
+      // Trigger cross-page synchronization events
+      if (typeof window !== 'undefined') {
+        // Update localStorage
+        localStorage.setItem('tokenBalance', newTokenAmount.toString());
+        
+        // Dispatch custom event for other components
+        const event = new CustomEvent('tokenUpdated', {
+          detail: { userId, tokens: newTokenAmount }
+        });
+        window.dispatchEvent(event);
+        
+        console.log('🔄 [UserService] Token synchronization events triggered');
+      }
+      
       return true;
     } catch (error) {
       console.error('❌ [UserService] Exception in updateUserTokens:', error);

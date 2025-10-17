@@ -85,6 +85,7 @@ export default function TriumphStyleDashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats'>('recent');
 
   useEffect(() => {
@@ -108,6 +109,90 @@ export default function TriumphStyleDashboard() {
       loadDashboardData();
     }
   }, [searchParams, user, isAuthenticated]);
+
+  // Add token synchronization effects
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+
+    // 1. Listen for page visibility changes (when user returns to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 [Dashboard] Page became visible, refreshing token balance...');
+        refreshTokenBalance();
+      }
+    };
+
+    // 2. Listen for localStorage changes (cross-page token updates)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tokenBalance' && e.newValue) {
+        const newBalance = parseInt(e.newValue);
+        if (newBalance !== tokenBalance) {
+          console.log('💰 [Dashboard] Token balance updated from localStorage:', newBalance);
+          setTokenBalance(newBalance);
+          showTokenUpdateIndicator();
+        }
+      }
+    };
+
+    // 3. Listen for custom token update events
+    const handleTokenUpdate = (e: CustomEvent) => {
+      if (e.detail?.userId === user.id && e.detail?.tokens !== undefined) {
+        console.log('💰 [Dashboard] Token balance updated from custom event:', e.detail.tokens);
+        setTokenBalance(e.detail.tokens);
+        showTokenUpdateIndicator();
+      }
+    };
+
+    // 4. Set up Supabase real-time subscription for user updates
+    const channel = supabase
+      .channel('user-token-updates')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'users',
+        filter: `id=eq.${user.id}`
+      }, (payload) => {
+        if (payload.new?.tokens !== undefined) {
+          console.log('💰 [Dashboard] Token balance updated from Supabase real-time:', payload.new.tokens);
+          setTokenBalance(payload.new.tokens);
+          showTokenUpdateIndicator();
+        }
+      })
+      .subscribe();
+
+    // Add event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('tokenUpdated', handleTokenUpdate as EventListener);
+
+    // Cleanup function
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('tokenUpdated', handleTokenUpdate as EventListener);
+      supabase.removeChannel(channel);
+    };
+  }, [user, isAuthenticated, tokenBalance]);
+
+  // Add focus-based refresh when window regains focus
+  useEffect(() => {
+    if (!user || !isAuthenticated) return;
+
+    const handleFocus = () => {
+      console.log('🔄 [Dashboard] Window focused, refreshing token balance...');
+      refreshTokenBalance();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user, isAuthenticated]);
+
+  const showTokenUpdateIndicator = () => {
+    setTokenBalanceUpdated(true);
+    setTimeout(() => {
+      setTokenBalanceUpdated(false);
+    }, 3000); // Show indicator for 3 seconds
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -254,8 +339,21 @@ export default function TriumphStyleDashboard() {
       
       const profile = await UserService.getUserProfile(user.id);
       if (profile) {
-        setTokenBalance(profile.tokens || 0);
-        console.log('✅ [Dashboard] Token balance refreshed:', profile.tokens);
+        const newBalance = profile.tokens || 0;
+        setTokenBalance(newBalance);
+        
+        // Update localStorage for cross-page synchronization
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tokenBalance', newBalance.toString());
+          
+          // Dispatch custom event for other components
+          const event = new CustomEvent('tokenUpdated', {
+            detail: { userId: user.id, tokens: newBalance }
+          });
+          window.dispatchEvent(event);
+        }
+        
+        console.log('✅ [Dashboard] Token balance refreshed:', newBalance);
       }
     } catch (error) {
       console.error('❌ [Dashboard] Error refreshing token balance:', error);
@@ -389,15 +487,25 @@ export default function TriumphStyleDashboard() {
               </button>
               
               {/* Token Balance */}
-              <div className="bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 rounded-2xl p-6 shadow-2xl border border-yellow-300/20 animate-scale-in">
+              <div className={`bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 rounded-2xl p-6 shadow-2xl border border-yellow-300/20 animate-scale-in transition-all duration-500 ${
+                tokenBalanceUpdated ? 'ring-4 ring-green-400 ring-opacity-50' : ''
+              }`}>
                 <div className="flex items-center">
                   <div className="relative">
                     <BanknotesIcon className="w-10 h-10 text-white mr-4 animate-pulse" />
                     <div className="absolute inset-0 w-10 h-10 bg-yellow-300/20 rounded-full animate-ping"></div>
+                    {tokenBalanceUpdated && (
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center animate-bounce">
+                        <CheckIcon className="w-4 h-4 text-white" />
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="text-yellow-100 text-sm font-medium">Token Balance</p>
                     <p className="text-3xl font-bold text-white animate-count-up">{tokenBalance}</p>
+                    {tokenBalanceUpdated && (
+                      <p className="text-green-200 text-xs font-medium animate-pulse">Updated!</p>
+                    )}
                   </div>
                 </div>
               </div>
