@@ -6,9 +6,8 @@ import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/sup
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
-import CleanNavigation from '@/components/navigation/CleanNavigation';
-import HotSellGame from '@/components/games/HotSellGame';
-import HotSellScoreboard from '@/components/games/HotSellScoreboard';
+import { isMobile } from '@/lib/utils/mobileOptimization';
+import MobileOptimizedHotSell from './mobile-optimized';
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -25,6 +24,11 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function HotSellPage() {
+  // Mobile detection and redirect
+  if (typeof window !== 'undefined' && isMobile()) {
+    return <MobileOptimizedHotSell />;
+  }
+
   const { user, isAuthenticated } = useAuth();
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});

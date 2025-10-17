@@ -1,4 +1,4 @@
-'use client';
+'use client'; 
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -8,23 +8,8 @@ import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameS
 import { UserService } from '@/lib/supabase/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { 
-  TrophyIcon, 
-  StarIcon, 
-  HeartIcon,
-  XMarkIcon,
-  CheckIcon,
-  BanknotesIcon,
-  CreditCardIcon,
-  ArrowDownTrayIcon,
-  ShieldCheckIcon,
-  ExclamationTriangleIcon,
-  FireIcon,
-  ChartBarIcon,
-  ClockIcon,
-  UserIcon,
-  ArrowPathIcon
-} from '@heroicons/react/24/outline';
+import { isMobile } from '@/lib/utils/mobileOptimization';
+import MobileOptimizedDashboard from './mobile-optimized';
 
 interface GameHistoryRecord {
   id: string;
@@ -68,6 +53,11 @@ interface UserStats {
 }
 
 export default function TriumphStyleDashboard() {
+  // Mobile detection and redirect
+  if (typeof window !== 'undefined' && isMobile()) {
+    return <MobileOptimizedDashboard />;
+  }
+
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [userProfile, setUserProfile] = useState<any>(null);
