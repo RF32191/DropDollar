@@ -18,6 +18,8 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     { href: '/games', label: 'Games', emoji: '🎮' },
     { href: '/tournaments', label: 'Tournaments', emoji: '🏆' },
     { href: '/hot-sell', label: 'Hot Sell', emoji: '🔥' },
+    { href: '/fixed-hot-sell', label: 'Fixed Hot Sell', emoji: '⚡' },
+    { href: '/fixed-1v1', label: 'Fixed 1v1', emoji: '⚔️' },
     { href: '/scheduled-games', label: 'Scheduled Games', emoji: '📅' },
     { href: '/categories', label: 'Categories', emoji: '📦' },
     { href: '/buy-tokens', label: 'Buy Tokens', emoji: '💰' },
