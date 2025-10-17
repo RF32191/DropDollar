@@ -38,6 +38,19 @@ export interface ActiveFixedGame {
   created_at: string;
 }
 
+export interface HotSellSession {
+  id: string;
+  config_id: string;
+  current_pot: number;
+  target_pot: number;
+  participants_count: number;
+  status: 'waiting' | 'hot_sell' | 'active' | 'completed';
+  started_at: string;
+  hot_sell_started_at?: string;
+  expires_at: string;
+  created_at: string;
+}
+
 export interface FixedGameParticipant {
   id: string;
   game_id: string;
@@ -378,12 +391,133 @@ export class FixedGamesService {
   }
 
   /**
+   * Get hot sell sessions
+   */
+  static async getHotSellSessions(): Promise<HotSellSession[]> {
+    try {
+      const { data, error } = await supabase
+        .from('hot_sell_sessions')
+        .select('*')
+        .in('status', ['waiting', 'hot_sell'])
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ [FixedGames] Error fetching hot sell sessions:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ [FixedGames] Exception fetching hot sell sessions:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create hot sell session
+   */
+  static async createHotSellSession(configId: string): Promise<HotSellSession | null> {
+    try {
+      const { data, error } = await supabase.rpc('create_hot_sell_session', {
+        p_config_id: configId
+      });
+
+      if (error) {
+        console.error('❌ [FixedGames] Error creating hot sell session:', error);
+        return null;
+      }
+
+      console.log('✅ [FixedGames] Hot sell session created:', data);
+      return data as HotSellSession;
+    } catch (error) {
+      console.error('❌ [FixedGames] Exception creating hot sell session:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Join hot sell session
+   */
+  static async joinHotSellSession(
+    sessionId: string,
+    userId: string,
+    entryFee: number
+  ): Promise<FixedGameParticipant | null> {
+    try {
+      const { data, error } = await supabase.rpc('join_hot_sell_session', {
+        p_session_id: sessionId,
+        p_user_id: userId,
+        p_entry_fee: entryFee
+      });
+
+      if (error) {
+        console.error('❌ [FixedGames] Error joining hot sell session:', error);
+        return null;
+      }
+
+      console.log('✅ [FixedGames] Joined hot sell session:', data);
+      return data as FixedGameParticipant;
+    } catch (error) {
+      console.error('❌ [FixedGames] Exception joining hot sell session:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update hot sell pot (check timer)
+   */
+  static async updateHotSellPot(sessionId: string): Promise<HotSellSession | null> {
+    try {
+      const { data, error } = await supabase.rpc('update_hot_sell_pot', {
+        p_session_id: sessionId
+      });
+
+      if (error) {
+        console.error('❌ [FixedGames] Error updating hot sell pot:', error);
+        return null;
+      }
+
+      return data as HotSellSession;
+    } catch (error) {
+      console.error('❌ [FixedGames] Exception updating hot sell pot:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get time remaining until hot sell mode
+   */
+  static getTimeUntilHotSell(expiresAt: string): { minutes: number; seconds: number; isHotSell: boolean } {
+    const now = new Date();
+    const expires = new Date(expiresAt);
+    const diffMs = expires.getTime() - now.getTime();
+    
+    if (diffMs <= 0) {
+      return { minutes: 0, seconds: 0, isHotSell: true };
+    }
+    
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    
+    return { minutes, seconds, isHotSell: false };
+  }
+
+  /**
+   * Format time remaining
+   */
+  static formatTimeRemaining(minutes: number, seconds: number): string {
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  }
+
+  /**
    * Check if user can create a game (admin function)
    */
   static async canCreateGame(userId: string): Promise<boolean> {
-    // For now, allow all authenticated users to create games
-    // In production, you might want to restrict this to admin users
-    return true;
+    // Original system doesn't allow custom creation
+    return false;
   }
 }
 

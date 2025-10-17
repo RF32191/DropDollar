@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { FixedGamesService, FixedGameConfig, ActiveFixedGame, FixedGameParticipant, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
+import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
@@ -16,21 +16,20 @@ import {
   CheckCircleIcon,
   PlayIcon,
   EyeIcon,
-  PlusIcon,
-  CalendarIcon
+  BoltIcon,
+  TimerIcon
 } from '@heroicons/react/24/outline';
 
 export default function FixedHotSellPage() {
   const { user, isAuthenticated } = useAuth();
-  const [fixedGames, setFixedGames] = useState<ActiveFixedGame[]>([]);
   const [gameConfigs, setGameConfigs] = useState<FixedGameConfig[]>([]);
-  const [participants, setParticipants] = useState<{ [gameId: string]: FixedGameParticipant[] }>({});
+  const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
   const [userTokens, setUserTokens] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [joiningGame, setJoiningGame] = useState<string | null>(null);
+  const [joiningSession, setJoiningSession] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } }>({});
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -39,25 +38,26 @@ export default function FixedHotSellPage() {
     }
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    // Update timers every second
+    const timer = setInterval(() => {
+      updateTimers();
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [hotSellSessions]);
+
   const loadFixedGamesData = async () => {
     try {
       setIsLoading(true);
       
-      // Load active fixed games
-      const games = await FixedGamesService.getActiveFixedGames('hot_sell');
-      setFixedGames(games);
-      
-      // Load game configs
+      // Load game configs for hot sell
       const configs = await FixedGamesService.getFixedGameConfigs('hot_sell');
       setGameConfigs(configs);
       
-      // Load participants for each game
-      const participantsData: { [gameId: string]: FixedGameParticipant[] } = {};
-      for (const game of games) {
-        const gameParticipants = await FixedGamesService.getFixedGameParticipants(game.id);
-        participantsData[game.id] = gameParticipants;
-      }
-      setParticipants(participantsData);
+      // Load hot sell sessions
+      const sessions = await FixedGamesService.getHotSellSessions();
+      setHotSellSessions(sessions);
       
       // Load user tokens
       if (user) {
@@ -83,7 +83,23 @@ export default function FixedHotSellPage() {
     }
   };
 
-  const joinFixedGame = async (game: ActiveFixedGame, config: FixedGameConfig) => {
+  const updateTimers = () => {
+    const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } } = {};
+    
+    hotSellSessions.forEach(session => {
+      const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
+      newTimeRemaining[session.id] = timeData;
+      
+      // Update session status if timer expired
+      if (timeData.isHotSell && session.status === 'waiting') {
+        FixedGamesService.updateHotSellPot(session.id);
+      }
+    });
+    
+    setTimeRemaining(newTimeRemaining);
+  };
+
+  const joinHotSellSession = async (session: HotSellSession, config: FixedGameConfig) => {
     if (!user || !isAuthenticated) {
       setMessage({ type: 'error', text: 'Please log in to join tournaments' });
       return;
@@ -104,7 +120,7 @@ export default function FixedHotSellPage() {
     }
 
     try {
-      setJoiningGame(game.id);
+      setJoiningSession(session.id);
       
       // Deduct tokens from user
       const newTokenBalance = userTokens - config.entry_fee;
@@ -115,9 +131,9 @@ export default function FixedHotSellPage() {
         return;
       }
 
-      // Join the fixed game
-      const participant = await FixedGamesService.joinFixedGame(
-        game.id,
+      // Join the hot sell session
+      const participant = await FixedGamesService.joinHotSellSession(
+        session.id,
         user.id,
         config.entry_fee
       );
@@ -126,12 +142,9 @@ export default function FixedHotSellPage() {
         setUserTokens(newTokenBalance);
         setMessage({ type: 'success', text: `Successfully joined ${config.title}!` });
         
-        // Refresh participants
-        const updatedParticipants = await FixedGamesService.getFixedGameParticipants(game.id);
-        setParticipants(prev => ({
-          ...prev,
-          [game.id]: updatedParticipants
-        }));
+        // Refresh sessions
+        const updatedSessions = await FixedGamesService.getHotSellSessions();
+        setHotSellSessions(updatedSessions);
       } else {
         // Refund tokens if join failed
         await UserService.updateUserTokens(user.id, userTokens);
@@ -139,37 +152,25 @@ export default function FixedHotSellPage() {
       }
       
     } catch (error) {
-      console.error('❌ [FixedHotSell] Error joining game:', error);
+      console.error('❌ [FixedHotSell] Error joining session:', error);
       setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
     } finally {
-      setJoiningGame(null);
+      setJoiningSession(null);
     }
   };
 
-  const createFixedGame = async (formData: any) => {
+  const createHotSellSession = async (config: FixedGameConfig) => {
     try {
-      const result = await FixedGamesService.createFixedGame({
-        gameType: formData.gameType,
-        tournamentType: 'hot_sell',
-        title: formData.title,
-        description: formData.description,
-        entryFee: parseInt(formData.entryFee),
-        prizePool: parseFloat(formData.prizePool),
-        maxParticipants: parseInt(formData.maxParticipants),
-        gameDuration: parseInt(formData.gameDuration),
-        rngSeed: parseInt(formData.rngSeed)
-      });
-
-      if (result) {
-        setMessage({ type: 'success', text: 'Fixed game created successfully!' });
-        setShowCreateForm(false);
+      const session = await FixedGamesService.createHotSellSession(config.id);
+      if (session) {
+        setMessage({ type: 'success', text: `Created new ${config.title} session!` });
         loadFixedGamesData(); // Refresh the list
       } else {
-        setMessage({ type: 'error', text: 'Failed to create fixed game' });
+        setMessage({ type: 'error', text: 'Failed to create hot sell session' });
       }
     } catch (error) {
-      console.error('❌ [FixedHotSell] Error creating game:', error);
-      setMessage({ type: 'error', text: 'An error occurred while creating the game' });
+      console.error('❌ [FixedHotSell] Error creating session:', error);
+      setMessage({ type: 'error', text: 'An error occurred while creating the session' });
     }
   };
 
@@ -179,6 +180,17 @@ export default function FixedHotSellPage() {
 
   const calculatePrizeDistribution = (prizePool: number) => {
     return FixedGamesService.calculatePrizeDistribution(prizePool, 'hot_sell');
+  };
+
+  const getGameIcon = (gameType: string) => {
+    switch (gameType) {
+      case 'multi_target_reaction': return '🎯';
+      case 'sword_parry': return '⚔️';
+      case 'laser_dodge': return '💥';
+      case 'memory_color': return '🎨';
+      case 'number_tap': return '🔢';
+      default: return '🎮';
+    }
   };
 
   if (isLoading) {
@@ -215,8 +227,8 @@ export default function FixedHotSellPage() {
               FIXED HOT SELL
             </h1>
           </div>
-          <p className="text-xl text-gray-300 mb-2">Pre-configured tournaments with guaranteed prizes</p>
-          <p className="text-lg text-gray-400">Fixed games with consistent rules and prize pools</p>
+          <p className="text-xl text-gray-300 mb-2">Original banner-based tournaments with 2-hour timers</p>
+          <p className="text-lg text-gray-400">Join sessions and wait for hot sell mode to activate</p>
           
           {/* User Token Balance */}
           {isAuthenticated && (
@@ -261,282 +273,199 @@ export default function FixedHotSellPage() {
           </div>
         )}
 
-        {/* Create Game Button */}
-        {isAuthenticated && (
-          <div className="mb-8 text-center">
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-            >
-              <div className="flex items-center">
-                <PlusIcon className="w-5 h-5 mr-2" />
-                {showCreateForm ? 'Cancel' : 'Create Fixed Game'}
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* Create Game Form */}
-        {showCreateForm && (
-          <div className="mb-8 max-w-2xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20">
-              <h3 className="text-2xl font-bold text-white mb-6 text-center">Create Fixed Hot Sell Game</h3>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                createFixedGame(Object.fromEntries(formData));
-              }} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Game Type</label>
-                    <select
-                      name="gameType"
-                      required
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">Select Game Type</option>
-                      <option value="multi_target_reaction">Multi Target Reaction</option>
-                      <option value="sword_parry">Sword Parry</option>
-                      <option value="laser_dodge">Laser Dodge</option>
-                      <option value="memory_color">Memory Color</option>
-                      <option value="number_tap">Number Tap</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
-                    <input
-                      type="text"
-                      name="title"
-                      required
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="e.g., $1,000 Daily Tournament"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Entry Fee (Tokens)</label>
-                    <input
-                      type="number"
-                      name="entryFee"
-                      required
-                      min="1"
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Prize Pool ($)</label>
-                    <input
-                      type="number"
-                      name="prizePool"
-                      required
-                      min="10"
-                      step="0.01"
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="1000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Max Participants</label>
-                    <input
-                      type="number"
-                      name="maxParticipants"
-                      required
-                      min="2"
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Game Duration (seconds)</label>
-                    <input
-                      type="number"
-                      name="gameDuration"
-                      required
-                      min="30"
-                      max="300"
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="60"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">RNG Seed (1-20)</label>
-                    <input
-                      type="number"
-                      name="rngSeed"
-                      required
-                      min="1"
-                      max="20"
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="1"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
-                  <textarea
-                    name="description"
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    placeholder="Describe your tournament..."
-                  />
-                </div>
-                <div className="text-center">
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                  >
-                    Create Fixed Game
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Fixed Games List */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {fixedGames.map((game) => {
-            const config = gameConfigs.find(c => c.id === game.config_id);
-            if (!config) return null;
-
-            const gameParticipants = participants[game.id] || [];
+        {/* Fixed Hot Sell Tiers */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+          {gameConfigs.map((config) => {
+            const session = hotSellSessions.find(s => s.config_id === config.id);
+            const timer = session ? timeRemaining[session.id] : null;
             const prizeDistribution = calculatePrizeDistribution(config.prize_pool);
-            const isJoined = gameParticipants.some(p => p.user_id === user?.id);
-            const canJoin = userTokens >= config.entry_fee && !isJoined && gameParticipants.length < config.max_participants;
+            const isHotSell = timer?.isHotSell || false;
+            const canJoin = userTokens >= config.entry_fee;
             
             return (
-              <div key={game.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+              <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+                isHotSell ? 'border-red-500/50 bg-red-500/10' : 'border-white/20 hover:bg-white/15'
+              }`}>
                 {/* Game Header */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold text-white">{config.title}</h2>
-                    <div className="flex items-center bg-red-500/20 rounded-full px-4 py-2">
-                      <FireIcon className="w-5 h-5 text-red-400 mr-2" />
-                      <span className="text-red-300 font-semibold">FIXED</span>
+                    <div className="flex items-center">
+                      <span className="text-3xl mr-3">{getGameIcon(config.game_type)}</span>
+                      <h2 className="text-xl font-bold text-white">{config.title}</h2>
+                    </div>
+                    <div className={`flex items-center rounded-full px-3 py-1 ${
+                      isHotSell ? 'bg-red-500/20 text-red-300' : 'bg-blue-500/20 text-blue-300'
+                    }`}>
+                      {isHotSell ? (
+                        <>
+                          <BoltIcon className="w-4 h-4 mr-1" />
+                          <span className="text-xs font-semibold">HOT SELL</span>
+                        </>
+                      ) : (
+                        <>
+                          <TimerIcon className="w-4 h-4 mr-1" />
+                          <span className="text-xs font-semibold">WAITING</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   
                   <p className="text-gray-300 mb-4">{config.description}</p>
                   
                   {/* Prize Pool */}
-                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6">
+                  <div className={`rounded-2xl p-4 mb-4 ${
+                    isHotSell 
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500' 
+                      : 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                  }`}>
                     <div className="text-center">
-                      <p className="text-yellow-100 text-sm font-medium mb-2">FIXED PRIZE POOL</p>
-                      <p className="text-4xl font-bold text-white">{formatPrizeAmount(config.prize_pool)}</p>
-                      <p className="text-yellow-100 text-sm mt-2">(15% fee deducted from prizes)</p>
+                      <p className="text-yellow-100 text-sm font-medium mb-1">PRIZE POOL</p>
+                      <p className="text-2xl font-bold text-white">{formatPrizeAmount(config.prize_pool)}</p>
+                      {session && (
+                        <p className="text-yellow-100 text-xs mt-1">
+                          Current Pot: {formatPrizeAmount(session.current_pot)} ({session.participants_count} players)
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
 
+                {/* Timer Display */}
+                {timer && (
+                  <div className="mb-4">
+                    <div className={`text-center p-3 rounded-xl ${
+                      isHotSell ? 'bg-red-500/20 border border-red-500/50' : 'bg-blue-500/20 border border-blue-500/50'
+                    }`}>
+                      <div className="flex items-center justify-center mb-2">
+                        <ClockIcon className={`w-5 h-5 mr-2 ${isHotSell ? 'text-red-400' : 'text-blue-400'}`} />
+                        <span className={`font-semibold ${isHotSell ? 'text-red-300' : 'text-blue-300'}`}>
+                          {isHotSell ? 'HOT SELL MODE!' : 'Time Remaining'}
+                        </span>
+                      </div>
+                      <p className={`text-lg font-bold ${isHotSell ? 'text-red-300' : 'text-blue-300'}`}>
+                        {FixedGamesService.formatTimeRemaining(timer.minutes, timer.seconds)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Prize Distribution */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                    <TrophyIcon className="w-5 h-5 mr-2 text-yellow-400" />
+                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center">
+                    <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
                     Prize Distribution
                   </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">1</span>
+                        <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                          <span className="text-white font-bold text-xs">1</span>
                         </div>
-                        <span className="text-white font-medium">1st Place</span>
+                        <span className="text-white text-sm">1st Place</span>
                       </div>
-                      <span className="text-yellow-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.first)}</span>
+                      <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.first)}</span>
                     </div>
-                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                    <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">2</span>
+                        <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-2">
+                          <span className="text-white font-bold text-xs">2</span>
                         </div>
-                        <span className="text-white font-medium">2nd Place</span>
+                        <span className="text-white text-sm">2nd Place</span>
                       </div>
-                      <span className="text-gray-300 font-bold text-lg">{formatPrizeAmount(prizeDistribution.second)}</span>
+                      <span className="text-gray-300 font-bold text-sm">{formatPrizeAmount(prizeDistribution.second)}</span>
                     </div>
-                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                    <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">3</span>
+                        <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
+                          <span className="text-white font-bold text-xs">3</span>
                         </div>
-                        <span className="text-white font-medium">3rd Place</span>
+                        <span className="text-white text-sm">3rd Place</span>
                       </div>
-                      <span className="text-orange-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.third)}</span>
+                      <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Game Info */}
-                <div className="mb-6 space-y-3">
+                <div className="mb-6 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <BanknotesIcon className="w-5 h-5 text-green-400 mr-2" />
-                      <span className="text-gray-300">Entry Fee</span>
+                      <BanknotesIcon className="w-4 h-4 text-green-400 mr-2" />
+                      <span className="text-gray-300 text-sm">Entry Fee</span>
                     </div>
-                    <span className="text-white font-semibold">{config.entry_fee} tokens</span>
+                    <span className="text-white font-semibold text-sm">{config.entry_fee} tokens</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <UsersIcon className="w-5 h-5 text-blue-400 mr-2" />
-                      <span className="text-gray-300">Participants</span>
+                      <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
+                      <span className="text-gray-300 text-sm">Max Players</span>
                     </div>
-                    <span className="text-white font-semibold">{gameParticipants.length}/{config.max_participants}</span>
+                    <span className="text-white font-semibold text-sm">{config.max_participants}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <ClockIcon className="w-5 h-5 text-purple-400 mr-2" />
-                      <span className="text-gray-300">Duration</span>
+                      <StarIcon className="w-4 h-4 text-yellow-400 mr-2" />
+                      <span className="text-gray-300 text-sm">RNG Seed</span>
                     </div>
-                    <span className="text-white font-semibold">{config.game_duration}s</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <StarIcon className="w-5 h-5 text-yellow-400 mr-2" />
-                      <span className="text-gray-300">RNG Seed</span>
-                    </div>
-                    <span className="text-white font-semibold">{config.rng_seed}</span>
+                    <span className="text-white font-semibold text-sm">{config.rng_seed}</span>
                   </div>
                 </div>
 
-                {/* Join Button */}
-                <div className="text-center">
+                {/* Action Buttons */}
+                <div className="space-y-3">
                   {!isAuthenticated ? (
-                    <div className="bg-gray-600 rounded-xl p-4">
-                      <p className="text-gray-300 mb-2">Please log in to join tournaments</p>
-                    </div>
-                  ) : isJoined ? (
-                    <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4">
-                      <div className="flex items-center justify-center">
-                        <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                        <span className="text-green-300 font-semibold">You're in this tournament!</span>
-                      </div>
+                    <div className="bg-gray-600 rounded-xl p-3 text-center">
+                      <p className="text-gray-300 text-sm">Please log in to join tournaments</p>
                     </div>
                   ) : !canJoin ? (
-                    <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
-                      <p className="text-red-300">
-                        {userTokens < config.entry_fee 
-                          ? `You need ${config.entry_fee} tokens to join`
-                          : 'Tournament is full'
-                        }
-                      </p>
+                    <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
+                      <p className="text-red-300 text-sm">You need {config.entry_fee} tokens to join</p>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => joinFixedGame(game, config)}
-                      disabled={joiningGame === game.id}
-                      className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {joiningGame === game.id ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          Joining...
-                        </div>
+                    <>
+                      {session ? (
+                        <button
+                          onClick={() => joinHotSellSession(session, config)}
+                          disabled={joiningSession === session.id}
+                          className={`w-full font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+                            isHotSell 
+                              ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white'
+                              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white'
+                          }`}
+                        >
+                          {joiningSession === session.id ? (
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Joining...
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              {isHotSell ? (
+                                <>
+                                  <BoltIcon className="w-4 h-4 mr-2" />
+                                  JOIN HOT SELL - {config.entry_fee} TOKENS
+                                </>
+                              ) : (
+                                <>
+                                  <PlayIcon className="w-4 h-4 mr-2" />
+                                  JOIN SESSION - {config.entry_fee} TOKENS
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </button>
                       ) : (
-                        <div className="flex items-center justify-center">
-                          <FireIcon className="w-5 h-5 mr-2" />
-                          JOIN FIXED GAME - {config.entry_fee} TOKENS
-                        </div>
+                        <button
+                          onClick={() => createHotSellSession(config)}
+                          className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                        >
+                          <div className="flex items-center justify-center">
+                            <PlayIcon className="w-4 h-4 mr-2" />
+                            START NEW SESSION
+                          </div>
+                        </button>
                       )}
-                    </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -544,11 +473,11 @@ export default function FixedHotSellPage() {
           })}
         </div>
 
-        {fixedGames.length === 0 && (
+        {gameConfigs.length === 0 && (
           <div className="text-center py-12">
             <FireIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-300 mb-2">No Fixed Games Available</h3>
-            <p className="text-gray-400">Create your first fixed hot sell tournament!</p>
+            <h3 className="text-xl font-semibold text-gray-300 mb-2">No Fixed Hot Sell Games Available</h3>
+            <p className="text-gray-400">Fixed games will appear here automatically</p>
           </div>
         )}
       </div>
