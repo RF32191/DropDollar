@@ -23,6 +23,14 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     { href: '/buy-tokens', label: 'Buy Tokens', emoji: '💰' },
   ];
 
+  // Debug function to test navigation
+  const handleNavClick = (href: string, label: string) => {
+    console.log(`🖱️ Navigation clicked: ${label} -> ${href}`);
+    console.log(`📍 Current page: ${currentPage}`);
+    console.log(`🖥️ User agent: ${navigator.userAgent}`);
+    console.log(`📱 Is mobile: ${/Mobi|Android/i.test(navigator.userAgent)}`);
+  };
+
   // Styles based on variant
   const getHeaderStyles = () => {
     switch (variant) {
@@ -37,16 +45,16 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
   };
 
   const getLinkStyles = (isActive: boolean) => {
-    const baseStyles = 'font-medium transition-all duration-200 hover:scale-105';
+    const baseStyles = 'font-medium transition-all duration-200 hover:scale-105 px-3 py-2 rounded-lg relative z-10 cursor-pointer';
     
     switch (variant) {
       case 'light':
-        return `${baseStyles} ${isActive ? 'text-blue-600 font-bold' : 'text-gray-700 hover:text-blue-600'}`;
+        return `${baseStyles} ${isActive ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`;
       case 'dark':
-        return `${baseStyles} ${isActive ? 'text-blue-400 font-bold' : 'text-gray-300 hover:text-white'}`;
+        return `${baseStyles} ${isActive ? 'text-blue-400 font-bold bg-white/10' : 'text-gray-300 hover:text-white hover:bg-white/5'}`;
       case 'gradient':
       default:
-        return `${baseStyles} ${isActive ? 'text-yellow-300 font-bold' : 'text-white hover:text-yellow-200'}`;
+        return `${baseStyles} ${isActive ? 'text-yellow-300 font-bold bg-white/10' : 'text-white hover:text-yellow-200 hover:bg-white/5'}`;
     }
   };
 
@@ -63,7 +71,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
   };
 
   return (
-    <header className={getHeaderStyles()}>
+    <header className={`${getHeaderStyles()} relative z-50`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -81,7 +89,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-2">
             {navLinks.map((link) => {
               const isActive = currentPage === link.href;
               return (
@@ -89,6 +97,11 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
                   key={link.href}
                   href={link.href}
                   className={getLinkStyles(isActive)}
+                  onClick={(e) => {
+                    // Ensure click is handled properly
+                    e.stopPropagation();
+                    handleNavClick(link.href, link.label);
+                  }}
                 >
                   <span className="hidden xl:inline">{link.emoji} </span>
                   {link.label}

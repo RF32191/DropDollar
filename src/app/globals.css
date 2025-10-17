@@ -187,3 +187,42 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
 .delay-1000 {
   animation-delay: 1s;
 }
+
+/* Navigation fixes for desktop interaction issues */
+nav a {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+  display: inline-block;
+}
+
+nav a:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease-in-out;
+}
+
+/* Ensure navigation is always clickable */
+header {
+  pointer-events: auto;
+}
+
+header * {
+  pointer-events: auto;
+}
+
+/* Fix for potential overlay issues */
+.navigation-overlay {
+  position: relative;
+  z-index: 50;
+}
+
+/* Ensure proper click areas for desktop navigation */
+@media (min-width: 1024px) {
+  nav a {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
