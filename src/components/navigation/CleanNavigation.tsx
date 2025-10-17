@@ -1,8 +1,9 @@
 'use client';
 
-import { useMobileDetection } from '@/lib/utils/mobileOptimization';
-import MobileOptimizedNavigation from './MobileOptimizedNavigation';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { useState } from 'react';
+import Link from 'next/link';
+import UserMenu from './UserMenu';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface CleanNavigationProps {
   variant?: 'light' | 'dark' | 'gradient';
@@ -10,32 +11,6 @@ interface CleanNavigationProps {
 }
 
 export default function CleanNavigation({ variant = 'gradient', currentPage }: CleanNavigationProps) {
-  const { isMobile, isLoading } = useMobileDetection();
-
-  // Show loading state while detecting mobile
-  if (isLoading) {
-    return (
-      <header className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex-shrink-0">
-              <span className="text-2xl font-bold text-white">DropDollar</span>
-            </div>
-          </div>
-        </div>
-      </header>
-    );
-  }
-
-  // Mobile detection and redirect with error boundary
-  if (isMobile) {
-    return (
-      <ErrorBoundary>
-        <MobileOptimizedNavigation variant={variant} currentPage={currentPage} />
-      </ErrorBoundary>
-    );
-  }
-
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [

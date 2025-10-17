@@ -1,37 +1,12 @@
 'use client';
 
-import { useMobileDetection } from '@/lib/utils/mobileOptimization';
-import MobileOptimizedLoginPage from './mobile-optimized';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { useState } from 'react';
+import Link from 'next/link';
+import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SimpleLoginPage() {
-  const { isMobile, isLoading: mobileDetecting } = useMobileDetection();
-
-  // Show loading state while detecting mobile
-  if (mobileDetecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
-        <CleanNavigation />
-        <div className="flex items-center justify-center px-4 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-white">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Mobile detection and redirect with error boundary
-  if (isMobile) {
-    return (
-      <ErrorBoundary>
-        <MobileOptimizedLoginPage />
-      </ErrorBoundary>
-    );
-  }
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

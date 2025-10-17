@@ -6,10 +6,7 @@ import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/sup
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
-import { useMobileDetection } from '@/lib/utils/mobileOptimization';
-import MobileOptimizedHotSell from './mobile-optimized';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
-import ErrorBoundary from '@/components/ErrorBoundary';
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -26,32 +23,6 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function HotSellPage() {
-  const { isMobile, isLoading: mobileDetecting } = useMobileDetection();
-
-  // Show loading state while detecting mobile
-  if (mobileDetecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
-        <CleanNavigation />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-white">Loading tournaments...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Mobile detection and redirect with error boundary
-  if (isMobile) {
-    return (
-      <ErrorBoundary>
-        <MobileOptimizedHotSell />
-      </ErrorBoundary>
-    );
-  }
-
   const { user, isAuthenticated } = useAuth();
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
