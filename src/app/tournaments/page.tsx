@@ -1,417 +1,181 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useGlobalLocation } from '@/hooks/useGlobalLocation';
-import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
-import { ShieldCheckIcon, TrophyIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import TournamentService from '@/lib/supabase/tournamentService';
-import LiveTournamentEntry from '@/components/LiveTournamentEntry';
+import { 
+  TrophyIcon, 
+  UsersIcon,
+  FireIcon,
+  BanknotesIcon,
+  StarIcon,
+  ArrowRightIcon
+} from '@heroicons/react/24/outline';
 
 export default function TournamentsPage() {
-  const { user } = useAuth();
-  const globalLocation = useGlobalLocation();
-  
-  // Live tournament data
-  const [liveTournaments, setLiveTournaments] = useState<any[]>([]);
-  const [isLoadingTournaments, setIsLoadingTournaments] = useState(true);
-  const [selectedTournament, setSelectedTournament] = useState<any | null>(null);
-  
-  // 10-minute inactivity timeout
-  useInactivityTimeout({
-    timeout: 10 * 60 * 1000,
-    onTimeout: () => {
-      console.log('🕐 Tournaments page timeout - reloading');
-      window.location.reload();
+  const tournamentTypes = [
+    {
+      id: '1v1',
+      title: '1v1 Tournaments',
+      description: 'Head-to-head skill battles with winner-takes-all prizes',
+      icon: TrophyIcon,
+      href: '/tournaments/1v1',
+      color: 'from-blue-500 to-purple-500',
+      features: ['Skill-based matchmaking', 'Winner takes all', 'Quick matches', 'ELO rating system'],
+      example: '2 players, 1 token entry each = 2 token prize pool'
     },
-    enabled: true
-  });
-
-  // Load live tournaments from database
-  useEffect(() => {
-    loadLiveTournaments();
-    const interval = setInterval(loadLiveTournaments, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadLiveTournaments = async () => {
-    try {
-      const tournaments = await TournamentService.getActiveTournaments();
-      console.log('🏆 [Tournaments] Loaded:', tournaments.length);
-      setLiveTournaments(tournaments);
-    } catch (error) {
-      console.error('❌ [Tournaments] Load error:', error);
-    } finally {
-      setIsLoadingTournaments(false);
+    {
+      id: 'group',
+      title: 'Group Battles',
+      description: 'Multi-player tournaments with multiple prize winners',
+      icon: UsersIcon,
+      href: '/tournaments/group',
+      color: 'from-green-500 to-teal-500',
+      features: ['Multiple winners', 'Scalable tournaments', 'Team competitions', 'Custom prize distribution'],
+      example: '10 players, 1 token entry each = 10 token prize pool'
+    },
+    {
+      id: 'hot-sell',
+      title: 'Hot Sell',
+      description: 'Massive cash prize tournaments with real money payouts',
+      icon: FireIcon,
+      href: '/hot-sell',
+      color: 'from-red-500 to-orange-500',
+      features: ['Real money prizes', 'Big prize pools', 'Professional tournaments', 'Cash payouts'],
+      example: '$50,000 prize pool with 1st, 2nd, 3rd place winners'
+    },
+    {
+      id: 'listings',
+      title: 'Physical Listings',
+      description: 'Win real physical items and connect with sellers',
+      icon: BanknotesIcon,
+      href: '/listings',
+      color: 'from-purple-500 to-pink-500',
+      features: ['Physical prizes', 'Seller connections', 'Item verification', 'Shipping included'],
+      example: 'Win a PlayStation 5, iPhone, or other physical items'
     }
-  };
-
-  const handleTournamentEntry = (tournament: any) => {
-    if (!user) {
-      alert('Please sign in to enter tournaments');
-      window.location.href = '/auth/login';
-      return;
-    }
-    setSelectedTournament(tournament);
-  };
-
-  const handle1v1Entry = async (entryFee: number, tier: string) => {
-    if (!user) {
-      alert('Please sign in to play 1v1 matches');
-      window.location.href = '/auth/login';
-      return;
-    }
-
-    if (!globalLocation.isGamingAllowed) {
-      alert('Please enable location verification first');
-      globalLocation.requestLocation();
-      return;
-    }
-
-    console.log(`🎮 [1v1] Starting ${tier} match for $${entryFee}`);
-    
-    // Redirect to 1v1 game selection page with entry fee
-    window.location.href = `/1v1-game-select?fee=${entryFee}&tier=${encodeURIComponent(tier)}`;
-  };
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      <CleanNavigation variant="gradient" currentPage="/tournaments" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* LIVE Tournament Banners */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-6xl font-extrabold mb-6">
-              <span className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent animate-pulse">
-                🏆 LIVE SKILL TOURNAMENTS
-              </span>
-            </h2>
-            <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-red-500 mx-auto rounded-full animate-pulse mb-6"></div>
-            <p className="text-xl text-transparent bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text animate-pulse">
-              {isLoadingTournaments ? 'Loading live tournaments...' : `${liveTournaments.length} Active Tournaments - Real Prizes!`}
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+      </div>
+      
+      <CleanNavigation />
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Header */}
+        <div className="mb-12 text-center">
+          <div className="flex items-center justify-center mb-6">
+            <TrophyIcon className="w-16 h-16 text-yellow-500 mr-4 animate-pulse" />
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              TOURNAMENTS
+            </h1>
           </div>
-          
-          {isLoadingTournaments ? (
-            <div className="text-center py-20">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-yellow-400 mx-auto mb-4"></div>
-              <p className="text-white text-xl">Loading tournaments...</p>
-            </div>
-          ) : liveTournaments.length === 0 ? (
-            <div className="text-center py-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl border-2 border-gray-700">
-              <TrophyIcon className="h-24 w-24 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-white mb-2">No Active Tournaments</h3>
-              <p className="text-gray-400 mb-4">Check back soon for new competitions!</p>
-              <p className="text-sm text-gray-500">Administrators can create tournaments in the admin panel</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {liveTournaments.map((tournament) => {
-                const progress = (tournament.current_players / tournament.max_players) * 100;
-                const winnerPrize = tournament.prize_pool * 0.85; // 85% after platform fee
-                
-                return (
-                  <div key={tournament.id} className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-8 shadow-2xl border-2 border-yellow-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute top-4 right-4 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse"></div>
-                      <div className="absolute bottom-4 left-4 w-32 h-32 bg-yellow-500/10 rounded-full blur-xl animate-pulse delay-1000"></div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-yellow-900/20 to-transparent"></div>
-                    </div>
-                    
-                    <div className="relative z-10 text-center mb-6">
-                      <div className="text-6xl mb-4">🏆</div>
-                      <h3 className="text-2xl font-black text-white mb-2">${tournament.prize_pool.toLocaleString()} Prize Pool</h3>
-                      <div className="text-3xl font-black text-yellow-400 mb-2">Winner Gets: ${winnerPrize.toFixed(2)}</div>
-                      <p className="text-xl font-bold text-white/90 mb-1">{tournament.name}</p>
-                      <p className="text-yellow-300">{tournament.game_type}</p>
-                      <div className="text-sm text-gray-400 mt-2">(-15% platform fee)</div>
-                    </div>
-                    
-                    <div className="relative z-10 space-y-4 mb-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-yellow-500/20">
-                          <div className="text-2xl font-bold text-white">{tournament.current_players}/{tournament.max_players}</div>
-                          <div className="text-xs text-gray-300">Participants</div>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-yellow-500/20">
-                          <div className="text-2xl font-bold text-white">${tournament.entry_fee}</div>
-                          <div className="text-xs text-gray-300">{tournament.entry_fee} Tokens</div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-300 font-medium">Tournament Progress</span>
-                          <span className="text-gray-400">{Math.round(progress)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-3">
-                          <div className="bg-gradient-to-r from-yellow-500 to-orange-600 h-3 rounded-full transition-all duration-500" style={{width: `${progress}%`}}></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="relative z-10">
-                      {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                        <button 
-                          onClick={() => handleTournamentEntry(tournament)}
-                          className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-yellow-500/50"
-                        >
-                          ⚡ PAY ${tournament.entry_fee} & PLAY NOW
-                        </button>
-                      ) : globalLocation.status === 'restricted' ? (
-                        <div className="w-full py-4 px-6 rounded-xl bg-red-700 border border-red-600 text-center">
-                          <div className="text-red-300 text-sm mb-2">
-                            <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
-                            Gaming Not Allowed in Your Location
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full py-4 px-6 rounded-xl bg-gray-700 border border-gray-600 text-center">
-                          <div className="text-gray-400 text-sm mb-2">
-                            <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
-                            Location Verification Required
-                          </div>
-                          <button 
-                            onClick={() => globalLocation.requestLocation()}
-                            className="text-yellow-400 hover:text-yellow-300 font-medium text-sm"
-                          >
-                            Enable Location to Join
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="absolute top-4 left-4 bg-green-600/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold text-white">
-                      🔴 LIVE
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Tournament Entry Modal */}
-          {selectedTournament && (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 max-w-md w-full border-2 border-yellow-500/30 shadow-2xl">
-                <div className="text-center mb-6">
-                  <h3 className="text-3xl font-black text-white mb-2">{selectedTournament.name}</h3>
-                  <p className="text-gray-400">{selectedTournament.game_type}</p>
-                </div>
-                
-                <LiveTournamentEntry 
-                  tournament={selectedTournament}
-                  onEntryComplete={() => {
-                    setSelectedTournament(null);
-                    loadLiveTournaments();
-                  }}
-                />
-                
-                <button
-                  onClick={() => setSelectedTournament(null)}
-                  className="mt-4 w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+          <p className="text-2xl text-gray-300 mb-4">Choose Your Competition Style</p>
+          <p className="text-lg text-gray-400 max-w-3xl mx-auto">
+            From intense 1v1 battles to massive cash prize tournaments, find the perfect competition for your skill level and budget.
+          </p>
         </div>
 
-        {/* 1v1 SKILL MATCHES */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-4xl font-black text-purple-600 dark:text-purple-400 mb-4">⚔️ 1v1 SKILL MATCHES</h2>
-            <p className="text-lg text-gray-300">🎮 Choose Your Game & Challenge Players!</p>
-            <p className="text-sm text-yellow-400 mt-2">✨ NEW: Game selection before matchmaking!</p>
+        {/* Tournament Types Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {tournamentTypes.map((tournament, index) => (
+            <Link
+              key={tournament.id}
+              href={tournament.href}
+              className="group bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <div className={`w-16 h-16 bg-gradient-to-r ${tournament.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300`}>
+                  <tournament.icon className="w-8 h-8 text-white" />
+                </div>
+                <ArrowRightIcon className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors duration-300" />
+              </div>
+              
+              <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-yellow-300 transition-colors duration-300">
+                {tournament.title}
+              </h2>
+              
+              <p className="text-gray-300 mb-6 text-lg leading-relaxed">
+                {tournament.description}
+              </p>
+              
+              {/* Features */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Key Features</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {tournament.features.map((feature, featureIndex) => (
+                    <div key={featureIndex} className="flex items-center">
+                      <StarIcon className="w-4 h-4 text-yellow-400 mr-2 flex-shrink-0" />
+                      <span className="text-sm text-gray-300">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Example */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <h4 className="text-sm font-semibold text-gray-400 mb-2 uppercase tracking-wide">Example</h4>
+                <p className="text-sm text-gray-300">{tournament.example}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 text-center">
+            <TrophyIcon className="w-8 h-8 text-yellow-400 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-white">1v1</p>
+            <p className="text-gray-400 text-sm">Head-to-Head</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* $1 Match */}
-            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-green-500/30 hover:scale-105 transition-all duration-300">
-              <div className="text-center mb-4">
-                <div className="text-4xl mb-3">💚</div>
-                <h3 className="text-xl font-black text-white mb-2">$1 Quick Match</h3>
-                <div className="text-2xl font-black text-green-400 mb-1">Winner: $0.85</div>
-                <p className="text-green-300 text-sm">Entry: $1 (1 token)</p>
-              </div>
-
-              {globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
-                  <div className="text-red-300 text-xs font-medium">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    🔒 Not Available in Your State
-                  </div>
-                </div>
-              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button 
-                  onClick={() => handle1v1Entry(1, '$1 Quick Match')}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
-                >
-                  💚 FIND MATCH - $1
-                </button>
-              ) : (
-                <div className="w-full">
-                  <button 
-                    onClick={() => globalLocation.requestLocation()}
-                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
-                  >
-                    <div className="text-yellow-300 text-xs mb-1 font-medium">
-                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                      🔒 Location Verification Required
-                    </div>
-                    <div className="text-green-400 text-xs font-bold group-hover:text-green-300">
-                      Click to Enable Location
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* $5 Match */}
-            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-blue-500/30 hover:scale-105 transition-all duration-300">
-              <div className="text-center mb-4">
-                <div className="text-4xl mb-3">🛡️</div>
-                <h3 className="text-xl font-black text-white mb-2">$5 Standard</h3>
-                <div className="text-2xl font-black text-blue-400 mb-1">Winner: $4.25</div>
-                <p className="text-blue-300 text-sm">Entry: $5 (5 tokens)</p>
-              </div>
-
-              {globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
-                  <div className="text-red-300 text-xs font-medium">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    🔒 Not Available in Your State
-                  </div>
-                </div>
-              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button 
-                  onClick={() => handle1v1Entry(5, '$5 Standard Match')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
-                >
-                  🛡️ FIND MATCH - $5
-                </button>
-              ) : (
-                <div className="w-full">
-                  <button 
-                    onClick={() => globalLocation.requestLocation()}
-                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
-                  >
-                    <div className="text-yellow-300 text-xs mb-1 font-medium">
-                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                      🔒 Location Verification Required
-                    </div>
-                    <div className="text-blue-400 text-xs font-bold group-hover:text-blue-300">
-                      Click to Enable Location
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* $10 Match */}
-            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-purple-500/30 hover:scale-105 transition-all duration-300">
-              <div className="text-center mb-4">
-                <div className="text-4xl mb-3">⚔️</div>
-                <h3 className="text-xl font-black text-white mb-2">$10 Advanced</h3>
-                <div className="text-2xl font-black text-purple-400 mb-1">Winner: $8.50</div>
-                <p className="text-purple-300 text-sm">Entry: $10 (10 tokens)</p>
-              </div>
-
-              {globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
-                  <div className="text-red-300 text-xs font-medium">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    🔒 Not Available in Your State
-                  </div>
-                </div>
-              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button 
-                  onClick={() => handle1v1Entry(10, '$10 Advanced Match')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
-                >
-                  ⚔️ FIND MATCH - $10
-                </button>
-              ) : (
-                <div className="w-full">
-                  <button 
-                    onClick={() => globalLocation.requestLocation()}
-                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
-                  >
-                    <div className="text-yellow-300 text-xs mb-1 font-medium">
-                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                      🔒 Location Verification Required
-                    </div>
-                    <div className="text-purple-400 text-xs font-bold group-hover:text-purple-300">
-                      Click to Enable Location
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* $25 Match */}
-            <div className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-6 shadow-2xl border-2 border-red-500/30 hover:scale-105 transition-all duration-300">
-              <div className="text-center mb-4">
-                <div className="text-4xl mb-3">👑</div>
-                <h3 className="text-xl font-black text-white mb-2">$25 Elite</h3>
-                <div className="text-2xl font-black text-red-400 mb-1">Winner: $21.25</div>
-                <p className="text-red-300 text-sm">Entry: $25 (25 tokens)</p>
-              </div>
-
-              {globalLocation.status === 'restricted' ? (
-                <div className="w-full py-3 px-4 rounded-lg bg-red-700/80 border border-red-600 text-center cursor-not-allowed">
-                  <div className="text-red-300 text-xs font-medium">
-                    <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                    🔒 Not Available in Your State
-                  </div>
-                </div>
-              ) : globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                <button 
-                  onClick={() => handle1v1Entry(25, '$25 Elite Match')}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-4 rounded-lg transition-all hover:scale-105 shadow-lg text-sm"
-                >
-                  👑 FIND MATCH - $25
-                </button>
-              ) : (
-                <div className="w-full">
-                  <button 
-                    onClick={() => globalLocation.requestLocation()}
-                    className="w-full py-3 px-4 rounded-lg bg-yellow-600/20 border-2 border-yellow-500 text-center hover:bg-yellow-600/30 transition-all group"
-                  >
-                    <div className="text-yellow-300 text-xs mb-1 font-medium">
-                      <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
-                      🔒 Location Verification Required
-                    </div>
-                    <div className="text-red-400 text-xs font-bold group-hover:text-red-300">
-                      Click to Enable Location
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 text-center">
+            <UsersIcon className="w-8 h-8 text-blue-400 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-white">Group</p>
+            <p className="text-gray-400 text-sm">Multi-Player</p>
           </div>
-
-          <div className="mt-6 bg-yellow-500/20 border border-yellow-500 rounded-xl p-4">
-            <p className="text-yellow-300 text-center text-sm">
-              🚧 <strong>1v1 Matchmaking Coming Soon!</strong> ELO-based skill matching system in development.
-            </p>
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 text-center">
+            <FireIcon className="w-8 h-8 text-red-400 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-white">Hot Sell</p>
+            <p className="text-gray-400 text-sm">Cash Prizes</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 text-center">
+            <BanknotesIcon className="w-8 h-8 text-green-400 mx-auto mb-3" />
+            <p className="text-2xl font-bold text-white">Listings</p>
+            <p className="text-gray-400 text-sm">Physical Items</p>
           </div>
         </div>
 
-        {/* Info Section */}
-        <div className="bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 border-2 border-red-300 dark:border-red-600 rounded-2xl p-6 mb-8">
-          <div className="text-center">
-            <h3 className="text-lg font-bold text-red-900 dark:text-red-100 mb-4">💰 Tournament Rules</h3>
-            <div className="text-red-800 dark:text-red-200 text-center mb-4">
-              <p className="mb-2"><strong>💵 1 Token = $1 USD:</strong> Tokens held in escrow until winner determined.</p>
-              <p className="mb-2"><strong>Entry Fees:</strong> Pay with tokens - money transferred to Stripe escrow.</p>
-              <p className="mb-2"><strong>15% Platform Fee:</strong> DropDollar takes 15% of prize pool. Winners get 85%.</p>
-              <p className="mb-2"><strong>Fair Play:</strong> All players use same RNG seed for equal challenge.</p>
-              <p><strong>Winner Takes All:</strong> Highest score wins the entire prize pot when listing closes.</p>
-            </div>
+        {/* Call to Action */}
+        <div className="text-center bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20">
+          <h2 className="text-3xl font-bold text-white mb-4">Ready to Compete?</h2>
+          <p className="text-lg text-gray-300 mb-6 max-w-2xl mx-auto">
+            Join thousands of players competing for tokens, cash prizes, and physical items. 
+            Start with practice games to build your skills, then enter tournaments to win big!
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/games"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              <div className="flex items-center">
+                <StarIcon className="w-5 h-5 mr-2" />
+                Practice Games
+              </div>
+            </Link>
+            <Link
+              href="/buy-tokens"
+              className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              <div className="flex items-center">
+                <BanknotesIcon className="w-5 h-5 mr-2" />
+                Buy Tokens
+              </div>
+            </Link>
           </div>
         </div>
       </div>

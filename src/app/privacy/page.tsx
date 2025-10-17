@@ -96,7 +96,7 @@ const PrivacyPolicy = () => {
                 <li>Provide customer support</li>
                 <li>Conduct analytics and research</li>
               </ul>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">4. Information Sharing and Disclosure</h2>
@@ -124,13 +124,13 @@ const PrivacyPolicy = () => {
                 <li>Protect our rights and property</li>
                 <li>Prevent fraud or illegal activities</li>
                 <li>Protect user safety and platform integrity</li>
-              </ul>
+            </ul>
 
               <h3 className="text-xl font-semibold text-blue-300 mb-3">4.3 Business Transfers</h3>
               <p className="text-gray-300 leading-relaxed mb-4">
                 In the event of a merger, acquisition, or sale of assets, user information may be transferred as part of the transaction.
               </p>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">5. Data Security</h2>
@@ -144,8 +144,8 @@ const PrivacyPolicy = () => {
                 <li>Access controls and authentication systems</li>
                 <li>Monitoring for suspicious activities</li>
                 <li>Employee training on data protection</li>
-              </ul>
-            </section>
+            </ul>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">6. Data Retention</h2>
@@ -157,11 +157,11 @@ const PrivacyPolicy = () => {
                 <li>Comply with legal and regulatory requirements</li>
                 <li>Resolve disputes and enforce agreements</li>
                 <li>Prevent fraud and ensure platform security</li>
-              </ul>
+            </ul>
               <p className="text-gray-300 leading-relaxed">
                 Account information is typically retained for 7 years after account closure for regulatory compliance.
               </p>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">7. Your Rights and Choices</h2>
@@ -176,7 +176,7 @@ const PrivacyPolicy = () => {
                 <li><strong>Opt-out:</strong> Unsubscribe from marketing communications</li>
                 <li><strong>Restriction:</strong> Limit how we process your information</li>
               </ul>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">8. Cookies and Tracking Technologies</h2>
@@ -192,28 +192,28 @@ const PrivacyPolicy = () => {
               <p className="text-gray-300 leading-relaxed">
                 You can control cookie settings through your browser preferences.
               </p>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">9. International Data Transfers</h2>
               <p className="text-gray-300 leading-relaxed">
                 Your information may be transferred to and processed in countries other than your own. We ensure appropriate safeguards are in place to protect your information in accordance with applicable data protection laws.
               </p>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">10. Children's Privacy</h2>
               <p className="text-gray-300 leading-relaxed">
                 DropDollar is not intended for users under 18 years of age. We do not knowingly collect personal information from children under 18. If we become aware that we have collected information from a child under 18, we will take steps to delete such information.
               </p>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">11. Changes to This Privacy Policy</h2>
               <p className="text-gray-300 leading-relaxed">
                 We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. We encourage you to review this Privacy Policy periodically.
               </p>
-            </section>
+        </section>
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-blue-400 mb-4">12. Contact Us</h2>
@@ -226,9 +226,9 @@ const PrivacyPolicy = () => {
                   <strong>Support:</strong> support@drop-dollar.com<br/>
                   <strong>Website:</strong> https://www.drop-dollar.com<br/>
                   <strong>Data Protection Officer:</strong> dpo@drop-dollar.com
-                </p>
-              </div>
-            </section>
+            </p>
+          </div>
+        </section>
 
             <div className="mt-12 p-6 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg border border-blue-500/30">
               <p className="text-center text-gray-300">
@@ -237,7 +237,7 @@ const PrivacyPolicy = () => {
             </div>
           </motion.div>
         </motion.div>
-      </div>
+        </div>
     </div>
   );
 };

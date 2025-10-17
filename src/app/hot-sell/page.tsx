@@ -1,230 +1,355 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGlobalLocation } from '@/hooks/useGlobalLocation';
-import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
-import { ShieldCheckIcon, FireIcon, TrophyIcon } from '@heroicons/react/24/outline';
+import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
+import { UserService } from '@/lib/supabase/userService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import CompetitionService from '@/lib/supabase/competitionService';
-import LiveTournamentEntry from '@/components/LiveTournamentEntry';
+import { 
+  FireIcon, 
+  TrophyIcon, 
+  BanknotesIcon, 
+  UsersIcon,
+  ClockIcon,
+  StarIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline';
 
 export default function HotSellPage() {
-  const { user } = useAuth();
-  const globalLocation = useGlobalLocation();
-  
-  // Live competition data
-  const [liveCompetitions, setLiveCompetitions] = useState<any[]>([]);
-  const [isLoadingCompetitions, setIsLoadingCompetitions] = useState(true);
-  const [selectedCompetition, setSelectedCompetition] = useState<any | null>(null);
-  
-  // 10-minute inactivity timeout
-  useInactivityTimeout({
-    timeout: 10 * 60 * 1000,
-    onTimeout: () => {
-      console.log('🕐 Hot-sell page timeout - reloading');
-      window.location.reload();
-    },
-    enabled: true
-  });
+  const { user, isAuthenticated } = useAuth();
+  const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
+  const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
+  const [userTokens, setUserTokens] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [joiningListing, setJoiningListing] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  // Load live competitions from database
   useEffect(() => {
-    loadLiveCompetitions();
-    const interval = setInterval(loadLiveCompetitions, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+    if (isAuthenticated && user) {
+      loadHotSellData();
+    }
+  }, [isAuthenticated, user]);
 
-  const loadLiveCompetitions = async () => {
+  const loadHotSellData = async () => {
     try {
-      // For now, we'll show an empty state until competitions are created
-      // This can be populated by admin or auto-generated
-      console.log('🔥 [HotSell] Loading competitions...');
-      setLiveCompetitions([]);
+      setIsLoading(true);
+      
+      // Load hot sell listings
+      const listings = await TournamentService.getActiveHotSellListings();
+      setHotSellListings(listings);
+      
+      // Load participants for each listing
+      const participantsData: { [listingId: string]: HotSellParticipant[] } = {};
+      for (const listing of listings) {
+        const listingParticipants = await TournamentService.getHotSellParticipants(listing.id);
+        participantsData[listing.id] = listingParticipants;
+      }
+      setParticipants(participantsData);
+      
+      // Load user tokens
+      if (user) {
+        const profile = await UserService.getUserProfile(user.id);
+        setUserTokens(profile?.tokens || 0);
+      }
+      
     } catch (error) {
-      console.error('❌ [HotSell] Load error:', error);
+      console.error('❌ [HotSell] Error loading data:', error);
     } finally {
-      setIsLoadingCompetitions(false);
+      setIsLoading(false);
     }
   };
 
-  const handleCompetitionEntry = (competition: any) => {
-    if (!user) {
-      alert('Please sign in to enter Hot Sell competitions');
-      window.location.href = '/auth/login';
+  const joinHotSellListing = async (listing: HotSellListing) => {
+    if (!user || !isAuthenticated) {
+      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
       return;
     }
-    setSelectedCompetition(competition);
+
+    if (userTokens < listing.entry_fee) {
+      setMessage({ type: 'error', text: `You need ${listing.entry_fee} tokens to join this tournament` });
+      return;
+    }
+
+    try {
+      setJoiningListing(listing.id);
+      
+      // Deduct tokens from user
+      const newTokenBalance = userTokens - listing.entry_fee;
+      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
+      
+      if (!tokenUpdateSuccess) {
+        setMessage({ type: 'error', text: 'Failed to deduct tokens. Please try again.' });
+        return;
+      }
+
+      // Join the listing
+      const participant = await TournamentService.joinHotSellListing(
+        listing.id,
+        user.id,
+        listing.entry_fee
+      );
+
+      if (participant) {
+        setUserTokens(newTokenBalance);
+        setMessage({ type: 'success', text: `Successfully joined ${listing.title}!` });
+        
+        // Refresh participants
+        const updatedParticipants = await TournamentService.getHotSellParticipants(listing.id);
+        setParticipants(prev => ({
+          ...prev,
+          [listing.id]: updatedParticipants
+        }));
+      } else {
+        // Refund tokens if join failed
+        await UserService.updateUserTokens(user.id, userTokens);
+        setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+      }
+      
+    } catch (error) {
+      console.error('❌ [HotSell] Error joining listing:', error);
+      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+    } finally {
+      setJoiningListing(null);
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
-      <CleanNavigation variant="gradient" currentPage="/hot-sell" />
+  const formatPrizeAmount = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* HOT SELL Banner */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-6xl font-extrabold mb-6">
-              <span className="bg-gradient-to-r from-red-400 via-orange-500 to-yellow-500 bg-clip-text text-transparent animate-pulse">
-                🔥 HOT SELL CASH PRIZES
-              </span>
-            </h2>
-            <div className="w-32 h-1 bg-gradient-to-r from-red-400 to-yellow-500 mx-auto rounded-full animate-pulse mb-6"></div>
-            <p className="text-xl text-transparent bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text animate-pulse">
-              {isLoadingCompetitions ? 'Loading competitions...' : `${liveCompetitions.length} Live Cash Prize Competitions!`}
-            </p>
+  const calculatePrizeDistribution = (prizePool: number) => {
+    const feeRate = 0.15; // 15% fee
+    const netPrizePool = prizePool * (1 - feeRate);
+    
+    return {
+      first: netPrizePool * 0.5,
+      second: netPrizePool * 0.3,
+      third: netPrizePool * 0.2
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
+        <CleanNavigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <span className="ml-4 text-lg">Loading hot sell tournaments...</span>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+      </div>
+      
+      <CleanNavigation />
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="flex items-center justify-center mb-4">
+            <FireIcon className="w-12 h-12 text-red-500 mr-4 animate-pulse" />
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">
+              HOT SELL
+            </h1>
+          </div>
+          <p className="text-xl text-gray-300 mb-2">Massive Cash Prize Tournaments</p>
+          <p className="text-lg text-gray-400">Compete for huge payouts with real money prizes</p>
           
-          {isLoadingCompetitions ? (
-            <div className="text-center py-20">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-400 mx-auto mb-4"></div>
-              <p className="text-white text-xl">Loading competitions...</p>
+          {/* User Token Balance */}
+          {isAuthenticated && (
+            <div className="mt-6 inline-flex items-center bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/20">
+              <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
+              <span className="text-lg font-semibold">Your Tokens: {userTokens}</span>
             </div>
-          ) : liveCompetitions.length === 0 ? (
-            <div className="text-center py-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl border-2 border-orange-700">
-              <FireIcon className="h-24 w-24 text-orange-600 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold text-white mb-2">No Active Hot Sell Competitions</h3>
-              <p className="text-gray-400 mb-4">Check back soon for exciting cash prize competitions!</p>
-              <p className="text-sm text-gray-500">Administrators can create Hot Sell competitions in the admin panel</p>
-              <div className="mt-8 bg-orange-900/30 border border-orange-600 rounded-2xl p-6 max-w-2xl mx-auto">
-                <h4 className="text-lg font-bold text-orange-400 mb-3">🎮 What are Hot Sell Competitions?</h4>
-                <ul className="text-left text-gray-300 space-y-2">
-                  <li>• <strong>Instant Play:</strong> Enter anytime, no waiting for players</li>
-                  <li>• <strong>Multiple Attempts:</strong> Pay $1-$3 for 1-3 game attempts</li>
-                  <li>• <strong>Hidden Scores:</strong> Scores revealed only after all attempts</li>
-                  <li>• <strong>Fair RNG:</strong> Each competition uses unique random seeds</li>
-                  <li>• <strong>Real Cash:</strong> Winners withdraw directly to bank accounts</li>
-                </ul>
-              </div>
+          )}
+        </div>
+
+        {/* Message Display */}
+        {message && (
+          <div className={`mb-6 p-4 rounded-xl border ${
+            message.type === 'success' 
+              ? 'bg-green-500/20 border-green-500/50 text-green-300' 
+              : 'bg-red-500/20 border-red-500/50 text-red-300'
+          }`}>
+            <div className="flex items-center">
+              {message.type === 'success' ? (
+                <CheckCircleIcon className="w-5 h-5 mr-2" />
+              ) : (
+                <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
+              )}
+              {message.text}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {liveCompetitions.map((competition) => {
-                const progress = (competition.entries / competition.max_entries) * 100;
-                const winnerPrize = competition.prize_amount * 0.85; // 85% after platform fee
-                
-                return (
-                  <div key={competition.id} className="relative bg-gradient-to-br from-gray-900 via-black to-gray-800 rounded-3xl p-8 shadow-2xl border-2 border-orange-500/30 hover:scale-105 transition-all duration-300 group overflow-hidden">
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute top-4 right-4 w-24 h-24 bg-orange-500/20 rounded-full blur-xl animate-pulse"></div>
-                      <div className="absolute bottom-4 left-4 w-32 h-32 bg-orange-500/10 rounded-full blur-xl animate-pulse delay-1000"></div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-orange-900/20 to-transparent"></div>
-                    </div>
-                    
-                    <div className="relative z-10 text-center mb-6">
-                      <div className="text-6xl mb-4">💰</div>
-                      <h3 className="text-2xl font-black text-white mb-2">${competition.prize_amount.toLocaleString()} Cash Prize</h3>
-                      <div className="text-3xl font-black text-orange-400 mb-2">Winner Gets: ${winnerPrize.toFixed(2)}</div>
-                      <p className="text-xl font-bold text-white/90 mb-1">{competition.name}</p>
-                      <p className="text-orange-300">{competition.game_type}</p>
-                      <div className="text-sm text-gray-400 mt-2">(-15% platform fee)</div>
-                    </div>
-                    
-                    <div className="relative z-10 space-y-4 mb-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-orange-500/20">
-                          <div className="text-2xl font-bold text-white">{competition.entries}/{competition.max_entries}</div>
-                          <div className="text-xs text-gray-300">Entries</div>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-orange-500/20">
-                          <div className="text-2xl font-bold text-white">$1-$3</div>
-                          <div className="text-xs text-gray-300">Per Entry</div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-300 font-medium">Competition Progress</span>
-                          <span className="text-gray-400">{Math.round(progress)}%</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-3">
-                          <div className="bg-gradient-to-r from-orange-500 to-red-600 h-3 rounded-full transition-all duration-500" style={{width: `${progress}%`}}></div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="relative z-10">
-                      {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                        <button 
-                          onClick={() => handleCompetitionEntry(competition)}
-                          className="w-full bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-500 hover:to-red-600 text-white font-black py-4 px-6 rounded-xl transition-all hover:scale-105 shadow-lg border border-orange-500/50"
-                        >
-                          🔥 ENTER NOW - $1 TO $3
-                        </button>
-                      ) : globalLocation.status === 'restricted' ? (
-                        <div className="w-full py-4 px-6 rounded-xl bg-red-700 border border-red-600 text-center">
-                          <div className="text-red-300 text-sm mb-2">
-                            <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
-                            Gaming Not Allowed in Your Location
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full py-4 px-6 rounded-xl bg-gray-700 border border-gray-600 text-center">
-                          <div className="text-gray-400 text-sm mb-2">
-                            <ShieldCheckIcon className="h-5 w-5 inline mr-2" />
-                            Location Verification Required
-                          </div>
-                          <button 
-                            onClick={() => globalLocation.requestLocation()}
-                            className="text-orange-400 hover:text-orange-300 font-medium text-sm"
-                          >
-                            Enable Location to Enter
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="absolute top-4 left-4 bg-red-600/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold text-white">
-                      🔥 HOT
+          </div>
+        )}
+
+        {/* Hot Sell Listings */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {hotSellListings.map((listing) => {
+            const listingParticipants = participants[listing.id] || [];
+            const prizeDistribution = calculatePrizeDistribution(listing.prize_pool);
+            const isJoined = listingParticipants.some(p => p.user_id === user?.id);
+            const canJoin = userTokens >= listing.entry_fee && !isJoined && listingParticipants.length < listing.max_participants;
+            
+            return (
+              <div key={listing.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+                {/* Tournament Header */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-white">{listing.title}</h2>
+                    <div className="flex items-center bg-red-500/20 rounded-full px-4 py-2">
+                      <FireIcon className="w-5 h-5 text-red-400 mr-2" />
+                      <span className="text-red-300 font-semibold">HOT</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Competition Entry Modal */}
-          {selectedCompetition && (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 max-w-md w-full border-2 border-orange-500/30 shadow-2xl">
-                <div className="text-center mb-6">
-                  <h3 className="text-3xl font-black text-white mb-2">{selectedCompetition.name}</h3>
-                  <p className="text-gray-400">{selectedCompetition.game_type}</p>
+                  
+                  <p className="text-gray-300 mb-4">{listing.description}</p>
+                  
+                  {/* Prize Pool */}
+                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6">
+                    <div className="text-center">
+                      <p className="text-yellow-100 text-sm font-medium mb-2">TOTAL PRIZE POOL</p>
+                      <p className="text-4xl font-bold text-white">{formatPrizeAmount(listing.prize_pool)}</p>
+                      <p className="text-yellow-100 text-sm mt-2">(15% fee deducted from prizes)</p>
+                    </div>
+                  </div>
                 </div>
-                
-                <LiveTournamentEntry 
-                  tournament={selectedCompetition}
-                  onEntryComplete={() => {
-                    setSelectedCompetition(null);
-                    loadLiveCompetitions();
-                  }}
-                />
-                
-                <button
-                  onClick={() => setSelectedCompetition(null)}
-                  className="mt-4 w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
-                >
-                  Cancel
-                </button>
+
+                {/* Prize Distribution */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <TrophyIcon className="w-5 h-5 mr-2 text-yellow-400" />
+                    Prize Distribution
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-white font-bold text-sm">1</span>
+                        </div>
+                        <span className="text-white font-medium">1st Place</span>
+                      </div>
+                      <span className="text-yellow-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.first)}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-white font-bold text-sm">2</span>
+                        </div>
+                        <span className="text-white font-medium">2nd Place</span>
+                      </div>
+                      <span className="text-gray-300 font-bold text-lg">{formatPrizeAmount(prizeDistribution.second)}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-white font-bold text-sm">3</span>
+                        </div>
+                        <span className="text-white font-medium">3rd Place</span>
+                      </div>
+                      <span className="text-orange-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.third)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tournament Info */}
+                <div className="mb-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <BanknotesIcon className="w-5 h-5 text-green-400 mr-2" />
+                      <span className="text-gray-300">Entry Fee</span>
+                    </div>
+                    <span className="text-white font-semibold">{listing.entry_fee} tokens</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <UsersIcon className="w-5 h-5 text-blue-400 mr-2" />
+                      <span className="text-gray-300">Participants</span>
+                    </div>
+                    <span className="text-white font-semibold">{listingParticipants.length}/{listing.max_participants}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <StarIcon className="w-5 h-5 text-purple-400 mr-2" />
+                      <span className="text-gray-300">Game Type</span>
+                    </div>
+                    <span className="text-white font-semibold capitalize">{listing.game_type.replace('-', ' ')}</span>
+                  </div>
+                </div>
+
+                {/* Join Button */}
+                <div className="text-center">
+                  {!isAuthenticated ? (
+                    <div className="bg-gray-600 rounded-xl p-4">
+                      <p className="text-gray-300 mb-2">Please log in to join tournaments</p>
+                    </div>
+                  ) : isJoined ? (
+                    <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4">
+                      <div className="flex items-center justify-center">
+                        <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
+                        <span className="text-green-300 font-semibold">You're in this tournament!</span>
+                      </div>
+                    </div>
+                  ) : !canJoin ? (
+                    <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
+                      <p className="text-red-300">
+                        {userTokens < listing.entry_fee 
+                          ? `You need ${listing.entry_fee} tokens to join`
+                          : 'Tournament is full'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => joinHotSellListing(listing)}
+                      disabled={joiningListing === listing.id}
+                      className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {joiningListing === listing.id ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          Joining...
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <FireIcon className="w-5 h-5 mr-2" />
+                          JOIN TOURNAMENT - {listing.entry_fee} TOKENS
+                        </div>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
 
-        {/* Info Section */}
-        <div className="bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/30 dark:to-red-900/30 border-2 border-orange-300 dark:border-orange-600 rounded-2xl p-6 mb-8">
-          <div className="text-center">
-            <h3 className="text-lg font-bold text-orange-900 dark:text-orange-100 mb-4">🔥 Hot Sell Rules</h3>
-            <div className="text-orange-800 dark:text-orange-200 text-center mb-4">
-              <p className="mb-2"><strong>💵 1 Token = $1 USD:</strong> Tokens held in Stripe escrow until winner determined.</p>
-              <p className="mb-2"><strong>Entry Options:</strong> Pay $1, $2, or $3 (1-3 tokens) for 1-3 attempts per competition.</p>
-              <p className="mb-2"><strong>15% Platform Fee:</strong> DropDollar takes 15% of the prize. Winners get 85%.</p>
-              <p className="mb-2"><strong>Fair Play:</strong> Each competition has 20 unique RNG seeds assigned randomly.</p>
-              <p><strong>Winner Takes All:</strong> Best score wins the entire cash prize when competition closes.</p>
-            </div>
+        {/* Create Tournament Button */}
+        {isAuthenticated && (
+          <div className="mt-12 text-center">
+            <button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+              <div className="flex items-center">
+                <TrophyIcon className="w-6 h-6 mr-2" />
+                Create Your Own Tournament
+              </div>
+            </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

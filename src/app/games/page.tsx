@@ -406,7 +406,7 @@ export default function GamesPage() {
       console.log('❌ Location check failed - not starting game');
       return; // Location check failed, modal will be shown or user is restricted
     }
-
+    
     // For competition mode, start immediately without ads
     if (isCompetitionMode) {
       console.log('🏆 Competition mode - starting game immediately');
@@ -417,7 +417,7 @@ export default function GamesPage() {
 
     // For practice mode, show ad for 10 seconds
     console.log('🎮 Practice mode - showing ad for 10 seconds');
-    setPendingGameStart(gameId);
+      setPendingGameStart(gameId);
     setShowAd(true);
     
     // Auto-hide ad after 10 seconds
@@ -769,7 +769,7 @@ export default function GamesPage() {
         <div className="text-center mb-12">
           <h1 className="text-6xl font-extrabold mb-6">
             <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-indigo-500 bg-clip-text text-transparent animate-pulse">
-              {isCompetitionMode ? '🏆 Competition Mode' : '🎮 Practice Gaming Arena'}
+            {isCompetitionMode ? '🏆 Competition Mode' : '🎮 Practice Gaming Arena'}
             </span>
           </h1>
           <div className="w-32 h-1 bg-gradient-to-r from-purple-400 to-pink-500 mx-auto rounded-full animate-pulse mb-6"></div>
@@ -1057,7 +1057,7 @@ export default function GamesPage() {
                   {/* Game Icon - smaller now since we have preview */}
                   <div className="bg-gradient-to-br from-blue-500 to-purple-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
                     <IconComponent className="h-6 w-6 text-white" />
-                  </div>
+                </div>
                 
                 {/* Game Info */}
                 <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">{game.name}</h3>
@@ -1117,12 +1117,12 @@ export default function GamesPage() {
                 
                 {/* Play Button */}
                 {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
-                  <button 
-                    onClick={() => handleGameStart(game.id)}
-                    className="w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg transform bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-                  >
-                    🎮 Practice Game
-                  </button>
+                <button 
+                  onClick={() => handleGameStart(game.id)}
+                  className="w-full font-bold py-3 px-4 rounded-xl transition-all shadow-lg transform bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                >
+                  🎮 Practice Game
+                </button>
                 ) : globalLocation.status === 'restricted' ? (
                   <div className="w-full py-3 px-4 rounded-xl bg-red-700 border border-red-600 text-center">
                     <div className="text-red-300 text-sm mb-2">
