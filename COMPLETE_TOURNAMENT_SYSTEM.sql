@@ -308,8 +308,8 @@ CREATE OR REPLACE FUNCTION create_hot_sell_listing(
   p_game_type TEXT,
   p_entry_fee INTEGER,
   p_prize_pool DECIMAL(10,2),
-  p_max_participants INTEGER DEFAULT 100,
-  p_created_by TEXT
+  p_created_by TEXT,
+  p_max_participants INTEGER DEFAULT 100
 )
 RETURNS JSONB
 LANGUAGE plpgsql

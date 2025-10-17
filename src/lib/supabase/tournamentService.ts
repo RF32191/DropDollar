@@ -161,8 +161,8 @@ export class TournamentService {
     gameType: string,
     entryFee: number,
     prizePool: number,
-    maxParticipants: number = 100,
-    createdBy: string
+    createdBy: string,
+    maxParticipants: number = 100
   ): Promise<HotSellListing | null> {
     try {
       console.log('🔥 [TournamentService] Creating hot sell listing:', { title, prizePool });
@@ -173,8 +173,8 @@ export class TournamentService {
         p_game_type: gameType,
         p_entry_fee: entryFee,
         p_prize_pool: prizePool,
-        p_max_participants: maxParticipants,
-        p_created_by: createdBy
+        p_created_by: createdBy,
+        p_max_participants: maxParticipants
       });
 
       if (error) {
