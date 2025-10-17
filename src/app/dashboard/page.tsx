@@ -8,6 +8,7 @@ import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameS
 import { UserService } from '@/lib/supabase/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -310,6 +311,28 @@ export default function TriumphStyleDashboard() {
       console.log('✅ [Dashboard] High scores loaded:', Object.keys(highScores).length, 'games');
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadHighScores:', error);
+    }
+  };
+
+  const loadUserStats = async (userId: string) => {
+    try {
+      console.log('📊 [Dashboard] Loading user stats...');
+      
+      const userStats = await SimpleGameService.getUserGameStats(userId);
+      setUserStats(userStats);
+      console.log('✅ [Dashboard] User stats loaded:', userStats);
+      return userStats;
+    } catch (error) {
+      console.error('❌ [Dashboard] Error in loadUserStats:', error);
+      return {
+        totalGames: 0,
+        practiceGames: 0,
+        competitionGames: 0,
+        totalTokensWagered: 0,
+        totalTokensWon: 0,
+        totalPrizeMoney: 0,
+        averageScore: 0
+      };
     }
   };
 
