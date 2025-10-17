@@ -801,16 +801,18 @@ export default function HotSellPage() {
                               <div className="flex items-center justify-center">
                                 {isHotSell ? (
                                   <>
+                                    <LockClosedIcon className="w-4 h-4 mr-2" />
                                     <BoltIcon className="w-4 h-4 mr-2" />
                                     JOIN HOT SELL - {config.entry_fee} TOKENS
                                   </>
                                 ) : (
                                   <>
+                                    <LockClosedIcon className="w-4 h-4 mr-2" />
                                     <PlayIcon className="w-4 h-4 mr-2" />
                                     JOIN SESSION - {config.entry_fee} TOKENS
                                   </>
                                 )}
-                </div>
+                              </div>
                             )}
                     </button>
                         ) : (

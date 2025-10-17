@@ -7,6 +7,8 @@ import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
+import QuickClickGame from '@/components/games/QuickClickGame';
+import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import { 
   TrophyIcon, 
   ClockIcon, 
@@ -120,6 +122,10 @@ export default function CompetitionGameFlow({
         return <MultiTargetGame {...gameProps} />;
       case 'sword_parry':
         return <SwordParryGameSimple {...gameProps} />;
+      case 'number_tap':
+        return <QuickClickGame {...gameProps} />;
+      case 'memory_color':
+        return <ColorSequenceGame {...gameProps} />;
       default:
         return <div className="text-white text-center">Unknown game type: {gameType}</div>;
     }
@@ -130,6 +136,8 @@ export default function CompetitionGameFlow({
       case 'laser_dodge': return '🚀 Laser Dodge';
       case 'multi_target_reaction': return '🎯 Multi-Target Reaction';
       case 'sword_parry': return '⚔️ Sword Parry';
+      case 'number_tap': return '⚡ Quick Click';
+      case 'memory_color': return '🧠 Memory Color';
       default: return '🎮 Game';
     }
   };
