@@ -8,6 +8,7 @@ import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameS
 import { UserService } from '@/lib/supabase/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+// Dashboard with comprehensive icon imports
 import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
