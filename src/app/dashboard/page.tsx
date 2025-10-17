@@ -22,7 +22,8 @@ import {
   FireIcon,
   ChartBarIcon,
   ClockIcon,
-  UserIcon
+  UserIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
@@ -83,6 +84,7 @@ export default function TriumphStyleDashboard() {
     averageScore: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats'>('recent');
 
   useEffect(() => {
@@ -126,57 +128,41 @@ export default function TriumphStyleDashboard() {
       setUserProfile(user);
       console.log('✅ [Dashboard] Profile loaded from useAuth:', user.username);
 
-      // Set timeout to prevent infinite loading (10 seconds max)
+      // Set timeout to prevent infinite loading (3 seconds max for faster loading)
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Dashboard loading timeout')), 10000);
+        setTimeout(() => reject(new Error('Dashboard loading timeout')), 3000);
       });
 
-      // Load actual token balance from database with retry logic
-      let profile = null;
-      let retryCount = 0;
-      const maxRetries = 2; // Reduced retries for faster loading
-      
-      const loadProfileWithTimeout = Promise.race([
-        (async () => {
-          while (!profile && retryCount < maxRetries) {
-            try {
-              profile = await UserService.getUserProfile(user.id);
-              if (profile) {
-                setTokenBalance(profile.tokens || 0);
-                console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
-                break;
-              }
-            } catch (error) {
-              console.warn(`⚠️ [Dashboard] Token balance load attempt ${retryCount + 1} failed:`, error);
-              retryCount++;
-              if (retryCount < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 500)); // Reduced wait time
-              }
-            }
-          }
-          return profile;
-        })(),
-        timeoutPromise
-      ]);
-
-      try {
-        await loadProfileWithTimeout;
-      } catch (error) {
-        console.warn('⚠️ [Dashboard] Profile loading timed out or failed, using defaults');
-        setTokenBalance(0);
-      }
-
-      // Load game data with timeout protection
-      const loadGameDataWithTimeout = Promise.race([
+      // Load ALL data in parallel with single timeout
+      const loadAllDataWithTimeout = Promise.race([
         Promise.all([
+          // Load token balance (most important - load first)
+          UserService.getUserProfile(user.id).then(profile => {
+            if (profile) {
+              setTokenBalance(profile.tokens || 0);
+              console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
+              return profile;
+            }
+            return null;
+          }).catch(err => {
+            console.warn('⚠️ [Dashboard] Token balance load failed:', err);
+            setTokenBalance(0);
+            return null;
+          }),
+          
+          // Load game history
           loadGameHistory(user.id).catch(err => {
             console.error('❌ [Dashboard] Game history load failed:', err);
             return [];
           }),
+          
+          // Load high scores
           loadHighScores(user.id).catch(err => {
             console.error('❌ [Dashboard] High scores load failed:', err);
             return [];
           }),
+          
+          // Load user stats
           loadUserStats(user.id).catch(err => {
             console.error('❌ [Dashboard] User stats load failed:', err);
             return {
@@ -194,11 +180,12 @@ export default function TriumphStyleDashboard() {
       ]);
 
       try {
-        await loadGameDataWithTimeout;
+        await loadAllDataWithTimeout;
         console.log('✅ [Dashboard] All data loaded successfully');
       } catch (error) {
-        console.warn('⚠️ [Dashboard] Game data loading timed out, using defaults');
+        console.warn('⚠️ [Dashboard] Data loading timed out, using defaults');
         // Set default values to prevent UI crashes
+        setTokenBalance(0);
         setGameHistory([]);
         setHighScores([]);
         setUserStats({
@@ -215,6 +202,7 @@ export default function TriumphStyleDashboard() {
     } catch (error) {
       console.error('❌ [Dashboard] Error loading dashboard:', error);
       // Set default values to prevent UI crashes
+      setTokenBalance(0);
       setGameHistory([]);
       setHighScores([]);
       setUserStats({
@@ -257,15 +245,45 @@ export default function TriumphStyleDashboard() {
     }
   };
 
-  const loadUserStats = async (userId: string) => {
+  const refreshTokenBalance = async () => {
+    if (!user || isRefreshing) return;
+    
     try {
-      console.log('📊 [Dashboard] Loading user stats...');
+      setIsRefreshing(true);
+      console.log('🔄 [Dashboard] Refreshing token balance...');
       
-      const stats = await SimpleGameService.getUserGameStats(userId);
-      setUserStats(stats);
-      console.log('✅ [Dashboard] User stats loaded:', stats);
+      const profile = await UserService.getUserProfile(user.id);
+      if (profile) {
+        setTokenBalance(profile.tokens || 0);
+        console.log('✅ [Dashboard] Token balance refreshed:', profile.tokens);
+      }
     } catch (error) {
-      console.error('❌ [Dashboard] Error in loadUserStats:', error);
+      console.error('❌ [Dashboard] Error refreshing token balance:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const refreshAllData = async () => {
+    if (!user || isRefreshing) return;
+    
+    try {
+      setIsRefreshing(true);
+      console.log('🔄 [Dashboard] Refreshing all data...');
+      
+      // Refresh token balance and game data in parallel
+      await Promise.all([
+        refreshTokenBalance(),
+        loadGameHistory(user.id),
+        loadHighScores(user.id),
+        loadUserStats(user.id)
+      ]);
+      
+      console.log('✅ [Dashboard] All data refreshed successfully');
+    } catch (error) {
+      console.error('❌ [Dashboard] Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -359,15 +377,28 @@ export default function TriumphStyleDashboard() {
               </h1>
               <p className="text-gray-300 text-lg animate-slide-up delay-100">Your gaming dashboard and statistics</p>
             </div>
-            <div className="bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 rounded-2xl p-6 shadow-2xl border border-yellow-300/20 animate-scale-in">
-              <div className="flex items-center">
-                <div className="relative">
-                  <BanknotesIcon className="w-10 h-10 text-white mr-4 animate-pulse" />
-                  <div className="absolute inset-0 w-10 h-10 bg-yellow-300/20 rounded-full animate-ping"></div>
-                </div>
-                <div>
-                  <p className="text-yellow-100 text-sm font-medium">Token Balance</p>
-                  <p className="text-3xl font-bold text-white animate-count-up">{tokenBalance}</p>
+            <div className="flex items-center gap-4">
+              {/* Refresh Button */}
+              <button
+                onClick={refreshAllData}
+                disabled={isRefreshing}
+                className="bg-white/10 backdrop-blur-xl rounded-xl p-3 border border-white/20 hover:bg-white/20 transition-all duration-300 disabled:opacity-50"
+                title="Refresh all data"
+              >
+                <ArrowPathIcon className={`w-6 h-6 text-white ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+              
+              {/* Token Balance */}
+              <div className="bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 rounded-2xl p-6 shadow-2xl border border-yellow-300/20 animate-scale-in">
+                <div className="flex items-center">
+                  <div className="relative">
+                    <BanknotesIcon className="w-10 h-10 text-white mr-4 animate-pulse" />
+                    <div className="absolute inset-0 w-10 h-10 bg-yellow-300/20 rounded-full animate-ping"></div>
+                  </div>
+                  <div>
+                    <p className="text-yellow-100 text-sm font-medium">Token Balance</p>
+                    <p className="text-3xl font-bold text-white animate-count-up">{tokenBalance}</p>
+                  </div>
                 </div>
               </div>
             </div>

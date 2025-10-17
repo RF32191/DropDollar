@@ -118,7 +118,8 @@ export class SimpleGameService {
         .from('game_history')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit to 50 most recent games for faster loading
 
       if (error) {
         console.error('❌ [SimpleGameService] Error fetching game history:', error);
@@ -195,9 +196,10 @@ export class SimpleGameService {
     bestScore: number;
   }> {
     try {
+      // Use a more efficient query with aggregation
       const { data, error } = await supabase
         .from('game_history')
-        .select('*')
+        .select('is_practice, is_competition, score, tokens_wagered, tokens_won, prize_won')
         .eq('user_id', userId);
 
       if (error) {
@@ -254,9 +256,10 @@ export class SimpleGameService {
    */
   static async getUserHighScores(userId: string): Promise<{[gameType: string]: GameHistoryRecord}> {
     try {
+      // Use a more efficient query - only select needed fields
       const { data, error } = await supabase
         .from('game_history')
-        .select('*')
+        .select('game_type, score, accuracy, created_at, is_practice, is_competition')
         .eq('user_id', userId)
         .order('score', { ascending: false });
 
