@@ -7,6 +7,9 @@ import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { ScheduledGamesService } from '@/lib/supabase/scheduledGamesService';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import LaserDodgeGame from './LaserDodgeGame';
+import MultiTargetGame from './MultiTargetGame';
+import SwordParryGameSimple from './SwordParryGameSimple';
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -182,43 +185,58 @@ export default function HotSellGame({ listing, onGameComplete, onLocationVerifie
         );
 
       case 'playing':
-        return (
-          <div className="text-center py-12">
-            <div className="mb-8">
-              <div className="text-6xl font-bold text-white mb-2">{gameTime}</div>
-              <div className="text-gray-300">seconds remaining</div>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4 mb-8 max-w-md mx-auto">
-              <div className="bg-white/10 rounded-xl p-4">
-                <div className="text-2xl font-bold text-white">{score}</div>
-                <div className="text-gray-300 text-sm">Score</div>
+        // Render the actual game based on gameType
+        switch (gameType) {
+          case 'laser_dodge':
+            return (
+              <LaserDodgeGame
+                onGameEnd={(finalScore, accuracy, avgReactionTime, gameDuration) => {
+                  setScore(finalScore);
+                  setAccuracy(accuracy);
+                  setGameState('completed');
+                  onGameComplete(finalScore, accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          case 'multi_target_reaction':
+            return (
+              <MultiTargetGame
+                onGameEnd={(finalScore, accuracy, avgReactionTime, gameDuration) => {
+                  setScore(finalScore);
+                  setAccuracy(accuracy);
+                  setGameState('completed');
+                  onGameComplete(finalScore, accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          case 'sword_parry':
+            return (
+              <SwordParryGameSimple
+                onGameEnd={(finalScore, accuracy, avgReactionTime, gameDuration) => {
+                  setScore(finalScore);
+                  setAccuracy(accuracy);
+                  setGameState('completed');
+                  onGameComplete(finalScore, accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          default:
+            return (
+              <div className="text-center py-12">
+                <div className="text-red-500 text-xl mb-4">❌ Unknown Game Type</div>
+                <div className="text-gray-300">Game type: {gameType}</div>
               </div>
-              <div className="bg-white/10 rounded-xl p-4">
-                <div className="text-2xl font-bold text-white">{clicks}</div>
-                <div className="text-gray-300 text-sm">Clicks</div>
-              </div>
-              <div className="bg-white/10 rounded-xl p-4">
-                <div className="text-2xl font-bold text-white">{Math.round(((clicks - misses) / Math.max(clicks, 1)) * 100)}%</div>
-                <div className="text-gray-300 text-sm">Accuracy</div>
-              </div>
-            </div>
-
-            {/* Simple click game for demo */}
-            <div className="relative w-64 h-64 mx-auto bg-white/5 rounded-full border-4 border-white/20">
-              <button
-                onClick={() => handleClick(true)}
-                className="absolute inset-0 w-full h-full bg-gradient-to-r from-green-500 to-blue-500 rounded-full hover:from-green-400 hover:to-blue-400 transition-all duration-200 transform hover:scale-105"
-              >
-                <div className="flex items-center justify-center h-full">
-                  <span className="text-white font-bold text-xl">CLICK ME!</span>
-                </div>
-              </button>
-            </div>
-            
-            <p className="text-gray-400 text-sm mt-4">Click the circle as fast as you can!</p>
-          </div>
-        );
+            );
+        }
 
       case 'completed':
         return (

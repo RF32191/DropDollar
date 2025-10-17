@@ -667,6 +667,30 @@ export default function HotSellPage() {
               </div>
                   </div>
 
+                  {/* Progress Bar for Hot Sell Games */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm text-gray-300 mb-2">
+                      <span>Participants Progress</span>
+                      <span>{session?.participants_count || 0} / {config.max_participants} players</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all duration-300 ${
+                          isHotSell 
+                            ? 'bg-gradient-to-r from-red-500 to-orange-500' 
+                            : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                        }`} 
+                        style={{ 
+                          width: `${Math.min(100, ((session?.participants_count || 0) / config.max_participants) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Target: {config.max_participants} players</span>
+                      <span>Remaining: {Math.max(0, config.max_participants - (session?.participants_count || 0))} players</span>
+                    </div>
+                  </div>
+
                   {/* Game Info */}
                   <div className="mb-6 space-y-2">
                     <div className="flex items-center justify-between">
@@ -960,6 +984,26 @@ export default function HotSellPage() {
                       <span className="text-gray-300">Participants</span>
             </div>
                     <span className="text-white font-semibold">{listingParticipants.length}/{listing.max_participants}</span>
+                  </div>
+                  
+                  {/* Progress Bar for Original Hot Sell Listings */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm text-gray-300 mb-2">
+                      <span>Participants Progress</span>
+                      <span>{listingParticipants.length} / {listing.max_participants} players</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-yellow-500 to-orange-500" 
+                        style={{ 
+                          width: `${Math.min(100, (listingParticipants.length / listing.max_participants) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Target: {listing.max_participants} players</span>
+                      <span>Remaining: {Math.max(0, listing.max_participants - listingParticipants.length)} players</span>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
