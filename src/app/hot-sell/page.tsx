@@ -6,9 +6,10 @@ import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/sup
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
-import { isMobile } from '@/lib/utils/mobileOptimization';
+import { useMobileDetection } from '@/lib/utils/mobileOptimization';
 import MobileOptimizedHotSell from './mobile-optimized';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -25,14 +26,30 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function HotSellPage() {
-  // Mobile detection and redirect with error handling
-  try {
-    if (typeof window !== 'undefined' && isMobile()) {
-      return <MobileOptimizedHotSell />;
-    }
-  } catch (error) {
-    console.error('Mobile detection failed in hot-sell:', error);
-    // Continue with desktop hot-sell on error
+  const { isMobile, isLoading: mobileDetecting } = useMobileDetection();
+
+  // Show loading state while detecting mobile
+  if (mobileDetecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
+        <CleanNavigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white">Loading tournaments...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile detection and redirect with error boundary
+  if (isMobile) {
+    return (
+      <ErrorBoundary>
+        <MobileOptimizedHotSell />
+      </ErrorBoundary>
+    );
   }
 
   const { user, isAuthenticated } = useAuth();
@@ -728,7 +745,7 @@ export default function HotSellPage() {
                   </div>
 
                   {/* Progress Bar for Hot Sell Games */}
-                  <div className="mb-4">
+                <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
                       <span>Participants Progress</span>
                       <span>{session?.participants_count || 0} / {config.max_participants} players</span>
@@ -894,8 +911,8 @@ export default function HotSellPage() {
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
                         <p className="text-2xl font-bold text-white">{formatPrizeAmount(0)}</p>
                         <p className="text-purple-200 text-xs mt-1">0 players joined</p>
-                      </div>
-                    </div>
+              </div>
+            </div>
 
                     {/* Progress Bar */}
                     <div className="mb-4">
@@ -1048,10 +1065,10 @@ export default function HotSellPage() {
                       <span className="text-gray-300">Participants</span>
             </div>
                     <span className="text-white font-semibold">{listingParticipants.length}/{listing.max_participants}</span>
-                  </div>
+              </div>
                   
                   {/* Progress Bar for Original Hot Sell Listings */}
-                  <div className="mb-4">
+                <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
                       <span>Participants Progress</span>
                       <span>{listingParticipants.length} / {listing.max_participants} players</span>
