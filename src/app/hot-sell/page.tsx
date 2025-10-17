@@ -30,6 +30,7 @@ export default function HotSellPage() {
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
   const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
   const [userParticipations, setUserParticipations] = useState<string[]>([]);
+  const [userTokens, setUserTokens] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [joiningListing, setJoiningListing] = useState<string | null>(null);
   const [joiningSession, setJoiningSession] = useState<string | null>(null);
