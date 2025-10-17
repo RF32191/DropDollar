@@ -198,76 +198,53 @@ export default function TriumphStyleDashboard() {
       setUserProfile(user);
       console.log('✅ [Dashboard] Profile loaded from useAuth:', user.username);
 
-      // Set timeout to prevent infinite loading (3 seconds max for faster loading)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Dashboard loading timeout')), 3000);
-      });
+      // Load token balance first (most important)
+      try {
+        const profile = await UserService.getUserProfile(user.id);
+        if (profile) {
+          setTokenBalance(profile.tokens || 0);
+          console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
+        } else {
+          console.warn('⚠️ [Dashboard] Profile not found, using localStorage data');
+          setTokenBalance(user.tokens || 0);
+        }
+      } catch (err) {
+        console.warn('⚠️ [Dashboard] Token balance load failed, using localStorage data:', err);
+        setTokenBalance(user.tokens || 0);
+      }
 
-      // Load ALL data in parallel with single timeout
-      const loadAllDataWithTimeout = Promise.race([
-        Promise.all([
-          // Load token balance (most important - load first)
-          UserService.getUserProfile(user.id).then(profile => {
-            if (profile) {
-              setTokenBalance(profile.tokens || 0);
-              console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
-              return profile;
-            }
-            return null;
-          }).catch(err => {
-            console.warn('⚠️ [Dashboard] Token balance load failed:', err);
-            setTokenBalance(0);
-            return null;
-          }),
-          
-          // Load game history
-          loadGameHistory(user.id).catch(err => {
-            console.error('❌ [Dashboard] Game history load failed:', err);
-            return [];
-          }),
-          
-          // Load high scores
-          loadHighScores(user.id).catch(err => {
-            console.error('❌ [Dashboard] High scores load failed:', err);
-            return [];
-          }),
-          
-          // Load user stats
-          loadUserStats(user.id).catch(err => {
-            console.error('❌ [Dashboard] User stats load failed:', err);
-            return {
-              totalGames: 0,
-              practiceGames: 0,
-              competitionGames: 0,
-              totalTokensWagered: 0,
-              totalTokensWon: 0,
-              totalPrizeMoney: 0,
-              averageScore: 0
-            };
-          })
-        ]),
-        timeoutPromise
+      // Load game data in parallel
+      const [gameHistory, highScores, userStats] = await Promise.all([
+        loadGameHistory(user.id).catch(err => {
+          console.error('❌ [Dashboard] Game history load failed:', err);
+          return [];
+        }),
+        loadHighScores(user.id).catch(err => {
+          console.error('❌ [Dashboard] High scores load failed:', err);
+          return [];
+        }),
+        loadUserStats(user.id).catch(err => {
+          console.error('❌ [Dashboard] User stats load failed:', err);
+          return {
+            totalGames: 0,
+            practiceGames: 0,
+            competitionGames: 0,
+            totalTokensWagered: 0,
+            totalTokensWon: 0,
+            totalPrizeMoney: 0,
+            averageScore: 0
+          };
+        })
       ]);
 
-      try {
-        await loadAllDataWithTimeout;
-        console.log('✅ [Dashboard] All data loaded successfully');
-      } catch (error) {
-        console.warn('⚠️ [Dashboard] Data loading timed out, using defaults');
-        // Set default values to prevent UI crashes
-        setTokenBalance(0);
-        setGameHistory([]);
-        setHighScores([]);
-        setUserStats({
-          totalGames: 0,
-          practiceGames: 0,
-          competitionGames: 0,
-          totalTokensWagered: 0,
-          totalTokensWon: 0,
-          totalPrizeMoney: 0,
-          averageScore: 0
-        });
-      }
+      setGameHistory(gameHistory);
+      setHighScores(highScores);
+      setUserStats(userStats);
+
+      console.log('✅ [Dashboard] All data loaded successfully');
+      console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
+      console.log('✅ [Dashboard] High scores loaded:', highScores.length, 'games');
+      console.log('✅ [Dashboard] User stats loaded:', userStats);
 
     } catch (error) {
       console.error('❌ [Dashboard] Error loading dashboard:', error);
