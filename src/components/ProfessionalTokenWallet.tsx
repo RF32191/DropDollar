@@ -711,11 +711,22 @@ export default function ProfessionalTokenWallet() {
         {activeTab === 'purchase' && (
           <>
             {paymentResult && (
-              <div className={`mb-8 p-6 rounded-xl text-center ${
+              <div className={`mb-8 p-6 rounded-xl text-center relative ${
                 paymentResult.success
                   ? 'bg-green-900 border-2 border-green-500'
                   : 'bg-red-900 border-2 border-red-500'
               }`}>
+                {/* Close button */}
+                <button
+                  onClick={() => setPaymentResult(null)}
+                  className="absolute top-2 right-2 text-white/60 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-1"
+                  aria-label="Close message"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                
                 <div className="flex items-center justify-center space-x-3">
                   {paymentResult.success ? (
                     <CheckCircleIcon className="h-8 w-8 text-green-400" />

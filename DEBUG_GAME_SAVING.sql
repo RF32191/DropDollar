@@ -1,61 +1,45 @@
--- QUICK DEBUG TEST FOR GAME SAVING
--- Run this in your Supabase SQL Editor to test if the game_history table exists and works
+-- DEBUG: Test if games are saving properly
+-- Run this after playing a game to see if it was saved
 
--- 1. Check if game_history table exists
+-- 1. Check recent game_history entries
 SELECT 
-    table_name, 
-    column_name, 
-    data_type, 
-    is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-AND table_name = 'game_history'
-ORDER BY ordinal_position;
-
--- 2. Check if save_game_history function exists
-SELECT 
-    routine_name, 
-    routine_type,
-    data_type
-FROM information_schema.routines 
-WHERE routine_schema = 'public' 
-AND routine_name = 'save_game_history';
-
--- 3. Test direct insert (replace with your actual user ID)
--- Get your user ID first:
-SELECT id, email FROM auth.users LIMIT 1;
-
--- Then test insert (replace 'YOUR_USER_ID_HERE' with actual user ID):
-/*
-INSERT INTO public.game_history (
-    user_id, 
-    game_type, 
-    score, 
-    accuracy, 
-    avg_reaction_time,
-    game_duration,
+    user_id,
+    game_type,
+    score,
+    accuracy,
     is_practice,
     created_at
-) VALUES (
-    'YOUR_USER_ID_HERE',
-    'test-game',
-    1000,
-    95.5,
-    250,
-    60,
-    true,
-    NOW()
-) RETURNING *;
-*/
+FROM public.game_history 
+ORDER BY created_at DESC 
+LIMIT 10;
 
--- 4. Test RPC function (replace 'YOUR_USER_ID_HERE' with actual user ID):
+-- 2. Check if specific games are being saved
+SELECT 
+    game_type,
+    COUNT(*) as count,
+    AVG(score) as avg_score,
+    MAX(score) as max_score
+FROM public.game_history 
+GROUP BY game_type
+ORDER BY count DESC;
+
+-- 3. Check if practice vs competition games are being saved
+SELECT 
+    is_practice,
+    COUNT(*) as count,
+    AVG(score) as avg_score
+FROM public.game_history 
+GROUP BY is_practice;
+
+-- 4. Check if the save_game_history function works
+-- Replace 'YOUR_USER_ID_HERE' with your actual user ID
 /*
 SELECT save_game_history(
     'YOUR_USER_ID_HERE',
-    'test-game',
-    1000,
-    95.5,
-    250,
+    'debug-test',
+    999.99,
+    100.0,
+    200,
     60,
     true,
     NULL,
@@ -64,27 +48,6 @@ SELECT save_game_history(
     0,
     0,
     0,
-    NULL
+    '{"debug": true}'::jsonb
 );
 */
-
--- 5. Check RLS policies
-SELECT 
-    schemaname,
-    tablename,
-    policyname,
-    permissive,
-    roles,
-    cmd,
-    qual
-FROM pg_policies 
-WHERE tablename = 'game_history';
-
--- 6. Check table permissions
-SELECT 
-    grantee,
-    privilege_type,
-    is_grantable
-FROM information_schema.table_privileges 
-WHERE table_schema = 'public' 
-AND table_name = 'game_history';

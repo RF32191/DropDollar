@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import MultiTargetGame from './MultiTargetGame';
 import FallingObjectGame from './FallingObjectGame';
 import ColorSequenceGame from './ColorSequenceGame';
-import GameCompetitionService from '@/lib/gameCompetitionService';
+import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface GameResult {
@@ -38,17 +38,36 @@ export default function CompetitionGameWrapper({
   // Use authenticated user's ID
   const userId = user?.id || 'guest-user';
 
-  const handleGameEnd = (result: GameResult) => {
+  const handleGameEnd = async (result: GameResult) => {
     console.log(`🎮 Entry ${currentEntry} completed with score: ${result.score}`);
     
-    // Submit the game entry
-    GameCompetitionService.submitGameEntry(
-      userId,
-      listingId,
-      currentEntry,
-      gameType,
-      result.score
-    );
+    try {
+      // Save game history using SimpleGameService (same as practice games)
+      await SimpleGameService.saveGameHistory({
+        user_id: userId,
+        game_type: gameType,
+        score: result.score,
+        accuracy: result.accuracy,
+        avg_reaction_time: result.avgReactionTime || 0,
+        game_duration: 60,
+        is_practice: false, // This is a competition game
+        listing_id: listingId,
+        entry_number: currentEntry,
+        placement: null, // Will be determined later
+        prize_won: 0, // Will be calculated later
+        tokens_wagered: 1, // Assuming 1 token per entry
+        tokens_won: 0, // Will be calculated later
+        metadata: {
+          competition_mode: true,
+          entry_number: currentEntry,
+          max_entries: maxEntries
+        }
+      });
+      
+      console.log('✅ [CompetitionGameWrapper] Game history saved successfully');
+    } catch (error) {
+      console.error('❌ [CompetitionGameWrapper] Error saving game history:', error);
+    }
 
     const newResults = [...gameResults, result];
     setGameResults(newResults);

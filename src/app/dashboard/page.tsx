@@ -126,23 +126,75 @@ export default function TriumphStyleDashboard() {
       setUserProfile(user);
       console.log('✅ [Dashboard] Profile loaded from useAuth:', user.username);
 
-      // Load actual token balance from database
-      const profile = await UserService.getUserProfile(user.id);
-      if (profile) {
-        setTokenBalance(profile.tokens || 0);
-        console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
+      // Load actual token balance from database with retry logic
+      let profile = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!profile && retryCount < maxRetries) {
+        try {
+          profile = await UserService.getUserProfile(user.id);
+          if (profile) {
+            setTokenBalance(profile.tokens || 0);
+            console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
+            break;
+          }
+        } catch (error) {
+          console.warn(`⚠️ [Dashboard] Token balance load attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          }
+        }
       }
 
-      // Get comprehensive game data using direct queries (more reliable)
-      await Promise.all([
-        loadGameHistory(user.id),
-        loadHighScores(user.id),
-        loadUserStats(user.id)
-      ]);
+      if (!profile) {
+        console.error('❌ [Dashboard] Failed to load user profile after retries');
+        // Set a default token balance to prevent UI issues
+        setTokenBalance(0);
+      }
+
+      // Get comprehensive game data using direct queries with error handling
+      const loadPromises = [
+        loadGameHistory(user.id).catch(err => {
+          console.error('❌ [Dashboard] Game history load failed:', err);
+          return [];
+        }),
+        loadHighScores(user.id).catch(err => {
+          console.error('❌ [Dashboard] High scores load failed:', err);
+          return [];
+        }),
+        loadUserStats(user.id).catch(err => {
+          console.error('❌ [Dashboard] User stats load failed:', err);
+          return {
+            totalGames: 0,
+            practiceGames: 0,
+            competitionGames: 0,
+            totalTokensWagered: 0,
+            totalTokensWon: 0,
+            totalPrizeMoney: 0,
+            averageScore: 0
+          };
+        })
+      ];
+
+      await Promise.all(loadPromises);
 
       console.log('✅ [Dashboard] All data loaded successfully');
     } catch (error) {
       console.error('❌ [Dashboard] Error loading dashboard:', error);
+      // Set default values to prevent UI crashes
+      setGameHistory([]);
+      setHighScores([]);
+      setUserStats({
+        totalGames: 0,
+        practiceGames: 0,
+        competitionGames: 0,
+        totalTokensWagered: 0,
+        totalTokensWon: 0,
+        totalPrizeMoney: 0,
+        averageScore: 0
+      });
     } finally {
       setIsLoading(false);
     }
@@ -254,69 +306,91 @@ export default function TriumphStyleDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+      </div>
+      
       <CleanNavigation />
       
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Header with Enhanced Token Balance */}
+        <div className="mb-8 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
-                Welcome back, {userProfile?.username || 'Player'}!
+              <h1 className="text-4xl font-bold text-white mb-2 animate-slide-up">
+                Welcome back, <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{userProfile?.username || 'Player'}</span>!
               </h1>
-              <p className="text-gray-400">Your gaming dashboard and statistics</p>
+              <p className="text-gray-300 text-lg animate-slide-up delay-100">Your gaming dashboard and statistics</p>
             </div>
-            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl p-4 shadow-lg">
+            <div className="bg-gradient-to-r from-yellow-500 via-yellow-400 to-orange-500 rounded-2xl p-6 shadow-2xl border border-yellow-300/20 animate-scale-in">
               <div className="flex items-center">
-                <BanknotesIcon className="w-8 h-8 text-white mr-3" />
+                <div className="relative">
+                  <BanknotesIcon className="w-10 h-10 text-white mr-4 animate-pulse" />
+                  <div className="absolute inset-0 w-10 h-10 bg-yellow-300/20 rounded-full animate-ping"></div>
+                </div>
                 <div>
-                  <p className="text-yellow-100 text-sm">Token Balance</p>
-                  <p className="text-2xl font-bold text-white">{tokenBalance}</p>
+                  <p className="text-yellow-100 text-sm font-medium">Token Balance</p>
+                  <p className="text-3xl font-bold text-white animate-count-up">{tokenBalance}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Stats Overview */}
+        {/* Stats Overview - Enhanced with Animations */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-100">
             <div className="flex items-center">
-              <TrophyIcon className="w-8 h-8 text-yellow-400 mr-3" />
+              <div className="relative">
+                <TrophyIcon className="w-8 h-8 text-yellow-400 mr-3 animate-pulse" />
+                <div className="absolute inset-0 w-8 h-8 bg-yellow-400/20 rounded-full animate-ping"></div>
+              </div>
               <div>
-                <p className="text-purple-200 text-sm">Total Games</p>
-                <p className="text-2xl font-bold text-white">{userStats.totalGames}</p>
+                <p className="text-purple-200 text-sm font-medium">Total Games</p>
+                <p className="text-2xl font-bold text-white animate-count-up">{userStats.totalGames}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-200">
             <div className="flex items-center">
-              <StarIcon className="w-8 h-8 text-blue-400 mr-3" />
+              <div className="relative">
+                <StarIcon className="w-8 h-8 text-blue-400 mr-3 animate-pulse" />
+                <div className="absolute inset-0 w-8 h-8 bg-blue-400/20 rounded-full animate-ping"></div>
+              </div>
               <div>
-                <p className="text-purple-200 text-sm">Practice Games</p>
-                <p className="text-2xl font-bold text-white">{userStats.practiceGames}</p>
+                <p className="text-purple-200 text-sm font-medium">Practice Games</p>
+                <p className="text-2xl font-bold text-white animate-count-up">{userStats.practiceGames}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-300">
             <div className="flex items-center">
-              <FireIcon className="w-8 h-8 text-red-400 mr-3" />
+              <div className="relative">
+                <FireIcon className="w-8 h-8 text-red-400 mr-3 animate-pulse" />
+                <div className="absolute inset-0 w-8 h-8 bg-red-400/20 rounded-full animate-ping"></div>
+              </div>
               <div>
-                <p className="text-purple-200 text-sm">Competitions</p>
-                <p className="text-2xl font-bold text-white">{userStats.competitionGames}</p>
+                <p className="text-purple-200 text-sm font-medium">Competitions</p>
+                <p className="text-2xl font-bold text-white animate-count-up">{userStats.competitionGames}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-400">
             <div className="flex items-center">
-              <ChartBarIcon className="w-8 h-8 text-green-400 mr-3" />
+              <div className="relative">
+                <ChartBarIcon className="w-8 h-8 text-green-400 mr-3 animate-pulse" />
+                <div className="absolute inset-0 w-8 h-8 bg-green-400/20 rounded-full animate-ping"></div>
+              </div>
               <div>
-                <p className="text-purple-200 text-sm">Average Score</p>
-                <p className="text-2xl font-bold text-white">{Math.round(userStats.averageScore)}</p>
+                <p className="text-purple-200 text-sm font-medium">Average Score</p>
+                <p className="text-2xl font-bold text-white animate-count-up">{Math.round(userStats.averageScore)}</p>
               </div>
             </div>
           </div>

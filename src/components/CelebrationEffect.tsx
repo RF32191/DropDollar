@@ -140,8 +140,25 @@ export default function CelebrationEffect({
       
       {/* Success Message */}
       {showMessage && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white px-12 py-8 rounded-3xl shadow-2xl border-4 border-yellow-400 animate-bounce-slow">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white px-12 py-8 rounded-3xl shadow-2xl border-4 border-yellow-400 animate-bounce-slow relative">
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setShowMessage(false);
+                setConfettiPieces([]);
+                if (onComplete) {
+                  onComplete();
+                }
+              }}
+              className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors bg-white/20 hover:bg-white/30 rounded-full p-2"
+              aria-label="Close celebration"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
             <div className="text-center">
               <div className="text-6xl mb-4 animate-pulse">🎉</div>
               <h2 className="text-4xl font-extrabold mb-2 text-shadow-lg">
@@ -156,6 +173,11 @@ export default function CelebrationEffect({
                 <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>🎯</span>
                 <span className="animate-bounce" style={{ animationDelay: '0.3s' }}>⭐</span>
                 <span className="animate-bounce" style={{ animationDelay: '0.4s' }}>🎊</span>
+              </div>
+              
+              {/* Click to dismiss hint */}
+              <div className="mt-4 text-sm text-yellow-200 opacity-75">
+                Click the ✕ to dismiss
               </div>
             </div>
           </div>
