@@ -106,7 +106,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const newBullet: Bullet = {
       id: now + Math.random(),
       x: ship.x,
-      y: ship.y,
+      y: ship.y - 2, // Start slightly above the ship
       createdAt: now
     };
     
@@ -260,11 +260,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       let enemySpawnRate;
       if (isCrazyMode) {
-        enemySpawnRate = Math.max(1000, 3000 - (level * 200)); // 1-3 seconds in crazy mode
+        enemySpawnRate = Math.max(800, 2000 - (level * 150)); // 0.8-2 seconds in crazy mode
       } else if (isExtremeMode) {
-        enemySpawnRate = Math.max(2000, 5000 - (level * 300)); // 2-5 seconds in extreme mode
+        enemySpawnRate = Math.max(1200, 3000 - (level * 200)); // 1.2-3 seconds in extreme mode
       } else {
-        enemySpawnRate = Math.max(3000, 8000 - (level * 500)); // 3-8 seconds in normal mode
+        enemySpawnRate = Math.max(2000, 5000 - (level * 300)); // 2-5 seconds in normal mode
       }
       
       if (now - lastEnemySpawnRef.current > enemySpawnRate) {
@@ -501,6 +501,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setShip({ x: boundedX, y: boundedY });
   };
 
+  // Handle mouse click for shooting
+  const handleMouseClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing') return;
+    event.preventDefault();
+    shoot();
+  };
+
   // Handle touch movement
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -522,6 +529,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
+    if (gameState !== 'playing') return;
+    
+    // Handle shooting on touch
+    shoot();
+    
+    // Also handle movement
     handleTouchMove(event);
   };
 
@@ -640,7 +653,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-semibold">Shoot:</span> Spacebar/X key or shoot button</p>
+                  <p><span className="text-yellow-300 font-semibold">Shoot:</span> Click anywhere or Spacebar/X key</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +10 points!</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-orange-300 font-semibold">Enemies Start:</span> They spawn immediately!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
@@ -661,10 +682,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
                   <p><span className="text-purple-300 font-semibold">Vertical:</span> Avoid being on same column</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +10 points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
@@ -785,9 +802,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden"
               style={{ 
                 touchAction: 'none',
-                cursor: 'url("/SHIP.png") 16 16, crosshair' // Custom ship cursor with crosshair fallback
+                cursor: 'crosshair'
               }}
               onMouseMove={handleMouseMove}
+              onClick={handleMouseClick}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
             >
@@ -899,21 +917,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
             <div className="text-xs sm:text-sm text-gray-600 text-center">
               <div className="hidden sm:block">
-                <strong>Desktop:</strong> Move mouse to control ship | <strong>Shoot:</strong> Spacebar or X key
+                <strong>Desktop:</strong> Move mouse to control ship | <strong>Shoot:</strong> Click anywhere or Spacebar/X key
               </div>
               <div className="block sm:hidden">
-                <strong>Mobile:</strong> Touch and drag to move ship
+                <strong>Mobile:</strong> Touch and drag to move ship | <strong>Shoot:</strong> Tap anywhere
               </div>
-            </div>
-
-            {/* Mobile Shoot Button */}
-            <div className="block sm:hidden mt-4">
-              <button
-                onClick={shoot}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 transform"
-              >
-                🔫 SHOOT
-              </button>
             </div>
           </div>
         )}
@@ -922,7 +930,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           <div>🔥 <strong>EXTREME MODE:</strong> Full-screen horizontal and vertical laser beams!</div>
           <div>🔵 Blue lasers are safe but turn red when deadly</div>
           <div>🚀 Find safe spots between the laser grids to survive</div>
-          <div>🔫 Shoot enemy ships for +10 points each!</div>
+          <div>🔫 <strong>SHOOTING:</strong> Click/tap anywhere to shoot bullets from your ship!</div>
+          <div>🎯 <strong>ENEMY SHIPS:</strong> Shoot red ships for +10 points each!</div>
+          <div>⚡ <strong>ENEMIES START:</strong> They spawn immediately when game begins!</div>
           <div>⚠️ Avoid collision with enemy ships!</div>
         </div>
       </div>
