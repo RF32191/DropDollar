@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from 'react';
 
-// Safe mobile detection hook
+// Safe mobile detection hook - TEMPORARILY DISABLED FOR DEBUGGING
 export const useMobileDetection = () => {
   const [isMobile, setIsMobile] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Set to false to skip loading
 
   useEffect(() => {
+    // TEMPORARILY DISABLE MOBILE DETECTION - FORCE DESKTOP MODE
+    console.log('🔧 Mobile detection temporarily disabled - forcing desktop mode');
+    setIsMobile(false);
+    setIsLoading(false);
+    
+    // Original mobile detection code (commented out for debugging)
+    /*
     try {
       if (typeof window === 'undefined') {
         setIsMobile(false);
@@ -42,13 +49,19 @@ export const useMobileDetection = () => {
     } finally {
       setIsLoading(false);
     }
+    */
   }, []);
 
   return { isMobile, isLoading };
 };
 
-// Legacy function for backward compatibility (with better error handling)
+// Legacy function for backward compatibility - TEMPORARILY DISABLED
 export const isMobile = () => {
+  // TEMPORARILY DISABLE MOBILE DETECTION - FORCE DESKTOP MODE
+  console.log('🔧 Legacy mobile detection disabled - forcing desktop mode');
+  return false;
+  
+  /*
   try {
     if (typeof window === 'undefined') return false;
     
@@ -77,6 +90,7 @@ export const isMobile = () => {
     console.error('Mobile detection failed:', error);
     return false; // Default to desktop on error
   }
+  */
 };
 
 // Mobile-optimized data loading helper
