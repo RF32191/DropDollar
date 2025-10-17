@@ -9,9 +9,14 @@ interface CleanNavigationProps {
 }
 
 export default function CleanNavigation({ variant = 'gradient', currentPage }: CleanNavigationProps) {
-  // Mobile detection and redirect
-  if (typeof window !== 'undefined' && isMobile()) {
-    return <MobileOptimizedNavigation variant={variant} currentPage={currentPage} />;
+  // Mobile detection and redirect with error handling
+  try {
+    if (typeof window !== 'undefined' && isMobile()) {
+      return <MobileOptimizedNavigation variant={variant} currentPage={currentPage} />;
+    }
+  } catch (error) {
+    console.error('Mobile detection failed in navigation:', error);
+    // Continue with desktop navigation on error
   }
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

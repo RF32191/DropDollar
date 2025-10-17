@@ -53,9 +53,14 @@ interface UserStats {
 }
 
 export default function TriumphStyleDashboard() {
-  // Mobile detection and redirect
-  if (typeof window !== 'undefined' && isMobile()) {
-    return <MobileOptimizedDashboard />;
+  // Mobile detection and redirect with error handling
+  try {
+    if (typeof window !== 'undefined' && isMobile()) {
+      return <MobileOptimizedDashboard />;
+    }
+  } catch (error) {
+    console.error('Mobile detection failed in dashboard:', error);
+    // Continue with desktop dashboard on error
   }
 
   const searchParams = useSearchParams();

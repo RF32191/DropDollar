@@ -25,9 +25,14 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function HotSellPage() {
-  // Mobile detection and redirect
-  if (typeof window !== 'undefined' && isMobile()) {
-    return <MobileOptimizedHotSell />;
+  // Mobile detection and redirect with error handling
+  try {
+    if (typeof window !== 'undefined' && isMobile()) {
+      return <MobileOptimizedHotSell />;
+    }
+  } catch (error) {
+    console.error('Mobile detection failed in hot-sell:', error);
+    // Continue with desktop hot-sell on error
   }
 
   const { user, isAuthenticated } = useAuth();

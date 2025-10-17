@@ -4,9 +4,14 @@ import { isMobile } from '@/lib/utils/mobileOptimization';
 import MobileOptimizedLoginPage from './mobile-optimized';
 
 export default function SimpleLoginPage() {
-  // Mobile detection and redirect
-  if (typeof window !== 'undefined' && isMobile()) {
-    return <MobileOptimizedLoginPage />;
+  // Mobile detection and redirect with error handling
+  try {
+    if (typeof window !== 'undefined' && isMobile()) {
+      return <MobileOptimizedLoginPage />;
+    }
+  } catch (error) {
+    console.error('Mobile detection failed in login:', error);
+    // Continue with desktop login on error
   }
 
   const [email, setEmail] = useState('');
