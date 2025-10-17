@@ -122,65 +122,96 @@ export default function TriumphStyleDashboard() {
       console.log('✅ [Dashboard] User authenticated via useAuth:', user.id);
       console.log('✅ [Dashboard] User email:', user.email);
 
-      // Set user profile from useAuth context
+      // Set user profile from useAuth context immediately
       setUserProfile(user);
       console.log('✅ [Dashboard] Profile loaded from useAuth:', user.username);
+
+      // Set timeout to prevent infinite loading (10 seconds max)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Dashboard loading timeout')), 10000);
+      });
 
       // Load actual token balance from database with retry logic
       let profile = null;
       let retryCount = 0;
-      const maxRetries = 3;
+      const maxRetries = 2; // Reduced retries for faster loading
       
-      while (!profile && retryCount < maxRetries) {
-        try {
-          profile = await UserService.getUserProfile(user.id);
-          if (profile) {
-            setTokenBalance(profile.tokens || 0);
-            console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
-            break;
+      const loadProfileWithTimeout = Promise.race([
+        (async () => {
+          while (!profile && retryCount < maxRetries) {
+            try {
+              profile = await UserService.getUserProfile(user.id);
+              if (profile) {
+                setTokenBalance(profile.tokens || 0);
+                console.log('💰 [Dashboard] Token balance loaded:', profile.tokens);
+                break;
+              }
+            } catch (error) {
+              console.warn(`⚠️ [Dashboard] Token balance load attempt ${retryCount + 1} failed:`, error);
+              retryCount++;
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500)); // Reduced wait time
+              }
+            }
           }
-        } catch (error) {
-          console.warn(`⚠️ [Dashboard] Token balance load attempt ${retryCount + 1} failed:`, error);
-          retryCount++;
-          if (retryCount < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-          }
-        }
-      }
+          return profile;
+        })(),
+        timeoutPromise
+      ]);
 
-      if (!profile) {
-        console.error('❌ [Dashboard] Failed to load user profile after retries');
-        // Set a default token balance to prevent UI issues
+      try {
+        await loadProfileWithTimeout;
+      } catch (error) {
+        console.warn('⚠️ [Dashboard] Profile loading timed out or failed, using defaults');
         setTokenBalance(0);
       }
 
-      // Get comprehensive game data using direct queries with error handling
-      const loadPromises = [
-        loadGameHistory(user.id).catch(err => {
-          console.error('❌ [Dashboard] Game history load failed:', err);
-          return [];
-        }),
-        loadHighScores(user.id).catch(err => {
-          console.error('❌ [Dashboard] High scores load failed:', err);
-          return [];
-        }),
-        loadUserStats(user.id).catch(err => {
-          console.error('❌ [Dashboard] User stats load failed:', err);
-          return {
-            totalGames: 0,
-            practiceGames: 0,
-            competitionGames: 0,
-            totalTokensWagered: 0,
-            totalTokensWon: 0,
-            totalPrizeMoney: 0,
-            averageScore: 0
-          };
-        })
-      ];
+      // Load game data with timeout protection
+      const loadGameDataWithTimeout = Promise.race([
+        Promise.all([
+          loadGameHistory(user.id).catch(err => {
+            console.error('❌ [Dashboard] Game history load failed:', err);
+            return [];
+          }),
+          loadHighScores(user.id).catch(err => {
+            console.error('❌ [Dashboard] High scores load failed:', err);
+            return [];
+          }),
+          loadUserStats(user.id).catch(err => {
+            console.error('❌ [Dashboard] User stats load failed:', err);
+            return {
+              totalGames: 0,
+              practiceGames: 0,
+              competitionGames: 0,
+              totalTokensWagered: 0,
+              totalTokensWon: 0,
+              totalPrizeMoney: 0,
+              averageScore: 0
+            };
+          })
+        ]),
+        timeoutPromise
+      ]);
 
-      await Promise.all(loadPromises);
+      try {
+        await loadGameDataWithTimeout;
+        console.log('✅ [Dashboard] All data loaded successfully');
+      } catch (error) {
+        console.warn('⚠️ [Dashboard] Game data loading timed out, using defaults');
+        // Set default values to prevent UI crashes
+        setGameHistory([]);
+        setHighScores([]);
+        setUserStats({
+          totalGames: 0,
+          practiceGames: 0,
+          competitionGames: 0,
+          totalTokensWagered: 0,
+          totalTokensWon: 0,
+          totalPrizeMoney: 0,
+          averageScore: 0
+        });
+      }
 
-      console.log('✅ [Dashboard] All data loaded successfully');
     } catch (error) {
       console.error('❌ [Dashboard] Error loading dashboard:', error);
       // Set default values to prevent UI crashes
@@ -196,7 +227,9 @@ export default function TriumphStyleDashboard() {
         averageScore: 0
       });
     } finally {
+      // Always set loading to false, even on errors
       setIsLoading(false);
+      console.log('✅ [Dashboard] Loading state cleared');
     }
   };
 
