@@ -178,7 +178,7 @@ BEGIN
             last_score, last_accuracy, games_played, practice_games, competition_games
         )
         VALUES (
-            game_record.user_id, game_record.game_type, game_record.best_score,
+            game_record.user_id::UUID, game_record.game_type, game_record.best_score,
             COALESCE(game_record.best_accuracy, 0), COALESCE(game_record.best_reaction_time, 999999),
             game_record.best_score, COALESCE(game_record.best_accuracy, 0),
             (SELECT COUNT(*) FROM public.game_history WHERE user_id = game_record.user_id AND game_type = game_record.game_type),
