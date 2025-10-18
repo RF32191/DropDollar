@@ -94,7 +94,7 @@ export class BlindScoreboardService {
 
       // Get the created listing
       const { data: listing, error: fetchError } = await supabase
-        .from('listing')
+        .from('listings')
         .select('*')
         .eq('id', result)
         .single();
@@ -232,7 +232,7 @@ export class BlindScoreboardService {
       console.log('🎯 [BlindScoreboard] Getting open listings');
       
       const { data, error } = await supabase
-        .from('listing')
+        .from('listings')
         .select('*')
         .eq('state', 'OPEN')
         .order('created_at', { ascending: false });
