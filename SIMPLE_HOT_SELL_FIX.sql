@@ -51,7 +51,7 @@ BEGIN
     ) VALUES (
       session_record.config_id,
       config_record.tournament_type,
-      'waiting',
+      'waiting', -- Use valid status value
       NOW(),
       NOW()
     ) RETURNING id INTO active_game_id;
