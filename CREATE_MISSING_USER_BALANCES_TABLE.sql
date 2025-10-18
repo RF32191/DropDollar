@@ -23,9 +23,9 @@ CREATE TABLE IF NOT EXISTS public.user_balances (
 -- ========================================
 -- CREATE INDEXES
 -- ========================================
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_balances_user_id ON public.user_balances (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_balances_tokens ON public.user_balances (drop_tokens DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_balances_cash ON public.user_balances (cash_balance_usd DESC);
+CREATE INDEX IF NOT EXISTS idx_user_balances_user_id ON public.user_balances (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_balances_tokens ON public.user_balances (drop_tokens DESC);
+CREATE INDEX IF NOT EXISTS idx_user_balances_cash ON public.user_balances (cash_balance_usd DESC);
 
 -- ========================================
 -- ENABLE RLS

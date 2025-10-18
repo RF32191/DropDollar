@@ -148,15 +148,15 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
 -- ========================================
 -- CREATE INDEXES FOR ALL TABLES
 -- ========================================
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_balances_user_id ON public.user_balances (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_levels_user_id ON public.user_levels (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payment_transactions_user_id ON public.payment_transactions (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_game_sessions_user_id ON public.game_sessions (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_escrow_transactions_user_id ON public.escrow_transactions (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_bank_accounts_user_id ON public.user_bank_accounts (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_seller_payouts_user_id ON public.seller_payouts (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_stripe_bank_accounts_user_id ON public.stripe_bank_accounts (user_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_withdrawal_requests_user_id ON public.withdrawal_requests (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_balances_user_id ON public.user_balances (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_levels_user_id ON public.user_levels (user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_user_id ON public.payment_transactions (user_id);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_user_id ON public.game_sessions (user_id);
+CREATE INDEX IF NOT EXISTS idx_escrow_transactions_user_id ON public.escrow_transactions (user_id);
+CREATE INDEX IF NOT EXISTS idx_user_bank_accounts_user_id ON public.user_bank_accounts (user_id);
+CREATE INDEX IF NOT EXISTS idx_seller_payouts_user_id ON public.seller_payouts (user_id);
+CREATE INDEX IF NOT EXISTS idx_stripe_bank_accounts_user_id ON public.stripe_bank_accounts (user_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_user_id ON public.withdrawal_requests (user_id);
 
 -- ========================================
 -- ENABLE RLS ON ALL TABLES
