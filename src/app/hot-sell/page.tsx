@@ -224,6 +224,16 @@ export default function HotSellPage() {
       return;
     }
 
+    // Create Winner Takes It All config
+    const winnerTakesAllConfig = {
+      ...config,
+      title: `Winner Takes All - ${config.title}`,
+      entry_fee: 1, // 1 token entry
+      prize_pool: 300, // $3 base prize pool (300 cents)
+      max_participants: 1000, // No practical limit
+      description: `1 token entry - Winner takes everything! Base pot: $3, grows with each player.`
+    };
+
     // Location verification for legal compliance
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -243,25 +253,15 @@ export default function HotSellPage() {
       return;
     }
 
-    if (userTokens < 1) {
-      setMessage({ type: 'error', text: `You need 1 token to join this tournament` });
+    if (userTokens < winnerTakesAllConfig.entry_fee) {
+      setMessage({ type: 'error', text: `You need ${winnerTakesAllConfig.entry_fee} token to join this tournament` });
       return;
     }
 
     setJoiningSession(configId);
     
     try {
-      // Deduct tokens from user
-      const newTokenBalance = userTokens - 1;
-      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
-      
-      if (!tokenUpdateSuccess) {
-        setMessage({ type: 'error', text: 'Failed to deduct tokens. Please try again.' });
-        return;
-      }
-
       // Create a winner-takes-all session (or join existing one)
-      // For now, use the regular hot sell session creation
       let session = await FixedGamesService.createHotSellSession(configId);
       
       if (!session) {
@@ -275,11 +275,24 @@ export default function HotSellPage() {
         const participant = await FixedGamesService.joinHotSellSession(
           session.id,
           user.id,
-          1 // Winner Takes All entry fee is always 1 token
+          winnerTakesAllConfig.entry_fee
         );
         
         if (participant) {
-          setUserTokens(newTokenBalance);
+          console.log('✅ [WinnerTakesAll] User added to participants:', participant);
+          
+          // Track user participation locally
+          addUserParticipation(session.id);
+          
+          // Check if this is a duplicate join (user already had a score)
+          const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
+          
+          if (isDuplicateJoin) {
+            setMessage({ type: 'info', text: `You have already played this tournament! Your score: ${participant.score}` });
+            // Don't start the game again, just show the message
+            return;
+          }
+          
           setMessage({ type: 'success', text: `Successfully joined Winner Takes All tournament! Game starting in 3 seconds...` });
           
           // Start the game flow with 3-second countdown
@@ -287,7 +300,7 @@ export default function HotSellPage() {
             gameType: config.game_type,
             sessionId: session.id,
             configId: config.id,
-            entryFee: 1 // Pass entry fee for token deduction
+            entryFee: winnerTakesAllConfig.entry_fee // Pass entry fee for token deduction
           });
           setCurrentView('game');
           
@@ -307,14 +320,11 @@ export default function HotSellPage() {
             }));
           }
         } else {
-          // Refund tokens if join failed
-          await UserService.updateUserTokens(user.id, userTokens);
-          setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+          console.error('❌ [WinnerTakesAll] Failed to add user to participants');
+          setMessage({ type: 'error', text: 'Failed to join the tournament. Please try again.' });
         }
       } else {
-        // Refund tokens if session creation/join failed
-        await UserService.updateUserTokens(user.id, userTokens);
-        setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+        setMessage({ type: 'error', text: 'Failed to create or find tournament session.' });
       }
       
     } catch (error: any) {
@@ -785,14 +795,33 @@ export default function HotSellPage() {
     }).format(amount);
   };
 
-  const calculatePrizeDistribution = (prizePool: number) => {
+  const calculatePrizeDistribution = (prizePool: number, config?: FixedGameConfig) => {
     // 15% platform fee from total pot
     const platformFeeRate = 0.15;
     const platformFee = prizePool * platformFeeRate;
     const netPrizePool = prizePool - platformFee;
     
-    // Fixed distribution: 1st gets 50%, 2nd gets 30%, 3rd gets 20%
-    // This ensures 2nd > 3rd and proper decimal math
+    // Special case for $2 Hot Sell (2 players only)
+    if (config?.title?.includes('$2 Hot Sell')) {
+      return {
+        first: 150, // $1.50 for 1st place
+        second: 35, // $0.35 for 2nd place
+        third: 0,   // No 3rd place
+        totalFee: 15 // $0.15 platform fee
+      };
+    }
+    
+    // Special case for $10 Hot Sell (3 players)
+    if (config?.title?.includes('$10')) {
+      return {
+        first: Math.round((netPrizePool * 0.5) * 100) / 100,   // 50% of net prize pool
+        second: Math.round((netPrizePool * 0.3) * 100) / 100,  // 30% of net prize pool (more than 3rd)
+        third: Math.round((netPrizePool * 0.2) * 100) / 100,   // 20% of net prize pool (less than 2nd)
+        totalFee: Math.round(platformFee * 100) / 100          // 15% platform fee
+      };
+    }
+    
+    // Default distribution for other games
     return {
       first: Math.round((netPrizePool * 0.5) * 100) / 100,   // 50% of net prize pool
       second: Math.round((netPrizePool * 0.3) * 100) / 100,  // 30% of net prize pool (more than 3rd)
@@ -996,7 +1025,7 @@ export default function HotSellPage() {
               const adjustedConfig = adjustEntryFee(config);
               const session = hotSellSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculatePrizeDistribution(adjustedConfig.prize_pool);
+              const prizeDistribution = calculatePrizeDistribution(adjustedConfig.prize_pool, adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
               const canJoin = userTokens >= adjustedConfig.entry_fee;
               
@@ -1110,15 +1139,18 @@ export default function HotSellPage() {
               </div>
                         <span className="text-gray-300 font-bold text-sm">{formatPrizeAmount(prizeDistribution.second)}</span>
               </div>
-                      <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
-                            <span className="text-white font-bold text-xs">3</span>
-            </div>
-                          <span className="text-white text-sm">3rd Place</span>
-          </div>
-                        <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
-        </div>
+                      {/* Only show 3rd place if there's a prize for it */}
+                      {prizeDistribution.third > 0 && (
+                        <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
+                              <span className="text-white font-bold text-xs">3</span>
+                            </div>
+                            <span className="text-white text-sm">3rd Place</span>
+                          </div>
+                          <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
                         <div className="flex items-center">
                           <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
