@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { SimpleGameService, GameHistoryRecord } from '@/lib/supabase/simpleGameService';
+import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { UserService } from '@/lib/supabase/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
@@ -200,10 +200,11 @@ export default function TriumphStyleDashboard() {
       console.log('🎮 [Dashboard] Loading game history...');
       
       const gameHistory = await SimpleGameService.getUserGameHistory(userId);
-      setGameHistory(gameHistory);
       console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
+      return gameHistory; // Return instead of setting state
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadGameHistory:', error);
+      return []; // Return empty array on error
     }
   };
 
@@ -212,10 +213,11 @@ export default function TriumphStyleDashboard() {
       console.log('🏆 [Dashboard] Loading high scores...');
       
       const highScores = await SimpleGameService.getUserHighScores(userId);
-      setHighScores(Object.values(highScores));
       console.log('✅ [Dashboard] High scores loaded:', Object.keys(highScores).length, 'games');
+      return Object.values(highScores); // Return instead of setting state
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadHighScores:', error);
+      return []; // Return empty array on error
     }
   };
 
@@ -224,9 +226,8 @@ export default function TriumphStyleDashboard() {
       console.log('📊 [Dashboard] Loading user stats...');
       
       const userStats = await SimpleGameService.getUserGameStats(userId);
-      setUserStats(userStats);
       console.log('✅ [Dashboard] User stats loaded:', userStats);
-      return userStats;
+      return userStats; // Return instead of setting state
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadUserStats:', error);
       return {
@@ -249,11 +250,16 @@ export default function TriumphStyleDashboard() {
       console.log('🔄 [Dashboard] Refreshing all data...');
       
       // Refresh game data (token balance is handled by useTokenSync hook)
-      await Promise.all([
+      const [gameHistory, highScores, userStats] = await Promise.all([
         loadGameHistory(user.id),
         loadHighScores(user.id),
         loadUserStats(user.id)
       ]);
+      
+      // Update state with the returned values
+      setGameHistory(gameHistory);
+      setHighScores(highScores);
+      setUserStats(userStats);
       
       console.log('✅ [Dashboard] All data refreshed successfully');
     } catch (error) {
