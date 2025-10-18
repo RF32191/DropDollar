@@ -7,6 +7,7 @@
 
 -- Drop all existing triggers to avoid conflicts
 DROP TRIGGER IF EXISTS trigger_update_high_score ON public.game_history;
+DROP TRIGGER IF EXISTS trigger_update_high_score_from_game_history ON public.game_history;
 DROP TRIGGER IF EXISTS update_high_scores_trigger ON public.game_sessions;
 DROP TRIGGER IF EXISTS update_user_stats_trigger ON public.game_sessions;
 DROP TRIGGER IF EXISTS update_game_statistics ON public.game_history;
