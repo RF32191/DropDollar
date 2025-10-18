@@ -317,18 +317,27 @@ export default function HotSellPage() {
         setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error joining winner takes all:', error);
-      // Refund tokens on error
-      try {
-        await UserService.updateUserTokens(user.id, userTokens);
-      } catch (refundError) {
-        console.error('Failed to refund tokens:', refundError);
+      
+      // Check if it's a duplicate user error
+      if (error?.code === '23505' || error?.message?.includes('already exists')) {
+        setMessage({ 
+          type: 'error', 
+          text: 'You have already joined this tournament!' 
+        });
+      } else {
+        // Refund tokens on other errors
+        try {
+          await UserService.updateUserTokens(user.id, userTokens);
+        } catch (refundError) {
+          console.error('Failed to refund tokens:', refundError);
+        }
+        setMessage({ 
+          type: 'error', 
+          text: 'Failed to join tournament. Tokens refunded.' 
+        });
       }
-      setMessage({ 
-        type: 'error', 
-        text: 'Failed to join tournament. Tokens refunded.' 
-      });
     } finally {
       setJoiningSession(null);
     }
@@ -430,9 +439,18 @@ export default function HotSellPage() {
         setMessage({ type: 'error', text: 'Failed to join the tournament. Please try again.' });
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [HotSell] Error joining session:', error);
-      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+      
+      // Check if it's a duplicate user error
+      if (error?.code === '23505' || error?.message?.includes('already exists')) {
+        setMessage({ 
+          type: 'error', 
+          text: 'You have already joined this tournament!' 
+        });
+      } else {
+        setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+      }
     } finally {
       setJoiningSession(null);
     }
