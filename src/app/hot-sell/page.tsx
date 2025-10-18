@@ -125,10 +125,41 @@ export default function HotSellPage() {
       const blindListings = await BlindScoreboardService.getOpenListings();
       setBlindListings(blindListings);
       
+      // Ensure all configs have sessions (make all banners enterable)
+      await ensureAllConfigsHaveSessions(configs, sessions);
+      
     } catch (error) {
       console.error('❌ [HotSell] Error loading data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const ensureAllConfigsHaveSessions = async (configs: FixedGameConfig[], sessions: HotSellSession[]) => {
+    try {
+      console.log('🔄 [HotSell] Ensuring all configs have sessions...');
+      
+      for (const config of configs) {
+        const hasSession = sessions.some(session => session.config_id === config.id);
+        
+        if (!hasSession) {
+          console.log(`📝 [HotSell] Creating session for config: ${config.title}`);
+          try {
+            const newSession = await FixedGamesService.createHotSellSession(config.id);
+            if (newSession) {
+              console.log(`✅ [HotSell] Created session for ${config.title}`);
+              // Add to local state
+              setHotSellSessions(prev => [...prev, newSession]);
+            }
+          } catch (error) {
+            console.error(`❌ [HotSell] Failed to create session for ${config.title}:`, error);
+          }
+        }
+      }
+      
+      console.log('✅ [HotSell] All configs now have sessions');
+    } catch (error) {
+      console.error('❌ [HotSell] Error ensuring sessions:', error);
     }
   };
 
