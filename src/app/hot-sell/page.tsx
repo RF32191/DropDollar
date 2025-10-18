@@ -30,15 +30,6 @@ import {
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading } = useTokenSync();
-  
-  // Debug: Log re-renders to identify the cause
-  console.log('🔄 [HotSell] Component re-rendered', {
-    user: user?.id,
-    isAuthenticated,
-    userTokens,
-    tokensLoading,
-    timestamp: new Date().toISOString()
-  });
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
@@ -63,7 +54,6 @@ export default function HotSellPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      console.log('🔄 [HotSell] Loading data for user:', user.id);
       loadHotSellData();
       checkUserEligibility();
     }
@@ -141,7 +131,6 @@ export default function HotSellPage() {
         // Update session status if timer expired (but don't call this every second)
         if (timeData.isHotSell && session.status === 'waiting') {
           // Only update once per session to prevent infinite loops
-          console.log('🔥 [HotSell] Timer expired for session:', session.id);
           // Remove the automatic update call to prevent re-renders
           // FixedGamesService.updateHotSellPot(session.id);
         }
