@@ -65,10 +65,15 @@ DECLARE
     is_new_best BOOLEAN := false;
     is_new_global BOOLEAN := false;
 BEGIN
+    -- Check if high_scores table exists
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        RETURN NEW;
+    END IF;
+    
     -- Get existing high score record
     SELECT * INTO existing_record
     FROM public.high_scores
-    WHERE user_id = NEW.user_id 
+    WHERE user_id = NEW.user_id::UUID 
       AND game_type = NEW.game_type;
     
     -- Check if this is a new personal best
@@ -93,7 +98,7 @@ BEGIN
         time_taken_seconds, is_personal_best, is_global_record
     )
     VALUES (
-        NEW.user_id, NEW.game_type, 
+        NEW.user_id::UUID, NEW.game_type, 
         CASE WHEN is_new_best THEN NEW.score ELSE COALESCE(existing_record.best_score, 0) END,
         CASE WHEN is_new_best THEN COALESCE(NEW.accuracy, 0) ELSE COALESCE(existing_record.best_accuracy, 0) END,
         CASE WHEN is_new_best THEN COALESCE(NEW.avg_reaction_time, 999999) ELSE COALESCE(existing_record.best_reaction_time, 999999) END,
@@ -150,9 +155,14 @@ DECLARE
     game_record RECORD;
     updated_count INTEGER := 0;
 BEGIN
+    -- Check if high_scores table exists first
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        RETURN 'High scores table does not exist, skipping update';
+    END IF;
+    
     -- Process all game_history records to update high scores
     FOR game_record IN 
-        SELECT DISTINCT user_id, game_type, MAX(score) as best_score, MAX(accuracy) as best_accuracy, MIN(avg_reaction_time) as best_reaction_time
+        SELECT DISTINCT user_id::UUID as user_id, game_type, MAX(score) as best_score, MAX(accuracy) as best_accuracy, MIN(avg_reaction_time) as best_reaction_time
         FROM public.game_history
         GROUP BY user_id, game_type
     LOOP
