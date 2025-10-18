@@ -212,8 +212,8 @@ export default function HotSellPage() {
       return;
     }
 
-    if (userTokens < winnerTakesAllConfig.entry_fee) {
-      setMessage({ type: 'error', text: `You need ${winnerTakesAllConfig.entry_fee} tokens to join this tournament` });
+    if (userTokens < 1) {
+      setMessage({ type: 'error', text: `You need 1 token to join this tournament` });
       return;
     }
 
@@ -221,7 +221,7 @@ export default function HotSellPage() {
     
     try {
       // Deduct tokens from user
-      const newTokenBalance = userTokens - winnerTakesAllConfig.entry_fee;
+      const newTokenBalance = userTokens - 1;
       const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
       
       if (!tokenUpdateSuccess) {
@@ -240,18 +240,46 @@ export default function HotSellPage() {
       }
       
       if (session) {
-        // For Winner Takes It All, we'll simulate joining without using the problematic database function
-        // This is a temporary fix until the database function is corrected
-        setUserTokens(newTokenBalance);
-        setMessage({ type: 'success', text: `Successfully joined Winner Takes All tournament!` });
+        // Actually join the session using the fixed function
+        const participant = await FixedGamesService.joinHotSellSession(
+          session.id,
+          user.id,
+          1 // Winner Takes All entry fee is always 1 token
+        );
         
-        // Start the game flow immediately with proper competitive mode
-        setSelectedGameFlow({
-          gameType: config.game_type,
-          sessionId: session.id,
-          configId: config.id
-        });
-        setCurrentView('game');
+        if (participant) {
+          setUserTokens(newTokenBalance);
+          setMessage({ type: 'success', text: `Successfully joined Winner Takes All tournament! Game starting in 3 seconds...` });
+          
+          // Start the game flow with 3-second countdown
+          setSelectedGameFlow({
+            gameType: config.game_type,
+            sessionId: session.id,
+            configId: config.id,
+            entryFee: 1 // Pass entry fee for token deduction
+          });
+          setCurrentView('game');
+          
+          // Refresh sessions and participants
+          const updatedSessions = await FixedGamesService.getHotSellSessions();
+          setHotSellSessions(updatedSessions);
+          
+          // Refresh participants for this session
+          const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
+          const activeGame = activeGames.find(game => game.config_id === session.config_id);
+          
+          if (activeGame) {
+            const updatedParticipants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
+            setSessionParticipants(prev => ({
+              ...prev,
+              [session.id]: updatedParticipants
+            }));
+          }
+        } else {
+          // Refund tokens if join failed
+          await UserService.updateUserTokens(user.id, userTokens);
+          setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+        }
       } else {
         // Refund tokens if session creation/join failed
         await UserService.updateUserTokens(user.id, userTokens);
