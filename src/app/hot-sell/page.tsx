@@ -408,6 +408,13 @@ export default function HotSellPage() {
         setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
         
         // Start the game flow with 3-second countdown
+        console.log('🎮 [HotSell] Starting game flow:', {
+          gameType: config.game_type,
+          sessionId: session.id,
+          configId: config.id,
+          entryFee: config.entry_fee
+        });
+        
         setSelectedGameFlow({
           gameType: config.game_type,
           sessionId: session.id,
@@ -611,15 +618,19 @@ export default function HotSellPage() {
 
   // Check if user has already joined a competition
   const hasUserJoined = (competitionId: string) => {
+    if (!user?.id) return false;
+    
     // Check local state first
     if (userParticipations.includes(competitionId)) {
       return true;
     }
     
-    // Check database participants
+    // Check database participants for this session
     const participants = sessionParticipants[competitionId];
     if (participants && participants.length > 0) {
-      return participants.some(p => p.user_id === user?.id);
+      const hasJoined = participants.some(p => p.user_id === user.id);
+      console.log(`🔍 [HotSell] Checking if user ${user.id} joined ${competitionId}:`, hasJoined, participants);
+      return hasJoined;
     }
     
     return false;
@@ -850,6 +861,13 @@ export default function HotSellPage() {
     // Find the game configuration to get the RNG seed
     const gameConfig = fixedGameConfigs.find(config => config.id === selectedGameFlow.configId);
     const rngSeed = gameConfig?.rng_seed || 1;
+    
+    console.log('🎮 [HotSell] Rendering CompetitionGameFlow:', {
+      currentView,
+      selectedGameFlow,
+      gameConfig,
+      rngSeed
+    });
     
     return (
       <ErrorBoundary>
