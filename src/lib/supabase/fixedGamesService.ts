@@ -41,6 +41,7 @@ export interface ActiveFixedGame {
 export interface HotSellSession {
   id: string;
   config_id: string;
+  game_id?: string;
   current_pot: number;
   target_pot: number;
   participants_count: number;

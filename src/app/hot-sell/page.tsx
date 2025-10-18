@@ -325,8 +325,8 @@ export default function HotSellPage() {
       
       console.log('👤 [HotSell] Adding user to fixed game participants...');
       
-      // Add user to fixed_game_participants table
-      const participant = await FixedGamesService.joinFixedGame(
+      // Add user to fixed_game_participants table using the correct function
+      const participant = await FixedGamesService.joinHotSellSession(
         session.id,
         user.id,
         config.entry_fee
@@ -594,17 +594,23 @@ export default function HotSellPage() {
       console.log('✅ [HotSell] Game history saved');
       
       // Update the participant score in fixed_game_participants table
-      const participantUpdate = await FixedGamesService.updateFixedGameScore(
-        selectedGameFlow.sessionId,
-        user.id,
-        score,
-        accuracy
-      );
-      
-      if (participantUpdate) {
-        console.log('✅ [HotSell] Participant score updated:', participantUpdate);
+      // First get the session to find the game_id
+      const session = hotSellSessions.find(s => s.id === selectedGameFlow.sessionId);
+      if (session && session.game_id) {
+        const participantUpdate = await FixedGamesService.updateFixedGameScore(
+          session.game_id,
+          user.id,
+          score,
+          accuracy
+        );
+        
+        if (participantUpdate) {
+          console.log('✅ [HotSell] Participant score updated:', participantUpdate);
+        } else {
+          console.log('⚠️ [HotSell] Participant score update failed, but continuing...');
+        }
       } else {
-        console.log('⚠️ [HotSell] Participant score update failed, but continuing...');
+        console.log('⚠️ [HotSell] Could not find session or game_id, skipping score update');
       }
       
       // Deduct tokens after score is saved
