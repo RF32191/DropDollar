@@ -70,6 +70,11 @@ BEGIN
         RETURN NEW;
     END IF;
     
+    -- Check if user_id is a valid UUID format
+    IF NEW.user_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+        RETURN NEW; -- Skip non-UUID user_ids
+    END IF;
+    
     -- Get existing high score record
     SELECT * INTO existing_record
     FROM public.high_scores
@@ -162,8 +167,9 @@ BEGIN
     
     -- Process all game_history records to update high scores
     FOR game_record IN 
-        SELECT DISTINCT user_id::UUID as user_id, game_type, MAX(score) as best_score, MAX(accuracy) as best_accuracy, MIN(avg_reaction_time) as best_reaction_time
+        SELECT DISTINCT user_id, game_type, MAX(score) as best_score, MAX(accuracy) as best_accuracy, MIN(avg_reaction_time) as best_reaction_time
         FROM public.game_history
+        WHERE user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -- Only process valid UUIDs
         GROUP BY user_id, game_type
     LOOP
         -- Insert or update high score
