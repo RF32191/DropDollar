@@ -72,8 +72,7 @@ BEGIN
   UPDATE public.hot_sell_sessions 
   SET 
     current_pot = current_pot + p_entry_fee,
-    participants_count = participants_count + 1,
-    updated_at = NOW()
+    participants_count = participants_count + 1
   WHERE id = p_session_id::UUID;
   
   RETURN participant_result;
