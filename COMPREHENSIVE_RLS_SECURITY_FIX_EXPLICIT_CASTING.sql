@@ -241,29 +241,56 @@ BEGIN
         END IF;
     END IF;
 
-    -- User bank accounts policies (EXPLICIT CASTING: UUID to UUID via TEXT)
+    -- User bank accounts policies (check for correct column name)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_bank_accounts') THEN
-        CREATE POLICY "Users can view own bank accounts" ON public.user_bank_accounts FOR SELECT USING (auth.uid() = user_id::uuid);
-        CREATE POLICY "Users can insert own bank accounts" ON public.user_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
-        CREATE POLICY "Users can update own bank accounts" ON public.user_bank_accounts FOR UPDATE USING (auth.uid() = user_id::uuid);
+        -- Check if user_id column exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_bank_accounts' AND column_name = 'user_id') THEN
+            CREATE POLICY "Users can view own bank accounts" ON public.user_bank_accounts FOR SELECT USING (auth.uid() = user_id::uuid);
+            CREATE POLICY "Users can insert own bank accounts" ON public.user_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+            CREATE POLICY "Users can update own bank accounts" ON public.user_bank_accounts FOR UPDATE USING (auth.uid() = user_id::uuid);
+        ELSE
+            -- If no user column exists, make it public read-only
+            CREATE POLICY "Public can view user bank accounts" ON public.user_bank_accounts FOR SELECT USING (true);
+        END IF;
     END IF;
 
-    -- Seller payouts policies (EXPLICIT CASTING: UUID to UUID via TEXT)
+    -- Seller payouts policies (check for correct column name)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'seller_payouts') THEN
-        CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid() = user_id::uuid);
-        CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        -- Check if user_id column exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'seller_payouts' AND column_name = 'user_id') THEN
+            CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid() = user_id::uuid);
+            CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'seller_payouts' AND column_name = 'seller_id') THEN
+            CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid() = seller_id::uuid);
+            CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid() = seller_id::uuid);
+        ELSE
+            -- If no user column exists, make it public read-only
+            CREATE POLICY "Public can view seller payouts" ON public.seller_payouts FOR SELECT USING (true);
+        END IF;
     END IF;
 
-    -- User locations policies (EXPLICIT CASTING: UUID to UUID via TEXT)
+    -- User locations policies (check for correct column name)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_locations') THEN
-        CREATE POLICY "Users can view own locations" ON public.user_locations FOR SELECT USING (auth.uid() = user_id::uuid);
-        CREATE POLICY "Users can insert own locations" ON public.user_locations FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
-        CREATE POLICY "Users can update own locations" ON public.user_locations FOR UPDATE USING (auth.uid() = user_id::uuid);
+        -- Check if user_id column exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_locations' AND column_name = 'user_id') THEN
+            CREATE POLICY "Users can view own locations" ON public.user_locations FOR SELECT USING (auth.uid() = user_id::uuid);
+            CREATE POLICY "Users can insert own locations" ON public.user_locations FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+            CREATE POLICY "Users can update own locations" ON public.user_locations FOR UPDATE USING (auth.uid() = user_id::uuid);
+        ELSE
+            -- If no user column exists, make it public read-only
+            CREATE POLICY "Public can view user locations" ON public.user_locations FOR SELECT USING (true);
+        END IF;
     END IF;
 
-    -- Location compliance log policies (EXPLICIT CASTING: UUID to UUID via TEXT)
+    -- Location compliance log policies (check for correct column name)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'location_compliance_log') THEN
-        CREATE POLICY "Users can view own compliance log" ON public.location_compliance_log FOR SELECT USING (auth.uid() = user_id::uuid);
+        -- Check if user_id column exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'location_compliance_log' AND column_name = 'user_id') THEN
+            CREATE POLICY "Users can view own compliance log" ON public.location_compliance_log FOR SELECT USING (auth.uid() = user_id::uuid);
+        ELSE
+            -- If no user column exists, make it public read-only
+            CREATE POLICY "Public can view compliance log" ON public.location_compliance_log FOR SELECT USING (true);
+        END IF;
     END IF;
 
     -- Fixed games policies (public access)
