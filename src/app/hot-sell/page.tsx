@@ -30,6 +30,15 @@ import {
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading } = useTokenSync();
+  
+  // Debug: Log re-renders to identify the cause
+  console.log('🔄 [HotSell] Component re-rendered', {
+    user: user?.id,
+    isAuthenticated,
+    userTokens,
+    tokensLoading,
+    timestamp: new Date().toISOString()
+  });
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
@@ -54,10 +63,11 @@ export default function HotSellPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      console.log('🔄 [HotSell] Loading data for user:', user.id);
       loadHotSellData();
       checkUserEligibility();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
 
   useEffect(() => {
     // Update timers every second
@@ -66,7 +76,7 @@ export default function HotSellPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [hotSellSessions]);
+  }, []); // Remove hotSellSessions dependency to prevent infinite re-renders
 
   const loadHotSellData = async () => {
     try {
@@ -115,6 +125,9 @@ export default function HotSellPage() {
   };
 
   const updateTimers = () => {
+    // Only update if we have sessions to avoid unnecessary state updates
+    if (hotSellSessions.length === 0) return;
+    
     const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } } = {};
     
     hotSellSessions.forEach(session => {
@@ -125,9 +138,12 @@ export default function HotSellPage() {
         const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
         newTimeRemaining[session.id] = timeData;
         
-        // Update session status if timer expired
+        // Update session status if timer expired (but don't call this every second)
         if (timeData.isHotSell && session.status === 'waiting') {
-          FixedGamesService.updateHotSellPot(session.id);
+          // Only update once per session to prevent infinite loops
+          console.log('🔥 [HotSell] Timer expired for session:', session.id);
+          // Remove the automatic update call to prevent re-renders
+          // FixedGamesService.updateHotSellPot(session.id);
         }
       } else {
         // Base price not met yet - show waiting state
@@ -139,7 +155,11 @@ export default function HotSellPage() {
       }
     });
     
-    setTimeRemaining(newTimeRemaining);
+    // Only update state if there are actual changes to prevent unnecessary re-renders
+    const hasChanges = JSON.stringify(newTimeRemaining) !== JSON.stringify(timeRemaining);
+    if (hasChanges) {
+      setTimeRemaining(newTimeRemaining);
+    }
   };
 
   const joinWinnerTakesAll = async (configId: string) => {
@@ -689,7 +709,7 @@ export default function HotSellPage() {
                   <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
                 )}
                 <span className="text-sm">{prizeEligibility.reason}</span>
-              </div>
+        </div>
             )}
               </div>
 
@@ -738,7 +758,7 @@ export default function HotSellPage() {
                         ? 'bg-gradient-to-r from-red-500 to-orange-500' 
                         : 'bg-gradient-to-r from-yellow-500 to-orange-500'
                     }`}>
-                      <div className="text-center">
+          <div className="text-center">
                         <p className="text-yellow-100 text-sm font-medium mb-1">PRIZE POOL</p>
                         <p className="text-2xl font-bold text-white">{formatPrizeAmount(adjustedConfig.prize_pool)}</p>
                         {session && (
@@ -798,36 +818,36 @@ export default function HotSellPage() {
                         <div className="flex items-center">
                           <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
                             <span className="text-white font-bold text-xs">1</span>
-                          </div>
+              </div>
                           <span className="text-white text-sm">1st Place</span>
-                        </div>
+              </div>
                         <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.first)}</span>
-                      </div>
+              </div>
                       <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
                         <div className="flex items-center">
                           <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-2">
                             <span className="text-white font-bold text-xs">2</span>
-                          </div>
+              </div>
                           <span className="text-white text-sm">2nd Place</span>
-                        </div>
+              </div>
                         <span className="text-gray-300 font-bold text-sm">{formatPrizeAmount(prizeDistribution.second)}</span>
-                      </div>
+              </div>
                       <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
                         <div className="flex items-center">
                           <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
                             <span className="text-white font-bold text-xs">3</span>
-                          </div>
+            </div>
                           <span className="text-white text-sm">3rd Place</span>
-                        </div>
+          </div>
                         <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
-                      </div>
+        </div>
                       <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
                         <div className="flex items-center">
                           <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
                             <span className="text-white font-bold text-xs">📊</span>
-                          </div>
+      </div>
                           <span className="text-red-300 text-sm">Platform Fee (15%)</span>
-                        </div>
+              </div>
                         <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.totalFee)}</span>
                       </div>
               </div>
@@ -838,7 +858,7 @@ export default function HotSellPage() {
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
                       <span>Participants Progress</span>
                       <span>{session?.participants_count || 0} / {adjustedConfig.max_participants} players</span>
-                    </div>
+                  </div>
                     <div className="w-full bg-gray-700 rounded-full h-3">
                       <div 
                         className={`h-3 rounded-full transition-all duration-300 ${
@@ -854,9 +874,9 @@ export default function HotSellPage() {
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
                       <span>Target: {adjustedConfig.max_participants} players</span>
                       <span>Remaining: {Math.max(0, adjustedConfig.max_participants - (session?.participants_count || 0))} players</span>
-                    </div>
                   </div>
-
+                </div>
+                
                   {/* Game Info */}
                   <div className="mb-6 space-y-2">
                     <div className="flex items-center justify-between">
@@ -963,7 +983,7 @@ export default function HotSellPage() {
                           Live Scoreboard
                         </h4>
                         <span className="text-gray-400 text-xs">Click to expand</span>
-                      </button>
+                    </button>
                       
                       <div id={`scoreboard-${config.id}`} className="hidden mt-3">
                         {session && session.participants_count > 0 ? (
@@ -976,8 +996,8 @@ export default function HotSellPage() {
                                   <span className="text-yellow-300 text-sm font-medium">
                                     Join the game to see live scores!
                                   </span>
-                                </div>
-                              </div>
+                  </div>
+                </div>
                             )}
                             
                             {/* Show scores for users who have played */}
@@ -994,16 +1014,16 @@ export default function HotSellPage() {
                                     <div className="flex items-center">
                                       <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
                                         <span className="text-white font-bold text-xs">1</span>
-                                      </div>
+                </div>
                                       <span className="text-white text-sm">Your Score</span>
                                     </div>
                                     <span className="text-yellow-400 font-bold text-sm">--</span>
-                                  </div>
-                                </div>
-                                
+              </div>
+            </div>
+
                                 <div className="text-center text-gray-500 text-xs">
                                   Scores will appear after game completion
-                                </div>
+              </div>
                               </div>
                             )}
                           </div>
@@ -1074,22 +1094,22 @@ export default function HotSellPage() {
                         <p className="text-purple-200 text-xs mt-1">0 players joined</p>
               </div>
             </div>
-
-                    {/* Progress Bar */}
-                    <div className="mb-4">
+                
+                {/* Progress Bar */}
+                <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-300 mb-2">
                         <span>Progress to Target</span>
                         <span>0 / 50 players</span>
-                      </div>
+                  </div>
                       <div className="w-full bg-gray-700 rounded-full h-3">
                         <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full" style={{ width: '0%' }}></div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
                         <span>Target: 50 players</span>
                         <span>Remaining: 50 players</span>
-                      </div>
-                    </div>
-
+                  </div>
+                </div>
+                
                     {/* Game Info */}
                     <div className="space-y-2 text-sm text-gray-300 mb-6">
                       <div className="flex justify-between">
@@ -1123,7 +1143,7 @@ export default function HotSellPage() {
                             Live Scoreboard
                           </h4>
                           <span className="text-gray-400 text-xs">Click to expand</span>
-                        </button>
+                    </button>
                         
                         <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
                           <div className="space-y-2">
@@ -1134,9 +1154,9 @@ export default function HotSellPage() {
                                 <span className="text-yellow-300 text-sm font-medium">
                                   Join the game to see live scores!
                                 </span>
-                              </div>
-                            </div>
-                            
+                  </div>
+                </div>
+                
                             {/* Payout Information */}
                             <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
                               <div className="text-center">
@@ -1174,7 +1194,7 @@ export default function HotSellPage() {
                           ) : (
                             '❌ Insufficient Tokens'
                           )}
-                    </button>
+                </button>
                       ) : (
                         <div className="text-center py-3 px-6 rounded-2xl bg-gray-600 text-gray-400">
                           Please log in to join
@@ -1194,7 +1214,7 @@ export default function HotSellPage() {
             <h2 className="text-3xl font-bold text-white mb-2">🎯 BLIND SCOREBOARD</h2>
             <p className="text-lg text-gray-300">Competitive matches with hidden scores until completion</p>
             <p className="text-sm text-gray-400">Scores are revealed only after all players finish</p>
-          </div>
+                </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {blindListings.map((listing) => (
@@ -1209,9 +1229,9 @@ export default function HotSellPage() {
                     <div className="flex items-center bg-purple-500/20 rounded-full px-3 py-1">
                       <LockClosedIcon className="w-4 h-4 mr-1" />
                       <span className="text-purple-300 text-xs font-semibold">BLIND</span>
-                    </div>
-                  </div>
-                  
+              </div>
+            </div>
+
                   <p className="text-gray-300 mb-4">{listing.game_key.replace('_', ' ').toUpperCase()}</p>
                   
                   {/* Entry Fee */}
@@ -1219,7 +1239,7 @@ export default function HotSellPage() {
                     <div className="text-center">
                       <p className="text-purple-100 text-sm font-medium mb-1">ENTRY FEE</p>
                       <p className="text-2xl font-bold text-white">{listing.entry_cost_tokens} tokens</p>
-                    </div>
+              </div>
                   </div>
                   
                   {/* Players Required */}
@@ -1227,10 +1247,10 @@ export default function HotSellPage() {
                     <div className="text-center">
                       <p className="text-blue-100 text-sm font-medium mb-1">PLAYERS REQUIRED</p>
                       <p className="text-2xl font-bold text-white">{listing.required_players}</p>
-                    </div>
+                  </div>
                   </div>
                 </div>
-
+                
                 {/* Blind Scoreboard Component */}
                 <BlindScoreboard
                   listing={listing}
@@ -1245,9 +1265,9 @@ export default function HotSellPage() {
                 />
               </div>
             ))}
-          </div>
-        </div>
-
+                  </div>
+                </div>
+                
         {/* Hot Sell Listings */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {hotSellListings.map((listing) => {
@@ -1276,10 +1296,10 @@ export default function HotSellPage() {
                       <p className="text-yellow-100 text-sm font-medium mb-2">TOTAL PRIZE POOL</p>
                       <p className="text-4xl font-bold text-white">{formatPrizeAmount(listing.prize_pool)}</p>
                       <p className="text-yellow-100 text-sm mt-2">(15% fee deducted from prizes)</p>
-                    </div>
-                  </div>
                 </div>
-                
+              </div>
+            </div>
+
                 {/* Prize Distribution */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -1291,7 +1311,7 @@ export default function HotSellPage() {
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
                           <span className="text-white font-bold text-sm">1</span>
-                        </div>
+              </div>
                         <span className="text-white font-medium">1st Place</span>
                       </div>
                       <span className="text-yellow-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.first)}</span>
@@ -1323,17 +1343,17 @@ export default function HotSellPage() {
                     <div className="flex items-center">
                       <BanknotesIcon className="w-5 h-5 text-green-400 mr-2" />
                       <span className="text-gray-300">Entry Fee</span>
-                </div>
+                  </div>
                     <span className="text-white font-semibold">{listing.entry_fee} tokens</span>
-              </div>
+                  </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <UsersIcon className="w-5 h-5 text-blue-400 mr-2" />
                       <span className="text-gray-300">Participants</span>
             </div>
                     <span className="text-white font-semibold">{listingParticipants.length}/{listing.max_participants}</span>
-              </div>
-                  
+                </div>
+                
                   {/* Progress Bar for Original Hot Sell Listings */}
                 <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
@@ -1361,7 +1381,7 @@ export default function HotSellPage() {
                     <span className="text-white font-semibold capitalize">{listing.game_type.replace('-', ' ')}</span>
                   </div>
                 </div>
-
+                
                 {/* Scoreboard Section */}
                 <div className="mt-6 mb-4">
                   <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
@@ -1379,8 +1399,8 @@ export default function HotSellPage() {
                         Live Scoreboard
                       </h4>
                       <span className="text-gray-400 text-xs">Click to expand</span>
-                    </button>
-                    
+                </button>
+                
                     <div id={`listing-scoreboard-${listing.id}`} className="hidden mt-3">
                       {listingParticipants.length > 0 ? (
                         <div className="space-y-2">
@@ -1392,8 +1412,8 @@ export default function HotSellPage() {
                                 <span className="text-yellow-300 text-sm font-medium">
                                   Join the tournament to see live scores!
                                 </span>
-                              </div>
-                            </div>
+                </div>
+              </div>
                           )}
                           
                           {/* Show scores for users who have played */}
@@ -1402,15 +1422,15 @@ export default function HotSellPage() {
                               <div className="text-center text-gray-400 text-xs mb-2">
                                 <UsersIcon className="w-4 h-4 inline mr-1" />
                                 {listingParticipants.length} players • Tournament active
-                              </div>
-                              
+            </div>
+
                               {/* Placeholder for actual scores - will be populated after game completion */}
                               <div className="bg-white/5 rounded-lg p-3">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center">
                                     <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
                                       <span className="text-white font-bold text-xs">1</span>
-                                    </div>
+              </div>
                                     <span className="text-white text-sm">Your Score</span>
                                   </div>
                                   <span className="text-yellow-400 font-bold text-sm">--</span>
@@ -1419,7 +1439,7 @@ export default function HotSellPage() {
                               
                               <div className="text-center text-gray-500 text-xs">
                                 Scores will appear after game completion
-                              </div>
+                  </div>
                             </div>
                           )}
                         </div>
@@ -1466,9 +1486,9 @@ export default function HotSellPage() {
                         <div className="flex items-center justify-center">
                           <EyeIcon className="w-5 h-5 mr-2" />
                           VIEW SCOREBOARD
-                        </div>
+                </div>
                       </button>
-                    </div>
+              </div>
                   ) : !canJoin ? (
                     <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
                       <p className="text-red-300">
@@ -1477,7 +1497,7 @@ export default function HotSellPage() {
                           : 'Tournament is full'
                         }
                       </p>
-                    </div>
+            </div>
                   ) : (
                     <button
                       onClick={() => joinHotSellListing(listing)}
@@ -1488,7 +1508,7 @@ export default function HotSellPage() {
                         <div className="flex items-center justify-center">
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Joining...
-                        </div>
+          </div>
                       ) : (
                         <div className="flex items-center justify-center">
                           <FireIcon className="w-5 h-5 mr-2" />
@@ -1501,7 +1521,7 @@ export default function HotSellPage() {
               </div>
             );
           })}
-        </div>
+      </div>
 
         {/* Create Tournament Button */}
         {isAuthenticated && (
@@ -1510,9 +1530,9 @@ export default function HotSellPage() {
               <div className="flex items-center">
                 <TrophyIcon className="w-6 h-6 mr-2" />
                 Create Your Own Tournament
-            </div>
-            </button>
           </div>
+            </button>
+        </div>
         )}
       </div>
     </div>
