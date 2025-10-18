@@ -405,6 +405,16 @@ export default function HotSellPage() {
         
         // Track user participation locally
         addUserParticipation(session.id);
+        
+        // Check if this is a duplicate join (user already had a score)
+        const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
+        
+        if (isDuplicateJoin) {
+          setMessage({ type: 'info', text: `You have already played this tournament! Your score: ${participant.score}` });
+          // Don't start the game again, just show the message
+          return;
+        }
+        
         setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
         
         // Start the game flow with 3-second countdown
@@ -450,9 +460,9 @@ export default function HotSellPage() {
       console.error('❌ [HotSell] Error joining session:', error);
       
       // Check if it's a duplicate user error
-      if (error?.code === '23505' || error?.message?.includes('already exists')) {
+      if (error?.code === 'P0001' || error?.message?.includes('already joined')) {
         setMessage({ 
-          type: 'error', 
+          type: 'info', 
           text: 'You have already joined this tournament!' 
         });
       } else {

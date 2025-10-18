@@ -234,7 +234,7 @@ export class BlindScoreboardService {
       const { data, error } = await supabase
         .from('listings')
         .select('*')
-        .eq('state', 'OPEN')
+        .eq('status', 'OPEN')
         .order('created_at', { ascending: false });
 
       if (error) {
