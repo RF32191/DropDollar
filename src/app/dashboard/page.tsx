@@ -1,4 +1,4 @@
-'use client'; 
+'use client';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -426,11 +426,11 @@ export default function TriumphStyleDashboard() {
         <CleanNavigation />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
-            <div className="text-center">
+        <div className="text-center">
               <p className="text-lg mb-4">Please log in to view your dashboard</p>
               <Link href="/signin" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                Sign In
-              </Link>
+            Sign In
+          </Link>
             </div>
           </div>
         </div>
@@ -445,8 +445,8 @@ export default function TriumphStyleDashboard() {
         <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
-      </div>
-      
+        </div>
+
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
@@ -458,7 +458,7 @@ export default function TriumphStyleDashboard() {
                 Welcome back, <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{userProfile?.username || 'Player'}</span>!
               </h1>
               <p className="text-gray-300 text-lg animate-slide-up delay-100">Your gaming dashboard and statistics</p>
-            </div>
+          </div>
             <div className="flex items-center gap-4">
               {/* Refresh Button */}
               <button
@@ -493,9 +493,9 @@ export default function TriumphStyleDashboard() {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+                  </div>
+                  </div>
+                </div>
 
         {/* Stats Overview - Enhanced with Animations */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -508,25 +508,25 @@ export default function TriumphStyleDashboard() {
               <div>
                 <p className="text-purple-200 text-sm font-medium">Total Games</p>
                 <p className="text-2xl font-bold text-white animate-count-up">{userStats.totalGames}</p>
-              </div>
-            </div>
-          </div>
+                  </div>
+                  </div>
+                </div>
 
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-200">
             <div className="flex items-center">
               <div className="relative">
                 <StarIcon className="w-8 h-8 text-blue-400 mr-3 animate-pulse" />
                 <div className="absolute inset-0 w-8 h-8 bg-blue-400/20 rounded-full animate-ping"></div>
-              </div>
+                  </div>
               <div>
                 <p className="text-purple-200 text-sm font-medium">Practice Games</p>
                 <p className="text-2xl font-bold text-white animate-count-up">{userStats.practiceGames}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-300">
-            <div className="flex items-center">
+                <div className="flex items-center">
               <div className="relative">
                 <FireIcon className="w-8 h-8 text-red-400 mr-3 animate-pulse" />
                 <div className="absolute inset-0 w-8 h-8 bg-red-400/20 rounded-full animate-ping"></div>
@@ -534,9 +534,9 @@ export default function TriumphStyleDashboard() {
               <div>
                 <p className="text-purple-200 text-sm font-medium">Competitions</p>
                 <p className="text-2xl font-bold text-white animate-count-up">{userStats.competitionGames}</p>
-              </div>
-            </div>
-          </div>
+                  </div>
+                  </div>
+                </div>
 
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-slide-up delay-400">
             <div className="flex items-center">
@@ -549,8 +549,8 @@ export default function TriumphStyleDashboard() {
                 <p className="text-2xl font-bold text-white animate-count-up">{Math.round(userStats.averageScore)}</p>
               </div>
             </div>
-          </div>
-        </div>
+              </div>
+            </div>
 
         {/* Tab Navigation */}
         <div className="mb-6">
@@ -575,10 +575,10 @@ export default function TriumphStyleDashboard() {
                   {tab.label}
                 </button>
               ))}
-            </div>
+                </div>
 
             {/* Tab Content */}
-            <div className="p-6">
+                <div className="p-6">
           {activeTab === 'recent' && (
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center">
@@ -586,38 +586,38 @@ export default function TriumphStyleDashboard() {
                 Recent Games
               </h2>
               {gameHistory.length === 0 ? (
-                <div className="text-center py-8">
+                    <div className="text-center py-8">
                   <TrophyIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-400">No games played yet</p>
                   <Link href="/practice" className="text-blue-500 hover:text-blue-400 mt-2 inline-block">
                     Start playing now!
-                  </Link>
-                </div>
-              ) : (
+                      </Link>
+                    </div>
+                  ) : (
                 <div className="space-y-4">
                   {gameHistory.slice(0, 10).map((game) => (
                     <div key={game.id} className="flex items-center justify-between bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all duration-300">
-                      <div className="flex items-center">
+                          <div className="flex items-center">
                         {getGameIcon(game.game_type)}
                         <div className="ml-4">
                           <p className="text-white font-medium capitalize">{formatGameType(game.game_type)}</p>
                           <p className="text-purple-200 text-sm">
                             {game.is_practice ? 'Practice' : 'Competition'} • {formatDate(game.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
                         <p className="text-white font-bold text-lg">{formatScore(game.score)}</p>
                         <p className="text-purple-200 text-sm">
                           {game.accuracy ? `${game.accuracy}% accuracy` : ''}
                           {game.tokens_won ? ` • +${game.tokens_won} tokens` : ''}
                         </p>
-                      </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
           )}
 
           {activeTab === 'practice' && (
@@ -643,7 +643,7 @@ export default function TriumphStyleDashboard() {
                         <div className="ml-3">
                           <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
                           <p className="text-sm text-gray-400">{formatDate(game.created_at)}</p>
-                        </div>
+                  </div>
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
@@ -703,42 +703,116 @@ export default function TriumphStyleDashboard() {
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center">
                 <ChartBarIcon className="w-6 h-6 mr-2 text-green-500" />
-                Your High Scores
+                Your Statistics
               </h2>
-              {highScores.length === 0 ? (
-                <div className="text-center py-8">
-                  <ChartBarIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No high scores yet</p>
-                  <p className="text-sm text-gray-500">Play some games to see your best scores!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {highScores.map((score) => (
-                    <div key={score.game_type} className="p-4 bg-gray-700 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center">
-                          {getGameIcon(score.game_type)}
-                          <h3 className="font-medium text-white ml-2">{formatGameType(score.game_type)}</h3>
-                        </div>
-                        <TrophyIcon className="w-5 h-5 text-yellow-500" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-white">{formatScore(score.best_score)}</p>
-                        <p className="text-sm text-gray-400">
-                          {score.games_played} games played
-                          {score.practice_games > 0 && ` • ${score.practice_games} practice`}
-                          {score.competition_games > 0 && ` • ${score.competition_games} competitions`}
-                        </p>
-                        {score.best_accuracy && (
-                          <p className="text-sm text-gray-400">
-                            Best accuracy: {score.best_accuracy}%
-                          </p>
-                        )}
-                      </div>
+              
+              {/* Overall Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Total Games</p>
+                      <p className="text-2xl font-bold text-white">{userStats.totalGames}</p>
                     </div>
-                  ))}
+                    <ChartBarIcon className="w-8 h-8 text-blue-500" />
+                  </div>
                 </div>
-              )}
+                
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Practice Games</p>
+                      <p className="text-2xl font-bold text-white">{userStats.practiceGames}</p>
+                    </div>
+                    <StarIcon className="w-8 h-8 text-yellow-500" />
+                          </div>
+                        </div>
+                
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Competitions</p>
+                      <p className="text-2xl font-bold text-white">{userStats.competitionGames}</p>
+                                </div>
+                    <TrophyIcon className="w-8 h-8 text-red-500" />
+                        </div>
+                      </div>
+                      
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                            <div>
+                      <p className="text-gray-400 text-sm">Avg Score</p>
+                      <p className="text-2xl font-bold text-white">{Math.round(userStats.averageScore)}</p>
+                    </div>
+                    <FireIcon className="w-8 h-8 text-orange-500" />
+                            </div>
+                          </div>
+                        </div>
+
+              {/* Token Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                            <div>
+                      <p className="text-gray-400 text-sm">Tokens Wagered</p>
+                      <p className="text-2xl font-bold text-white">{userStats.totalTokensWagered}</p>
+                            </div>
+                    <BanknotesIcon className="w-8 h-8 text-purple-500" />
+                          </div>
+                        </div>
+                
+                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Tokens Won</p>
+                      <p className="text-2xl font-bold text-white">{userStats.totalTokensWon}</p>
+                    </div>
+                    <HeartIcon className="w-8 h-8 text-green-500" />
+                  </div>
+                </div>
+              </div>
+
+              {/* High Scores Section */}
+              <div className="mt-8">
+                <h3 className="text-lg font-bold mb-4 flex items-center">
+                  <TrophyIcon className="w-5 h-5 mr-2 text-yellow-500" />
+                  High Scores by Game
+                </h3>
+                {highScores.length === 0 ? (
+                    <div className="text-center py-8">
+                    <ChartBarIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No high scores yet</p>
+                    <p className="text-sm text-gray-500">Play some games to see your best scores!</p>
+                    </div>
+                  ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {highScores.map((score) => (
+                      <div key={score.game_type} className="p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            {getGameIcon(score.game_type)}
+                            <h3 className="font-medium text-white ml-2">{formatGameType(score.game_type)}</h3>
+                          </div>
+                          <TrophyIcon className="w-5 h-5 text-yellow-500" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-white">{formatScore(score.best_score)}</p>
+                          <p className="text-sm text-gray-400">
+                            {score.games_played} games played
+                            {score.practice_games > 0 && ` • ${score.practice_games} practice`}
+                            {score.competition_games > 0 && ` • ${score.competition_games} competitions`}
+                          </p>
+                          {score.best_accuracy && (
+                            <p className="text-sm text-gray-400">
+                              Best accuracy: {score.best_accuracy}%
+                            </p>
+                          )}
+                        </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
             </div>
           )}
             </div>

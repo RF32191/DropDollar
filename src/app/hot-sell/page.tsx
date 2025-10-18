@@ -115,12 +115,24 @@ export default function HotSellPage() {
     const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } } = {};
     
     hotSellSessions.forEach(session => {
-      const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
-      newTimeRemaining[session.id] = timeData;
+      // Only start timer if base price is met (current_pot >= target_pot)
+      const basePriceMet = session.current_pot >= session.target_pot;
       
-      // Update session status if timer expired
-      if (timeData.isHotSell && session.status === 'waiting') {
-        FixedGamesService.updateHotSellPot(session.id);
+      if (basePriceMet) {
+        const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
+        newTimeRemaining[session.id] = timeData;
+        
+        // Update session status if timer expired
+        if (timeData.isHotSell && session.status === 'waiting') {
+          FixedGamesService.updateHotSellPot(session.id);
+        }
+      } else {
+        // Base price not met yet - show waiting state
+        newTimeRemaining[session.id] = { 
+          minutes: 0, 
+          seconds: 0, 
+          isHotSell: false 
+        };
       }
     });
     
@@ -698,16 +710,34 @@ export default function HotSellPage() {
                   {timer && (
                     <div className="mb-4">
                       <div className={`text-center p-3 rounded-xl ${
-                        isHotSell ? 'bg-red-500/20 border border-red-500/50' : 'bg-blue-500/20 border border-blue-500/50'
+                        isHotSell ? 'bg-red-500/20 border border-red-500/50' : 
+                        session && session.current_pot >= session.target_pot ? 'bg-blue-500/20 border border-blue-500/50' :
+                        'bg-yellow-500/20 border border-yellow-500/50'
                       }`}>
                         <div className="flex items-center justify-center mb-2">
-                          <ClockIcon className={`w-5 h-5 mr-2 ${isHotSell ? 'text-red-400' : 'text-blue-400'}`} />
-                          <span className={`font-semibold ${isHotSell ? 'text-red-300' : 'text-blue-300'}`}>
-                            {isHotSell ? 'HOT SELL MODE!' : 'Time Remaining'}
+                          <ClockIcon className={`w-5 h-5 mr-2 ${
+                            isHotSell ? 'text-red-400' : 
+                            session && session.current_pot >= session.target_pot ? 'text-blue-400' :
+                            'text-yellow-400'
+                          }`} />
+                          <span className={`font-semibold ${
+                            isHotSell ? 'text-red-300' : 
+                            session && session.current_pot >= session.target_pot ? 'text-blue-300' :
+                            'text-yellow-300'
+                          }`}>
+                            {isHotSell ? 'HOT SELL MODE!' : 
+                             session && session.current_pot >= session.target_pot ? 'Time Remaining' :
+                             'Waiting for Base Price'}
                           </span>
                         </div>
-                        <p className={`text-lg font-bold ${isHotSell ? 'text-red-300' : 'text-blue-300'}`}>
-                          {formatTimeRemaining(timer.minutes, timer.seconds)}
+                        <p className={`text-lg font-bold ${
+                          isHotSell ? 'text-red-300' : 
+                          session && session.current_pot >= session.target_pot ? 'text-blue-300' :
+                          'text-yellow-300'
+                        }`}>
+                          {isHotSell ? formatTimeRemaining(timer.minutes, timer.seconds) :
+                           session && session.current_pot >= session.target_pot ? formatTimeRemaining(timer.minutes, timer.seconds) :
+                           `${formatPrizeAmount(session.target_pot - session.current_pot)} needed`}
                         </p>
                       </div>
                     </div>
