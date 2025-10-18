@@ -353,11 +353,17 @@ export default function HotSellPage() {
         setHotSellSessions(updatedSessions);
         
         // Refresh participants for this session
-        const updatedParticipants = await FixedGamesService.getFixedGameParticipants(session.id);
-        setSessionParticipants(prev => ({
-          ...prev,
-          [session.id]: updatedParticipants
-        }));
+        // Find the active game for this session's config
+        const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
+        const activeGame = activeGames.find(game => game.config_id === session.config_id);
+        
+        if (activeGame) {
+          const updatedParticipants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
+          setSessionParticipants(prev => ({
+            ...prev,
+            [session.id]: updatedParticipants
+          }));
+        }
         
         console.log('✅ [HotSell] Sessions and participants refreshed');
       } else {
@@ -554,10 +560,20 @@ export default function HotSellPage() {
       console.log('🔄 Refreshing participants data...');
       const participantsData: { [sessionId: string]: FixedGameParticipant[] } = {};
       
+      // Get all active games first
+      const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
+      
       for (const session of hotSellSessions) {
         try {
-          const participants = await FixedGamesService.getFixedGameParticipants(session.id);
-          participantsData[session.id] = participants;
+          // Find the active game for this session's config
+          const activeGame = activeGames.find(game => game.config_id === session.config_id);
+          
+          if (activeGame) {
+            const participants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
+            participantsData[session.id] = participants;
+          } else {
+            participantsData[session.id] = [];
+          }
         } catch (error) {
           console.error(`❌ Error loading participants for session ${session.id}:`, error);
           participantsData[session.id] = [];
@@ -594,23 +610,31 @@ export default function HotSellPage() {
       console.log('✅ [HotSell] Game history saved');
       
       // Update the participant score in fixed_game_participants table
-      // First get the session to find the game_id
+      // Find the active_fixed_games record for this session's config
       const session = hotSellSessions.find(s => s.id === selectedGameFlow.sessionId);
-      if (session && session.game_id) {
-        const participantUpdate = await FixedGamesService.updateFixedGameScore(
-          session.game_id,
-          user.id,
-          score,
-          accuracy
-        );
+      if (session) {
+        // Find the active_fixed_games record for this config
+        const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
+        const activeGame = activeGames.find(game => game.config_id === session.config_id);
         
-        if (participantUpdate) {
-          console.log('✅ [HotSell] Participant score updated:', participantUpdate);
+        if (activeGame) {
+          const participantUpdate = await FixedGamesService.updateFixedGameScore(
+            activeGame.id,
+            user.id,
+            score,
+            accuracy
+          );
+          
+          if (participantUpdate) {
+            console.log('✅ [HotSell] Participant score updated:', participantUpdate);
+          } else {
+            console.log('⚠️ [HotSell] Participant score update failed, but continuing...');
+          }
         } else {
-          console.log('⚠️ [HotSell] Participant score update failed, but continuing...');
+          console.log('⚠️ [HotSell] Could not find active game for config, skipping score update');
         }
       } else {
-        console.log('⚠️ [HotSell] Could not find session or game_id, skipping score update');
+        console.log('⚠️ [HotSell] Could not find session, skipping score update');
       }
       
       // Deduct tokens after score is saved
