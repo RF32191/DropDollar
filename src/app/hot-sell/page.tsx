@@ -323,9 +323,16 @@ export default function HotSellPage() {
     try {
       setJoiningSession(session.id);
       
-      // DON'T deduct tokens yet - only deduct after score is saved
-      // Just track user participation for now
-      addUserParticipation(session.id); // Track user participation
+      // Add user to fixed_game_participants table in database
+      console.log('👤 [HotSell] Adding user to fixed_game_participants table...');
+      const participant = await FixedGamesService.joinFixedGame(session.id, user.id, config.entry_fee);
+      if (!participant) {
+        throw new Error('Failed to join game in database');
+      }
+      console.log('✅ [HotSell] User added to database:', participant.id);
+      
+      // Track user participation locally
+      addUserParticipation(session.id);
       setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
       
       // Start the game flow with 3-second countdown
@@ -567,6 +574,7 @@ export default function HotSellPage() {
           }));
           
           console.log('✅ Hot sell pot updated, sessions refreshed, and participants updated');
+          console.log('📊 Updated participants:', updatedParticipants.length, 'players with scores');
         }
       } else {
         console.error('❌ Failed to deduct tokens after game completion');
@@ -603,6 +611,15 @@ export default function HotSellPage() {
 
   // Adjust entry fees to be within 1-5 token range and calculate proper prize pools
   const adjustEntryFee = (config: FixedGameConfig) => {
+    // Special case: Fix $100 Daily Hot Sell to $150 with 2 token entry
+    if (config.title === '$100 Daily Hot Sell' && config.prize_pool === 100) {
+      return {
+        ...config,
+        entry_fee: 2,
+        prize_pool: 150
+      };
+    }
+    
     // Limit entry fees to 1-5 tokens
     const adjustedFee = Math.min(Math.max(config.entry_fee, 1), 5);
     
@@ -1086,7 +1103,7 @@ export default function HotSellPage() {
                                                 index === 2 ? 'bg-orange-500' : 'bg-gray-600'
                                               }`}>
                                                 <span className="text-white font-bold text-xs">{index + 1}</span>
-                                              </div>
+                </div>
                                               <span className="text-white text-sm">
                                                 {participant.user_id === user?.id ? 'You' : `Player ${participant.user_id.slice(-4)}`}
                                               </span>
@@ -1115,8 +1132,8 @@ export default function HotSellPage() {
                 </div>
               );
             })}
-          </div>
-        </div>
+              </div>
+            </div>
 
         {/* Winner Takes It All Section */}
         <div className="mb-12">
@@ -1607,7 +1624,7 @@ export default function HotSellPage() {
               <div className="flex items-center">
                 <TrophyIcon className="w-6 h-6 mr-2" />
                 Create Your Own Tournament
-              </div>
+          </div>
             </button>
         </div>
         )}

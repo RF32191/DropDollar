@@ -115,6 +115,11 @@ export default function CompetitionGameFlow({
           
           console.log('✅ [CompetitionGameFlow] Game history saved to game_history table');
           
+          // ALSO save to fixed_game_participants table for scoreboard display
+          console.log('💾 [CompetitionGameFlow] Saving score to fixed_game_participants for scoreboard...');
+          await FixedGamesService.updateFixedGameScore(sessionId, user.id, score, gameAccuracy);
+          console.log('✅ [CompetitionGameFlow] Score saved to fixed_game_participants table');
+          
           // Store a flag so dashboard knows to refresh
           localStorage.setItem('hasNewGameScore', 'true');
           console.log('🎉 [CompetitionGameFlow] ✅✅✅ SCORE SAVED SUCCESSFULLY TO YOUR DASHBOARD! ✅✅✅');
