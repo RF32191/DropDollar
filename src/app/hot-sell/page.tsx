@@ -503,14 +503,26 @@ export default function HotSellPage() {
   };
 
   const calculatePrizeDistribution = (prizePool: number) => {
-    const feeRate = 0.15; // 15% fee from total pot
-    const netPrizePool = prizePool * (1 - feeRate);
+    // Fixed payout structure: 1st place gets $1.50, 3rd place gets $2.50
+    // Total prize pool should be $4.00 for this distribution
+    const totalPrizePool = 4.00;
+    const feeRate = 0.0; // No platform fee for this structure
     
     return {
-      first: netPrizePool * 0.5,
-      second: netPrizePool * 0.3,
-      third: netPrizePool * 0.2,
-      totalFee: prizePool * feeRate
+      first: 1.50,  // $1.50 for 1st place
+      second: 0.00, // $0.00 for 2nd place
+      third: 2.50,  // $2.50 for 3rd place
+      totalFee: 0.00 // No platform fee
+    };
+  };
+
+  // Adjust entry fees to be within 1-5 token range
+  const adjustEntryFee = (config: FixedGameConfig) => {
+    // Limit entry fees to 1-5 tokens
+    const adjustedFee = Math.min(Math.max(config.entry_fee, 1), 5);
+    return {
+      ...config,
+      entry_fee: adjustedFee
     };
   };
 
@@ -666,11 +678,12 @@ export default function HotSellPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {fixedGameConfigs.map((config) => {
+              const adjustedConfig = adjustEntryFee(config);
               const session = hotSellSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculatePrizeDistribution(config.prize_pool);
+              const prizeDistribution = calculatePrizeDistribution(adjustedConfig.prize_pool);
               const isHotSell = timer?.isHotSell || false;
-              const canJoin = userTokens >= config.entry_fee;
+              const canJoin = userTokens >= adjustedConfig.entry_fee;
               
               return (
                 <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
@@ -681,7 +694,7 @@ export default function HotSellPage() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center">
                         <span className="text-3xl mr-3">{getGameIcon(config.game_type)}</span>
-                        <h3 className="text-xl font-bold text-white">{config.title}</h3>
+                        <h3 className="text-xl font-bold text-white">{adjustedConfig.title}</h3>
               </div>
                       <div className={`flex items-center rounded-full px-3 py-1 ${
                         isHotSell ? 'bg-red-500/20 text-red-300' : 'bg-blue-500/20 text-blue-300'
@@ -700,7 +713,7 @@ export default function HotSellPage() {
               </div>
             </div>
                     
-                    <p className="text-gray-300 mb-4">{config.description}</p>
+                    <p className="text-gray-300 mb-4">{adjustedConfig.description}</p>
                     
                     {/* Prize Pool */}
                     <div className={`rounded-2xl p-4 mb-4 ${
@@ -710,7 +723,7 @@ export default function HotSellPage() {
                     }`}>
                       <div className="text-center">
                         <p className="text-yellow-100 text-sm font-medium mb-1">PRIZE POOL</p>
-                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(config.prize_pool)}</p>
+                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(adjustedConfig.prize_pool)}</p>
                         {session && (
                           <p className="text-yellow-100 text-xs mt-1">
                             Current Pot: {formatPrizeAmount(session.current_pot)} ({session.participants_count} players)
@@ -807,7 +820,7 @@ export default function HotSellPage() {
                 <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
                       <span>Participants Progress</span>
-                      <span>{session?.participants_count || 0} / {config.max_participants} players</span>
+                      <span>{session?.participants_count || 0} / {adjustedConfig.max_participants} players</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-3">
                       <div 
@@ -817,13 +830,13 @@ export default function HotSellPage() {
                             : 'bg-gradient-to-r from-blue-500 to-purple-500'
                         }`} 
                         style={{ 
-                          width: `${Math.min(100, ((session?.participants_count || 0) / config.max_participants) * 100)}%` 
+                          width: `${Math.min(100, ((session?.participants_count || 0) / adjustedConfig.max_participants) * 100)}%` 
                         }}
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>Target: {config.max_participants} players</span>
-                      <span>Remaining: {Math.max(0, config.max_participants - (session?.participants_count || 0))} players</span>
+                      <span>Target: {adjustedConfig.max_participants} players</span>
+                      <span>Remaining: {Math.max(0, adjustedConfig.max_participants - (session?.participants_count || 0))} players</span>
                     </div>
                   </div>
 
@@ -834,21 +847,21 @@ export default function HotSellPage() {
                         <BanknotesIcon className="w-4 h-4 text-green-400 mr-2" />
                         <span className="text-gray-300 text-sm">Entry Fee</span>
                       </div>
-                      <span className="text-white font-semibold text-sm">{config.entry_fee} tokens</span>
+                      <span className="text-white font-semibold text-sm">{adjustedConfig.entry_fee} tokens</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
                         <span className="text-gray-300 text-sm">Max Players</span>
                       </div>
-                      <span className="text-white font-semibold text-sm">{config.max_participants}</span>
+                      <span className="text-white font-semibold text-sm">{adjustedConfig.max_participants}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <ClockIcon className="w-4 h-4 text-blue-400 mr-2" />
                         <span className="text-gray-300 text-sm">Duration</span>
                       </div>
-                      <span className="text-white font-semibold text-sm">{config.game_duration}s</span>
+                      <span className="text-white font-semibold text-sm">{adjustedConfig.game_duration}s</span>
                     </div>
                   </div>
 
@@ -860,13 +873,13 @@ export default function HotSellPage() {
                       </div>
                     ) : !canJoin ? (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
-                        <p className="text-red-300 text-sm">You need {config.entry_fee} tokens to join</p>
+                        <p className="text-red-300 text-sm">You need {adjustedConfig.entry_fee} tokens to join</p>
                       </div>
                     ) : (
                       <>
                         {session ? (
                           <button
-                            onClick={() => joinHotSellSession(session, config)}
+                            onClick={() => joinHotSellSession(session, adjustedConfig)}
                             disabled={joiningSession === session.id || hasUserJoined(session.id)}
                             className={`w-full font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
                               isHotSell 
@@ -889,13 +902,13 @@ export default function HotSellPage() {
                                   <>
                                     <LockClosedIcon className="w-4 h-4 mr-2" />
                                     <BoltIcon className="w-4 h-4 mr-2" />
-                                    JOIN HOT SELL - {config.entry_fee} TOKENS
+                                    JOIN HOT SELL - {adjustedConfig.entry_fee} TOKENS
                                   </>
                                 ) : (
                                   <>
                                     <LockClosedIcon className="w-4 h-4 mr-2" />
                                     <PlayIcon className="w-4 h-4 mr-2" />
-                                    JOIN SESSION - {config.entry_fee} TOKENS
+                                    JOIN SESSION - {adjustedConfig.entry_fee} TOKENS
                                   </>
                                 )}
                               </div>
@@ -903,7 +916,7 @@ export default function HotSellPage() {
                     </button>
                         ) : (
                           <button
-                            onClick={() => createHotSellSession(config)}
+                            onClick={() => createHotSellSession(adjustedConfig)}
                             className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                           >
                             <div className="flex items-center justify-center">
@@ -920,56 +933,70 @@ export default function HotSellPage() {
                   {session && (
                     <div className="mt-6">
                       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                        <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
-                          <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                          Live Scoreboard
-                        </h4>
+                        <button
+                          onClick={() => {
+                            const scoreboardElement = document.getElementById(`scoreboard-${session.id}`);
+                            if (scoreboardElement) {
+                              scoreboardElement.classList.toggle('hidden');
+                            }
+                          }}
+                          className="w-full flex items-center justify-between text-left"
+                        >
+                          <h4 className="text-sm font-semibold text-white flex items-center">
+                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                            Live Scoreboard
+                          </h4>
+                          <span className="text-gray-400 text-xs">Click to expand</span>
+                        </button>
                         
-                        {session.participants_count > 0 ? (
-                          <div className="space-y-2">
-                            {/* Show locked message for users who haven't played */}
-                            {!hasUserJoined(session.id) && (
-                              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
-                                <div className="flex items-center justify-center">
-                                  <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                                  <span className="text-yellow-300 text-sm font-medium">
-                                    Join the game to see live scores!
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Show scores for users who have played */}
-                            {hasUserJoined(session.id) && (
-                              <div className="space-y-2">
-                                <div className="text-center text-gray-400 text-xs mb-2">
-                                  {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
-                                </div>
-                                
-                                {/* Placeholder for actual scores - will be populated after game completion */}
-                                <div className="bg-white/5 rounded-lg p-3">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                      <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                                        <span className="text-white font-bold text-xs">1</span>
-                                      </div>
-                                      <span className="text-white text-sm">Your Score</span>
-                                    </div>
-                                    <span className="text-yellow-400 font-bold text-sm">--</span>
+                        <div id={`scoreboard-${session.id}`} className="hidden mt-3">
+                          {session.participants_count > 0 ? (
+                            <div className="space-y-2">
+                              {/* Show locked message for users who haven't played */}
+                              {!hasUserJoined(session.id) && (
+                                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
+                                  <div className="flex items-center justify-center">
+                                    <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                                    <span className="text-yellow-300 text-sm font-medium">
+                                      Join the game to see live scores!
+                                    </span>
                                   </div>
                                 </div>
-                                
-                                <div className="text-center text-gray-500 text-xs">
-                                  Scores will appear after game completion
+                              )}
+                              
+                              {/* Show scores for users who have played */}
+                              {hasUserJoined(session.id) && (
+                                <div className="space-y-2">
+                                  <div className="text-center text-gray-400 text-xs mb-2">
+                                    <UsersIcon className="w-4 h-4 inline mr-1" />
+                                    {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
+                                  </div>
+                                  
+                                  {/* Placeholder for actual scores - will be populated after game completion */}
+                                  <div className="bg-white/5 rounded-lg p-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center">
+                                        <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                                          <span className="text-white font-bold text-xs">1</span>
+                                        </div>
+                                        <span className="text-white text-sm">Your Score</span>
+                                      </div>
+                                      <span className="text-yellow-400 font-bold text-sm">--</span>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-center text-gray-500 text-xs">
+                                    Scores will appear after game completion
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center text-gray-400 text-sm">
-                            No players yet. Be the first to join!
-                          </div>
-                        )}
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center text-gray-400 text-sm">
+                              No players yet. Be the first to join!
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
