@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
-import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
+import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility, FixedGameParticipant } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { BlindScoreboardService, BlindListing } from '@/lib/supabase/blindScoreboardService';
@@ -32,6 +32,7 @@ export default function HotSellPage() {
   const { tokenBalance: userTokens, isLoading: tokensLoading } = useTokenSync();
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
+  const [sessionParticipants, setSessionParticipants] = useState<{ [sessionId: string]: FixedGameParticipant[] }>({});
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
   const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
   const [userParticipations, setUserParticipations] = useState<string[]>([]);
@@ -58,6 +59,17 @@ export default function HotSellPage() {
       checkUserEligibility();
     }
   }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
+
+  // Refresh participants data every 30 seconds
+  useEffect(() => {
+    if (hotSellSessions.length > 0) {
+      const interval = setInterval(() => {
+        refreshParticipantsData();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [hotSellSessions.length]);
 
   useEffect(() => {
     // Update timers every second
@@ -91,6 +103,23 @@ export default function HotSellPage() {
       // Load hot sell sessions
       const sessions = await FixedGamesService.getHotSellSessions();
       setHotSellSessions(sessions);
+      
+      // Load participants for each session
+      const sessionParticipantsData: { [sessionId: string]: FixedGameParticipant[] } = {};
+      for (const session of sessions) {
+        try {
+          const sessionConfig = configs.find(c => c.id === session.config_id);
+          if (sessionConfig) {
+            const participants = await FixedGamesService.getFixedGameParticipants(session.id);
+            sessionParticipantsData[session.id] = participants;
+            console.log(`✅ [HotSell] Loaded ${participants.length} participants for session ${session.id}`);
+          }
+        } catch (error) {
+          console.error(`❌ [HotSell] Error loading participants for session ${session.id}:`, error);
+          sessionParticipantsData[session.id] = [];
+        }
+      }
+      setSessionParticipants(sessionParticipantsData);
       
       // Load blind scoreboard listings
       const blindListings = await BlindScoreboardService.getOpenListings();
@@ -483,6 +512,30 @@ export default function HotSellPage() {
     setUserParticipations(prev => [...prev, competitionId]);
   };
 
+  const refreshParticipantsData = async () => {
+    if (!hotSellSessions.length) return;
+    
+    try {
+      console.log('🔄 Refreshing participants data...');
+      const participantsData: { [sessionId: string]: FixedGameParticipant[] } = {};
+      
+      for (const session of hotSellSessions) {
+        try {
+          const participants = await FixedGamesService.getFixedGameParticipants(session.id);
+          participantsData[session.id] = participants;
+        } catch (error) {
+          console.error(`❌ Error loading participants for session ${session.id}:`, error);
+          participantsData[session.id] = [];
+        }
+      }
+      
+      setSessionParticipants(participantsData);
+      console.log('✅ Participants data refreshed');
+    } catch (error) {
+      console.error('❌ Error refreshing participants data:', error);
+    }
+  };
+
   // Callback to deduct tokens after game completion
   const handleGameCompletion = async (score: number, accuracy: number) => {
     if (!user || !selectedGameFlow?.entryFee) return;
@@ -496,6 +549,25 @@ export default function HotSellPage() {
         setUserTokens(newTokenBalance);
         console.log(`✅ Tokens deducted: ${selectedGameFlow.entryFee} tokens`);
         console.log(`✅ New balance: ${newTokenBalance} tokens`);
+        
+        // Update the hot sell pot with the entry fee
+        if (selectedGameFlow.sessionId) {
+          console.log('💰 Updating hot sell pot with entry fee...');
+          await FixedGamesService.updateHotSellPot(selectedGameFlow.sessionId);
+          
+          // Refresh sessions to show updated pot
+          const updatedSessions = await FixedGamesService.getHotSellSessions();
+          setHotSellSessions(updatedSessions);
+          
+          // Refresh participants for this session
+          const updatedParticipants = await FixedGamesService.getFixedGameParticipants(selectedGameFlow.sessionId);
+          setSessionParticipants(prev => ({
+            ...prev,
+            [selectedGameFlow.sessionId]: updatedParticipants
+          }));
+          
+          console.log('✅ Hot sell pot updated, sessions refreshed, and participants updated');
+        }
       } else {
         console.error('❌ Failed to deduct tokens after game completion');
       }
@@ -997,22 +1069,38 @@ export default function HotSellPage() {
                                   {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
                                 </div>
                                 
-                                {/* Placeholder for actual scores - will be populated after game completion */}
-                                <div className="bg-white/5 rounded-lg p-3">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                      <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                                        <span className="text-white font-bold text-xs">1</span>
-                </div>
-                                      <span className="text-white text-sm">Your Score</span>
-                                    </div>
-                                    <span className="text-yellow-400 font-bold text-sm">--</span>
-              </div>
-            </div>
-
-                                <div className="text-center text-gray-500 text-xs">
-                                  Scores will appear after game completion
-              </div>
+                                {/* Real participant scores */}
+                                {sessionParticipants[session.id] && sessionParticipants[session.id].length > 0 ? (
+                                  <div className="space-y-2">
+                                    {sessionParticipants[session.id]
+                                      .filter(p => p.score !== null && p.score !== undefined)
+                                      .sort((a, b) => (b.score || 0) - (a.score || 0))
+                                      .map((participant, index) => (
+                                        <div key={participant.id} className="bg-white/5 rounded-lg p-3">
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                              <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                                                participant.user_id === user?.id ? 'bg-yellow-500' : 
+                                                index === 0 ? 'bg-yellow-500' : 
+                                                index === 1 ? 'bg-gray-400' : 
+                                                index === 2 ? 'bg-orange-500' : 'bg-gray-600'
+                                              }`}>
+                                                <span className="text-white font-bold text-xs">{index + 1}</span>
+                                              </div>
+                                              <span className="text-white text-sm">
+                                                {participant.user_id === user?.id ? 'You' : `Player ${participant.user_id.slice(-4)}`}
+                                              </span>
+                                            </div>
+                                            <span className="text-yellow-400 font-bold text-sm">{participant.score}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div className="bg-white/5 rounded-lg p-3 text-center">
+                                    <span className="text-gray-400 text-sm">No scores yet - game in progress</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1027,8 +1115,8 @@ export default function HotSellPage() {
                 </div>
               );
             })}
-              </div>
-            </div>
+          </div>
+        </div>
 
         {/* Winner Takes It All Section */}
         <div className="mb-12">
@@ -1519,7 +1607,7 @@ export default function HotSellPage() {
               <div className="flex items-center">
                 <TrophyIcon className="w-6 h-6 mr-2" />
                 Create Your Own Tournament
-          </div>
+              </div>
             </button>
         </div>
         )}
