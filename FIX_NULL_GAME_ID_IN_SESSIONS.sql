@@ -30,32 +30,16 @@ BEGIN
             -- Create an entry in active_fixed_games for this session
             INSERT INTO public.active_fixed_games (
                 config_id, 
-                game_type, 
                 tournament_type, 
-                title, 
-                description, 
-                entry_fee, 
-                prize_pool, 
-                max_participants, 
-                game_duration, 
-                rng_seed, 
                 status, 
-                created_at, 
-                expires_at
+                started_at, 
+                created_at
             ) VALUES (
                 config_rec.id,
-                config_rec.game_type,
                 config_rec.tournament_type,
-                config_rec.title,
-                config_rec.description,
-                config_rec.entry_fee,
-                config_rec.prize_pool,
-                config_rec.max_participants,
-                config_rec.game_duration,
-                config_rec.rng_seed,
                 session_rec.status, -- Use existing session status
-                session_rec.created_at,
-                session_rec.expires_at
+                session_rec.started_at,
+                session_rec.created_at
             ) RETURNING id INTO active_game_id;
             
             -- Update the hot_sell_session with the new game_id
