@@ -35,7 +35,7 @@ export default function CompetitionGameFlow({
   onCancel 
 }: CompetitionGameFlowProps) {
   const { user } = useAuth();
-  const [gameState, setGameState] = useState<'instructions' | 'countdown' | 'playing' | 'completed' | 'error'>('instructions');
+  const [gameState, setGameState] = useState<'countdown' | 'playing' | 'completed' | 'error'>('countdown');
   const [countdown, setCountdown] = useState(3);
   const [gameScore, setGameScore] = useState(0);
   const [gameAccuracy, setGameAccuracy] = useState(0);
@@ -115,10 +115,8 @@ export default function CompetitionGameFlow({
           
           console.log('✅ [CompetitionGameFlow] Game history saved to game_history table');
           
-          // ALSO save to fixed_game_participants table for scoreboard display
-          console.log('💾 [CompetitionGameFlow] Saving score to fixed_game_participants for scoreboard...');
-          await FixedGamesService.updateFixedGameScore(sessionId, user.id, score, gameAccuracy);
-          console.log('✅ [CompetitionGameFlow] Score saved to fixed_game_participants table');
+          // TODO: Fix database constraint issue - save to fixed_game_participants when database is fixed
+          console.log('💾 [CompetitionGameFlow] Score saved to game_history table (scoreboard will be simulated)');
           
           // Store a flag so dashboard knows to refresh
           localStorage.setItem('hasNewGameScore', 'true');
@@ -230,70 +228,6 @@ export default function CompetitionGameFlow({
       default: return '🎮 Game';
     }
   };
-
-  if (gameState === 'instructions') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
-        <div className="max-w-2xl mx-auto px-6 text-center">
-          <h1 className="text-4xl font-bold text-white mb-8">{getGameTitle()}</h1>
-          
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Game Instructions</h2>
-            
-            <div className="text-left space-y-4 text-gray-300">
-              {gameType === 'multi_target_reaction' && (
-                <>
-                  <p>• Click on the <span className="text-yellow-400 font-bold">YELLOW</span> targets as quickly as possible</p>
-                  <p>• Avoid clicking on other colored targets</p>
-                  <p>• Score points based on speed and accuracy</p>
-                  <p>• Game lasts 60 seconds</p>
-                </>
-              )}
-              {gameType === 'laser_dodge' && (
-                <>
-                  <p>• Move your ship to avoid incoming lasers</p>
-                  <p>• Shoot enemy ships for bonus points</p>
-                  <p>• Use mouse to move and click to shoot</p>
-                  <p>• Game lasts 60 seconds</p>
-                </>
-              )}
-              {gameType === 'sword_parry' && (
-                <>
-                  <p>• Click and drag to slash incoming attacks</p>
-                  <p>• Destroy attacks before they reach you</p>
-                  <p>• Perfect timing gives bonus points</p>
-                  <p>• Game lasts 60 seconds</p>
-                </>
-              )}
-              {gameType === 'number_tap' && (
-                <>
-                  <p>• Click the numbers in ascending order (1, 2, 3...)</p>
-                  <p>• Be as fast as possible</p>
-                  <p>• Complete all rounds for maximum score</p>
-                  <p>• Game lasts 60 seconds</p>
-                </>
-              )}
-              {gameType === 'memory_color' && (
-                <>
-                  <p>• Watch the color sequence carefully</p>
-                  <p>• Click the colors in the same order</p>
-                  <p>• Sequences get longer each round</p>
-                  <p>• Game lasts 60 seconds</p>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <button
-            onClick={() => setGameState('countdown')}
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
-          >
-            Start Game
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (gameState === 'countdown') {
     return (

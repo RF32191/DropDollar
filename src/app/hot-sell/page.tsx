@@ -323,13 +323,9 @@ export default function HotSellPage() {
     try {
       setJoiningSession(session.id);
       
-      // Add user to fixed_game_participants table in database
-      console.log('👤 [HotSell] Adding user to fixed_game_participants table...');
-      const participant = await FixedGamesService.joinFixedGame(session.id, user.id, config.entry_fee);
-      if (!participant) {
-        throw new Error('Failed to join game in database');
-      }
-      console.log('✅ [HotSell] User added to database:', participant.id);
+      // For now, just track user participation locally
+      // TODO: Fix database constraint issue with hot_sell_sessions
+      console.log('👤 [HotSell] Tracking user participation locally...');
       
       // Track user participation locally
       addUserParticipation(session.id);
@@ -611,12 +607,13 @@ export default function HotSellPage() {
 
   // Adjust entry fees to be within 1-5 token range and calculate proper prize pools
   const adjustEntryFee = (config: FixedGameConfig) => {
-    // Special case: Fix $100 Daily Hot Sell to $150 with 2 token entry
+    // Special case: Fix $100 Daily Hot Sell to $150 with 2 token entry and 50 max players
     if (config.title === '$100 Daily Hot Sell' && config.prize_pool === 100) {
       return {
         ...config,
         entry_fee: 2,
-        prize_pool: 150
+        prize_pool: 150,
+        max_participants: 50
       };
     }
     
