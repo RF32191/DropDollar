@@ -91,37 +91,33 @@ export default function CompetitionGameFlow({
       if (user && user.id) {
         console.log('🎮 [CompetitionGameFlow] User object:', { id: user.id, username: user.username, email: user.email });
         try {
-          // Save game history with proper competition data
-          const gameHistoryData = {
+          // Save game history using the EXACT same format as the working games page
+          console.log('💾 [CompetitionGameFlow] Saving game result to Supabase...', {
             userId: user.id,
+            userEmail: user.email,
             gameType: gameType,
             score: score,
-            accuracy: gameAccuracy,
-            avgReactionTime: 0,
-            gameDuration: gameDuration,
-            isPractice: false,
-            listingId: sessionId,
-            entryNumber: 1,
-            placement: 1, // Assume first place for now
-            prizeWon: 0, // Will be calculated later
-            tokensWagered: 1, // Standard entry fee
-            tokensWon: 0, // Will be calculated based on placement
-            metadata: { 
-              sessionId, 
-              configId,
-              competitionMode: true,
-              gameCompleted: true,
-              timestamp: new Date().toISOString(),
-              leaderboardData: {
-                totalParticipants: 1,
-                userRanking: 1,
-                gameType: gameType
-              }
-            }
-          };
+            isPractice: false
+          });
 
-          await SimpleGameService.saveGameHistory(gameHistoryData);
-          console.log('✅ [CompetitionGameFlow] Game result saved successfully');
+          // Use the exact same format as the working games page
+          await SimpleGameService.saveGameHistory({
+            user_id: user.id,
+            game_type: gameType,
+            score: score,
+            accuracy: gameAccuracy,
+            avg_reaction_time: 0,
+            is_practice: false,
+            listing_id: sessionId,
+            entry_number: 1,
+            game_duration: gameDuration
+          });
+          
+          console.log('✅ [CompetitionGameFlow] Game history saved to game_history table');
+          
+          // Store a flag so dashboard knows to refresh
+          localStorage.setItem('hasNewGameScore', 'true');
+          console.log('🎉 [CompetitionGameFlow] ✅✅✅ SCORE SAVED SUCCESSFULLY TO YOUR DASHBOARD! ✅✅✅');
 
           // Create realistic leaderboard data
           const leaderboardData = [

@@ -89,6 +89,17 @@ export default function TriumphStyleDashboard() {
       console.log('🎉 New game result detected!');
     }
     
+    // Check for new game score flag from localStorage
+    const hasNewScore = localStorage.getItem('hasNewGameScore');
+    if (hasNewScore === 'true') {
+      console.log('🎉 New game score detected in localStorage! Refreshing dashboard...');
+      localStorage.removeItem('hasNewGameScore'); // Clear the flag
+      // Reload dashboard data
+      if (user && isAuthenticated) {
+        loadDashboardData();
+      }
+    }
+    
     // Only load data if user is authenticated
     if (user && isAuthenticated) {
       loadDashboardData();

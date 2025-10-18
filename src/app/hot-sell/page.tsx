@@ -523,9 +523,16 @@ export default function HotSellPage() {
     // Limit entry fees to 1-5 tokens
     const adjustedFee = Math.min(Math.max(config.entry_fee, 1), 5);
     
-    // Calculate prize pool based on max participants and entry fee
-    // 1 token = $1, so if 50 players pay 3 tokens each = $150 total pot
-    const calculatedPrizePool = config.max_participants * adjustedFee;
+    // For specific prize amounts, use the original prize pool
+    // This ensures $10 games show $1.50 platform fee correctly
+    let calculatedPrizePool = config.prize_pool;
+    
+    // Only calculate if prize_pool is 0 or very small (indicating it should be calculated)
+    if (calculatedPrizePool <= 1) {
+      // Calculate prize pool based on max participants and entry fee
+      // 1 token = $1, so if 50 players pay 3 tokens each = $150 total pot
+      calculatedPrizePool = config.max_participants * adjustedFee;
+    }
     
     return {
       ...config,
