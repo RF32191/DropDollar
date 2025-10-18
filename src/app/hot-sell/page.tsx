@@ -6,7 +6,9 @@ import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/sup
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
+import { BlindScoreboardService, BlindListing } from '@/lib/supabase/blindScoreboardService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import BlindScoreboard from '@/components/games/BlindScoreboard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
@@ -32,6 +34,7 @@ export default function HotSellPage() {
   const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
   const [userParticipations, setUserParticipations] = useState<string[]>([]);
   const [userTokens, setUserTokens] = useState<number>(0);
+  const [blindListings, setBlindListings] = useState<BlindListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [joiningListing, setJoiningListing] = useState<string | null>(null);
   const [joiningSession, setJoiningSession] = useState<string | null>(null);
@@ -87,6 +90,10 @@ export default function HotSellPage() {
       // Load hot sell sessions
       const sessions = await FixedGamesService.getHotSellSessions();
       setHotSellSessions(sessions);
+      
+      // Load blind scoreboard listings
+      const blindListings = await BlindScoreboardService.getOpenListings();
+      setBlindListings(blindListings);
       
       // Load user tokens
       if (user) {
@@ -1185,6 +1192,66 @@ export default function HotSellPage() {
             })}
               </div>
             </div>
+
+        {/* Blind Scoreboard Section */}
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">🎯 BLIND SCOREBOARD</h2>
+            <p className="text-lg text-gray-300">Competitive matches with hidden scores until completion</p>
+            <p className="text-sm text-gray-400">Scores are revealed only after all players finish</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {blindListings.map((listing) => (
+              <div key={listing.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:bg-white/15">
+                {/* Game Header */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <span className="text-3xl mr-3">{getGameIcon(listing.game_key)}</span>
+                      <h3 className="text-xl font-bold text-white">{listing.title}</h3>
+                    </div>
+                    <div className="flex items-center bg-purple-500/20 rounded-full px-3 py-1">
+                      <LockClosedIcon className="w-4 h-4 mr-1" />
+                      <span className="text-purple-300 text-xs font-semibold">BLIND</span>
+                    </div>
+                  </div>
+                  
+                  <p className="text-gray-300 mb-4">{listing.game_key.replace('_', ' ').toUpperCase()}</p>
+                  
+                  {/* Entry Fee */}
+                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
+                    <div className="text-center">
+                      <p className="text-purple-100 text-sm font-medium mb-1">ENTRY FEE</p>
+                      <p className="text-2xl font-bold text-white">{listing.entry_cost_tokens} tokens</p>
+                    </div>
+                  </div>
+                  
+                  {/* Players Required */}
+                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-blue-500 to-cyan-500">
+                    <div className="text-center">
+                      <p className="text-blue-100 text-sm font-medium mb-1">PLAYERS REQUIRED</p>
+                      <p className="text-2xl font-bold text-white">{listing.required_players}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Blind Scoreboard Component */}
+                <BlindScoreboard
+                  listing={listing}
+                  onGameStart={(matchId) => {
+                    console.log('🎮 Blind game starting for match:', matchId);
+                    // Handle game start
+                  }}
+                  onScoreSubmit={(matchId, score) => {
+                    console.log('📊 Blind score submitted:', { matchId, score });
+                    // Handle score submission
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Hot Sell Listings */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
