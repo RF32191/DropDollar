@@ -412,66 +412,241 @@ CREATE POLICY "Users can insert own match participants" ON public.match_particip
 CREATE POLICY "Users can update own match participants" ON public.match_participant FOR UPDATE USING (auth.uid()::text = user_id);
 
 -- ========================================
--- 3. GRANT PERMISSIONS
+-- 3. GRANT PERMISSIONS (ONLY FOR EXISTING TABLES)
 -- ========================================
 
--- Grant permissions to authenticated users
-GRANT ALL ON public.stripe_bank_accounts TO authenticated;
-GRANT ALL ON public.withdrawal_requests TO authenticated;
-GRANT ALL ON public.game_history TO authenticated;
-GRANT ALL ON public.high_scores TO authenticated;
-GRANT ALL ON public.token_transactions TO authenticated;
-GRANT ALL ON public.users TO authenticated;
-GRANT ALL ON public.user_balances TO authenticated;
-GRANT ALL ON public.user_levels TO authenticated;
-GRANT ALL ON public.payment_transactions TO authenticated;
-GRANT ALL ON public.game_sessions TO authenticated;
-GRANT ALL ON public.escrow_transactions TO authenticated;
-GRANT ALL ON public.user_bank_accounts TO authenticated;
-GRANT ALL ON public.seller_payouts TO authenticated;
-GRANT ALL ON public.user_locations TO authenticated;
-GRANT ALL ON public.location_compliance_log TO authenticated;
-GRANT ALL ON public.tournaments TO authenticated;
-GRANT ALL ON public.tournament_participants TO authenticated;
-GRANT ALL ON public.tournament_matches TO authenticated;
-GRANT ALL ON public.matches TO authenticated;
-GRANT ALL ON public.matchmaking_queue TO authenticated;
-GRANT ALL ON public.skill_ratings TO authenticated;
-GRANT ALL ON public.listings TO authenticated;
-GRANT ALL ON public.listing_images TO authenticated;
-GRANT ALL ON public.listing_entries TO authenticated;
-GRANT ALL ON public.categories TO authenticated;
-GRANT ALL ON public.fixed_games_config TO authenticated;
-GRANT ALL ON public.active_fixed_games TO authenticated;
-GRANT ALL ON public.fixed_game_participants TO authenticated;
-GRANT ALL ON public.hot_sell_listings TO authenticated;
-GRANT ALL ON public.hot_sell_participants TO authenticated;
-GRANT ALL ON public.hot_sell_sessions TO authenticated;
-GRANT ALL ON public.app_user TO authenticated;
-GRANT ALL ON public.wallet TO authenticated;
-GRANT ALL ON public.ledger_entry TO authenticated;
-GRANT ALL ON public.listing TO authenticated;
-GRANT ALL ON public.listing_join TO authenticated;
-GRANT ALL ON public.match TO authenticated;
-GRANT ALL ON public.match_participant TO authenticated;
+-- Grant permissions to authenticated users (only if tables exist)
+DO $$
+BEGIN
+    -- Core tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stripe_bank_accounts') THEN
+        GRANT ALL ON public.stripe_bank_accounts TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'withdrawal_requests') THEN
+        GRANT ALL ON public.withdrawal_requests TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_history') THEN
+        GRANT ALL ON public.game_history TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        GRANT ALL ON public.high_scores TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'token_transactions') THEN
+        GRANT ALL ON public.token_transactions TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        GRANT ALL ON public.users TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
+        GRANT ALL ON public.user_balances TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_levels') THEN
+        GRANT ALL ON public.user_levels TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_transactions') THEN
+        GRANT ALL ON public.payment_transactions TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_sessions') THEN
+        GRANT ALL ON public.game_sessions TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'escrow_transactions') THEN
+        GRANT ALL ON public.escrow_transactions TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_bank_accounts') THEN
+        GRANT ALL ON public.user_bank_accounts TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'seller_payouts') THEN
+        GRANT ALL ON public.seller_payouts TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_locations') THEN
+        GRANT ALL ON public.user_locations TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'location_compliance_log') THEN
+        GRANT ALL ON public.location_compliance_log TO authenticated;
+    END IF;
+    
+    -- Tournament tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournaments') THEN
+        GRANT ALL ON public.tournaments TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournament_participants') THEN
+        GRANT ALL ON public.tournament_participants TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournament_matches') THEN
+        GRANT ALL ON public.tournament_matches TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matches') THEN
+        GRANT ALL ON public.matches TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matchmaking_queue') THEN
+        GRANT ALL ON public.matchmaking_queue TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'skill_ratings') THEN
+        GRANT ALL ON public.skill_ratings TO authenticated;
+    END IF;
+    
+    -- Listing tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listings') THEN
+        GRANT ALL ON public.listings TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_images') THEN
+        GRANT ALL ON public.listing_images TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_entries') THEN
+        GRANT ALL ON public.listing_entries TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'categories') THEN
+        GRANT ALL ON public.categories TO authenticated;
+    END IF;
+    
+    -- Fixed games tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_games_config') THEN
+        GRANT ALL ON public.fixed_games_config TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'active_fixed_games') THEN
+        GRANT ALL ON public.active_fixed_games TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_game_participants') THEN
+        GRANT ALL ON public.fixed_game_participants TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_listings') THEN
+        GRANT ALL ON public.hot_sell_listings TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_participants') THEN
+        GRANT ALL ON public.hot_sell_participants TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_sessions') THEN
+        GRANT ALL ON public.hot_sell_sessions TO authenticated;
+    END IF;
+    
+    -- Blind scoreboard tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'app_user') THEN
+        GRANT ALL ON public.app_user TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'wallet') THEN
+        GRANT ALL ON public.wallet TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ledger_entry') THEN
+        GRANT ALL ON public.ledger_entry TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing') THEN
+        GRANT ALL ON public.listing TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_join') THEN
+        GRANT ALL ON public.listing_join TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match') THEN
+        GRANT ALL ON public.match TO authenticated;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_participant') THEN
+        GRANT ALL ON public.match_participant TO authenticated;
+    END IF;
+    
+    RAISE NOTICE 'Permissions granted to authenticated users for existing tables';
+END $$;
 
--- Grant read permissions to anonymous users for public data
-GRANT SELECT ON public.high_scores TO anon;
-GRANT SELECT ON public.user_levels TO anon;
-GRANT SELECT ON public.skill_ratings TO anon;
-GRANT SELECT ON public.tournaments TO anon;
-GRANT SELECT ON public.tournament_participants TO anon;
-GRANT SELECT ON public.listings TO anon;
-GRANT SELECT ON public.categories TO anon;
-GRANT SELECT ON public.fixed_games_config TO anon;
-GRANT SELECT ON public.active_fixed_games TO anon;
-GRANT SELECT ON public.fixed_game_participants TO anon;
-GRANT SELECT ON public.hot_sell_listings TO anon;
-GRANT SELECT ON public.hot_sell_participants TO anon;
-GRANT SELECT ON public.hot_sell_sessions TO anon;
-GRANT SELECT ON public.listing TO anon;
-GRANT SELECT ON public.match TO anon;
-GRANT SELECT ON public.match_participant TO anon;
+-- Grant read permissions to anonymous users for public data (only if tables exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        GRANT SELECT ON public.high_scores TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_levels') THEN
+        GRANT SELECT ON public.user_levels TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'skill_ratings') THEN
+        GRANT SELECT ON public.skill_ratings TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournaments') THEN
+        GRANT SELECT ON public.tournaments TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournament_participants') THEN
+        GRANT SELECT ON public.tournament_participants TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listings') THEN
+        GRANT SELECT ON public.listings TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'categories') THEN
+        GRANT SELECT ON public.categories TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_games_config') THEN
+        GRANT SELECT ON public.fixed_games_config TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'active_fixed_games') THEN
+        GRANT SELECT ON public.active_fixed_games TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_game_participants') THEN
+        GRANT SELECT ON public.fixed_game_participants TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_listings') THEN
+        GRANT SELECT ON public.hot_sell_listings TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_participants') THEN
+        GRANT SELECT ON public.hot_sell_participants TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_sessions') THEN
+        GRANT SELECT ON public.hot_sell_sessions TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing') THEN
+        GRANT SELECT ON public.listing TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match') THEN
+        GRANT SELECT ON public.match TO anon;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_participant') THEN
+        GRANT SELECT ON public.match_participant TO anon;
+    END IF;
+    
+    RAISE NOTICE 'Read permissions granted to anonymous users for existing tables';
+END $$;
 
 -- ========================================
 -- 4. VERIFY RLS IS ENABLED
