@@ -172,9 +172,6 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
 -- STEP 11: CREATE INDEXES FOR ALL TABLES (ULTRA SAFE)
 -- ========================================
 DO $$
-DECLARE
-    table_name TEXT;
-    column_name TEXT;
 BEGIN
     -- Create indexes for user_balances
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
@@ -292,8 +289,6 @@ END $$;
 -- STEP 13: CREATE BASIC POLICIES FOR ALL TABLES (ULTRA SAFE)
 -- ========================================
 DO $$
-DECLARE
-    user_column_name TEXT;
 BEGIN
     -- Create policies for user_balances if it exists
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
