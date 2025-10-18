@@ -62,26 +62,43 @@ export default function CompetitionGameFlow({
     }
   }, [gameState]);
 
-  const handleGameEnd = async (score: number, accuracy: number, duration: number) => {
+  const handleGameEnd = async (result: { score: number; accuracy: number; avgReactionTime: number } | number, accuracy?: number, duration?: number) => {
     try {
-      console.log('🎮 [CompetitionGameFlow] Game ended:', { score, accuracy, duration });
+      // Handle both object and individual parameter formats
+      let score: number;
+      let gameAccuracy: number;
+      let gameDuration: number;
+
+      if (typeof result === 'object' && result !== null) {
+        // Game passed an object (new format)
+        score = result.score;
+        gameAccuracy = result.accuracy;
+        gameDuration = 60; // Default duration for competition games
+        console.log('🎮 [CompetitionGameFlow] Game ended with object:', result);
+      } else {
+        // Game passed individual parameters (legacy format)
+        score = result as number;
+        gameAccuracy = accuracy || 0;
+        gameDuration = duration || 60;
+        console.log('🎮 [CompetitionGameFlow] Game ended with individual params:', { score, accuracy: gameAccuracy, duration: gameDuration });
+      }
       
       setGameScore(score);
-      setGameAccuracy(accuracy);
-      setGameDuration(duration);
+      setGameAccuracy(gameAccuracy);
+      setGameDuration(gameDuration);
       setGameState('completed');
 
-      // Save game result with error handling
-      if (user) {
+      if (user && user.id) {
+        console.log('🎮 [CompetitionGameFlow] User object:', { id: user.id, username: user.username, email: user.email });
         try {
           // Save game history with proper competition data
           const gameHistoryData = {
             userId: user.id,
             gameType: gameType,
             score: score,
-            accuracy: accuracy,
+            accuracy: gameAccuracy,
             avgReactionTime: 0,
-            gameDuration: duration,
+            gameDuration: gameDuration,
             isPractice: false,
             listingId: sessionId,
             entryNumber: 1,
@@ -113,7 +130,7 @@ export default function CompetitionGameFlow({
               user_id: user.id,
               username: user.username || 'Player',
               score: score,
-              accuracy: accuracy,
+              accuracy: gameAccuracy,
               placement: 1,
               joined_at: new Date().toISOString(),
               game_type: gameType,
@@ -137,7 +154,7 @@ export default function CompetitionGameFlow({
               user_id: user.id,
               username: user.username || 'Player',
               score: score,
-              accuracy: accuracy,
+              accuracy: gameAccuracy,
               placement: 1,
               joined_at: new Date().toISOString()
             }
@@ -145,11 +162,27 @@ export default function CompetitionGameFlow({
           setUserRanking(1);
           setPrizeWon(0);
         }
+      } else {
+        console.error('❌ [CompetitionGameFlow] User or user.id is null:', { user, userId: user?.id });
+        // Still show the game completion screen even if user is null
+        setParticipants([
+          {
+            id: '1',
+            user_id: 'unknown',
+            username: 'Player',
+            score: score,
+            accuracy: gameAccuracy,
+            placement: 1,
+            joined_at: new Date().toISOString()
+          }
+        ]);
+        setUserRanking(1);
+        setPrizeWon(0);
       }
 
       // Call the onComplete callback to notify parent component
       try {
-        onComplete(score, accuracy);
+        onComplete(score, gameAccuracy);
         console.log('✅ [CompetitionGameFlow] onComplete callback called successfully');
       } catch (callbackError) {
         console.error('❌ [CompetitionGameFlow] Error in onComplete callback:', callbackError);

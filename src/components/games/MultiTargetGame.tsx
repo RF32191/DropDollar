@@ -355,8 +355,14 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
     setHitTargets([]);
     setFeedback('');
     
-    // Start countdown
-    setGameState('countdown');
+    // In competition mode, skip countdown and go directly to playing
+    if (isCompetitionMode) {
+      console.log('Competition mode: skipping countdown, starting game directly');
+      handleCountdownComplete();
+    } else {
+      // Start countdown for practice mode
+      setGameState('countdown');
+    }
   };
 
   const handleCountdownComplete = () => {
