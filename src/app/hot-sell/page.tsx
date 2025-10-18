@@ -323,26 +323,47 @@ export default function HotSellPage() {
     try {
       setJoiningSession(session.id);
       
-      // For now, just track user participation locally
-      // TODO: Fix database constraint issue with hot_sell_sessions
-      console.log('👤 [HotSell] Tracking user participation locally...');
+      console.log('👤 [HotSell] Adding user to fixed game participants...');
       
-      // Track user participation locally
-      addUserParticipation(session.id);
-      setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
+      // Add user to fixed_game_participants table
+      const participant = await FixedGamesService.joinFixedGame(
+        session.id,
+        user.id,
+        config.entry_fee
+      );
       
-      // Start the game flow with 3-second countdown
-      setSelectedGameFlow({
-        gameType: config.game_type,
-        sessionId: session.id,
-        configId: config.id,
-        entryFee: config.entry_fee // Pass entry fee for token deduction
-      });
-      setCurrentView('game');
-      
-      // Refresh sessions
-      const updatedSessions = await FixedGamesService.getHotSellSessions();
-      setHotSellSessions(updatedSessions);
+      if (participant) {
+        console.log('✅ [HotSell] User added to participants:', participant);
+        
+        // Track user participation locally
+        addUserParticipation(session.id);
+        setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
+        
+        // Start the game flow with 3-second countdown
+        setSelectedGameFlow({
+          gameType: config.game_type,
+          sessionId: session.id,
+          configId: config.id,
+          entryFee: config.entry_fee // Pass entry fee for token deduction
+        });
+        setCurrentView('game');
+        
+        // Refresh sessions and participants
+        const updatedSessions = await FixedGamesService.getHotSellSessions();
+        setHotSellSessions(updatedSessions);
+        
+        // Refresh participants for this session
+        const updatedParticipants = await FixedGamesService.getFixedGameParticipants(session.id);
+        setSessionParticipants(prev => ({
+          ...prev,
+          [session.id]: updatedParticipants
+        }));
+        
+        console.log('✅ [HotSell] Sessions and participants refreshed');
+      } else {
+        console.error('❌ [HotSell] Failed to add user to participants');
+        setMessage({ type: 'error', text: 'Failed to join the tournament. Please try again.' });
+      }
       
     } catch (error) {
       console.error('❌ [HotSell] Error joining session:', error);
@@ -507,7 +528,18 @@ export default function HotSellPage() {
 
   // Check if user has already joined a competition
   const hasUserJoined = (competitionId: string) => {
-    return userParticipations.includes(competitionId);
+    // Check local state first
+    if (userParticipations.includes(competitionId)) {
+      return true;
+    }
+    
+    // Check database participants
+    const participants = sessionParticipants[competitionId];
+    if (participants && participants.length > 0) {
+      return participants.some(p => p.user_id === user?.id);
+    }
+    
+    return false;
   };
 
   // Add user participation tracking
@@ -544,6 +576,37 @@ export default function HotSellPage() {
     if (!user || !selectedGameFlow?.entryFee) return;
     
     try {
+      console.log('🎮 [HotSell] Game completed with score:', score, 'accuracy:', accuracy);
+      
+      // First, save the game history
+      await SimpleGameService.saveGameHistory({
+        user_id: user.id,
+        game_type: selectedGameFlow.gameType,
+        score: score,
+        accuracy: accuracy,
+        avg_reaction_time: 0,
+        is_practice: false,
+        listing_id: selectedGameFlow.sessionId,
+        entry_number: 1,
+        game_duration: 60
+      });
+      
+      console.log('✅ [HotSell] Game history saved');
+      
+      // Update the participant score in fixed_game_participants table
+      const participantUpdate = await FixedGamesService.updateFixedGameScore(
+        selectedGameFlow.sessionId,
+        user.id,
+        score,
+        accuracy
+      );
+      
+      if (participantUpdate) {
+        console.log('✅ [HotSell] Participant score updated:', participantUpdate);
+      } else {
+        console.log('⚠️ [HotSell] Participant score update failed, but continuing...');
+      }
+      
       // Deduct tokens after score is saved
       const newTokenBalance = userTokens - selectedGameFlow.entryFee;
       const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
@@ -575,8 +638,13 @@ export default function HotSellPage() {
       } else {
         console.error('❌ Failed to deduct tokens after game completion');
       }
+      
+      // Store a flag so dashboard knows to refresh
+      localStorage.setItem('hasNewGameScore', 'true');
+      console.log('🎉 [HotSell] ✅✅✅ SCORE SAVED SUCCESSFULLY TO YOUR DASHBOARD! ✅✅✅');
+      
     } catch (error) {
-      console.error('❌ Error deducting tokens after game completion:', error);
+      console.error('❌ Error in game completion:', error);
     }
   };
 
