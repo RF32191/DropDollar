@@ -75,6 +75,11 @@ BEGIN
         RETURN NEW; -- Skip non-UUID user_ids
     END IF;
     
+    -- Check if user exists in users table
+    IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = NEW.user_id::UUID) THEN
+        RETURN NEW; -- Skip if user doesn't exist
+    END IF;
+    
     -- Get existing high score record
     SELECT * INTO existing_record
     FROM public.high_scores
@@ -167,10 +172,11 @@ BEGIN
     
     -- Process all game_history records to update high scores
     FOR game_record IN 
-        SELECT DISTINCT user_id, game_type, MAX(score) as best_score, MAX(accuracy) as best_accuracy, MIN(avg_reaction_time) as best_reaction_time
-        FROM public.game_history
-        WHERE user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -- Only process valid UUIDs
-        GROUP BY user_id, game_type
+        SELECT DISTINCT gh.user_id, gh.game_type, MAX(gh.score) as best_score, MAX(gh.accuracy) as best_accuracy, MIN(gh.avg_reaction_time) as best_reaction_time
+        FROM public.game_history gh
+        JOIN public.users u ON gh.user_id::UUID = u.id -- Only process users that exist
+        WHERE gh.user_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' -- Only process valid UUIDs
+        GROUP BY gh.user_id, gh.game_type
     LOOP
         -- Insert or update high score
         INSERT INTO public.high_scores (
