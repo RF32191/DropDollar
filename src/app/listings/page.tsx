@@ -22,7 +22,9 @@ import {
   ComputerDesktopIcon,
   HomeIcon,
   BeakerIcon,
-  MusicalNoteIcon
+  MusicalNoteIcon,
+  LockClosedIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import { ListingStorageService, type StoredListing } from '@/lib/listingStorage';
 
@@ -48,6 +50,7 @@ export default function ListingsPage() {
   const [totalListings, setTotalListings] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price_low' | 'price_high' | 'popular'>('newest');
+  const [userParticipations, setUserParticipations] = useState<string[]>([]);
   const globalLocation = useGlobalLocation();
   
   // 10-minute inactivity timeout
@@ -224,6 +227,16 @@ export default function ListingsPage() {
       'color-sequence': '🌈'
     };
     return emojis[gameType] || '🎮';
+  };
+
+  // Check if user has already joined a competition
+  const hasUserJoined = (listingId: string) => {
+    return userParticipations.includes(listingId);
+  };
+
+  // Add user participation tracking
+  const addUserParticipation = (listingId: string) => {
+    setUserParticipations(prev => [...prev, listingId]);
   };
 
   return (
@@ -510,7 +523,7 @@ export default function ListingsPage() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500">Entry Cost:</span>
-                          <span className="font-bold text-green-600">$1-$3</span>
+                          <span className="font-bold text-green-600">${Math.floor(listing.basePrice * 0.01)} tokens</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500">Game Type:</span>
@@ -525,6 +538,10 @@ export default function ListingsPage() {
                               return gameNames[listing.gameType as keyof typeof gameNames] || listing.gameType;
                             })()}
                           </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-500">Max Players:</span>
+                          <span className="font-bold text-blue-600">{Math.floor(listing.basePrice / 10)} players</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500">Available:</span>
@@ -544,11 +561,72 @@ export default function ListingsPage() {
                         </div>
                       </div>
                       
+                      {/* Scoreboard Section */}
+                      <div className="mt-6 mb-4">
+                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-500" />
+                            Live Scoreboard
+                          </h4>
+                          
+                          {/* Show locked message for users who haven't played */}
+                          {!hasUserJoined(listing.id) && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-600" />
+                                <span className="text-yellow-700 text-sm font-medium">
+                                  Join the competition to see live scores!
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Show scores for users who have played */}
+                          {hasUserJoined(listing.id) && (
+                            <div className="space-y-2">
+                              <div className="text-center text-gray-600 text-xs mb-2">
+                                <UsersIcon className="w-4 h-4 inline mr-1" />
+                                {Math.floor(Math.random() * 50) + 10} players • Competition active
+                              </div>
+                              
+                              {/* Placeholder for actual scores - will be populated after game completion */}
+                              <div className="bg-white rounded-lg p-3 border border-gray-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center">
+                                    <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                                      <span className="text-white font-bold text-xs">1</span>
+                                    </div>
+                                    <span className="text-gray-900 text-sm">Your Score</span>
+                                  </div>
+                                  <span className="text-yellow-600 font-bold text-sm">--</span>
+                                </div>
+                              </div>
+                              
+                              {/* Payout Information */}
+                              <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                                <div className="text-center">
+                                  <div className="text-green-700 text-xs font-medium mb-1">Potential Payout</div>
+                                  <div className="text-green-800 font-bold text-sm">
+                                    ${Math.floor(listing.basePrice * 0.85).toLocaleString()} 
+                                    <span className="text-xs text-green-600 ml-1">(after 15% fee)</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="text-center text-gray-500 text-xs">
+                                Scores will appear after game completion
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
                       <div className="space-y-3">
                         {globalLocation.status === 'granted' && globalLocation.isGamingAllowed ? (
                           <Link
                             href={`/listings/${listing.id}`}
                             className="block w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-xl text-center transition-all transform hover:scale-105"
+                            onClick={() => addUserParticipation(listing.id)}
                           >
                             <TrophyIcon className="h-5 w-5 inline mr-2" />
                             Enter Competition
