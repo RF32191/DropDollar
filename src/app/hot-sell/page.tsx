@@ -41,6 +41,7 @@ export default function HotSellPage() {
     gameType: string;
     sessionId: string;
     configId: string;
+    entryFee?: number;
   } | null>(null);
   const [selectedListing, setSelectedListing] = useState<HotSellListing | null>(null);
   const [locationVerified, setLocationVerified] = useState(false);
@@ -282,27 +283,17 @@ export default function HotSellPage() {
     try {
       setJoiningSession(session.id);
       
-      // Deduct tokens from user
-      const newTokenBalance = userTokens - config.entry_fee;
-      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
-      
-      if (!tokenUpdateSuccess) {
-        setMessage({ type: 'error', text: 'Failed to deduct tokens. Please try again.' });
-        return;
-      }
-
-      // Join the hot sell session
-      // For now, we'll simulate joining without using the problematic database function
-      // This is a temporary fix until the database function is corrected
-      setUserTokens(newTokenBalance);
+      // DON'T deduct tokens yet - only deduct after score is saved
+      // Just track user participation for now
       addUserParticipation(session.id); // Track user participation
-      setMessage({ type: 'success', text: `Successfully joined ${config.title}!` });
+      setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
       
-      // Start the game flow immediately
+      // Start the game flow with 3-second countdown
       setSelectedGameFlow({
         gameType: config.game_type,
         sessionId: session.id,
-        configId: config.id
+        configId: config.id,
+        entryFee: config.entry_fee // Pass entry fee for token deduction
       });
       setCurrentView('game');
       
@@ -481,6 +472,27 @@ export default function HotSellPage() {
     setUserParticipations(prev => [...prev, competitionId]);
   };
 
+  // Callback to deduct tokens after game completion
+  const handleGameCompletion = async (score: number, accuracy: number) => {
+    if (!user || !selectedGameFlow?.entryFee) return;
+    
+    try {
+      // Deduct tokens after score is saved
+      const newTokenBalance = userTokens - selectedGameFlow.entryFee;
+      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
+      
+      if (tokenUpdateSuccess) {
+        setUserTokens(newTokenBalance);
+        console.log(`✅ Tokens deducted: ${selectedGameFlow.entryFee} tokens`);
+        console.log(`✅ New balance: ${newTokenBalance} tokens`);
+      } else {
+        console.error('❌ Failed to deduct tokens after game completion');
+      }
+    } catch (error) {
+      console.error('❌ Error deducting tokens after game completion:', error);
+    }
+  };
+
   const formatPrizeAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -549,6 +561,8 @@ export default function HotSellPage() {
           rngSeed={rngSeed}
           onComplete={(score, accuracy) => {
             console.log('Game completed:', { score, accuracy });
+            // Deduct tokens after game completion
+            handleGameCompletion(score, accuracy);
             setCurrentView('listings');
             setSelectedGameFlow(null);
           }}
@@ -901,6 +915,64 @@ export default function HotSellPage() {
                       </>
                     )}
                   </div>
+
+                  {/* Scoreboard Section */}
+                  {session && (
+                    <div className="mt-6">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                        <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
+                          <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                          Live Scoreboard
+                        </h4>
+                        
+                        {session.participants_count > 0 ? (
+                          <div className="space-y-2">
+                            {/* Show locked message for users who haven't played */}
+                            {!hasUserJoined(session.id) && (
+                              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
+                                <div className="flex items-center justify-center">
+                                  <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                                  <span className="text-yellow-300 text-sm font-medium">
+                                    Join the game to see live scores!
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Show scores for users who have played */}
+                            {hasUserJoined(session.id) && (
+                              <div className="space-y-2">
+                                <div className="text-center text-gray-400 text-xs mb-2">
+                                  {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
+                                </div>
+                                
+                                {/* Placeholder for actual scores - will be populated after game completion */}
+                                <div className="bg-white/5 rounded-lg p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                                        <span className="text-white font-bold text-xs">1</span>
+                                      </div>
+                                      <span className="text-white text-sm">Your Score</span>
+                                    </div>
+                                    <span className="text-yellow-400 font-bold text-sm">--</span>
+                                  </div>
+                                </div>
+                                
+                                <div className="text-center text-gray-500 text-xs">
+                                  Scores will appear after game completion
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center text-gray-400 text-sm">
+                            No players yet. Be the first to join!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

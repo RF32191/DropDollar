@@ -238,7 +238,7 @@ export default function CompetitionGameFlow({
           <div className="text-8xl font-bold text-yellow-400 mb-8">
             {countdown}
           </div>
-          <p className="text-xl text-gray-300">Get ready to play!</p>
+          <p className="text-xl text-gray-300">Game starting in {countdown} seconds...</p>
         </div>
       </div>
     );
