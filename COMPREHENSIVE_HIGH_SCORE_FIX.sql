@@ -296,8 +296,16 @@ GRANT EXECUTE ON FUNCTION update_all_high_scores TO authenticated;
 -- 8. RUN MANUAL UPDATE TO FIX EXISTING DATA
 -- ========================================
 
--- Update all existing high scores from game_history
-SELECT update_all_high_scores();
+-- Update all existing high scores from game_history (only if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        PERFORM update_all_high_scores();
+        RAISE NOTICE 'High scores updated successfully';
+    ELSE
+        RAISE NOTICE 'High scores table does not exist, skipping update';
+    END IF;
+END $$;
 
 -- ========================================
 -- 9. VERIFY THE FIX

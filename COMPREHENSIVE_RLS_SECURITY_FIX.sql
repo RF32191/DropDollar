@@ -3,56 +3,171 @@
 -- Run this in Supabase SQL Editor to fix all security issues
 
 -- ========================================
--- 1. ENABLE RLS ON ALL PUBLIC TABLES
+-- 1. ENABLE RLS ON ALL PUBLIC TABLES (IF THEY EXIST)
 -- ========================================
 
--- Enable RLS on tables that might be missing it
-ALTER TABLE public.stripe_bank_accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.game_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.high_scores ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.token_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_balances ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_levels ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.escrow_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_bank_accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.seller_payouts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_locations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.location_compliance_log ENABLE ROW LEVEL SECURITY;
-
--- Enable RLS on tournament and matchmaking tables
-ALTER TABLE public.tournaments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tournament_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tournament_matches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.matchmaking_queue ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.skill_ratings ENABLE ROW LEVEL SECURITY;
-
--- Enable RLS on listing and marketplace tables
-ALTER TABLE public.listings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.listing_images ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.listing_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-
--- Enable RLS on fixed games tables
-ALTER TABLE public.fixed_games_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.active_fixed_games ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.fixed_game_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.hot_sell_listings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.hot_sell_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.hot_sell_sessions ENABLE ROW LEVEL SECURITY;
-
--- Enable RLS on blind scoreboard tables
-ALTER TABLE public.app_user ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.wallet ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ledger_entry ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.listing ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.listing_join ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.match ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.match_participant ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on tables that might be missing it (only if they exist)
+DO $$
+BEGIN
+    -- Enable RLS on core tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stripe_bank_accounts') THEN
+        ALTER TABLE public.stripe_bank_accounts ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'withdrawal_requests') THEN
+        ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_history') THEN
+        ALTER TABLE public.game_history ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        ALTER TABLE public.high_scores ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'token_transactions') THEN
+        ALTER TABLE public.token_transactions ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
+        ALTER TABLE public.user_balances ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_levels') THEN
+        ALTER TABLE public.user_levels ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_transactions') THEN
+        ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_sessions') THEN
+        ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'escrow_transactions') THEN
+        ALTER TABLE public.escrow_transactions ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_bank_accounts') THEN
+        ALTER TABLE public.user_bank_accounts ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'seller_payouts') THEN
+        ALTER TABLE public.seller_payouts ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_locations') THEN
+        ALTER TABLE public.user_locations ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'location_compliance_log') THEN
+        ALTER TABLE public.location_compliance_log ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    -- Enable RLS on tournament and matchmaking tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournaments') THEN
+        ALTER TABLE public.tournaments ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournament_participants') THEN
+        ALTER TABLE public.tournament_participants ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournament_matches') THEN
+        ALTER TABLE public.tournament_matches ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matches') THEN
+        ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matchmaking_queue') THEN
+        ALTER TABLE public.matchmaking_queue ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'skill_ratings') THEN
+        ALTER TABLE public.skill_ratings ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    -- Enable RLS on listing and marketplace tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listings') THEN
+        ALTER TABLE public.listings ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_images') THEN
+        ALTER TABLE public.listing_images ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_entries') THEN
+        ALTER TABLE public.listing_entries ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'categories') THEN
+        ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    -- Enable RLS on fixed games tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_games_config') THEN
+        ALTER TABLE public.fixed_games_config ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'active_fixed_games') THEN
+        ALTER TABLE public.active_fixed_games ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_game_participants') THEN
+        ALTER TABLE public.fixed_game_participants ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_listings') THEN
+        ALTER TABLE public.hot_sell_listings ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_participants') THEN
+        ALTER TABLE public.hot_sell_participants ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_sessions') THEN
+        ALTER TABLE public.hot_sell_sessions ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    -- Enable RLS on blind scoreboard tables
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'app_user') THEN
+        ALTER TABLE public.app_user ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'wallet') THEN
+        ALTER TABLE public.wallet ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ledger_entry') THEN
+        ALTER TABLE public.ledger_entry ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing') THEN
+        ALTER TABLE public.listing ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_join') THEN
+        ALTER TABLE public.listing_join ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match') THEN
+        ALTER TABLE public.match ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_participant') THEN
+        ALTER TABLE public.match_participant ENABLE ROW LEVEL SECURITY;
+    END IF;
+    
+    RAISE NOTICE 'RLS enabled on all existing tables';
+END $$;
 
 -- ========================================
 -- 2. DROP EXISTING POLICIES AND FUNCTIONS
