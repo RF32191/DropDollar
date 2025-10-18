@@ -1339,8 +1339,8 @@ export default function HotSellPage() {
         <div className="mb-12">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-white mb-2">🏆 WINNER TAKES IT ALL</h2>
-            <p className="text-lg text-gray-300">$1 entry tournaments - Winner gets everything!</p>
-            <p className="text-sm text-gray-400">More players = Bigger pot! No limits on participants.</p>
+            <p className="text-lg text-gray-300">1 token entry tournaments - Winner gets everything!</p>
+            <p className="text-sm text-gray-400">Base pot: $3, grows with each player! No limits on participants.</p>
               </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -1349,10 +1349,10 @@ export default function HotSellPage() {
               const winnerTakesAllConfig = {
                 ...config,
                 title: `Winner Takes All - ${config.title}`,
-                entry_fee: 1, // $1 entry
-                prize_pool: 0, // Will be calculated based on participants
+                entry_fee: 1, // 1 token entry
+                prize_pool: 300, // $3 base prize pool (300 cents)
                 max_participants: 1000, // No practical limit
-                description: `$1 entry - Winner takes everything! Current pot grows with each player.`
+                description: `1 token entry - Winner takes everything! Base pot: $3, grows with each player.`
               };
               
               return (
@@ -1380,12 +1380,12 @@ export default function HotSellPage() {
                   </div>
                 </div>
                 
-                    {/* Current Pot (starts at $0) */}
+                    {/* Current Pot (starts at $3) */}
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                       <div className="text-center">
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(0)}</p>
-                        <p className="text-purple-200 text-xs mt-1">0 players joined</p>
+                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(winnerTakesAllConfig.prize_pool)}</p>
+                        <p className="text-purple-200 text-xs mt-1">Base pot: $3, grows with players</p>
               </div>
             </div>
                 
@@ -1456,7 +1456,7 @@ export default function HotSellPage() {
                               <div className="text-center">
                                 <div className="text-green-700 text-xs font-medium mb-1">Winner Takes All</div>
                                 <div className="text-green-800 font-bold text-sm">
-                                  Current Pot: $0 
+                                  Current Pot: {formatPrizeAmount(winnerTakesAllConfig.prize_pool)} 
                                   <span className="text-xs text-green-600 ml-1">(grows with each player)</span>
                                 </div>
                               </div>
