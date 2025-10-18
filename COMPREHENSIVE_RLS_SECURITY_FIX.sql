@@ -266,150 +266,238 @@ DROP POLICY IF EXISTS "Users can insert own match participants" ON public.match_
 DROP POLICY IF EXISTS "Users can update own match participants" ON public.match_participant;
 
 -- ========================================
--- 3. CREATE COMPREHENSIVE RLS POLICIES
+-- 3. CREATE COMPREHENSIVE RLS POLICIES (ONLY FOR EXISTING TABLES)
 -- ========================================
 
--- Users policies
-CREATE POLICY "Users can view own profile" ON public.users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Enable insert for registration" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
+-- Create policies only for tables that exist
+DO $$
+BEGIN
+    -- Users policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        CREATE POLICY "Users can view own profile" ON public.users FOR SELECT USING (auth.uid() = id);
+        CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
+        CREATE POLICY "Enable insert for registration" ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
+    END IF;
 
--- Stripe bank accounts policies
-CREATE POLICY "Users can view own bank accounts" ON public.stripe_bank_accounts FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own bank accounts" ON public.stripe_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own bank accounts" ON public.stripe_bank_accounts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own bank accounts" ON public.stripe_bank_accounts FOR DELETE USING (auth.uid() = user_id);
+    -- Stripe bank accounts policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stripe_bank_accounts') THEN
+        CREATE POLICY "Users can view own bank accounts" ON public.stripe_bank_accounts FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own bank accounts" ON public.stripe_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own bank accounts" ON public.stripe_bank_accounts FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Users can delete own bank accounts" ON public.stripe_bank_accounts FOR DELETE USING (auth.uid() = user_id);
+    END IF;
 
--- Withdrawal requests policies
-CREATE POLICY "Users can view own withdrawal requests" ON public.withdrawal_requests FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own withdrawal requests" ON public.withdrawal_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own withdrawal requests" ON public.withdrawal_requests FOR UPDATE USING (auth.uid() = user_id);
+    -- Withdrawal requests policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'withdrawal_requests') THEN
+        CREATE POLICY "Users can view own withdrawal requests" ON public.withdrawal_requests FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own withdrawal requests" ON public.withdrawal_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own withdrawal requests" ON public.withdrawal_requests FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Game history policies
-CREATE POLICY "Users can view own game history" ON public.game_history FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own game history" ON public.game_history FOR INSERT WITH CHECK (auth.uid() = user_id);
+    -- Game history policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_history') THEN
+        CREATE POLICY "Users can view own game history" ON public.game_history FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own game history" ON public.game_history FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
--- High scores policies
-CREATE POLICY "Users can view own high scores" ON public.high_scores FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own high scores" ON public.high_scores FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own high scores" ON public.high_scores FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Public can view high scores" ON public.high_scores FOR SELECT USING (true); -- For leaderboards
+    -- High scores policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
+        CREATE POLICY "Users can view own high scores" ON public.high_scores FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own high scores" ON public.high_scores FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own high scores" ON public.high_scores FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Public can view high scores" ON public.high_scores FOR SELECT USING (true); -- For leaderboards
+    END IF;
 
--- Token transactions policies
-CREATE POLICY "Users can view own token transactions" ON public.token_transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own token transactions" ON public.token_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+    -- Token transactions policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'token_transactions') THEN
+        CREATE POLICY "Users can view own token transactions" ON public.token_transactions FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own token transactions" ON public.token_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
--- User balances policies
-CREATE POLICY "Users can view own balance" ON public.user_balances FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can update own balance" ON public.user_balances FOR UPDATE USING (auth.uid() = user_id);
+    -- User balances policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
+        CREATE POLICY "Users can view own balance" ON public.user_balances FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can update own balance" ON public.user_balances FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- User levels policies
-CREATE POLICY "Users can view own level" ON public.user_levels FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can update own level" ON public.user_levels FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Public can view user levels" ON public.user_levels FOR SELECT USING (true); -- For skill-based matchmaking
+    -- User levels policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_levels') THEN
+        CREATE POLICY "Users can view own level" ON public.user_levels FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can update own level" ON public.user_levels FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Public can view user levels" ON public.user_levels FOR SELECT USING (true); -- For skill-based matchmaking
+    END IF;
 
--- Payment transactions policies
-CREATE POLICY "Users can view own payment transactions" ON public.payment_transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own payment transactions" ON public.payment_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+    -- Payment transactions policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_transactions') THEN
+        CREATE POLICY "Users can view own payment transactions" ON public.payment_transactions FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own payment transactions" ON public.payment_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
--- Game sessions policies
-CREATE POLICY "Users can view own game sessions" ON public.game_sessions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own game sessions" ON public.game_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own game sessions" ON public.game_sessions FOR UPDATE USING (auth.uid() = user_id);
+    -- Game sessions policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_sessions') THEN
+        CREATE POLICY "Users can view own game sessions" ON public.game_sessions FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own game sessions" ON public.game_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own game sessions" ON public.game_sessions FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Escrow transactions policies
-CREATE POLICY "Users can view own escrow transactions" ON public.escrow_transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own escrow transactions" ON public.escrow_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+    -- Escrow transactions policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'escrow_transactions') THEN
+        CREATE POLICY "Users can view own escrow transactions" ON public.escrow_transactions FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own escrow transactions" ON public.escrow_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
--- User bank accounts policies
-CREATE POLICY "Users can view own bank accounts" ON public.user_bank_accounts FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own bank accounts" ON public.user_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own bank accounts" ON public.user_bank_accounts FOR UPDATE USING (auth.uid() = user_id);
+    -- User bank accounts policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_bank_accounts') THEN
+        CREATE POLICY "Users can view own bank accounts" ON public.user_bank_accounts FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own bank accounts" ON public.user_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own bank accounts" ON public.user_bank_accounts FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Seller payouts policies
-CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid() = user_id);
+    -- Seller payouts policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'seller_payouts') THEN
+        CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
--- User locations policies
-CREATE POLICY "Users can view own locations" ON public.user_locations FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own locations" ON public.user_locations FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own locations" ON public.user_locations FOR UPDATE USING (auth.uid() = user_id);
+    -- User locations policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_locations') THEN
+        CREATE POLICY "Users can view own locations" ON public.user_locations FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own locations" ON public.user_locations FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own locations" ON public.user_locations FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Location compliance log policies
-CREATE POLICY "Users can view own compliance log" ON public.location_compliance_log FOR SELECT USING (auth.uid() = user_id);
+    -- Location compliance log policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'location_compliance_log') THEN
+        CREATE POLICY "Users can view own compliance log" ON public.location_compliance_log FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
--- Tournament policies
-CREATE POLICY "Users can view tournaments" ON public.tournaments FOR SELECT USING (true); -- Public tournaments
-CREATE POLICY "Users can insert tournaments" ON public.tournaments FOR INSERT WITH CHECK (auth.uid() = creator_id);
-CREATE POLICY "Users can update tournaments" ON public.tournaments FOR UPDATE USING (auth.uid() = creator_id);
+    -- Tournament policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournaments') THEN
+        CREATE POLICY "Users can view tournaments" ON public.tournaments FOR SELECT USING (true); -- Public tournaments
+        CREATE POLICY "Users can insert tournaments" ON public.tournaments FOR INSERT WITH CHECK (auth.uid() = creator_id);
+        CREATE POLICY "Users can update tournaments" ON public.tournaments FOR UPDATE USING (auth.uid() = creator_id);
+    END IF;
 
--- Tournament participants policies
-CREATE POLICY "Users can view tournament participants" ON public.tournament_participants FOR SELECT USING (true); -- Public for leaderboards
-CREATE POLICY "Users can insert tournament participants" ON public.tournament_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update tournament participants" ON public.tournament_participants FOR UPDATE USING (auth.uid() = user_id);
+    -- Tournament participants policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tournament_participants') THEN
+        CREATE POLICY "Users can view tournament participants" ON public.tournament_participants FOR SELECT USING (true); -- Public for leaderboards
+        CREATE POLICY "Users can insert tournament participants" ON public.tournament_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update tournament participants" ON public.tournament_participants FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
--- Matches policies
-CREATE POLICY "Users can view matches" ON public.matches FOR SELECT USING (auth.uid() = player1_id OR auth.uid() = player2_id);
-CREATE POLICY "Users can insert matches" ON public.matches FOR INSERT WITH CHECK (auth.uid() = player1_id OR auth.uid() = player2_id);
-CREATE POLICY "Users can update matches" ON public.matches FOR UPDATE USING (auth.uid() = player1_id OR auth.uid() = player2_id);
+    -- Matches policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matches') THEN
+        CREATE POLICY "Users can view matches" ON public.matches FOR SELECT USING (auth.uid() = player1_id OR auth.uid() = player2_id);
+        CREATE POLICY "Users can insert matches" ON public.matches FOR INSERT WITH CHECK (auth.uid() = player1_id OR auth.uid() = player2_id);
+        CREATE POLICY "Users can update matches" ON public.matches FOR UPDATE USING (auth.uid() = player1_id OR auth.uid() = player2_id);
+    END IF;
 
--- Matchmaking queue policies
-CREATE POLICY "Users can view own matchmaking queue" ON public.matchmaking_queue FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own matchmaking queue" ON public.matchmaking_queue FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own matchmaking queue" ON public.matchmaking_queue FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own matchmaking queue" ON public.matchmaking_queue FOR DELETE USING (auth.uid() = user_id);
+    -- Matchmaking queue policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'matchmaking_queue') THEN
+        CREATE POLICY "Users can view own matchmaking queue" ON public.matchmaking_queue FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own matchmaking queue" ON public.matchmaking_queue FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own matchmaking queue" ON public.matchmaking_queue FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Users can delete own matchmaking queue" ON public.matchmaking_queue FOR DELETE USING (auth.uid() = user_id);
+    END IF;
 
--- Skill ratings policies
-CREATE POLICY "Users can view own skill ratings" ON public.skill_ratings FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own skill ratings" ON public.skill_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own skill ratings" ON public.skill_ratings FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Public can view skill ratings" ON public.skill_ratings FOR SELECT USING (true); -- For matchmaking
+    -- Skill ratings policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'skill_ratings') THEN
+        CREATE POLICY "Users can view own skill ratings" ON public.skill_ratings FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own skill ratings" ON public.skill_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own skill ratings" ON public.skill_ratings FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Public can view skill ratings" ON public.skill_ratings FOR SELECT USING (true); -- For matchmaking
+    END IF;
 
--- Listings policies
-CREATE POLICY "Public can view listings" ON public.listings FOR SELECT USING (true); -- Public marketplace
-CREATE POLICY "Users can insert own listings" ON public.listings FOR INSERT WITH CHECK (auth.uid() = seller_id);
-CREATE POLICY "Users can update own listings" ON public.listings FOR UPDATE USING (auth.uid() = seller_id);
-CREATE POLICY "Users can delete own listings" ON public.listings FOR DELETE USING (auth.uid() = seller_id);
+    -- Listings policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listings') THEN
+        CREATE POLICY "Public can view listings" ON public.listings FOR SELECT USING (true); -- Public marketplace
+        CREATE POLICY "Users can insert own listings" ON public.listings FOR INSERT WITH CHECK (auth.uid() = seller_id);
+        CREATE POLICY "Users can update own listings" ON public.listings FOR UPDATE USING (auth.uid() = seller_id);
+        CREATE POLICY "Users can delete own listings" ON public.listings FOR DELETE USING (auth.uid() = seller_id);
+    END IF;
 
--- Listing entries policies
-CREATE POLICY "Users can view own listing entries" ON public.listing_entries FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own listing entries" ON public.listing_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
+    -- Listing entries policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_entries') THEN
+        CREATE POLICY "Users can view own listing entries" ON public.listing_entries FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own listing entries" ON public.listing_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
--- Categories policies
-CREATE POLICY "Public can view categories" ON public.categories FOR SELECT USING (true); -- Public categories
+    -- Categories policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'categories') THEN
+        CREATE POLICY "Public can view categories" ON public.categories FOR SELECT USING (true); -- Public categories
+    END IF;
 
--- Fixed games policies
-CREATE POLICY "Public can view fixed games config" ON public.fixed_games_config FOR SELECT USING (true); -- Public game configs
-CREATE POLICY "Public can view active fixed games" ON public.active_fixed_games FOR SELECT USING (true); -- Public active games
-CREATE POLICY "Users can view own fixed game participants" ON public.fixed_game_participants FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own fixed game participants" ON public.fixed_game_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own fixed game participants" ON public.fixed_game_participants FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Public can view fixed game participants" ON public.fixed_game_participants FOR SELECT USING (true); -- For leaderboards
+    -- Fixed games policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_games_config') THEN
+        CREATE POLICY "Public can view fixed games config" ON public.fixed_games_config FOR SELECT USING (true); -- Public game configs
+    END IF;
 
--- Hot sell policies
-CREATE POLICY "Public can view hot sell listings" ON public.hot_sell_listings FOR SELECT USING (true); -- Public hot sell
-CREATE POLICY "Users can view own hot sell participants" ON public.hot_sell_participants FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own hot sell participants" ON public.hot_sell_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own hot sell participants" ON public.hot_sell_participants FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Public can view hot sell participants" ON public.hot_sell_participants FOR SELECT USING (true); -- For leaderboards
-CREATE POLICY "Public can view hot sell sessions" ON public.hot_sell_sessions FOR SELECT USING (true); -- Public sessions
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'active_fixed_games') THEN
+        CREATE POLICY "Public can view active fixed games" ON public.active_fixed_games FOR SELECT USING (true); -- Public active games
+    END IF;
 
--- Blind scoreboard policies
-CREATE POLICY "Users can view own app user" ON public.app_user FOR SELECT USING (auth.uid()::text = id);
-CREATE POLICY "Users can insert own app user" ON public.app_user FOR INSERT WITH CHECK (auth.uid()::text = id);
-CREATE POLICY "Users can view own wallet" ON public.wallet FOR SELECT USING (auth.uid()::text = user_id);
-CREATE POLICY "Users can update own wallet" ON public.wallet FOR UPDATE USING (auth.uid()::text = user_id);
-CREATE POLICY "Users can view own ledger entries" ON public.ledger_entry FOR SELECT USING (auth.uid()::text = user_id);
-CREATE POLICY "Users can insert own ledger entries" ON public.ledger_entry FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-CREATE POLICY "Public can view listings" ON public.listing FOR SELECT USING (true); -- Public listings
-CREATE POLICY "Users can view own listing joins" ON public.listing_join FOR SELECT USING (auth.uid()::text = user_id);
-CREATE POLICY "Users can insert own listing joins" ON public.listing_join FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-CREATE POLICY "Users can view own matches" ON public.match FOR SELECT USING (auth.uid()::text = ANY(SELECT user_id FROM public.match_participant WHERE match_id = public.match.id));
-CREATE POLICY "Users can insert own matches" ON public.match FOR INSERT WITH CHECK (true); -- System creates matches
-CREATE POLICY "Users can update own matches" ON public.match FOR UPDATE USING (true); -- System updates matches
-CREATE POLICY "Users can view own match participants" ON public.match_participant FOR SELECT USING (auth.uid()::text = user_id);
-CREATE POLICY "Users can insert own match participants" ON public.match_participant FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-CREATE POLICY "Users can update own match participants" ON public.match_participant FOR UPDATE USING (auth.uid()::text = user_id);
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_game_participants') THEN
+        CREATE POLICY "Users can view own fixed game participants" ON public.fixed_game_participants FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own fixed game participants" ON public.fixed_game_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own fixed game participants" ON public.fixed_game_participants FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Public can view fixed game participants" ON public.fixed_game_participants FOR SELECT USING (true); -- For leaderboards
+    END IF;
+
+    -- Hot sell policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_listings') THEN
+        CREATE POLICY "Public can view hot sell listings" ON public.hot_sell_listings FOR SELECT USING (true); -- Public hot sell
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_participants') THEN
+        CREATE POLICY "Users can view own hot sell participants" ON public.hot_sell_participants FOR SELECT USING (auth.uid() = user_id);
+        CREATE POLICY "Users can insert own hot sell participants" ON public.hot_sell_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
+        CREATE POLICY "Users can update own hot sell participants" ON public.hot_sell_participants FOR UPDATE USING (auth.uid() = user_id);
+        CREATE POLICY "Public can view hot sell participants" ON public.hot_sell_participants FOR SELECT USING (true); -- For leaderboards
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_sessions') THEN
+        CREATE POLICY "Public can view hot sell sessions" ON public.hot_sell_sessions FOR SELECT USING (true); -- Public sessions
+    END IF;
+
+    -- Blind scoreboard policies
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'app_user') THEN
+        CREATE POLICY "Users can view own app user" ON public.app_user FOR SELECT USING (auth.uid()::text = id);
+        CREATE POLICY "Users can insert own app user" ON public.app_user FOR INSERT WITH CHECK (auth.uid()::text = id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'wallet') THEN
+        CREATE POLICY "Users can view own wallet" ON public.wallet FOR SELECT USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can update own wallet" ON public.wallet FOR UPDATE USING (auth.uid()::text = user_id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ledger_entry') THEN
+        CREATE POLICY "Users can view own ledger entries" ON public.ledger_entry FOR SELECT USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can insert own ledger entries" ON public.ledger_entry FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing') THEN
+        CREATE POLICY "Public can view listings" ON public.listing FOR SELECT USING (true); -- Public listings
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'listing_join') THEN
+        CREATE POLICY "Users can view own listing joins" ON public.listing_join FOR SELECT USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can insert own listing joins" ON public.listing_join FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match') THEN
+        CREATE POLICY "Users can view own matches" ON public.match FOR SELECT USING (auth.uid()::text = ANY(SELECT user_id FROM public.match_participant WHERE match_id = public.match.id));
+        CREATE POLICY "Users can insert own matches" ON public.match FOR INSERT WITH CHECK (true); -- System creates matches
+        CREATE POLICY "Users can update own matches" ON public.match FOR UPDATE USING (true); -- System updates matches
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'match_participant') THEN
+        CREATE POLICY "Users can view own match participants" ON public.match_participant FOR SELECT USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can insert own match participants" ON public.match_participant FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+        CREATE POLICY "Users can update own match participants" ON public.match_participant FOR UPDATE USING (auth.uid()::text = user_id);
+    END IF;
+
+    RAISE NOTICE 'RLS policies created for all existing tables';
+END $$;
 
 -- ========================================
 -- 3. GRANT PERMISSIONS (ONLY FOR EXISTING TABLES)
