@@ -7,6 +7,7 @@ import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } 
 import { UserService } from '@/lib/supabase/userService';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { 
   FireIcon, 
@@ -528,21 +529,23 @@ export default function HotSellPage() {
     const rngSeed = gameConfig?.rng_seed || 1;
     
     return (
-      <CompetitionGameFlow
-        gameType={selectedGameFlow.gameType}
-        sessionId={selectedGameFlow.sessionId}
-        configId={selectedGameFlow.configId}
-        rngSeed={rngSeed}
-        onComplete={(score, accuracy) => {
-          console.log('Game completed:', { score, accuracy });
-          setCurrentView('listings');
-          setSelectedGameFlow(null);
-        }}
-        onCancel={() => {
-          setCurrentView('listings');
-          setSelectedGameFlow(null);
-        }}
-      />
+      <ErrorBoundary>
+        <CompetitionGameFlow
+          gameType={selectedGameFlow.gameType}
+          sessionId={selectedGameFlow.sessionId}
+          configId={selectedGameFlow.configId}
+          rngSeed={rngSeed}
+          onComplete={(score, accuracy) => {
+            console.log('Game completed:', { score, accuracy });
+            setCurrentView('listings');
+            setSelectedGameFlow(null);
+          }}
+          onCancel={() => {
+            setCurrentView('listings');
+            setSelectedGameFlow(null);
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 
