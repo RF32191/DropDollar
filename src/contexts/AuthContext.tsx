@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateTokens: (newBalance: number) => Promise<void>;
+  refreshTokens: () => Promise<number>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -242,10 +243,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
+      // Dispatch custom event for other components to listen
+      window.dispatchEvent(new CustomEvent('tokensUpdated', { 
+        detail: { newBalance, userId: user.id } 
+      }));
+      
       console.log('✅ Tokens updated successfully');
     } catch (error) {
       console.error('❌ Failed to update tokens:', error);
       throw error;
+    }
+  };
+
+  const refreshTokens = async (): Promise<number> => {
+    if (!user) return 0;
+    
+    try {
+      console.log('🔄 Refreshing token balance...');
+      const profile = await UserService.getUserProfile(user.id);
+      if (profile && profile.tokens !== undefined) {
+        const updatedUser = { ...user, tokens: profile.tokens };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        // Dispatch custom event for other components to listen
+        window.dispatchEvent(new CustomEvent('tokensRefreshed', { 
+          detail: { newBalance: profile.tokens, userId: user.id } 
+        }));
+        
+        console.log('✅ Token balance refreshed:', profile.tokens);
+        return profile.tokens;
+      }
+      return user.tokens || 0;
+    } catch (error) {
+      console.error('❌ Failed to refresh tokens:', error);
+      return user.tokens || 0;
     }
   };
 
@@ -257,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     refreshUser,
     updateTokens,
+    refreshTokens,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

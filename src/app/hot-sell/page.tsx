@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTokenSync } from '@/hooks/useTokenSync';
 import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
@@ -28,12 +29,12 @@ import {
 
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
+  const { tokenBalance: userTokens, isLoading: tokensLoading } = useTokenSync();
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
   const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
   const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
   const [userParticipations, setUserParticipations] = useState<string[]>([]);
-  const [userTokens, setUserTokens] = useState<number>(0);
   const [blindListings, setBlindListings] = useState<BlindListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [joiningListing, setJoiningListing] = useState<string | null>(null);
@@ -94,12 +95,6 @@ export default function HotSellPage() {
       // Load blind scoreboard listings
       const blindListings = await BlindScoreboardService.getOpenListings();
       setBlindListings(blindListings);
-      
-      // Load user tokens
-      if (user) {
-        const profile = await UserService.getUserProfile(user.id);
-        setUserTokens(profile?.tokens || 0);
-      }
       
     } catch (error) {
       console.error('❌ [HotSell] Error loading data:', error);
