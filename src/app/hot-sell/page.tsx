@@ -508,12 +508,13 @@ export default function HotSellPage() {
     const platformFee = prizePool * platformFeeRate;
     const netPrizePool = prizePool - platformFee;
     
-    // Standard distribution: 1st gets 50%, 2nd gets 30%, 3rd gets 20%
+    // Fixed distribution: 1st gets 50%, 2nd gets 30%, 3rd gets 20%
+    // This ensures 2nd > 3rd and proper decimal math
     return {
-      first: netPrizePool * 0.5,   // 50% of net prize pool
-      second: netPrizePool * 0.3,  // 30% of net prize pool
-      third: netPrizePool * 0.2,   // 20% of net prize pool
-      totalFee: platformFee        // 15% platform fee
+      first: Math.round((netPrizePool * 0.5) * 100) / 100,   // 50% of net prize pool
+      second: Math.round((netPrizePool * 0.3) * 100) / 100,  // 30% of net prize pool (more than 3rd)
+      third: Math.round((netPrizePool * 0.2) * 100) / 100,   // 20% of net prize pool (less than 2nd)
+      totalFee: Math.round(platformFee * 100) / 100          // 15% platform fee
     };
   };
 
@@ -937,76 +938,74 @@ export default function HotSellPage() {
                   </div>
 
                   {/* Scoreboard Section */}
-                  {session && (
-                    <div className="mt-6">
-                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                        <button
-                          onClick={() => {
-                            const scoreboardElement = document.getElementById(`scoreboard-${session.id}`);
-                            if (scoreboardElement) {
-                              scoreboardElement.classList.toggle('hidden');
-                            }
-                          }}
-                          className="w-full flex items-center justify-between text-left"
-                        >
-                          <h4 className="text-sm font-semibold text-white flex items-center">
-                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                            Live Scoreboard
-                          </h4>
-                          <span className="text-gray-400 text-xs">Click to expand</span>
-                        </button>
-                        
-                        <div id={`scoreboard-${session.id}`} className="hidden mt-3">
-                          {session.participants_count > 0 ? (
-                            <div className="space-y-2">
-                              {/* Show locked message for users who haven't played */}
-                              {!hasUserJoined(session.id) && (
-                                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
-                                  <div className="flex items-center justify-center">
-                                    <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                                    <span className="text-yellow-300 text-sm font-medium">
-                                      Join the game to see live scores!
-                                    </span>
-                                  </div>
+                  <div className="mt-6">
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                      <button
+                        onClick={() => {
+                          const scoreboardElement = document.getElementById(`scoreboard-${config.id}`);
+                          if (scoreboardElement) {
+                            scoreboardElement.classList.toggle('hidden');
+                          }
+                        }}
+                        className="w-full flex items-center justify-between text-left"
+                      >
+                        <h4 className="text-sm font-semibold text-white flex items-center">
+                          <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                          Live Scoreboard
+                        </h4>
+                        <span className="text-gray-400 text-xs">Click to expand</span>
+                      </button>
+                      
+                      <div id={`scoreboard-${config.id}`} className="hidden mt-3">
+                        {session && session.participants_count > 0 ? (
+                          <div className="space-y-2">
+                            {/* Show locked message for users who haven't played */}
+                            {!hasUserJoined(session.id) && (
+                              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
+                                <div className="flex items-center justify-center">
+                                  <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                                  <span className="text-yellow-300 text-sm font-medium">
+                                    Join the game to see live scores!
+                                  </span>
                                 </div>
-                              )}
-                              
-                              {/* Show scores for users who have played */}
-                              {hasUserJoined(session.id) && (
-                                <div className="space-y-2">
-                                  <div className="text-center text-gray-400 text-xs mb-2">
-                                    <UsersIcon className="w-4 h-4 inline mr-1" />
-                                    {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
-                                  </div>
-                                  
-                                  {/* Placeholder for actual scores - will be populated after game completion */}
-                                  <div className="bg-white/5 rounded-lg p-3">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center">
-                                        <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                                          <span className="text-white font-bold text-xs">1</span>
-                                        </div>
-                                        <span className="text-white text-sm">Your Score</span>
+                              </div>
+                            )}
+                            
+                            {/* Show scores for users who have played */}
+                            {hasUserJoined(session.id) && (
+                              <div className="space-y-2">
+                                <div className="text-center text-gray-400 text-xs mb-2">
+                                  <UsersIcon className="w-4 h-4 inline mr-1" />
+                                  {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
+                                </div>
+                                
+                                {/* Placeholder for actual scores - will be populated after game completion */}
+                                <div className="bg-white/5 rounded-lg p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                                        <span className="text-white font-bold text-xs">1</span>
                                       </div>
-                                      <span className="text-yellow-400 font-bold text-sm">--</span>
+                                      <span className="text-white text-sm">Your Score</span>
                                     </div>
-                                  </div>
-                                  
-                                  <div className="text-center text-gray-500 text-xs">
-                                    Scores will appear after game completion
+                                    <span className="text-yellow-400 font-bold text-sm">--</span>
                                   </div>
                                 </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-center text-gray-400 text-sm">
-                              No players yet. Be the first to join!
-                            </div>
-                          )}
-                        </div>
+                                
+                                <div className="text-center text-gray-500 text-xs">
+                                  Scores will appear after game completion
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center text-gray-400 text-sm">
+                            {session ? 'No players yet. Be the first to join!' : 'No active session. Create a session to start playing!'}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
