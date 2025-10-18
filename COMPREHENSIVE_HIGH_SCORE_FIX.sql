@@ -194,7 +194,6 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP FUNCTION IF EXISTS get_user_high_scores(UUID);
 DROP FUNCTION IF EXISTS get_user_high_scores(uuid);
 DROP FUNCTION IF EXISTS get_global_leaderboard(TEXT);
-DROP FUNCTION IF EXISTS update_all_high_scores();
 
 -- Function to get user high scores
 CREATE OR REPLACE FUNCTION get_user_high_scores(user_uuid UUID)

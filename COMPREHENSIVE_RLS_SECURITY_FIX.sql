@@ -170,7 +170,7 @@ BEGIN
 END $$;
 
 -- ========================================
--- 2. DROP EXISTING POLICIES AND FUNCTIONS
+-- 2. DROP EXISTING POLICIES
 -- ========================================
 
 -- Drop all existing policies to avoid conflicts
