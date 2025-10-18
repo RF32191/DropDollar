@@ -740,7 +740,11 @@ export default function ListingsPage() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">Entry Cost:</span>
-                      <span className="font-bold text-green-600">$1-$3</span>
+                      <span className="font-bold text-green-600">${Math.floor(listing.price * 0.01)} tokens</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Max Players:</span>
+                      <span className="font-bold text-blue-600">{Math.floor(listing.price / 10)} players</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500">Game Type:</span>
@@ -761,6 +765,37 @@ export default function ListingsPage() {
                       <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-medium capitalize">
                         {listing.category}
                       </span>
+                    </div>
+                  </div>
+                  
+                  {/* Scoreboard Section */}
+                  <div className="mt-6 mb-4">
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                        <TrophyIcon className="w-4 h-4 mr-2 text-yellow-500" />
+                        Live Scoreboard
+                      </h4>
+                      
+                      {/* Show locked message for example listings */}
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                        <div className="flex items-center justify-center">
+                          <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-600" />
+                          <span className="text-yellow-700 text-sm font-medium">
+                            This is an example listing - join real competitions to see live scores!
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Payout Information */}
+                      <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
+                        <div className="text-center">
+                          <div className="text-green-700 text-xs font-medium mb-1">Potential Payout</div>
+                          <div className="text-green-800 font-bold text-sm">
+                            ${Math.floor(listing.price * 0.85).toLocaleString()} 
+                            <span className="text-xs text-green-600 ml-1">(after 15% fee)</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
