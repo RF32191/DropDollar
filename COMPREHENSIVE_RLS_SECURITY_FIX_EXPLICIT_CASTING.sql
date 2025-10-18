@@ -184,86 +184,86 @@ BEGIN
         CREATE POLICY "Users can update own withdrawal requests" ON public.withdrawal_requests FOR UPDATE USING (auth.uid() = user_id);
     END IF;
 
-    -- Game history policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Game history policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_history') THEN
-        CREATE POLICY "Users can view own game history" ON public.game_history FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own game history" ON public.game_history FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own game history" ON public.game_history FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own game history" ON public.game_history FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
     END IF;
 
-    -- High scores policies (EXPLICIT CASTING: UUID to TEXT)
+    -- High scores policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'high_scores') THEN
-        CREATE POLICY "Users can view own high scores" ON public.high_scores FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own high scores" ON public.high_scores FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own high scores" ON public.high_scores FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own high scores" ON public.high_scores FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own high scores" ON public.high_scores FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own high scores" ON public.high_scores FOR UPDATE USING (auth.uid() = user_id::uuid);
         CREATE POLICY "Public can view high scores" ON public.high_scores FOR SELECT USING (true); -- For leaderboards
     END IF;
 
-    -- Token transactions policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Token transactions policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'token_transactions') THEN
-        CREATE POLICY "Users can view own token transactions" ON public.token_transactions FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own token transactions" ON public.token_transactions FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own token transactions" ON public.token_transactions FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own token transactions" ON public.token_transactions FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
     END IF;
 
-    -- User balances policies (EXPLICIT CASTING: UUID to TEXT)
+    -- User balances policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
-        CREATE POLICY "Users can view own balance" ON public.user_balances FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own balance" ON public.user_balances FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own balance" ON public.user_balances FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own balance" ON public.user_balances FOR UPDATE USING (auth.uid() = user_id::uuid);
     END IF;
 
-    -- User levels policies (EXPLICIT CASTING: UUID to TEXT)
+    -- User levels policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_levels') THEN
-        CREATE POLICY "Users can view own level" ON public.user_levels FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own level" ON public.user_levels FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own level" ON public.user_levels FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own level" ON public.user_levels FOR UPDATE USING (auth.uid() = user_id::uuid);
         CREATE POLICY "Public can view user levels" ON public.user_levels FOR SELECT USING (true); -- For skill-based matchmaking
     END IF;
 
-    -- Payment transactions policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Payment transactions policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payment_transactions') THEN
-        CREATE POLICY "Users can view own payment transactions" ON public.payment_transactions FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own payment transactions" ON public.payment_transactions FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own payment transactions" ON public.payment_transactions FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own payment transactions" ON public.payment_transactions FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
     END IF;
 
-    -- Game sessions policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Game sessions policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'game_sessions') THEN
-        CREATE POLICY "Users can view own game sessions" ON public.game_sessions FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own game sessions" ON public.game_sessions FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own game sessions" ON public.game_sessions FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own game sessions" ON public.game_sessions FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own game sessions" ON public.game_sessions FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own game sessions" ON public.game_sessions FOR UPDATE USING (auth.uid() = user_id::uuid);
     END IF;
 
-    -- Escrow transactions policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Escrow transactions policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'escrow_transactions') THEN
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'escrow_transactions' AND column_name = 'buyer_id') THEN
-            CREATE POLICY "Users can view own escrow transactions" ON public.escrow_transactions FOR SELECT USING (auth.uid()::text = buyer_id);
-            CREATE POLICY "Users can insert own escrow transactions" ON public.escrow_transactions FOR INSERT WITH CHECK (auth.uid()::text = buyer_id);
+            CREATE POLICY "Users can view own escrow transactions" ON public.escrow_transactions FOR SELECT USING (auth.uid() = buyer_id::uuid);
+            CREATE POLICY "Users can insert own escrow transactions" ON public.escrow_transactions FOR INSERT WITH CHECK (auth.uid() = buyer_id::uuid);
         ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'escrow_transactions' AND column_name = 'user_id') THEN
-            CREATE POLICY "Users can view own escrow transactions" ON public.escrow_transactions FOR SELECT USING (auth.uid()::text = user_id);
-            CREATE POLICY "Users can insert own escrow transactions" ON public.escrow_transactions FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+            CREATE POLICY "Users can view own escrow transactions" ON public.escrow_transactions FOR SELECT USING (auth.uid() = user_id::uuid);
+            CREATE POLICY "Users can insert own escrow transactions" ON public.escrow_transactions FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
         END IF;
     END IF;
 
-    -- User bank accounts policies (EXPLICIT CASTING: UUID to TEXT)
+    -- User bank accounts policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_bank_accounts') THEN
-        CREATE POLICY "Users can view own bank accounts" ON public.user_bank_accounts FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own bank accounts" ON public.user_bank_accounts FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own bank accounts" ON public.user_bank_accounts FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own bank accounts" ON public.user_bank_accounts FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own bank accounts" ON public.user_bank_accounts FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own bank accounts" ON public.user_bank_accounts FOR UPDATE USING (auth.uid() = user_id::uuid);
     END IF;
 
-    -- Seller payouts policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Seller payouts policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'seller_payouts') THEN
-        CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own seller payouts" ON public.seller_payouts FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own seller payouts" ON public.seller_payouts FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
     END IF;
 
-    -- User locations policies (EXPLICIT CASTING: UUID to TEXT)
+    -- User locations policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_locations') THEN
-        CREATE POLICY "Users can view own locations" ON public.user_locations FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own locations" ON public.user_locations FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own locations" ON public.user_locations FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own locations" ON public.user_locations FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own locations" ON public.user_locations FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own locations" ON public.user_locations FOR UPDATE USING (auth.uid() = user_id::uuid);
     END IF;
 
-    -- Location compliance log policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Location compliance log policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'location_compliance_log') THEN
-        CREATE POLICY "Users can view own compliance log" ON public.location_compliance_log FOR SELECT USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own compliance log" ON public.location_compliance_log FOR SELECT USING (auth.uid() = user_id::uuid);
     END IF;
 
     -- Fixed games policies (public access)
@@ -275,11 +275,11 @@ BEGIN
         CREATE POLICY "Public can view active fixed games" ON public.active_fixed_games FOR SELECT USING (true); -- Public active games
     END IF;
 
-    -- Fixed game participants policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Fixed game participants policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'fixed_game_participants') THEN
-        CREATE POLICY "Users can view own fixed game participants" ON public.fixed_game_participants FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own fixed game participants" ON public.fixed_game_participants FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own fixed game participants" ON public.fixed_game_participants FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own fixed game participants" ON public.fixed_game_participants FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own fixed game participants" ON public.fixed_game_participants FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own fixed game participants" ON public.fixed_game_participants FOR UPDATE USING (auth.uid() = user_id::uuid);
         CREATE POLICY "Public can view fixed game participants" ON public.fixed_game_participants FOR SELECT USING (true); -- For leaderboards
     END IF;
 
@@ -288,11 +288,11 @@ BEGIN
         CREATE POLICY "Public can view hot sell listings" ON public.hot_sell_listings FOR SELECT USING (true); -- Public hot sell
     END IF;
 
-    -- Hot sell participants policies (EXPLICIT CASTING: UUID to TEXT)
+    -- Hot sell participants policies (EXPLICIT CASTING: UUID to UUID via TEXT)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'hot_sell_participants') THEN
-        CREATE POLICY "Users can view own hot sell participants" ON public.hot_sell_participants FOR SELECT USING (auth.uid()::text = user_id);
-        CREATE POLICY "Users can insert own hot sell participants" ON public.hot_sell_participants FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-        CREATE POLICY "Users can update own hot sell participants" ON public.hot_sell_participants FOR UPDATE USING (auth.uid()::text = user_id);
+        CREATE POLICY "Users can view own hot sell participants" ON public.hot_sell_participants FOR SELECT USING (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can insert own hot sell participants" ON public.hot_sell_participants FOR INSERT WITH CHECK (auth.uid() = user_id::uuid);
+        CREATE POLICY "Users can update own hot sell participants" ON public.hot_sell_participants FOR UPDATE USING (auth.uid() = user_id::uuid);
         CREATE POLICY "Public can view hot sell participants" ON public.hot_sell_participants FOR SELECT USING (true); -- For leaderboards
     END IF;
 
@@ -455,4 +455,4 @@ ORDER BY tablename;
 -- ========================================
 
 SELECT 'RLS Security Fix Complete!' as status,
-       'All existing core tables now have RLS enabled with explicit type casting (auth.uid()::text = user_id)' as message;
+       'All existing core tables now have RLS enabled with explicit type casting (auth.uid() = user_id::uuid)' as message;
