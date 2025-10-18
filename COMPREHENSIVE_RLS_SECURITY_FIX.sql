@@ -55,11 +55,106 @@ ALTER TABLE public.match ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.match_participant ENABLE ROW LEVEL SECURITY;
 
 -- ========================================
--- 2. CREATE COMPREHENSIVE RLS POLICIES
+-- 2. DROP EXISTING POLICIES AND FUNCTIONS
+-- ========================================
+
+-- Drop all existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
+DROP POLICY IF EXISTS "Enable insert for registration" ON public.users;
+DROP POLICY IF EXISTS "Users can view own bank accounts" ON public.stripe_bank_accounts;
+DROP POLICY IF EXISTS "Users can insert own bank accounts" ON public.stripe_bank_accounts;
+DROP POLICY IF EXISTS "Users can update own bank accounts" ON public.stripe_bank_accounts;
+DROP POLICY IF EXISTS "Users can delete own bank accounts" ON public.stripe_bank_accounts;
+DROP POLICY IF EXISTS "Users can view own withdrawal requests" ON public.withdrawal_requests;
+DROP POLICY IF EXISTS "Users can insert own withdrawal requests" ON public.withdrawal_requests;
+DROP POLICY IF EXISTS "Users can update own withdrawal requests" ON public.withdrawal_requests;
+DROP POLICY IF EXISTS "Users can view own game history" ON public.game_history;
+DROP POLICY IF EXISTS "Users can insert own game history" ON public.game_history;
+DROP POLICY IF EXISTS "Users can view own high scores" ON public.high_scores;
+DROP POLICY IF EXISTS "Users can insert own high scores" ON public.high_scores;
+DROP POLICY IF EXISTS "Users can update own high scores" ON public.high_scores;
+DROP POLICY IF EXISTS "Public can view high scores" ON public.high_scores;
+DROP POLICY IF EXISTS "Users can view own token transactions" ON public.token_transactions;
+DROP POLICY IF EXISTS "Users can insert own token transactions" ON public.token_transactions;
+DROP POLICY IF EXISTS "Users can view own balance" ON public.user_balances;
+DROP POLICY IF EXISTS "Users can update own balance" ON public.user_balances;
+DROP POLICY IF EXISTS "Users can view own level" ON public.user_levels;
+DROP POLICY IF EXISTS "Users can update own level" ON public.user_levels;
+DROP POLICY IF EXISTS "Public can view user levels" ON public.user_levels;
+DROP POLICY IF EXISTS "Users can view own payment transactions" ON public.payment_transactions;
+DROP POLICY IF EXISTS "Users can insert own payment transactions" ON public.payment_transactions;
+DROP POLICY IF EXISTS "Users can view own game sessions" ON public.game_sessions;
+DROP POLICY IF EXISTS "Users can insert own game sessions" ON public.game_sessions;
+DROP POLICY IF EXISTS "Users can update own game sessions" ON public.game_sessions;
+DROP POLICY IF EXISTS "Users can view own escrow transactions" ON public.escrow_transactions;
+DROP POLICY IF EXISTS "Users can insert own escrow transactions" ON public.escrow_transactions;
+DROP POLICY IF EXISTS "Users can view own bank accounts" ON public.user_bank_accounts;
+DROP POLICY IF EXISTS "Users can insert own bank accounts" ON public.user_bank_accounts;
+DROP POLICY IF EXISTS "Users can update own bank accounts" ON public.user_bank_accounts;
+DROP POLICY IF EXISTS "Users can view own seller payouts" ON public.seller_payouts;
+DROP POLICY IF EXISTS "Users can insert own seller payouts" ON public.seller_payouts;
+DROP POLICY IF EXISTS "Users can view own locations" ON public.user_locations;
+DROP POLICY IF EXISTS "Users can insert own locations" ON public.user_locations;
+DROP POLICY IF EXISTS "Users can update own locations" ON public.user_locations;
+DROP POLICY IF EXISTS "Users can view own compliance log" ON public.location_compliance_log;
+DROP POLICY IF EXISTS "Users can view tournaments" ON public.tournaments;
+DROP POLICY IF EXISTS "Users can insert tournaments" ON public.tournaments;
+DROP POLICY IF EXISTS "Users can update tournaments" ON public.tournaments;
+DROP POLICY IF EXISTS "Users can view tournament participants" ON public.tournament_participants;
+DROP POLICY IF EXISTS "Users can insert tournament participants" ON public.tournament_participants;
+DROP POLICY IF EXISTS "Users can update tournament participants" ON public.tournament_participants;
+DROP POLICY IF EXISTS "Users can view matches" ON public.matches;
+DROP POLICY IF EXISTS "Users can insert matches" ON public.matches;
+DROP POLICY IF EXISTS "Users can update matches" ON public.matches;
+DROP POLICY IF EXISTS "Users can view own matchmaking queue" ON public.matchmaking_queue;
+DROP POLICY IF EXISTS "Users can insert own matchmaking queue" ON public.matchmaking_queue;
+DROP POLICY IF EXISTS "Users can update own matchmaking queue" ON public.matchmaking_queue;
+DROP POLICY IF EXISTS "Users can delete own matchmaking queue" ON public.matchmaking_queue;
+DROP POLICY IF EXISTS "Users can view own skill ratings" ON public.skill_ratings;
+DROP POLICY IF EXISTS "Users can insert own skill ratings" ON public.skill_ratings;
+DROP POLICY IF EXISTS "Users can update own skill ratings" ON public.skill_ratings;
+DROP POLICY IF EXISTS "Public can view skill ratings" ON public.skill_ratings;
+DROP POLICY IF EXISTS "Public can view listings" ON public.listings;
+DROP POLICY IF EXISTS "Users can insert own listings" ON public.listings;
+DROP POLICY IF EXISTS "Users can update own listings" ON public.listings;
+DROP POLICY IF EXISTS "Users can delete own listings" ON public.listings;
+DROP POLICY IF EXISTS "Users can view own listing entries" ON public.listing_entries;
+DROP POLICY IF EXISTS "Users can insert own listing entries" ON public.listing_entries;
+DROP POLICY IF EXISTS "Public can view categories" ON public.categories;
+DROP POLICY IF EXISTS "Public can view fixed games config" ON public.fixed_games_config;
+DROP POLICY IF EXISTS "Public can view active fixed games" ON public.active_fixed_games;
+DROP POLICY IF EXISTS "Users can view own fixed game participants" ON public.fixed_game_participants;
+DROP POLICY IF EXISTS "Users can insert own fixed game participants" ON public.fixed_game_participants;
+DROP POLICY IF EXISTS "Users can update own fixed game participants" ON public.fixed_game_participants;
+DROP POLICY IF EXISTS "Public can view fixed game participants" ON public.fixed_game_participants;
+DROP POLICY IF EXISTS "Public can view hot sell listings" ON public.hot_sell_listings;
+DROP POLICY IF EXISTS "Users can view own hot sell participants" ON public.hot_sell_participants;
+DROP POLICY IF EXISTS "Users can insert own hot sell participants" ON public.hot_sell_participants;
+DROP POLICY IF EXISTS "Users can update own hot sell participants" ON public.hot_sell_participants;
+DROP POLICY IF EXISTS "Public can view hot sell participants" ON public.hot_sell_participants;
+DROP POLICY IF EXISTS "Public can view hot sell sessions" ON public.hot_sell_sessions;
+DROP POLICY IF EXISTS "Users can view own app user" ON public.app_user;
+DROP POLICY IF EXISTS "Users can insert own app user" ON public.app_user;
+DROP POLICY IF EXISTS "Users can view own wallet" ON public.wallet;
+DROP POLICY IF EXISTS "Users can update own wallet" ON public.wallet;
+DROP POLICY IF EXISTS "Users can view own ledger entries" ON public.ledger_entry;
+DROP POLICY IF EXISTS "Users can insert own ledger entries" ON public.ledger_entry;
+DROP POLICY IF EXISTS "Public can view listings" ON public.listing;
+DROP POLICY IF EXISTS "Users can view own listing joins" ON public.listing_join;
+DROP POLICY IF EXISTS "Users can insert own listing joins" ON public.listing_join;
+DROP POLICY IF EXISTS "Users can view own matches" ON public.match;
+DROP POLICY IF EXISTS "Users can insert own matches" ON public.match;
+DROP POLICY IF EXISTS "Users can update own matches" ON public.match;
+DROP POLICY IF EXISTS "Users can view own match participants" ON public.match_participant;
+DROP POLICY IF EXISTS "Users can insert own match participants" ON public.match_participant;
+DROP POLICY IF EXISTS "Users can update own match participants" ON public.match_participant;
+
+-- ========================================
+-- 3. CREATE COMPREHENSIVE RLS POLICIES
 -- ========================================
 
 -- Users policies
-DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 DROP POLICY IF EXISTS "Enable insert for registration" ON public.users;
 CREATE POLICY "Users can view own profile" ON public.users FOR SELECT USING (auth.uid() = id);
