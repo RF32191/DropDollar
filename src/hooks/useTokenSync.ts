@@ -81,7 +81,7 @@ export function useTokenSync() {
 
     // Listen for window focus
     const handleFocus = async () => {
-      if (user && isAuthenticated) {
+      if (user?.id && isAuthenticated) {
         console.log('🔄 [useTokenSync] Window focused, refreshing tokens...');
         try {
           const balance = await refreshTokens();
@@ -107,7 +107,7 @@ export function useTokenSync() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [user, isAuthenticated, refreshTokens]);
+  }, [user?.id, isAuthenticated, refreshTokens]);
 
   return {
     tokenBalance,

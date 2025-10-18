@@ -106,7 +106,7 @@ export default function TriumphStyleDashboard() {
       console.log('🎮 [Dashboard] User authenticated, loading data immediately...');
       loadDashboardData();
     }
-  }, [searchParams, user, isAuthenticated, authLoading]);
+  }, [searchParams, user?.id, isAuthenticated, authLoading]);
 
   // Token synchronization is now handled by useTokenSync hook
 
