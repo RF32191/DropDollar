@@ -503,26 +503,33 @@ export default function HotSellPage() {
   };
 
   const calculatePrizeDistribution = (prizePool: number) => {
-    // Fixed payout structure: 1st place gets $1.50, 3rd place gets $2.50
-    // Total prize pool should be $4.00 for this distribution
-    const totalPrizePool = 4.00;
-    const feeRate = 0.0; // No platform fee for this structure
+    // 15% platform fee from total pot
+    const platformFeeRate = 0.15;
+    const platformFee = prizePool * platformFeeRate;
+    const netPrizePool = prizePool - platformFee;
     
+    // Standard distribution: 1st gets 50%, 2nd gets 30%, 3rd gets 20%
     return {
-      first: 1.50,  // $1.50 for 1st place
-      second: 0.00, // $0.00 for 2nd place
-      third: 2.50,  // $2.50 for 3rd place
-      totalFee: 0.00 // No platform fee
+      first: netPrizePool * 0.5,   // 50% of net prize pool
+      second: netPrizePool * 0.3,  // 30% of net prize pool
+      third: netPrizePool * 0.2,   // 20% of net prize pool
+      totalFee: platformFee        // 15% platform fee
     };
   };
 
-  // Adjust entry fees to be within 1-5 token range
+  // Adjust entry fees to be within 1-5 token range and calculate proper prize pools
   const adjustEntryFee = (config: FixedGameConfig) => {
     // Limit entry fees to 1-5 tokens
     const adjustedFee = Math.min(Math.max(config.entry_fee, 1), 5);
+    
+    // Calculate prize pool based on max participants and entry fee
+    // 1 token = $1, so if 50 players pay 3 tokens each = $150 total pot
+    const calculatedPrizePool = config.max_participants * adjustedFee;
+    
     return {
       ...config,
-      entry_fee: adjustedFee
+      entry_fee: adjustedFee,
+      prize_pool: calculatedPrizePool
     };
   };
 
@@ -1091,6 +1098,52 @@ export default function HotSellPage() {
                   </div>
                 </div>
                 
+                    {/* Scoreboard Section */}
+                    <div className="mt-6 mb-4">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                        <button
+                          onClick={() => {
+                            const scoreboardElement = document.getElementById(`winner-scoreboard-${config.id}`);
+                            if (scoreboardElement) {
+                              scoreboardElement.classList.toggle('hidden');
+                            }
+                          }}
+                          className="w-full flex items-center justify-between text-left"
+                        >
+                          <h4 className="text-sm font-semibold text-white flex items-center">
+                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                            Live Scoreboard
+                          </h4>
+                          <span className="text-gray-400 text-xs">Click to expand</span>
+                        </button>
+                        
+                        <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
+                          <div className="space-y-2">
+                            {/* Show locked message for users who haven't played */}
+                            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                                <span className="text-yellow-300 text-sm font-medium">
+                                  Join the game to see live scores!
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Payout Information */}
+                            <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
+                              <div className="text-center">
+                                <div className="text-green-700 text-xs font-medium mb-1">Winner Takes All</div>
+                                <div className="text-green-800 font-bold text-sm">
+                                  Current Pot: $0 
+                                  <span className="text-xs text-green-600 ml-1">(grows with each player)</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Join Button */}
                     <div className="space-y-3">
                       {isAuthenticated ? (
@@ -1238,6 +1291,76 @@ export default function HotSellPage() {
                       <span className="text-gray-300">Game Type</span>
                     </div>
                     <span className="text-white font-semibold capitalize">{listing.game_type.replace('-', ' ')}</span>
+                  </div>
+                </div>
+
+                {/* Scoreboard Section */}
+                <div className="mt-6 mb-4">
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <button
+                      onClick={() => {
+                        const scoreboardElement = document.getElementById(`listing-scoreboard-${listing.id}`);
+                        if (scoreboardElement) {
+                          scoreboardElement.classList.toggle('hidden');
+                        }
+                      }}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <h4 className="text-sm font-semibold text-white flex items-center">
+                        <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                        Live Scoreboard
+                      </h4>
+                      <span className="text-gray-400 text-xs">Click to expand</span>
+                    </button>
+                    
+                    <div id={`listing-scoreboard-${listing.id}`} className="hidden mt-3">
+                      {listingParticipants.length > 0 ? (
+                        <div className="space-y-2">
+                          {/* Show locked message for users who haven't played */}
+                          {!isJoined && (
+                            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                                <span className="text-yellow-300 text-sm font-medium">
+                                  Join the tournament to see live scores!
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Show scores for users who have played */}
+                          {isJoined && (
+                            <div className="space-y-2">
+                              <div className="text-center text-gray-400 text-xs mb-2">
+                                <UsersIcon className="w-4 h-4 inline mr-1" />
+                                {listingParticipants.length} players • Tournament active
+                              </div>
+                              
+                              {/* Placeholder for actual scores - will be populated after game completion */}
+                              <div className="bg-white/5 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center">
+                                    <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                                      <span className="text-white font-bold text-xs">1</span>
+                                    </div>
+                                    <span className="text-white text-sm">Your Score</span>
+                                  </div>
+                                  <span className="text-yellow-400 font-bold text-sm">--</span>
+                                </div>
+                              </div>
+                              
+                              <div className="text-center text-gray-500 text-xs">
+                                Scores will appear after game completion
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center text-gray-400 text-sm">
+                          No players yet. Be the first to join!
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
