@@ -4,10 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
-import { getFixedGameConfigs } from '@/lib/supabase/fixedGamesService';
-import { CompetitionGameFlow } from '@/components/games/CompetitionGameFlow';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { CleanNavigation } from '@/components/navigation/CleanNavigation';
+import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
+import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
 import {
   TrophyIcon,
   ClockIcon,
@@ -71,7 +71,7 @@ export default function WinnerTakesAllPage() {
       console.log('🔄 [Winner Takes It All] Loading data...');
       
       // Load fixed game configs
-      const configs = await getFixedGameConfigs();
+      const configs = await FixedGamesService.getFixedGameConfigs();
       const winnerTakesAllConfigs = configs.filter(config => config.tournament_type === 'winner_takes_all');
       setFixedGameConfigs(winnerTakesAllConfigs);
       
