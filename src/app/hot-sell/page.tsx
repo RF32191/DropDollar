@@ -84,46 +84,48 @@ export default function HotSellPage() {
     try {
       setIsLoading(true);
       
-      // Load hot sell listings
-      const listings = await TournamentService.getActiveHotSellListings();
-      setHotSellListings(listings);
+      // Load data in parallel for better performance
+      const [listings, configs, sessions, blindListings] = await Promise.all([
+        TournamentService.getActiveHotSellListings(),
+        FixedGamesService.getFixedGameConfigs('hot_sell'),
+        FixedGamesService.getHotSellSessions(),
+        BlindScoreboardService.getOpenListings()
+      ]);
       
-      // Load participants for each listing
+      setHotSellListings(listings);
+      setFixedGameConfigs(configs);
+      setHotSellSessions(sessions);
+      setBlindListings(blindListings);
+      
+      // Load participants for each listing (limit to first 3 for performance)
       const participantsData: { [listingId: string]: HotSellParticipant[] } = {};
-      for (const listing of listings) {
-        const listingParticipants = await TournamentService.getHotSellParticipants(listing.id);
-        participantsData[listing.id] = listingParticipants;
+      const limitedListings = listings.slice(0, 3);
+      for (const listing of limitedListings) {
+        try {
+          const listingParticipants = await TournamentService.getHotSellParticipants(listing.id);
+          participantsData[listing.id] = listingParticipants;
+        } catch (error) {
+          console.warn('Failed to load participants for listing:', listing.id);
+        }
       }
       setParticipants(participantsData);
       
-      // Load fixed game configs for hot sell
-      const configs = await FixedGamesService.getFixedGameConfigs('hot_sell');
-      setFixedGameConfigs(configs);
-      
-      // Load hot sell sessions
-      const sessions = await FixedGamesService.getHotSellSessions();
-      setHotSellSessions(sessions);
-      
-      // Load participants for each session
+      // Load participants for each session (limit to first 5 for performance)
       const sessionParticipantsData: { [sessionId: string]: FixedGameParticipant[] } = {};
-      for (const session of sessions) {
+      const limitedSessions = sessions.slice(0, 5);
+      for (const session of limitedSessions) {
         try {
           const sessionConfig = configs.find(c => c.id === session.config_id);
           if (sessionConfig) {
             const participants = await FixedGamesService.getFixedGameParticipants(session.id);
             sessionParticipantsData[session.id] = participants;
-            console.log(`✅ [HotSell] Loaded ${participants.length} participants for session ${session.id}`);
           }
         } catch (error) {
-          console.error(`❌ [HotSell] Error loading participants for session ${session.id}:`, error);
+          console.warn(`Failed to load participants for session ${session.id}:`, error);
           sessionParticipantsData[session.id] = [];
         }
       }
       setSessionParticipants(sessionParticipantsData);
-      
-      // Load blind scoreboard listings
-      const blindListings = await BlindScoreboardService.getOpenListings();
-      setBlindListings(blindListings);
       
       // Ensure all configs have sessions (make all banners enterable)
       await ensureAllConfigsHaveSessions(configs, sessions);
@@ -833,7 +835,7 @@ export default function HotSellPage() {
       };
     }
     
-    if (config?.title?.includes('$100')) {
+    if (config?.title?.includes('$100 Hot Sell') && !config?.title?.includes('$1000')) {
       return {
         first: 85,   // Winner gets $85
         second: 15,  // 2nd gets $15
@@ -920,7 +922,7 @@ export default function HotSellPage() {
       };
     }
     
-    if (config.title?.includes('$100')) {
+    if (config.title?.includes('$100 Hot Sell') && !config.title?.includes('$1000')) {
       return {
         ...config,
         entry_fee: 1, // 1 token = $1
