@@ -1005,36 +1005,70 @@ export default function HotSellPage() {
   // Adjust entry fees using appropriate payout calculation
   const adjustEntryFee = (config: FixedGameConfig) => {
     // Check if this is a Winner Takes It All tournament
+    // Convert Winner Takes It All tournaments to regular hot sell tournaments
     if (config.title?.includes('Winner Takes It All')) {
-      const payouts = calculateWinnerTakesAllPayouts(config);
+      const title = config.title || '';
       
-      if (!payouts) {
-        console.warn('Could not calculate Winner Takes It All payouts for config:', config.title);
-        return config;
+      // Extract prize amount and convert to regular hot sell format
+      if (title.includes('$100 Winner Takes It All')) {
+        return {
+          ...config,
+          title: '$100 Hot Sell - Laser Dodge',
+          description: '1st place: $42.50, 2nd place: $25.50, 3rd place: $17.00. Platform fee: $15.00',
+          entry_fee: 1,
+          prize_pool: 100,
+          max_participants: 100
+        };
       }
       
-      return {
-        ...config,
-        entry_fee: payouts.entryFee,
-        prize_pool: payouts.totalPrize,
-        max_participants: 999999 // Very high number to simulate unlimited
-      };
-    } else {
-      // Regular Hot Sell tournament
-      const payouts = calculateTournamentPayouts(config);
-      
-      if (!payouts) {
-        console.warn('Could not calculate payouts for config:', config.title);
-        return config;
+      if (title.includes('$250 Winner Takes It All')) {
+        return {
+          ...config,
+          title: '$250 Hot Sell - Multi Target',
+          description: '1st place: $106.25, 2nd place: $63.75, 3rd place: $42.50. Platform fee: $37.50',
+          entry_fee: 1,
+          prize_pool: 250,
+          max_participants: 250
+        };
       }
       
-      return {
-        ...config,
-        entry_fee: payouts.entryFee,
-        prize_pool: payouts.totalPrize,
-        max_participants: payouts.maxPlayers
-      };
+      if (title.includes('$1000 Winner Takes It All')) {
+        return {
+          ...config,
+          title: '$1000 Hot Sell - Sword Parry',
+          description: '1st place: $425.00, 2nd place: $255.00, 3rd place: $170.00. Platform fee: $150.00',
+          entry_fee: 1,
+          prize_pool: 1000,
+          max_participants: 1000
+        };
+      }
+      
+      if (title.includes('$2500 Winner Takes It All')) {
+        return {
+          ...config,
+          title: '$2500 Hot Sell - Laser Dodge',
+          description: '1st place: $1062.50, 2nd place: $637.50, 3rd place: $425.00. Platform fee: $375.00',
+          entry_fee: 1,
+          prize_pool: 2500,
+          max_participants: 2500
+        };
+      }
     }
+    
+    // Regular hot sell tournaments
+    const payouts = calculateTournamentPayouts(config);
+    
+    if (!payouts) {
+      console.warn('Could not calculate payouts for config:', config.title);
+      return config;
+    }
+    
+    return {
+      ...config,
+      entry_fee: payouts.entryFee,
+      prize_pool: payouts.totalPrize,
+      max_participants: payouts.maxPlayers
+    };
   };
 
   const getGameIcon = (gameType: string) => {
@@ -1200,10 +1234,7 @@ export default function HotSellPage() {
               const adjustedConfig = adjustEntryFee(config);
               const session = hotSellSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
-              const isWinnerTakesAll = adjustedConfig.title?.includes('Winner Takes It All');
-              const prizeDistribution = isWinnerTakesAll 
-                ? calculateWinnerTakesAllPayouts(adjustedConfig)
-                : calculateTournamentPayouts(adjustedConfig);
+              const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
               const canJoin = userTokens >= adjustedConfig.entry_fee;
               
@@ -1327,126 +1358,77 @@ export default function HotSellPage() {
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
                       <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                      {isWinnerTakesAll ? 'Winner Takes All' : 'Prize Distribution'}
+                      Prize Distribution
                     </h4>
                     <div className="space-y-2">
-                      {isWinnerTakesAll ? (
-                        // Winner Takes It All display
-                        <>
+                      {/* Regular Hot Sell display for all tournaments */}
+                      <>
+                        <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                              <span className="text-white font-bold text-xs">1</span>
+              </div>
+                            <span className="text-white text-sm">1st Place</span>
+              </div>
+                          <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.first)}</span>
+              </div>
+                        <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-2">
+                              <span className="text-white font-bold text-xs">2</span>
+              </div>
+                            <span className="text-white text-sm">2nd Place</span>
+              </div>
+                          <span className="text-gray-300 font-bold text-sm">{formatPrizeAmount(prizeDistribution.second)}</span>
+              </div>
+                        {/* Only show 3rd place if there's a prize for it */}
+                        {prizeDistribution.third > 0 && (
                           <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
                             <div className="flex items-center">
-                              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-white font-bold text-xs">👑</span>
-                              </div>
-                              <span className="text-white text-sm">Winner Takes All</span>
-                            </div>
-                            <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.winnerPrize)}</span>
-                          </div>
-                          <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-white font-bold text-xs">📊</span>
-                              </div>
-                              <span className="text-red-300 text-sm">Platform Fee (15%)</span>
-                            </div>
-                            <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.platformFee)}</span>
-                          </div>
-                        </>
-                      ) : (
-                        // Regular Hot Sell display
-                        <>
-                          <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-white font-bold text-xs">1</span>
-              </div>
-                              <span className="text-white text-sm">1st Place</span>
-              </div>
-                            <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.first)}</span>
-              </div>
-                          <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-white font-bold text-xs">2</span>
-              </div>
-                              <span className="text-white text-sm">2nd Place</span>
-              </div>
-                            <span className="text-gray-300 font-bold text-sm">{formatPrizeAmount(prizeDistribution.second)}</span>
-              </div>
-                          {/* Only show 3rd place if there's a prize for it */}
-                          {prizeDistribution.third > 0 && (
-                            <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                              <div className="flex items-center">
-                                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
-                                  <span className="text-white font-bold text-xs">3</span>
-                                </div>
-                                <span className="text-white text-sm">3rd Place</span>
-                              </div>
-                              <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-white font-bold text-xs">📊</span>
+                              <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
+                                <span className="text-white font-bold text-xs">3</span>
+            </div>
+                              <span className="text-white text-sm">3rd Place</span>
+          </div>
+                            <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
+        </div>
+                        )}
+                        <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
+                          <div className="flex items-center">
+                            <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
+                              <span className="text-white font-bold text-xs">📊</span>
       </div>
-                              <span className="text-red-300 text-sm">Platform Fee (15%)</span>
+                            <span className="text-red-300 text-sm">Platform Fee (15%)</span>
               </div>
-                            <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.platformFee)}</span>
-                          </div>
-                        </>
-                      )}
+                          <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.platformFee)}</span>
+                        </div>
+                      </>
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
+                  {/* Progress Bar - All tournaments use tokens to base price */}
                 <div className="mb-4">
-                    {isWinnerTakesAll ? (
-                      // Winner Takes It All progress (base price based)
-                      <>
-                        <div className="flex justify-between text-sm text-gray-300 mb-2">
-                          <span>Token Progress</span>
-                          <span>{session?.current_pot || 0} / {prizeDistribution.basePrice} tokens to base price</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-3">
-                          <div 
-                            className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
-                            style={{ 
-                              width: `${Math.min(100, ((session?.current_pot || 0) / prizeDistribution.basePrice) * 100)}%` 
-                            }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-400 mt-1">
-                          <span>Base Price: {prizeDistribution.basePrice} tokens</span>
-                          <span>Current Pot: {session?.current_pot || 0} tokens</span>
-                        </div>
-                      </>
-                    ) : (
-                      // Regular Hot Sell progress (player count based)
-                      <>
-                        <div className="flex justify-between text-sm text-gray-300 mb-2">
-                          <span>Participants Progress</span>
-                          <span>{session?.participants_count || 0} / {adjustedConfig.max_participants} players</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-3">
-                          <div 
-                            className={`h-3 rounded-full transition-all duration-300 ${
-                              isHotSell 
-                                ? 'bg-gradient-to-r from-red-500 to-orange-500' 
-                                : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                            }`} 
-                            style={{ 
-                              width: `${Math.min(100, ((session?.participants_count || 0) / adjustedConfig.max_participants) * 100)}%` 
-                            }}
-                          ></div>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-400 mt-1">
-                          <span>Target: {adjustedConfig.max_participants} players</span>
-                          <span>Remaining: {Math.max(0, adjustedConfig.max_participants - (session?.participants_count || 0))} players</span>
-                        </div>
-                      </>
-                    )}
+                      <div className="flex justify-between text-sm text-gray-300 mb-2">
+                        <span>Token Progress</span>
+                        <span>{session?.current_pot || 0} / {prizeDistribution.maxPlayers} tokens to base price</span>
                   </div>
+                      <div className="w-full bg-gray-700 rounded-full h-3">
+                        <div 
+                          className={`h-3 rounded-full transition-all duration-300 ${
+                            isHotSell 
+                              ? 'bg-gradient-to-r from-red-500 to-orange-500' 
+                              : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                          }`} 
+                          style={{ 
+                            width: `${Math.min(100, ((session?.current_pot || 0) / prizeDistribution.maxPlayers) * 100)}%` 
+                          }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>Base Price: {prizeDistribution.maxPlayers} tokens</span>
+                        <span>Current Pot: {session?.current_pot || 0} tokens</span>
+                  </div>
+                </div>
                 
                   {/* Game Info */}
                   <div className="mb-6 space-y-2">
@@ -1457,15 +1439,13 @@ export default function HotSellPage() {
                       </div>
                       <span className="text-white font-semibold text-sm">{adjustedConfig.entry_fee} tokens</span>
                     </div>
-                    {!isWinnerTakesAll && (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
-                          <span className="text-gray-300 text-sm">Max Players</span>
-                        </div>
-                        <span className="text-white font-semibold text-sm">{adjustedConfig.max_participants}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
+                        <span className="text-gray-300 text-sm">Max Players</span>
                       </div>
-                    )}
+                      <span className="text-white font-semibold text-sm">{adjustedConfig.max_participants}</span>
+                    </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <ClockIcon className="w-4 h-4 text-blue-400 mr-2" />
@@ -1783,7 +1763,7 @@ export default function HotSellPage() {
                           ) : (
                             '❌ Insufficient Tokens'
                           )}
-                        </button>
+                </button>
                       ) : (
                         <div className="text-center py-3 px-6 rounded-2xl bg-gray-600 text-gray-400">
                           Please log in to join
