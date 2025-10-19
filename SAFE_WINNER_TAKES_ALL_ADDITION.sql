@@ -83,7 +83,6 @@ BEGIN
         config_id,
         current_pot,
         target_pot,
-        base_price,
         participants_count,
         status,
         created_at,
@@ -92,8 +91,7 @@ BEGIN
         gen_random_uuid(),
         config_rec.id,
         0, -- Start with empty pot
-        config_rec.prize_pool, -- Target is full prize pool
-        base_price, -- Base price is 10% of prize pool
+        base_price, -- Use base price as target_pot (10% of prize pool)
         0, -- Start with 0 participants
         'waiting', -- Waiting for base price
         NOW(),

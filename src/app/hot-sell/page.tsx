@@ -190,7 +190,9 @@ export default function HotSellPage() {
         // Winner Takes It All timer logic
         const payouts = calculateWinnerTakesAllPayouts(config!);
         if (payouts) {
-          const isBasePriceMet = (session.current_pot || 0) >= payouts.basePrice;
+          // For Winner Takes It All, use target_pot as base price
+          const basePrice = session.target_pot || payouts.basePrice;
+          const isBasePriceMet = (session.current_pot || 0) >= basePrice;
           const isTimerActive = session.status === 'active' && session.timer_started_at;
           
           let timeRemaining = 0;
@@ -207,7 +209,7 @@ export default function HotSellPage() {
             isBasePriceMet: isBasePriceMet,
             canJoin: isBasePriceMet,
             isTimerActive: isTimerActive,
-            basePrice: payouts.basePrice,
+            basePrice: basePrice,
             currentPot: session.current_pot || 0
           };
         }
@@ -1359,18 +1361,18 @@ export default function HotSellPage() {
                       <>
                         <div className="flex justify-between text-sm text-gray-300 mb-2">
                           <span>Pot Progress</span>
-                          <span>{formatPrizeAmount(session?.current_pot || 0)} / {formatPrizeAmount(prizeDistribution.basePrice)} base price</span>
+                          <span>{formatPrizeAmount(session?.current_pot || 0)} / {formatPrizeAmount(timer?.basePrice || prizeDistribution.basePrice)} base price</span>
                         </div>
                         <div className="w-full bg-gray-700 rounded-full h-3">
                           <div 
                             className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
                             style={{ 
-                              width: `${Math.min(100, ((session?.current_pot || 0) / prizeDistribution.basePrice) * 100)}%` 
+                              width: `${Math.min(100, ((session?.current_pot || 0) / (timer?.basePrice || prizeDistribution.basePrice)) * 100)}%` 
                             }}
                           ></div>
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 mt-1">
-                          <span>Base Price: {formatPrizeAmount(prizeDistribution.basePrice)}</span>
+                          <span>Base Price: {formatPrizeAmount(timer?.basePrice || prizeDistribution.basePrice)}</span>
                           <span>Players: {session?.participants_count || 0} (Unlimited)</span>
                         </div>
                       </>
