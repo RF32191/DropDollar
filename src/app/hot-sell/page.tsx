@@ -1409,7 +1409,9 @@ export default function HotSellPage() {
               </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {fixedGameConfigs.map((config) => {
+            {fixedGameConfigs
+              .filter(config => !config.title?.includes('$3 Winner Takes It All'))
+              .map((config) => {
               const adjustedConfig = adjustEntryFee(config);
               const session = hotSellSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
@@ -1800,11 +1802,9 @@ export default function HotSellPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Winner Takes It All Games */}
-            {fixedGameConfigs.map((config) => {
-              // Only process Winner Takes It All tournaments
-              if (config.tournament_type !== 'winner_takes_all') {
-                return null; // Skip non-Winner Takes It All tournaments
-              }
+            {fixedGameConfigs
+              .filter(config => config.tournament_type === 'winner_takes_all' && !config.title?.includes('$3 Winner Takes It All'))
+              .map((config) => {
               
               // Use Winner Takes It All sessions instead of hot sell sessions
               const adjustedConfig = adjustEntryFee(config);
