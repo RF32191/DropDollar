@@ -797,169 +797,121 @@ export default function HotSellPage() {
     }).format(amount);
   };
 
-  const calculatePrizeDistribution = (prizePool: number, config?: FixedGameConfig) => {
-    // Hard-coded prize distributions for specific tournaments
-    if (config?.title?.includes('$2 Hot Sell')) {
-      return {
-        first: 1.50, // $1.50 for 1st place
-        second: 0.35, // $0.35 for 2nd place
-        third: 0,     // No 3rd place
-        totalFee: 0.15 // $0.15 platform fee
-      };
+  // Comprehensive payout calculation system based on tournament title
+  const calculateTournamentPayouts = (config: FixedGameConfig) => {
+    const title = config.title || '';
+    
+    // Extract prize amount from title (e.g., "$100 Hot Sell" -> 100)
+    const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
+    if (!prizeMatch) {
+      console.warn('Could not extract prize amount from title:', title);
+      return null;
     }
     
-    if (config?.title?.includes('$3 Hot Sell')) {
-      return {
-        first: 2.55, // Winner gets $2.55
-        second: 0.45, // 2nd gets $0.45
-        third: 0,     // No 3rd place
-        totalFee: 0.45 // Platform fee $0.45
+    const prizeAmount = parseInt(prizeMatch[1].replace(/,/g, ''));
+    const platformFee = prizeAmount * 0.15; // 15% platform fee
+    const remainingPool = prizeAmount - platformFee;
+    
+    // Determine payout structure based on prize amount
+    let payouts;
+    
+    if (prizeAmount === 2) {
+      // $2 Hot Sell: 1st gets $1.50, 2nd gets $0.35, no 3rd
+      payouts = {
+        first: 1.50,
+        second: 0.35,
+        third: 0,
+        platformFee: 0.15,
+        maxPlayers: 2
+      };
+    } else if (prizeAmount === 3) {
+      // $3 Hot Sell: Winner gets $2.55, 2nd gets $0.45, no 3rd
+      payouts = {
+        first: 2.55,
+        second: 0.45,
+        third: 0,
+        platformFee: 0.45,
+        maxPlayers: 2
+      };
+    } else if (prizeAmount === 10) {
+      // $10 Hot Sell: 1st gets $4.25, 2nd gets $2.55, 3rd gets $1.70
+      payouts = {
+        first: 4.25,
+        second: 2.55,
+        third: 1.70,
+        platformFee: 1.50,
+        maxPlayers: 10
+      };
+    } else if (prizeAmount === 100) {
+      // $100 Hot Sell: Winner gets $85, 2nd gets $15, no 3rd
+      payouts = {
+        first: 85,
+        second: 15,
+        third: 0,
+        platformFee: 15,
+        maxPlayers: 100
+      };
+    } else if (prizeAmount === 250) {
+      // $250 Hot Sell: Winner gets $212.50, 2nd gets $37.50, no 3rd
+      payouts = {
+        first: 212.50,
+        second: 37.50,
+        third: 0,
+        platformFee: 37.50,
+        maxPlayers: 250
+      };
+    } else if (prizeAmount === 1000) {
+      // $1000 Hot Sell: Winner gets $850, 2nd gets $150, no 3rd
+      payouts = {
+        first: 850,
+        second: 150,
+        third: 0,
+        platformFee: 150,
+        maxPlayers: 1000
+      };
+    } else if (prizeAmount === 2500) {
+      // $2500 Hot Sell: Winner gets $2125, 2nd gets $375, no 3rd
+      payouts = {
+        first: 2125,
+        second: 375,
+        third: 0,
+        platformFee: 375,
+        maxPlayers: 2500
+      };
+    } else {
+      // Default calculation for other amounts
+      payouts = {
+        first: Math.round(remainingPool * 0.5 * 100) / 100,
+        second: Math.round(remainingPool * 0.3 * 100) / 100,
+        third: Math.round(remainingPool * 0.2 * 100) / 100,
+        platformFee: Math.round(platformFee * 100) / 100,
+        maxPlayers: prizeAmount // 1 player per dollar
       };
     }
-    
-    if (config?.title?.includes('$10')) {
-      return {
-        first: 4.25, // Winner gets $4.25
-        second: 2.55, // 2nd gets $2.55
-        third: 1.70,  // 3rd gets $1.70
-        totalFee: 1.50 // Platform fee $1.50 (goes to you)
-      };
-    }
-    
-    if (config?.title?.includes('$100 Hot Sell - Laser Dodge')) {
-      return {
-        first: 85,   // Winner gets $85
-        second: 15,  // 2nd gets $15
-        third: 0,    // No 3rd place
-        totalFee: 15 // Platform fee $15 (goes to you)
-      };
-    }
-    
-    if (config?.title?.includes('$100 Hot Sell') && !config?.title?.includes('$1000')) {
-      return {
-        first: 85,   // Winner gets $85
-        second: 15,  // 2nd gets $15
-        third: 0,    // No 3rd place
-        totalFee: 15 // Platform fee $15 (goes to you)
-      };
-    }
-    
-    if (config?.title?.includes('$250')) {
-      return {
-        first: 212.50, // Winner gets $212.50
-        second: 37.50,  // 2nd gets $37.50
-        third: 0,       // No 3rd place
-        totalFee: 37.50 // Platform fee $37.50 (goes to you)
-      };
-    }
-    
-    if (config?.title?.includes('$1000')) {
-      return {
-        first: 850,  // Winner gets $850
-        second: 150, // 2nd gets $150
-        third: 0,    // No 3rd place
-        totalFee: 150 // Platform fee $150 (goes to you)
-      };
-    }
-    
-    if (config?.title?.includes('$2500')) {
-      return {
-        first: 2125, // Winner gets $2125
-        second: 375, // 2nd gets $375
-        third: 0,    // No 3rd place
-        totalFee: 375 // Platform fee $375 (goes to you)
-      };
-    }
-    
-    // Default distribution for other games
-    const platformFee = prizePool * 0.15;
-    const remainingPool = prizePool - platformFee;
     
     return {
-      first: Math.round(remainingPool * 0.5),   // 50% of remaining
-      second: Math.round(remainingPool * 0.3),   // 30% of remaining  
-      third: Math.round(remainingPool * 0.2),    // 20% of remaining
-      totalFee: Math.round(platformFee)          // 15% platform fee
+      ...payouts,
+      totalPrize: prizeAmount,
+      entryFee: 1, // Always 1 token = $1
+      playersNeeded: payouts.maxPlayers
     };
   };
 
-  // Adjust entry fees to be within 1-5 token range and calculate proper prize pools
+  // Adjust entry fees using comprehensive payout calculation
   const adjustEntryFee = (config: FixedGameConfig) => {
-    // Hard-code specific tournament configurations
-    if (config.title?.includes('$2 Hot Sell')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 2, // $2 total
-        max_participants: 2 // 2 players
-      };
+    const payouts = calculateTournamentPayouts(config);
+    
+    if (!payouts) {
+      console.warn('Could not calculate payouts for config:', config.title);
+      return config;
     }
     
-    if (config.title?.includes('$3 Hot Sell')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 3, // $3 total
-        max_participants: 2 // 2 players
-      };
-    }
-    
-    if (config.title?.includes('$10')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 10, // $10 total
-        max_participants: 10 // 10 players
-      };
-    }
-    
-    if (config.title?.includes('$100 Hot Sell - Laser Dodge')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 100, // $100 total
-        max_participants: 100 // 100 players
-      };
-    }
-    
-    if (config.title?.includes('$100 Hot Sell') && !config.title?.includes('$1000')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 100, // $100 total
-        max_participants: 100 // 100 players
-      };
-    }
-    
-    if (config.title?.includes('$250')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 250, // $250 total
-        max_participants: 250 // 250 players
-      };
-    }
-    
-    if (config.title?.includes('$1000')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 1000, // $1000 total
-        max_participants: 1000 // 1000 players
-      };
-    }
-    
-    if (config.title?.includes('$2500')) {
-      return {
-        ...config,
-        entry_fee: 1, // 1 token = $1
-        prize_pool: 2500, // $2500 total
-        max_participants: 2500 // 2500 players
-      };
-    }
-    
-    // Default case - keep original values
-    return config;
+    return {
+      ...config,
+      entry_fee: payouts.entryFee,
+      prize_pool: payouts.totalPrize,
+      max_participants: payouts.maxPlayers
+    };
   };
 
   const getGameIcon = (gameType: string) => {
@@ -1124,9 +1076,15 @@ export default function HotSellPage() {
               const adjustedConfig = adjustEntryFee(config);
               const session = hotSellSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculatePrizeDistribution(adjustedConfig.prize_pool, adjustedConfig);
+              const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
               const canJoin = userTokens >= adjustedConfig.entry_fee;
+              
+              // Skip rendering if payout calculation failed
+              if (!prizeDistribution) {
+                console.warn('Skipping config due to payout calculation failure:', adjustedConfig.title);
+                return null;
+              }
               
               return (
                 <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
@@ -1257,7 +1215,7 @@ export default function HotSellPage() {
       </div>
                           <span className="text-red-300 text-sm">Platform Fee (15%)</span>
               </div>
-                        <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.totalFee)}</span>
+                        <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.platformFee)}</span>
                       </div>
               </div>
                   </div>
@@ -1697,9 +1655,15 @@ export default function HotSellPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {hotSellListings.map((listing) => {
             const listingParticipants = participants[listing.id] || [];
-            const prizeDistribution = calculatePrizeDistribution(listing.prize_pool);
+            const prizeDistribution = calculateTournamentPayouts({ title: listing.title, prize_pool: listing.prize_pool } as FixedGameConfig);
             const isJoined = listingParticipants.some(p => p.user_id === user?.id);
             const canJoin = userTokens >= listing.entry_fee && !isJoined && listingParticipants.length < listing.max_participants;
+            
+            // Skip rendering if payout calculation failed
+            if (!prizeDistribution) {
+              console.warn('Skipping listing due to payout calculation failure:', listing.title);
+              return null;
+            }
             
             return (
               <div key={listing.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
