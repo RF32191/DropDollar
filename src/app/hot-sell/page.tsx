@@ -334,7 +334,7 @@ export default function HotSellPage() {
           const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
           
           if (isDuplicateJoin) {
-            setMessage({ type: 'info', text: `You have already played this tournament! Your score: ${participant.score}` });
+            setMessage({ type: 'success', text: `You have already played this tournament! Your score: ${participant.score}` });
             // Don't start the game again, just show the message
             return;
           }
@@ -466,7 +466,7 @@ export default function HotSellPage() {
         const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
         
         if (isDuplicateJoin) {
-          setMessage({ type: 'info', text: `You have already played this tournament! Your score: ${participant.score}` });
+            setMessage({ type: 'success', text: `You have already played this tournament! Your score: ${participant.score}` });
           // Don't start the game again, just show the message
           return;
         }
@@ -518,7 +518,7 @@ export default function HotSellPage() {
       // Check if it's a duplicate user error
       if (error?.code === 'P0001' || error?.message?.includes('already joined')) {
         setMessage({ 
-          type: 'info', 
+          type: 'success', 
           text: 'You have already joined this tournament!' 
         });
       } else {
@@ -1679,7 +1679,7 @@ export default function HotSellPage() {
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                       <div className="text-center">
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                        <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
+                        <p className="text-2xl font-bold text-white">0 tokens</p>
                         <p className="text-purple-200 text-xs mt-1">Base pot: 0, grows with each player's token</p>
               </div>
             </div>
