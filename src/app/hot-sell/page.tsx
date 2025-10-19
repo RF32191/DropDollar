@@ -1621,6 +1621,11 @@ export default function HotSellPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Winner Takes It All Games */}
             {fixedGameConfigs.map((config) => {
+              // Skip if this config was converted to hot sell in adjustEntryFee
+              if (config.title?.includes('Winner Takes It All')) {
+                return null; // Skip - these are handled in the main hot sell section
+              }
+              
               // Extract prize amount from title (e.g., "$100 Winner Takes It All" -> 100)
               const title = config.title || '';
               const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
