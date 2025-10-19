@@ -20,6 +20,10 @@ CREATE POLICY "Users can insert their own participation" ON public.winner_takes_
 CREATE POLICY "Users can update their own participation" ON public.winner_takes_all_participants FOR UPDATE USING (auth.uid() = user_id);
 
 -- Create Winner Takes It All configurations if they don't exist
+-- First, delete any existing Winner Takes It All configs to avoid duplicates
+DELETE FROM public.fixed_games_config WHERE tournament_type = 'winner_takes_all';
+
+-- Insert Winner Takes It All configurations
 INSERT INTO public.fixed_games_config (
     game_type,
     tournament_type,
@@ -168,8 +172,7 @@ INSERT INTO public.fixed_games_config (
     true,
     NOW(),
     NOW()
-)
-ON CONFLICT (title) DO NOTHING; -- Avoid duplicates
+);
 
 -- Verify the configurations were created
 SELECT 
