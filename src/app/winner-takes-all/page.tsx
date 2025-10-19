@@ -465,8 +465,16 @@ export default function WinnerTakesAllPage() {
 
   // Render game flow view
   if (currentView === 'game' && selectedGameFlow) {
-    const gameConfig = fixedGameConfigs.find(c => c.id === selectedGameFlow.configId);
+    const gameConfig = hardcodedListings.find(c => c.id === selectedGameFlow.configId);
     const rngSeed = gameConfig?.rng_seed || 1;
+    
+    console.log('🎮 [Winner Takes It All] Starting game:', {
+      gameType: selectedGameFlow.gameType,
+      sessionId: selectedGameFlow.sessionId,
+      configId: selectedGameFlow.configId,
+      gameConfig,
+      rngSeed
+    });
     
     return (
       <ErrorBoundary>
@@ -795,7 +803,7 @@ export default function WinnerTakesAllPage() {
                               ? 'bg-gray-600 cursor-not-allowed opacity-50'
                               : locationVerified
                               ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
-                              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                              : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 hover:scale-105 shadow-lg hover:shadow-xl'
                           }`}
                         >
                           {joiningWinnerTakesAll ? (
@@ -805,12 +813,12 @@ export default function WinnerTakesAllPage() {
                             </div>
                           ) : locationVerified ? (
                             <div className="flex items-center justify-center">
-                              <span className="text-xl mr-2">🔒</span>
+                              <span className="text-xl mr-2">🔓</span>
                               <span>JOIN GAME - ${config.entry_fee}.00</span>
                             </div>
                           ) : (
                             <div className="flex items-center justify-center">
-                              <span className="text-xl mr-2">🌍</span>
+                              <span className="text-xl mr-2">🔒</span>
                               <span>JOIN GAME - VERIFY LOCATION</span>
                             </div>
                           )}
