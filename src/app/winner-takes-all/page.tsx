@@ -53,6 +53,88 @@ export default function WinnerTakesAllPage() {
     entryFee?: number;
   } | null>(null);
   const [locationVerified, setLocationVerified] = useState(false);
+
+  // Hardcoded Winner Takes It All listings
+  const hardcodedListings = [
+    {
+      id: 'wta-100-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$100 Winner Takes It All - Laser Dodge',
+      description: 'Winner takes the entire $100 prize pool!',
+      entry_fee: 1,
+      prize_pool: 100,
+      base_price: 100,
+      game_duration: 60,
+      rng_seed: 1,
+      winner_prize: 85,
+      platform_fee: 15
+    },
+    {
+      id: 'wta-250-multi-target',
+      game_type: 'multi_target',
+      title: '$250 Winner Takes It All - Multi Target',
+      description: 'Winner takes the entire $250 prize pool!',
+      entry_fee: 1,
+      prize_pool: 250,
+      base_price: 250,
+      game_duration: 90,
+      rng_seed: 2,
+      winner_prize: 212.50,
+      platform_fee: 37.50
+    },
+    {
+      id: 'wta-1000-sword-parry',
+      game_type: 'sword_parry',
+      title: '$1000 Winner Takes It All - Sword Parry',
+      description: 'Winner takes the entire $1000 prize pool!',
+      entry_fee: 1,
+      prize_pool: 1000,
+      base_price: 1000,
+      game_duration: 120,
+      rng_seed: 3,
+      winner_prize: 850,
+      platform_fee: 150
+    },
+    {
+      id: 'wta-2500-quick-click',
+      game_type: 'quick_click',
+      title: '$2500 Winner Takes It All - Quick Click',
+      description: 'Winner takes the entire $2500 prize pool!',
+      entry_fee: 1,
+      prize_pool: 2500,
+      base_price: 2500,
+      game_duration: 180,
+      rng_seed: 4,
+      winner_prize: 2125,
+      platform_fee: 375
+    },
+    {
+      id: 'wta-2-color-sequence',
+      game_type: 'color_sequence',
+      title: '$2 Winner Takes It All - Color Sequence',
+      description: 'Winner takes the entire $2 prize pool!',
+      entry_fee: 1,
+      prize_pool: 2,
+      base_price: 2,
+      game_duration: 30,
+      rng_seed: 5,
+      winner_prize: 1.70,
+      platform_fee: 0.30
+    },
+    {
+      id: 'wta-10-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$10 Winner Takes It All - Laser Dodge',
+      description: 'Winner takes the entire $10 prize pool!',
+      entry_fee: 1,
+      prize_pool: 10,
+      base_price: 10,
+      game_duration: 45,
+      rng_seed: 6,
+      winner_prize: 8.50,
+      platform_fee: 1.50
+    }
+  ];
   
   // Winner Takes It All state
   const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
@@ -89,45 +171,34 @@ export default function WinnerTakesAllPage() {
   const loadWinnerTakesAllData = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 [Winner Takes It All] Loading data...');
+      console.log('🔄 [Winner Takes It All] Loading hardcoded data...');
       
-      // Load fixed game configs
-      const configs = await FixedGamesService.getFixedGameConfigs();
-      const winnerTakesAllConfigs = configs.filter(config => config.tournament_type === 'winner_takes_all');
-      setFixedGameConfigs(winnerTakesAllConfigs);
+      // Use hardcoded listings instead of database
+      setFixedGameConfigs(hardcodedListings as any[]);
       
-      // Load Winner Takes It All sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .rpc('get_all_winner_takes_all_sessions');
+      // Create mock sessions for each hardcoded listing
+      const mockSessions = hardcodedListings.map(listing => ({
+        id: `session-${listing.id}`,
+        config_id: listing.id,
+        current_pot: 0,
+        base_price: listing.base_price,
+        participants_count: 0,
+        status: 'waiting',
+        timer_started_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
       
-      if (sessionsError) {
-        console.error('❌ [Winner Takes It All] Error loading sessions:', sessionsError);
-        return;
-      }
+      setWinnerTakesAllSessions(mockSessions);
       
-      setWinnerTakesAllSessions(sessionsData || []);
-      
-      // Load participants for each session
+      // Initialize empty participants for each session
       const participantsData: { [sessionId: string]: any[] } = {};
-      for (const session of sessionsData || []) {
-        try {
-          const { data: sessionData, error: sessionError } = await supabase
-            .rpc('get_winner_takes_all_session', { session_id_param: session.id });
-          
-          if (sessionError) {
-            console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, sessionError);
-            participantsData[session.id] = [];
-          } else {
-            participantsData[session.id] = sessionData?.participants || [];
-          }
-        } catch (error) {
-          console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, error);
-          participantsData[session.id] = [];
-        }
-      }
+      mockSessions.forEach(session => {
+        participantsData[session.id] = [];
+      });
       setWinnerTakesAllParticipants(participantsData);
       
-      console.log('✅ [Winner Takes It All] Data loaded successfully');
+      console.log('✅ [Winner Takes It All] Hardcoded data loaded successfully');
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading data:', error);
     } finally {
@@ -264,58 +335,59 @@ export default function WinnerTakesAllPage() {
     setJoiningWinnerTakesAll(true);
     
     try {
-      // Find or create Winner Takes It All session
+      // Find the hardcoded listing
+      const listing = hardcodedListings.find(l => l.id === configId);
+      if (!listing) {
+        setMessage({ type: 'error', text: 'Tournament not found!' });
+        return;
+      }
+
+      // Find or create session
       let session = winnerTakesAllSessions.find(s => s.config_id === configId);
-      
       if (!session) {
-        console.log('🎮 [Winner Takes It All] Creating new session for config:', configId);
-        // Create new session
-        const { data: sessionId, error: createError } = await supabase
-          .rpc('create_winner_takes_all_session', { config_id_param: configId });
+        // Create new mock session
+        session = {
+          id: `session-${configId}`,
+          config_id: configId,
+          current_pot: 0,
+          base_price: listing.base_price,
+          participants_count: 0,
+          status: 'waiting',
+          timer_started_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
         
-        if (createError) {
-          console.error('❌ [Winner Takes It All] Error creating session:', createError);
-          setMessage({ type: 'error', text: 'Failed to create session. Please try again.' });
-          return;
-        }
-        
-        console.log('🎮 [Winner Takes It All] Created session with ID:', sessionId);
-        
-        // Get the created session
-        const { data: sessionData, error: sessionError } = await supabase
-          .rpc('get_winner_takes_all_session', { session_id_param: sessionId });
-        
-        if (sessionError) {
-          console.error('❌ [Winner Takes It All] Error getting session:', sessionError);
-          setMessage({ type: 'error', text: 'Failed to get session. Please try again.' });
-          return;
-        }
-        
-        session = sessionData;
+        // Add to sessions
+        setWinnerTakesAllSessions(prev => [...prev, session]);
       }
 
-      // Check if user already joined
-      const hasJoined = winnerTakesAllParticipants[session.id]?.some(
-        p => p.user_id === user.id
-      );
-      
-      if (hasJoined) {
-        setMessage({ type: 'error', text: 'You have already joined this Winner Takes It All tournament!' });
-        return;
-      }
+      // Add user to participants
+      const newParticipant = {
+        id: `participant-${user.id}-${Date.now()}`,
+        session_id: session.id,
+        user_id: user.id,
+        score: null,
+        joined_at: new Date().toISOString()
+      };
 
-      // Join the session
-      console.log('🎮 [Winner Takes It All] Joining session:', session.id);
-      const { data: joinResult, error: joinError } = await supabase
-        .rpc('join_winner_takes_all_session', { session_id_param: session.id });
-      
-      if (joinError) {
-        console.error('❌ [Winner Takes It All] Error joining session:', joinError);
-        setMessage({ type: 'error', text: 'Failed to join session. Please try again.' });
-        return;
-      }
-      
-      console.log('🎮 [Winner Takes It All] Successfully joined session:', joinResult);
+      // Update participants
+      setWinnerTakesAllParticipants(prev => ({
+        ...prev,
+        [session.id]: [...(prev[session.id] || []), newParticipant]
+      }));
+
+      // Update session pot and participant count
+      setWinnerTakesAllSessions(prev => prev.map(s => 
+        s.id === session.id 
+          ? { 
+              ...s, 
+              current_pot: s.current_pot + 1, 
+              participants_count: s.participants_count + 1,
+              status: s.current_pot + 1 >= s.base_price ? 'active' : 'waiting'
+            }
+          : s
+      ));
 
       // Deduct token from user's wallet
       const { error: deductError } = await supabase
@@ -324,7 +396,7 @@ export default function WinnerTakesAllPage() {
           user_id: user.id,
           amount: -1, // Deduct 1 token
           transaction_type: 'tournament_entry',
-          description: `Winner Takes It All tournament entry - ${session.id}`,
+          description: `Winner Takes It All tournament entry - ${listing.title}`,
           metadata: { session_id: session.id, config_id: configId }
         });
 
@@ -338,21 +410,15 @@ export default function WinnerTakesAllPage() {
       refreshTokens();
 
       // Start the game
-      const config = fixedGameConfigs.find(c => c.id === configId);
-      if (config) {
-        setSelectedGameFlow({
-          gameType: config.game_type,
-          sessionId: session.id,
-          configId: configId,
-          entryFee: 1
-        });
-        setCurrentView('game');
-      }
+      setSelectedGameFlow({
+        gameType: listing.game_type,
+        sessionId: session.id,
+        configId: configId,
+        entryFee: 1
+      });
+      setCurrentView('game');
 
       setMessage({ type: 'success', text: 'Successfully joined Winner Takes It All tournament!' });
-      
-      // Refresh data
-      await loadWinnerTakesAllData();
       
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error joining session:', error);
@@ -386,95 +452,17 @@ export default function WinnerTakesAllPage() {
     }).format(amount);
   };
 
-  // Winner Takes It All payout calculation (hardcoded for specific tournaments)
-  const calculateWinnerTakesAllPayouts = (config: FixedGameConfig) => {
-    const title = config.title || '';
-    
-    // Hardcoded configurations for specific Winner Takes It All tournaments
-    if (title.includes('$100 Winner Takes It All')) {
-      return {
-        winnerPrize: 85, // Winner gets $85
-        platformFee: 15, // Platform fee $15
-        totalPrize: 100, // Total prize $100
-        entryFee: 1, // 1 token entry
-        basePrice: 100, // Base price $100 (full prize)
-        maxPlayers: null // No max players for Winner Takes It All
-      };
-    } else if (title.includes('$250 Winner Takes It All')) {
-      return {
-        winnerPrize: 212.50, // Winner gets $212.50
-        platformFee: 37.50, // Platform fee $37.50
-        totalPrize: 250, // Total prize $250
-        entryFee: 1, // 1 token entry
-        basePrice: 250, // Base price $250 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$1000 Winner Takes It All')) {
-      return {
-        winnerPrize: 850, // Winner gets $850
-        platformFee: 150, // Platform fee $150
-        totalPrize: 1000, // Total prize $1000
-        entryFee: 1, // 1 token entry
-        basePrice: 1000, // Base price $1000 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$2500 Winner Takes It All')) {
-      return {
-        winnerPrize: 2125, // Winner gets $2125
-        platformFee: 375, // Platform fee $375
-        totalPrize: 2500, // Total prize $2500
-        entryFee: 1, // 1 token entry
-        basePrice: 2500, // Base price $2500 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$3 Winner Takes It All')) {
-      return {
-        winnerPrize: 2.55, // Winner gets $2.55
-        platformFee: 0.45, // Platform fee $0.45
-        totalPrize: 3, // Total prize $3
-        entryFee: 1, // 1 token entry
-        basePrice: 3, // Base price $3 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$2 Winner Takes It All')) {
-      return {
-        winnerPrize: 1.70, // Winner gets $1.70
-        platformFee: 0.30, // Platform fee $0.30
-        totalPrize: 2, // Total prize $2
-        entryFee: 1, // 1 token entry
-        basePrice: 2, // Base price $2 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$10 Winner Takes It All')) {
-      return {
-        winnerPrize: 8.50, // Winner gets $8.50
-        platformFee: 1.50, // Platform fee $1.50
-        totalPrize: 10, // Total prize $10
-        entryFee: 1, // 1 token entry
-        basePrice: 10, // Base price $10 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$50 Winner Takes It All')) {
-      return {
-        winnerPrize: 42.50, // Winner gets $42.50
-        platformFee: 7.50, // Platform fee $7.50
-        totalPrize: 50, // Total prize $50
-        entryFee: 1, // 1 token entry
-        basePrice: 50, // Base price $50 (full prize)
-        maxPlayers: null
-      };
-    } else if (title.includes('$500 Winner Takes It All')) {
-      return {
-        winnerPrize: 425, // Winner gets $425
-        platformFee: 75, // Platform fee $75
-        totalPrize: 500, // Total prize $500
-        entryFee: 1, // 1 token entry
-        basePrice: 500, // Base price $500 (full prize)
-        maxPlayers: null
-      };
-    }
-    
-    return null;
+  // Winner Takes It All payout calculation (using hardcoded data)
+  const calculateWinnerTakesAllPayouts = (config: any) => {
+    // Use the hardcoded data directly
+    return {
+      winnerPrize: config.winner_prize,
+      platformFee: config.platform_fee,
+      totalPrize: config.prize_pool,
+      entryFee: config.entry_fee,
+      basePrice: config.base_price,
+      maxPlayers: null // No max players for Winner Takes It All
+    };
   };
 
   if (isLoading) {
