@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility, FixedGameParticipant } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
@@ -31,7 +31,6 @@ import {
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
-  const supabase = createClient();
   
   // Add setUserTokens function for compatibility
   const setUserTokens = useCallback((tokens: number) => {
