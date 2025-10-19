@@ -838,30 +838,62 @@ export default function HotSellPage() {
     }).format(amount);
   };
 
-  // Winner Takes It All payout calculation (separate from hot sell)
+  // Winner Takes It All payout calculation (hardcoded for specific tournaments)
   const calculateWinnerTakesAllPayouts = (config: FixedGameConfig) => {
     const title = config.title || '';
     
-    // Extract prize amount from title (e.g., "$100 Winner Takes It All" -> 100)
-    const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
-    if (!prizeMatch) {
-      console.warn('Could not extract prize amount from Winner Takes It All title:', title);
-      return null;
+    // Hardcoded configurations for specific Winner Takes It All tournaments
+    if (title.includes('$100 Winner Takes It All')) {
+      return {
+        winnerPrize: 85, // Winner gets $85
+        platformFee: 15, // Platform fee $15
+        totalPrize: 100, // Total prize $100
+        entryFee: 1, // 1 token entry
+        basePrice: 10, // Base price $10 (10% of total)
+        maxPlayers: null, // No limit
+        isWinnerTakesAll: true
+      };
     }
     
-    const prizeAmount = parseInt(prizeMatch[1].replace(/,/g, ''));
-    const platformFee = prizeAmount * 0.15; // 15% platform fee
-    const winnerPrize = prizeAmount - platformFee; // Winner gets 85% of total
+    if (title.includes('$250 Winner Takes It All')) {
+      return {
+        winnerPrize: 212.50, // Winner gets $212.50
+        platformFee: 37.50, // Platform fee $37.50
+        totalPrize: 250, // Total prize $250
+        entryFee: 1, // 1 token entry
+        basePrice: 25, // Base price $25 (10% of total)
+        maxPlayers: null, // No limit
+        isWinnerTakesAll: true
+      };
+    }
     
-    return {
-      winnerPrize: winnerPrize,
-      platformFee: platformFee,
-      totalPrize: prizeAmount,
-      entryFee: 1, // Always 1 token = $1
-      basePrice: Math.ceil(prizeAmount * 0.1), // Base price is 10% of total prize
-      maxPlayers: null, // No limit for Winner Takes It All
-      isWinnerTakesAll: true
-    };
+    if (title.includes('$1000 Winner Takes It All')) {
+      return {
+        winnerPrize: 850, // Winner gets $850
+        platformFee: 150, // Platform fee $150
+        totalPrize: 1000, // Total prize $1000
+        entryFee: 1, // 1 token entry
+        basePrice: 100, // Base price $100 (10% of total)
+        maxPlayers: null, // No limit
+        isWinnerTakesAll: true
+      };
+    }
+    
+    if (title.includes('$2500 Winner Takes It All')) {
+      return {
+        winnerPrize: 2125, // Winner gets $2125
+        platformFee: 375, // Platform fee $375
+        totalPrize: 2500, // Total prize $2500
+        entryFee: 1, // 1 token entry
+        basePrice: 250, // Base price $250 (10% of total)
+        maxPlayers: null, // No limit
+        isWinnerTakesAll: true
+      };
+    }
+    
+    // Default fallback
+    console.warn('Could not find hardcoded configuration for Winner Takes It All title:', title);
+    return null;
   };
 
   // Comprehensive payout calculation system for Hot Sell tournaments
