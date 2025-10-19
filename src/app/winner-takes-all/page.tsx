@@ -58,12 +58,33 @@ export default function WinnerTakesAllPage() {
   const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
   const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
   const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadWinnerTakesAllData();
     }
   }, [isAuthenticated, user?.id]);
+
+  // Refresh participants data every 30 seconds
+  useEffect(() => {
+    if (winnerTakesAllSessions.length > 0) {
+      const interval = setInterval(() => {
+        refreshParticipantsData();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [winnerTakesAllSessions.length]);
+
+  useEffect(() => {
+    // Update timers every second
+    const timer = setInterval(() => {
+      updateTimers();
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []); // Remove winnerTakesAllSessions dependency to prevent infinite re-renders
 
   const loadWinnerTakesAllData = async () => {
     try {
@@ -112,6 +133,83 @@ export default function WinnerTakesAllPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const refreshParticipantsData = async () => {
+    try {
+      const participantsData: { [sessionId: string]: any[] } = {};
+      for (const session of winnerTakesAllSessions) {
+        try {
+          const { data: sessionData, error: sessionError } = await supabase
+            .rpc('get_winner_takes_all_session', { session_id_param: session.id });
+          
+          if (sessionError) {
+            console.warn(`Failed to refresh participants for Winner Takes It All session ${session.id}:`, sessionError);
+            participantsData[session.id] = [];
+          } else {
+            participantsData[session.id] = sessionData?.participants || [];
+          }
+        } catch (error) {
+          console.warn(`Failed to refresh participants for Winner Takes It All session ${session.id}:`, error);
+          participantsData[session.id] = [];
+        }
+      }
+      setWinnerTakesAllParticipants(participantsData);
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error refreshing participants:', error);
+    }
+  };
+
+  const updateTimers = () => {
+    // Only update if we have sessions to avoid unnecessary state updates
+    if (winnerTakesAllSessions.length === 0) return;
+    
+    const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } } = {};
+    
+    winnerTakesAllSessions.forEach(session => {
+      const config = fixedGameConfigs.find(c => c.id === session.config_id);
+      
+      if (config) {
+        const payouts = calculateWinnerTakesAllPayouts(config);
+        if (payouts) {
+          // For Winner Takes It All, use target_pot as base price
+          const basePrice = session.target_pot || payouts.basePrice;
+          const isBasePriceMet = (session.current_pot || 0) >= basePrice;
+          const isTimerActive = session.status === 'active' && session.timer_started_at;
+          
+          let timeRemaining = 0;
+          if (isTimerActive && session.timer_started_at) {
+            const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
+            timeRemaining = Math.max(0, config.game_duration - elapsed);
+          }
+          
+          newTimeRemaining[session.id] = {
+            hours: Math.floor(timeRemaining / 3600),
+            minutes: Math.floor((timeRemaining % 3600) / 60),
+            seconds: timeRemaining % 60,
+            isHotSell: false, // Winner Takes It All doesn't have hot sell mode
+            isBasePriceMet: isBasePriceMet,
+            canJoin: isBasePriceMet,
+            isTimerActive: isTimerActive,
+            basePrice: basePrice,
+            currentPot: session.current_pot || 0
+          };
+        }
+      }
+    });
+    
+    // Only update state if there are actual changes to prevent unnecessary re-renders
+    const hasChanges = JSON.stringify(newTimeRemaining) !== JSON.stringify(timeRemaining);
+    if (hasChanges) {
+      setTimeRemaining(newTimeRemaining);
+    }
+  };
+
+  const formatTimeRemaining = (minutes: number, seconds: number, hours?: number) => {
+    if (hours && hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const joinWinnerTakesAllSession = async (configId: string) => {
@@ -447,6 +545,7 @@ export default function WinnerTakesAllPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {fixedGameConfigs.map((config) => {
             const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
+            const timer = session ? timeRemaining[session.id] : null;
             const prizeDistribution = calculateWinnerTakesAllPayouts(config);
             const canJoin = userTokens >= config.entry_fee;
             
@@ -490,15 +589,43 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
+                  {/* Timer Display */}
+                  {timer && (
+                    <div className="mb-4">
+                      <div className={`text-center p-3 rounded-xl ${
+                        timer.isBasePriceMet ? 'bg-green-500/20 border border-green-500/50' : 'bg-yellow-500/20 border border-yellow-500/50'
+                      }`}>
+                        <div className="flex items-center justify-center mb-2">
+                          <ClockIcon className={`w-5 h-5 mr-2 ${
+                            timer.isBasePriceMet ? 'text-green-400' : 'text-yellow-400'
+                          }`} />
+                          <span className={`font-semibold ${
+                            timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
+                          }`}>
+                            {timer.isBasePriceMet ? 'Game Timer Active!' : 'Waiting for Base Price'}
+                          </span>
+                        </div>
+                        <p className={`text-lg font-bold ${
+                          timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
+                        }`}>
+                          {timer.isBasePriceMet ? formatTimeRemaining(timer.minutes, timer.seconds, timer.hours) : 
+                           `Need ${prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens to start`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Progress Bar - Current pot to base price */}
                   <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
-                      <span>Progress to Base Price</span>
-                      <span>{session?.current_pot || 0} / {prizeDistribution.basePrice} tokens</span>
+                      <span>Token Progress</span>
+                      <span>{session?.current_pot || 0} / {prizeDistribution.basePrice} tokens to base price</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-3">
                       <div 
-                        className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
+                        className={`h-3 rounded-full transition-all duration-300 ${
+                          timer?.isBasePriceMet ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                        }`}
                         style={{ 
                           width: `${Math.min(100, ((session?.current_pot || 0) / prizeDistribution.basePrice) * 100)}%` 
                         }}
@@ -587,6 +714,13 @@ export default function WinnerTakesAllPage() {
                     ) : !canJoin ? (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
                         <p className="text-red-300 text-sm">You need {config.entry_fee} token to join</p>
+                      </div>
+                    ) : !timer?.isBasePriceMet ? (
+                      <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-center">
+                        <p className="text-yellow-300 text-sm">Waiting for base price to be met</p>
+                        <p className="text-yellow-200 text-xs mt-1">
+                          Need {prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens
+                        </p>
                       </div>
                     ) : (
                       <button
