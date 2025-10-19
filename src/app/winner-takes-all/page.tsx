@@ -563,13 +563,22 @@ export default function WinnerTakesAllPage() {
           </div>
         )}
 
+        {/* Debug Info */}
+        <div className="mb-4 p-4 bg-blue-500/20 border border-blue-500/50 rounded-xl">
+          <p className="text-blue-300 text-sm">
+            Debug: Rendering {hardcodedListings.length} hardcoded Winner Takes It All tournaments
+          </p>
+        </div>
+
         {/* Winner Takes It All Games */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {fixedGameConfigs.map((config) => {
+          {hardcodedListings.map((config) => {
             const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
             const timer = session ? timeRemaining[session.id] : null;
             const prizeDistribution = calculateWinnerTakesAllPayouts(config);
             const canJoin = userTokens >= config.entry_fee;
+            
+            console.log('🎮 Rendering Winner Takes It All config:', config.title);
             
             // Skip rendering if payout calculation failed
             if (!prizeDistribution) {
