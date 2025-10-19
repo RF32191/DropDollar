@@ -50,28 +50,35 @@ ALTER TABLE public.winner_takes_all_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.winner_takes_all_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.winner_takes_all_configs ENABLE ROW LEVEL SECURITY;
 
--- 5. Create RLS Policies
+-- 5. Create RLS Policies (with IF EXISTS to handle existing policies)
 -- Sessions: Anyone can view, authenticated users can create/update
+DROP POLICY IF EXISTS "Anyone can view winner takes all sessions" ON public.winner_takes_all_sessions;
 CREATE POLICY "Anyone can view winner takes all sessions" ON public.winner_takes_all_sessions
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can create winner takes all sessions" ON public.winner_takes_all_sessions;
 CREATE POLICY "Authenticated users can create winner takes all sessions" ON public.winner_takes_all_sessions
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Authenticated users can update winner takes all sessions" ON public.winner_takes_all_sessions;
 CREATE POLICY "Authenticated users can update winner takes all sessions" ON public.winner_takes_all_sessions
   FOR UPDATE USING (auth.uid() IS NOT NULL);
 
 -- Participants: Anyone can view, authenticated users can insert their own
+DROP POLICY IF EXISTS "Anyone can view winner takes all participants" ON public.winner_takes_all_participants;
 CREATE POLICY "Anyone can view winner takes all participants" ON public.winner_takes_all_participants
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can insert their own winner takes all participation" ON public.winner_takes_all_participants;
 CREATE POLICY "Users can insert their own winner takes all participation" ON public.winner_takes_all_participants
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own winner takes all participation" ON public.winner_takes_all_participants;
 CREATE POLICY "Users can update their own winner takes all participation" ON public.winner_takes_all_participants
   FOR UPDATE USING (auth.uid() = user_id);
 
 -- Configs: Anyone can view
+DROP POLICY IF EXISTS "Anyone can view winner takes all configs" ON public.winner_takes_all_configs;
 CREATE POLICY "Anyone can view winner takes all configs" ON public.winner_takes_all_configs
   FOR SELECT USING (true);
 
@@ -82,9 +89,10 @@ CREATE INDEX IF NOT EXISTS idx_winner_takes_all_participants_session ON public.w
 CREATE INDEX IF NOT EXISTS idx_winner_takes_all_participants_user ON public.winner_takes_all_participants(user_id);
 CREATE INDEX IF NOT EXISTS idx_winner_takes_all_participants_score ON public.winner_takes_all_participants(score DESC);
 
--- 7. Create Functions
+-- 7. Create Functions (with IF EXISTS to handle existing functions)
 
 -- Function to create or get Winner Takes It All session
+DROP FUNCTION IF EXISTS public.create_or_get_winner_takes_all_session(TEXT);
 CREATE OR REPLACE FUNCTION public.create_or_get_winner_takes_all_session(
   p_config_id TEXT
 )
@@ -141,6 +149,7 @@ END;
 $$;
 
 -- Function to join Winner Takes It All session
+DROP FUNCTION IF EXISTS public.join_winner_takes_all_session(UUID, UUID, INTEGER);
 CREATE OR REPLACE FUNCTION public.join_winner_takes_all_session(
   p_session_id UUID,
   p_user_id UUID,
@@ -209,6 +218,7 @@ END;
 $$;
 
 -- Function to update Winner Takes It All score
+DROP FUNCTION IF EXISTS public.update_winner_takes_all_score(UUID, UUID, INTEGER, DECIMAL);
 CREATE OR REPLACE FUNCTION public.update_winner_takes_all_score(
   p_session_id UUID,
   p_user_id UUID,
@@ -254,6 +264,7 @@ END;
 $$;
 
 -- Function to get Winner Takes It All session with participants
+DROP FUNCTION IF EXISTS public.get_winner_takes_all_session(UUID);
 CREATE OR REPLACE FUNCTION public.get_winner_takes_all_session(
   p_session_id UUID
 )
@@ -305,6 +316,7 @@ END;
 $$;
 
 -- Function to get all Winner Takes It All sessions
+DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions();
 CREATE OR REPLACE FUNCTION public.get_all_winner_takes_all_sessions()
 RETURNS TABLE(
   session_id UUID,
@@ -397,10 +409,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_winner_takes_all_sessions_updated_at ON public.winner_takes_all_sessions;
 CREATE TRIGGER update_winner_takes_all_sessions_updated_at
   BEFORE UPDATE ON public.winner_takes_all_sessions
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_winner_takes_all_configs_updated_at ON public.winner_takes_all_configs;
 CREATE TRIGGER update_winner_takes_all_configs_updated_at
   BEFORE UPDATE ON public.winner_takes_all_configs
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
