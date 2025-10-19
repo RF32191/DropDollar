@@ -751,8 +751,15 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Join Button - Hardcoded */}
+                  {/* Join Button - Simplified */}
                   <div className="space-y-3">
+                    {console.log('🔍 Button Debug:', {
+                      isAuthenticated,
+                      canJoin,
+                      userTokens,
+                      entryFee: config.entry_fee,
+                      hasJoined: session && winnerTakesAllParticipants[session.id]?.some(p => p.user_id === user?.id)
+                    })}
                     {!isAuthenticated ? (
                       <div className="bg-gray-600 rounded-xl p-3 text-center">
                         <p className="text-gray-300 text-sm">Please log in to join tournaments</p>
@@ -760,13 +767,6 @@ export default function WinnerTakesAllPage() {
                     ) : !canJoin ? (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
                         <p className="text-red-300 text-sm">You need {config.entry_fee} token to join</p>
-                      </div>
-                    ) : !timer?.isBasePriceMet ? (
-                      <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-center">
-                        <p className="text-yellow-300 text-sm">Waiting for base price to be met</p>
-                        <p className="text-yellow-200 text-xs mt-1">
-                          Need {prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens
-                        </p>
                       </div>
                     ) : (() => {
                       // Check if user already joined this tournament
