@@ -1,10 +1,10 @@
 -- Fix tournament_type check constraint to allow 'winner_takes_all'
 -- This script updates the constraint and creates Winner Takes It All configs
 
--- Step 1: Check current constraint
+-- Step 1: Check current constraint (using modern PostgreSQL syntax)
 SELECT 
     conname as constraint_name,
-    consrc as constraint_definition
+    pg_get_constraintdef(oid) as constraint_definition
 FROM pg_constraint 
 WHERE conrelid = 'public.fixed_games_config'::regclass 
 AND contype = 'c'
