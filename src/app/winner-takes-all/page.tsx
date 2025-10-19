@@ -207,24 +207,9 @@ export default function WinnerTakesAllPage() {
 
   const refreshParticipantsData = async () => {
     try {
-      const participantsData: { [sessionId: string]: any[] } = {};
-      for (const session of winnerTakesAllSessions) {
-        try {
-          const { data: sessionData, error: sessionError } = await supabase
-            .rpc('get_winner_takes_all_session', { session_id_param: session.id });
-          
-          if (sessionError) {
-            console.warn(`Failed to refresh participants for Winner Takes It All session ${session.id}:`, sessionError);
-            participantsData[session.id] = [];
-          } else {
-            participantsData[session.id] = sessionData?.participants || [];
-          }
-        } catch (error) {
-          console.warn(`Failed to refresh participants for Winner Takes It All session ${session.id}:`, error);
-          participantsData[session.id] = [];
-        }
-      }
-      setWinnerTakesAllParticipants(participantsData);
+      // For hardcoded data, we don't need to refresh from database
+      // Participants are managed in local state
+      console.log('🔄 [Winner Takes It All] Refreshing participants data...');
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error refreshing participants:', error);
     }

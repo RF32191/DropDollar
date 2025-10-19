@@ -66,9 +66,12 @@ export default function HotSellPage() {
   const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
 
   useEffect(() => {
+    // Always load data, regardless of authentication
+    loadHotSellData();
+    loadWinnerTakesAllData();
+    
+    // Only check user eligibility if authenticated
     if (isAuthenticated && user) {
-      loadHotSellData();
-      loadWinnerTakesAllData();
       checkUserEligibility();
     }
   }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
