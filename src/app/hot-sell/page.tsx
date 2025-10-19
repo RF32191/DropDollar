@@ -183,26 +183,56 @@ export default function HotSellPage() {
     const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } } = {};
     
     hotSellSessions.forEach(session => {
-      // Only start timer if base price is met (current_pot >= target_pot)
-      const basePriceMet = session.current_pot >= session.target_pot;
+      const config = fixedGameConfigs.find(c => c.id === session.config_id);
+      const isWinnerTakesAll = config?.title?.includes('Winner Takes It All');
       
-      if (basePriceMet) {
-        const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
-        newTimeRemaining[session.id] = timeData;
-        
-        // Update session status if timer expired (but don't call this every second)
-        if (timeData.isHotSell && session.status === 'waiting') {
-          // Only update once per session to prevent infinite loops
-          // Remove the automatic update call to prevent re-renders
-          // FixedGamesService.updateHotSellPot(session.id);
+      if (isWinnerTakesAll) {
+        // Winner Takes It All timer logic
+        const payouts = calculateWinnerTakesAllPayouts(config!);
+        if (payouts) {
+          const isBasePriceMet = (session.current_pot || 0) >= payouts.basePrice;
+          const isTimerActive = session.status === 'active' && session.timer_started_at;
+          
+          let timeRemaining = 0;
+          if (isTimerActive && session.timer_started_at) {
+            const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
+            timeRemaining = Math.max(0, config!.game_duration - elapsed);
+          }
+          
+          newTimeRemaining[session.id] = {
+            hours: Math.floor(timeRemaining / 3600),
+            minutes: Math.floor((timeRemaining % 3600) / 60),
+            seconds: timeRemaining % 60,
+            isHotSell: false, // Winner Takes It All doesn't have hot sell mode
+            isBasePriceMet: isBasePriceMet,
+            canJoin: isBasePriceMet,
+            isTimerActive: isTimerActive,
+            basePrice: payouts.basePrice,
+            currentPot: session.current_pot || 0
+          };
         }
       } else {
-        // Base price not met yet - show waiting state
-        newTimeRemaining[session.id] = { 
-          minutes: 0, 
-          seconds: 0, 
-          isHotSell: false 
-        };
+        // Regular Hot Sell timer logic
+        const basePriceMet = session.current_pot >= session.target_pot;
+        
+        if (basePriceMet) {
+          const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
+          newTimeRemaining[session.id] = timeData;
+          
+          // Update session status if timer expired (but don't call this every second)
+          if (timeData.isHotSell && session.status === 'waiting') {
+            // Only update once per session to prevent infinite loops
+            // Remove the automatic update call to prevent re-renders
+            // FixedGamesService.updateHotSellPot(session.id);
+          }
+        } else {
+          // Base price not met yet - show waiting state
+          newTimeRemaining[session.id] = { 
+            minutes: 0, 
+            seconds: 0, 
+            isHotSell: false 
+          };
+        }
       }
     });
     
@@ -1188,34 +1218,59 @@ export default function HotSellPage() {
                   {timer && (
                     <div className="mb-4">
                       <div className={`text-center p-3 rounded-xl ${
-                        isHotSell ? 'bg-red-500/20 border border-red-500/50' : 
-                        session && session.current_pot >= session.target_pot ? 'bg-blue-500/20 border border-blue-500/50' :
-                        'bg-yellow-500/20 border border-yellow-500/50'
+                        isWinnerTakesAll ? (
+                          timer.isBasePriceMet ? 'bg-green-500/20 border border-green-500/50' : 'bg-yellow-500/20 border border-yellow-500/50'
+                        ) : (
+                          isHotSell ? 'bg-red-500/20 border border-red-500/50' : 
+                          session && session.current_pot >= session.target_pot ? 'bg-blue-500/20 border border-blue-500/50' :
+                          'bg-yellow-500/20 border border-yellow-500/50'
+                        )
                       }`}>
                         <div className="flex items-center justify-center mb-2">
                           <ClockIcon className={`w-5 h-5 mr-2 ${
-                            isHotSell ? 'text-red-400' : 
-                            session && session.current_pot >= session.target_pot ? 'text-blue-400' :
-                            'text-yellow-400'
+                            isWinnerTakesAll ? (
+                              timer.isBasePriceMet ? 'text-green-400' : 'text-yellow-400'
+                            ) : (
+                              isHotSell ? 'text-red-400' : 
+                              session && session.current_pot >= session.target_pot ? 'text-blue-400' :
+                              'text-yellow-400'
+                            )
                           }`} />
                           <span className={`font-semibold ${
-                            isHotSell ? 'text-red-300' : 
-                            session && session.current_pot >= session.target_pot ? 'text-blue-300' :
-                            'text-yellow-300'
+                            isWinnerTakesAll ? (
+                              timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
+                            ) : (
+                              isHotSell ? 'text-red-300' : 
+                              session && session.current_pot >= session.target_pot ? 'text-blue-300' :
+                              'text-yellow-300'
+                            )
                           }`}>
-                            {isHotSell ? 'HOT SELL MODE!' : 
-                             session && session.current_pot >= session.target_pot ? 'Time Remaining' :
-                             'Waiting for Base Price'}
+                            {isWinnerTakesAll ? (
+                              timer.isBasePriceMet ? 'Game Timer Active!' : 'Waiting for Base Price'
+                            ) : (
+                              isHotSell ? 'HOT SELL MODE!' : 
+                              session && session.current_pot >= session.target_pot ? 'Time Remaining' :
+                              'Waiting for Base Price'
+                            )}
                           </span>
                         </div>
                         <p className={`text-lg font-bold ${
-                          isHotSell ? 'text-red-300' : 
-                          session && session.current_pot >= session.target_pot ? 'text-blue-300' :
-                          'text-yellow-300'
+                          isWinnerTakesAll ? (
+                            timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
+                          ) : (
+                            isHotSell ? 'text-red-300' : 
+                            session && session.current_pot >= session.target_pot ? 'text-blue-300' :
+                            'text-yellow-300'
+                          )
                         }`}>
-                          {isHotSell ? formatTimeRemaining(timer.minutes, timer.seconds) :
-                           session && session.current_pot >= session.target_pot ? formatTimeRemaining(timer.minutes, timer.seconds) :
-                           `${formatPrizeAmount(session.target_pot - session.current_pot)} needed`}
+                          {isWinnerTakesAll ? (
+                            timer.isBasePriceMet ? formatTimeRemaining(timer.minutes, timer.seconds) : 
+                            `Need $${timer.basePrice || 0} more to start`
+                          ) : (
+                            isHotSell ? formatTimeRemaining(timer.minutes, timer.seconds) :
+                            session && session.current_pot >= session.target_pot ? formatTimeRemaining(timer.minutes, timer.seconds) :
+                            `Need ${session?.target_pot || 0} more players`
+                          )}
                         </p>
                       </div>
                     </div>
