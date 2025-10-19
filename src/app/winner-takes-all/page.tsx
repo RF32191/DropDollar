@@ -6,6 +6,7 @@ import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
 import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
+import { WinnerTakesAllService, WinnerTakesAllConfig, WinnerTakesAllSessionWithParticipants } from '@/lib/supabase/winnerTakesAllService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
@@ -138,9 +139,8 @@ export default function WinnerTakesAllPage() {
   ];
   
   // Winner Takes It All state
-  const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
-  const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
-  const [gameScores, setGameScores] = useState<{ [sessionId: string]: { [userId: string]: number } }>({});
+  const [configs, setConfigs] = useState<WinnerTakesAllConfig[]>([]);
+  const [sessions, setSessions] = useState<WinnerTakesAllSessionWithParticipants[]>([]);
   const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
 
@@ -172,34 +172,19 @@ export default function WinnerTakesAllPage() {
   const loadWinnerTakesAllData = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 [Winner Takes It All] Loading hardcoded data...');
+      console.log('🔄 [Winner Takes It All] Loading data from database...');
       
-      // Use hardcoded listings instead of database
-      setFixedGameConfigs(hardcodedListings as any[]);
+      // Load configurations from database
+      const configsData = await WinnerTakesAllService.getConfigs();
+      setConfigs(configsData);
       
-      // Create mock sessions for each hardcoded listing
-      const mockSessions = hardcodedListings.map(listing => ({
-        id: `session-${listing.id}`,
-        config_id: listing.id,
-        current_pot: 0,
-        base_price: listing.base_price,
-        participants_count: 0,
-        status: 'waiting',
-        timer_started_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }));
+      // Load sessions with participants from database
+      const sessionsData = await WinnerTakesAllService.getAllSessions();
+      setSessions(sessionsData);
       
-      setWinnerTakesAllSessions(mockSessions);
-      
-      // Initialize empty participants for each session
-      const participantsData: { [sessionId: string]: any[] } = {};
-      mockSessions.forEach(session => {
-        participantsData[session.id] = [];
-      });
-      setWinnerTakesAllParticipants(participantsData);
-      
-      console.log('✅ [Winner Takes It All] Hardcoded data loaded successfully');
+      console.log('✅ [Winner Takes It All] Database data loaded successfully');
+      console.log('📊 [Winner Takes It All] Configs:', configsData.length);
+      console.log('📊 [Winner Takes It All] Sessions:', sessionsData.length);
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading data:', error);
     } finally {
@@ -209,9 +194,13 @@ export default function WinnerTakesAllPage() {
 
   const refreshParticipantsData = async () => {
     try {
-      // For hardcoded data, we don't need to refresh from database
-      // Participants are managed in local state
-      console.log('🔄 [Winner Takes It All] Refreshing participants data...');
+      console.log('🔄 [Winner Takes It All] Refreshing participants data from database...');
+      
+      // Reload sessions with updated participants
+      const sessionsData = await WinnerTakesAllService.getAllSessions();
+      setSessions(sessionsData);
+      
+      console.log('✅ [Winner Takes It All] Participants refreshed:', sessionsData.length, 'sessions');
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error refreshing participants:', error);
     }
@@ -219,19 +208,19 @@ export default function WinnerTakesAllPage() {
 
   const updateTimers = () => {
     // Only update if we have sessions to avoid unnecessary state updates
-    if (winnerTakesAllSessions.length === 0) return;
+    if (sessions.length === 0) return;
     
     const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } } = {};
     
-    winnerTakesAllSessions.forEach(session => {
-      const config = fixedGameConfigs.find(c => c.id === session.config_id);
+    sessions.forEach(session => {
+      const config = configs.find(c => c.id === session.config_id);
       
       if (config) {
         const payouts = calculateWinnerTakesAllPayouts(config);
         if (payouts) {
-          // For Winner Takes It All, use target_pot as base price
-          const basePrice = session.target_pot || payouts.basePrice;
-          const isBasePriceMet = (session.current_pot || 0) >= basePrice;
+          // For Winner Takes It All, use base_price from session
+          const basePrice = session.base_price;
+          const isBasePriceMet = session.current_pot >= basePrice;
           const isTimerActive = session.status === 'active' && session.timer_started_at;
           
           let timeRemaining = 0;
@@ -275,11 +264,14 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already completed this tournament (has a score)
-    const session = winnerTakesAllSessions.find(s => s.config_id === configId);
-    if (session && gameScores[session.id] && gameScores[session.id][user.id]) {
-      setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
-      return;
+    // Check if user already completed this tournament
+    const session = sessions.find(s => s.config_id === configId);
+    if (session) {
+      const hasCompleted = await WinnerTakesAllService.hasUserCompleted(session.id, user.id);
+      if (hasCompleted) {
+        setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
+        return;
+      }
     }
 
     // If location not verified, verify it first
@@ -315,35 +307,22 @@ export default function WinnerTakesAllPage() {
     setJoiningWinnerTakesAll(true);
     
     try {
-      // Find the hardcoded listing
-      const listing = hardcodedListings.find(l => l.id === configId);
-      if (!listing) {
+      // Find the config
+      const config = configs.find(c => c.id === configId);
+      if (!config) {
         setMessage({ type: 'error', text: 'Tournament not found!' });
         return;
       }
 
-      // Find or create session
-      let session = winnerTakesAllSessions.find(s => s.config_id === configId);
+      // Create or get session
+      const session = await WinnerTakesAllService.createOrGetSession(configId);
       if (!session) {
-        // Create new mock session
-        session = {
-          id: `session-${configId}`,
-          config_id: configId,
-          current_pot: 0,
-          base_price: listing.base_price,
-          participants_count: 0,
-          status: 'waiting',
-          timer_started_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        // Add to sessions
-        setWinnerTakesAllSessions(prev => [...prev, session]);
+        setMessage({ type: 'error', text: 'Failed to create/get session!' });
+        return;
       }
 
-      // Deduct token from user's wallet FIRST (same as hot-sell page)
-      const newTokenBalance = userTokens - listing.entry_fee;
+      // Deduct token from user's wallet FIRST
+      const newTokenBalance = userTokens - config.entry_fee;
       const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
       
       if (!tokenUpdateSuccess) {
@@ -354,37 +333,32 @@ export default function WinnerTakesAllPage() {
 
       // Refresh token balance to update local state
       refreshTokens();
-      console.log(`✅ [Winner Takes It All] Tokens deducted: ${listing.entry_fee} tokens`);
+      console.log(`✅ [Winner Takes It All] Tokens deducted: ${config.entry_fee} tokens`);
       console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
-      // Update session pot and participant count (but don't add user to participants yet)
-      setWinnerTakesAllSessions(prev => {
-        const updated = prev.map(s => 
-          s.id === session.id 
-            ? { 
-                ...s, 
-                current_pot: s.current_pot + 1, 
-                participants_count: s.participants_count + 1,
-                status: s.current_pot + 1 >= s.base_price ? 'active' : 'waiting'
-              }
-            : s
-        );
-        const updatedSession = updated.find(s => s.id === session.id);
-        console.log('💰 [Winner Takes It All] Pot updated:', {
-          sessionId: session.id,
-          oldPot: session.current_pot,
-          newPot: updatedSession?.current_pot,
-          participants: updatedSession?.participants_count
-        });
-        return updated;
+      // Join the session (this updates the pot in the database)
+      const joinResult = await WinnerTakesAllService.joinSession(session.id, user.id, config.entry_fee);
+      
+      if (!joinResult.success) {
+        setMessage({ type: 'error', text: joinResult.message });
+        return;
+      }
+
+      console.log('💰 [Winner Takes It All] Pot updated:', {
+        sessionId: session.id,
+        newPot: joinResult.newPot,
+        participants: joinResult.participantsCount
       });
+
+      // Refresh sessions to get updated data
+      await refreshParticipantsData();
 
       // Start the game
       setSelectedGameFlow({
-        gameType: listing.game_type,
+        gameType: config.game_type,
         sessionId: session.id,
         configId: configId,
-        entryFee: 1
+        entryFee: config.entry_fee
       });
       setCurrentView('game');
 
@@ -479,31 +453,25 @@ export default function WinnerTakesAllPage() {
             }
 
             try {
-              // Store the score in the simple gameScores state
-              setGameScores(prev => ({
-                ...prev,
-                [selectedGameFlow.sessionId]: {
-                  ...prev[selectedGameFlow.sessionId],
-                  [user.id]: score
-                }
-              }));
+              // Update score in database
+              const updateResult = await WinnerTakesAllService.updateScore(
+                selectedGameFlow.sessionId,
+                user.id,
+                score,
+                accuracy
+              );
 
-              // Also add to participants for compatibility
-              const newParticipant = {
-                id: `participant-${user.id}-${Date.now()}`,
-                session_id: selectedGameFlow.sessionId,
-                user_id: user.id,
-                score: score,
-                joined_at: new Date().toISOString()
-              };
-
-              setWinnerTakesAllParticipants(prev => ({
-                ...prev,
-                [selectedGameFlow.sessionId]: [...(prev[selectedGameFlow.sessionId] || []), newParticipant]
-              }));
+              if (!updateResult.success) {
+                console.error('❌ [Winner Takes It All] Error updating score:', updateResult.message);
+                setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
+                return;
+              }
 
               console.log('✅ [Winner Takes It All] Score recorded:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
+
+              // Refresh sessions to get updated data
+              await refreshParticipantsData();
 
               // Show success message
               setMessage({ 
@@ -610,8 +578,8 @@ export default function WinnerTakesAllPage() {
 
         {/* Winner Takes It All Games */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {hardcodedListings.map((config) => {
-            const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
+          {configs.map((config) => {
+            const session = sessions.find(s => s.config_id === config.id);
             const timer = session ? timeRemaining[session.id] : null;
             const prizeDistribution = calculateWinnerTakesAllPayouts(config);
             const canJoin = userTokens >= config.entry_fee;
@@ -728,11 +696,8 @@ export default function WinnerTakesAllPage() {
                   
                   {/* Live Scoreboard - Only show if there are participants with scores */}
                   {(() => {
-                    const sessionScores = session ? gameScores[session.id] || {} : {};
-                    const participantsWithScores = Object.keys(sessionScores).map(userId => ({
-                      user_id: userId,
-                      score: sessionScores[userId]
-                    }));
+                    const participantsWithScores = session ? 
+                      session.participants.filter(p => p.score !== null && p.score !== undefined) : [];
                     
                     if (participantsWithScores.length === 0) {
                       return null; // Don't show scoreboard if no one has played
@@ -813,16 +778,17 @@ export default function WinnerTakesAllPage() {
                       </div>
                     ) : (() => {
                       // Check if user already completed this tournament (has a score)
-                      const hasCompleted = session && gameScores[session.id] && gameScores[session.id][user?.id];
+                      const hasCompleted = session && session.participants.some(p => p.user_id === user?.id && p.score !== null);
                       
                       if (hasCompleted) {
+                        const userParticipant = session.participants.find(p => p.user_id === user?.id);
                         return (
                           <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
                             <div className="flex items-center justify-center">
                               <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
                               <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
-                            <p className="text-green-200 text-sm mt-1">Your score: {gameScores[session.id][user.id]}</p>
+                            <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score}</p>
                           </div>
                         );
                       }
