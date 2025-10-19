@@ -2290,9 +2290,9 @@ export default function HotSellPage() {
               <div className="flex items-center">
                 <TrophyIcon className="w-6 h-6 mr-2" />
                 Create Your Own Tournament
-              </div>
-            </button>
           </div>
+            </button>
+        </div>
         )}
       </div>
     </div>
