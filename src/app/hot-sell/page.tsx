@@ -1002,6 +1002,7 @@ export default function HotSellPage() {
   const getGameIcon = (gameType: string) => {
     switch (gameType) {
       case 'multi_target_reaction': return '🎯';
+      case 'multi_target': return '🎯'; // Add support for multi_target
       case 'sword_parry': return '⚔️';
       case 'laser_dodge': return '💥';
       case 'memory_color': return '🎨';
@@ -1418,13 +1419,15 @@ export default function HotSellPage() {
                       </div>
                       <span className="text-white font-semibold text-sm">{adjustedConfig.entry_fee} tokens</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
-                        <span className="text-gray-300 text-sm">Max Players</span>
+                    {!isWinnerTakesAll && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
+                          <span className="text-gray-300 text-sm">Max Players</span>
+                        </div>
+                        <span className="text-white font-semibold text-sm">{adjustedConfig.max_participants}</span>
                       </div>
-                      <span className="text-white font-semibold text-sm">{adjustedConfig.max_participants}</span>
-                    </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <ClockIcon className="w-4 h-4 text-blue-400 mr-2" />
