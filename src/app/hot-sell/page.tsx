@@ -1943,4 +1943,3 @@ export default function HotSellPage() {
     </div>
   );
 }
-}
