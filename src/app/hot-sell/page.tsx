@@ -806,12 +806,12 @@ export default function HotSellPage() {
       };
     }
     
-    if (config?.title?.includes('$3 Winner Takes')) {
+    if (config?.title?.includes('$3 Hot Sell')) {
       return {
-        first: 3.00, // Winner takes all $3
-        second: 0,   // No 2nd place
-        third: 0,   // No 3rd place
-        totalFee: 0 // No platform fee for winner takes all
+        first: 2.55, // Winner gets $2.55
+        second: 0.45, // 2nd gets $0.45
+        third: 0,     // No 3rd place
+        totalFee: 0.45 // Platform fee $0.45
       };
     }
     
@@ -884,7 +884,7 @@ export default function HotSellPage() {
       };
     }
     
-    if (config.title?.includes('$3 Winner Takes')) {
+    if (config.title?.includes('$3 Hot Sell')) {
       return {
         ...config,
         entry_fee: 1, // 1 token = $1
@@ -1461,7 +1461,7 @@ export default function HotSellPage() {
                 ...config,
                 title: `Winner Takes All - ${config.title}`,
                 entry_fee: 1, // 1 token entry
-                prize_pool: 300, // $3 base prize pool (300 cents)
+                prize_pool: 3, // $3 base prize pool
                 max_participants: 2, // 2 players max
                 description: `1 token entry - Winner takes everything! Base pot: $3, grows with each player.`
               };
@@ -1495,7 +1495,7 @@ export default function HotSellPage() {
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                       <div className="text-center">
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(winnerTakesAllConfig.prize_pool)}</p>
+                        <p className="text-2xl font-bold text-white">$3.00</p>
                         <p className="text-purple-200 text-xs mt-1">Base pot: $3, grows with players</p>
               </div>
             </div>
@@ -1567,7 +1567,7 @@ export default function HotSellPage() {
                               <div className="text-center">
                                 <div className="text-green-700 text-xs font-medium mb-1">Winner Takes All</div>
                                 <div className="text-green-800 font-bold text-sm">
-                                  Current Pot: {formatPrizeAmount(winnerTakesAllConfig.prize_pool)} 
+                                  Winner Gets: $3.00
                                   <span className="text-xs text-green-600 ml-1">(grows with each player)</span>
                                 </div>
                               </div>
