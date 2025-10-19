@@ -218,6 +218,19 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
+    // Check if user already joined this tournament
+    const session = winnerTakesAllSessions.find(s => s.config_id === configId);
+    if (session) {
+      const hasJoined = winnerTakesAllParticipants[session.id]?.some(
+        p => p.user_id === user.id
+      );
+      
+      if (hasJoined) {
+        setMessage({ type: 'error', text: 'You have already joined this tournament! Check the scoreboard for your score.' });
+        return;
+      }
+    }
+
     // If location not verified, verify it first
     if (!locationVerified) {
       try {
@@ -774,36 +787,55 @@ export default function WinnerTakesAllPage() {
                           Need {prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens
                         </p>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => handleJoinGame(config.id)}
-                        disabled={joiningWinnerTakesAll}
-                        className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
-                          joiningWinnerTakesAll
-                            ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                            : locationVerified
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
-                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:scale-105 shadow-lg hover:shadow-xl'
-                        }`}
-                      >
-                        {joiningWinnerTakesAll ? (
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
-                            <span className="text-lg">Joining Game...</span>
+                    ) : (() => {
+                      // Check if user already joined this tournament
+                      const hasJoined = session && winnerTakesAllParticipants[session.id]?.some(
+                        p => p.user_id === user?.id
+                      );
+                      
+                      if (hasJoined) {
+                        return (
+                          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                            <div className="flex items-center justify-center">
+                              <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                              <span className="text-green-300 text-lg font-semibold">ALREADY JOINED</span>
+                            </div>
+                            <p className="text-green-200 text-sm mt-1">Check the scoreboard for your score!</p>
                           </div>
-                        ) : locationVerified ? (
-                          <div className="flex items-center justify-center">
-                            <span className="text-xl mr-2">🔒</span>
-                            <span>JOIN GAME - ${config.entry_fee}.00</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center">
-                            <span className="text-xl mr-2">🌍</span>
-                            <span>JOIN GAME - VERIFY LOCATION</span>
-                          </div>
-                        )}
-                      </button>
-                    )}
+                        );
+                      }
+                      
+                      return (
+                        <button
+                          onClick={() => handleJoinGame(config.id)}
+                          disabled={joiningWinnerTakesAll}
+                          className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
+                            joiningWinnerTakesAll
+                              ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                              : locationVerified
+                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                          }`}
+                        >
+                          {joiningWinnerTakesAll ? (
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
+                              <span className="text-lg">Joining Game...</span>
+                            </div>
+                          ) : locationVerified ? (
+                            <div className="flex items-center justify-center">
+                              <span className="text-xl mr-2">🔒</span>
+                              <span>JOIN GAME - ${config.entry_fee}.00</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <span className="text-xl mr-2">🌍</span>
+                              <span>JOIN GAME - VERIFY LOCATION</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
