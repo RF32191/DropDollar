@@ -1621,14 +1621,22 @@ export default function HotSellPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Winner Takes It All Games */}
             {fixedGameConfigs.map((config) => {
+              // Extract prize amount from title (e.g., "$100 Winner Takes It All" -> 100)
+              const title = config.title || '';
+              const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
+              const prizeAmount = prizeMatch ? parseInt(prizeMatch[1].replace(/,/g, '')) : 0;
+              const basePrice = Math.ceil(prizeAmount * 0.1); // Base price is 10% of total prize
+              
               const winnerTakesAllConfig = {
                 ...config,
-                title: `Winner Takes All - ${config.title}`,
+                title: config.title,
                 entry_fee: 1, // 1 token entry
-                prize_pool: 3, // $3 base prize pool
-                max_participants: 2, // 2 players max
-                description: `1 token entry - Winner takes everything! Base pot: $3, grows with each player.`
+                prize_pool: prizeAmount,
+                description: `1 token entry - Winner takes everything! Base pot: $${prizeAmount}, grows with each player.`
               };
+              
+              // Find session for this config
+              const session = hotSellSessions.find(s => s.config_id === config.id);
               
               return (
                 <div key={`winner-${config.id}`} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:bg-white/15">
@@ -1655,45 +1663,46 @@ export default function HotSellPage() {
                   </div>
                 </div>
                 
-                    {/* Current Pot (starts at 0, grows with tokens) */}
+                    {/* Current Pot */}
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                       <div className="text-center">
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                        <p className="text-2xl font-bold text-white">0 tokens</p>
-                        <p className="text-purple-200 text-xs mt-1">Base pot: 0, grows with each player's token</p>
-              </div>
-            </div>
+                        <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
+                        <p className="text-purple-200 text-xs mt-1">Base pot: ${prizeAmount}, grows with each player's token</p>
+                      </div>
+                    </div>
                 
-                {/* Progress Bar */}
-                <div className="mb-4">
+                    {/* Progress Bar - Current pot to base price */}
+                    <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-300 mb-2">
-                        <span>Progress to Target</span>
-                        <span>0 / {winnerTakesAllConfig.max_participants} players</span>
-                  </div>
+                        <span>Progress to Base Price</span>
+                        <span>{session?.current_pot || 0} / {basePrice} tokens</span>
+                      </div>
                       <div className="w-full bg-gray-700 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full" style={{ width: '0%' }}></div>
+                        <div 
+                          className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
+                          style={{ 
+                            width: `${Math.min(100, ((session?.current_pot || 0) / basePrice) * 100)}%` 
+                          }}
+                        ></div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Target: {winnerTakesAllConfig.max_participants} players</span>
-                        <span>Remaining: {winnerTakesAllConfig.max_participants} players</span>
-                  </div>
-                </div>
+                        <span>Base Price: {basePrice} tokens</span>
+                        <span>Current Pot: {session?.current_pot || 0} tokens</span>
+                      </div>
+                    </div>
                 
                     {/* Game Info */}
                     <div className="space-y-2 text-sm text-gray-300 mb-6">
                       <div className="flex justify-between">
                         <span>Game Type:</span>
                         <span className="text-white font-medium">{getGameIcon(config.game_type)} {config.game_type.replace('_', ' ').toUpperCase()}</span>
-              </div>
-                      <div className="flex justify-between">
-                        <span>Max Players:</span>
-                        <span className="text-white font-medium">{winnerTakesAllConfig.max_participants}</span>
-                  </div>
+                      </div>
                       <div className="flex justify-between">
                         <span>Duration:</span>
                         <span className="text-white font-medium">{config.game_duration}s</span>
-                  </div>
-                </div>
+                      </div>
+                    </div>
                 
                     {/* Scoreboard Section */}
                     <div className="mt-6 mb-4">
