@@ -1399,20 +1399,20 @@ export default function HotSellPage() {
                       // Winner Takes It All progress (base price based)
                       <>
                         <div className="flex justify-between text-sm text-gray-300 mb-2">
-                          <span>Pot Progress</span>
-                          <span>{formatPrizeAmount(session?.current_pot || 0)} / {formatPrizeAmount(timer?.basePrice || prizeDistribution.basePrice)} base price</span>
+                          <span>Token Progress</span>
+                          <span>{session?.current_pot || 0} / {prizeDistribution.basePrice} tokens to base price</span>
                         </div>
                         <div className="w-full bg-gray-700 rounded-full h-3">
                           <div 
                             className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
                             style={{ 
-                              width: `${Math.min(100, ((session?.current_pot || 0) / (timer?.basePrice || prizeDistribution.basePrice)) * 100)}%` 
+                              width: `${Math.min(100, ((session?.current_pot || 0) / prizeDistribution.basePrice) * 100)}%` 
                             }}
                           ></div>
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 mt-1">
-                          <span>Base Price: {formatPrizeAmount(timer?.basePrice || prizeDistribution.basePrice)}</span>
-                          <span>Players: {session?.participants_count || 0} (Unlimited)</span>
+                          <span>Base Price: {prizeDistribution.basePrice} tokens</span>
+                          <span>Current Pot: {session?.current_pot || 0} tokens</span>
                         </div>
                       </>
                     ) : (
@@ -1665,16 +1665,16 @@ export default function HotSellPage() {
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-green-500 to-emerald-500">
                       <div className="text-center">
                         <p className="text-green-100 text-sm font-medium mb-1">ENTRY FEE</p>
-                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(winnerTakesAllConfig.entry_fee)}</p>
+                        <p className="text-2xl font-bold text-white">$1.00</p>
                   </div>
                 </div>
                 
-                    {/* Current Pot (starts at $3) */}
+                    {/* Current Pot (starts at 0, grows with tokens) */}
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                       <div className="text-center">
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                        <p className="text-2xl font-bold text-white">$3.00</p>
-                        <p className="text-purple-200 text-xs mt-1">Base pot: $3, grows with players</p>
+                        <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
+                        <p className="text-purple-200 text-xs mt-1">Base pot: 0, grows with each player's token</p>
               </div>
             </div>
                 
@@ -1760,9 +1760,9 @@ export default function HotSellPage() {
                       {isAuthenticated ? (
                         <button
                           onClick={() => joinWinnerTakesAll(config.id)}
-                          disabled={joiningSession || userTokens < winnerTakesAllConfig.entry_fee}
+                          disabled={joiningSession || userTokens < 1}
                           className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
-                            userTokens >= winnerTakesAllConfig.entry_fee
+                            userTokens >= 1
                               ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
                               : 'bg-gray-600 cursor-not-allowed opacity-50'
                           }`}
@@ -1772,12 +1772,12 @@ export default function HotSellPage() {
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                               Joining...
                             </div>
-                          ) : userTokens >= winnerTakesAllConfig.entry_fee ? (
-                            `🔒 JOIN FOR ${formatPrizeAmount(winnerTakesAllConfig.entry_fee)}`
+                          ) : userTokens >= 1 ? (
+                            `🔒 JOIN FOR $1.00`
                           ) : (
                             '❌ Insufficient Tokens'
                           )}
-                </button>
+                        </button>
                       ) : (
                         <div className="text-center py-3 px-6 rounded-2xl bg-gray-600 text-gray-400">
                           Please log in to join
