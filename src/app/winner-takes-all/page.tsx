@@ -464,12 +464,47 @@ export default function WinnerTakesAllPage() {
           sessionId={selectedGameFlow.sessionId}
           configId={selectedGameFlow.configId}
           entryFee={selectedGameFlow.entryFee}
-          onGameComplete={(score) => {
-            console.log('Game completed with score:', score);
+          onGameComplete={async (score) => {
+            console.log('🎮 [Winner Takes It All] Game completed with score:', score);
+            
+            if (!user || !selectedGameFlow) {
+              console.error('❌ [Winner Takes It All] Missing user or game flow data');
+              return;
+            }
+
+            try {
+              // Add user to participants with their score
+              const newParticipant = {
+                id: `participant-${user.id}-${Date.now()}`,
+                session_id: selectedGameFlow.sessionId,
+                user_id: user.id,
+                score: score,
+                joined_at: new Date().toISOString()
+              };
+
+              // Update participants with the new score
+              setWinnerTakesAllParticipants(prev => ({
+                ...prev,
+                [selectedGameFlow.sessionId]: [...(prev[selectedGameFlow.sessionId] || []), newParticipant]
+              }));
+
+              console.log('✅ [Winner Takes It All] User added to participants with score:', score);
+              console.log('✅ [Winner Takes It All] Tournament completed! Check scoreboard for results.');
+
+              // Show success message
+              setMessage({ 
+                type: 'success', 
+                text: `Game completed! Your score: ${score}. Check the scoreboard to see how you ranked!` 
+              });
+
+            } catch (error) {
+              console.error('❌ [Winner Takes It All] Error updating participants:', error);
+              setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
+            }
+
+            // Return to list view
             setCurrentView('list');
             setSelectedGameFlow(null);
-            // Refresh data to show updated scores
-            loadWinnerTakesAllData();
           }}
           onBack={() => {
             setCurrentView('list');
@@ -677,68 +712,70 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Live Scoreboard - Dropdown */}
-                  <div className="mb-6">
-                    <button
-                      onClick={() => {
-                        const scoreboard = document.getElementById(`winner-scoreboard-${config.id}`);
-                        if (scoreboard) {
-                          scoreboard.classList.toggle('hidden');
-                        }
-                      }}
-                      className="w-full flex items-center justify-between text-left"
-                    >
-                      <h4 className="text-sm font-semibold text-white flex items-center">
-                        <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                        Live Scoreboard
-                      </h4>
-                      <span className="text-gray-400 text-xs">Click to expand</span>
-                    </button>
+                  {/* Live Scoreboard - Only show if there are participants with scores */}
+                  {(() => {
+                    const participantsWithScores = session ? 
+                      (winnerTakesAllParticipants[session.id] || []).filter(p => p.score !== null && p.score !== undefined) : [];
                     
-                    <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
-                      <div className="bg-white/5 rounded-xl p-4">
-                        {session?.status === 'completed' ? (
-                          <div className="text-center text-gray-400">
-                            <p>Tournament completed. Results are being finalized.</p>
-                          </div>
-                        ) : (
-                          <>
+                    if (participantsWithScores.length === 0) {
+                      return null; // Don't show scoreboard if no one has played
+                    }
+
+                    return (
+                      <div className="mb-6">
+                        <button
+                          onClick={() => {
+                            const scoreboard = document.getElementById(`winner-scoreboard-${config.id}`);
+                            if (scoreboard) {
+                              scoreboard.classList.toggle('hidden');
+                            }
+                          }}
+                          className="w-full flex items-center justify-between text-left"
+                        >
+                          <h4 className="text-sm font-semibold text-white flex items-center">
+                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                            Live Scoreboard ({participantsWithScores.length} player{participantsWithScores.length !== 1 ? 's' : ''})
+                          </h4>
+                          <span className="text-gray-400 text-xs">Click to expand</span>
+                        </button>
+                        
+                        <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
+                          <div className="bg-white/5 rounded-xl p-4">
                             <div className="flex justify-between text-sm text-gray-400 mb-2">
                               <span>Player</span>
                               <span>Score</span>
                             </div>
-                            {winnerTakesAllParticipants[session?.id] && winnerTakesAllParticipants[session.id].length > 0 ? (
-                              <div className="space-y-2">
-                                {winnerTakesAllParticipants[session.id]
-                                  .filter(p => p.score !== null && p.score !== undefined)
-                                  .sort((a, b) => (b.score || 0) - (a.score || 0))
-                                  .map((participant, index) => (
-                                    <div key={participant.id} className="bg-white/5 rounded-lg p-3">
+                            <div className="space-y-2">
+                              {participantsWithScores
+                                .sort((a, b) => (b.score || 0) - (a.score || 0))
+                                .map((participant, index) => {
+                                  const isCurrentUser = participant.user_id === user?.id;
+                                  return (
+                                    <div key={participant.id} className={`rounded-lg p-3 ${
+                                      isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
+                                    }`}>
                                       <div className="flex items-center justify-between">
                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                            participant.user_id === user?.id ? 'bg-yellow-500' : 
-                                            index === 0 ? 'bg-yellow-500' : 
-                                            index === 1 ? 'bg-gray-400' : 
-                                            index === 2 ? 'bg-orange-500' : 'bg-gray-600'
-                                          }`}>
-                                          <span className="text-white font-bold text-xs">{index + 1}</span>
+                                          index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-600'
+                                        }`}>
+                                          <span className="text-xs font-bold text-white">{index + 1}</span>
                                         </div>
-                                        <span className="text-white text-sm">
-                                          {participant.user_id === user?.id ? 'You' : `Player ${index + 1}`}
+                                        <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
+                                          {isCurrentUser ? 'You' : `Player ${participant.user_id.slice(-4)}`}
+                                        </span>
+                                        <span className={`font-semibold ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
+                                          {participant.score}
                                         </span>
                                       </div>
-                                      <span className="text-white font-semibold">{participant.score}</span>
                                     </div>
-                                  ))}
-                              </div>
-                            ) : (
-                              <p className="text-gray-400 text-center">No scores yet. Be the first!</p>
-                            )}
-                          </>
-                        )}
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
                   
                   {/* Join Button - Simplified */}
                   <div className="space-y-3">
