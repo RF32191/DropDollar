@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
 import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
+import { UserService } from '@/lib/supabase/userService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
@@ -346,25 +347,20 @@ export default function WinnerTakesAllPage() {
         setWinnerTakesAllSessions(prev => [...prev, session]);
       }
 
-      // Deduct token from user's wallet FIRST
-      const { error: deductError } = await supabase
-        .from('token_transactions')
-        .insert({
-          user_id: user.id,
-          amount: -1, // Deduct 1 token
-          transaction_type: 'tournament_entry',
-          description: `Winner Takes It All tournament entry - ${listing.title}`,
-          metadata: { session_id: session.id, config_id: configId }
-        });
-
-      if (deductError) {
-        console.error('❌ [Winner Takes It All] Error deducting token:', deductError);
+      // Deduct token from user's wallet FIRST (same as hot-sell page)
+      const newTokenBalance = userTokens - listing.entry_fee;
+      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
+      
+      if (!tokenUpdateSuccess) {
+        console.error('❌ [Winner Takes It All] Error deducting token');
         setMessage({ type: 'error', text: 'Failed to deduct token. Please try again.' });
         return;
       }
 
-      // Refresh token balance
-      refreshTokens();
+      // Update local token state
+      setUserTokens(newTokenBalance);
+      console.log(`✅ [Winner Takes It All] Tokens deducted: ${listing.entry_fee} tokens`);
+      console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
       // Update session pot and participant count (but don't add user to participants yet)
       setWinnerTakesAllSessions(prev => prev.map(s => 
