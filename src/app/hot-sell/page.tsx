@@ -787,82 +787,159 @@ export default function HotSellPage() {
   };
 
   const formatPrizeAmount = (amount: number) => {
-    // Convert cents to dollars for display
-    const dollars = amount / 100;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(dollars);
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   const calculatePrizeDistribution = (prizePool: number, config?: FixedGameConfig) => {
-    // 15% platform fee from total pot
-    const platformFeeRate = 0.15;
-    const platformFee = prizePool * platformFeeRate;
-    const netPrizePool = prizePool - platformFee;
-    
-    // Special case for $2 Hot Sell (2 players only)
+    // Hard-coded prize distributions for specific tournaments
     if (config?.title?.includes('$2 Hot Sell')) {
       return {
-        first: 150, // $1.50 for 1st place
-        second: 35, // $0.35 for 2nd place
-        third: 0,   // No 3rd place
-        totalFee: 15 // $0.15 platform fee
+        first: 1.50, // $1.50 for 1st place
+        second: 0.35, // $0.35 for 2nd place
+        third: 0,     // No 3rd place
+        totalFee: 0.15 // $0.15 platform fee
       };
     }
     
-    // Special case for $10 Hot Sell (3 players)
+    if (config?.title?.includes('$3 Winner Takes')) {
+      return {
+        first: 3.00, // Winner takes all $3
+        second: 0,   // No 2nd place
+        third: 0,   // No 3rd place
+        totalFee: 0 // No platform fee for winner takes all
+      };
+    }
+    
     if (config?.title?.includes('$10')) {
       return {
-        first: Math.round((netPrizePool * 0.5) * 100) / 100,   // 50% of net prize pool
-        second: Math.round((netPrizePool * 0.3) * 100) / 100,  // 30% of net prize pool (more than 3rd)
-        third: Math.round((netPrizePool * 0.2) * 100) / 100,   // 20% of net prize pool (less than 2nd)
-        totalFee: Math.round(platformFee * 100) / 100          // 15% platform fee
+        first: 4.25, // 50% of $8.50 remaining
+        second: 2.55, // 30% of $8.50 remaining
+        third: 1.70,  // 20% of $8.50 remaining
+        totalFee: 1.50 // 15% platform fee
+      };
+    }
+    
+    if (config?.title?.includes('$100')) {
+      return {
+        first: 85,   // Winner gets $85
+        second: 15,  // 2nd gets $15
+        third: 0,    // No 3rd place
+        totalFee: 15 // Platform fee $15
+      };
+    }
+    
+    if (config?.title?.includes('$250')) {
+      return {
+        first: 212.50, // Winner gets $212.50
+        second: 37.50,  // 2nd gets $37.50
+        third: 0,       // No 3rd place
+        totalFee: 37.50 // Platform fee $37.50
+      };
+    }
+    
+    if (config?.title?.includes('$1000')) {
+      return {
+        first: 850,  // Winner gets $850
+        second: 150, // 2nd gets $150
+        third: 0,    // No 3rd place
+        totalFee: 150 // Platform fee $150
+      };
+    }
+    
+    if (config?.title?.includes('$2500')) {
+      return {
+        first: 2125, // Winner gets $2125
+        second: 375, // 2nd gets $375
+        third: 0,    // No 3rd place
+        totalFee: 375 // Platform fee $375
       };
     }
     
     // Default distribution for other games
+    const platformFee = prizePool * 0.15;
+    const remainingPool = prizePool - platformFee;
+    
     return {
-      first: Math.round((netPrizePool * 0.5) * 100) / 100,   // 50% of net prize pool
-      second: Math.round((netPrizePool * 0.3) * 100) / 100,  // 30% of net prize pool (more than 3rd)
-      third: Math.round((netPrizePool * 0.2) * 100) / 100,   // 20% of net prize pool (less than 2nd)
-      totalFee: Math.round(platformFee * 100) / 100          // 15% platform fee
+      first: Math.round(remainingPool * 0.5),   // 50% of remaining
+      second: Math.round(remainingPool * 0.3),   // 30% of remaining  
+      third: Math.round(remainingPool * 0.2),    // 20% of remaining
+      totalFee: Math.round(platformFee)          // 15% platform fee
     };
   };
 
   // Adjust entry fees to be within 1-5 token range and calculate proper prize pools
   const adjustEntryFee = (config: FixedGameConfig) => {
-    // Special case: Fix $100 Daily Hot Sell to $150 with 2 token entry and 50 max players
-    if (config.title === '$100 Daily Hot Sell' && config.prize_pool === 100) {
+    // Hard-code specific tournament configurations
+    if (config.title?.includes('$2 Hot Sell')) {
       return {
         ...config,
-        entry_fee: 2,
-        prize_pool: 150,
-        max_participants: 50
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 2, // $2 total
+        max_participants: 2 // 2 players
       };
     }
     
-    // Limit entry fees to 1-5 tokens
-    const adjustedFee = Math.min(Math.max(config.entry_fee, 1), 5);
-    
-    // For specific prize amounts, use the original prize pool
-    // This ensures $10 games show $1.50 platform fee correctly
-    let calculatedPrizePool = config.prize_pool;
-    
-    // Only calculate if prize_pool is 0 or very small (indicating it should be calculated)
-    if (calculatedPrizePool <= 1) {
-      // Calculate prize pool based on max participants and entry fee
-      // 1 token = $1, so if 50 players pay 3 tokens each = $150 total pot
-      calculatedPrizePool = config.max_participants * adjustedFee;
+    if (config.title?.includes('$3 Winner Takes')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 3, // $3 total
+        max_participants: 2 // 2 players
+      };
     }
     
-    return {
-      ...config,
-      entry_fee: adjustedFee,
-      prize_pool: calculatedPrizePool
-    };
+    if (config.title?.includes('$10')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 10, // $10 total
+        max_participants: 10 // 10 players
+      };
+    }
+    
+    if (config.title?.includes('$100')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 100, // $100 total
+        max_participants: 100 // 100 players
+      };
+    }
+    
+    if (config.title?.includes('$250')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 250, // $250 total
+        max_participants: 250 // 250 players
+      };
+    }
+    
+    if (config.title?.includes('$1000')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 1000, // $1000 total
+        max_participants: 1000 // 1000 players
+      };
+    }
+    
+    if (config.title?.includes('$2500')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 2500, // $2500 total
+        max_participants: 2500 // 2500 players
+      };
+    }
+    
+    // Default case - keep original values
+    return config;
   };
 
   const getGameIcon = (gameType: string) => {
@@ -1865,4 +1942,5 @@ export default function HotSellPage() {
       </div>
     </div>
   );
+}
 }
