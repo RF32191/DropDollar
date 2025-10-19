@@ -24,14 +24,14 @@ export default function TournamentsPage() {
       example: '2 players, 1 token entry each = 2 token prize pool'
     },
     {
-      id: 'group',
-      title: 'Group Battles',
-      description: 'Multi-player tournaments with multiple prize winners',
+      id: 'winner-takes-all',
+      title: 'Winner Takes It All',
+      description: 'Unlimited player tournaments where the winner takes the entire prize pool',
       icon: UsersIcon,
-      href: '/tournaments/group',
+      href: '/winner-takes-all',
       color: 'from-green-500 to-teal-500',
-      features: ['Multiple winners', 'Scalable tournaments', 'Team competitions', 'Custom prize distribution'],
-      example: '10 players, 1 token entry each = 10 token prize pool'
+      features: ['Winner takes all', 'Unlimited players', 'Growing prize pools', 'Base price triggers'],
+      example: 'Unlimited players, 1 token entry each = growing prize pool'
     },
     {
       id: 'hot-sell',
@@ -135,8 +135,8 @@ export default function TournamentsPage() {
           </div>
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 text-center">
             <UsersIcon className="w-8 h-8 text-blue-400 mx-auto mb-3" />
-            <p className="text-2xl font-bold text-white">Group</p>
-            <p className="text-gray-400 text-sm">Multi-Player</p>
+            <p className="text-2xl font-bold text-white">Winner</p>
+            <p className="text-gray-400 text-sm">Takes All</p>
           </div>
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 text-center">
             <FireIcon className="w-8 h-8 text-red-400 mx-auto mb-3" />
