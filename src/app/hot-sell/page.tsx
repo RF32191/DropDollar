@@ -1802,7 +1802,7 @@ export default function HotSellPage() {
             {/* Winner Takes It All Games */}
             {fixedGameConfigs.map((config) => {
               // Only process Winner Takes It All tournaments
-              if (!config.title?.includes('Winner Takes It All')) {
+              if (config.tournament_type !== 'winner_takes_all') {
                 return null; // Skip non-Winner Takes It All tournaments
               }
               
@@ -1810,7 +1810,7 @@ export default function HotSellPage() {
               const adjustedConfig = adjustEntryFee(config);
               const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
+              const prizeDistribution = calculateWinnerTakesAllPayouts(adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
               const canJoin = userTokens >= adjustedConfig.entry_fee;
               
