@@ -143,10 +143,9 @@ export default function WinnerTakesAllPage() {
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      loadWinnerTakesAllData();
-    }
-  }, [isAuthenticated, user?.id]);
+    // Always load hardcoded data, regardless of authentication
+    loadWinnerTakesAllData();
+  }, []);
 
   // Refresh participants data every 30 seconds
   useEffect(() => {
