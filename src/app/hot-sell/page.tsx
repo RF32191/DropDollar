@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
+import { createClient } from '@/lib/supabase/client';
 import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
 import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility, FixedGameParticipant } from '@/lib/supabase/fixedGamesService';
 import { UserService } from '@/lib/supabase/userService';
@@ -30,6 +31,7 @@ import {
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
+  const supabase = createClient();
   
   // Add setUserTokens function for compatibility
   const setUserTokens = useCallback((tokens: number) => {
@@ -58,10 +60,16 @@ export default function HotSellPage() {
   const [locationVerified, setLocationVerified] = useState(false);
   const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
+  
+  // Winner Takes It All state
+  const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
+  const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
+  const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadHotSellData();
+      loadWinnerTakesAllData();
       checkUserEligibility();
     }
   }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
@@ -140,6 +148,165 @@ export default function HotSellPage() {
       console.error('❌ [HotSell] Error loading data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Winner Takes It All functions
+  const loadWinnerTakesAllData = async () => {
+    try {
+      console.log('🔄 [Winner Takes It All] Loading data...');
+      
+      // Load Winner Takes It All sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .rpc('get_all_winner_takes_all_sessions');
+      
+      if (sessionsError) {
+        console.error('❌ [Winner Takes It All] Error loading sessions:', sessionsError);
+        return;
+      }
+      
+      setWinnerTakesAllSessions(sessionsData || []);
+      
+      // Load participants for each session
+      const participantsData: { [sessionId: string]: any[] } = {};
+      for (const session of sessionsData || []) {
+        try {
+          const { data: sessionData, error: sessionError } = await supabase
+            .rpc('get_winner_takes_all_session', { session_id_param: session.id });
+          
+          if (sessionError) {
+            console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, sessionError);
+            participantsData[session.id] = [];
+          } else {
+            participantsData[session.id] = sessionData?.participants || [];
+          }
+        } catch (error) {
+          console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, error);
+          participantsData[session.id] = [];
+        }
+      }
+      setWinnerTakesAllParticipants(participantsData);
+      
+      console.log('✅ [Winner Takes It All] Data loaded successfully');
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error loading data:', error);
+    }
+  };
+
+  const joinWinnerTakesAllSession = async (configId: string) => {
+    if (!user || !isAuthenticated) {
+      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
+      return;
+    }
+
+    setJoiningWinnerTakesAll(true);
+    
+    try {
+      // Location verification for legal compliance
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      console.log('Location verified:', position.coords);
+      setLocationVerified(true);
+
+      // Find or create Winner Takes It All session
+      let session = winnerTakesAllSessions.find(s => s.config_id === configId);
+      
+      if (!session) {
+        // Create new session
+        const { data: sessionId, error: createError } = await supabase
+          .rpc('create_winner_takes_all_session', { config_id_param: configId });
+        
+        if (createError) {
+          console.error('❌ [Winner Takes It All] Error creating session:', createError);
+          setMessage({ type: 'error', text: 'Failed to create session. Please try again.' });
+          return;
+        }
+        
+        // Get the created session
+        const { data: sessionData, error: sessionError } = await supabase
+          .rpc('get_winner_takes_all_session', { session_id_param: sessionId });
+        
+        if (sessionError) {
+          console.error('❌ [Winner Takes It All] Error getting session:', sessionError);
+          setMessage({ type: 'error', text: 'Failed to get session. Please try again.' });
+          return;
+        }
+        
+        session = sessionData;
+      }
+
+      // Check if user already joined
+      const hasJoined = winnerTakesAllParticipants[session.id]?.some(
+        p => p.user_id === user.id
+      );
+      
+      if (hasJoined) {
+        setMessage({ type: 'error', text: 'You have already joined this Winner Takes It All tournament!' });
+        return;
+      }
+
+      // Join the session
+      const { data: joinResult, error: joinError } = await supabase
+        .rpc('join_winner_takes_all_session', { session_id_param: session.id });
+      
+      if (joinError) {
+        console.error('❌ [Winner Takes It All] Error joining session:', joinError);
+        setMessage({ type: 'error', text: 'Failed to join session. Please try again.' });
+        return;
+      }
+
+      // Deduct token from user's wallet
+      const { error: deductError } = await supabase
+        .from('token_transactions')
+        .insert({
+          user_id: user.id,
+          amount: -1, // Deduct 1 token
+          transaction_type: 'tournament_entry',
+          description: `Winner Takes It All tournament entry - ${session.id}`,
+          metadata: { session_id: session.id, config_id: configId }
+        });
+
+      if (deductError) {
+        console.error('❌ [Winner Takes It All] Error deducting token:', deductError);
+        setMessage({ type: 'error', text: 'Failed to deduct token. Please try again.' });
+        return;
+      }
+
+      // Refresh token balance
+      refreshTokens();
+
+      // Start the game
+      const config = fixedGameConfigs.find(c => c.id === configId);
+      if (config) {
+        setSelectedGameFlow({
+          gameType: config.game_type,
+          sessionId: session.id,
+          configId: configId,
+          entryFee: 1
+        });
+        setCurrentView('game');
+      }
+
+      setMessage({ type: 'success', text: 'Successfully joined Winner Takes It All tournament!' });
+      
+      // Refresh data
+      await loadWinnerTakesAllData();
+      
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error joining session:', error);
+      if (error instanceof GeolocationPositionError) {
+        setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to join tournament. Please try again.' });
+      }
+    } finally {
+      setJoiningWinnerTakesAll(false);
     }
   };
 
@@ -1562,9 +1729,9 @@ export default function HotSellPage() {
                                 </div>
                                 
                                 {/* Real participant scores */}
-                                {sessionParticipants[session.id] && sessionParticipants[session.id].length > 0 ? (
+                                {winnerTakesAllParticipants[session.id] && winnerTakesAllParticipants[session.id].length > 0 ? (
                                   <div className="space-y-2">
-                                    {sessionParticipants[session.id]
+                                    {winnerTakesAllParticipants[session.id]
                                       .filter(p => p.score !== null && p.score !== undefined)
                                       .sort((a, b) => (b.score || 0) - (a.score || 0))
                                       .map((participant, index) => (
@@ -1626,9 +1793,9 @@ export default function HotSellPage() {
                 return null; // Skip non-Winner Takes It All tournaments
               }
               
-              // Use the same logic as hot sell banners
+              // Use Winner Takes It All sessions instead of hot sell sessions
               const adjustedConfig = adjustEntryFee(config);
-              const session = hotSellSessions.find(s => s.config_id === config.id);
+              const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
               const timer = session ? timeRemaining[session.id] : null;
               const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
@@ -1677,7 +1844,7 @@ export default function HotSellPage() {
                     </div>
                 
                     {/* Progress Bar - Current pot to base price */}
-                    <div className="mb-4">
+                <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-300 mb-2">
                         <span>Progress to Base Price</span>
                         <span>{session?.current_pot || 0} / {adjustedConfig.prize_pool} tokens</span>
@@ -1766,15 +1933,15 @@ export default function HotSellPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => joinHotSellSession(config.id)}
-                          disabled={joiningSession}
+                          onClick={() => joinWinnerTakesAllSession(config.id)}
+                          disabled={joiningWinnerTakesAll}
                           className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
-                            joiningSession
+                            joiningWinnerTakesAll
                               ? 'bg-gray-600 cursor-not-allowed opacity-50'
                               : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
                           }`}
                         >
-                          {joiningSession ? (
+                          {joiningWinnerTakesAll ? (
                             <div className="flex items-center justify-center">
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                               Joining...
