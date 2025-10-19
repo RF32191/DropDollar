@@ -172,7 +172,7 @@ export default function WinnerTakesAllPage() {
   const loadWinnerTakesAllData = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 [Winner Takes It All] Loading hardcoded data with localStorage persistence...');
+      console.log('🔄 [Winner Takes It All] Loading shared data from Supabase...');
       
       // Use hardcoded listings as configs
       const configsData = hardcodedListings.map(listing => ({
@@ -193,23 +193,47 @@ export default function WinnerTakesAllPage() {
       }));
       setConfigs(configsData);
       
-      // Try to load existing sessions from localStorage first
-      const savedSessions = localStorage.getItem('winnerTakesAllSessions');
-      let sessionsData;
-      
-      if (savedSessions) {
-        try {
-          sessionsData = JSON.parse(savedSessions);
-          console.log('✅ [Winner Takes It All] Loaded saved sessions from localStorage');
-        } catch (error) {
-          console.error('❌ [Winner Takes It All] Error parsing saved sessions:', error);
+      // Load shared sessions from Supabase
+      const { data: sharedSessions, error } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ [Winner Takes It All] Error loading shared sessions:', error);
+        // Fallback to localStorage
+        const savedSessions = localStorage.getItem('winnerTakesAllSessions');
+        let sessionsData;
+        
+        if (savedSessions) {
+          try {
+            sessionsData = JSON.parse(savedSessions);
+            console.log('✅ [Winner Takes It All] Loaded saved sessions from localStorage fallback');
+          } catch (parseError) {
+            console.error('❌ [Winner Takes It All] Error parsing saved sessions:', parseError);
+            sessionsData = createDefaultSessions(configsData);
+          }
+        } else {
           sessionsData = createDefaultSessions(configsData);
         }
+        setSessions(sessionsData);
       } else {
-        sessionsData = createDefaultSessions(configsData);
+        // Convert shared sessions to our format
+        const sessionsData = sharedSessions.map(session => ({
+          id: session.id,
+          config_id: session.config_id,
+          current_pot: session.current_pot || 0,
+          base_price: session.base_price,
+          participants_count: session.participants_count || 0,
+          status: session.status || 'waiting',
+          timer_started_at: session.timer_started_at,
+          created_at: session.created_at,
+          updated_at: session.updated_at,
+          participants: session.participants || []
+        }));
+        setSessions(sessionsData);
+        console.log('✅ [Winner Takes It All] Loaded shared sessions from Supabase:', sessionsData.length);
       }
-      
-      setSessions(sessionsData);
       
       console.log('✅ [Winner Takes It All] Data loaded successfully');
       console.log('📊 [Winner Takes It All] Configs:', configsData.length);
@@ -238,14 +262,37 @@ export default function WinnerTakesAllPage() {
 
   const refreshParticipantsData = async () => {
     try {
-      console.log('🔄 [Winner Takes It All] Saving sessions to localStorage...');
+      console.log('🔄 [Winner Takes It All] Refreshing shared sessions from Supabase...');
       
-      // Save current sessions to localStorage
-      localStorage.setItem('winnerTakesAllSessions', JSON.stringify(sessions));
+      // Load shared sessions from Supabase
+      const { data: sharedSessions, error } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ [Winner Takes It All] Error refreshing shared sessions:', error);
+        return;
+      }
+
+      // Convert shared sessions to our format
+      const sessionsData = sharedSessions.map(session => ({
+        id: session.id,
+        config_id: session.config_id,
+        current_pot: session.current_pot || 0,
+        base_price: session.base_price,
+        participants_count: session.participants_count || 0,
+        status: session.status || 'waiting',
+        timer_started_at: session.timer_started_at,
+        created_at: session.created_at,
+        updated_at: session.updated_at,
+        participants: session.participants || []
+      }));
       
-      console.log('✅ [Winner Takes It All] Sessions saved to localStorage');
+      setSessions(sessionsData);
+      console.log('✅ [Winner Takes It All] Shared sessions refreshed:', sessionsData.length);
     } catch (error) {
-      console.error('❌ [Winner Takes It All] Error saving sessions:', error);
+      console.error('❌ [Winner Takes It All] Error refreshing sessions:', error);
     }
   };
 
@@ -392,7 +439,7 @@ export default function WinnerTakesAllPage() {
       console.log(`✅ [Winner Takes It All] Tokens deducted: ${config.entry_fee} tokens`);
       console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
-      // Update session locally (add participant and update pot)
+      // Update session locally and save to Supabase
       const newParticipant = {
         id: `participant-${user.id}-${session.id}`,
         session_id: session.id,
@@ -403,25 +450,45 @@ export default function WinnerTakesAllPage() {
         completed_at: null
       };
 
-      setSessions(prev => {
-        const updatedSessions = prev.map(s => 
-          s.id === session.id 
-            ? {
-                ...s,
-                current_pot: s.current_pot + config.entry_fee,
-                participants_count: s.participants_count + 1,
-                participants: [...s.participants, newParticipant]
-              }
-            : s
-        );
-        
-        // Save to localStorage
-        localStorage.setItem('winnerTakesAllSessions', JSON.stringify(updatedSessions));
-        
-        return updatedSessions;
-      });
+      const updatedSessions = sessions.map(s => 
+        s.id === session.id 
+          ? {
+              ...s,
+              current_pot: s.current_pot + config.entry_fee,
+              participants_count: s.participants_count + 1,
+              participants: [...s.participants, newParticipant]
+            }
+          : s
+      );
 
-      console.log('💰 [Winner Takes It All] Pot updated and saved to localStorage:', {
+      setSessions(updatedSessions);
+
+      // Save to Supabase shared sessions table
+      try {
+        const { error: upsertError } = await supabase
+          .from('winner_takes_all_shared_sessions')
+          .upsert({
+            id: session.id,
+            config_id: session.config_id,
+            current_pot: session.current_pot + config.entry_fee,
+            base_price: session.base_price,
+            participants_count: session.participants_count + 1,
+            status: 'waiting',
+            timer_started_at: null,
+            participants: [...session.participants, newParticipant],
+            updated_at: new Date().toISOString()
+          });
+
+        if (upsertError) {
+          console.error('❌ [Winner Takes It All] Error saving to Supabase:', upsertError);
+        } else {
+          console.log('✅ [Winner Takes It All] Session saved to Supabase');
+        }
+      } catch (error) {
+        console.error('❌ [Winner Takes It All] Error saving session:', error);
+      }
+
+      console.log('💰 [Winner Takes It All] Pot updated and saved to Supabase:', {
         sessionId: session.id,
         newPot: session.current_pot + config.entry_fee,
         participants: session.participants_count + 1
@@ -527,28 +594,51 @@ export default function WinnerTakesAllPage() {
             }
 
             try {
-              // Update score in localStorage
-              setSessions(prev => {
-                const updatedSessions = prev.map(session => 
-                  session.id === selectedGameFlow.sessionId
-                    ? {
-                        ...session,
-                        participants: session.participants.map(participant =>
-                          participant.user_id === user.id
-                            ? { ...participant, score, accuracy, completed_at: new Date().toISOString() }
-                            : participant
-                        )
-                      }
-                    : session
-                );
-                
-                // Save to localStorage
-                localStorage.setItem('winnerTakesAllSessions', JSON.stringify(updatedSessions));
-                
-                return updatedSessions;
-              });
+              // Update score in Supabase
+              const updatedSessions = sessions.map(session => 
+                session.id === selectedGameFlow.sessionId
+                  ? {
+                      ...session,
+                      participants: session.participants.map(participant =>
+                        participant.user_id === user.id
+                          ? { ...participant, score, accuracy, completed_at: new Date().toISOString() }
+                          : participant
+                      )
+                    }
+                  : session
+              );
 
-              console.log('✅ [Winner Takes It All] Score recorded in localStorage:', score);
+              setSessions(updatedSessions);
+
+              // Save to Supabase shared sessions table
+              try {
+                const sessionToUpdate = updatedSessions.find(s => s.id === selectedGameFlow.sessionId);
+                if (sessionToUpdate) {
+                  const { error: upsertError } = await supabase
+                    .from('winner_takes_all_shared_sessions')
+                    .upsert({
+                      id: sessionToUpdate.id,
+                      config_id: sessionToUpdate.config_id,
+                      current_pot: sessionToUpdate.current_pot,
+                      base_price: sessionToUpdate.base_price,
+                      participants_count: sessionToUpdate.participants_count,
+                      status: sessionToUpdate.status,
+                      timer_started_at: sessionToUpdate.timer_started_at,
+                      participants: sessionToUpdate.participants,
+                      updated_at: new Date().toISOString()
+                    });
+
+                  if (upsertError) {
+                    console.error('❌ [Winner Takes It All] Error saving score to Supabase:', upsertError);
+                  } else {
+                    console.log('✅ [Winner Takes It All] Score saved to Supabase');
+                  }
+                }
+              } catch (error) {
+                console.error('❌ [Winner Takes It All] Error saving score:', error);
+              }
+
+              console.log('✅ [Winner Takes It All] Score recorded in Supabase:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
 
               // Show success message
