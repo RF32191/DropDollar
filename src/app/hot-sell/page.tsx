@@ -258,14 +258,20 @@ export default function HotSellPage() {
       return;
     }
 
-    // Create Winner Takes It All config
+    // Get the actual Winner Takes It All payout calculation
+    const payouts = calculateWinnerTakesAllPayouts(config);
+    if (!payouts) {
+      setMessage({ type: 'error', text: 'Could not calculate tournament payouts' });
+      return;
+    }
+
+    // Use the actual tournament configuration
     const winnerTakesAllConfig = {
       ...config,
-      title: `Winner Takes All - ${config.title}`,
-      entry_fee: 1, // 1 token entry
-      prize_pool: 300, // $3 base prize pool (300 cents)
-      max_participants: 1000, // No practical limit
-      description: `1 token entry - Winner takes everything! Base pot: $3, grows with each player.`
+      entry_fee: payouts.entryFee,
+      prize_pool: payouts.totalPrize,
+      max_participants: payouts.maxPlayers,
+      description: `1 token entry - Winner takes ${formatPrizeAmount(payouts.winnerPrize)}! Base price: ${formatPrizeAmount(payouts.basePrice)}`
     };
 
     // Location verification for legal compliance
