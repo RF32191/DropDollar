@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
@@ -29,7 +29,13 @@ import {
 
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
-  const { tokenBalance: userTokens, isLoading: tokensLoading } = useTokenSync();
+  const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
+  
+  // Add setUserTokens function for compatibility
+  const setUserTokens = useCallback((tokens: number) => {
+    // This is handled by useTokenSync hook
+    console.log('Token update requested:', tokens);
+  }, []);
   const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
   const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
   const [sessionParticipants, setSessionParticipants] = useState<{ [sessionId: string]: FixedGameParticipant[] }>({});
@@ -51,7 +57,7 @@ export default function HotSellPage() {
   const [selectedListing, setSelectedListing] = useState<HotSellListing | null>(null);
   const [locationVerified, setLocationVerified] = useState(false);
   const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } }>({});
+  const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
 
   useEffect(() => {
     if (isAuthenticated && user) {
