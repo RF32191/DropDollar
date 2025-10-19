@@ -140,6 +140,7 @@ export default function WinnerTakesAllPage() {
   // Winner Takes It All state
   const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
   const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
+  const [gameScores, setGameScores] = useState<{ [sessionId: string]: { [userId: string]: number } }>({});
   const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
 
@@ -276,15 +277,9 @@ export default function WinnerTakesAllPage() {
 
     // Check if user already completed this tournament (has a score)
     const session = winnerTakesAllSessions.find(s => s.config_id === configId);
-    if (session) {
-      const hasCompleted = winnerTakesAllParticipants[session.id]?.some(
-        p => p.user_id === user.id && p.score !== null
-      );
-      
-      if (hasCompleted) {
-        setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
-        return;
-      }
+    if (session && gameScores[session.id] && gameScores[session.id][user.id]) {
+      setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
+      return;
     }
 
     // If location not verified, verify it first
@@ -363,16 +358,26 @@ export default function WinnerTakesAllPage() {
       console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
       // Update session pot and participant count (but don't add user to participants yet)
-      setWinnerTakesAllSessions(prev => prev.map(s => 
-        s.id === session.id 
-          ? { 
-              ...s, 
-              current_pot: s.current_pot + 1, 
-              participants_count: s.participants_count + 1,
-              status: s.current_pot + 1 >= s.base_price ? 'active' : 'waiting'
-            }
-          : s
-      ));
+      setWinnerTakesAllSessions(prev => {
+        const updated = prev.map(s => 
+          s.id === session.id 
+            ? { 
+                ...s, 
+                current_pot: s.current_pot + 1, 
+                participants_count: s.participants_count + 1,
+                status: s.current_pot + 1 >= s.base_price ? 'active' : 'waiting'
+              }
+            : s
+        );
+        const updatedSession = updated.find(s => s.id === session.id);
+        console.log('💰 [Winner Takes It All] Pot updated:', {
+          sessionId: session.id,
+          oldPot: session.current_pot,
+          newPot: updatedSession?.current_pot,
+          participants: updatedSession?.participants_count
+        });
+        return updated;
+      });
 
       // Start the game
       setSelectedGameFlow({
@@ -473,7 +478,16 @@ export default function WinnerTakesAllPage() {
             }
 
             try {
-              // Add user to participants with their score
+              // Store the score in the simple gameScores state
+              setGameScores(prev => ({
+                ...prev,
+                [selectedGameFlow.sessionId]: {
+                  ...prev[selectedGameFlow.sessionId],
+                  [user.id]: score
+                }
+              }));
+
+              // Also add to participants for compatibility
               const newParticipant = {
                 id: `participant-${user.id}-${Date.now()}`,
                 session_id: selectedGameFlow.sessionId,
@@ -482,23 +496,22 @@ export default function WinnerTakesAllPage() {
                 joined_at: new Date().toISOString()
               };
 
-              // Update participants with the new score
               setWinnerTakesAllParticipants(prev => ({
                 ...prev,
                 [selectedGameFlow.sessionId]: [...(prev[selectedGameFlow.sessionId] || []), newParticipant]
               }));
 
-              console.log('✅ [Winner Takes It All] User added to participants with score:', score);
-              console.log('✅ [Winner Takes It All] Tournament completed! Check scoreboard for results.');
+              console.log('✅ [Winner Takes It All] Score recorded:', score);
+              console.log('✅ [Winner Takes It All] User locked out from playing again');
 
               // Show success message
               setMessage({ 
                 type: 'success', 
-                text: `Game completed! Your score: ${score}. Check the scoreboard to see how you ranked!` 
+                text: `Game completed! Your score: ${score}. You can no longer play this tournament.` 
               });
 
             } catch (error) {
-              console.error('❌ [Winner Takes It All] Error updating participants:', error);
+              console.error('❌ [Winner Takes It All] Error recording score:', error);
               setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
             }
 
@@ -714,8 +727,11 @@ export default function WinnerTakesAllPage() {
                   
                   {/* Live Scoreboard - Only show if there are participants with scores */}
                   {(() => {
-                    const participantsWithScores = session ? 
-                      (winnerTakesAllParticipants[session.id] || []).filter(p => p.score !== null && p.score !== undefined) : [];
+                    const sessionScores = session ? gameScores[session.id] || {} : {};
+                    const participantsWithScores = Object.keys(sessionScores).map(userId => ({
+                      user_id: userId,
+                      score: sessionScores[userId]
+                    }));
                     
                     if (participantsWithScores.length === 0) {
                       return null; // Don't show scoreboard if no one has played
@@ -796,9 +812,7 @@ export default function WinnerTakesAllPage() {
                       </div>
                     ) : (() => {
                       // Check if user already completed this tournament (has a score)
-                      const hasCompleted = session && winnerTakesAllParticipants[session.id]?.some(
-                        p => p.user_id === user?.id && p.score !== null
-                      );
+                      const hasCompleted = session && gameScores[session.id] && gameScores[session.id][user?.id];
                       
                       if (hasCompleted) {
                         return (
@@ -807,7 +821,7 @@ export default function WinnerTakesAllPage() {
                               <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
                               <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
-                            <p className="text-green-200 text-sm mt-1">Check the scoreboard for your score!</p>
+                            <p className="text-green-200 text-sm mt-1">Your score: {gameScores[session.id][user.id]}</p>
                           </div>
                         );
                       }
