@@ -56,11 +56,17 @@ BEGIN
     END IF;
     
     -- Extract base price from title (e.g., "$100 Winner Takes It All" -> 100)
+    -- Handle various title patterns like "$100 Winner Takes It All - Laser Dodge"
     base_price := CASE 
         WHEN config_rec.title LIKE '%$100 Winner Takes It All%' THEN 100
         WHEN config_rec.title LIKE '%$250 Winner Takes It All%' THEN 250
         WHEN config_rec.title LIKE '%$1000 Winner Takes It All%' THEN 1000
         WHEN config_rec.title LIKE '%$2500 Winner Takes It All%' THEN 2500
+        WHEN config_rec.title LIKE '%$3 Winner Takes It All%' THEN 3
+        WHEN config_rec.title LIKE '%$2 Winner Takes It All%' THEN 2
+        WHEN config_rec.title LIKE '%$10 Winner Takes It All%' THEN 10
+        WHEN config_rec.title LIKE '%$50 Winner Takes It All%' THEN 50
+        WHEN config_rec.title LIKE '%$500 Winner Takes It All%' THEN 500
         ELSE 100 -- Default fallback
     END;
     
@@ -98,8 +104,11 @@ BEGIN
     -- Get current user
     user_id_param := auth.uid();
     
+    -- Debug logging
+    RAISE NOTICE 'Attempting to join Winner Takes It All session: %, user_id: %', session_id_param, user_id_param;
+    
     IF user_id_param IS NULL THEN
-        RAISE EXCEPTION 'User must be authenticated';
+        RAISE EXCEPTION 'User must be authenticated - auth.uid() returned NULL';
     END IF;
     
     -- Get session details

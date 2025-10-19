@@ -198,6 +198,9 @@ export default function HotSellPage() {
       return;
     }
 
+    console.log('🎮 [Winner Takes It All] Starting join process for config:', configId);
+    console.log('🎮 [Winner Takes It All] User authenticated:', isAuthenticated, 'User ID:', user?.id);
+    
     setJoiningWinnerTakesAll(true);
     
     try {
@@ -210,13 +213,17 @@ export default function HotSellPage() {
         });
       });
 
-      console.log('Location verified:', position.coords);
+      console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
       setLocationVerified(true);
 
       // Find or create Winner Takes It All session
       let session = winnerTakesAllSessions.find(s => s.config_id === configId);
+      console.log('🎮 [Winner Takes It All] Existing sessions:', winnerTakesAllSessions);
+      console.log('🎮 [Winner Takes It All] Looking for config:', configId);
+      console.log('🎮 [Winner Takes It All] Found session:', session);
       
       if (!session) {
+        console.log('🎮 [Winner Takes It All] Creating new session for config:', configId);
         // Create new session
         const { data: sessionId, error: createError } = await supabase
           .rpc('create_winner_takes_all_session', { config_id_param: configId });
@@ -226,6 +233,8 @@ export default function HotSellPage() {
           setMessage({ type: 'error', text: 'Failed to create session. Please try again.' });
           return;
         }
+        
+        console.log('🎮 [Winner Takes It All] Created session with ID:', sessionId);
         
         // Get the created session
         const { data: sessionData, error: sessionError } = await supabase
@@ -251,14 +260,18 @@ export default function HotSellPage() {
       }
 
       // Join the session
+      console.log('🎮 [Winner Takes It All] Joining session:', session.id);
       const { data: joinResult, error: joinError } = await supabase
         .rpc('join_winner_takes_all_session', { session_id_param: session.id });
       
       if (joinError) {
         console.error('❌ [Winner Takes It All] Error joining session:', joinError);
+        console.error('❌ [Winner Takes It All] Join error details:', JSON.stringify(joinError, null, 2));
         setMessage({ type: 'error', text: 'Failed to join session. Please try again.' });
         return;
       }
+      
+      console.log('🎮 [Winner Takes It All] Successfully joined session:', joinResult);
 
       // Deduct token from user's wallet
       const { error: deductError } = await supabase
@@ -352,7 +365,7 @@ export default function HotSellPage() {
     // Only update if we have sessions to avoid unnecessary state updates
     if (hotSellSessions.length === 0) return;
     
-    const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean } } = {};
+    const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } } = {};
     
     hotSellSessions.forEach(session => {
       const config = fixedGameConfigs.find(c => c.id === session.config_id);
@@ -1072,7 +1085,7 @@ export default function HotSellPage() {
   const calculateTournamentPayouts = (config: FixedGameConfig) => {
     const title = config.title || '';
     
-    // Extract prize amount from title (e.g., "$100 Hot Sell" -> 100)
+    // Extract prize amount from title (e.g., "$100 Hot Sell" -> 100 or "$100 Winner Takes It All - Laser Dodge" -> 100)
     const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
     if (!prizeMatch) {
       console.warn('Could not extract prize amount from title:', title);
@@ -1403,6 +1416,7 @@ export default function HotSellPage() {
               const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
               const canJoin = userTokens >= adjustedConfig.entry_fee;
+              const isWinnerTakesAll = config.title?.includes('Winner Takes It All') || false;
               
               // Skip rendering if payout calculation failed
               if (!prizeDistribution) {
