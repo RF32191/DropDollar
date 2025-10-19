@@ -694,55 +694,70 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Live Scoreboard */}
+                  {/* Live Scoreboard - Dropdown */}
                   <div className="mb-6">
-                    <h4 className="text-lg font-semibold text-white mb-3 flex items-center">
-                      <TrophyIcon className="w-5 h-5 mr-2 text-yellow-400" /> Live Scoreboard
-                    </h4>
-                    <div className="bg-white/5 rounded-xl p-4">
-                      {session?.status === 'completed' ? (
-                        <div className="text-center text-gray-400">
-                          <p>Tournament completed. Results are being finalized.</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex justify-between text-sm text-gray-400 mb-2">
-                            <span>Player</span>
-                            <span>Score</span>
+                    <button
+                      onClick={() => {
+                        const scoreboard = document.getElementById(`winner-scoreboard-${config.id}`);
+                        if (scoreboard) {
+                          scoreboard.classList.toggle('hidden');
+                        }
+                      }}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <h4 className="text-sm font-semibold text-white flex items-center">
+                        <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                        Live Scoreboard
+                      </h4>
+                      <span className="text-gray-400 text-xs">Click to expand</span>
+                    </button>
+                    
+                    <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
+                      <div className="bg-white/5 rounded-xl p-4">
+                        {session?.status === 'completed' ? (
+                          <div className="text-center text-gray-400">
+                            <p>Tournament completed. Results are being finalized.</p>
                           </div>
-                          {winnerTakesAllParticipants[session?.id] && winnerTakesAllParticipants[session.id].length > 0 ? (
-                            <div className="space-y-2">
-                              {winnerTakesAllParticipants[session.id]
-                                .filter(p => p.score !== null && p.score !== undefined)
-                                .sort((a, b) => (b.score || 0) - (a.score || 0))
-                                .map((participant, index) => (
-                                  <div key={participant.id} className="bg-white/5 rounded-lg p-3">
-                                    <div className="flex items-center justify-between">
-                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                          participant.user_id === user?.id ? 'bg-yellow-500' : 
-                                          index === 0 ? 'bg-yellow-500' : 
-                                          index === 1 ? 'bg-gray-400' : 
-                                          index === 2 ? 'bg-orange-500' : 'bg-gray-600'
-                                        }`}>
-                                        <span className="text-white font-bold text-xs">{index + 1}</span>
-                                      </div>
-                                      <span className="text-white text-sm">
-                                        {participant.user_id === user?.id ? 'You' : `Player ${index + 1}`}
-                                      </span>
-                                    </div>
-                                    <span className="text-white font-semibold">{participant.score}</span>
-                                  </div>
-                                ))}
+                        ) : (
+                          <>
+                            <div className="flex justify-between text-sm text-gray-400 mb-2">
+                              <span>Player</span>
+                              <span>Score</span>
                             </div>
-                          ) : (
-                            <p className="text-gray-400 text-center">No scores yet. Be the first!</p>
-                          )}
-                        </>
-                      )}
+                            {winnerTakesAllParticipants[session?.id] && winnerTakesAllParticipants[session.id].length > 0 ? (
+                              <div className="space-y-2">
+                                {winnerTakesAllParticipants[session.id]
+                                  .filter(p => p.score !== null && p.score !== undefined)
+                                  .sort((a, b) => (b.score || 0) - (a.score || 0))
+                                  .map((participant, index) => (
+                                    <div key={participant.id} className="bg-white/5 rounded-lg p-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                                            participant.user_id === user?.id ? 'bg-yellow-500' : 
+                                            index === 0 ? 'bg-yellow-500' : 
+                                            index === 1 ? 'bg-gray-400' : 
+                                            index === 2 ? 'bg-orange-500' : 'bg-gray-600'
+                                          }`}>
+                                          <span className="text-white font-bold text-xs">{index + 1}</span>
+                                        </div>
+                                        <span className="text-white text-sm">
+                                          {participant.user_id === user?.id ? 'You' : `Player ${index + 1}`}
+                                        </span>
+                                      </div>
+                                      <span className="text-white font-semibold">{participant.score}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <p className="text-gray-400 text-center">No scores yet. Be the first!</p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Join Button */}
+                  {/* Join Button - Hardcoded */}
                   <div className="space-y-3">
                     {!isAuthenticated ? (
                       <div className="bg-gray-600 rounded-xl p-3 text-center">
@@ -763,7 +778,7 @@ export default function WinnerTakesAllPage() {
                       <button
                         onClick={() => handleJoinGame(config.id)}
                         disabled={joiningWinnerTakesAll}
-                        className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
+                        className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
                           joiningWinnerTakesAll
                             ? 'bg-gray-600 cursor-not-allowed opacity-50'
                             : locationVerified
@@ -773,13 +788,19 @@ export default function WinnerTakesAllPage() {
                       >
                         {joiningWinnerTakesAll ? (
                           <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                            Joining...
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
+                            <span className="text-lg">Joining Game...</span>
                           </div>
                         ) : locationVerified ? (
-                          `🔒 JOIN GAME - $${config.entry_fee}.00`
+                          <div className="flex items-center justify-center">
+                            <span className="text-xl mr-2">🔒</span>
+                            <span>JOIN GAME - ${config.entry_fee}.00</span>
+                          </div>
                         ) : (
-                          `🌍 JOIN GAME - VERIFY LOCATION`
+                          <div className="flex items-center justify-center">
+                            <span className="text-xl mr-2">🌍</span>
+                            <span>JOIN GAME - VERIFY LOCATION</span>
+                          </div>
                         )}
                       </button>
                     )}
