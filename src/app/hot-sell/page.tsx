@@ -59,16 +59,10 @@ export default function HotSellPage() {
   const [locationVerified, setLocationVerified] = useState(false);
   const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
-  
-  // Winner Takes It All state
-  const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
-  const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
-  const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadHotSellData();
-      loadWinnerTakesAllData();
       checkUserEligibility();
     }
   }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
