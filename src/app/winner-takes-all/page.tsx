@@ -111,9 +111,9 @@ export default function WinnerTakesAllPage() {
       platform_fee: 375
     },
     {
-      id: 'wta-2-color-sequence',
-      game_type: 'color_sequence',
-      title: '$2 Winner Takes It All - Color Sequence',
+      id: 'wta-2-sword-parry',
+      game_type: 'sword_parry',
+      title: '$2 Winner Takes It All - Sword Parry',
       description: 'Winner takes the entire $2 prize pool!',
       entry_fee: 1,
       prize_pool: 2,
@@ -296,6 +296,47 @@ export default function WinnerTakesAllPage() {
     }
   };
 
+  const isTournamentCompleted = (session: any) => {
+    // Tournament is completed if:
+    // 1. Base price is met AND
+    // 2. Timer has expired (game duration has passed) AND
+    // 3. At least one participant has a score
+    if (!session || session.status !== 'active') return false;
+    
+    const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
+    if (participantsWithScores.length === 0) return false;
+    
+    if (!session.timer_started_at) return false;
+    
+    const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
+    const config = configs.find(c => c.id === session.config_id);
+    if (!config) return false;
+    
+    return elapsed >= config.game_duration;
+  };
+
+  const resetCompletedTournament = async (sessionId: string) => {
+    try {
+      console.log('🔄 [Winner Takes It All] Resetting completed tournament:', sessionId);
+      
+      // Delete the completed session from Supabase
+      const { error } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .delete()
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
+      } else {
+        console.log('✅ [Winner Takes It All] Tournament reset successfully');
+        // Refresh data to show new empty session
+        await refreshParticipantsData();
+      }
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
+    }
+  };
+
   const updateTimers = () => {
     // Only update if we have sessions to avoid unnecessary state updates
     if (sessions.length === 0) return;
@@ -354,10 +395,10 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already completed this tournament (using localStorage)
+    // Check if user already completed this tournament (using Supabase data)
     const session = sessions.find(s => s.config_id === configId);
     if (session) {
-      const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null);
+      const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null && p.score !== undefined);
       if (hasCompleted) {
         setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
         return;
@@ -937,8 +978,36 @@ export default function WinnerTakesAllPage() {
                         <p className="text-red-300 text-sm">You need {config.entry_fee} token to join</p>
                       </div>
                     ) : (() => {
+                      // Check if tournament is completed
+                      const tournamentCompleted = session && isTournamentCompleted(session);
+                      
+                      if (tournamentCompleted) {
+                        // Show winner and reset button
+                        const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
+                        const winner = participantsWithScores.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))[0];
+                        
+                        return (
+                          <div className="space-y-3">
+                            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-center">
+                              <div className="flex items-center justify-center mb-2">
+                                <TrophyIcon className="w-6 h-6 text-yellow-400 mr-2" />
+                                <span className="text-yellow-300 text-lg font-semibold">TOURNAMENT COMPLETED!</span>
+                              </div>
+                              <p className="text-yellow-200 text-sm">Winner: Player {winner?.user_id?.slice(-4)} with score {winner?.score}</p>
+                              <p className="text-yellow-200 text-sm">Prize: ${prizeDistribution.winnerPrize}</p>
+                            </div>
+                            <button
+                              onClick={() => resetCompletedTournament(session.id)}
+                              className="w-full py-3 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-300"
+                            >
+                              🔄 START NEW TOURNAMENT
+                            </button>
+                          </div>
+                        );
+                      }
+                      
                       // Check if user already completed this tournament (has a score)
-                      const hasCompleted = session && session.participants.some(p => p.user_id === user?.id && p.score !== null);
+                      const hasCompleted = session && session.participants.some(p => p.user_id === user?.id && p.score !== null && p.score !== undefined);
                       
                       if (hasCompleted) {
                         const userParticipant = session.participants.find(p => p.user_id === user?.id);
