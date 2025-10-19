@@ -1621,36 +1621,35 @@ export default function HotSellPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Winner Takes It All Games */}
             {fixedGameConfigs.map((config) => {
-              // Skip if this config was converted to hot sell in adjustEntryFee
-              if (config.title?.includes('Winner Takes It All')) {
-                return null; // Skip - these are handled in the main hot sell section
+              // Only process Winner Takes It All tournaments
+              if (!config.title?.includes('Winner Takes It All')) {
+                return null; // Skip non-Winner Takes It All tournaments
               }
               
-              // Extract prize amount from title (e.g., "$100 Winner Takes It All" -> 100)
-              const title = config.title || '';
-              const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
-              const prizeAmount = prizeMatch ? parseInt(prizeMatch[1].replace(/,/g, '')) : 0;
-              const basePrice = prizeAmount; // Base price matches the title price (not 10%)
-              
-              const winnerTakesAllConfig = {
-                ...config,
-                title: config.title,
-                entry_fee: 1, // 1 token entry
-                prize_pool: prizeAmount,
-                description: `1 token entry - Winner takes everything! Base pot: $${prizeAmount}, grows with each player.`
-              };
-              
-              // Find session for this config
+              // Use the same logic as hot sell banners
+              const adjustedConfig = adjustEntryFee(config);
               const session = hotSellSessions.find(s => s.config_id === config.id);
+              const timer = session ? timeRemaining[session.id] : null;
+              const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
+              const isHotSell = timer?.isHotSell || false;
+              const canJoin = userTokens >= adjustedConfig.entry_fee;
+              
+              // Skip rendering if payout calculation failed
+              if (!prizeDistribution) {
+                console.warn('Skipping Winner Takes It All config due to payout calculation failure:', adjustedConfig.title);
+                return null;
+              }
               
               return (
-                <div key={`winner-${config.id}`} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:bg-white/15">
+                <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+                  isHotSell ? 'border-red-500/50 bg-red-500/10' : 'border-white/20 hover:bg-white/15'
+                }`}>
                   {/* Game Header */}
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center">
                         <span className="text-3xl mr-3">🏆</span>
-                        <h3 className="text-xl font-bold text-white">{winnerTakesAllConfig.title}</h3>
+                        <h3 className="text-xl font-bold text-white">{adjustedConfig.title}</h3>
                   </div>
                       <div className="flex items-center rounded-full px-3 py-1 bg-purple-500/20 text-purple-300">
                         <StarIcon className="w-4 h-4 mr-1" />
@@ -1658,13 +1657,13 @@ export default function HotSellPage() {
                   </div>
                 </div>
                 
-                    <p className="text-gray-300 mb-4">{winnerTakesAllConfig.description}</p>
+                    <p className="text-gray-300 mb-4">{adjustedConfig.description}</p>
                     
                     {/* Entry Fee */}
                     <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-green-500 to-emerald-500">
                       <div className="text-center">
                         <p className="text-green-100 text-sm font-medium mb-1">ENTRY FEE</p>
-                        <p className="text-2xl font-bold text-white">$1.00</p>
+                        <p className="text-2xl font-bold text-white">${adjustedConfig.entry_fee}.00</p>
                   </div>
                 </div>
                 
@@ -1673,7 +1672,7 @@ export default function HotSellPage() {
                       <div className="text-center">
                         <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
                         <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
-                        <p className="text-purple-200 text-xs mt-1">Base pot: ${prizeAmount}, grows with each player's token</p>
+                        <p className="text-purple-200 text-xs mt-1">Base pot: ${adjustedConfig.prize_pool}, grows with each player's token</p>
                       </div>
                     </div>
                 
@@ -1681,18 +1680,18 @@ export default function HotSellPage() {
                     <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-300 mb-2">
                         <span>Progress to Base Price</span>
-                        <span>{session?.current_pot || 0} / {basePrice} tokens</span>
+                        <span>{session?.current_pot || 0} / {adjustedConfig.prize_pool} tokens</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-3">
                         <div 
                           className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
                           style={{ 
-                            width: `${Math.min(100, ((session?.current_pot || 0) / basePrice) * 100)}%` 
+                            width: `${Math.min(100, ((session?.current_pot || 0) / adjustedConfig.prize_pool) * 100)}%` 
                           }}
                         ></div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Base Price: {basePrice} tokens</span>
+                        <span>Base Price: {adjustedConfig.prize_pool} tokens</span>
                         <span>Current Pot: {session?.current_pot || 0} tokens</span>
                       </div>
                     </div>
@@ -1755,16 +1754,24 @@ export default function HotSellPage() {
                       </div>
                     </div>
 
-                    {/* Join Button */}
+                    {/* Join Button - Use same logic as hot sell banners */}
                     <div className="space-y-3">
-                      {isAuthenticated ? (
+                      {!isAuthenticated ? (
+                        <div className="bg-gray-600 rounded-xl p-3 text-center">
+                          <p className="text-gray-300 text-sm">Please log in to join tournaments</p>
+                        </div>
+                      ) : !canJoin ? (
+                        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
+                          <p className="text-red-300 text-sm">You need {adjustedConfig.entry_fee} tokens to join</p>
+                        </div>
+                      ) : (
                         <button
                           onClick={() => joinHotSellSession(config.id)}
-                          disabled={joiningSession || userTokens < 1}
+                          disabled={joiningSession}
                           className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
-                            userTokens >= 1
-                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
-                              : 'bg-gray-600 cursor-not-allowed opacity-50'
+                            joiningSession
+                              ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
                           }`}
                         >
                           {joiningSession ? (
@@ -1772,16 +1779,10 @@ export default function HotSellPage() {
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                               Joining...
                             </div>
-                          ) : userTokens >= 1 ? (
-                            `🔒 JOIN FOR $1.00`
                           ) : (
-                            '❌ Insufficient Tokens'
+                            `🔒 JOIN FOR $${adjustedConfig.entry_fee}.00`
                           )}
                         </button>
-                      ) : (
-                        <div className="text-center py-3 px-6 rounded-2xl bg-gray-600 text-gray-400">
-                          Please log in to join
-                        </div>
                       )}
                     </div>
                   </div>
