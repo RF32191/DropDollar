@@ -27,7 +27,12 @@ CREATE TABLE IF NOT EXISTS public.winner_takes_all_participants (
 ALTER TABLE public.winner_takes_all_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.winner_takes_all_participants ENABLE ROW LEVEL SECURITY;
 
--- Step 4: Create RLS policies
+-- Step 4: Create RLS policies (drop existing ones first)
+DROP POLICY IF EXISTS "Users can view all winner takes all sessions" ON public.winner_takes_all_sessions;
+DROP POLICY IF EXISTS "Users can view all winner takes all participants" ON public.winner_takes_all_participants;
+DROP POLICY IF EXISTS "Users can insert their own winner takes all participation" ON public.winner_takes_all_participants;
+DROP POLICY IF EXISTS "Users can update their own winner takes all participation" ON public.winner_takes_all_participants;
+
 CREATE POLICY "Users can view all winner takes all sessions" ON public.winner_takes_all_sessions
     FOR SELECT USING (true);
 
@@ -232,6 +237,10 @@ END;
 $$;
 
 -- Step 6: Create Winner Takes It All configurations
+-- First, delete any existing Winner Takes It All configs to avoid conflicts
+DELETE FROM public.fixed_games_config WHERE tournament_type = 'winner_takes_all';
+
+-- Then insert the new configurations
 INSERT INTO public.fixed_games_config (
     game_type,
     tournament_type,
@@ -291,10 +300,15 @@ INSERT INTO public.fixed_games_config (
     180,
     4,
     true
-)
-ON CONFLICT (title) DO NOTHING;
+);
 
 -- Step 7: Update tournament_type constraint to allow 'winner_takes_all'
+-- First, update any existing rows that might have invalid tournament_type values
+UPDATE public.fixed_games_config 
+SET tournament_type = 'hot_sell' 
+WHERE tournament_type NOT IN ('hot_sell', 'winner_takes_all');
+
+-- Now drop and recreate the constraint
 ALTER TABLE public.fixed_games_config DROP CONSTRAINT IF EXISTS fixed_games_config_tournament_type_check;
 ALTER TABLE public.fixed_games_config ADD CONSTRAINT fixed_games_config_tournament_type_check 
     CHECK (tournament_type IN ('hot_sell', 'winner_takes_all'));
