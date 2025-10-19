@@ -273,15 +273,15 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already joined this tournament
+    // Check if user already completed this tournament (has a score)
     const session = winnerTakesAllSessions.find(s => s.config_id === configId);
     if (session) {
-      const hasJoined = winnerTakesAllParticipants[session.id]?.some(
-        p => p.user_id === user.id
+      const hasCompleted = winnerTakesAllParticipants[session.id]?.some(
+        p => p.user_id === user.id && p.score !== null
       );
       
-      if (hasJoined) {
-        setMessage({ type: 'error', text: 'You have already joined this tournament! Check the scoreboard for your score.' });
+      if (hasCompleted) {
+        setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
         return;
       }
     }
@@ -346,34 +346,7 @@ export default function WinnerTakesAllPage() {
         setWinnerTakesAllSessions(prev => [...prev, session]);
       }
 
-      // Add user to participants
-      const newParticipant = {
-        id: `participant-${user.id}-${Date.now()}`,
-        session_id: session.id,
-        user_id: user.id,
-        score: null,
-        joined_at: new Date().toISOString()
-      };
-
-      // Update participants
-      setWinnerTakesAllParticipants(prev => ({
-        ...prev,
-        [session.id]: [...(prev[session.id] || []), newParticipant]
-      }));
-
-      // Update session pot and participant count
-      setWinnerTakesAllSessions(prev => prev.map(s => 
-        s.id === session.id 
-          ? { 
-              ...s, 
-              current_pot: s.current_pot + 1, 
-              participants_count: s.participants_count + 1,
-              status: s.current_pot + 1 >= s.base_price ? 'active' : 'waiting'
-            }
-          : s
-      ));
-
-      // Deduct token from user's wallet
+      // Deduct token from user's wallet FIRST
       const { error: deductError } = await supabase
         .from('token_transactions')
         .insert({
@@ -392,6 +365,18 @@ export default function WinnerTakesAllPage() {
 
       // Refresh token balance
       refreshTokens();
+
+      // Update session pot and participant count (but don't add user to participants yet)
+      setWinnerTakesAllSessions(prev => prev.map(s => 
+        s.id === session.id 
+          ? { 
+              ...s, 
+              current_pot: s.current_pot + 1, 
+              participants_count: s.participants_count + 1,
+              status: s.current_pot + 1 >= s.base_price ? 'active' : 'waiting'
+            }
+          : s
+      ));
 
       // Start the game
       setSelectedGameFlow({
@@ -777,17 +762,17 @@ export default function WinnerTakesAllPage() {
                         <p className="text-red-300 text-sm">You need {config.entry_fee} token to join</p>
                       </div>
                     ) : (() => {
-                      // Check if user already joined this tournament
-                      const hasJoined = session && winnerTakesAllParticipants[session.id]?.some(
-                        p => p.user_id === user?.id
+                      // Check if user already completed this tournament (has a score)
+                      const hasCompleted = session && winnerTakesAllParticipants[session.id]?.some(
+                        p => p.user_id === user?.id && p.score !== null
                       );
                       
-                      if (hasJoined) {
+                      if (hasCompleted) {
                         return (
                           <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
                             <div className="flex items-center justify-center">
                               <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
-                              <span className="text-green-300 text-lg font-semibold">ALREADY JOINED</span>
+                              <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
                             <p className="text-green-200 text-sm mt-1">Check the scoreboard for your score!</p>
                           </div>
