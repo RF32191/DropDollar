@@ -60,15 +60,10 @@ export default function HotSellPage() {
   const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
   
-  // Winner Takes It All state
-  const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
-  const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
-  const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadHotSellData();
-      loadWinnerTakesAllData();
       checkUserEligibility();
     }
   }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
@@ -150,177 +145,6 @@ export default function HotSellPage() {
     }
   };
 
-  // Winner Takes It All functions
-  const loadWinnerTakesAllData = async () => {
-    try {
-      console.log('🔄 [Winner Takes It All] Loading data...');
-      
-      // Load Winner Takes It All sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .rpc('get_all_winner_takes_all_sessions');
-      
-      if (sessionsError) {
-        console.error('❌ [Winner Takes It All] Error loading sessions:', sessionsError);
-        return;
-      }
-      
-      setWinnerTakesAllSessions(sessionsData || []);
-      
-      // Load participants for each session
-      const participantsData: { [sessionId: string]: any[] } = {};
-      for (const session of sessionsData || []) {
-        try {
-          const { data: sessionData, error: sessionError } = await supabase
-            .rpc('get_winner_takes_all_session', { session_id_param: session.id });
-          
-          if (sessionError) {
-            console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, sessionError);
-            participantsData[session.id] = [];
-          } else {
-            participantsData[session.id] = sessionData?.participants || [];
-          }
-        } catch (error) {
-          console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, error);
-          participantsData[session.id] = [];
-        }
-      }
-      setWinnerTakesAllParticipants(participantsData);
-      
-      console.log('✅ [Winner Takes It All] Data loaded successfully');
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error loading data:', error);
-    }
-  };
-
-  const joinWinnerTakesAllSession = async (configId: string) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
-      return;
-    }
-
-    console.log('🎮 [Winner Takes It All] Starting join process for config:', configId);
-    console.log('🎮 [Winner Takes It All] User authenticated:', isAuthenticated, 'User ID:', user?.id);
-    
-    setJoiningWinnerTakesAll(true);
-    
-    try {
-      // Location verification for legal compliance
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
-      setLocationVerified(true);
-
-      // Find or create Winner Takes It All session
-      let session = winnerTakesAllSessions.find(s => s.config_id === configId);
-      console.log('🎮 [Winner Takes It All] Existing sessions:', winnerTakesAllSessions);
-      console.log('🎮 [Winner Takes It All] Looking for config:', configId);
-      console.log('🎮 [Winner Takes It All] Found session:', session);
-      
-      if (!session) {
-        console.log('🎮 [Winner Takes It All] Creating new session for config:', configId);
-        // Create new session
-        const { data: sessionId, error: createError } = await supabase
-          .rpc('create_winner_takes_all_session', { config_id_param: configId });
-        
-        if (createError) {
-          console.error('❌ [Winner Takes It All] Error creating session:', createError);
-          setMessage({ type: 'error', text: 'Failed to create session. Please try again.' });
-          return;
-        }
-        
-        console.log('🎮 [Winner Takes It All] Created session with ID:', sessionId);
-        
-        // Get the created session
-        const { data: sessionData, error: sessionError } = await supabase
-          .rpc('get_winner_takes_all_session', { session_id_param: sessionId });
-        
-        if (sessionError) {
-          console.error('❌ [Winner Takes It All] Error getting session:', sessionError);
-          setMessage({ type: 'error', text: 'Failed to get session. Please try again.' });
-          return;
-        }
-        
-        session = sessionData;
-      }
-
-      // Check if user already joined
-      const hasJoined = winnerTakesAllParticipants[session.id]?.some(
-        p => p.user_id === user.id
-      );
-      
-      if (hasJoined) {
-        setMessage({ type: 'error', text: 'You have already joined this Winner Takes It All tournament!' });
-        return;
-      }
-
-      // Join the session
-      console.log('🎮 [Winner Takes It All] Joining session:', session.id);
-      const { data: joinResult, error: joinError } = await supabase
-        .rpc('join_winner_takes_all_session', { session_id_param: session.id });
-      
-      if (joinError) {
-        console.error('❌ [Winner Takes It All] Error joining session:', joinError);
-        console.error('❌ [Winner Takes It All] Join error details:', JSON.stringify(joinError, null, 2));
-        setMessage({ type: 'error', text: 'Failed to join session. Please try again.' });
-        return;
-      }
-      
-      console.log('🎮 [Winner Takes It All] Successfully joined session:', joinResult);
-
-      // Deduct token from user's wallet
-      const { error: deductError } = await supabase
-        .from('token_transactions')
-        .insert({
-          user_id: user.id,
-          amount: -1, // Deduct 1 token
-          transaction_type: 'tournament_entry',
-          description: `Winner Takes It All tournament entry - ${session.id}`,
-          metadata: { session_id: session.id, config_id: configId }
-        });
-
-      if (deductError) {
-        console.error('❌ [Winner Takes It All] Error deducting token:', deductError);
-        setMessage({ type: 'error', text: 'Failed to deduct token. Please try again.' });
-        return;
-      }
-
-      // Refresh token balance
-      refreshTokens();
-
-      // Start the game
-      const config = fixedGameConfigs.find(c => c.id === configId);
-      if (config) {
-        setSelectedGameFlow({
-          gameType: config.game_type,
-          sessionId: session.id,
-          configId: configId,
-          entryFee: 1
-        });
-        setCurrentView('game');
-      }
-
-      setMessage({ type: 'success', text: 'Successfully joined Winner Takes It All tournament!' });
-      
-      // Refresh data
-      await loadWinnerTakesAllData();
-      
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error joining session:', error);
-      if (error instanceof GeolocationPositionError) {
-        setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
-      } else {
-        setMessage({ type: 'error', text: 'Failed to join tournament. Please try again.' });
-      }
-    } finally {
-      setJoiningWinnerTakesAll(false);
-    }
-  };
 
   const ensureAllConfigsHaveSessions = async (configs: FixedGameConfig[], sessions: HotSellSession[]) => {
     try {
@@ -369,36 +193,6 @@ export default function HotSellPage() {
     
     hotSellSessions.forEach(session => {
       const config = fixedGameConfigs.find(c => c.id === session.config_id);
-      const isWinnerTakesAll = config?.title?.includes('Winner Takes It All');
-      
-      if (isWinnerTakesAll) {
-        // Winner Takes It All timer logic
-        const payouts = calculateWinnerTakesAllPayouts(config!);
-        if (payouts) {
-          // For Winner Takes It All, use target_pot as base price
-          const basePrice = session.target_pot || payouts.basePrice;
-          const isBasePriceMet = (session.current_pot || 0) >= basePrice;
-          const isTimerActive = session.status === 'active' && session.timer_started_at;
-          
-          let timeRemaining = 0;
-          if (isTimerActive && session.timer_started_at) {
-            const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
-            timeRemaining = Math.max(0, config!.game_duration - elapsed);
-          }
-          
-          newTimeRemaining[session.id] = {
-            hours: Math.floor(timeRemaining / 3600),
-            minutes: Math.floor((timeRemaining % 3600) / 60),
-            seconds: timeRemaining % 60,
-            isHotSell: false, // Winner Takes It All doesn't have hot sell mode
-            isBasePriceMet: isBasePriceMet,
-            canJoin: isBasePriceMet,
-            isTimerActive: isTimerActive,
-            basePrice: basePrice,
-            currentPot: session.current_pot || 0
-          };
-        }
-      } else {
         // Regular Hot Sell timer logic
         const basePriceMet = session.current_pot >= session.target_pot;
         
@@ -430,153 +224,6 @@ export default function HotSellPage() {
     }
   };
 
-  const joinWinnerTakesAll = async (configId: string) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
-      return;
-    }
-
-    // Find the config for this game
-    const config = fixedGameConfigs.find(c => c.id === configId);
-    if (!config) {
-      setMessage({ type: 'error', text: 'Game configuration not found' });
-      return;
-    }
-
-    // Get the actual Winner Takes It All payout calculation
-    const payouts = calculateWinnerTakesAllPayouts(config);
-    if (!payouts) {
-      setMessage({ type: 'error', text: 'Could not calculate tournament payouts' });
-      return;
-    }
-
-    // Use the actual tournament configuration
-    const winnerTakesAllConfig = {
-      ...config,
-      entry_fee: payouts.entryFee,
-      prize_pool: payouts.totalPrize,
-      max_participants: payouts.maxPlayers,
-      description: `1 token entry - Winner takes ${formatPrizeAmount(payouts.winnerPrize)}! Base price: ${formatPrizeAmount(payouts.basePrice)}`
-    };
-
-    // Location verification for legal compliance
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      console.log('Location verified:', position.coords);
-    } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Location verification required to join tournaments for legal compliance. Please enable location services.' 
-      });
-      return;
-    }
-
-    if (userTokens < winnerTakesAllConfig.entry_fee) {
-      setMessage({ type: 'error', text: `You need ${winnerTakesAllConfig.entry_fee} token to join this tournament` });
-      return;
-    }
-
-    setJoiningSession(configId);
-    
-    try {
-      // Create a winner-takes-all session (or join existing one)
-      let session = await FixedGamesService.createHotSellSession(configId);
-      
-      if (!session) {
-        // If creation failed, try to find an existing session
-        const existingSessions = await FixedGamesService.getHotSellSessions();
-        session = existingSessions.find(s => s.config_id === configId);
-      }
-      
-      if (session) {
-        // Actually join the session using the fixed function
-        const participant = await FixedGamesService.joinHotSellSession(
-          session.id,
-          user.id,
-          winnerTakesAllConfig.entry_fee
-        );
-        
-        if (participant) {
-          console.log('✅ [WinnerTakesAll] User added to participants:', participant);
-          
-          // Track user participation locally
-          addUserParticipation(session.id);
-          
-          // Check if this is a duplicate join (user already had a score)
-          const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
-          
-          if (isDuplicateJoin) {
-            setMessage({ type: 'success', text: `You have already played this tournament! Your score: ${participant.score}` });
-            // Don't start the game again, just show the message
-            return;
-          }
-          
-          setMessage({ type: 'success', text: `Successfully joined Winner Takes All tournament! Game starting in 3 seconds...` });
-          
-          // Start the game flow with 3-second countdown
-          setSelectedGameFlow({
-            gameType: config.game_type,
-            sessionId: session.id,
-            configId: config.id,
-            entryFee: winnerTakesAllConfig.entry_fee // Pass entry fee for token deduction
-          });
-          setCurrentView('game');
-          
-          // Refresh sessions and participants
-          const updatedSessions = await FixedGamesService.getHotSellSessions();
-          setHotSellSessions(updatedSessions);
-          
-          // Refresh participants for this session
-          const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
-          const activeGame = activeGames.find(game => game.config_id === session.config_id);
-          
-          if (activeGame) {
-            const updatedParticipants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
-            setSessionParticipants(prev => ({
-              ...prev,
-              [session.id]: updatedParticipants
-            }));
-          }
-        } else {
-          console.error('❌ [WinnerTakesAll] Failed to add user to participants');
-          setMessage({ type: 'error', text: 'Failed to join the tournament. Please try again.' });
-        }
-      } else {
-        setMessage({ type: 'error', text: 'Failed to create or find tournament session.' });
-      }
-      
-    } catch (error: any) {
-      console.error('Error joining winner takes all:', error);
-      
-      // Check if it's a duplicate user error
-      if (error?.code === '23505' || error?.message?.includes('already exists')) {
-        setMessage({ 
-          type: 'error', 
-          text: 'You have already joined this tournament!' 
-        });
-      } else {
-        // Refund tokens on other errors
-        try {
-          await UserService.updateUserTokens(user.id, userTokens);
-        } catch (refundError) {
-          console.error('Failed to refund tokens:', refundError);
-        }
-        setMessage({ 
-          type: 'error', 
-          text: 'Failed to join tournament. Tokens refunded.' 
-        });
-      }
-    } finally {
-      setJoiningSession(null);
-    }
-  };
 
   const joinHotSellSession = async (session: HotSellSession, config: FixedGameConfig) => {
     if (!user || !isAuthenticated) {
@@ -1023,63 +670,6 @@ export default function HotSellPage() {
     }).format(amount);
   };
 
-  // Winner Takes It All payout calculation (hardcoded for specific tournaments)
-  const calculateWinnerTakesAllPayouts = (config: FixedGameConfig) => {
-    const title = config.title || '';
-    
-    // Hardcoded configurations for specific Winner Takes It All tournaments
-    if (title.includes('$100 Winner Takes It All')) {
-      return {
-        winnerPrize: 85, // Winner gets $85
-        platformFee: 15, // Platform fee $15
-        totalPrize: 100, // Total prize $100
-        entryFee: 1, // 1 token entry
-        basePrice: 10, // Base price $10 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    if (title.includes('$250 Winner Takes It All')) {
-      return {
-        winnerPrize: 212.50, // Winner gets $212.50
-        platformFee: 37.50, // Platform fee $37.50
-        totalPrize: 250, // Total prize $250
-        entryFee: 1, // 1 token entry
-        basePrice: 25, // Base price $25 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    if (title.includes('$1000 Winner Takes It All')) {
-      return {
-        winnerPrize: 850, // Winner gets $850
-        platformFee: 150, // Platform fee $150
-        totalPrize: 1000, // Total prize $1000
-        entryFee: 1, // 1 token entry
-        basePrice: 100, // Base price $100 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    if (title.includes('$2500 Winner Takes It All')) {
-      return {
-        winnerPrize: 2125, // Winner gets $2125
-        platformFee: 375, // Platform fee $375
-        totalPrize: 2500, // Total prize $2500
-        entryFee: 1, // 1 token entry
-        basePrice: 250, // Base price $250 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    // Default fallback
-    console.warn('Could not find hardcoded configuration for Winner Takes It All title:', title);
-    return null;
-  };
 
   // Comprehensive payout calculation system for Hot Sell tournaments
   const calculateTournamentPayouts = (config: FixedGameConfig) => {
@@ -1183,57 +773,6 @@ export default function HotSellPage() {
 
   // Adjust entry fees using appropriate payout calculation
   const adjustEntryFee = (config: FixedGameConfig) => {
-    // Check if this is a Winner Takes It All tournament
-    // Convert Winner Takes It All tournaments to regular hot sell tournaments
-    if (config.title?.includes('Winner Takes It All')) {
-      const title = config.title || '';
-      
-      // Extract prize amount and convert to regular hot sell format
-      if (title.includes('$100 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$100 Hot Sell - Laser Dodge',
-          description: '1st place: $42.50, 2nd place: $25.50, 3rd place: $17.00. Platform fee: $15.00',
-          entry_fee: 1,
-          prize_pool: 100,
-          max_participants: 100
-        };
-      }
-      
-      if (title.includes('$250 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$250 Hot Sell - Multi Target',
-          description: '1st place: $106.25, 2nd place: $63.75, 3rd place: $42.50. Platform fee: $37.50',
-          entry_fee: 1,
-          prize_pool: 250,
-          max_participants: 250
-        };
-      }
-      
-      if (title.includes('$1000 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$1000 Hot Sell - Sword Parry',
-          description: '1st place: $425.00, 2nd place: $255.00, 3rd place: $170.00. Platform fee: $150.00',
-          entry_fee: 1,
-          prize_pool: 1000,
-          max_participants: 1000
-        };
-      }
-      
-      if (title.includes('$2500 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$2500 Hot Sell - Laser Dodge',
-          description: '1st place: $1062.50, 2nd place: $637.50, 3rd place: $425.00. Platform fee: $375.00',
-          entry_fee: 1,
-          prize_pool: 2500,
-          max_participants: 2500
-        };
-      }
-    }
-    
     // Regular hot sell tournaments
     const payouts = calculateTournamentPayouts(config);
     
@@ -1270,16 +809,16 @@ export default function HotSellPage() {
   };
 
   if (isLoading) {
-  return (
+    return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
         <CleanNavigation />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             <span className="ml-4 text-lg">Loading hot sell tournaments...</span>
-                </div>
-              </div>
-              </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -1344,7 +883,7 @@ export default function HotSellPage() {
         <div className="absolute top-0 left-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
-                </div>
+      </div>
       
       <CleanNavigation />
       
@@ -1416,7 +955,6 @@ export default function HotSellPage() {
               const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
               const isHotSell = timer?.isHotSell || false;
               const canJoin = userTokens >= adjustedConfig.entry_fee;
-              const isWinnerTakesAll = config.title?.includes('Winner Takes It All') || false;
               
               // Skip rendering if payout calculation failed
               if (!prizeDistribution) {
@@ -1476,59 +1014,34 @@ export default function HotSellPage() {
                   {timer && (
                     <div className="mb-4">
                       <div className={`text-center p-3 rounded-xl ${
-                        isWinnerTakesAll ? (
-                          timer.isBasePriceMet ? 'bg-green-500/20 border border-green-500/50' : 'bg-yellow-500/20 border border-yellow-500/50'
-                        ) : (
-                          isHotSell ? 'bg-red-500/20 border border-red-500/50' : 
-                          session && session.current_pot >= session.target_pot ? 'bg-blue-500/20 border border-blue-500/50' :
-                          'bg-yellow-500/20 border border-yellow-500/50'
-                        )
+                        isHotSell ? 'bg-red-500/20 border border-red-500/50' : 
+                        session && session.current_pot >= session.target_pot ? 'bg-blue-500/20 border border-blue-500/50' :
+                        'bg-yellow-500/20 border border-yellow-500/50'
                       }`}>
                         <div className="flex items-center justify-center mb-2">
                           <ClockIcon className={`w-5 h-5 mr-2 ${
-                            isWinnerTakesAll ? (
-                              timer.isBasePriceMet ? 'text-green-400' : 'text-yellow-400'
-                            ) : (
-                              isHotSell ? 'text-red-400' : 
-                              session && session.current_pot >= session.target_pot ? 'text-blue-400' :
-                              'text-yellow-400'
-                            )
+                            isHotSell ? 'text-red-400' : 
+                            session && session.current_pot >= session.target_pot ? 'text-blue-400' :
+                            'text-yellow-400'
                           }`} />
                           <span className={`font-semibold ${
-                            isWinnerTakesAll ? (
-                              timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
-                            ) : (
-                              isHotSell ? 'text-red-300' : 
-                              session && session.current_pot >= session.target_pot ? 'text-blue-300' :
-                              'text-yellow-300'
-                            )
-                          }`}>
-                            {isWinnerTakesAll ? (
-                              timer.isBasePriceMet ? 'Game Timer Active!' : 'Waiting for Base Price'
-                            ) : (
-                              isHotSell ? 'HOT SELL MODE!' : 
-                              session && session.current_pot >= session.target_pot ? 'Time Remaining' :
-                              'Waiting for Base Price'
-                            )}
-                          </span>
-                        </div>
-                        <p className={`text-lg font-bold ${
-                          isWinnerTakesAll ? (
-                            timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
-                          ) : (
                             isHotSell ? 'text-red-300' : 
                             session && session.current_pot >= session.target_pot ? 'text-blue-300' :
                             'text-yellow-300'
-                          )
+                          }`}>
+                            {isHotSell ? 'HOT SELL MODE!' : 
+                            session && session.current_pot >= session.target_pot ? 'Time Remaining' :
+                            'Waiting for Base Price'}
+                          </span>
+                        </div>
+                        <p className={`text-lg font-bold ${
+                          isHotSell ? 'text-red-300' : 
+                          session && session.current_pot >= session.target_pot ? 'text-blue-300' :
+                          'text-yellow-300'
                         }`}>
-                          {isWinnerTakesAll ? (
-                            timer.isBasePriceMet ? formatTimeRemaining(timer.minutes, timer.seconds) : 
-                            `Need $${timer.basePrice || 0} more to start`
-                          ) : (
-                            isHotSell ? formatTimeRemaining(timer.minutes, timer.seconds) :
-                            session && session.current_pot >= session.target_pot ? formatTimeRemaining(timer.minutes, timer.seconds) :
-                            `Need ${session?.target_pot || 0} more players`
-                          )}
+                          {isHotSell ? formatTimeRemaining(timer.minutes, timer.seconds) :
+                          session && session.current_pot >= session.target_pot ? formatTimeRemaining(timer.minutes, timer.seconds) :
+                          `Need ${session?.target_pot || 0} more players`}
                         </p>
                       </div>
                     </div>
@@ -1790,47 +1303,167 @@ export default function HotSellPage() {
               </div>
             </div>
 
-        {/* Winner Takes It All Section */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">🏆 WINNER TAKES IT ALL</h2>
-            <p className="text-lg text-gray-300">1 token entry tournaments - Winner gets everything!</p>
-            <p className="text-sm text-gray-400">Base pot: $3, grows with each player! No limits on participants.</p>
-              </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Winner Takes It All Games */}
-            {fixedGameConfigs.map((config) => {
-              // Only process Winner Takes It All tournaments
-              if (config.tournament_type !== 'winner_takes_all') {
-                return null; // Skip non-Winner Takes It All tournaments
-              }
-              
-              // Use Winner Takes It All sessions instead of hot sell sessions
-              const adjustedConfig = adjustEntryFee(config);
-              const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
-              const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculateWinnerTakesAllPayouts(adjustedConfig);
-              const isHotSell = timer?.isHotSell || false;
-              const canJoin = userTokens >= adjustedConfig.entry_fee;
-              
-              // Skip rendering if payout calculation failed
-              if (!prizeDistribution) {
-                console.warn('Skipping Winner Takes It All config due to payout calculation failure:', adjustedConfig.title);
-                return null;
-              }
-              
-              return (
-                <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-                  isHotSell ? 'border-red-500/50 bg-red-500/10' : 'border-white/20 hover:bg-white/15'
-                }`}>
-                  {/* Game Header */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center">
-                        <span className="text-3xl mr-3">🏆</span>
-                        <h3 className="text-xl font-bold text-white">{adjustedConfig.title}</h3>
+        {/* Hot Sell Listings */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {hotSellListings.map((listing) => {
+            const listingParticipants = participants[listing.id] || [];
+            const prizeDistribution = calculateTournamentPayouts({ title: listing.title, prize_pool: listing.prize_pool } as FixedGameConfig);
+            const isJoined = listingParticipants.some(p => p.user_id === user?.id);
+            const canJoin = userTokens >= listing.entry_fee && !isJoined && listingParticipants.length < listing.max_participants;
+            
+            if (!prizeDistribution) {
+              console.warn('Skipping listing due to payout calculation failure:', listing.title);
+              return null;
+            }
+            
+            return (
+              <div key={listing.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <span className="text-3xl mr-3">🔥</span>
+                      <h3 className="text-xl font-bold text-white">{listing.title}</h3>
+                    </div>
+                    <div className="flex items-center rounded-full px-3 py-1 bg-red-500/20 text-red-300">
+                      <FireIcon className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-semibold">HOT SELL</span>
+                    </div>
                   </div>
+                  
+                  <p className="text-gray-300 mb-4">{listing.description}</p>
+                  
+                  {/* Prize Pool */}
+                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-red-500 to-orange-500">
+                    <div className="text-center">
+                      <p className="text-red-100 text-sm font-medium mb-1">PRIZE POOL</p>
+                      <p className="text-2xl font-bold text-white">{formatPrizeAmount(listing.prize_pool)}</p>
+                    </div>
+                  </div>
+
+                  {/* Prize Distribution */}
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
+                      <TrophyIcon className="w-4 h-4 mr-2" />
+                      Prize Distribution
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
+                        <div className="flex items-center">
+                          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
+                            <span className="text-white font-bold text-xs">1</span>
+                          </div>
+                          <span className="text-white text-sm">1st Place</span>
+                        </div>
+                        <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.first)}</span>
+                      </div>
+                      <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
+                        <div className="flex items-center">
+                          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
+                            <span className="text-white font-bold text-xs">📊</span>
+                          </div>
+                          <span className="text-red-300 text-sm">Platform Fee (15%)</span>
+                        </div>
+                        <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.platformFee)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Game Info */}
+                  <div className="space-y-2 text-sm text-gray-300 mb-6">
+                    <div className="flex justify-between">
+                      <span>Game Type:</span>
+                      <span className="text-white font-medium">{getGameIcon(listing.game_type)} {listing.game_type.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Duration:</span>
+                      <span className="text-white font-medium">{listing.game_duration}s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Entry Fee:</span>
+                      <span className="text-green-400 font-bold">{listing.entry_fee} tokens</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Participants:</span>
+                      <span className="text-white font-semibold">{listingParticipants.length}/{listing.max_participants}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar for Original Hot Sell Listings */}
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm text-gray-300 mb-2">
+                      <span>Participants Progress</span>
+                      <span>{listingParticipants.length} / {listing.max_participants} players</span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-yellow-500 to-orange-500" 
+                        style={{ 
+                          width: `${Math.min(100, (listingParticipants.length / listing.max_participants) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Target: {listing.max_participants} players</span>
+                      <span>Current: {listingParticipants.length} players</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-3">
+                    {!isAuthenticated ? (
+                      <div className="bg-gray-600 rounded-xl p-3 text-center">
+                        <p className="text-gray-300 text-sm">Please log in to join tournaments</p>
+                      </div>
+                    ) : isJoined ? (
+                      <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                        <p className="text-green-300 text-sm">You have joined this tournament!</p>
+                      </div>
+                    ) : !canJoin ? (
+                      <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
+                        <p className="text-red-300 text-sm">You need {listing.entry_fee} tokens to join</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => joinHotSellListing(listing)}
+                          disabled={joiningListing === listing.id}
+                          className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
+                            joiningListing === listing.id
+                              ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                          }`}
+                        >
+                          {joiningListing === listing.id ? (
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                              Joining...
+                            </div>
+                          ) : (
+                            `🔒 JOIN TOURNAMENT - ${listing.entry_fee} TOKENS`
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        {/* Create Tournament Button */}
+        {isAuthenticated && (
+          <div className="mt-12 text-center">
+            <button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+              <div className="flex items-center">
+                <TrophyIcon className="w-6 h-6 mr-2" />
+                Create Your Own Tournament
+              </div>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
                       <div className="flex items-center rounded-full px-3 py-1 bg-purple-500/20 text-purple-300">
                         <StarIcon className="w-4 h-4 mr-1" />
                         <span className="text-xs font-semibold">WINNER TAKES ALL</span>
