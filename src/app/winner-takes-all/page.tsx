@@ -357,8 +357,8 @@ export default function WinnerTakesAllPage() {
         return;
       }
 
-      // Update local token state
-      setUserTokens(newTokenBalance);
+      // Refresh token balance to update local state
+      refreshTokens();
       console.log(`✅ [Winner Takes It All] Tokens deducted: ${listing.entry_fee} tokens`);
       console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
