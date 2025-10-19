@@ -212,46 +212,40 @@ export default function WinnerTakesAllPage() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const verifyLocation = async () => {
+  const handleJoinGame = async (configId: string) => {
     if (!user || !isAuthenticated) {
       setMessage({ type: 'error', text: 'Please log in to join tournaments' });
       return;
     }
 
-    try {
-      // Location verification for legal compliance
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
+    // If location not verified, verify it first
+    if (!locationVerified) {
+      try {
+        // Location verification for legal compliance
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          });
         });
-      });
 
-      console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
-      setLocationVerified(true);
-      setMessage({ type: 'success', text: 'Location verified! You can now join tournaments.' });
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Location verification failed:', error);
-      if (error instanceof GeolocationPositionError) {
-        setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
-      } else {
-        setMessage({ type: 'error', text: 'Failed to verify location. Please try again.' });
+        console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
+        setLocationVerified(true);
+        setMessage({ type: 'success', text: 'Location verified! Click JOIN GAME again to start playing.' });
+        return; // Exit after verification, user needs to click again
+      } catch (error) {
+        console.error('❌ [Winner Takes It All] Location verification failed:', error);
+        if (error instanceof GeolocationPositionError) {
+          setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
+        } else {
+          setMessage({ type: 'error', text: 'Failed to verify location. Please try again.' });
+        }
+        return;
       }
     }
-  };
 
-  const joinWinnerTakesAllSession = async (configId: string) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
-      return;
-    }
-
-    if (!locationVerified) {
-      setMessage({ type: 'error', text: 'Please verify your location first before joining tournaments' });
-      return;
-    }
-
+    // If location is verified, proceed to join the session
     console.log('🎮 [Winner Takes It All] Starting join process for config:', configId);
     
     setJoiningWinnerTakesAll(true);
@@ -765,21 +759,16 @@ export default function WinnerTakesAllPage() {
                           Need {prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens
                         </p>
                       </div>
-                    ) : !locationVerified ? (
-                      <button
-                        onClick={verifyLocation}
-                        className="w-full py-3 px-6 rounded-2xl font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:scale-105 shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        🌍 VERIFY LOCATION TO JOIN
-                      </button>
                     ) : (
                       <button
-                        onClick={() => joinWinnerTakesAllSession(config.id)}
+                        onClick={() => handleJoinGame(config.id)}
                         disabled={joiningWinnerTakesAll}
                         className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
                           joiningWinnerTakesAll
                             ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                            : locationVerified
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:scale-105 shadow-lg hover:shadow-xl'
                         }`}
                       >
                         {joiningWinnerTakesAll ? (
@@ -787,8 +776,10 @@ export default function WinnerTakesAllPage() {
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                             Joining...
                           </div>
+                        ) : locationVerified ? (
+                          `🔒 JOIN GAME - $${config.entry_fee}.00`
                         ) : (
-                          `🔒 JOIN FOR $${config.entry_fee}.00`
+                          `🌍 JOIN GAME - VERIFY LOCATION`
                         )}
                       </button>
                     )}
