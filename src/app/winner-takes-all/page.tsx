@@ -212,16 +212,12 @@ export default function WinnerTakesAllPage() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const joinWinnerTakesAllSession = async (configId: string) => {
+  const verifyLocation = async () => {
     if (!user || !isAuthenticated) {
       setMessage({ type: 'error', text: 'Please log in to join tournaments' });
       return;
     }
 
-    console.log('🎮 [Winner Takes It All] Starting join process for config:', configId);
-    
-    setJoiningWinnerTakesAll(true);
-    
     try {
       // Location verification for legal compliance
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -234,7 +230,33 @@ export default function WinnerTakesAllPage() {
 
       console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
       setLocationVerified(true);
+      setMessage({ type: 'success', text: 'Location verified! You can now join tournaments.' });
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Location verification failed:', error);
+      if (error instanceof GeolocationPositionError) {
+        setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to verify location. Please try again.' });
+      }
+    }
+  };
 
+  const joinWinnerTakesAllSession = async (configId: string) => {
+    if (!user || !isAuthenticated) {
+      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
+      return;
+    }
+
+    if (!locationVerified) {
+      setMessage({ type: 'error', text: 'Please verify your location first before joining tournaments' });
+      return;
+    }
+
+    console.log('🎮 [Winner Takes It All] Starting join process for config:', configId);
+    
+    setJoiningWinnerTakesAll(true);
+    
+    try {
       // Find or create Winner Takes It All session
       let session = winnerTakesAllSessions.find(s => s.config_id === configId);
       
@@ -514,11 +536,32 @@ export default function WinnerTakesAllPage() {
           <p className="text-xl text-gray-300 mb-2">1 Token Entry - Winner Gets Everything!</p>
           <p className="text-lg text-gray-400">Unlimited players, base price matching prize amount</p>
           
-          {/* User Token Balance */}
+          {/* User Status */}
           {isAuthenticated && (
-            <div className="mt-6 inline-flex items-center bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/20">
-              <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
-              <span className="text-lg font-semibold">Your Tokens: {userTokens}</span>
+            <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <div className="inline-flex items-center bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/20">
+                <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
+                <span className="text-lg font-semibold">Your Tokens: {userTokens}</span>
+              </div>
+              
+              {/* Location Verification Status */}
+              <div className={`inline-flex items-center backdrop-blur-xl rounded-2xl px-6 py-3 border ${
+                locationVerified 
+                  ? 'bg-green-500/20 border-green-500/50' 
+                  : 'bg-red-500/20 border-red-500/50'
+              }`}>
+                {locationVerified ? (
+                  <>
+                    <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
+                    <span className="text-lg font-semibold text-green-300">Location Verified</span>
+                  </>
+                ) : (
+                  <>
+                    <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
+                    <span className="text-lg font-semibold text-red-300">Location Not Verified</span>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -722,6 +765,13 @@ export default function WinnerTakesAllPage() {
                           Need {prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens
                         </p>
                       </div>
+                    ) : !locationVerified ? (
+                      <button
+                        onClick={verifyLocation}
+                        className="w-full py-3 px-6 rounded-2xl font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:scale-105 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        🌍 VERIFY LOCATION TO JOIN
+                      </button>
                     ) : (
                       <button
                         onClick={() => joinWinnerTakesAllSession(config.id)}
