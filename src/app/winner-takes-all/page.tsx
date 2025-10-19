@@ -172,9 +172,24 @@ export default function WinnerTakesAllPage() {
   const loadWinnerTakesAllData = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 [Winner Takes It All] Loading hardcoded data...');
+      console.log('🔄 [Winner Takes It All] Loading data from database...');
       
-      // Use hardcoded listings as configs
+      // Load configurations from database
+      const configsData = await WinnerTakesAllService.getConfigs();
+      setConfigs(configsData);
+      
+      // Load sessions with participants from database
+      const sessionsData = await WinnerTakesAllService.getAllSessions();
+      setSessions(sessionsData);
+      
+      console.log('✅ [Winner Takes It All] Database data loaded successfully');
+      console.log('📊 [Winner Takes It All] Configs:', configsData.length);
+      console.log('📊 [Winner Takes It All] Sessions:', sessionsData.length);
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error loading data:', error);
+      // Fallback to hardcoded data if database fails
+      console.log('🔄 [Winner Takes It All] Falling back to hardcoded data...');
+      
       const configsData = hardcodedListings.map(listing => ({
         id: listing.id,
         game_type: listing.game_type,
@@ -193,7 +208,6 @@ export default function WinnerTakesAllPage() {
       }));
       setConfigs(configsData);
       
-      // Create mock sessions for each config
       const sessionsData = configsData.map(config => ({
         id: `session-${config.id}`,
         config_id: config.id,
@@ -207,12 +221,6 @@ export default function WinnerTakesAllPage() {
         participants: []
       }));
       setSessions(sessionsData);
-      
-      console.log('✅ [Winner Takes It All] Hardcoded data loaded successfully');
-      console.log('📊 [Winner Takes It All] Configs:', configsData.length);
-      console.log('📊 [Winner Takes It All] Sessions:', sessionsData.length);
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -220,11 +228,13 @@ export default function WinnerTakesAllPage() {
 
   const refreshParticipantsData = async () => {
     try {
-      console.log('🔄 [Winner Takes It All] Refreshing participants data...');
+      console.log('🔄 [Winner Takes It All] Refreshing participants data from database...');
       
-      // For now, just log that we're refreshing
-      // In the future, this will reload from database
-      console.log('✅ [Winner Takes It All] Participants refreshed');
+      // Reload sessions with updated participants
+      const sessionsData = await WinnerTakesAllService.getAllSessions();
+      setSessions(sessionsData);
+      
+      console.log('✅ [Winner Takes It All] Participants refreshed:', sessionsData.length, 'sessions');
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error refreshing participants:', error);
     }
@@ -288,10 +298,10 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already completed this tournament (using local state for now)
+    // Check if user already completed this tournament
     const session = sessions.find(s => s.config_id === configId);
     if (session) {
-      const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null);
+      const hasCompleted = await WinnerTakesAllService.hasUserCompleted(session.id, user.id);
       if (hasCompleted) {
         setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
         return;
@@ -338,24 +348,11 @@ export default function WinnerTakesAllPage() {
         return;
       }
 
-      // Find or create session
-      let session = sessions.find(s => s.config_id === configId);
+      // Create or get session from database
+      const session = await WinnerTakesAllService.createOrGetSession(configId);
       if (!session) {
-        // Create new session
-        const newSession = {
-          id: `session-${configId}`,
-          config_id: configId,
-          current_pot: 0,
-          base_price: config.base_price,
-          participants_count: 0,
-          status: 'waiting' as const,
-          timer_started_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          participants: []
-        };
-        setSessions(prev => [...prev, newSession]);
-        session = newSession;
+        setMessage({ type: 'error', text: 'Failed to create/get session!' });
+        return;
       }
 
       // Deduct token from user's wallet FIRST
@@ -373,33 +370,22 @@ export default function WinnerTakesAllPage() {
       console.log(`✅ [Winner Takes It All] Tokens deducted: ${config.entry_fee} tokens`);
       console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
-      // Update session locally (add participant and update pot)
-      const newParticipant = {
-        id: `participant-${user.id}-${session.id}`,
-        session_id: session.id,
-        user_id: user.id,
-        score: null,
-        accuracy: null,
-        joined_at: new Date().toISOString(),
-        completed_at: null
-      };
+      // Join the session (this updates the pot in the database)
+      const joinResult = await WinnerTakesAllService.joinSession(session.id, user.id, config.entry_fee);
+      
+      if (!joinResult.success) {
+        setMessage({ type: 'error', text: joinResult.message });
+        return;
+      }
 
-      setSessions(prev => prev.map(s => 
-        s.id === session.id 
-          ? {
-              ...s,
-              current_pot: s.current_pot + config.entry_fee,
-              participants_count: s.participants_count + 1,
-              participants: [...s.participants, newParticipant]
-            }
-          : s
-      ));
-
-      console.log('💰 [Winner Takes It All] Pot updated locally:', {
+      console.log('💰 [Winner Takes It All] Pot updated in database:', {
         sessionId: session.id,
-        newPot: session.current_pot + config.entry_fee,
-        participants: session.participants_count + 1
+        newPot: joinResult.newPot,
+        participants: joinResult.participantsCount
       });
+
+      // Refresh sessions to get updated data from database
+      await refreshParticipantsData();
 
       // Start the game
       setSelectedGameFlow({
@@ -501,22 +487,25 @@ export default function WinnerTakesAllPage() {
             }
 
             try {
-              // Update score in local state
-              setSessions(prev => prev.map(session => 
-                session.id === selectedGameFlow.sessionId
-                  ? {
-                      ...session,
-                      participants: session.participants.map(participant =>
-                        participant.user_id === user.id
-                          ? { ...participant, score, accuracy, completed_at: new Date().toISOString() }
-                          : participant
-                      )
-                    }
-                  : session
-              ));
+              // Update score in database
+              const updateResult = await WinnerTakesAllService.updateScore(
+                selectedGameFlow.sessionId,
+                user.id,
+                score,
+                accuracy
+              );
 
-              console.log('✅ [Winner Takes It All] Score recorded locally:', score);
+              if (!updateResult.success) {
+                console.error('❌ [Winner Takes It All] Error updating score:', updateResult.message);
+                setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
+                return;
+              }
+
+              console.log('✅ [Winner Takes It All] Score recorded in database:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
+
+              // Refresh sessions to get updated data from database
+              await refreshParticipantsData();
 
               // Show success message
               setMessage({ 
