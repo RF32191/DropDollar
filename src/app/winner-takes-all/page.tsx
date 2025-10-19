@@ -468,9 +468,10 @@ export default function WinnerTakesAllPage() {
           gameType={selectedGameFlow.gameType}
           sessionId={selectedGameFlow.sessionId}
           configId={selectedGameFlow.configId}
-          entryFee={selectedGameFlow.entryFee}
-          onGameComplete={async (score) => {
-            console.log('🎮 [Winner Takes It All] Game completed with score:', score);
+          rngSeed={rngSeed}
+          onComplete={async (score, accuracy) => {
+            console.log('🎮 [Winner Takes It All] Game completed with score:', score, 'accuracy:', accuracy);
+            console.log('🎮 [Winner Takes It All] User:', user?.id, 'SelectedGameFlow:', selectedGameFlow);
             
             if (!user || !selectedGameFlow) {
               console.error('❌ [Winner Takes It All] Missing user or game flow data');
@@ -519,7 +520,7 @@ export default function WinnerTakesAllPage() {
             setCurrentView('list');
             setSelectedGameFlow(null);
           }}
-          onBack={() => {
+          onCancel={() => {
             setCurrentView('list');
             setSelectedGameFlow(null);
           }}
