@@ -817,10 +817,19 @@ export default function HotSellPage() {
     
     if (config?.title?.includes('$10')) {
       return {
-        first: 4.25, // 50% of $8.50 remaining
-        second: 2.55, // 30% of $8.50 remaining
-        third: 1.70,  // 20% of $8.50 remaining
-        totalFee: 1.50 // 15% platform fee
+        first: 4.25, // Winner gets $4.25
+        second: 2.55, // 2nd gets $2.55
+        third: 1.70,  // 3rd gets $1.70
+        totalFee: 1.50 // Platform fee $1.50 (goes to you)
+      };
+    }
+    
+    if (config?.title?.includes('$100 Hot Sell - Laser Dodge')) {
+      return {
+        first: 85,   // Winner gets $85
+        second: 15,  // 2nd gets $15
+        third: 0,    // No 3rd place
+        totalFee: 15 // Platform fee $15 (goes to you)
       };
     }
     
@@ -829,7 +838,7 @@ export default function HotSellPage() {
         first: 85,   // Winner gets $85
         second: 15,  // 2nd gets $15
         third: 0,    // No 3rd place
-        totalFee: 15 // Platform fee $15
+        totalFee: 15 // Platform fee $15 (goes to you)
       };
     }
     
@@ -838,7 +847,7 @@ export default function HotSellPage() {
         first: 212.50, // Winner gets $212.50
         second: 37.50,  // 2nd gets $37.50
         third: 0,       // No 3rd place
-        totalFee: 37.50 // Platform fee $37.50
+        totalFee: 37.50 // Platform fee $37.50 (goes to you)
       };
     }
     
@@ -847,7 +856,7 @@ export default function HotSellPage() {
         first: 850,  // Winner gets $850
         second: 150, // 2nd gets $150
         third: 0,    // No 3rd place
-        totalFee: 150 // Platform fee $150
+        totalFee: 150 // Platform fee $150 (goes to you)
       };
     }
     
@@ -856,7 +865,7 @@ export default function HotSellPage() {
         first: 2125, // Winner gets $2125
         second: 375, // 2nd gets $375
         third: 0,    // No 3rd place
-        totalFee: 375 // Platform fee $375
+        totalFee: 375 // Platform fee $375 (goes to you)
       };
     }
     
@@ -899,6 +908,15 @@ export default function HotSellPage() {
         entry_fee: 1, // 1 token = $1
         prize_pool: 10, // $10 total
         max_participants: 10 // 10 players
+      };
+    }
+    
+    if (config.title?.includes('$100 Hot Sell - Laser Dodge')) {
+      return {
+        ...config,
+        entry_fee: 1, // 1 token = $1
+        prize_pool: 100, // $100 total
+        max_participants: 100 // 100 players
       };
     }
     
