@@ -787,12 +787,14 @@ export default function HotSellPage() {
   };
 
   const formatPrizeAmount = (amount: number) => {
+    // Convert cents to dollars for display
+    const dollars = amount / 100;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(dollars);
   };
 
   const calculatePrizeDistribution = (prizePool: number, config?: FixedGameConfig) => {
@@ -1383,7 +1385,7 @@ export default function HotSellPage() {
                 title: `Winner Takes All - ${config.title}`,
                 entry_fee: 1, // 1 token entry
                 prize_pool: 300, // $3 base prize pool (300 cents)
-                max_participants: 1000, // No practical limit
+                max_participants: 2, // 2 players max
                 description: `1 token entry - Winner takes everything! Base pot: $3, grows with each player.`
               };
               
@@ -1425,14 +1427,14 @@ export default function HotSellPage() {
                 <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-300 mb-2">
                         <span>Progress to Target</span>
-                        <span>0 / 50 players</span>
+                        <span>0 / {winnerTakesAllConfig.max_participants} players</span>
                   </div>
                       <div className="w-full bg-gray-700 rounded-full h-3">
                         <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full" style={{ width: '0%' }}></div>
                       </div>
                       <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Target: 50 players</span>
-                        <span>Remaining: 50 players</span>
+                        <span>Target: {winnerTakesAllConfig.max_participants} players</span>
+                        <span>Remaining: {winnerTakesAllConfig.max_participants} players</span>
                   </div>
                 </div>
                 
@@ -1444,7 +1446,7 @@ export default function HotSellPage() {
               </div>
                       <div className="flex justify-between">
                         <span>Max Players:</span>
-                        <span className="text-white font-medium">Unlimited</span>
+                        <span className="text-white font-medium">{winnerTakesAllConfig.max_participants}</span>
                   </div>
                       <div className="flex justify-between">
                         <span>Duration:</span>
