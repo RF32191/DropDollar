@@ -1784,13 +1784,7 @@ export default function HotSellPage() {
               </div>
             </div>
 
-        {/* Winner Takes It All Section */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">🏆 WINNER TAKES IT ALL</h2>
-            <p className="text-lg text-gray-300">1 token entry tournaments - Winner gets everything!</p>
-            <p className="text-sm text-gray-400">Base pot: $3, grows with each player! No limits on participants.</p>
-              </div>
+        {/* Hot Sell Listings */}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Winner Takes It All Games */}
