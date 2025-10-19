@@ -172,24 +172,9 @@ export default function WinnerTakesAllPage() {
   const loadWinnerTakesAllData = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 [Winner Takes It All] Loading data from database...');
+      console.log('🔄 [Winner Takes It All] Loading hardcoded data with localStorage persistence...');
       
-      // Load configurations from database
-      const configsData = await WinnerTakesAllService.getConfigs();
-      setConfigs(configsData);
-      
-      // Load sessions with participants from database
-      const sessionsData = await WinnerTakesAllService.getAllSessions();
-      setSessions(sessionsData);
-      
-      console.log('✅ [Winner Takes It All] Database data loaded successfully');
-      console.log('📊 [Winner Takes It All] Configs:', configsData.length);
-      console.log('📊 [Winner Takes It All] Sessions:', sessionsData.length);
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error loading data:', error);
-      // Fallback to hardcoded data if database fails
-      console.log('🔄 [Winner Takes It All] Falling back to hardcoded data...');
-      
+      // Use hardcoded listings as configs
       const configsData = hardcodedListings.map(listing => ({
         id: listing.id,
         game_type: listing.game_type,
@@ -208,35 +193,59 @@ export default function WinnerTakesAllPage() {
       }));
       setConfigs(configsData);
       
-      const sessionsData = configsData.map(config => ({
-        id: `session-${config.id}`,
-        config_id: config.id,
-        current_pot: 0,
-        base_price: config.base_price,
-        participants_count: 0,
-        status: 'waiting' as const,
-        timer_started_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        participants: []
-      }));
+      // Try to load existing sessions from localStorage first
+      const savedSessions = localStorage.getItem('winnerTakesAllSessions');
+      let sessionsData;
+      
+      if (savedSessions) {
+        try {
+          sessionsData = JSON.parse(savedSessions);
+          console.log('✅ [Winner Takes It All] Loaded saved sessions from localStorage');
+        } catch (error) {
+          console.error('❌ [Winner Takes It All] Error parsing saved sessions:', error);
+          sessionsData = createDefaultSessions(configsData);
+        }
+      } else {
+        sessionsData = createDefaultSessions(configsData);
+      }
+      
       setSessions(sessionsData);
+      
+      console.log('✅ [Winner Takes It All] Data loaded successfully');
+      console.log('📊 [Winner Takes It All] Configs:', configsData.length);
+      console.log('📊 [Winner Takes It All] Sessions:', sessionsData.length);
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const createDefaultSessions = (configs: any[]) => {
+    return configs.map(config => ({
+      id: `session-${config.id}`,
+      config_id: config.id,
+      current_pot: 0,
+      base_price: config.base_price,
+      participants_count: 0,
+      status: 'waiting' as const,
+      timer_started_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      participants: []
+    }));
+  };
+
   const refreshParticipantsData = async () => {
     try {
-      console.log('🔄 [Winner Takes It All] Refreshing participants data from database...');
+      console.log('🔄 [Winner Takes It All] Saving sessions to localStorage...');
       
-      // Reload sessions with updated participants
-      const sessionsData = await WinnerTakesAllService.getAllSessions();
-      setSessions(sessionsData);
+      // Save current sessions to localStorage
+      localStorage.setItem('winnerTakesAllSessions', JSON.stringify(sessions));
       
-      console.log('✅ [Winner Takes It All] Participants refreshed:', sessionsData.length, 'sessions');
+      console.log('✅ [Winner Takes It All] Sessions saved to localStorage');
     } catch (error) {
-      console.error('❌ [Winner Takes It All] Error refreshing participants:', error);
+      console.error('❌ [Winner Takes It All] Error saving sessions:', error);
     }
   };
 
@@ -298,10 +307,10 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already completed this tournament
+    // Check if user already completed this tournament (using localStorage)
     const session = sessions.find(s => s.config_id === configId);
     if (session) {
-      const hasCompleted = await WinnerTakesAllService.hasUserCompleted(session.id, user.id);
+      const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null);
       if (hasCompleted) {
         setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
         return;
@@ -348,11 +357,24 @@ export default function WinnerTakesAllPage() {
         return;
       }
 
-      // Create or get session from database
-      const session = await WinnerTakesAllService.createOrGetSession(configId);
+      // Find or create session
+      let session = sessions.find(s => s.config_id === configId);
       if (!session) {
-        setMessage({ type: 'error', text: 'Failed to create/get session!' });
-        return;
+        // Create new session
+        const newSession = {
+          id: `session-${configId}`,
+          config_id: configId,
+          current_pot: 0,
+          base_price: config.base_price,
+          participants_count: 0,
+          status: 'waiting' as const,
+          timer_started_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          participants: []
+        };
+        setSessions(prev => [...prev, newSession]);
+        session = newSession;
       }
 
       // Deduct token from user's wallet FIRST
@@ -370,22 +392,40 @@ export default function WinnerTakesAllPage() {
       console.log(`✅ [Winner Takes It All] Tokens deducted: ${config.entry_fee} tokens`);
       console.log(`✅ [Winner Takes It All] New balance: ${newTokenBalance} tokens`);
 
-      // Join the session (this updates the pot in the database)
-      const joinResult = await WinnerTakesAllService.joinSession(session.id, user.id, config.entry_fee);
-      
-      if (!joinResult.success) {
-        setMessage({ type: 'error', text: joinResult.message });
-        return;
-      }
+      // Update session locally (add participant and update pot)
+      const newParticipant = {
+        id: `participant-${user.id}-${session.id}`,
+        session_id: session.id,
+        user_id: user.id,
+        score: null,
+        accuracy: null,
+        joined_at: new Date().toISOString(),
+        completed_at: null
+      };
 
-      console.log('💰 [Winner Takes It All] Pot updated in database:', {
-        sessionId: session.id,
-        newPot: joinResult.newPot,
-        participants: joinResult.participantsCount
+      setSessions(prev => {
+        const updatedSessions = prev.map(s => 
+          s.id === session.id 
+            ? {
+                ...s,
+                current_pot: s.current_pot + config.entry_fee,
+                participants_count: s.participants_count + 1,
+                participants: [...s.participants, newParticipant]
+              }
+            : s
+        );
+        
+        // Save to localStorage
+        localStorage.setItem('winnerTakesAllSessions', JSON.stringify(updatedSessions));
+        
+        return updatedSessions;
       });
 
-      // Refresh sessions to get updated data from database
-      await refreshParticipantsData();
+      console.log('💰 [Winner Takes It All] Pot updated and saved to localStorage:', {
+        sessionId: session.id,
+        newPot: session.current_pot + config.entry_fee,
+        participants: session.participants_count + 1
+      });
 
       // Start the game
       setSelectedGameFlow({
@@ -487,25 +527,29 @@ export default function WinnerTakesAllPage() {
             }
 
             try {
-              // Update score in database
-              const updateResult = await WinnerTakesAllService.updateScore(
-                selectedGameFlow.sessionId,
-                user.id,
-                score,
-                accuracy
-              );
+              // Update score in localStorage
+              setSessions(prev => {
+                const updatedSessions = prev.map(session => 
+                  session.id === selectedGameFlow.sessionId
+                    ? {
+                        ...session,
+                        participants: session.participants.map(participant =>
+                          participant.user_id === user.id
+                            ? { ...participant, score, accuracy, completed_at: new Date().toISOString() }
+                            : participant
+                        )
+                      }
+                    : session
+                );
+                
+                // Save to localStorage
+                localStorage.setItem('winnerTakesAllSessions', JSON.stringify(updatedSessions));
+                
+                return updatedSessions;
+              });
 
-              if (!updateResult.success) {
-                console.error('❌ [Winner Takes It All] Error updating score:', updateResult.message);
-                setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
-                return;
-              }
-
-              console.log('✅ [Winner Takes It All] Score recorded in database:', score);
+              console.log('✅ [Winner Takes It All] Score recorded in localStorage:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
-
-              // Refresh sessions to get updated data from database
-              await refreshParticipantsData();
 
               // Show success message
               setMessage({ 
