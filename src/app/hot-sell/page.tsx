@@ -1625,7 +1625,7 @@ export default function HotSellPage() {
               const title = config.title || '';
               const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
               const prizeAmount = prizeMatch ? parseInt(prizeMatch[1].replace(/,/g, '')) : 0;
-              const basePrice = Math.ceil(prizeAmount * 0.1); // Base price is 10% of total prize
+              const basePrice = prizeAmount; // Base price matches the title price (not 10%)
               
               const winnerTakesAllConfig = {
                 ...config,
@@ -1754,7 +1754,7 @@ export default function HotSellPage() {
                     <div className="space-y-3">
                       {isAuthenticated ? (
                         <button
-                          onClick={() => joinWinnerTakesAll(config.id)}
+                          onClick={() => joinHotSellSession(config.id)}
                           disabled={joiningSession || userTokens < 1}
                           className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
                             userTokens >= 1
@@ -1772,7 +1772,7 @@ export default function HotSellPage() {
                           ) : (
                             '❌ Insufficient Tokens'
                           )}
-                </button>
+                        </button>
                       ) : (
                         <div className="text-center py-3 px-6 rounded-2xl bg-gray-600 text-gray-400">
                           Please log in to join
