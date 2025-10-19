@@ -941,7 +941,7 @@ export default function HotSellPage() {
         ...config,
         entry_fee: payouts.entryFee,
         prize_pool: payouts.totalPrize,
-        max_participants: payouts.maxPlayers // null for unlimited
+        max_participants: 999999 // Very high number to simulate unlimited
       };
     } else {
       // Regular Hot Sell tournament
@@ -1316,7 +1316,7 @@ export default function HotSellPage() {
                         </div>
                         <div className="flex justify-between text-xs text-gray-400 mt-1">
                           <span>Base Price: {formatPrizeAmount(prizeDistribution.basePrice)}</span>
-                          <span>Unlimited Players</span>
+                          <span>Players: {session?.participants_count || 0} (Unlimited)</span>
                         </div>
                       </>
                     ) : (

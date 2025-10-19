@@ -22,7 +22,7 @@ INSERT INTO public.fixed_games_config (
   'Winner takes 85% of the pot! Unlimited players, base price $10',
   1, -- 1 token entry
   100, -- $100 total prize
-  NULL, -- No max participants limit
+  999999, -- Very high number to simulate unlimited
   120, -- 2 minutes
   17, -- RNG seed
   NOW()
@@ -49,7 +49,7 @@ INSERT INTO public.fixed_games_config (
   'Winner takes 85% of the pot! Unlimited players, base price $25',
   1, -- 1 token entry
   250, -- $250 total prize
-  NULL, -- No max participants limit
+  999999, -- Very high number to simulate unlimited
   90, -- 1.5 minutes
   18, -- RNG seed
   NOW()
@@ -76,7 +76,7 @@ INSERT INTO public.fixed_games_config (
   'Winner takes 85% of the pot! Unlimited players, base price $100',
   1, -- 1 token entry
   1000, -- $1000 total prize
-  NULL, -- No max participants limit
+  999999, -- Very high number to simulate unlimited
   180, -- 3 minutes
   19, -- RNG seed
   NOW()
