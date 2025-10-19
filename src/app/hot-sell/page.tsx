@@ -789,11 +789,14 @@ export default function HotSellPage() {
   };
 
   const formatPrizeAmount = (amount: number) => {
+    // For amounts less than $10, show decimals. For $10 and above, show whole dollars
+    const showDecimals = amount < 10;
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      minimumFractionDigits: showDecimals ? 2 : 0,
+      maximumFractionDigits: showDecimals ? 2 : 0
     }).format(amount);
   };
 
@@ -825,9 +828,9 @@ export default function HotSellPage() {
         maxPlayers: 2
       };
     } else if (prizeAmount === 3) {
-      // $3 Hot Sell: Winner gets $2.55, 2nd gets $0.45, no 3rd
+      // $3 Hot Sell: Winner gets $2.10, 2nd gets $0.45, no 3rd
       payouts = {
-        first: 2.55,
+        first: 2.10,
         second: 0.45,
         third: 0,
         platformFee: 0.45,
