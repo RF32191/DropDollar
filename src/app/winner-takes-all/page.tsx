@@ -252,12 +252,19 @@ export default function WinnerTakesAllPage() {
   }, [sessions.length]);
 
   useEffect(() => {
-    // Update timers every second
+    // Update timers every 2 seconds and refresh data every 5 seconds
     const timer = setInterval(() => {
       updateTimers();
-    }, 1000);
+    }, 2000);
 
-    return () => clearInterval(timer);
+    const dataRefresh = setInterval(() => {
+      refreshParticipantsData();
+    }, 5000);
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(dataRefresh);
+    };
   }, []); // Remove winnerTakesAllSessions dependency to prevent infinite re-renders
 
   const loadWinnerTakesAllData = async () => {
@@ -447,7 +454,16 @@ export default function WinnerTakesAllPage() {
       // Log participants for debugging
       sessionsData.forEach(session => {
         if (session.participants.length > 0) {
-          console.log(`🎮 [Winner Takes It All] Session ${session.config_id} has ${session.participants.length} participants:`, session.participants);
+          const participantsWithScores = session.participants.filter(p => p.score !== null && p.score !== undefined);
+          console.log(`🎮 [Winner Takes It All] Session ${session.config_id}:`, {
+            totalParticipants: session.participants.length,
+            participantsWithScores: participantsWithScores.length,
+            currentPot: session.current_pot,
+            basePrice: session.base_price,
+            status: session.status,
+            timerStartedAt: session.timer_started_at,
+            participants: session.participants
+          });
         }
       });
     } catch (error) {
@@ -636,17 +652,36 @@ export default function WinnerTakesAllPage() {
                 })
                 .eq('id', session.id);
             }
-          } else if (isBasePriceMet && !session.timer_started_at) {
+          } else if (isBasePriceMet && !session.timer_started_at && session.status !== 'completed') {
             // Start timer if base price is met but timer hasn't started yet
-            console.log('🎯 [Winner Takes It All] Base price met, starting 30-minute timer for session:', session.id);
+            console.log('🎯 [Winner Takes It All] Base price met, starting 30-minute timer for session:', {
+              sessionId: session.id,
+              currentPot: session.current_pot,
+              basePrice: basePrice,
+              status: session.status,
+              timerStartedAt: session.timer_started_at
+            });
+            
             // Update session to start timer
             supabase
               .from('winner_takes_all_shared_sessions')
               .update({ 
                 timer_started_at: new Date().toISOString(),
-                status: 'active'
+                status: 'active',
+                updated_at: new Date().toISOString()
               })
-              .eq('id', session.id);
+              .eq('id', session.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('❌ [Winner Takes It All] Error starting timer:', error);
+                } else {
+                  console.log('✅ [Winner Takes It All] Timer started successfully for session:', session.id);
+                  // Refresh data to get updated timer_started_at
+                  setTimeout(() => {
+                    refreshParticipantsData();
+                  }, 500);
+                }
+              });
           }
           
           newTimeRemaining[session.id] = {
@@ -983,7 +1018,9 @@ export default function WinnerTakesAllPage() {
                   console.log('💾 [Winner Takes It All] Saving updated session to Supabase:', {
                     sessionId: sessionToUpdate.id,
                     participants: sessionToUpdate.participants,
-                    userParticipant: sessionToUpdate.participants.find(p => p.user_id === user.id)
+                    userParticipant: sessionToUpdate.participants.find(p => p.user_id === user.id),
+                    currentPot: sessionToUpdate.current_pot,
+                    participantsCount: sessionToUpdate.participants_count
                   });
 
                   const { error: upsertError } = await supabase
@@ -1004,11 +1041,22 @@ export default function WinnerTakesAllPage() {
                     console.error('❌ [Winner Takes It All] Error saving score to Supabase:', upsertError);
                   } else {
                     console.log('✅ [Winner Takes It All] Score saved to Supabase successfully');
-                    // Force refresh participants data to ensure UI updates
+                    
+                    // Force refresh participants data multiple times to ensure UI updates
                     setTimeout(() => {
                       refreshParticipantsData();
-                    }, 1000);
+                    }, 500);
+                    
+                    setTimeout(() => {
+                      refreshParticipantsData();
+                    }, 1500);
+                    
+                    setTimeout(() => {
+                      refreshParticipantsData();
+                    }, 3000);
                   }
+                } else {
+                  console.error('❌ [Winner Takes It All] Session not found for update:', selectedGameFlow.sessionId);
                 }
               } catch (error) {
                 console.error('❌ [Winner Takes It All] Error saving score:', error);
@@ -1386,6 +1434,13 @@ export default function WinnerTakesAllPage() {
                     const participantsWithScores = session ? 
                       session.participants.filter(p => p.score !== null && p.score !== undefined) : [];
                     
+                    console.log('🏆 [Winner Takes It All] Scoreboard check for config:', config.id, {
+                      sessionId: session?.id,
+                      totalParticipants: session?.participants?.length || 0,
+                      participantsWithScores: participantsWithScores.length,
+                      scores: participantsWithScores.map(p => ({ userId: p.user_id, score: p.score }))
+                    });
+                    
                     if (participantsWithScores.length === 0) {
                       return null; // Don't show scoreboard if no one has played
                     }
@@ -1412,6 +1467,10 @@ export default function WinnerTakesAllPage() {
                             onClick={() => {
                               console.log('🔄 [Winner Takes It All] Manual refresh requested for', config.id);
                               refreshParticipantsData();
+                              // Force a re-render of the scoreboard
+                              setTimeout(() => {
+                                setSessions(prevSessions => [...prevSessions]);
+                              }, 100);
                             }}
                             className="text-xs text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded"
                             title="Refresh scoreboard"
