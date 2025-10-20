@@ -147,6 +147,27 @@ export default function WinnerTakesAllPage() {
   useEffect(() => {
     // Always load hardcoded data, regardless of authentication
     loadWinnerTakesAllData();
+    
+    // Set up real-time subscription for shared sessions
+    const subscription = supabase
+      .channel('winner_takes_all_sessions')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'winner_takes_all_shared_sessions' 
+        }, 
+        (payload) => {
+          console.log('🔄 [Winner Takes It All] Real-time update received:', payload);
+          // Refresh data when any change occurs
+          refreshParticipantsData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Refresh participants data every 30 seconds
