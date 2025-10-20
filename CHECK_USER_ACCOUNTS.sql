@@ -69,7 +69,7 @@ ORDER BY email;
 SELECT 
     email,
     COUNT(*) as account_count,
-    STRING_AGG(id, ', ') as user_ids,
+    STRING_AGG(id::text, ', ') as user_ids,
     STRING_AGG(username, ', ') as usernames
 FROM public.users 
 WHERE email ILIKE '%ryan%fermoselle%'
