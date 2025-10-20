@@ -149,6 +149,20 @@ export default function WinnerTakesAllPage() {
     // Always load hardcoded data, regardless of authentication
     loadWinnerTakesAllData();
     
+    // Load user completion state from localStorage on page load
+    if (user?.id) {
+      try {
+        const savedCompletions = localStorage.getItem(`winnerTakesAllCompletions_${user.id}`);
+        if (savedCompletions) {
+          const parsedCompletions = JSON.parse(savedCompletions);
+          setUserCompletions(parsedCompletions);
+          console.log('✅ [Winner Takes It All] Loaded user completions from localStorage:', parsedCompletions);
+        }
+      } catch (error) {
+        console.error('❌ [Winner Takes It All] Error loading user completions:', error);
+      }
+    }
+    
     // Set up real-time subscription for shared sessions
     const subscription = supabase
       .channel('winner_takes_all_sessions')
@@ -169,7 +183,7 @@ export default function WinnerTakesAllPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [user?.id]);
 
   // Refresh participants data every 30 seconds
   useEffect(() => {
@@ -257,6 +271,11 @@ export default function WinnerTakesAllPage() {
         console.log('✅ [Winner Takes It All] Loaded shared sessions from Supabase:', sessionsData.length);
       }
       
+      // Load user completions from Supabase if user is logged in
+      if (user?.id) {
+        await loadUserCompletionsFromSupabase();
+      }
+      
       console.log('✅ [Winner Takes It All] Data loaded successfully');
       console.log('📊 [Winner Takes It All] Configs:', configsData.length);
       console.log('📊 [Winner Takes It All] Sessions:', sessions.length);
@@ -264,6 +283,61 @@ export default function WinnerTakesAllPage() {
       console.error('❌ [Winner Takes It All] Error loading data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadUserCompletionsFromSupabase = async () => {
+    if (!user?.id) return;
+    
+    try {
+      console.log('🔄 [Winner Takes It All] Loading user completions from Supabase...');
+      
+      // Check competitions table for user completions
+      const { data: competitionsData, error: competitionsError } = await supabase
+        .from('competitions')
+        .select('game_type, score, session_id')
+        .eq('user_id', user.id)
+        .eq('tournament_type', 'winner_takes_all');
+
+      if (competitionsError) {
+        console.error('❌ [Winner Takes It All] Error loading competitions:', competitionsError);
+        return;
+      }
+
+      // Check game_history table as fallback
+      const { data: gameHistoryData, error: gameHistoryError } = await supabase
+        .from('game_history')
+        .select('game_type, score')
+        .eq('user_id', user.id)
+        .eq('tournament_type', 'winner_takes_all');
+
+      if (gameHistoryError) {
+        console.error('❌ [Winner Takes It All] Error loading game history:', gameHistoryError);
+      }
+
+      // Combine both sources and update user completions
+      const allCompletions = [...(competitionsData || []), ...(gameHistoryData || [])];
+      const userCompletionsMap: { [configId: string]: { score: number; completed: boolean } } = {};
+
+      allCompletions.forEach(completion => {
+        // Find matching config by game_type
+        const matchingConfig = hardcodedListings.find(config => config.game_type === completion.game_type);
+        if (matchingConfig) {
+          userCompletionsMap[matchingConfig.id] = {
+            score: completion.score,
+            completed: true
+          };
+        }
+      });
+
+      if (Object.keys(userCompletionsMap).length > 0) {
+        setUserCompletions(userCompletionsMap);
+        // Save to localStorage for faster access
+        localStorage.setItem(`winnerTakesAllCompletions_${user.id}`, JSON.stringify(userCompletionsMap));
+        console.log('✅ [Winner Takes It All] Loaded user completions from Supabase:', userCompletionsMap);
+      }
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error loading user completions from Supabase:', error);
     }
   };
 
@@ -794,13 +868,23 @@ export default function WinnerTakesAllPage() {
               console.log('✅ [Winner Takes It All] User locked out from playing again');
 
               // Update user completion state immediately
-              setUserCompletions(prev => ({
-                ...prev,
-                [selectedGameFlow.configId]: {
-                  score: score,
-                  completed: true
+              setUserCompletions(prev => {
+                const newCompletions = {
+                  ...prev,
+                  [selectedGameFlow.configId]: {
+                    score: score,
+                    completed: true
+                  }
+                };
+                
+                // Save to user-specific localStorage
+                if (user?.id) {
+                  localStorage.setItem(`winnerTakesAllCompletions_${user.id}`, JSON.stringify(newCompletions));
+                  console.log('💾 [Winner Takes It All] Saved user completions to localStorage:', newCompletions);
                 }
-              }));
+                
+                return newCompletions;
+              });
 
               // Save score to dashboard (game_history)
               try {
