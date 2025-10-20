@@ -1036,8 +1036,16 @@ export default function WinnerTakesAllPage() {
                 return newCompletions;
               });
 
-              // Save score to dashboard (game_history)
+              // Save score to dashboard (game_history) with fallback
               try {
+                console.log('💾 [Winner Takes It All] Saving score to dashboard:', {
+                  user_id: user.id,
+                  game_type: selectedGameFlow.gameType,
+                  score: score,
+                  accuracy: accuracy,
+                  tournament_type: 'winner_takes_all'
+                });
+
                 const { error: dashboardError } = await supabase
                   .from('game_history')
                   .insert({
@@ -1053,6 +1061,29 @@ export default function WinnerTakesAllPage() {
 
                 if (dashboardError) {
                   console.error('❌ [Winner Takes It All] Error saving score to dashboard:', dashboardError);
+                  
+                  // Fallback: try without tournament_type if column doesn't exist
+                  try {
+                    const { error: fallbackError } = await supabase
+                      .from('game_history')
+                      .insert({
+                        user_id: user.id,
+                        game_type: selectedGameFlow.gameType,
+                        score: score,
+                        accuracy: accuracy,
+                        is_practice: false,
+                        is_competition: true,
+                        created_at: new Date().toISOString()
+                      });
+                    
+                    if (fallbackError) {
+                      console.error('❌ [Winner Takes It All] Fallback dashboard save also failed:', fallbackError);
+                    } else {
+                      console.log('✅ [Winner Takes It All] Score saved to dashboard (fallback)');
+                    }
+                  } catch (fallbackError) {
+                    console.error('❌ [Winner Takes It All] Fallback dashboard save error:', fallbackError);
+                  }
                 } else {
                   console.log('✅ [Winner Takes It All] Score saved to dashboard');
                 }
@@ -1265,28 +1296,45 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Timer Display */}
+                  {/* Professional Live Timer Display */}
                   {timer && (
                     <div className="mb-4">
-                      <div className={`text-center p-3 rounded-xl ${
-                        timer.isBasePriceMet ? 'bg-green-500/20 border border-green-500/50' : 'bg-yellow-500/20 border border-yellow-500/50'
+                      <div className={`text-center p-4 rounded-xl border-2 ${
+                        timer.isBasePriceMet ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/60' : 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-400/60'
                       }`}>
-                        <div className="flex items-center justify-center mb-2">
-                          <ClockIcon className={`w-5 h-5 mr-2 ${
+                        <div className="flex items-center justify-center mb-3">
+                          <ClockIcon className={`w-6 h-6 mr-3 animate-pulse ${
                             timer.isBasePriceMet ? 'text-green-400' : 'text-yellow-400'
                           }`} />
-                          <span className={`font-semibold ${
+                          <span className={`text-lg font-bold ${
                             timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
                           }`}>
-                            {timer.isBasePriceMet ? 'Game Timer Active!' : 'Waiting for Base Price'}
+                            {timer.isBasePriceMet ? '⏰ LIVE TOURNAMENT TIMER' : '⏳ WAITING FOR BASE PRICE'}
                           </span>
                         </div>
-                        <p className={`text-lg font-bold ${
-                          timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
-                        }`}>
-                          {timer.isBasePriceMet ? formatTimeRemaining(timer.minutes, timer.seconds, timer.hours) : 
-                           `Need ${prizeDistribution.basePrice - (session?.current_pot || 0)} more tokens to start`}
-                        </p>
+                        
+                        {timer.isBasePriceMet ? (
+                          <div className="space-y-2">
+                            <div className="text-3xl font-bold text-green-300 font-mono tracking-wider">
+                              {formatTimeRemaining(timer.minutes, timer.seconds, timer.hours)}
+                            </div>
+                            <div className="text-sm text-green-200">
+                              Tournament ends when timer reaches 00:00
+                            </div>
+                            <div className="flex justify-center">
+                              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-xl font-bold text-yellow-300">
+                              {prizeDistribution.basePrice - (session?.current_pot || 0)} tokens needed
+                            </div>
+                            <div className="text-sm text-yellow-200">
+                              Join now to help reach the base price!
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

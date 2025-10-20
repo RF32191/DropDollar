@@ -194,27 +194,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('loginTime');
       localStorage.removeItem('lastActivity');
       
-      // Clear all user-specific localStorage data
+      // Clear ALL localStorage data to prevent any cross-contamination
+      console.log('🧹 Clearing ALL localStorage data to prevent cross-contamination...');
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && (
-          key.startsWith('winnerTakesAllCompletions_') || 
-          key.startsWith('winnerTakesAllSessions') ||
-          key.startsWith('winnerTakesAllPayout') ||
-          key.startsWith('user') ||
-          key.startsWith('token') ||
-          key.startsWith('game') ||
-          key.startsWith('session') ||
-          key.startsWith('login') ||
-          key.startsWith('auth') ||
-          key === 'isLoggedIn' ||
-          key === 'userId' ||
-          key === 'userEmail' ||
-          key === 'sessionId' ||
-          key === 'loginTime' ||
-          key === 'lastActivity'
-        )) {
+        if (key) {
           keysToRemove.push(key);
         }
       }
@@ -222,6 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(key);
         console.log('🧹 Removed localStorage key:', key);
       });
+      
+      // Also clear sessionStorage
+      sessionStorage.clear();
+      console.log('🧹 Cleared sessionStorage');
       
       // Clear cookies
       document.cookie = 'dropdollar_session=; path=/; max-age=0';
