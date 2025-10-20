@@ -716,10 +716,19 @@ export default function WinnerTakesAllPage() {
 
               setSessions(updatedSessions);
 
+              // Also save to localStorage as backup
+              localStorage.setItem('winnerTakesAllSessions', JSON.stringify(updatedSessions));
+
               // Save to Supabase shared sessions table
               try {
                 const sessionToUpdate = updatedSessions.find(s => s.id === selectedGameFlow.sessionId);
                 if (sessionToUpdate) {
+                  console.log('💾 [Winner Takes It All] Saving updated session to Supabase:', {
+                    sessionId: sessionToUpdate.id,
+                    participants: sessionToUpdate.participants,
+                    userParticipant: sessionToUpdate.participants.find(p => p.user_id === user.id)
+                  });
+
                   const { error: upsertError } = await supabase
                     .from('winner_takes_all_shared_sessions')
                     .upsert({
@@ -737,7 +746,11 @@ export default function WinnerTakesAllPage() {
                   if (upsertError) {
                     console.error('❌ [Winner Takes It All] Error saving score to Supabase:', upsertError);
                   } else {
-                    console.log('✅ [Winner Takes It All] Score saved to Supabase');
+                    console.log('✅ [Winner Takes It All] Score saved to Supabase successfully');
+                    // Force refresh participants data to ensure UI updates
+                    setTimeout(() => {
+                      refreshParticipantsData();
+                    }, 1000);
                   }
                 }
               } catch (error) {
@@ -1100,7 +1113,22 @@ export default function WinnerTakesAllPage() {
                       }
                       
                       // Check if user already completed this tournament (has a score)
-                      const hasCompleted = session && session.participants.some(p => p.user_id === user?.id && p.score !== null && p.score !== undefined);
+                      // More robust completion check
+                      const hasCompleted = session && session.participants.some(p => 
+                        p.user_id === user?.id && 
+                        p.score !== null && 
+                        p.score !== undefined && 
+                        p.score !== 0
+                      );
+                      
+                      console.log('🔍 [Winner Takes It All] Completion check:', {
+                        configId: config.id,
+                        userId: user?.id,
+                        sessionExists: !!session,
+                        participants: session?.participants || [],
+                        hasCompleted,
+                        userParticipant: session?.participants.find(p => p.user_id === user?.id)
+                      });
                       
                       if (hasCompleted) {
                         const userParticipant = session.participants.find(p => p.user_id === user?.id);
@@ -1111,6 +1139,7 @@ export default function WinnerTakesAllPage() {
                               <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
                             <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score}</p>
+                            <p className="text-green-200 text-xs mt-1">You cannot play again</p>
                           </div>
                         );
                       }
