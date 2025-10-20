@@ -332,6 +332,57 @@ export class UserService {
   }
 
   /**
+   * Get user profile by EMAIL with fresh data from Supabase
+   * This is the preferred method to ensure we get the correct user
+   */
+  static async getUserProfileByEmail(email: string): Promise<UserProfile | null> {
+    try {
+      console.log('🔍 [UserService] Fetching user profile for EMAIL:', email);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error) {
+        console.error('❌ [UserService] Error fetching user profile by email:', error);
+        return null;
+      }
+
+      if (!data) {
+        console.log('⚠️ [UserService] User profile not found for email:', email);
+        return null;
+      }
+
+      console.log('✅ [UserService] User profile fetched by email:', {
+        id: data.id,
+        email: data.email,
+        username: data.username,
+        tokens: data.tokens
+      });
+      
+      return {
+        id: data.id,
+        username: data.username,
+        firstName: data.first_name || '',
+        lastName: data.last_name || '',
+        email: data.email,
+        tokens: data.tokens || 0,
+        balance: data.balance || 0,
+        totalSpent: data.total_spent || 0,
+        totalEarned: data.total_earned || 0,
+        gamesPlayed: data.games_played || 0,
+        gamesWon: data.games_won || 0,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at || data.created_at
+      };
+    } catch (error) {
+      console.error('❌ [UserService] Exception in getUserProfileByEmail:', error);
+      return null;
+    }
+  }
+
+  /**
    * Update user tokens in Supabase
    */
   static async updateUserTokens(userId: string, newTokenAmount: number): Promise<boolean> {

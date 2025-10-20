@@ -135,21 +135,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (userId: string) => {
     try {
-      const profile = await UserService.getUserProfile(userId);
-      if (profile) {
-        setUser(profile);
-        setIsAuthenticated(true);
-        
-        // Also store in localStorage for faster access
-        localStorage.setItem('user', JSON.stringify(profile));
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userId', userId);
-        localStorage.setItem('lastActivity', Date.now().toString());
-        
-        console.log('✅ User profile loaded:', profile.username);
+      console.log('🔍 [AuthContext] Loading user profile for ID:', userId);
+      
+      // First, get the auth user to get the email
+      const { data: authUser, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser.user) {
+        console.error('❌ [AuthContext] Error getting auth user:', authError);
+        return;
       }
+      
+      const userEmail = authUser.user.email;
+      console.log('📧 [AuthContext] Auth user email:', userEmail);
+      
+      // Use UserService to get profile by email (ensures we get the right user)
+      const profile = await UserService.getUserProfileByEmail(userEmail);
+      
+      if (!profile) {
+        console.error('❌ [AuthContext] No user profile found for email:', userEmail);
+        return;
+      }
+      
+      setUser(profile);
+      setIsAuthenticated(true);
+      
+      // Store in localStorage for faster access
+      localStorage.setItem('user', JSON.stringify(profile));
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userId', profile.id);
+      localStorage.setItem('userEmail', profile.email);
+      localStorage.setItem('lastActivity', Date.now().toString());
+      
+      console.log('✅ [AuthContext] User profile loaded successfully:', {
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
+        tokens: profile.tokens
+      });
+      
     } catch (error) {
-      console.error('❌ Failed to load user profile:', error);
+      console.error('❌ [AuthContext] Failed to load user profile:', error);
     }
   };
 
@@ -177,6 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (key && (
           key.startsWith('winnerTakesAllCompletions_') || 
           key.startsWith('winnerTakesAllSessions') ||
+          key.startsWith('winnerTakesAllPayout') ||
           key.startsWith('user') ||
           key.startsWith('token') ||
           key.startsWith('game') ||
@@ -185,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           key.startsWith('auth') ||
           key === 'isLoggedIn' ||
           key === 'userId' ||
+          key === 'userEmail' ||
           key === 'sessionId' ||
           key === 'loginTime' ||
           key === 'lastActivity'
