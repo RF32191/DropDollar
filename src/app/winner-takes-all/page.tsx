@@ -1657,7 +1657,15 @@ export default function WinnerTakesAllPage() {
                         // Auto-payout winner if not already paid
                         if (winner && !isPaid) {
                           console.log('💰 [Winner Takes It All] Triggering automatic payout for winner:', winner.user_id);
-                          payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
+                          payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize).then((payoutSuccess) => {
+                            if (payoutSuccess) {
+                              // After successful automatic payout, reset the tournament
+                              console.log('🔄 [Winner Takes It All] Auto-resetting tournament after automatic payout');
+                              setTimeout(() => {
+                                resetCompletedTournament(session.id);
+                              }, 3000);
+                            }
+                          });
                         }
                         
                         return (
@@ -1680,9 +1688,14 @@ export default function WinnerTakesAllPage() {
                                   onClick={async () => {
                                     if (winner) {
                                       console.log('💰 [Winner Takes It All] Manual payout triggered');
-                                      await payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
-                                      // Refresh data to show updated status
-                                      setTimeout(() => refreshParticipantsData(), 1000);
+                                      const payoutSuccess = await payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
+                                      if (payoutSuccess) {
+                                        // After successful payout, automatically reset the tournament
+                                        console.log('🔄 [Winner Takes It All] Auto-resetting tournament after payout');
+                                        setTimeout(() => {
+                                          resetCompletedTournament(session.id);
+                                        }, 2000);
+                                      }
                                     }
                                   }}
                                   className="w-full py-2 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 transition-all duration-300"
@@ -1691,7 +1704,10 @@ export default function WinnerTakesAllPage() {
                                 </button>
                               )}
                               <button
-                                onClick={() => resetCompletedTournament(session.id)}
+                                onClick={async () => {
+                                  console.log('🔄 [Winner Takes It All] Manual reset triggered');
+                                  await resetCompletedTournament(session.id);
+                                }}
                                 className="w-full py-3 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-300"
                               >
                                 🔄 START NEW TOURNAMENT
