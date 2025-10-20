@@ -73,7 +73,7 @@ export default function WinnerTakesAllPage() {
     },
     {
       id: 'wta-250-multi-target',
-      game_type: 'multi_target',
+      game_type: 'multi_target_reaction',
       title: '$250 Winner Takes It All - Multi Target',
       description: 'Winner takes the entire $250 prize pool!',
       entry_fee: 1,
@@ -99,7 +99,7 @@ export default function WinnerTakesAllPage() {
     },
     {
       id: 'wta-2500-quick-click',
-      game_type: 'quick_click',
+      game_type: 'number_tap',
       title: '$2500 Winner Takes It All - Quick Click',
       description: 'Winner takes the entire $2500 prize pool!',
       entry_fee: 1,
@@ -334,6 +334,50 @@ export default function WinnerTakesAllPage() {
       }
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
+    }
+  };
+
+  const payoutWinner = async (sessionId: string, winnerUserId: string, prizeAmount: number) => {
+    try {
+      console.log('💰 [Winner Takes It All] Paying out winner:', { sessionId, winnerUserId, prizeAmount });
+      
+      // Get winner's current token balance
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('tokens')
+        .eq('id', winnerUserId)
+        .single();
+
+      if (userError) {
+        console.error('❌ [Winner Takes It All] Error fetching winner tokens:', userError);
+        return false;
+      }
+
+      const currentTokens = userData.tokens || 0;
+      const newTokenBalance = currentTokens + prizeAmount;
+
+      // Update winner's token balance with decimal support
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ tokens: newTokenBalance })
+        .eq('id', winnerUserId);
+
+      if (updateError) {
+        console.error('❌ [Winner Takes It All] Error updating winner tokens:', updateError);
+        return false;
+      }
+
+      console.log('✅ [Winner Takes It All] Winner paid out:', {
+        winnerUserId,
+        prizeAmount,
+        oldBalance: currentTokens,
+        newBalance: newTokenBalance
+      });
+
+      return true;
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error paying out winner:', error);
+      return false;
     }
   };
 
@@ -986,6 +1030,11 @@ export default function WinnerTakesAllPage() {
                         const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
                         const winner = participantsWithScores.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))[0];
                         
+                        // Auto-payout winner if not already paid
+                        if (winner && !session.winner_paid) {
+                          payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
+                        }
+                        
                         return (
                           <div className="space-y-3">
                             <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-center">
@@ -994,7 +1043,8 @@ export default function WinnerTakesAllPage() {
                                 <span className="text-yellow-300 text-lg font-semibold">TOURNAMENT COMPLETED!</span>
                               </div>
                               <p className="text-yellow-200 text-sm">Winner: Player {winner?.user_id?.slice(-4)} with score {winner?.score}</p>
-                              <p className="text-yellow-200 text-sm">Prize: ${prizeDistribution.winnerPrize}</p>
+                              <p className="text-yellow-200 text-sm">Prize: {prizeDistribution.winnerPrize} tokens</p>
+                              <p className="text-green-300 text-xs mt-1">✅ Winner has been paid out!</p>
                             </div>
                             <button
                               onClick={() => resetCompletedTournament(session.id)}
