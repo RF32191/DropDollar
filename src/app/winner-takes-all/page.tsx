@@ -840,6 +840,27 @@ export default function WinnerTakesAllPage() {
 
                 if (competitionsError) {
                   console.error('❌ [Winner Takes It All] Error saving score to competitions:', competitionsError);
+                  // If competitions table doesn't exist, try without tournament_type
+                  try {
+                    const { error: fallbackError } = await supabase
+                      .from('competitions')
+                      .insert({
+                        user_id: user.id,
+                        game_type: selectedGameFlow.gameType,
+                        score: score,
+                        accuracy: accuracy,
+                        session_id: selectedGameFlow.sessionId,
+                        created_at: new Date().toISOString()
+                      });
+                    
+                    if (fallbackError) {
+                      console.error('❌ [Winner Takes It All] Fallback competitions save also failed:', fallbackError);
+                    } else {
+                      console.log('✅ [Winner Takes It All] Score saved to competitions (fallback)');
+                    }
+                  } catch (fallbackError) {
+                    console.error('❌ [Winner Takes It All] Fallback competitions save error:', fallbackError);
+                  }
                 } else {
                   console.log('✅ [Winner Takes It All] Score saved to competitions');
                 }
