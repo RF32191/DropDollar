@@ -56,7 +56,33 @@ BEGIN
     END IF;
 END $$;
 
--- 5. Create indexes for performance (handles 100,000+ users)
+-- 5. Add is_practice column if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'competitions' 
+        AND column_name = 'is_practice'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.competitions ADD COLUMN is_practice BOOLEAN DEFAULT FALSE;
+    END IF;
+END $$;
+
+-- 6. Add is_competition column if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'competitions' 
+        AND column_name = 'is_competition'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.competitions ADD COLUMN is_competition BOOLEAN DEFAULT TRUE;
+    END IF;
+END $$;
+
+-- 7. Create indexes for performance (handles 100,000+ users)
 CREATE INDEX IF NOT EXISTS idx_competitions_user_id ON public.competitions(user_id);
 CREATE INDEX IF NOT EXISTS idx_competitions_tournament_type ON public.competitions(tournament_type);
 CREATE INDEX IF NOT EXISTS idx_competitions_game_type ON public.competitions(game_type);
@@ -114,6 +140,32 @@ BEGIN
         AND table_schema = 'public'
     ) THEN
         ALTER TABLE public.game_history ADD COLUMN tournament_type TEXT NOT NULL DEFAULT 'practice';
+    END IF;
+END $$;
+
+-- 10. Add is_practice column to game_history if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'game_history' 
+        AND column_name = 'is_practice'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.game_history ADD COLUMN is_practice BOOLEAN DEFAULT TRUE;
+    END IF;
+END $$;
+
+-- 11. Add is_competition column to game_history if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'game_history' 
+        AND column_name = 'is_competition'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.game_history ADD COLUMN is_competition BOOLEAN DEFAULT FALSE;
     END IF;
 END $$;
 

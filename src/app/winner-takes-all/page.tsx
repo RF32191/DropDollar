@@ -922,6 +922,8 @@ export default function WinnerTakesAllPage() {
                     score: score,
                     accuracy: accuracy,
                     tournament_type: 'winner_takes_all',
+                    is_practice: false, // Winner Takes It All is a competition, not practice
+                    is_competition: true, // Mark as competition
                     created_at: new Date().toISOString()
                   });
 
@@ -945,6 +947,8 @@ export default function WinnerTakesAllPage() {
                     accuracy: accuracy,
                     tournament_type: 'winner_takes_all',
                     session_id: selectedGameFlow.sessionId,
+                    is_practice: false, // Winner Takes It All is a competition
+                    is_competition: true, // Mark as competition
                     created_at: new Date().toISOString()
                   });
 
@@ -960,6 +964,8 @@ export default function WinnerTakesAllPage() {
                         score: score,
                         accuracy: accuracy,
                         session_id: selectedGameFlow.sessionId,
+                        is_practice: false, // Winner Takes It All is a competition
+                        is_competition: true, // Mark as competition
                         created_at: new Date().toISOString()
                       });
                     
