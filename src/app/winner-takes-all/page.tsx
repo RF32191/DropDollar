@@ -142,6 +142,7 @@ export default function WinnerTakesAllPage() {
   const [configs, setConfigs] = useState<WinnerTakesAllConfig[]>([]);
   const [sessions, setSessions] = useState<WinnerTakesAllSessionWithParticipants[]>([]);
   const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
+  const [userCompletions, setUserCompletions] = useState<{ [configId: string]: { score: number; completed: boolean } }>({});
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
 
   useEffect(() => {
@@ -460,7 +461,14 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already completed this tournament (using Supabase data)
+    // Check if user already completed this tournament (using user completion state first)
+    const userCompletion = userCompletions[configId];
+    if (userCompletion && userCompletion.completed) {
+      setMessage({ type: 'error', text: `You have already completed this tournament! Your score: ${userCompletion.score}` });
+      return;
+    }
+
+    // Fallback: Check session data
     const session = sessions.find(s => s.config_id === configId);
     if (session) {
       const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null && p.score !== undefined && p.score !== 0);
@@ -739,6 +747,11 @@ export default function WinnerTakesAllPage() {
               // Also save to localStorage as backup
               localStorage.setItem('winnerTakesAllSessions', JSON.stringify(updatedSessions));
 
+              // Force immediate UI update by triggering a re-render
+              setTimeout(() => {
+                setSessions(prevSessions => [...prevSessions]);
+              }, 100);
+
               // Save to Supabase shared sessions table
               try {
                 const sessionToUpdate = updatedSessions.find(s => s.id === selectedGameFlow.sessionId);
@@ -779,6 +792,15 @@ export default function WinnerTakesAllPage() {
 
               console.log('✅ [Winner Takes It All] Score recorded in Supabase:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
+
+              // Update user completion state immediately
+              setUserCompletions(prev => ({
+                ...prev,
+                [selectedGameFlow.configId]: {
+                  score: score,
+                  completed: true
+                }
+              }));
 
               // Save score to dashboard (game_history)
               try {
@@ -831,10 +853,10 @@ export default function WinnerTakesAllPage() {
                 text: `Game completed! Your score: ${score}. Redirecting to dashboard...` 
               });
 
-              // Redirect to dashboard after 2 seconds
+              // Redirect to dashboard immediately
               setTimeout(() => {
                 window.location.href = '/dashboard';
-              }, 2000);
+              }, 500);
 
             } catch (error) {
               console.error('❌ [Winner Takes It All] Error recording score:', error);
@@ -1161,7 +1183,22 @@ export default function WinnerTakesAllPage() {
                       }
                       
                       // Check if user already completed this tournament (has a score)
-                      // More robust completion check - check both current sessions and localStorage
+                      // Check user completion state first (most reliable)
+                      const userCompletion = userCompletions[config.id];
+                      if (userCompletion && userCompletion.completed) {
+                        return (
+                          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                            <div className="flex items-center justify-center">
+                              <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                              <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                            </div>
+                            <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
+                            <p className="text-green-200 text-xs mt-1">You cannot play again</p>
+                          </div>
+                        );
+                      }
+
+                      // Fallback: Check session data
                       let hasCompleted = false;
                       let userParticipant = null;
 
@@ -1197,6 +1234,7 @@ export default function WinnerTakesAllPage() {
                       console.log('🔍 [Winner Takes It All] Completion check:', {
                         configId: config.id,
                         userId: user?.id,
+                        userCompletion,
                         sessionExists: !!session,
                         participants: session?.participants || [],
                         hasCompleted,
