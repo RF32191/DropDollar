@@ -1133,7 +1133,16 @@ export default function WinnerTakesAllPage() {
                     console.error('❌ [Winner Takes It All] Fallback dashboard save error:', fallbackError);
                   }
                 } else {
-                  console.log('✅ [Winner Takes It All] Score saved to dashboard');
+                  console.log('✅ [Winner Takes It All] Score saved to dashboard successfully');
+                  
+                  // Trigger dashboard refresh by dispatching a custom event
+                  window.dispatchEvent(new CustomEvent('dashboardRefresh', {
+                    detail: {
+                      gameType: selectedGameFlow.gameType,
+                      score: score,
+                      tournamentType: 'winner_takes_all'
+                    }
+                  }));
                 }
               } catch (error) {
                 console.error('❌ [Winner Takes It All] Error saving score to dashboard:', error);
@@ -1182,6 +1191,15 @@ export default function WinnerTakesAllPage() {
                   }
                 } else {
                   console.log('✅ [Winner Takes It All] Score saved to competitions');
+                  
+                  // Trigger dashboard refresh by dispatching a custom event
+                  window.dispatchEvent(new CustomEvent('dashboardRefresh', {
+                    detail: {
+                      gameType: selectedGameFlow.gameType,
+                      score: score,
+                      tournamentType: 'winner_takes_all'
+                    }
+                  }));
                 }
               } catch (error) {
                 console.error('❌ [Winner Takes It All] Error saving score to competitions:', error);
@@ -1311,7 +1329,11 @@ export default function WinnerTakesAllPage() {
             }
             
             return (
-              <div key={config.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+              <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+                timer?.isTimerActive ? 
+                  'border-red-400/60 animate-pulse shadow-red-500/30 hover:bg-red-500/10' : 
+                  'border-white/20 hover:bg-white/15'
+              }`}>
                 {/* Game Header */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
@@ -1335,33 +1357,69 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Current Pot */}
+                  {/* Enhanced Current Pot with Calculator */}
                   <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                     <div className="text-center">
                       <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
                       <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
                       <p className="text-purple-200 text-xs mt-1">Base pot: ${prizeDistribution.totalPrize}, grows with each player's token</p>
+                      
+                      {/* Live Calculator Display */}
+                      <div className="mt-3 p-3 bg-white/10 rounded-lg">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="text-center">
+                            <div className="text-yellow-300 font-semibold">Winner Gets:</div>
+                            <div className="text-white font-bold">${((session?.current_pot || 0) * 0.85).toFixed(2)}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-red-300 font-semibold">Platform Fee (15%):</div>
+                            <div className="text-white font-bold">${((session?.current_pot || 0) * 0.15).toFixed(2)}</div>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-purple-200">
+                          💰 Pot grows by {config.entry_fee} token per player
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
-                  {/* Professional Live Timer Display */}
+                  {/* Enhanced Live Timer Display with Animations */}
                   {timer && (
                     <div className="mb-4">
-                      <div className={`text-center p-4 rounded-xl border-2 ${
-                        timer.isBasePriceMet ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/60' : 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-400/60'
+                      <div className={`text-center p-4 rounded-xl border-2 transition-all duration-500 ${
+                        timer.isTimerActive ? 
+                          'bg-gradient-to-r from-red-600/30 to-red-800/30 border-red-400 animate-pulse shadow-lg shadow-red-500/50' :
+                          timer.isBasePriceMet ? 
+                            'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/60' : 
+                            'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-400/60'
                       }`}>
                         <div className="flex items-center justify-center mb-3">
-                          <ClockIcon className={`w-6 h-6 mr-3 animate-pulse ${
-                            timer.isBasePriceMet ? 'text-green-400' : 'text-yellow-400'
+                          <ClockIcon className={`w-6 h-6 mr-3 ${
+                            timer.isTimerActive ? 'animate-spin text-red-400' :
+                            timer.isBasePriceMet ? 'animate-pulse text-green-400' : 'animate-pulse text-yellow-400'
                           }`} />
                           <span className={`text-lg font-bold ${
+                            timer.isTimerActive ? 'text-red-300 animate-pulse' :
                             timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
                           }`}>
-                            {timer.isBasePriceMet ? '⏰ LIVE TOURNAMENT TIMER' : '⏳ WAITING FOR BASE PRICE'}
+                            {timer.isTimerActive ? '🚨 LIVE TOURNAMENT - JOIN NOW!' : 
+                             timer.isBasePriceMet ? '⏰ LIVE TOURNAMENT TIMER' : '⏳ WAITING FOR BASE PRICE'}
                           </span>
                         </div>
                         
-                        {timer.isBasePriceMet ? (
+                        {timer.isTimerActive ? (
+                          <div className="space-y-2">
+                            <div className="text-4xl font-bold text-red-300 font-mono tracking-wider animate-pulse">
+                              {formatTimeRemaining(timer.minutes, timer.seconds, timer.hours)}
+                            </div>
+                            <div className="text-sm text-red-200 animate-bounce">
+                              🚨 Tournament is LIVE! Join now before time runs out!
+                            </div>
+                            <div className="text-xs text-yellow-300">
+                              Current Pot: {timer.currentPot} tokens | Base Price: {timer.basePrice} tokens
+                            </div>
+                          </div>
+                        ) : timer.isBasePriceMet ? (
                           <div className="space-y-2">
                             <div className="text-3xl font-bold text-green-300 font-mono tracking-wider">
                               {formatTimeRemaining(timer.minutes, timer.seconds, timer.hours)}
@@ -1429,20 +1487,27 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Live Scoreboard - Only show if there are participants with scores */}
+                  {/* Live Scoreboard - Only show if user has played or there are participants with scores */}
                   {(() => {
                     const participantsWithScores = session ? 
                       session.participants.filter(p => p.score !== null && p.score !== undefined) : [];
+                    
+                    // Check if current user has played this tournament
+                    const userHasPlayed = user && session ? 
+                      session.participants.some(p => p.user_id === user.id && p.score !== null && p.score !== undefined) : false;
                     
                     console.log('🏆 [Winner Takes It All] Scoreboard check for config:', config.id, {
                       sessionId: session?.id,
                       totalParticipants: session?.participants?.length || 0,
                       participantsWithScores: participantsWithScores.length,
+                      userHasPlayed: userHasPlayed,
+                      currentUserId: user?.id,
                       scores: participantsWithScores.map(p => ({ userId: p.user_id, score: p.score }))
                     });
                     
-                    if (participantsWithScores.length === 0) {
-                      return null; // Don't show scoreboard if no one has played
+                    // Only show scoreboard if user has played OR if there are participants with scores
+                    if (participantsWithScores.length === 0 || !userHasPlayed) {
+                      return null; // Don't show scoreboard if user hasn't played
                     }
 
                     return (
