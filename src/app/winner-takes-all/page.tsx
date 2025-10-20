@@ -497,7 +497,32 @@ export default function WinnerTakesAllPage() {
           let timeRemaining = 0;
           if (isTimerActive && session.timer_started_at) {
             const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
-            timeRemaining = Math.max(0, config.game_duration - elapsed);
+            // Use 30 minutes (1800 seconds) for Winner Takes It All timer
+            timeRemaining = Math.max(0, 1800 - elapsed);
+            
+            // Check if timer has expired
+            if (timeRemaining === 0 && session.status === 'active') {
+              console.log('⏰ [Winner Takes It All] Timer expired for session:', session.id);
+              // Mark tournament as completed
+              supabase
+                .from('winner_takes_all_shared_sessions')
+                .update({ 
+                  status: 'completed',
+                  completed_at: new Date().toISOString()
+                })
+                .eq('id', session.id);
+            }
+          } else if (isBasePriceMet && !session.timer_started_at) {
+            // Start timer if base price is met but timer hasn't started yet
+            console.log('🎯 [Winner Takes It All] Base price met, starting 30-minute timer for session:', session.id);
+            // Update session to start timer
+            supabase
+              .from('winner_takes_all_shared_sessions')
+              .update({ 
+                timer_started_at: new Date().toISOString(),
+                status: 'active'
+              })
+              .eq('id', session.id);
           }
           
           newTimeRemaining[session.id] = {
@@ -526,7 +551,8 @@ export default function WinnerTakesAllPage() {
     if (hours && hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    // For Winner Takes It All, always show MM:SS format
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const handleJoinGame = async (configId: string) => {
