@@ -252,20 +252,21 @@ export default function WinnerTakesAllPage() {
   }, [sessions.length]);
 
   useEffect(() => {
-    // Update timers every 2 seconds and refresh data every 5 seconds
+    // Simple timer update that forces re-renders every second
     const timer = setInterval(() => {
-      updateTimers();
-    }, 2000);
+      // Force a re-render by updating a dummy state
+      setSessions(prevSessions => [...prevSessions]);
+    }, 1000);
 
     const dataRefresh = setInterval(() => {
       refreshParticipantsData();
-    }, 5000);
+    }, 3000);
 
     return () => {
       clearInterval(timer);
       clearInterval(dataRefresh);
     };
-  }, []); // Remove winnerTakesAllSessions dependency to prevent infinite re-renders
+  }, []); // Simple approach - just force re-renders
 
   const loadWinnerTakesAllData = async () => {
     try {
@@ -1135,14 +1136,8 @@ export default function WinnerTakesAllPage() {
                 } else {
                   console.log('✅ [Winner Takes It All] Score saved to dashboard successfully');
                   
-                  // Trigger dashboard refresh by dispatching a custom event
-                  window.dispatchEvent(new CustomEvent('dashboardRefresh', {
-                    detail: {
-                      gameType: selectedGameFlow.gameType,
-                      score: score,
-                      tournamentType: 'winner_takes_all'
-                    }
-                  }));
+                  // Simple dashboard update method (alternative approach)
+                  console.log('📊 [Winner Takes It All] Score saved successfully, dashboard will update on redirect');
                 }
               } catch (error) {
                 console.error('❌ [Winner Takes It All] Error saving score to dashboard:', error);
@@ -1192,14 +1187,8 @@ export default function WinnerTakesAllPage() {
                 } else {
                   console.log('✅ [Winner Takes It All] Score saved to competitions');
                   
-                  // Trigger dashboard refresh by dispatching a custom event
-                  window.dispatchEvent(new CustomEvent('dashboardRefresh', {
-                    detail: {
-                      gameType: selectedGameFlow.gameType,
-                      score: score,
-                      tournamentType: 'winner_takes_all'
-                    }
-                  }));
+                  // Simple dashboard update method (alternative approach)
+                  console.log('📊 [Winner Takes It All] Score saved successfully, dashboard will update on redirect');
                 }
               } catch (error) {
                 console.error('❌ [Winner Takes It All] Error saving score to competitions:', error);
@@ -1211,10 +1200,20 @@ export default function WinnerTakesAllPage() {
                 text: `Game completed! Your score: ${score}. Redirecting to dashboard...` 
               });
 
-              // Redirect to dashboard immediately
+              // Simple dashboard update method
+              try {
+                console.log('📊 [Winner Takes It All] Refreshing user tokens for dashboard update...');
+                await refreshTokens(); // Refresh token balance
+                console.log('✅ [Winner Takes It All] Tokens refreshed, redirecting to dashboard...');
+              } catch (error) {
+                console.error('❌ [Winner Takes It All] Error refreshing tokens:', error);
+              }
+
+              // Redirect to dashboard with a longer delay to ensure data is saved
               setTimeout(() => {
+                console.log('🔄 [Winner Takes It All] Redirecting to dashboard...');
                 window.location.href = '/dashboard';
-              }, 500);
+              }, 2000);
 
             } catch (error) {
               console.error('❌ [Winner Takes It All] Error recording score:', error);
@@ -1316,7 +1315,37 @@ export default function WinnerTakesAllPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {configs.map((config) => {
             const session = sessions.find(s => s.config_id === config.id);
-            const timer = session ? timeRemaining[session.id] : null;
+            // Calculate timer state directly from session data (simpler approach)
+            const timer = session ? {
+              isBasePriceMet: session.current_pot >= session.base_price,
+              isTimerActive: session.status === 'active' && session.timer_started_at,
+              minutes: session.timer_started_at ? Math.max(0, Math.floor((1800 - Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000)) / 60)) : 0,
+              seconds: session.timer_started_at ? Math.max(0, (1800 - Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000)) % 60) : 0,
+              hours: 0,
+              currentPot: session.current_pot,
+              basePrice: session.base_price
+            } : null;
+            
+            // Simple timer start check (alternative approach)
+            if (session && session.current_pot >= session.base_price && !session.timer_started_at && session.status !== 'completed') {
+              console.log('🎯 [Winner Takes It All] Base price met, starting timer for session:', session.id);
+              // Start timer directly without complex state management
+              supabase
+                .from('winner_takes_all_shared_sessions')
+                .update({ 
+                  timer_started_at: new Date().toISOString(),
+                  status: 'active',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', session.id)
+                .then(({ error }) => {
+                  if (error) {
+                    console.error('❌ [Winner Takes It All] Error starting timer:', error);
+                  } else {
+                    console.log('✅ [Winner Takes It All] Timer started successfully');
+                  }
+                });
+            }
             const prizeDistribution = calculateWinnerTakesAllPayouts(config);
             const canJoin = userTokens >= config.entry_fee;
             
