@@ -463,11 +463,31 @@ export default function WinnerTakesAllPage() {
     // Check if user already completed this tournament (using Supabase data)
     const session = sessions.find(s => s.config_id === configId);
     if (session) {
-      const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null && p.score !== undefined);
+      const hasCompleted = session.participants.some(p => p.user_id === user.id && p.score !== null && p.score !== undefined && p.score !== 0);
       if (hasCompleted) {
         setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
         return;
       }
+    }
+
+    // Also check localStorage as backup
+    try {
+      const savedSessions = localStorage.getItem('winnerTakesAllSessions');
+      if (savedSessions) {
+        const parsedSessions = JSON.parse(savedSessions);
+        const savedSession = parsedSessions.find((s: any) => s.config_id === configId);
+        if (savedSession && savedSession.participants) {
+          const hasCompletedInStorage = savedSession.participants.some((p: any) => 
+            p.user_id === user.id && p.score !== null && p.score !== undefined && p.score !== 0
+          );
+          if (hasCompletedInStorage) {
+            setMessage({ type: 'error', text: 'You have already completed this tournament! Check the scoreboard for your score.' });
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error checking localStorage in handleJoinGame:', error);
     }
 
     // If location not verified, verify it first
@@ -760,7 +780,7 @@ export default function WinnerTakesAllPage() {
               console.log('✅ [Winner Takes It All] Score recorded in Supabase:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
 
-              // Save score to dashboard
+              // Save score to dashboard (game_history)
               try {
                 const { error: dashboardError } = await supabase
                   .from('game_history')
@@ -782,11 +802,39 @@ export default function WinnerTakesAllPage() {
                 console.error('❌ [Winner Takes It All] Error saving score to dashboard:', error);
               }
 
+              // Also save to competitions table for competitions tab
+              try {
+                const { error: competitionsError } = await supabase
+                  .from('competitions')
+                  .insert({
+                    user_id: user.id,
+                    game_type: selectedGameFlow.gameType,
+                    score: score,
+                    accuracy: accuracy,
+                    tournament_type: 'winner_takes_all',
+                    session_id: selectedGameFlow.sessionId,
+                    created_at: new Date().toISOString()
+                  });
+
+                if (competitionsError) {
+                  console.error('❌ [Winner Takes It All] Error saving score to competitions:', competitionsError);
+                } else {
+                  console.log('✅ [Winner Takes It All] Score saved to competitions');
+                }
+              } catch (error) {
+                console.error('❌ [Winner Takes It All] Error saving score to competitions:', error);
+              }
+
               // Show success message
               setMessage({ 
                 type: 'success', 
-                text: `Game completed! Your score: ${score}. You can no longer play this tournament.` 
+                text: `Game completed! Your score: ${score}. Redirecting to dashboard...` 
               });
+
+              // Redirect to dashboard after 2 seconds
+              setTimeout(() => {
+                window.location.href = '/dashboard';
+              }, 2000);
 
             } catch (error) {
               console.error('❌ [Winner Takes It All] Error recording score:', error);
@@ -1113,13 +1161,38 @@ export default function WinnerTakesAllPage() {
                       }
                       
                       // Check if user already completed this tournament (has a score)
-                      // More robust completion check
-                      const hasCompleted = session && session.participants.some(p => 
-                        p.user_id === user?.id && 
-                        p.score !== null && 
-                        p.score !== undefined && 
-                        p.score !== 0
-                      );
+                      // More robust completion check - check both current sessions and localStorage
+                      let hasCompleted = false;
+                      let userParticipant = null;
+
+                      // First check current sessions state
+                      if (session && session.participants) {
+                        userParticipant = session.participants.find(p => p.user_id === user?.id);
+                        hasCompleted = userParticipant && 
+                          userParticipant.score !== null && 
+                          userParticipant.score !== undefined && 
+                          userParticipant.score !== 0;
+                      }
+
+                      // If not found in current state, check localStorage as backup
+                      if (!hasCompleted) {
+                        try {
+                          const savedSessions = localStorage.getItem('winnerTakesAllSessions');
+                          if (savedSessions) {
+                            const parsedSessions = JSON.parse(savedSessions);
+                            const savedSession = parsedSessions.find((s: any) => s.config_id === config.id);
+                            if (savedSession && savedSession.participants) {
+                              userParticipant = savedSession.participants.find((p: any) => p.user_id === user?.id);
+                              hasCompleted = userParticipant && 
+                                userParticipant.score !== null && 
+                                userParticipant.score !== undefined && 
+                                userParticipant.score !== 0;
+                            }
+                          }
+                        } catch (error) {
+                          console.error('❌ [Winner Takes It All] Error checking localStorage:', error);
+                        }
+                      }
                       
                       console.log('🔍 [Winner Takes It All] Completion check:', {
                         configId: config.id,
@@ -1127,11 +1200,11 @@ export default function WinnerTakesAllPage() {
                         sessionExists: !!session,
                         participants: session?.participants || [],
                         hasCompleted,
-                        userParticipant: session?.participants.find(p => p.user_id === user?.id)
+                        userParticipant,
+                        score: userParticipant?.score
                       });
                       
                       if (hasCompleted) {
-                        const userParticipant = session.participants.find(p => p.user_id === user?.id);
                         return (
                           <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
                             <div className="flex items-center justify-center">
