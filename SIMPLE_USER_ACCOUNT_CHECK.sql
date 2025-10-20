@@ -87,7 +87,7 @@ SELECT
     tt.description,
     tt.created_at
 FROM public.users u
-JOIN public.token_transactions tt ON u.id::text = tt.user_id
+JOIN public.token_transactions tt ON u.id::text = tt.user_id::text
 ORDER BY tt.created_at DESC
 LIMIT 20;
 
@@ -106,6 +106,6 @@ FROM public.users u
 LEFT JOIN auth.users a ON u.email = a.email
 LEFT JOIN public.game_history gh ON u.id::text = gh.user_id
 LEFT JOIN public.competitions c ON u.id::text = c.user_id
-LEFT JOIN public.token_transactions tt ON u.id::text = tt.user_id
+LEFT JOIN public.token_transactions tt ON u.id::text = tt.user_id::text
 GROUP BY u.id, u.email, u.tokens, u.total_earned, u.last_login, a.id
 ORDER BY u.email;
