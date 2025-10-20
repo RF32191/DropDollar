@@ -162,8 +162,8 @@ export default function WinnerTakesAllPage() {
         console.error('❌ [Winner Takes It All] Error loading user completions:', error);
       }
     }
-    
-    // Set up real-time subscription for shared sessions
+
+    // Set up real-time subscription for live updates
     const subscription = supabase
       .channel('winner_takes_all_sessions')
       .on('postgres_changes', 
@@ -174,7 +174,6 @@ export default function WinnerTakesAllPage() {
         }, 
         (payload) => {
           console.log('🔄 [Winner Takes It All] Real-time update received:', payload);
-          // Refresh data when any change occurs
           refreshParticipantsData();
         }
       )
@@ -183,6 +182,14 @@ export default function WinnerTakesAllPage() {
     return () => {
       subscription.unsubscribe();
     };
+  }, []);
+
+  // Refresh data when user changes (for multi-user testing)
+  useEffect(() => {
+    if (user?.id) {
+      console.log('👤 [Winner Takes It All] User changed, refreshing data for:', user.id);
+      refreshParticipantsData();
+    }
   }, [user?.id]);
 
   // Refresh participants data every 30 seconds
@@ -387,6 +394,14 @@ export default function WinnerTakesAllPage() {
       
       setSessions(sessionsData);
       console.log('✅ [Winner Takes It All] Shared sessions refreshed:', sessionsData.length);
+      console.log('📊 [Winner Takes It All] Sessions with participants:', sessionsData.filter(s => s.participants.length > 0).length);
+      
+      // Log participants for debugging
+      sessionsData.forEach(session => {
+        if (session.participants.length > 0) {
+          console.log(`🎮 [Winner Takes It All] Session ${session.config_id} has ${session.participants.length} participants:`, session.participants);
+        }
+      });
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error refreshing sessions:', error);
     }
@@ -1220,21 +1235,33 @@ export default function WinnerTakesAllPage() {
 
                     return (
                       <div className="mb-6">
-                        <button
-                          onClick={() => {
-                            const scoreboard = document.getElementById(`winner-scoreboard-${config.id}`);
-                            if (scoreboard) {
-                              scoreboard.classList.toggle('hidden');
-                            }
-                          }}
-                          className="w-full flex items-center justify-between text-left"
-                        >
-                          <h4 className="text-sm font-semibold text-white flex items-center">
-                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                            Live Scoreboard ({participantsWithScores.length} player{participantsWithScores.length !== 1 ? 's' : ''})
-                          </h4>
-                          <span className="text-gray-400 text-xs">Click to expand</span>
-                        </button>
+                        <div className="flex items-center justify-between w-full">
+                          <button
+                            onClick={() => {
+                              const scoreboard = document.getElementById(`winner-scoreboard-${config.id}`);
+                              if (scoreboard) {
+                                scoreboard.classList.toggle('hidden');
+                              }
+                            }}
+                            className="flex items-center text-left"
+                          >
+                            <h4 className="text-sm font-semibold text-white flex items-center">
+                              <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                              Live Scoreboard ({participantsWithScores.length} player{participantsWithScores.length !== 1 ? 's' : ''})
+                            </h4>
+                            <span className="text-gray-400 text-xs ml-2">Click to expand</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              console.log('🔄 [Winner Takes It All] Manual refresh requested for', config.id);
+                              refreshParticipantsData();
+                            }}
+                            className="text-xs text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded"
+                            title="Refresh scoreboard"
+                          >
+                            🔄 Refresh
+                          </button>
+                        </div>
                         
                         <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
                           <div className="bg-white/5 rounded-xl p-4">
@@ -1243,30 +1270,36 @@ export default function WinnerTakesAllPage() {
                               <span>Score</span>
                             </div>
                             <div className="space-y-2">
-                              {participantsWithScores
-                                .sort((a, b) => (b.score || 0) - (a.score || 0))
-                                .map((participant, index) => {
-                                  const isCurrentUser = participant.user_id === user?.id;
-                                  return (
-                                    <div key={participant.id} className={`rounded-lg p-3 ${
-                                      isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
-                                    }`}>
-                                      <div className="flex items-center justify-between">
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                          index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-600'
-                                        }`}>
-                                          <span className="text-xs font-bold text-white">{index + 1}</span>
+                              {participantsWithScores.length === 0 ? (
+                                <div className="text-center py-4 text-gray-400">
+                                  <p className="text-sm">No scores yet. Be the first to play!</p>
+                                </div>
+                              ) : (
+                                participantsWithScores
+                                  .sort((a, b) => (b.score || 0) - (a.score || 0))
+                                  .map((participant, index) => {
+                                    const isCurrentUser = participant.user_id === user?.id;
+                                    return (
+                                      <div key={participant.id} className={`rounded-lg p-3 ${
+                                        isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
+                                      }`}>
+                                        <div className="flex items-center justify-between">
+                                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                                            index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-600'
+                                          }`}>
+                                            <span className="text-xs font-bold text-white">{index + 1}</span>
+                                          </div>
+                                          <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
+                                            {isCurrentUser ? 'You' : `Player ${participant.user_id.slice(-4)}`}
+                                          </span>
+                                          <span className={`font-semibold ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
+                                            {participant.score}
+                                          </span>
                                         </div>
-                                        <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
-                                          {isCurrentUser ? 'You' : `Player ${participant.user_id.slice(-4)}`}
-                                        </span>
-                                        <span className={`font-semibold ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
-                                          {participant.score}
-                                        </span>
                                       </div>
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  })
+                              )}
                             </div>
                           </div>
                         </div>
