@@ -1,5 +1,5 @@
 -- Fix Email Mismatch Issue
--- This script will correct the email addresses and merge accounts if needed
+-- This script will merge accounts and fix the email mismatch
 
 -- 1. First, let's see the current state of both accounts
 SELECT 
@@ -18,71 +18,52 @@ WHERE email IN (
 )
 ORDER BY email;
 
--- 2. Update the wrong account to have the correct email
--- This will fix the email mismatch
-UPDATE public.users 
-SET 
-    email = 'ryanfermoselle@yahoo.com',
-    updated_at = NOW()
-WHERE email = 'ryanrfermoselle@yahoo.com';
+-- 2. Merge accounts by keeping the one with more tokens and updating its email
+DO $$ 
+DECLARE
+    correct_account_id TEXT;
+    correct_account_tokens INTEGER;
+    wrong_account_id TEXT;
+    wrong_account_tokens INTEGER;
+BEGIN
+    -- Get the account with the correct email (130 tokens)
+    SELECT id, tokens INTO correct_account_id, correct_account_tokens
+    FROM public.users 
+    WHERE email = 'ryanfermoselle@yahoo.com';
+    
+    -- Get the account with the wrong email (138 tokens)
+    SELECT id, tokens INTO wrong_account_id, wrong_account_tokens
+    FROM public.users 
+    WHERE email = 'ryanrfermoselle@yahoo.com';
+    
+    -- If both accounts exist, merge them
+    IF correct_account_id IS NOT NULL AND wrong_account_id IS NOT NULL THEN
+        -- Update the correct account with the higher token balance
+        UPDATE public.users 
+        SET 
+            tokens = wrong_account_tokens,
+            balance = (SELECT balance FROM public.users WHERE id = wrong_account_id),
+            total_spent = (SELECT total_spent FROM public.users WHERE id = wrong_account_id),
+            total_earned = (SELECT total_earned FROM public.users WHERE id = wrong_account_id),
+            games_played = (SELECT games_played FROM public.users WHERE id = wrong_account_id),
+            games_won = (SELECT games_won FROM public.users WHERE id = wrong_account_id),
+            updated_at = NOW()
+        WHERE id = correct_account_id;
+        
+        -- Delete the wrong account
+        DELETE FROM public.users WHERE id = wrong_account_id;
+        
+        RAISE NOTICE 'Merged accounts: Updated account % to have % tokens, deleted account %', 
+            correct_account_id, wrong_account_tokens, wrong_account_id;
+    END IF;
+END $$;
 
--- 3. Also update the auth.users table (Supabase auth table)
+-- 3. Update the auth.users table to use the correct email
 UPDATE auth.users 
 SET 
     email = 'ryanfermoselle@yahoo.com',
     updated_at = NOW()
 WHERE email = 'ryanrfermoselle@yahoo.com';
-
--- 4. If there are now duplicate accounts, we need to merge them
--- First, let's check if we have duplicates after the update
-SELECT 
-    email,
-    COUNT(*) as account_count,
-    STRING_AGG(id::text, ', ') as user_ids,
-    STRING_AGG(tokens::text, ', ') as token_balances
-FROM public.users 
-WHERE email = 'ryanfermoselle@yahoo.com'
-GROUP BY email
-HAVING COUNT(*) > 1;
-
--- 5. If there are duplicates, we need to merge them
--- Keep the account with more tokens (138) and delete the other
-DO $$ 
-DECLARE
-    account_1_id TEXT;
-    account_1_tokens INTEGER;
-    account_2_id TEXT;
-    account_2_tokens INTEGER;
-BEGIN
-    -- Get both account details
-    SELECT id, tokens INTO account_1_id, account_1_tokens
-    FROM public.users 
-    WHERE email = 'ryanfermoselle@yahoo.com' 
-    ORDER BY created_at ASC 
-    LIMIT 1;
-    
-    SELECT id, tokens INTO account_2_id, account_2_tokens
-    FROM public.users 
-    WHERE email = 'ryanfermoselle@yahoo.com' 
-    ORDER BY created_at DESC 
-    LIMIT 1;
-    
-    -- If we have two different accounts, merge them
-    IF account_1_id != account_2_id THEN
-        -- Keep the account with more tokens
-        IF account_2_tokens > account_1_tokens THEN
-            -- Delete the account with fewer tokens
-            DELETE FROM public.users WHERE id = account_1_id;
-            RAISE NOTICE 'Merged accounts: Kept account % with % tokens, deleted account % with % tokens', 
-                account_2_id, account_2_tokens, account_1_id, account_1_tokens;
-        ELSE
-            -- Delete the account with fewer tokens
-            DELETE FROM public.users WHERE id = account_2_id;
-            RAISE NOTICE 'Merged accounts: Kept account % with % tokens, deleted account % with % tokens', 
-                account_1_id, account_1_tokens, account_2_id, account_2_tokens;
-        END IF;
-    END IF;
-END $$;
 
 -- 6. Show the final state after the fix
 SELECT 
