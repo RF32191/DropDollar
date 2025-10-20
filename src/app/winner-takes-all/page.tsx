@@ -135,6 +135,19 @@ export default function WinnerTakesAllPage() {
       rng_seed: 4,
       winner_prize: 212.50,
       platform_fee: 37.50
+    },
+    {
+      id: 'wta-5-blade-bounce',
+      game_type: 'blade_bounce',
+      title: '$5 Winner Takes It All - Blade Bounce',
+      description: 'Winner takes the entire $5 prize pool!',
+      entry_fee: 1,
+      prize_pool: 5,
+      base_price: 5,
+      game_duration: 60,
+      rng_seed: 7,
+      winner_prize: 4.25,
+      platform_fee: 0.75
     }
   ];
   

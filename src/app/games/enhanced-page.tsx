@@ -9,6 +9,7 @@ import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
+import BladeBounceGame from '@/components/games/BladeBounceGame';
 import VictoryAnimation from '@/components/VictoryAnimation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
@@ -59,6 +60,12 @@ const GAMES = [
     name: 'Falling Objects',
     component: FallingObjectGame,
     icon: <StarIcon className="w-6 h-6 text-indigo-500" />
+  },
+  {
+    id: 'blade-bounce',
+    name: 'Blade Bounce',
+    component: BladeBounceGame,
+    icon: <StarIcon className="w-6 h-6 text-red-500" />
   }
 ];
 

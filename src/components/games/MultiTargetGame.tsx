@@ -562,7 +562,7 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
 
         {gameState === 'playing' && (
           <div className="space-y-6">
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
               Click ALL the glowing targets! ✨
             </div>
             
@@ -576,7 +576,7 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
             </div>
             
             {/* Game Area */}
-            <div className="relative bg-gray-100 rounded-xl h-96 border-4 border-gray-300">
+            <div className="relative bg-gray-100 rounded-xl h-96 border-4 border-gray-300 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
               {targets.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                   Generating targets... (Check console for logs)

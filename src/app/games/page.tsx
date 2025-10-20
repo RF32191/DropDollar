@@ -9,6 +9,7 @@ import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
+import BladeBounceGame from '@/components/games/BladeBounceGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import CelebrationEffect from '@/components/CelebrationEffect';
 import GameVictoryAnimation from '@/components/GameVictoryAnimation';
@@ -99,6 +100,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Clicking', 'Timing', 'Reflexes'],
     component: SwordParryGame
+  },
+  {
+    id: 'blade-bounce',
+    name: 'Blade Bounce: Mouseblade',
+    description: 'Control your sword with mouse movement and precise clicks to block obstacles and enemies',
+    icon: ShieldCheckIcon,
+    difficulty: 'Extreme',
+    avgTime: '60s',
+    skills: ['Mouse Control', 'Reaction Time', 'Precision', 'Strategy'],
+    component: BladeBounceGame
   }
 ];
 

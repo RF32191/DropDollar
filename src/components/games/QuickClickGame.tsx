@@ -419,15 +419,16 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         {/* Game Area */}
         <div 
           ref={gameAreaRef}
-          className={`relative rounded-xl h-64 sm:h-96 border-4 cursor-pointer transition-all duration-100 ${
+          className={`relative rounded-xl h-64 sm:h-96 border-4 cursor-pointer transition-all duration-100 select-none ${
             gameState === 'waiting' ? 'bg-red-500 border-red-600' :
             gameState === 'flash' ? 'bg-green-500 border-green-600 animate-pulse' :
             gameState === 'clicked' ? 'bg-blue-500 border-blue-600' :
             'bg-gray-800 border-gray-600'
           }`}
           onClick={handleClick}
+          style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}
         >
-          <div className="absolute inset-0 flex items-center justify-center text-white">
+          <div className="absolute inset-0 flex items-center justify-center text-white select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
             {gameState === 'waiting' && (
               <div className="text-center">
                 <div className="text-4xl sm:text-6xl font-bold mb-4">WAIT...</div>

@@ -541,7 +541,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
         {/* Color Selection Grid */}
         {gameState === 'input' && (
           <div className="mb-6">
-            <div className="text-sm font-semibold text-gray-900 mb-3">Click the colors in the same order:</div>
+            <div className="text-sm font-semibold text-gray-900 mb-3 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>Click the colors in the same order:</div>
             <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
               {COLORS.map((color, index) => (
                 <button

@@ -52,16 +52,16 @@ SELECT
     'WINNER TAKES IT ALL PARTICIPATION' as info,
     u.email,
     COUNT(s.id) as sessions_participated,
-    SUM(CASE WHEN p.score IS NOT NULL THEN 1 ELSE 0 END) as games_completed,
-    MAX(p.score) as best_score,
+    SUM(CASE WHEN participant_data.score IS NOT NULL THEN 1 ELSE 0 END) as games_completed,
+    MAX(participant_data.score) as best_score,
     MAX(s.created_at) as last_participation
 FROM public.users u
 LEFT JOIN public.winner_takes_all_shared_sessions s ON s.participants::text LIKE '%' || u.id || '%'
 LEFT JOIN LATERAL (
-    SELECT score 
-    FROM jsonb_array_elements(s.participants) p 
-    WHERE p->>'user_id' = u.id
-) p ON true
+    SELECT (participant->>'score')::integer as score
+    FROM jsonb_array_elements(s.participants) participant 
+    WHERE participant->>'user_id' = u.id
+) participant_data ON true
 WHERE u.email IN ('ryanfermoselle@yahoo.com', 'ryanrfermoselle@yahoo.com')
 GROUP BY u.email;
 
@@ -146,3 +146,4 @@ SELECT
         THEN '✅ Accounts have different token balances - ISOLATION WORKING'
         ELSE '❌ Accounts have same token balance - ISOLATION BROKEN'
     END as isolation_status;
+ake it for 
