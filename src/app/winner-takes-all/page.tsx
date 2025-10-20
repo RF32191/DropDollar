@@ -258,7 +258,7 @@ export default function WinnerTakesAllPage() {
       
       console.log('✅ [Winner Takes It All] Data loaded successfully');
       console.log('📊 [Winner Takes It All] Configs:', configsData.length);
-      console.log('📊 [Winner Takes It All] Sessions:', sessionsData.length);
+      console.log('📊 [Winner Takes It All] Sessions:', sessions.length);
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading data:', error);
     } finally {
@@ -746,6 +746,28 @@ export default function WinnerTakesAllPage() {
 
               console.log('✅ [Winner Takes It All] Score recorded in Supabase:', score);
               console.log('✅ [Winner Takes It All] User locked out from playing again');
+
+              // Save score to dashboard
+              try {
+                const { error: dashboardError } = await supabase
+                  .from('game_history')
+                  .insert({
+                    user_id: user.id,
+                    game_type: selectedGameFlow.gameType,
+                    score: score,
+                    accuracy: accuracy,
+                    tournament_type: 'winner_takes_all',
+                    created_at: new Date().toISOString()
+                  });
+
+                if (dashboardError) {
+                  console.error('❌ [Winner Takes It All] Error saving score to dashboard:', dashboardError);
+                } else {
+                  console.log('✅ [Winner Takes It All] Score saved to dashboard');
+                }
+              } catch (error) {
+                console.error('❌ [Winner Takes It All] Error saving score to dashboard:', error);
+              }
 
               // Show success message
               setMessage({ 

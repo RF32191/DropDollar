@@ -177,6 +177,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Load full user profile
         await loadUserProfile(data.user.id);
+        
+        // Refresh token balance after login
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('tokens')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (userData) {
+            // Trigger token sync event
+            window.dispatchEvent(new CustomEvent('tokenUpdate', { 
+              detail: { tokens: userData.tokens || 0 } 
+            }));
+            console.log('✅ Token balance refreshed on login:', userData.tokens);
+          }
+        } catch (error) {
+          console.error('❌ Error refreshing tokens on login:', error);
+        }
       }
     } catch (error: any) {
       console.error('❌ Login failed:', error);
