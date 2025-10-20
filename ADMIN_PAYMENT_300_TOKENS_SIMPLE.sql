@@ -23,7 +23,7 @@ SET
     updated_at = NOW()
 WHERE email = 'ryanrfermoselle@yahoo.com';
 
--- 3. Record the admin payment transaction (with all required fields)
+-- 3. Record the admin payment transaction (with valid transaction type)
 INSERT INTO public.token_transactions (
     user_id,
     amount,
@@ -35,7 +35,7 @@ INSERT INTO public.token_transactions (
 ) VALUES (
     (SELECT id FROM public.users WHERE email = 'ryanrfermoselle@yahoo.com'),
     300,
-    'admin_payment',
+    'credit',
     (SELECT tokens FROM public.users WHERE email = 'ryanrfermoselle@yahoo.com'),
     (SELECT tokens + 300 FROM public.users WHERE email = 'ryanrfermoselle@yahoo.com'),
     'Admin payment of 300 tokens',
