@@ -21,9 +21,9 @@ ORDER BY email;
 -- 2. Merge accounts by keeping the one with more tokens and updating its email
 DO $$ 
 DECLARE
-    correct_account_id TEXT;
+    correct_account_id UUID;
     correct_account_tokens INTEGER;
-    wrong_account_id TEXT;
+    wrong_account_id UUID;
     wrong_account_tokens INTEGER;
 BEGIN
     -- Get the account with the correct email (130 tokens)
