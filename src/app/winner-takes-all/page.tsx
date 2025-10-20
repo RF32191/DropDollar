@@ -192,6 +192,54 @@ export default function WinnerTakesAllPage() {
     }
   }, [user?.id]);
 
+  // Check for pending payouts on page load
+  useEffect(() => {
+    const checkPendingPayouts = async () => {
+      try {
+        console.log('💰 [Winner Takes It All] Checking for pending payouts...');
+        
+        // Get all sessions that might need payouts
+        const { data: sessionsData, error } = await supabase
+          .from('winner_takes_all_shared_sessions')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('❌ [Winner Takes It All] Error checking pending payouts:', error);
+          return;
+        }
+
+        // Check each session for completion and pending payouts
+        for (const session of sessionsData) {
+          if (isTournamentCompleted(session) && !session.winner_paid) {
+            const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
+            if (participantsWithScores.length > 0) {
+              const winner = participantsWithScores.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))[0];
+              const config = configs.find(c => c.id === session.config_id);
+              
+              if (winner && config) {
+                const prizeAmount = config.winner_prize;
+                console.log('💰 [Winner Takes It All] Processing pending payout:', {
+                  sessionId: session.id,
+                  winnerId: winner.user_id,
+                  prizeAmount
+                });
+                
+                await payoutWinner(session.id, winner.user_id, prizeAmount);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ [Winner Takes It All] Error in checkPendingPayouts:', error);
+      }
+    };
+
+    // Run after a short delay to ensure data is loaded
+    const timeoutId = setTimeout(checkPendingPayouts, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [configs.length, sessions.length]);
+
   // Refresh participants data every 30 seconds
   useEffect(() => {
     if (sessions.length > 0) {
@@ -410,20 +458,40 @@ export default function WinnerTakesAllPage() {
   const isTournamentCompleted = (session: any) => {
     // Tournament is completed if:
     // 1. Base price is met AND
-    // 2. Timer has expired (game duration has passed) AND
+    // 2. Timer has expired (30 minutes after base price was met) AND
     // 3. At least one participant has a score
-    if (!session || session.status !== 'active') return false;
+    if (!session) return false;
     
+    const isBasePriceMet = session.current_pot >= session.base_price;
     const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
-    if (participantsWithScores.length === 0) return false;
+    const hasScores = participantsWithScores.length > 0;
     
-    if (!session.timer_started_at) return false;
+    // Check if timer has expired (30 minutes after base price was met)
+    let timerExpired = false;
+    if (session.timer_started_at) {
+      const timerStart = new Date(session.timer_started_at);
+      const now = new Date();
+      const elapsed = (now.getTime() - timerStart.getTime()) / 1000; // seconds
+      timerExpired = elapsed >= 1800; // 30 minutes = 1800 seconds
+    }
     
-    const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
-    const config = configs.find(c => c.id === session.config_id);
-    if (!config) return false;
+    const isCompleted = isBasePriceMet && timerExpired && hasScores;
     
-    return elapsed >= config.game_duration;
+    if (isCompleted) {
+      console.log('🏆 [Winner Takes It All] Tournament completed:', {
+        sessionId: session.id,
+        configId: session.config_id,
+        isBasePriceMet,
+        timerExpired,
+        hasScores,
+        participantsCount: participantsWithScores.length,
+        currentPot: session.current_pot,
+        basePrice: session.base_price,
+        winner: participantsWithScores.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))[0]
+      });
+    }
+    
+    return isCompleted;
   };
 
   const resetCompletedTournament = async (sessionId: string) => {
@@ -455,7 +523,7 @@ export default function WinnerTakesAllPage() {
       // Get winner's current token balance
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('tokens')
+        .select('tokens, total_earned')
         .eq('id', winnerUserId)
         .single();
 
@@ -465,12 +533,18 @@ export default function WinnerTakesAllPage() {
       }
 
       const currentTokens = userData.tokens || 0;
+      const currentTotalEarned = userData.total_earned || 0;
       const newTokenBalance = currentTokens + prizeAmount;
+      const newTotalEarned = currentTotalEarned + prizeAmount;
 
-      // Update winner's token balance with decimal support
+      // Update winner's token balance and total earned with decimal support
       const { error: updateError } = await supabase
         .from('users')
-        .update({ tokens: newTokenBalance })
+        .update({ 
+          tokens: newTokenBalance,
+          total_earned: newTotalEarned,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', winnerUserId);
 
       if (updateError) {
@@ -478,11 +552,46 @@ export default function WinnerTakesAllPage() {
         return false;
       }
 
-      console.log('✅ [Winner Takes It All] Winner paid out:', {
+      // Mark session as paid in Supabase
+      const { error: sessionUpdateError } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .update({ 
+          winner_paid: true,
+          winner_user_id: winnerUserId,
+          prize_awarded: prizeAmount,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (sessionUpdateError) {
+        console.error('❌ [Winner Takes It All] Error updating session payment status:', sessionUpdateError);
+      }
+
+      // Backup payout data to localStorage for immediate UI updates
+      const payoutData = {
+        sessionId,
+        winnerUserId,
+        prizeAmount,
+        payoutTime: new Date().toISOString(),
+        oldBalance: currentTokens,
+        newBalance: newTokenBalance
+      };
+
+      // Store in localStorage for immediate access
+      localStorage.setItem(`winnerTakesAllPayout_${sessionId}`, JSON.stringify(payoutData));
+      
+      // Also store in a general payouts array
+      const existingPayouts = JSON.parse(localStorage.getItem('winnerTakesAllPayouts') || '[]');
+      existingPayouts.push(payoutData);
+      localStorage.setItem('winnerTakesAllPayouts', JSON.stringify(existingPayouts));
+
+      console.log('✅ [Winner Takes It All] Winner paid out successfully:', {
         winnerUserId,
         prizeAmount,
         oldBalance: currentTokens,
-        newBalance: newTokenBalance
+        newBalance: newTokenBalance,
+        payoutData
       });
 
       return true;
@@ -1326,8 +1435,14 @@ export default function WinnerTakesAllPage() {
                         const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
                         const winner = participantsWithScores.sort((a: any, b: any) => (b.score || 0) - (a.score || 0))[0];
                         
+                        // Check if winner has been paid (from Supabase or localStorage)
+                        const isPaidFromSupabase = session.winner_paid;
+                        const isPaidFromLocalStorage = localStorage.getItem(`winnerTakesAllPayout_${session.id}`);
+                        const isPaid = isPaidFromSupabase || isPaidFromLocalStorage;
+                        
                         // Auto-payout winner if not already paid
-                        if (winner && !session.winner_paid) {
+                        if (winner && !isPaid) {
+                          console.log('💰 [Winner Takes It All] Triggering automatic payout for winner:', winner.user_id);
                           payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
                         }
                         
@@ -1340,14 +1455,34 @@ export default function WinnerTakesAllPage() {
                               </div>
                               <p className="text-yellow-200 text-sm">Winner: Player {winner?.user_id?.slice(-4)} with score {winner?.score}</p>
                               <p className="text-yellow-200 text-sm">Prize: {prizeDistribution.winnerPrize} tokens</p>
-                              <p className="text-green-300 text-xs mt-1">✅ Winner has been paid out!</p>
+                              <p className="text-yellow-200 text-sm">Platform Fee: {prizeDistribution.platformFee} tokens</p>
+                              <p className="text-green-300 text-xs mt-1">
+                                {isPaid ? '✅ Winner has been paid out!' : '⏳ Processing payout...'}
+                              </p>
                             </div>
-                            <button
-                              onClick={() => resetCompletedTournament(session.id)}
-                              className="w-full py-3 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-300"
-                            >
-                              🔄 START NEW TOURNAMENT
-                            </button>
+                            <div className="space-y-2">
+                              {!isPaid && (
+                                <button
+                                  onClick={async () => {
+                                    if (winner) {
+                                      console.log('💰 [Winner Takes It All] Manual payout triggered');
+                                      await payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
+                                      // Refresh data to show updated status
+                                      setTimeout(() => refreshParticipantsData(), 1000);
+                                    }
+                                  }}
+                                  className="w-full py-2 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 transition-all duration-300"
+                                >
+                                  💰 MANUAL PAYOUT WINNER
+                                </button>
+                              )}
+                              <button
+                                onClick={() => resetCompletedTournament(session.id)}
+                                className="w-full py-3 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-300"
+                              >
+                                🔄 START NEW TOURNAMENT
+                              </button>
+                            </div>
                           </div>
                         );
                       }
