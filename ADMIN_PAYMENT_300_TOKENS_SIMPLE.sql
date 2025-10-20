@@ -27,11 +27,13 @@ WHERE email = 'ryanrfermoselle@yahoo.com';
 INSERT INTO public.token_transactions (
     user_id,
     amount,
+    type,
     description,
     created_at
 ) VALUES (
     (SELECT id FROM public.users WHERE email = 'ryanrfermoselle@yahoo.com'),
     300,
+    'admin_payment',
     'Admin payment of 300 tokens',
     NOW()
 );
@@ -57,6 +59,7 @@ SELECT
     id,
     user_id,
     amount,
+    type,
     description,
     created_at
 FROM public.token_transactions 
