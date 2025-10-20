@@ -157,7 +157,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔐 Logging in:', email);
       
-      // Try Supabase authentication first
+      // Clear previous user data first to prevent cross-contamination
+      console.log('🧹 Clearing previous user data...');
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      // Clear all localStorage items that might contain user-specific data
+      localStorage.removeItem('user');
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('sessionId');
+      localStorage.removeItem('loginTime');
+      localStorage.removeItem('lastActivity');
+      
+      // Clear all user-specific localStorage data
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.startsWith('winnerTakesAllCompletions_') || 
+          key.startsWith('winnerTakesAllSessions') ||
+          key.startsWith('user') ||
+          key.startsWith('token') ||
+          key.startsWith('game') ||
+          key.startsWith('session') ||
+          key.startsWith('login') ||
+          key.startsWith('auth') ||
+          key === 'isLoggedIn' ||
+          key === 'userId' ||
+          key === 'sessionId' ||
+          key === 'loginTime' ||
+          key === 'lastActivity'
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log('🧹 Removed localStorage key:', key);
+      });
+      
+      // Clear cookies
+      document.cookie = 'dropdollar_session=; path=/; max-age=0';
+      document.cookie = 'dropdollar_user=; path=/; max-age=0';
+      document.cookie = 'dropdollar_remember=; path=/; max-age=0';
+      
+      console.log('✅ Previous user data cleared');
+      
+      // Try Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
