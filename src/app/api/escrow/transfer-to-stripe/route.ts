@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripeInstance } from '@/lib/payments/stripeService';
+import Stripe from 'stripe';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-06-20',
+});
 
 /**
  * Transfer tokens to Stripe escrow for tournament/competition entries
@@ -17,15 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Invalid parameters' },
         { status: 400 }
-      );
-    }
-
-    // Get Stripe instance
-    const stripe = await getStripeInstance();
-    if (!stripe) {
-      return NextResponse.json(
-        { success: false, error: 'Payment processing unavailable' },
-        { status: 503 }
       );
     }
 
@@ -84,13 +83,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const stripe = await getStripeInstance();
-    if (!stripe) {
-      return NextResponse.json(
-        { success: false, error: 'Payment processing unavailable' },
-        { status: 503 }
-      );
-    }
 
     // Capture the payment intent to release funds
     const captured = await stripe.paymentIntents.capture(paymentIntentId);

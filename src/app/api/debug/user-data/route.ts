@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UserService } from '@/lib/supabase/userService';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 /**
  * Debug endpoint to check user data in Supabase
  * 

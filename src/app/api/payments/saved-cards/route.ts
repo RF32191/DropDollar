@@ -5,6 +5,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20',
 });
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 /**
  * Get saved payment methods for a customer
  */
