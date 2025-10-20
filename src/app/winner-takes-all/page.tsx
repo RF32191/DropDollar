@@ -59,58 +59,6 @@ export default function WinnerTakesAllPage() {
   // Hardcoded Winner Takes It All listings
   const hardcodedListings = [
     {
-      id: 'wta-100-laser-dodge',
-      game_type: 'laser_dodge',
-      title: '$100 Winner Takes It All - Laser Dodge',
-      description: 'Winner takes the entire $100 prize pool!',
-      entry_fee: 1,
-      prize_pool: 100,
-      base_price: 100,
-      game_duration: 60,
-      rng_seed: 1,
-      winner_prize: 85,
-      platform_fee: 15
-    },
-    {
-      id: 'wta-250-multi-target',
-      game_type: 'multi_target_reaction',
-      title: '$250 Winner Takes It All - Multi Target',
-      description: 'Winner takes the entire $250 prize pool!',
-      entry_fee: 1,
-      prize_pool: 250,
-      base_price: 250,
-      game_duration: 90,
-      rng_seed: 2,
-      winner_prize: 212.50,
-      platform_fee: 37.50
-    },
-    {
-      id: 'wta-1000-sword-parry',
-      game_type: 'sword_parry',
-      title: '$1000 Winner Takes It All - Sword Parry',
-      description: 'Winner takes the entire $1000 prize pool!',
-      entry_fee: 1,
-      prize_pool: 1000,
-      base_price: 1000,
-      game_duration: 120,
-      rng_seed: 3,
-      winner_prize: 850,
-      platform_fee: 150
-    },
-    {
-      id: 'wta-2500-quick-click',
-      game_type: 'number_tap',
-      title: '$2500 Winner Takes It All - Quick Click',
-      description: 'Winner takes the entire $2500 prize pool!',
-      entry_fee: 1,
-      prize_pool: 2500,
-      base_price: 2500,
-      game_duration: 180,
-      rng_seed: 4,
-      winner_prize: 2125,
-      platform_fee: 375
-    },
-    {
       id: 'wta-2-sword-parry',
       game_type: 'sword_parry',
       title: '$2 Winner Takes It All - Sword Parry',
@@ -135,6 +83,58 @@ export default function WinnerTakesAllPage() {
       rng_seed: 6,
       winner_prize: 8.50,
       platform_fee: 1.50
+    },
+    {
+      id: 'wta-25-multi-target',
+      game_type: 'multi_target_reaction',
+      title: '$25 Winner Takes It All - Multi Target',
+      description: 'Winner takes the entire $25 prize pool!',
+      entry_fee: 1,
+      prize_pool: 25,
+      base_price: 25,
+      game_duration: 60,
+      rng_seed: 2,
+      winner_prize: 21.25,
+      platform_fee: 3.75
+    },
+    {
+      id: 'wta-50-sword-parry',
+      game_type: 'sword_parry',
+      title: '$50 Winner Takes It All - Sword Parry',
+      description: 'Winner takes the entire $50 prize pool!',
+      entry_fee: 1,
+      prize_pool: 50,
+      base_price: 50,
+      game_duration: 90,
+      rng_seed: 3,
+      winner_prize: 42.50,
+      platform_fee: 7.50
+    },
+    {
+      id: 'wta-100-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$100 Winner Takes It All - Laser Dodge',
+      description: 'Winner takes the entire $100 prize pool!',
+      entry_fee: 1,
+      prize_pool: 100,
+      base_price: 100,
+      game_duration: 120,
+      rng_seed: 1,
+      winner_prize: 85,
+      platform_fee: 15
+    },
+    {
+      id: 'wta-250-quick-click',
+      game_type: 'number_tap',
+      title: '$250 Winner Takes It All - Quick Click',
+      description: 'Winner takes the entire $250 prize pool!',
+      entry_fee: 1,
+      prize_pool: 250,
+      base_price: 250,
+      game_duration: 180,
+      rng_seed: 4,
+      winner_prize: 212.50,
+      platform_fee: 37.50
     }
   ];
   
