@@ -423,6 +423,20 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
             </h2>
             <p className="text-red-200 text-sm mb-6 font-medium">Multi-Sensory Memory Challenge</p>
             
+            {/* Epilepsy Warning */}
+            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-4 mb-6">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-white text-sm font-bold">⚠️</span>
+                </div>
+                <p className="text-red-200 font-bold">EPILEPSY WARNING</p>
+              </div>
+              <p className="text-sm text-red-100">
+                This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
+                If you are sensitive to flashing lights, please do not play this game.
+              </p>
+            </div>
+            
             <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full flex items-center justify-center">

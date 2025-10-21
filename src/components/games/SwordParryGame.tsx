@@ -506,6 +506,20 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             <p className="text-red-200 text-sm mb-6 font-medium">Master of Blade Defense</p>
             
             <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+              {/* Epilepsy Warning */}
+              <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-4 mb-6">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                    <span className="text-white text-sm font-bold">⚠️</span>
+                  </div>
+                  <p className="text-red-200 font-bold">EPILEPSY WARNING</p>
+                </div>
+                <p className="text-sm text-red-100">
+                  This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
+                  If you are sensitive to flashing lights, please do not play this game.
+                </p>
+              </div>
+              
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-bold">⚔️</span>
@@ -629,8 +643,17 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             {/* Game Area */}
             <div 
               ref={gameAreaRef}
-              className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
-              style={{ touchAction: 'none' }}
+              className="relative rounded-xl h-96 border-4 border-gray-300 overflow-hidden cursor-none"
+              style={{ 
+                touchAction: 'none',
+                background: `
+                  radial-gradient(circle at 20% 20%, rgba(255, 0, 100, 0.3) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(0, 100, 255, 0.3) 0%, transparent 50%),
+                  radial-gradient(circle at 40% 60%, rgba(255, 200, 0, 0.2) 0%, transparent 50%),
+                  linear-gradient(45deg, rgba(20, 20, 40, 0.8), rgba(40, 20, 60, 0.8), rgba(20, 40, 60, 0.8))
+                `,
+                animation: 'backgroundShift 8s ease-in-out infinite'
+              }}
               onMouseMove={handleMouseMove}
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
@@ -658,7 +681,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 }}
               />
 
-              {/* Attacks - BRIGHT RED and highly visible */}
+              {/* Attacks - BRIGHT RED and highly visible with neon effects */}
               {attacks.map((attack) => (
                 <div
                   key={attack.id}
@@ -674,13 +697,24 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                     height: attack.type === 'overhead' ? '24px' : '16px', // Larger for visibility
                     transform: `translate(-50%, -50%) rotate(${attack.angle}deg)`,
                     zIndex: 10,
-                    // Extra bright red glow effect
-                    boxShadow: attack.destroyed ? 'none' : '0 0 15px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.4)'
+                    // Enhanced neon glow effect
+                    boxShadow: attack.destroyed 
+                      ? 'none' 
+                      : '0 0 20px rgba(239, 68, 68, 0.9), 0 0 40px rgba(239, 68, 68, 0.5), 0 0 60px rgba(239, 68, 68, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.3)',
+                    background: attack.destroyed 
+                      ? 'radial-gradient(circle, rgba(34, 197, 94, 0.9), rgba(34, 197, 94, 0.6))'
+                      : 'radial-gradient(circle, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.8), rgba(127, 29, 29, 0.6))'
                   }}
                 >
-                  {/* Attack type indicator */}
+                  {/* Attack type indicator with enhanced glow */}
                   {!attack.destroyed && (
-                    <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold"
+                      style={{
+                        textShadow: '0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.4)',
+                        filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.6))'
+                      }}
+                    >
                       {attack.type === 'slash' ? '⚔️' : attack.type === 'thrust' ? '🗡️' : '🔨'}
                     </div>
                   )}
@@ -713,37 +747,40 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
               
-              {/* Mouse sword */}
+              {/* Mouse sword with neon effects */}
               <div
-                className="absolute w-1 h-12 bg-silver-400 border border-gray-300 shadow-lg"
+                className="absolute w-1 h-12 border border-gray-300 shadow-lg"
                 style={{
                   left: `${mousePos.x}%`,
                   top: `${mousePos.y}%`,
                   transform: `translate(-50%, -50%) rotate(${mousePos.angle}deg)`,
-                  background: 'linear-gradient(to bottom, #e5e7eb, #9ca3af)',
+                  background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(200, 200, 200, 0.8), rgba(150, 150, 150, 0.7))',
+                  boxShadow: '0 0 12px rgba(255, 255, 255, 0.6), 0 0 24px rgba(255, 255, 255, 0.3), inset 0 0 4px rgba(255, 255, 255, 0.4)',
                   zIndex: 15
                 }}
               />
               
-              {/* Sword handle */}
+              {/* Sword handle with enhanced glow */}
               <div
                 className="absolute w-2 h-4 bg-amber-600 rounded-sm"
                 style={{
                   left: `${mousePos.x}%`,
                   top: `${mousePos.y}%`,
                   transform: `translate(-50%, -50%) rotate(${mousePos.angle}deg) translateY(8px)`,
+                  boxShadow: '0 0 8px rgba(217, 119, 6, 0.6), inset 0 0 2px rgba(255, 255, 255, 0.3)',
                   zIndex: 14
                 }}
               />
               
-              {/* Parry zone indicator around sword */}
+              {/* Enhanced parry zone indicator around sword */}
               <div
                 className="absolute w-16 h-16 border border-green-400 border-dashed rounded-full opacity-20"
                 style={{
                   left: `${mousePos.x}%`,
                   top: `${mousePos.y}%`,
                   transform: 'translate(-50%, -50%)',
-                  zIndex: 13
+                  zIndex: 13,
+                  boxShadow: '0 0 20px rgba(34, 197, 94, 0.4), inset 0 0 10px rgba(34, 197, 94, 0.2)'
                 }}
               />
             </div>

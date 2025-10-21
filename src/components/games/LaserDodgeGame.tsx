@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
-import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd } from '@/lib/gameAudio';
+import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd, playShootSound, playExplosionSound, playEnemyHitSound } from '@/lib/gameAudio';
 
 interface GameResult {
   score: number;
@@ -48,12 +48,21 @@ interface Bullet {
   createdAt: number;
 }
 
+interface Explosion {
+  id: number;
+  x: number;
+  y: number;
+  createdAt: number;
+  type: 'enemy' | 'ship';
+}
+
 export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: LaserDodgeGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [enemyShips, setEnemyShips] = useState<EnemyShip[]>([]);
   const [bullets, setBullets] = useState<Bullet[]>([]);
+  const [explosions, setExplosions] = useState<Explosion[]>([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(5);
@@ -102,6 +111,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     if (now - lastShotRef.current < 200) return; // Rate limit shooting (5 shots per second)
     
     lastShotRef.current = now;
+    
+    // Play shooting sound
+    playShootSound();
     
     const newBullet: Bullet = {
       id: now + Math.random(),
@@ -357,6 +369,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             // Check collision (within 8% distance)
             if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
               hit = true;
+              
+              // Create explosion animation
+              const explosion: Explosion = {
+                id: Date.now() + Math.random(),
+                x: enemy.x,
+                y: enemy.y,
+                createdAt: Date.now(),
+                type: 'enemy'
+              };
+              setExplosions(prev => [...prev, explosion]);
+              
+              // Play explosion sound
+              playExplosionSound();
+              playEnemyHitSound();
+              
               // Add points for destroying enemy
               currentScoreRef.current += 10;
               setScore(prev => Number((prev + 10).toFixed(2)));
@@ -399,6 +426,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         return true; // Keep this bullet
       });
     });
+
+    // Update explosions - remove old ones
+    setExplosions(prev => prev.filter(explosion => {
+      const age = now - explosion.createdAt;
+      return age < 1000; // Explosions last 1 second
+    }));
 
     // Continue loop
     if (isGameRunningRef.current) {
@@ -450,8 +483,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     if (collision) {
       console.log('LaserDodge: Collision detected! Game Over!');
       
+      // Create ship explosion animation
+      const shipExplosion: Explosion = {
+        id: Date.now() + Math.random(),
+        x: ship.x,
+        y: ship.y,
+        createdAt: Date.now(),
+        type: 'ship'
+      };
+      setExplosions(prev => [...prev, shipExplosion]);
+      
       // Play collision/death sound
       playCollision();
+      playExplosionSound();
       
       endGame();
     }
@@ -566,6 +610,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setLasers([]);
     setEnemyShips([]);
     setBullets([]);
+    setExplosions([]);
     setShip({ x: 50, y: 50 });
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
@@ -635,6 +680,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             <p className="text-orange-200 text-sm mb-4 sm:mb-6 font-medium">Ultimate Survival Challenge</p>
             
             <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
+              {/* Epilepsy Warning */}
+              <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                    <span className="text-white text-xs sm:text-sm font-bold">⚠️</span>
+                  </div>
+                  <p className="text-red-200 font-bold text-sm sm:text-base">EPILEPSY WARNING</p>
+                </div>
+                <p className="text-xs sm:text-sm text-red-100">
+                  This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
+                  If you are sensitive to flashing lights, please do not play this game.
+                </p>
+              </div>
+              
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs sm:text-sm font-bold">!</span>
@@ -831,16 +890,31 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   top: `${laser.position}%`,
                   transform: 'translateY(-50%)'
                 }}>
-                  {/* Main laser beam */}
+                  {/* Main laser beam with neon effects */}
                   <div
                     className={`absolute w-full h-full transition-all duration-300 ${
                       laser.isHarmful 
                         ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
                         : 'bg-blue-400 shadow-lg shadow-blue-400/30'
                     }`}
+                    style={{
+                      boxShadow: laser.isHarmful 
+                        ? '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
+                        : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                    }}
                   />
-                  {/* White center line for realism */}
-                  <div className="absolute w-full h-0.5 bg-white/80 top-1/2 transform -translate-y-1/2 shadow-sm" />
+                  {/* Neon center line */}
+                  <div 
+                    className="absolute w-full h-0.5 top-1/2 transform -translate-y-1/2"
+                    style={{
+                      background: laser.isHarmful 
+                        ? 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent)'
+                        : 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent)',
+                      boxShadow: laser.isHarmful 
+                        ? '0 0 8px rgba(255, 255, 255, 0.8)'
+                        : '0 0 6px rgba(255, 255, 255, 0.6)'
+                    }}
+                  />
                 </div>
               ))}
 
@@ -851,16 +925,31 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   top: '0%',
                   transform: 'translateX(-50%)'
                 }}>
-                  {/* Main laser beam */}
+                  {/* Main laser beam with neon effects */}
                   <div
                     className={`absolute h-full w-full transition-all duration-300 ${
                       laser.isHarmful 
                         ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
                         : 'bg-blue-400 shadow-lg shadow-blue-400/30'
                     }`}
+                    style={{
+                      boxShadow: laser.isHarmful 
+                        ? '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
+                        : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                    }}
                   />
-                  {/* White center line for realism */}
-                  <div className="absolute h-full w-0.5 bg-white/80 left-1/2 transform -translate-x-1/2 shadow-sm" />
+                  {/* Neon center line */}
+                  <div 
+                    className="absolute h-full w-0.5 left-1/2 transform -translate-x-1/2"
+                    style={{
+                      background: laser.isHarmful 
+                        ? 'linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.9), transparent)'
+                        : 'linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.7), transparent)',
+                      boxShadow: laser.isHarmful 
+                        ? '0 0 8px rgba(255, 255, 255, 0.8)'
+                        : '0 0 6px rgba(255, 255, 255, 0.6)'
+                    }}
+                  />
                 </div>
               ))}
               
@@ -887,16 +976,49 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               {bullets.map((bullet) => (
                 <div
                   key={bullet.id}
-                  className="absolute w-2 h-4 bg-yellow-400 rounded-full"
+                  className="absolute w-2 h-4 rounded-full"
                   style={{
                     left: `${bullet.x}%`,
                     top: `${bullet.y}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 8,
-                    boxShadow: '0 0 8px rgba(251, 191, 36, 0.8)' // Yellow glow effect
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 191, 36, 0.8), rgba(251, 191, 36, 0.6))',
+                    boxShadow: '0 0 12px rgba(251, 191, 36, 0.8), 0 0 24px rgba(251, 191, 36, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)',
+                    animation: 'pulse 0.5s ease-in-out infinite alternate'
                   }}
                 />
               ))}
+
+              {/* Explosions */}
+              {explosions.map((explosion) => {
+                const age = Date.now() - explosion.createdAt;
+                const progress = Math.min(age / 1000, 1); // 1 second duration
+                const scale = progress < 0.5 ? progress * 2 : 2 - (progress - 0.5) * 2; // Scale up then down
+                const opacity = 1 - progress;
+                
+                return (
+                  <div
+                    key={explosion.id}
+                    className="absolute rounded-full"
+                    style={{
+                      left: `${explosion.x}%`,
+                      top: `${explosion.y}%`,
+                      transform: `translate(-50%, -50%) scale(${scale})`,
+                      zIndex: 20,
+                      width: explosion.type === 'ship' ? '40px' : '30px',
+                      height: explosion.type === 'ship' ? '40px' : '30px',
+                      background: explosion.type === 'ship' 
+                        ? 'radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 100, 100, 0.8), rgba(255, 0, 0, 0.6), rgba(255, 0, 0, 0.3))'
+                        : 'radial-gradient(circle, rgba(255, 255, 255, 0.8), rgba(255, 200, 0, 0.7), rgba(255, 100, 0, 0.5), rgba(255, 0, 0, 0.3))',
+                      boxShadow: explosion.type === 'ship'
+                        ? '0 0 30px rgba(255, 0, 0, 0.8), 0 0 60px rgba(255, 0, 0, 0.4), inset 0 0 15px rgba(255, 255, 255, 0.3)'
+                        : '0 0 20px rgba(255, 100, 0, 0.8), 0 0 40px rgba(255, 100, 0, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)',
+                      opacity: opacity,
+                      animation: 'pulse 0.1s ease-in-out infinite'
+                    }}
+                  />
+                );
+              })}
 
               {/* Ship - Using SHIP.png */}
               <div

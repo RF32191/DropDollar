@@ -91,6 +91,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const [countdown, setCountdown] = useState(3);
   const [gameTimer, setGameTimer] = useState(60); // 60-second timer
   const [swordImage, setSwordImage] = useState<HTMLImageElement | null>(null);
+  const lastTimerUpdateRef = useRef<number>(0);
 
   // Audio context for sound effects
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -302,9 +303,15 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const bladeTipOppositeX = swordX + Math.cos(gameData.swordAngle + Math.PI) * SWORD_LENGTH;
     const bladeTipOppositeY = swordY + Math.sin(gameData.swordAngle + Math.PI) * SWORD_LENGTH;
     
-    // Calculate hilt position (handle - causes game over)
-    const hiltX = swordX + Math.cos(gameData.swordAngle) * SWORD_HILT_LENGTH;
-    const hiltY = swordY + Math.sin(gameData.swordAngle) * SWORD_HILT_LENGTH;
+    // Calculate blade edge positions (sides of the blade) - more forgiving hit detection
+    const bladeEdge1X = swordX + Math.cos(gameData.swordAngle + Math.PI/2) * (SWORD_LENGTH * 0.7);
+    const bladeEdge1Y = swordY + Math.sin(gameData.swordAngle + Math.PI/2) * (SWORD_LENGTH * 0.7);
+    const bladeEdge2X = swordX + Math.cos(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.7);
+    const bladeEdge2Y = swordY + Math.sin(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.7);
+    
+    // Calculate hilt position (handle - causes game over) - make it smaller and more precise
+    const hiltX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.5);
+    const hiltY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.5);
 
     let score = gameData.score;
     let gameOver = gameData.gameOver;
@@ -322,6 +329,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       if (gameData.obstacles.length > 0 && i === gameData.obstacles.length - 1) {
         console.log('🎯 Collision Check:', {
           bladeTip: { x: bladeTipX, y: bladeTipY },
+          bladeEdge1: { x: bladeEdge1X, y: bladeEdge1Y },
+          bladeEdge2: { x: bladeEdge2X, y: bladeEdge2Y },
           hilt: { x: hiltX, y: hiltY },
           obstacle: { x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height },
           swordAngle: gameData.swordAngle,
@@ -329,16 +338,26 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         });
       }
       
-      // Check if either blade tip hits obstacle (successful block) - symmetrical hit detection
-      const bladeTip1Hit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
+      // Check if blade tip hits obstacle (successful block) - most effective
+      const bladeTipHit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
           ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
            (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
       
-      const bladeTip2Hit = bladeTipOppositeX >= obstacle.x && bladeTipOppositeX <= obstacle.x + obstacle.width &&
+      // Check if opposite blade tip hits obstacle (successful block)
+      const bladeTipOppositeHit = bladeTipOppositeX >= obstacle.x && bladeTipOppositeX <= obstacle.x + obstacle.width &&
           ((bladeTipOppositeY >= obstacle.y && bladeTipOppositeY <= obstacle.y + obstacle.height) ||
            (bladeTipOppositeY >= obstacle.gapY + obstacle.gapHeight && bladeTipOppositeY <= CANVAS_HEIGHT));
       
-      if (bladeTip1Hit || bladeTip2Hit) {
+      // Check if blade edges hit obstacle (successful block) - more forgiving
+      const bladeEdge1Hit = bladeEdge1X >= obstacle.x && bladeEdge1X <= obstacle.x + obstacle.width &&
+          ((bladeEdge1Y >= obstacle.y && bladeEdge1Y <= obstacle.y + obstacle.height) ||
+           (bladeEdge1Y >= obstacle.gapY + obstacle.gapHeight && bladeEdge1Y <= CANVAS_HEIGHT));
+      
+      const bladeEdge2Hit = bladeEdge2X >= obstacle.x && bladeEdge2X <= obstacle.x + obstacle.width &&
+          ((bladeEdge2Y >= obstacle.y && bladeEdge2Y <= obstacle.y + obstacle.height) ||
+           (bladeEdge2Y >= obstacle.gapY + obstacle.gapHeight && bladeEdge2Y <= CANVAS_HEIGHT));
+      
+      if (bladeTipHit || bladeTipOppositeHit || bladeEdge1Hit || bladeEdge2Hit) {
         
         console.log('✅ BLADE HIT! Score +1');
         // Blade hit - successful block
@@ -366,7 +385,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         continue;
       }
       
-      // Check if hilt hits obstacle (game over)
+      // Check if hilt hits obstacle (game over) - more precise hit detection
       if (hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
           ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
            (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT))) {
@@ -382,9 +401,18 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     // Check enemy collisions
     for (let i = gameData.enemies.length - 1; i >= 0; i--) {
       const enemy = gameData.enemies[i];
-      const distance = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2);
       
-      if (distance < 20) { // Increased hit radius for fireballs
+      // Check if blade tip hits enemy (successful block)
+      const bladeTipHit = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2) < 20;
+      
+      // Check if opposite blade tip hits enemy (successful block)
+      const bladeTipOppositeHit = Math.sqrt((bladeTipOppositeX - enemy.x) ** 2 + (bladeTipOppositeY - enemy.y) ** 2) < 20;
+      
+      // Check if blade edges hit enemy (successful block) - more forgiving
+      const bladeEdge1Hit = Math.sqrt((bladeEdge1X - enemy.x) ** 2 + (bladeEdge1Y - enemy.y) ** 2) < 25;
+      const bladeEdge2Hit = Math.sqrt((bladeEdge2X - enemy.x) ** 2 + (bladeEdge2Y - enemy.y) ** 2) < 25;
+      
+      if (bladeTipHit || bladeTipOppositeHit || bladeEdge1Hit || bladeEdge2Hit) {
         // Blade hit enemy - successful block
         playClinkSound();
         playScoreSound();
@@ -874,7 +902,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         // Start game
         console.log('🎮 [BladeBounce] Starting game after countdown');
         setGameState('playing');
-        // Initialize game data
+        // Reset timer and initialize game data
+        setGameTimer(60);
+        lastTimerUpdateRef.current = Date.now();
         setGameData(prev => ({
           ...prev,
           score: 0,
@@ -990,12 +1020,16 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           }
         }
 
-        // Countdown timer
-        if (gameTimer > 0) {
-          setGameTimer(prev => prev - 1);
-        } else {
-          // Time's up - end game
-          newState.gameOver = true;
+        // Countdown timer - update every second, not every frame
+        const currentTime = Date.now();
+        if (currentTime - lastTimerUpdateRef.current >= 1000) {
+          lastTimerUpdateRef.current = currentTime;
+          if (gameTimer > 0) {
+            setGameTimer(prev => prev - 1);
+          } else {
+            // Time's up - end game
+            newState.gameOver = true;
+          }
         }
 
         return newState;
@@ -1060,6 +1094,20 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
               Blade Bounce: Mouseblade
             </h2>
             <p className="text-orange-200 text-sm mb-4 sm:mb-6 font-medium">Ultimate Sword Control Challenge</p>
+            
+            {/* Epilepsy Warning */}
+            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-white text-xs sm:text-sm font-bold">⚠️</span>
+                </div>
+                <p className="text-red-200 font-bold text-sm sm:text-base">EPILEPSY WARNING</p>
+              </div>
+              <p className="text-xs sm:text-sm text-red-100">
+                This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
+                If you are sensitive to flashing lights, please do not play this game.
+              </p>
+            </div>
             
             <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
               <div className="flex items-center space-x-3 mb-4">

@@ -165,6 +165,25 @@ class GameAudioSystem {
     this.createNoise(0.3, 0.4);
   }
 
+  // Laser Dodge shooting and explosion sounds
+  playShootSound(): void {
+    // Quick laser shot sound
+    this.createBeep(1200, 0.05, 0.2);
+  }
+
+  playExplosionSound(): void {
+    // Multi-layered explosion sound
+    this.createNoise(0.2, 0.3);
+    setTimeout(() => this.createBeep(200, 0.15, 0.3), 50);
+    setTimeout(() => this.createBeep(150, 0.1, 0.2), 100);
+  }
+
+  playEnemyHitSound(): void {
+    // Satisfying hit sound
+    this.createBeep(800, 0.08, 0.25);
+    setTimeout(() => this.createBeep(1000, 0.06, 0.2), 30);
+  }
+
   // Game end sounds
   playGameEnd(performance: 'great' | 'good' | 'poor' = 'good'): void {
     switch (performance) {
@@ -209,4 +228,7 @@ export const playLaserWarning = () => gameAudio.playLaserWarning();
 export const playExtremeModeActivation = () => gameAudio.playExtremeModeActivation();
 export const playCrazyModeActivation = () => gameAudio.playCrazyModeActivation();
 export const playCollision = () => gameAudio.playCollision();
+export const playShootSound = () => gameAudio.playShootSound();
+export const playExplosionSound = () => gameAudio.playExplosionSound();
+export const playEnemyHitSound = () => gameAudio.playEnemyHitSound();
 export const playGameEnd = (performance: 'great' | 'good' | 'poor' = 'good') => gameAudio.playGameEnd(performance);
