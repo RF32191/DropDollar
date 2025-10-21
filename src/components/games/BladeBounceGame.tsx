@@ -274,8 +274,16 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     }));
   }, []);
 
-  // Check collisions
-  const checkCollisions = useCallback((gameData: GameState): { score: number; gameOver: boolean; particles?: any[] } | null => {
+  // Check collisions - returns collision results without updating state
+  const checkCollisions = useCallback((gameData: GameState): { 
+    score: number; 
+    gameOver: boolean; 
+    particles?: any[]; 
+    obstaclesToRemove: number[]; 
+    enemiesToRemove: number[];
+    totalHits: number;
+    successfulHits: number;
+  } | null => {
     // Sword position is now fixed at CANVAS_WIDTH / 3
     const swordX = CANVAS_WIDTH / 3;
     const swordY = gameData.swordY;
@@ -288,34 +296,56 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const hiltX = swordX + Math.cos(gameData.swordAngle) * SWORD_HILT_LENGTH;
     const hiltY = swordY + Math.sin(gameData.swordAngle) * SWORD_HILT_LENGTH;
 
+    let score = gameData.score;
+    let gameOver = gameData.gameOver;
+    let totalHits = gameData.totalHits;
+    let successfulHits = gameData.successfulHits;
+    const obstaclesToRemove: number[] = [];
+    const enemiesToRemove: number[] = [];
+    const particles: any[] = [];
+
     // Check obstacle collisions
     for (let i = gameData.obstacles.length - 1; i >= 0; i--) {
       const obstacle = gameData.obstacles[i];
+      
+      // DEBUG: Log collision detection
+      if (gameData.obstacles.length > 0 && i === gameData.obstacles.length - 1) {
+        console.log('🎯 Collision Check:', {
+          bladeTip: { x: bladeTipX, y: bladeTipY },
+          hilt: { x: hiltX, y: hiltY },
+          obstacle: { x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height },
+          swordAngle: gameData.swordAngle,
+          swordY: gameData.swordY
+        });
+      }
       
       // Check if blade tip hits obstacle (successful block)
       if (bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
           ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
            (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT))) {
         
+        console.log('✅ BLADE HIT! Score +1');
         // Blade hit - successful block
         playClinkSound();
         playScoreSound();
-        createParticles(bladeTipX, bladeTipY);
         
-        setGameData(prev => {
-          const newTotalHits = prev.totalHits + 1;
-          const newSuccessfulHits = prev.successfulHits + 1;
-          const newAccuracy = newTotalHits > 0 ? (newSuccessfulHits / newTotalHits) * 100 : 100;
-          
-          return {
-            ...prev,
-            score: prev.score + 1,
-            totalHits: newTotalHits,
-            successfulHits: newSuccessfulHits,
-            accuracy: newAccuracy,
-            obstacles: prev.obstacles.filter((_, index) => index !== i)
-          };
-        });
+        // Create particles
+        for (let j = 0; j < 5; j++) {
+          particles.push({
+            id: Date.now() + Math.random() + j,
+            x: bladeTipX,
+            y: bladeTipY,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 30,
+            maxLife: 30
+          });
+        }
+        
+        score += 1;
+        totalHits += 1;
+        successfulHits += 1;
+        obstaclesToRemove.push(i);
         
         continue;
       }
@@ -325,10 +355,11 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
            (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT))) {
         
+        console.log('💀 HILT HIT! Game Over!');
         // Hilt hit - game over
         playGameOverSound();
-        setGameData(prev => ({ ...prev, gameOver: true }));
-        return { score: gameData.score, gameOver: true };
+        gameOver = true;
+        return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
       }
     }
 
@@ -341,27 +372,34 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         // Blade hit enemy - successful block
         playClinkSound();
         playScoreSound();
-        createParticles(enemy.x, enemy.y);
         
-        setGameData(prev => {
-          const newTotalHits = prev.totalHits + 1;
-          const newSuccessfulHits = prev.successfulHits + 1;
-          const newAccuracy = newTotalHits > 0 ? (newSuccessfulHits / newTotalHits) * 100 : 100;
-          
-          return {
-            ...prev,
-            score: prev.score + 1,
-            totalHits: newTotalHits,
-            successfulHits: newSuccessfulHits,
-            accuracy: newAccuracy,
-            enemies: prev.enemies.filter((_, index) => index !== i)
-          };
-        });
+        // Create particles
+        for (let j = 0; j < 5; j++) {
+          particles.push({
+            id: Date.now() + Math.random() + j,
+            x: enemy.x,
+            y: enemy.y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 30,
+            maxLife: 30
+          });
+        }
+        
+        score += 1;
+        totalHits += 1;
+        successfulHits += 1;
+        enemiesToRemove.push(i);
       }
     }
     
+    // Only return collision data if there were actual collisions
+    if (obstaclesToRemove.length > 0 || enemiesToRemove.length > 0 || gameOver) {
+      return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
+    }
+    
     return null; // No collision detected
-  }, [playClinkSound, playScoreSound, playGameOverSound, createParticles]);
+  }, [playClinkSound, playScoreSound, playGameOverSound]);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
@@ -490,6 +528,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.fillStyle = '#A0A0A0'; // Darker silver for pillar edge
       ctx.fillRect(obstacle.x, obstacle.y, 2, obstacle.height);
       ctx.fillStyle = '#C0C0C0'; // Reset to original color
+      
+      // DEBUG: Draw obstacle hit box outline
+      if (gameData.gameStarted) {
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      }
     });
 
     // Draw enemies (fireballs)
@@ -514,6 +559,15 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.arc(0, -5, 8, 0, Math.PI * 2);
       ctx.fill();
       
+      // DEBUG: Draw fireball hit box outline
+      if (gameData.gameStarted) {
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      
       ctx.restore();
     });
 
@@ -536,6 +590,21 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       // Sword hilt (brown - death side)
       ctx.fillStyle = '#8B4513';
       ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+    }
+    
+    // DEBUG: Draw hit boxes for collision detection
+    if (gameData.gameStarted) {
+      // Blade tip hit box (green - gives points)
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+      ctx.beginPath();
+      ctx.arc(SWORD_LENGTH, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Hilt hit box (red - causes game over)
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+      ctx.beginPath();
+      ctx.arc(SWORD_HILT_LENGTH, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
     }
     
     ctx.restore();
@@ -773,7 +842,31 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           }
 
           // Check collisions
-          checkCollisions(newState);
+          const collisionResult = checkCollisions(newState);
+          if (collisionResult) {
+            // Update score and accuracy
+            newState.score = collisionResult.score;
+            newState.gameOver = collisionResult.gameOver;
+            newState.totalHits = collisionResult.totalHits;
+            newState.successfulHits = collisionResult.successfulHits;
+            newState.accuracy = collisionResult.totalHits > 0 ? 
+              (collisionResult.successfulHits / collisionResult.totalHits) * 100 : 100;
+            
+            // Remove hit obstacles
+            newState.obstacles = newState.obstacles.filter((_, index) => 
+              !collisionResult.obstaclesToRemove.includes(index)
+            );
+            
+            // Remove hit enemies
+            newState.enemies = newState.enemies.filter((_, index) => 
+              !collisionResult.enemiesToRemove.includes(index)
+            );
+            
+            // Add collision particles
+            if (collisionResult.particles) {
+              newState.particles = [...newState.particles, ...collisionResult.particles];
+            }
+          }
 
           return newState;
         });
