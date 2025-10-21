@@ -404,6 +404,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       return;
     }
 
+    console.log('🎨 [BladeBounce] Rendering, gameStarted:', gameData.gameStarted, 'gameState:', gameState);
+
     // Clear canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -627,17 +629,34 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         return () => clearTimeout(timer);
       } else {
         // Start game
+        console.log('🎮 [BladeBounce] Starting game after countdown');
         setGameState('playing');
-        initGame();
+        // Initialize game data
+        setGameData(prev => ({
+          ...prev,
+          score: 0,
+          gameOver: false,
+          gameStarted: true,
+          swordX: CANVAS_WIDTH / 2,
+          swordY: CANVAS_HEIGHT / 2,
+          mouseX: CANVAS_WIDTH / 2,
+          mouseY: CANVAS_HEIGHT / 2,
+          swordAngle: 0,
+          obstacles: [],
+          enemies: [],
+          particles: [],
+          lightCurves: []
+        }));
         // Force initial render
         setTimeout(() => render(), 100);
       }
     }
-  }, [gameState, countdown, initGame]);
+  }, [gameState, countdown, render]);
 
   // Single game loop effect
   useEffect(() => {
     if (gameState === 'playing') {
+      console.log('🎮 [BladeBounce] Game loop starting');
       lastTimeRef.current = performance.now();
       
       const gameLoop = () => {
@@ -708,6 +727,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         // Continue loop
         if (gameState === 'playing') {
           animationFrameRef.current = requestAnimationFrame(gameLoop);
+        } else {
+          console.log('🎮 [BladeBounce] Game loop stopping, gameState:', gameState);
         }
       };
 
