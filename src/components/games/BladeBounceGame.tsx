@@ -47,6 +47,15 @@ interface GameState {
     life: number;
     maxLife: number;
   }>;
+  lightCurves: Array<{
+    id: number;
+    x: number;
+    y: number;
+    angle: number;
+    life: number;
+    maxLife: number;
+    intensity: number;
+  }>;
 }
 
 export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: BladeBounceGameProps) {
@@ -68,7 +77,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     mouseY: 0,
     obstacles: [],
     enemies: [],
-    particles: []
+    particles: [],
+    lightCurves: []
   });
 
   const [countdown, setCountdown] = useState(3);
@@ -117,6 +127,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const playClinkSound = useCallback(() => playSound(1200, 0.1, 'sawtooth'), [playSound]);
   const playScoreSound = useCallback(() => playSound(600, 0.15, 'triangle'), [playSound]);
   const playGameOverSound = useCallback(() => playSound(200, 0.5, 'sawtooth'), [playSound]);
+  const playClickSound = useCallback(() => playSound(400, 0.1, 'sine'), [playSound]);
 
   // Game constants
   const CANVAS_WIDTH = 800;
@@ -153,7 +164,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       mouseY: CANVAS_HEIGHT / 2,
       obstacles: [],
       enemies: [],
-      particles: []
+      particles: [],
+      lightCurves: []
     }));
 
     initAudio();
@@ -206,6 +218,24 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     setGameData(prev => ({
       ...prev,
       particles: [...prev.particles, ...newParticles]
+    }));
+  }, []);
+
+  // Create light curves
+  const createLightCurve = useCallback((x: number, y: number, angle: number) => {
+    const lightCurve = {
+      id: Date.now() + Math.random(),
+      x: x,
+      y: y,
+      angle: angle,
+      life: 60, // 1 second at 60fps
+      maxLife: 60,
+      intensity: 1.0
+    };
+    
+    setGameData(prev => ({
+      ...prev,
+      lightCurves: [...prev.lightCurves, lightCurve]
     }));
   }, []);
 
@@ -314,6 +344,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         life: particle.life - 1
       })).filter(particle => particle.life > 0);
 
+      // Update light curves
+      newState.lightCurves = newState.lightCurves.map(curve => ({
+        ...curve,
+        life: curve.life - 1,
+        intensity: curve.life / curve.maxLife
+      })).filter(curve => curve.life > 0);
+
       // Generate new obstacles
       if (Math.random() < 0.02) {
         newState.obstacles.push(generateObstacle());
@@ -410,6 +447,29 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     
     ctx.restore();
 
+    // Draw light curves
+    gameData.lightCurves.forEach(curve => {
+      ctx.save();
+      ctx.translate(curve.x, curve.y);
+      ctx.rotate(curve.angle);
+      
+      // Create gradient for light effect
+      const gradient = ctx.createLinearGradient(-50, 0, 50, 0);
+      gradient.addColorStop(0, `rgba(255, 255, 0, 0)`);
+      gradient.addColorStop(0.5, `rgba(255, 255, 0, ${curve.intensity * 0.8})`);
+      gradient.addColorStop(1, `rgba(255, 255, 0, 0)`);
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(-50, -2, 100, 4);
+      
+      // Add glow effect
+      ctx.shadowColor = 'rgba(255, 255, 0, 0.5)';
+      ctx.shadowBlur = 10;
+      ctx.fillRect(-50, -1, 100, 2);
+      
+      ctx.restore();
+    });
+
     // Draw particles
     gameData.particles.forEach(particle => {
       const alpha = particle.life / particle.maxLife;
@@ -442,22 +502,28 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (gameState !== 'playing') return;
     
     if (e.detail === 2) {
       // Double click - 360° spin
       playSpinSound();
+      createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
       setGameData(prev => ({
         ...prev,
         swordAngle: prev.swordAngle + Math.PI * 2
       }));
     } else {
       // Single click - add 30° clockwise
-      setGameState(prev => ({
+      playClickSound();
+      createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
+      setGameData(prev => ({
         ...prev,
         swordAngle: prev.swordAngle + Math.PI / 6 // 30 degrees
       }));
     }
-  }, [playSpinSound]);
+  }, [playSpinSound, playClickSound, gameState, createLightCurve]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -539,8 +605,23 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   // Render when game state changes
   useEffect(() => {
-    render();
-  }, [render]);
+    if (gameState === 'playing') {
+      render();
+    }
+  }, [gameState, render]);
+
+  // Continuous render loop for playing state
+  useEffect(() => {
+    if (gameState === 'playing') {
+      const renderLoop = () => {
+        render();
+        if (gameState === 'playing') {
+          requestAnimationFrame(renderLoop);
+        }
+      };
+      renderLoop();
+    }
+  }, [gameState, render]);
 
   // Handle game over
   useEffect(() => {
