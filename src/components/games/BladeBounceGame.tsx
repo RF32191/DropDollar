@@ -96,6 +96,25 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     img.src = '/SWORD.png';
   }, []);
 
+  // Initialize canvas when component mounts
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+
+    // Draw initial background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    console.log('🎮 Canvas initialized:', { width: canvas.width, height: canvas.height });
+  }, []);
+
   // Initialize audio context
   const initAudio = useCallback(() => {
     if (!audioContextRef.current) {
@@ -374,13 +393,23 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   // Render game
   const render = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('❌ Canvas not found');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('❌ Canvas context not found');
+      return;
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Simple test background to verify canvas is working
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Background gradient (darkens with score)
     const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
@@ -389,6 +418,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     gradient.addColorStop(1, `rgba(10, 10, 20, ${darkness + 0.2})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Always draw a test rectangle to verify canvas is working
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(10, 10, 50, 50);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px Arial';
+    ctx.fillText('Canvas Test', 10, 80);
 
     if (!gameData.gameStarted || gameData.gameOver) return;
 
@@ -585,14 +621,88 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         // Start game
         setGameState('playing');
         initGame();
+        // Force initial render
+        setTimeout(() => render(), 100);
       }
     }
   }, [gameState, countdown, initGame]);
 
-  // Start game loop when game starts
+  // Single game loop effect
   useEffect(() => {
     if (gameState === 'playing') {
       lastTimeRef.current = performance.now();
+      
+      const gameLoop = () => {
+        const currentTime = performance.now();
+        const deltaTime = currentTime - lastTimeRef.current;
+        lastTimeRef.current = currentTime;
+
+        // Update game state
+        setGameData(prev => {
+          const newState = { ...prev };
+
+          // Move obstacles
+          newState.obstacles = newState.obstacles.map(obstacle => ({
+            ...obstacle,
+            x: obstacle.x - obstacle.speed
+          })).filter(obstacle => obstacle.x > -100);
+
+          // Move enemies
+          newState.enemies = newState.enemies.map(enemy => ({
+            ...enemy,
+            x: enemy.x + enemy.vx,
+            y: enemy.y + enemy.vy,
+            angle: enemy.angle + 0.1
+          })).filter(enemy => enemy.x > -50 && enemy.x < CANVAS_WIDTH + 50);
+
+          // Update particles
+          newState.particles = newState.particles.map(particle => ({
+            ...particle,
+            x: particle.x + particle.vx,
+            y: particle.y + particle.vy,
+            life: particle.life - 1
+          })).filter(particle => particle.life > 0);
+
+          // Update light curves
+          newState.lightCurves = newState.lightCurves.map(curve => ({
+            ...curve,
+            life: curve.life - 1,
+            intensity: curve.life / curve.maxLife
+          })).filter(curve => curve.life > 0);
+
+          // Generate new obstacles
+          if (Math.random() < 0.02) {
+            newState.obstacles.push(generateObstacle());
+          }
+
+          // Generate new enemies
+          if (Math.random() < 0.01) {
+            newState.enemies.push(generateEnemy());
+          }
+
+          // Check collisions
+          const collisionResult = checkCollisions(newState);
+          if (collisionResult) {
+            newState.score = collisionResult.score;
+            newState.gameOver = collisionResult.gameOver;
+            
+            if (collisionResult.particles) {
+              newState.particles = [...newState.particles, ...collisionResult.particles];
+            }
+          }
+
+          return newState;
+        });
+
+        // Render
+        render();
+
+        // Continue loop
+        if (gameState === 'playing') {
+          animationFrameRef.current = requestAnimationFrame(gameLoop);
+        }
+      };
+
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
 
@@ -601,27 +711,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [gameState, gameLoop]);
-
-  // Render when game state changes
-  useEffect(() => {
-    if (gameState === 'playing') {
-      render();
-    }
-  }, [gameState, render]);
-
-  // Continuous render loop for playing state
-  useEffect(() => {
-    if (gameState === 'playing') {
-      const renderLoop = () => {
-        render();
-        if (gameState === 'playing') {
-          requestAnimationFrame(renderLoop);
-        }
-      };
-      renderLoop();
-    }
-  }, [gameState, render]);
+  }, [gameState, render, generateObstacle, generateEnemy, checkCollisions]);
 
   // Handle game over
   useEffect(() => {
