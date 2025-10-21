@@ -352,6 +352,20 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             </h2>
             <p className="text-red-200 text-sm mb-4 sm:mb-6 font-medium">Click to Destroy Attacks</p>
             
+            {/* Epilepsy Warning */}
+            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-white text-xs sm:text-sm font-bold">⚠️</span>
+                </div>
+                <p className="text-red-200 font-bold text-sm sm:text-base">EPILEPSY WARNING</p>
+              </div>
+              <p className="text-xs sm:text-sm text-red-100">
+                This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
+                If you are sensitive to flashing lights, please do not play this game.
+              </p>
+            </div>
+            
             <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center">

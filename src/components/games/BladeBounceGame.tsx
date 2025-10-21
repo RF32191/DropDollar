@@ -921,12 +921,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         swordAngle: prev.swordAngle + Math.PI
       }));
     } else {
-      // Single click - add 30° clockwise
+      // Single click - add 45° clockwise
       playClickSound();
       createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
       setGameData(prev => ({
         ...prev,
-        swordAngle: prev.swordAngle + Math.PI / 6 // 30 degrees
+        swordAngle: prev.swordAngle + Math.PI / 4 // 45 degrees
       }));
     }
   }, [playSpinSound, playClickSound, gameState, createLightCurve]);
@@ -1135,10 +1135,10 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         render();
 
         // Continue loop
-        if (gameState === 'playing') {
+        if (gameState === 'playing' && !gameData.gameOver) {
           gameLoopRef.current = requestAnimationFrame(gameLoop);
         } else {
-          console.log('🎮 [BladeBounce] Game loop stopping, gameState:', gameState);
+          console.log('🎮 [BladeBounce] Game loop stopping, gameState:', gameState, 'gameOver:', gameData.gameOver);
         }
       };
 
@@ -1155,6 +1155,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   // Handle game over
   useEffect(() => {
     if (gameData.gameOver) {
+      console.log('🎮 [BladeBounce] Game over detected:', {
+        score: gameData.score,
+        accuracy: gameData.accuracy,
+        totalHits: gameData.totalHits,
+        successfulHits: gameData.successfulHits
+      });
+      
       // Stop any running game loop
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -1164,14 +1171,25 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       const newBestScore = Math.max(gameData.score, gameData.bestScore);
       localStorage.setItem('bladeBounceBestScore', newBestScore.toString());
       
+      // Calculate final accuracy
+      const finalAccuracy = gameData.totalHits > 0 ? 
+        (gameData.successfulHits / gameData.totalHits) * 100 : 100;
+      
+      console.log('🎮 [BladeBounce] Final accuracy calculated:', finalAccuracy);
+      
       // Set game state to ended
       setGameState('ended');
       
       setTimeout(() => {
-        onGameEnd(gameData.score, gameData.accuracy); // Use calculated accuracy
+        try {
+          console.log('🎮 [BladeBounce] Calling onGameEnd with:', gameData.score, finalAccuracy);
+          onGameEnd(gameData.score, finalAccuracy);
+        } catch (error) {
+          console.error('🎮 [BladeBounce] Error calling onGameEnd:', error);
+        }
       }, 2000);
     }
-  }, [gameData.gameOver, gameData.score, gameData.accuracy, onGameEnd]);
+  }, [gameData.gameOver, gameData.score, gameData.accuracy, gameData.totalHits, gameData.successfulHits, onGameEnd]);
 
   // Cleanup effect to stop game loop on unmount
   useEffect(() => {
@@ -1184,6 +1202,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   }, []);
 
   if (gameState === 'ended') {
+    console.log('🎮 [BladeBounce] Rendering ended state');
     return null;
   }
 
