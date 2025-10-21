@@ -37,6 +37,11 @@ export default function VictoryAnimation({
 
   useEffect(() => {
     if (isVisible) {
+      // Reset animation states
+      setShowCoins(false);
+      setShowText(false);
+      setShowDetails(false);
+      
       // Play victory sound
       const audio = new Audio('/sounds/victory.mp3');
       audio.play().catch(() => {
@@ -59,11 +64,18 @@ export default function VictoryAnimation({
         oscillator.stop(ctx.currentTime + 0.5);
       });
 
-      // Animation sequence
-      setTimeout(() => setShowCoins(true), 200);
-      setTimeout(() => setShowText(true), 800);
-      setTimeout(() => setShowDetails(true), 1200);
-      setTimeout(() => onAnimationComplete(), 4000);
+      // Animation sequence with cleanup
+      const timer1 = setTimeout(() => setShowCoins(true), 200);
+      const timer2 = setTimeout(() => setShowText(true), 800);
+      const timer3 = setTimeout(() => setShowDetails(true), 1200);
+      const timer4 = setTimeout(() => onAnimationComplete(), 4000);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+        clearTimeout(timer4);
+      };
     }
   }, [isVisible, onAnimationComplete]);
 
@@ -82,24 +94,24 @@ export default function VictoryAnimation({
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Confetti */}
-        {[...Array(50)].map((_, i) => (
+        {/* Confetti - Reduced for better performance */}
+        {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className={`absolute w-2 h-2 ${
+            className={`absolute w-1 h-1 ${
               ['bg-yellow-400', 'bg-red-400', 'bg-blue-400', 'bg-green-400', 'bg-purple-400'][i % 5]
             } rounded-full animate-bounce`}
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
+              animationDelay: `${Math.random() * 1}s`,
+              animationDuration: `${1.5 + Math.random() * 1}s`
             }}
           />
         ))}
         
-        {/* Sparkles */}
-        {[...Array(20)].map((_, i) => (
+        {/* Sparkles - Reduced for better performance */}
+        {[...Array(10)].map((_, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 bg-white rounded-full animate-ping"

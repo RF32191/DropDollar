@@ -426,7 +426,27 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.font = '16px Arial';
     ctx.fillText('Canvas Test', 10, 80);
 
-    if (!gameData.gameStarted || gameData.gameOver) return;
+    // Show game content even if not started yet (for debugging)
+    if (!gameData.gameStarted) {
+      // Draw a simple sword in center when not started
+      ctx.save();
+      ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+      ctx.fillStyle = '#cccccc';
+      ctx.fillRect(0, -20, 60, 40);
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(0, -10, 20, 20);
+      ctx.restore();
+      
+      // Draw instruction text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Click START to begin!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 60);
+      ctx.textAlign = 'left';
+      return;
+    }
+
+    if (gameData.gameOver) return;
 
     // Draw obstacles
     ctx.fillStyle = '#666';
