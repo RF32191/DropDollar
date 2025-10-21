@@ -203,7 +203,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       maxLife: PARTICLE_LIFE
     }));
     
-    setGameState(prev => ({
+    setGameData(prev => ({
       ...prev,
       particles: [...prev.particles, ...newParticles]
     }));
@@ -277,7 +277,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     lastTimeRef.current = currentTime;
 
     setGameData(prev => {
-      if (prev.gameOver) return prev;
+      if (prev.gameOver) {
+        // Stop game loop when game over
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+        return prev;
+      }
 
       let newState = { ...prev };
 
@@ -324,10 +330,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       return newState;
     });
 
-    if (!gameData.gameOver) {
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
-    }
-  }, [gameData.gameOver, generateObstacle, generateEnemy, checkCollisions]);
+    // Continue game loop if not over
+    animationFrameRef.current = requestAnimationFrame(gameLoop);
+  }, [generateObstacle, generateEnemy, checkCollisions]);
 
   // Render game
   const render = useCallback(() => {
@@ -520,7 +525,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   // Start game loop when game starts
   useEffect(() => {
-    if (gameState === 'playing' && !gameData.gameOver) {
+    if (gameState === 'playing') {
       lastTimeRef.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
@@ -530,7 +535,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [gameState, gameData.gameOver, gameLoop]);
+  }, [gameState, gameLoop]);
 
   // Render when game state changes
   useEffect(() => {
@@ -542,6 +547,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     if (gameData.gameOver) {
       const newBestScore = Math.max(gameData.score, gameData.bestScore);
       localStorage.setItem('bladeBounceBestScore', newBestScore.toString());
+      
+      // Set game state to ended
+      setGameState('ended');
       
       setTimeout(() => {
         onGameEnd(gameData.score, 100); // Assuming 100% accuracy for this game
