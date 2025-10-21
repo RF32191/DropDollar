@@ -89,6 +89,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   });
 
   const [countdown, setCountdown] = useState(3);
+  const [gameTimer, setGameTimer] = useState(60); // 60-second timer
   const [swordImage, setSwordImage] = useState<HTMLImageElement | null>(null);
 
   // Audio context for sound effects
@@ -215,28 +216,33 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         height: CANVAS_HEIGHT - gapY,
         gapY: gapY,
         gapHeight: gapHeight,
-        speed: 2 + gameData.score * 0.02 // Speed increases with score
+        speed: 2 + gameData.score * 0.05 // Speed increases more dramatically with score
       });
     }
     
     return pillars;
   }, [gameData.score]);
 
-  // Generate enemies
+  // Generate enemies (fireballs with increasing spawn rate)
   const generateEnemy = useCallback(() => {
     const side = Math.random() < 0.5 ? 'left' : 'right';
     const x = side === 'left' ? -20 : CANVAS_WIDTH + 20;
     const y = Math.random() * CANVAS_HEIGHT;
     
+    // Increase fireball speed as game progresses
+    const baseSpeed = 1.5;
+    const speedIncrease = gameData.score * 0.02;
+    const fireballSpeed = baseSpeed + speedIncrease;
+    
     return {
       id: Date.now() + Math.random(),
       x: x,
       y: y,
-      vx: side === 'left' ? ENEMY_SPEED : -ENEMY_SPEED,
+      vx: side === 'left' ? fireballSpeed : -fireballSpeed,
       vy: (Math.random() - 0.5) * 2,
       angle: Math.random() * Math.PI * 2
     };
-  }, []);
+  }, [gameData.score]);
 
   // Create particles
   const createParticles = useCallback((x: number, y: number, count: number = 5) => {
@@ -288,9 +294,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const swordX = CANVAS_WIDTH / 3;
     const swordY = gameData.swordY;
     
-    // Calculate blade tip position (sharp end - gives points)
+    // Calculate blade tip positions (sharp end - gives points) - symmetrical top and bottom
     const bladeTipX = swordX + Math.cos(gameData.swordAngle) * SWORD_LENGTH;
     const bladeTipY = swordY + Math.sin(gameData.swordAngle) * SWORD_LENGTH;
+    
+    // Calculate opposite blade tip (symmetrical hit box) - opposite side of blade
+    const bladeTipOppositeX = swordX + Math.cos(gameData.swordAngle + Math.PI) * SWORD_LENGTH;
+    const bladeTipOppositeY = swordY + Math.sin(gameData.swordAngle + Math.PI) * SWORD_LENGTH;
     
     // Calculate hilt position (handle - causes game over)
     const hiltX = swordX + Math.cos(gameData.swordAngle) * SWORD_HILT_LENGTH;
@@ -319,10 +329,16 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         });
       }
       
-      // Check if blade tip hits obstacle (successful block)
-      if (bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
+      // Check if either blade tip hits obstacle (successful block) - symmetrical hit detection
+      const bladeTip1Hit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
           ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
-           (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT))) {
+           (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
+      
+      const bladeTip2Hit = bladeTipOppositeX >= obstacle.x && bladeTipOppositeX <= obstacle.x + obstacle.width &&
+          ((bladeTipOppositeY >= obstacle.y && bladeTipOppositeY <= obstacle.y + obstacle.height) ||
+           (bladeTipOppositeY >= obstacle.gapY + obstacle.gapHeight && bladeTipOppositeY <= CANVAS_HEIGHT));
+      
+      if (bladeTip1Hit || bladeTip2Hit) {
         
         console.log('✅ BLADE HIT! Score +1');
         // Blade hit - successful block
@@ -494,13 +510,25 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Background gradient (darkens with score)
+    // Enhanced background with dynamic effects
     const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
     const darkness = Math.min(gameData.score / 100, 0.8);
-    gradient.addColorStop(0, `rgba(20, 20, 40, ${darkness})`);
-    gradient.addColorStop(1, `rgba(10, 10, 20, ${darkness + 0.2})`);
+    gradient.addColorStop(0, `rgba(15, 15, 35, ${darkness})`);
+    gradient.addColorStop(0.3, `rgba(25, 25, 50, ${darkness + 0.1})`);
+    gradient.addColorStop(0.7, `rgba(10, 10, 25, ${darkness + 0.2})`);
+    gradient.addColorStop(1, `rgba(5, 5, 15, ${darkness + 0.3})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Add subtle animated stars
+    const time = Date.now() * 0.001;
+    for (let i = 0; i < 20; i++) {
+      const x = (i * 40) % CANVAS_WIDTH;
+      const y = (i * 30) % CANVAS_HEIGHT;
+      const twinkle = Math.sin(time + i) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(255, 255, 255, ${twinkle * 0.3})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
 
     // Show game content even if not started yet (for debugging)
     if (!gameData.gameStarted) {
@@ -518,16 +546,39 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
     if (gameData.gameOver) return;
 
-    // Draw staggered obstacles (silver pillars)
-    ctx.fillStyle = '#C0C0C0'; // Silver color for pillars
+    // Draw modern silver pillars with gradient and shine effects
     gameData.obstacles.forEach(obstacle => {
-      // Draw pillar from gap position to bottom
+      ctx.save();
+      
+      // Create modern gradient for pillars
+      const gradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y);
+      gradient.addColorStop(0, '#E8E8E8'); // Light silver
+      gradient.addColorStop(0.3, '#C0C0C0'); // Medium silver
+      gradient.addColorStop(0.7, '#A0A0A0'); // Darker silver
+      gradient.addColorStop(1, '#808080'); // Dark silver
+      
+      ctx.fillStyle = gradient;
       ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
       
-      // Add some visual detail
-      ctx.fillStyle = '#A0A0A0'; // Darker silver for pillar edge
-      ctx.fillRect(obstacle.x, obstacle.y, 2, obstacle.height);
-      ctx.fillStyle = '#C0C0C0'; // Reset to original color
+      // Add metallic shine effect
+      const shineGradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width/3, obstacle.y);
+      shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+      shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      
+      ctx.fillStyle = shineGradient;
+      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width/3, obstacle.height);
+      
+      // Add subtle border
+      ctx.strokeStyle = '#606060';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      
+      // Add corner highlights
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillRect(obstacle.x, obstacle.y, 2, 2);
+      ctx.fillRect(obstacle.x + obstacle.width - 2, obstacle.y, 2, 2);
+      
+      ctx.restore();
       
       // DEBUG: Draw obstacle hit box outline
       if (gameData.gameStarted) {
@@ -537,27 +588,55 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       }
     });
 
-    // Draw enemies (fireballs)
+    // Draw enemies (flashing fireballs with enhanced effects)
     gameData.enemies.forEach(enemy => {
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
       
-      // Create fireball gradient
-      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
-      gradient.addColorStop(0, '#FF4500'); // Orange center
-      gradient.addColorStop(0.5, '#FF6347'); // Tomato
-      gradient.addColorStop(1, '#DC143C'); // Crimson edge
+      // Calculate flashing effect based on time
+      const flashIntensity = Math.sin(Date.now() * 0.01 + enemy.id) * 0.3 + 0.7;
+      
+      // Create dynamic fireball gradient with flashing
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+      gradient.addColorStop(0, `rgba(255, ${Math.floor(69 * flashIntensity)}, 0, 1)`); // Flashing orange center
+      gradient.addColorStop(0.3, `rgba(255, ${Math.floor(99 * flashIntensity)}, 71, 1)`); // Flashing tomato
+      gradient.addColorStop(0.7, `rgba(220, ${Math.floor(20 * flashIntensity)}, 60, 1)`); // Flashing crimson
+      gradient.addColorStop(1, `rgba(139, ${Math.floor(0 * flashIntensity)}, 0, 1)`); // Dark red edge
       
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.arc(0, 0, 18, 0, Math.PI * 2);
       ctx.fill();
       
-      // Add flame effect
-      ctx.fillStyle = '#FFD700'; // Gold
+      // Add pulsing inner core
+      const innerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
+      innerGradient.addColorStop(0, `rgba(255, 255, ${Math.floor(100 * flashIntensity)}, 0.8)`);
+      innerGradient.addColorStop(1, `rgba(255, 200, 0, 0)`);
+      
+      ctx.fillStyle = innerGradient;
       ctx.beginPath();
-      ctx.arc(0, -5, 8, 0, Math.PI * 2);
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
       ctx.fill();
+      
+      // Add flame trails
+      ctx.fillStyle = `rgba(255, ${Math.floor(165 * flashIntensity)}, 0, 0.6)`;
+      ctx.beginPath();
+      ctx.ellipse(-8, -3, 6, 3, enemy.angle, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = `rgba(255, ${Math.floor(140 * flashIntensity)}, 0, 0.4)`;
+      ctx.beginPath();
+      ctx.ellipse(-12, 2, 4, 2, enemy.angle, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add glow effect
+      ctx.shadowColor = `rgba(255, ${Math.floor(100 * flashIntensity)}, 0, 0.8)`;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = `rgba(255, ${Math.floor(69 * flashIntensity)}, 0, 0.3)`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
       
       // DEBUG: Draw fireball hit box outline
       if (gameData.gameStarted) {
@@ -577,27 +656,55 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.rotate(gameData.swordAngle);
     
     if (swordImage) {
-      // Draw sword image
+      // Draw sword image with glow effect
+      ctx.shadowColor = 'rgba(200, 200, 255, 0.5)';
+      ctx.shadowBlur = 10;
       const swordWidth = 40;
       const swordHeight = 80;
       ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
+      ctx.shadowBlur = 0;
     } else {
-      // Fallback to basic shapes if image not loaded
-      // Sword blade (silver)
-      ctx.fillStyle = '#cccccc';
+      // Enhanced fallback sword with metallic effects
+      // Sword blade with gradient
+      const bladeGradient = ctx.createLinearGradient(0, -SWORD_WIDTH/2, SWORD_LENGTH, -SWORD_WIDTH/2);
+      bladeGradient.addColorStop(0, '#E8E8E8');
+      bladeGradient.addColorStop(0.5, '#C0C0C0');
+      bladeGradient.addColorStop(1, '#A0A0A0');
+      
+      ctx.fillStyle = bladeGradient;
       ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, SWORD_WIDTH);
       
-      // Sword hilt (brown - death side)
-      ctx.fillStyle = '#8B4513';
+      // Blade edge highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, 1);
+      
+      // Sword hilt with leather texture effect
+      const hiltGradient = ctx.createLinearGradient(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, -SWORD_HILT_WIDTH/2);
+      hiltGradient.addColorStop(0, '#8B4513');
+      hiltGradient.addColorStop(0.5, '#654321');
+      hiltGradient.addColorStop(1, '#4A2C17');
+      
+      ctx.fillStyle = hiltGradient;
       ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+      
+      // Hilt grip lines
+      ctx.fillStyle = '#2F1B14';
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(2 + i * 4, -SWORD_HILT_WIDTH/2, 1, SWORD_HILT_WIDTH);
+      }
     }
     
     // DEBUG: Draw hit boxes for collision detection
     if (gameData.gameStarted) {
-      // Blade tip hit box (green - gives points)
+      // Blade tip hit boxes (green - gives points) - symmetrical
       ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
       ctx.beginPath();
       ctx.arc(SWORD_LENGTH, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Opposite blade tip
+      ctx.beginPath();
+      ctx.arc(-SWORD_LENGTH, 0, 5, 0, Math.PI * 2);
       ctx.fill();
       
       // Hilt hit box (red - causes game over)
@@ -640,11 +747,22 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     });
 
     // Draw HUD
+    // Draw enhanced HUD with timer
     ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';
+    ctx.font = 'bold 24px Arial';
     ctx.fillText(`Score: ${gameData.score}`, 20, 40);
     ctx.fillText(`Best: ${gameData.bestScore}`, 20, 70);
-  }, [gameData, swordImage]);
+    
+    // Draw timer
+    ctx.fillStyle = gameTimer <= 10 ? '#ff4444' : '#fff';
+    ctx.font = 'bold 28px Arial';
+    ctx.fillText(`Time: ${gameTimer}s`, CANVAS_WIDTH - 150, 40);
+    
+    // Draw accuracy
+    ctx.fillStyle = '#4CAF50';
+    ctx.font = '20px Arial';
+    ctx.fillText(`Accuracy: ${gameData.accuracy.toFixed(1)}%`, CANVAS_WIDTH - 200, 70);
+  }, [gameData, swordImage, gameTimer]);
 
   // Mouse/touch handlers - Only Y axis movement for Flappy Bird style
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -673,12 +791,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     if (gameState !== 'playing') return;
     
     if (e.detail === 2) {
-      // Double click - 360° spin
+      // Double click - 180° spin
       playSpinSound();
       createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
       setGameData(prev => ({
         ...prev,
-        swordAngle: prev.swordAngle + Math.PI * 2
+        swordAngle: prev.swordAngle + Math.PI
       }));
     } else {
       // Single click - add 30° clockwise
@@ -836,8 +954,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
             newState.obstacles.push(...newPillars);
           }
 
-          // Generate new enemies
-          if (Math.random() < 0.01) {
+          // Generate new enemies with increasing spawn rate
+          const baseSpawnRate = 0.01;
+          const spawnRateIncrease = gameData.score * 0.001; // Increase spawn rate with score
+          const currentSpawnRate = Math.min(baseSpawnRate + spawnRateIncrease, 0.05); // Cap at 5%
+          
+          if (Math.random() < currentSpawnRate) {
             newState.enemies.push(generateEnemy());
           }
 
@@ -862,13 +984,21 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
               !collisionResult.enemiesToRemove.includes(index)
             );
             
-            // Add collision particles
-            if (collisionResult.particles) {
-              newState.particles = [...newState.particles, ...collisionResult.particles];
-            }
+          // Add collision particles
+          if (collisionResult.particles) {
+            newState.particles = [...newState.particles, ...collisionResult.particles];
           }
+        }
 
-          return newState;
+        // Countdown timer
+        if (gameTimer > 0) {
+          setGameTimer(prev => prev - 1);
+        } else {
+          // Time's up - end game
+          newState.gameOver = true;
+        }
+
+        return newState;
         });
 
         // Render
