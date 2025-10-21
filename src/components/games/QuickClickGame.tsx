@@ -103,6 +103,39 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState === 'waiting') {
+      // Clicked too early - give zero score
+      console.log(`QuickClick: Clicked too early! Round ${currentRound}`);
+      
+      const newRound: Round = {
+        roundNumber: currentRound,
+        reactionTime: 0,
+        clicked: true,
+        isBonus: currentRound === 4,
+        targetX: targetPosition?.x,
+        targetY: targetPosition?.y,
+        accuracy: 0 // Zero accuracy for premature click
+      };
+      
+      setRounds(prev => [...prev, newRound]);
+      setGameState('clicked');
+      
+      // Play failure sound
+      playQuickClickMiss();
+      
+      // Move to next round or end game
+      setTimeout(() => {
+        if (currentRound < 4) {
+          setCurrentRound(prev => prev + 1);
+          setGameState('waiting');
+        } else {
+          setGameState('ended');
+        }
+      }, 1000);
+      
+      return;
+    }
+    
     if (gameState === 'flash') {
       const reactionTime = Date.now() - flashStartTime;
       console.log(`QuickClick: Clicked! Reaction time: ${reactionTime}ms`);

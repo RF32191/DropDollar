@@ -461,7 +461,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       alignItems: 'center',
       justifyContent: 'center',
       textShadow: '2px 2px 4px rgba(0,0,0,0.5)', // Add shadow for visibility
-      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))', // Additional shadow
+      filter: 'brightness(1.2) contrast(1.1) drop-shadow(0 0 10px rgba(255, 215, 0, 0.5))', // Enhanced glow
+      animation: 'bounce 0.5s ease-in-out infinite alternate', // Subtle bounce animation
       zIndex: 10
     };
   };
@@ -573,8 +574,20 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             {/* Game Area - Much Larger and Taller */}
             <div 
               ref={gameAreaRef}
-              className="relative bg-gradient-to-b from-sky-200 via-sky-300 to-green-200 rounded-xl border-4 border-gray-300 overflow-hidden mx-auto cursor-none"
-              style={{ height: '450px', width: '800px', maxWidth: '90vw', touchAction: 'none' }}
+              className="relative rounded-xl border-4 border-gray-300 overflow-hidden mx-auto cursor-none"
+              style={{ 
+                height: '450px', 
+                width: '800px', 
+                maxWidth: '90vw', 
+                touchAction: 'none',
+                background: `
+                  radial-gradient(circle at 30% 20%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 80%, rgba(0, 255, 0, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(255, 255, 0, 0.05) 0%, transparent 50%),
+                  linear-gradient(180deg, #87CEEB 0%, #98FB98 25%, #90EE90 50%, #32CD32 75%, #228B22 100%)
+                `,
+                animation: 'backgroundShift 10s ease-in-out infinite'
+              }}
               onMouseMove={handleMouseMove}
               onTouchMove={handleTouchMove}
               onTouchStart={handleTouchMove}

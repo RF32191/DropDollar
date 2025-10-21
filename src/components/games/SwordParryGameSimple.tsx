@@ -491,7 +491,14 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden touch-none select-none"
           style={{
             cursor: 'url("/SWORD.png") 32 32, crosshair', // Bigger cursor with larger hotspot
-            touchAction: 'none' // Prevent default touch behaviors
+            touchAction: 'none', // Prevent default touch behaviors
+            background: `
+              radial-gradient(circle at 20% 20%, rgba(255, 0, 0, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(255, 165, 0, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 40% 60%, rgba(255, 255, 0, 0.05) 0%, transparent 50%),
+              linear-gradient(135deg, #1a1a1a 0%, #2d1b1b 25%, #1a1a2e 50%, #16213e 75%, #0f0f23 100%)
+            `,
+            animation: 'backgroundShift 8s ease-in-out infinite'
           }}
           onMouseMove={handleMouseMove}
           onMouseDown={handleMouseDown}
@@ -507,13 +514,13 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               className={`absolute w-8 h-8 rounded-full transition-all duration-200 ${
                 attack.destroyed 
                   ? attack.hitType === 'PERFECT HIT' 
-                    ? 'bg-yellow-400 animate-ping border-4 border-yellow-200' // Perfect hit - gold
+                    ? 'bg-gradient-to-br from-yellow-300 to-yellow-600 animate-ping border-4 border-yellow-200' // Perfect hit - gold gradient
                     : attack.hitType === 'EXCELLENT'
-                    ? 'bg-green-400 animate-ping border-2 border-green-200' // Excellent - green
+                    ? 'bg-gradient-to-br from-green-300 to-green-600 animate-ping border-2 border-green-200' // Excellent - green gradient
                     : attack.hitType === 'GOOD HIT'
-                    ? 'bg-blue-400 animate-ping border-2 border-blue-200' // Good - blue
-                    : 'bg-green-500 animate-ping' // Regular hit - standard green
-                  : 'bg-red-500 border-2 border-red-300 animate-pulse'
+                    ? 'bg-gradient-to-br from-blue-300 to-blue-600 animate-ping border-2 border-blue-200' // Good - blue gradient
+                    : 'bg-gradient-to-br from-green-400 to-green-600 animate-ping' // Regular hit - green gradient
+                  : 'bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 animate-pulse'
               }`}
               style={{
                 left: `${attack.x}%`,
@@ -521,14 +528,15 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 transform: 'translate(-50%, -50%)',
                 boxShadow: attack.destroyed 
                   ? attack.hitType === 'PERFECT HIT'
-                    ? '0 0 30px rgba(251, 191, 36, 0.8)' // Gold glow for perfect
+                    ? '0 0 40px rgba(251, 191, 36, 1), 0 0 80px rgba(251, 191, 36, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.3)' // Enhanced gold glow
                     : attack.hitType === 'EXCELLENT'
-                    ? '0 0 25px rgba(34, 197, 94, 0.8)' // Green glow for excellent
+                    ? '0 0 35px rgba(34, 197, 94, 1), 0 0 70px rgba(34, 197, 94, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.2)' // Enhanced green glow
                     : attack.hitType === 'GOOD HIT'
-                    ? '0 0 20px rgba(59, 130, 246, 0.8)' // Blue glow for good
-                    : 'none'
-                  : '0 0 20px rgba(239, 68, 68, 0.8)',
-                zIndex: 10
+                    ? '0 0 30px rgba(59, 130, 246, 1), 0 0 60px rgba(59, 130, 246, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.2)' // Enhanced blue glow
+                    : '0 0 25px rgba(34, 197, 94, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.1)' // Standard green glow
+                  : '0 0 25px rgba(239, 68, 68, 1), 0 0 50px rgba(239, 68, 68, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.1)', // Enhanced red glow
+                zIndex: 10,
+                filter: attack.destroyed ? 'brightness(1.2) contrast(1.1)' : 'brightness(1.1)'
               }}
             >
               {!attack.destroyed && (

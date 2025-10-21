@@ -387,26 +387,26 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
     const isHit = hitTargets.includes(target.id);
     
     const baseColors = {
-      red: 'bg-red-500 hover:bg-red-600',
-      blue: 'bg-blue-500 hover:bg-blue-600',
-      green: 'bg-green-500 hover:bg-green-600',
-      yellow: 'bg-yellow-500 hover:bg-yellow-600',
-      purple: 'bg-purple-500 hover:bg-purple-600',
-      orange: 'bg-orange-500 hover:bg-orange-600',
-      pink: 'bg-pink-500 hover:bg-pink-600'
+      red: 'bg-gradient-to-br from-red-400 to-red-600 hover:from-red-300 hover:to-red-500',
+      blue: 'bg-gradient-to-br from-blue-400 to-blue-600 hover:from-blue-300 hover:to-blue-500',
+      green: 'bg-gradient-to-br from-green-400 to-green-600 hover:from-green-300 hover:to-green-500',
+      yellow: 'bg-gradient-to-br from-yellow-400 to-yellow-600 hover:from-yellow-300 hover:to-yellow-500',
+      purple: 'bg-gradient-to-br from-purple-400 to-purple-600 hover:from-purple-300 hover:to-purple-500',
+      orange: 'bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-300 hover:to-orange-500',
+      pink: 'bg-gradient-to-br from-pink-400 to-pink-600 hover:from-pink-300 hover:to-pink-500'
     };
     
     // Different styles for hit vs unhit targets
     let baseClass;
     if (isHit && target.isCorrect) {
       // Hit correct target - show as completed with checkmark
-      baseClass = 'bg-green-600 border-4 border-white';
+      baseClass = 'bg-gradient-to-br from-green-500 to-green-700 border-4 border-white';
     } else if (target.isCorrect) {
       // Unhit correct target - show pulsing
-      baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gray-500 hover:bg-gray-600';
+      baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gradient-to-br from-gray-400 to-gray-600 hover:from-gray-300 hover:to-gray-500';
     } else {
       // Incorrect target - normal appearance
-      baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gray-500 hover:bg-gray-600';
+      baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gradient-to-br from-gray-400 to-gray-600 hover:from-gray-300 hover:to-gray-500';
     }
     
     // Pulse effects for correct targets that haven't been hit yet
@@ -429,8 +429,9 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
         transform: 'translate(-50%, -50%)',
         animationDuration: target.isCorrect ? `${target.pulseSpeed}s` : undefined,
         boxShadow: target.isCorrect ? 
-          `0 0 ${target.size/2}px rgba(255, 255, 255, 0.8), 0 0 ${target.size}px rgba(255, 255, 255, 0.4)` : 
-          undefined
+          `0 0 ${target.size/2}px rgba(255, 255, 255, 1), 0 0 ${target.size}px rgba(255, 255, 255, 0.6), 0 0 ${target.size*1.5}px rgba(255, 255, 255, 0.3), inset 0 0 ${target.size/4}px rgba(255, 255, 255, 0.2)` : 
+          `0 0 ${target.size/3}px rgba(255, 255, 255, 0.5), inset 0 0 ${target.size/6}px rgba(255, 255, 255, 0.1)`,
+        filter: target.isCorrect ? 'brightness(1.3) contrast(1.2)' : 'brightness(1.1) contrast(1.1)'
       }
     };
   };
@@ -590,7 +591,21 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
             </div>
             
             {/* Game Area */}
-            <div className="relative bg-gray-100 rounded-xl h-96 border-4 border-gray-300 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+            <div 
+              className="relative rounded-xl h-96 border-4 border-gray-300 select-none" 
+              style={{ 
+                userSelect: 'none', 
+                WebkitUserSelect: 'none', 
+                MozUserSelect: 'none', 
+                msUserSelect: 'none',
+                background: `
+                  radial-gradient(circle at 25% 25%, rgba(0, 255, 0, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 75% 75%, rgba(0, 0, 255, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(255, 0, 255, 0.05) 0%, transparent 50%),
+                  linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 25%, #d0d0d0 50%, #c0c0c0 75%, #b0b0b0 100%)
+                `,
+                animation: 'backgroundShift 6s ease-in-out infinite'
+              }}
               {targets.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                   Generating targets... (Check console for logs)
