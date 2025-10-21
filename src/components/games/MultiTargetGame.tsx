@@ -606,6 +606,7 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
                 `,
                 animation: 'backgroundShift 6s ease-in-out infinite'
               }}
+            >
               {targets.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                   Generating targets... (Check console for logs)
