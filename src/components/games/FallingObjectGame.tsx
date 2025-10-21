@@ -504,6 +504,21 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             <div className="text-2xl font-bold text-gray-900">
               🎮 Falling Object Catch
             </div>
+            
+            {/* Epilepsy Warning */}
+            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-white text-sm font-bold">⚠️</span>
+                </div>
+                <p className="text-red-200 font-bold">EPILEPSY WARNING</p>
+              </div>
+              <p className="text-sm text-red-100">
+                This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
+                If you are sensitive to flashing lights, please do not play this game.
+              </p>
+            </div>
+            
             <div className="text-gray-600 space-y-2">
               <p>Catch falling objects with your cash case!</p>
               <p>Objects have realistic physics - they bounce and drift unpredictably</p>

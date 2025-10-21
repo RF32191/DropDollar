@@ -33,6 +33,7 @@ interface GameState {
     gapY: number;
     gapHeight: number;
     speed: number;
+    isTopPillar?: boolean;
   }>;
   enemies: Array<{
     id: number;
@@ -199,7 +200,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     initAudio();
   }, [initAudio]);
 
-  // Generate staggered obstacles (Flappy Bird style)
+  // Generate staggered obstacles (Flappy Bird style) + pillars at top
   const generateObstacle = useCallback(() => {
     // Create staggered pillars - not directly top/bottom
     const pillarCount = Math.floor(Math.random() * 3) + 2; // 2-4 pillars
@@ -221,19 +222,37 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       });
     }
     
+    // Add top pillars that destroy the sword
+    const topPillarCount = Math.floor(Math.random() * 2) + 1; // 1-2 top pillars
+    for (let i = 0; i < topPillarCount; i++) {
+      pillars.push({
+        id: Date.now() + Math.random() + i + 1000, // Different ID range
+        x: CANVAS_WIDTH + (i * 80),
+        y: 0, // Start at top
+        width: Math.max(15, 40 - gameData.score * 0.2),
+        height: Math.random() * 100 + 50, // Random height 50-150
+        gapY: 0,
+        gapHeight: 0,
+        speed: 1.5 + gameData.score * 0.03,
+        isTopPillar: true // Mark as top pillar
+      });
+    }
+    
     return pillars;
   }, [gameData.score]);
 
-  // Generate enemies (fireballs with increasing spawn rate)
+  // Generate enemies (fireballs with increasing spawn rate and speed)
   const generateEnemy = useCallback(() => {
     const side = Math.random() < 0.5 ? 'left' : 'right';
     const x = side === 'left' ? -20 : CANVAS_WIDTH + 20;
     const y = Math.random() * CANVAS_HEIGHT;
     
-    // Increase fireball speed as game progresses
+    // Increase fireball speed every 2 seconds (based on game timer)
+    const timeElapsed = 60 - gameTimer; // Time elapsed in seconds
+    const speedMultiplier = Math.floor(timeElapsed / 2) + 1; // Increases every 2 seconds
     const baseSpeed = 1.5;
     const speedIncrease = gameData.score * 0.02;
-    const fireballSpeed = baseSpeed + speedIncrease;
+    const fireballSpeed = (baseSpeed + speedIncrease) * speedMultiplier;
     
     return {
       id: Date.now() + Math.random(),
@@ -243,7 +262,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       vy: (Math.random() - 0.5) * 2,
       angle: Math.random() * Math.PI * 2
     };
-  }, [gameData.score]);
+  }, [gameData.score, gameTimer]);
 
   // Create particles
   const createParticles = useCallback((x: number, y: number, count: number = 5) => {
@@ -309,9 +328,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const bladeEdge2X = swordX + Math.cos(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.7);
     const bladeEdge2Y = swordY + Math.sin(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.7);
     
-    // Calculate hilt position (handle - causes game over) - make it smaller and more precise
-    const hiltX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.5);
-    const hiltY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.5);
+    // Calculate hilt position (handle - causes game over) - make it bigger and more precise
+    const hiltX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.8);
+    const hiltY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.8);
+    
+    // Calculate sword bottom area (larger kill zone)
+    const swordBottomX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 1.2);
+    const swordBottomY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 1.2);
 
     let score = gameData.score;
     let gameOver = gameData.gameOver;
@@ -396,6 +419,32 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         gameOver = true;
         return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
       }
+      
+      // Check if sword bottom hits obstacle (game over) - bigger kill zone
+      if (swordBottomX >= obstacle.x && swordBottomX <= obstacle.x + obstacle.width &&
+          ((swordBottomY >= obstacle.y && swordBottomY <= obstacle.y + obstacle.height) ||
+           (swordBottomY >= obstacle.gapY + obstacle.gapHeight && swordBottomY <= CANVAS_HEIGHT))) {
+        
+        console.log('💀 SWORD BOTTOM HIT! Game Over!');
+        // Sword bottom hit - game over
+        playGameOverSound();
+        gameOver = true;
+        return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
+      }
+      
+      // Check if top pillar hits sword (game over)
+      if (obstacle.isTopPillar) {
+        const swordHit = swordX >= obstacle.x && swordX <= obstacle.x + obstacle.width &&
+                        swordY >= obstacle.y && swordY <= obstacle.y + obstacle.height;
+        
+        if (swordHit) {
+          console.log('💀 TOP PILLAR HIT! Game Over!');
+          // Top pillar hit - game over
+          playGameOverSound();
+          gameOver = true;
+          return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
+        }
+      }
     }
 
     // Check enemy collisions
@@ -434,6 +483,17 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         totalHits += 1;
         successfulHits += 1;
         enemiesToRemove.push(i);
+      } else {
+        // Check if fireball hits sword bottom (game over)
+        const swordBottomHit = Math.sqrt((swordBottomX - enemy.x) ** 2 + (swordBottomY - enemy.y) ** 2) < 30;
+        
+        if (swordBottomHit) {
+          console.log('💀 FIREBALL HIT SWORD BOTTOM! Game Over!');
+          // Fireball hit sword bottom - game over
+          playGameOverSound();
+          gameOver = true;
+          return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
+        }
       }
     }
     
@@ -497,11 +557,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
       // Generate new obstacles
       if (Math.random() < 0.02) {
-        newState.obstacles.push(generateObstacle());
+        const newObstacles = generateObstacle();
+        newState.obstacles.push(...newObstacles);
       }
 
-      // Generate new enemies
-      if (Math.random() < 0.01) {
+      // Generate new enemies - increased spawn rate
+      if (Math.random() < 0.03) { // Increased from 0.01 to 0.03
         newState.enemies.push(generateEnemy());
       }
 
@@ -578,33 +639,65 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     gameData.obstacles.forEach(obstacle => {
       ctx.save();
       
-      // Create modern gradient for pillars
-      const gradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y);
-      gradient.addColorStop(0, '#E8E8E8'); // Light silver
-      gradient.addColorStop(0.3, '#C0C0C0'); // Medium silver
-      gradient.addColorStop(0.7, '#A0A0A0'); // Darker silver
-      gradient.addColorStop(1, '#808080'); // Dark silver
-      
-      ctx.fillStyle = gradient;
-      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-      
-      // Add metallic shine effect
-      const shineGradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width/3, obstacle.y);
-      shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-      shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      
-      ctx.fillStyle = shineGradient;
-      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width/3, obstacle.height);
-      
-      // Add subtle border
-      ctx.strokeStyle = '#606060';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-      
-      // Add corner highlights
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.fillRect(obstacle.x, obstacle.y, 2, 2);
-      ctx.fillRect(obstacle.x + obstacle.width - 2, obstacle.y, 2, 2);
+      // Different styling for top pillars
+      if (obstacle.isTopPillar) {
+        // Create red gradient for top pillars (dangerous)
+        const gradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y);
+        gradient.addColorStop(0, '#FF6B6B'); // Light red
+        gradient.addColorStop(0.3, '#E53E3E'); // Medium red
+        gradient.addColorStop(0.7, '#C53030'); // Darker red
+        gradient.addColorStop(1, '#9B2C2C'); // Dark red
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        
+        // Add red shine effect
+        const shineGradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width/3, obstacle.y);
+        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.fillStyle = shineGradient;
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width/3, obstacle.height);
+        
+        // Add red border
+        ctx.strokeStyle = '#7F1D1D';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        
+        // Add warning symbol
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚠️', obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2 + 4);
+      } else {
+        // Create modern gradient for regular pillars
+        const gradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width, obstacle.y);
+        gradient.addColorStop(0, '#E8E8E8'); // Light silver
+        gradient.addColorStop(0.3, '#C0C0C0'); // Medium silver
+        gradient.addColorStop(0.7, '#A0A0A0'); // Darker silver
+        gradient.addColorStop(1, '#808080'); // Dark silver
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        
+        // Add metallic shine effect
+        const shineGradient = ctx.createLinearGradient(obstacle.x, obstacle.y, obstacle.x + obstacle.width/3, obstacle.y);
+        shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+        shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.fillStyle = shineGradient;
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width/3, obstacle.height);
+        
+        // Add subtle border
+        ctx.strokeStyle = '#606060';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        
+        // Add corner highlights
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fillRect(obstacle.x, obstacle.y, 2, 2);
+        ctx.fillRect(obstacle.x + obstacle.width - 2, obstacle.y, 2, 2);
+      }
       
       ctx.restore();
       
@@ -984,10 +1077,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
             newState.obstacles.push(...newPillars);
           }
 
-          // Generate new enemies with increasing spawn rate
-          const baseSpawnRate = 0.01;
-          const spawnRateIncrease = gameData.score * 0.001; // Increase spawn rate with score
-          const currentSpawnRate = Math.min(baseSpawnRate + spawnRateIncrease, 0.05); // Cap at 5%
+          // Generate new enemies with increasing spawn rate and time-based scaling
+          const timeElapsed = 60 - gameTimer;
+          const baseSpawnRate = 0.03; // Increased base spawn rate
+          const spawnRateIncrease = gameData.score * 0.002; // Increased spawn rate increase
+          const timeMultiplier = Math.floor(timeElapsed / 2) + 1; // Increases every 2 seconds
+          const currentSpawnRate = Math.min((baseSpawnRate + spawnRateIncrease) * timeMultiplier, 0.1); // Cap at 10%
           
           if (Math.random() < currentSpawnRate) {
             newState.enemies.push(generateEnemy());
