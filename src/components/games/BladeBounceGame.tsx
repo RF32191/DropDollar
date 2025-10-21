@@ -883,7 +883,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     // Draw accuracy
     ctx.fillStyle = '#4CAF50';
     ctx.font = '20px Arial';
-    ctx.fillText(`Accuracy: ${gameData.accuracy.toFixed(1)}%`, CANVAS_WIDTH - 200, 70);
+    const accuracy = gameData.accuracy ?? 100; // Default to 100 if undefined
+    ctx.fillText(`Accuracy: ${accuracy.toFixed(1)}%`, CANVAS_WIDTH - 200, 70);
   }, [gameData, swordImage, gameTimer]);
 
   // Mouse/touch handlers - Only Y axis movement for Flappy Bird style
@@ -1099,6 +1100,11 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
             newState.successfulHits = collisionResult.successfulHits;
             newState.accuracy = collisionResult.totalHits > 0 ? 
               (collisionResult.successfulHits / collisionResult.totalHits) * 100 : 100;
+            
+            // Ensure accuracy is always a valid number
+            if (isNaN(newState.accuracy) || newState.accuracy === undefined) {
+              newState.accuracy = 100;
+            }
             
             // Remove hit obstacles
             newState.obstacles = newState.obstacles.filter((_, index) => 
