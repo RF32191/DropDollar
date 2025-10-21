@@ -21,6 +21,9 @@ interface GameState {
   swordY: number;
   mouseX: number;
   mouseY: number;
+  accuracy: number;
+  totalHits: number;
+  successfulHits: number;
   obstacles: Array<{
     id: number;
     x: number;
@@ -29,6 +32,7 @@ interface GameState {
     height: number;
     gapY: number;
     gapHeight: number;
+    speed: number;
   }>;
   enemies: Array<{
     id: number;
@@ -75,6 +79,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     swordY: 0,
     mouseX: 0,
     mouseY: 0,
+    accuracy: 100,
+    totalHits: 0,
+    successfulHits: 0,
     obstacles: [],
     enemies: [],
     particles: [],
@@ -268,65 +275,92 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   }, []);
 
   // Check collisions
-  const checkCollisions = useCallback((gameData: GameState) => {
-    const swordTipX = gameData.swordX + Math.cos(gameData.swordAngle) * SWORD_LENGTH;
-    const swordTipY = gameData.swordY + Math.sin(gameData.swordAngle) * SWORD_LENGTH;
-    const swordHiltX = gameData.swordX + Math.cos(gameData.swordAngle) * SWORD_HILT_LENGTH;
-    const swordHiltY = gameData.swordY + Math.sin(gameData.swordAngle) * SWORD_HILT_LENGTH;
+  const checkCollisions = useCallback((gameData: GameState): { score: number; gameOver: boolean; particles?: any[] } | null => {
+    // Sword position is now fixed at CANVAS_WIDTH / 3
+    const swordX = CANVAS_WIDTH / 3;
+    const swordY = gameData.swordY;
+    
+    // Calculate blade tip position (sharp end - gives points)
+    const bladeTipX = swordX + Math.cos(gameData.swordAngle) * SWORD_LENGTH;
+    const bladeTipY = swordY + Math.sin(gameData.swordAngle) * SWORD_LENGTH;
+    
+    // Calculate hilt position (handle - causes game over)
+    const hiltX = swordX + Math.cos(gameData.swordAngle) * SWORD_HILT_LENGTH;
+    const hiltY = swordY + Math.sin(gameData.swordAngle) * SWORD_HILT_LENGTH;
 
     // Check obstacle collisions
     for (let i = gameData.obstacles.length - 1; i >= 0; i--) {
       const obstacle = gameData.obstacles[i];
       
-      // Check if sword tip (blade) hits obstacle
-      if (swordTipX >= obstacle.x && swordTipX <= obstacle.x + obstacle.width &&
-          ((swordTipY >= obstacle.y && swordTipY <= obstacle.y + obstacle.height) ||
-           (swordTipY >= obstacle.gapY + obstacle.gapHeight && swordTipY <= CANVAS_HEIGHT))) {
+      // Check if blade tip hits obstacle (successful block)
+      if (bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
+          ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
+           (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT))) {
         
         // Blade hit - successful block
         playClinkSound();
         playScoreSound();
-        createParticles(swordTipX, swordTipY);
+        createParticles(bladeTipX, bladeTipY);
         
-        setGameData(prev => ({
-          ...prev,
-          score: prev.score + 1,
-          obstacles: prev.obstacles.filter((_, index) => index !== i)
-        }));
+        setGameData(prev => {
+          const newTotalHits = prev.totalHits + 1;
+          const newSuccessfulHits = prev.successfulHits + 1;
+          const newAccuracy = newTotalHits > 0 ? (newSuccessfulHits / newTotalHits) * 100 : 100;
+          
+          return {
+            ...prev,
+            score: prev.score + 1,
+            totalHits: newTotalHits,
+            successfulHits: newSuccessfulHits,
+            accuracy: newAccuracy,
+            obstacles: prev.obstacles.filter((_, index) => index !== i)
+          };
+        });
         
         continue;
       }
       
-      // Check if sword hilt hits obstacle
-      if (swordHiltX >= obstacle.x && swordHiltX <= obstacle.x + obstacle.width &&
-          ((swordHiltY >= obstacle.y && swordHiltY <= obstacle.y + obstacle.height) ||
-           (swordHiltY >= obstacle.gapY + obstacle.gapHeight && swordHiltY <= CANVAS_HEIGHT))) {
+      // Check if hilt hits obstacle (game over)
+      if (hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
+          ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
+           (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT))) {
         
         // Hilt hit - game over
         playGameOverSound();
         setGameData(prev => ({ ...prev, gameOver: true }));
-        return;
+        return { score: gameData.score, gameOver: true };
       }
     }
 
     // Check enemy collisions
     for (let i = gameData.enemies.length - 1; i >= 0; i--) {
       const enemy = gameData.enemies[i];
-      const distance = Math.sqrt((swordTipX - enemy.x) ** 2 + (swordTipY - enemy.y) ** 2);
+      const distance = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2);
       
-      if (distance < 15) {
+      if (distance < 20) { // Increased hit radius for fireballs
         // Blade hit enemy - successful block
         playClinkSound();
         playScoreSound();
         createParticles(enemy.x, enemy.y);
         
-        setGameData(prev => ({
-          ...prev,
-          score: prev.score + 1,
-          enemies: prev.enemies.filter((_, index) => index !== i)
-        }));
+        setGameData(prev => {
+          const newTotalHits = prev.totalHits + 1;
+          const newSuccessfulHits = prev.successfulHits + 1;
+          const newAccuracy = newTotalHits > 0 ? (newSuccessfulHits / newTotalHits) * 100 : 100;
+          
+          return {
+            ...prev,
+            score: prev.score + 1,
+            totalHits: newTotalHits,
+            successfulHits: newSuccessfulHits,
+            accuracy: newAccuracy,
+            enemies: prev.enemies.filter((_, index) => index !== i)
+          };
+        });
       }
     }
+    
+    return null; // No collision detected
   }, [playClinkSound, playScoreSound, playGameOverSound, createParticles]);
 
   // Game loop
@@ -432,9 +466,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
     // Show game content even if not started yet (for debugging)
     if (!gameData.gameStarted) {
-      // Draw a simple sword in center when not started
+      // Draw a simple sword in left position when not started
       ctx.save();
-      ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+      ctx.translate(CANVAS_WIDTH / 3, CANVAS_HEIGHT / 2);
       ctx.fillStyle = '#cccccc';
       ctx.fillRect(0, -20, 60, 40);
       ctx.fillStyle = '#8B4513';
@@ -446,44 +480,46 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
     if (gameData.gameOver) return;
 
-    // Draw staggered obstacles (pillars)
-    ctx.fillStyle = '#8B4513'; // Brown color for pillars
+    // Draw staggered obstacles (silver pillars)
+    ctx.fillStyle = '#C0C0C0'; // Silver color for pillars
     gameData.obstacles.forEach(obstacle => {
       // Draw pillar from gap position to bottom
       ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
       
       // Add some visual detail
-      ctx.fillStyle = '#654321'; // Darker brown for pillar edge
+      ctx.fillStyle = '#A0A0A0'; // Darker silver for pillar edge
       ctx.fillRect(obstacle.x, obstacle.y, 2, obstacle.height);
-      ctx.fillStyle = '#8B4513'; // Reset to original color
+      ctx.fillStyle = '#C0C0C0'; // Reset to original color
     });
 
-    // Draw enemies
+    // Draw enemies (fireballs)
     gameData.enemies.forEach(enemy => {
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
-      ctx.rotate(enemy.angle);
       
-      if (swordImage) {
-        // Draw enemy sword image (smaller and red-tinted)
-        const enemySwordWidth = 20;
-        const enemySwordHeight = 40;
-        ctx.globalAlpha = 0.8;
-        ctx.fillStyle = '#ff4444';
-        ctx.fillRect(-enemySwordWidth/2, -enemySwordHeight/2, enemySwordWidth, enemySwordHeight);
-        ctx.globalAlpha = 1;
-      } else {
-        // Fallback to basic shape
-        ctx.fillStyle = '#ff4444';
-        ctx.fillRect(-10, -5, 20, 10);
-      }
+      // Create fireball gradient
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+      gradient.addColorStop(0, '#FF4500'); // Orange center
+      gradient.addColorStop(0.5, '#FF6347'); // Tomato
+      gradient.addColorStop(1, '#DC143C'); // Crimson edge
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add flame effect
+      ctx.fillStyle = '#FFD700'; // Gold
+      ctx.beginPath();
+      ctx.arc(0, -5, 8, 0, Math.PI * 2);
+      ctx.fill();
       
       ctx.restore();
     });
 
-    // Draw sword (fixed X position, Y follows mouse)
+    // Draw sword (fixed X position more to the left, Y follows mouse)
     ctx.save();
-    ctx.translate(CANVAS_WIDTH / 2, gameData.swordY); // Fixed X at center, Y follows mouse
+    ctx.translate(CANVAS_WIDTH / 3, gameData.swordY); // Fixed X at 1/3 from left, Y follows mouse
     ctx.rotate(gameData.swordAngle);
     
     if (swordImage) {
@@ -657,11 +693,14 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           score: 0,
           gameOver: false,
           gameStarted: true,
-          swordX: CANVAS_WIDTH / 2,
+          swordX: CANVAS_WIDTH / 3, // Updated to match new position
           swordY: CANVAS_HEIGHT / 2,
-          mouseX: CANVAS_WIDTH / 2,
+          mouseX: CANVAS_WIDTH / 3,
           mouseY: CANVAS_HEIGHT / 2,
           swordAngle: 0,
+          accuracy: 100,
+          totalHits: 0,
+          successfulHits: 0,
           obstacles: [],
           enemies: [],
           particles: [],
@@ -678,6 +717,11 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     if (gameState === 'playing') {
       console.log('🎮 [BladeBounce] Game loop starting');
       lastTimeRef.current = performance.now();
+      
+      // Clear any existing game loop
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
       
       const gameLoop = () => {
         const currentTime = performance.now();
@@ -729,15 +773,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           }
 
           // Check collisions
-          const collisionResult = checkCollisions(newState);
-          if (collisionResult) {
-            newState.score = collisionResult.score;
-            newState.gameOver = collisionResult.gameOver;
-            
-            if (collisionResult.particles) {
-              newState.particles = [...newState.particles, ...collisionResult.particles];
-            }
-          }
+          checkCollisions(newState);
 
           return newState;
         });
@@ -747,18 +783,18 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
         // Continue loop
         if (gameState === 'playing') {
-          animationFrameRef.current = requestAnimationFrame(gameLoop);
+          gameLoopRef.current = requestAnimationFrame(gameLoop);
         } else {
           console.log('🎮 [BladeBounce] Game loop stopping, gameState:', gameState);
         }
       };
 
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
     }
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
       }
     };
   }, [gameState, render, generateObstacle, generateEnemy, checkCollisions]);
@@ -773,7 +809,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       setGameState('ended');
       
       setTimeout(() => {
-        onGameEnd(gameData.score, 100); // Assuming 100% accuracy for this game
+        onGameEnd(gameData.score, gameData.accuracy); // Use calculated accuracy
       }, 2000);
     }
   }, [gameData.gameOver, gameData.score, onGameEnd]);
@@ -856,7 +892,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
               )}
               <button
                 onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 sm:py-5 px-6 sm:px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl border-2 border-orange-400 hover:border-orange-300 relative z-20`}
+                className={`${!isCompetitionMode ? 'flex-1' : 'w-full'} bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 sm:py-5 px-6 sm:px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl border-2 border-orange-400 hover:border-orange-300 relative z-20`}
               >
                 ⚔️ START BATTLE ⚔️
               </button>
