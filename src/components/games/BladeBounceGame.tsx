@@ -67,7 +67,6 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameLoopRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
-  const animationFrameRef = useRef<number>();
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [gameData, setGameData] = useState<GameState>({
@@ -408,10 +407,11 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         continue;
       }
       
-      // Check if hilt hits obstacle (game over) - more precise hit detection
-      if (hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
-          ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
-           (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT))) {
+      // Check if hilt hits obstacle (game over) - more forgiving hit detection with buffer zone
+      const hiltBuffer = 15; // Buffer zone around hilt to make it more forgiving
+      if (hiltX >= obstacle.x - hiltBuffer && hiltX <= obstacle.x + obstacle.width + hiltBuffer &&
+          ((hiltY >= obstacle.y - hiltBuffer && hiltY <= obstacle.y + obstacle.height + hiltBuffer) ||
+           (hiltY >= obstacle.gapY + obstacle.gapHeight - hiltBuffer && hiltY <= CANVAS_HEIGHT + hiltBuffer))) {
         
         console.log('💀 HILT HIT! Game Over!');
         // Hilt hit - game over
@@ -513,8 +513,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     setGameData(prev => {
       if (prev.gameOver) {
         // Stop game loop when game over
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
+        if (gameLoopRef.current) {
+          cancelAnimationFrame(gameLoopRef.current);
+          gameLoopRef.current = undefined;
         }
         return prev;
       }
@@ -573,7 +574,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     });
 
     // Continue game loop if not over
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
   }, [generateObstacle, generateEnemy, checkCollisions]);
 
   // Render game
@@ -1154,6 +1155,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   // Handle game over
   useEffect(() => {
     if (gameData.gameOver) {
+      // Stop any running game loop
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = undefined;
+      }
+      
       const newBestScore = Math.max(gameData.score, gameData.bestScore);
       localStorage.setItem('bladeBounceBestScore', newBestScore.toString());
       
@@ -1164,7 +1171,17 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         onGameEnd(gameData.score, gameData.accuracy); // Use calculated accuracy
       }, 2000);
     }
-  }, [gameData.gameOver, gameData.score, onGameEnd]);
+  }, [gameData.gameOver, gameData.score, gameData.accuracy, onGameEnd]);
+
+  // Cleanup effect to stop game loop on unmount
+  useEffect(() => {
+    return () => {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = undefined;
+      }
+    };
+  }, []);
 
   if (gameState === 'ended') {
     return null;
@@ -1242,7 +1259,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
               <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
                 <p className="text-xs text-orange-200">
                   <span className="text-yellow-300 font-bold">🎯 PRECISION:</span> Only the blade edge can block attacks safely. 
-                  The hilt (handle) will cause instant game over if it hits anything!
+                  The hilt (handle) will cause instant game over if it hits anything! (Hit detection is more forgiving now)
                 </p>
               </div>
             </div>
