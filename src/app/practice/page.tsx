@@ -75,6 +75,15 @@ const PRACTICE_GAMES = [
     difficulty: 'Easy',
     avgScore: 1600,
     color: 'from-indigo-500 to-blue-500'
+  },
+  {
+    id: 'blade-bounce',
+    name: 'Blade Bounce: Mouseblade',
+    description: 'Control your sword with mouse movement and precise clicks',
+    icon: <FireIcon className="w-8 h-8 text-orange-500" />,
+    difficulty: 'Extreme',
+    avgScore: 500,
+    color: 'from-orange-500 to-red-500'
   }
 ];
 
