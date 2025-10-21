@@ -419,13 +419,6 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Always draw a test rectangle to verify canvas is working
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(10, 10, 50, 50);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '16px Arial';
-    ctx.fillText('Canvas Test', 10, 80);
-
     // Show game content even if not started yet (for debugging)
     if (!gameData.gameStarted) {
       // Draw a simple sword in center when not started
@@ -437,12 +430,6 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.fillRect(0, -10, 20, 20);
       ctx.restore();
       
-      // Draw instruction text
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '20px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Click START to begin!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 60);
-      ctx.textAlign = 'left';
       return;
     }
 
@@ -625,6 +612,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   // Start game handler
   const handleStartGame = useCallback(() => {
+    console.log('🎮 [BladeBounce] Start game button clicked!');
     setGameState('countdown');
     setCountdown(3);
   }, []);
@@ -826,9 +814,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
               )}
               <button
                 onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse text-sm sm:text-base`}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 sm:py-5 px-6 sm:px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl border-2 border-orange-400 hover:border-orange-300 relative z-20`}
               >
-                ⚔️ START BATTLE
+                ⚔️ START BATTLE ⚔️
               </button>
             </div>
           </div>
