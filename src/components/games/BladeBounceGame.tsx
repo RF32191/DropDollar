@@ -55,7 +55,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const lastTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number>();
   
-  const [gameState, setGameState] = useState<GameState>({
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [gameData, setGameData] = useState<GameState>({
     score: 0,
     bestScore: parseInt(localStorage.getItem('bladeBounceBestScore') || '0'),
     gameOver: false,
@@ -70,7 +71,6 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     particles: []
   });
 
-  const [showInstructions, setShowInstructions] = useState(true);
   const [countdown, setCountdown] = useState(3);
   const [swordImage, setSwordImage] = useState<HTMLImageElement | null>(null);
 
@@ -141,8 +141,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
 
-    // Initialize game state
-    setGameState(prev => ({
+    // Initialize game data
+    setGameData(prev => ({
       ...prev,
       score: 0,
       gameOver: false,
@@ -210,15 +210,15 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   }, []);
 
   // Check collisions
-  const checkCollisions = useCallback((gameState: GameState) => {
-    const swordTipX = gameState.swordX + Math.cos(gameState.swordAngle) * SWORD_LENGTH;
-    const swordTipY = gameState.swordY + Math.sin(gameState.swordAngle) * SWORD_LENGTH;
-    const swordHiltX = gameState.swordX + Math.cos(gameState.swordAngle) * SWORD_HILT_LENGTH;
-    const swordHiltY = gameState.swordY + Math.sin(gameState.swordAngle) * SWORD_HILT_LENGTH;
+  const checkCollisions = useCallback((gameData: GameState) => {
+    const swordTipX = gameData.swordX + Math.cos(gameData.swordAngle) * SWORD_LENGTH;
+    const swordTipY = gameData.swordY + Math.sin(gameData.swordAngle) * SWORD_LENGTH;
+    const swordHiltX = gameData.swordX + Math.cos(gameData.swordAngle) * SWORD_HILT_LENGTH;
+    const swordHiltY = gameData.swordY + Math.sin(gameData.swordAngle) * SWORD_HILT_LENGTH;
 
     // Check obstacle collisions
-    for (let i = gameState.obstacles.length - 1; i >= 0; i--) {
-      const obstacle = gameState.obstacles[i];
+    for (let i = gameData.obstacles.length - 1; i >= 0; i--) {
+      const obstacle = gameData.obstacles[i];
       
       // Check if sword tip (blade) hits obstacle
       if (swordTipX >= obstacle.x && swordTipX <= obstacle.x + obstacle.width &&
@@ -230,7 +230,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         playScoreSound();
         createParticles(swordTipX, swordTipY);
         
-        setGameState(prev => ({
+        setGameData(prev => ({
           ...prev,
           score: prev.score + 1,
           obstacles: prev.obstacles.filter((_, index) => index !== i)
@@ -246,14 +246,14 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         
         // Hilt hit - game over
         playGameOverSound();
-        setGameState(prev => ({ ...prev, gameOver: true }));
+        setGameData(prev => ({ ...prev, gameOver: true }));
         return;
       }
     }
 
     // Check enemy collisions
-    for (let i = gameState.enemies.length - 1; i >= 0; i--) {
-      const enemy = gameState.enemies[i];
+    for (let i = gameData.enemies.length - 1; i >= 0; i--) {
+      const enemy = gameData.enemies[i];
       const distance = Math.sqrt((swordTipX - enemy.x) ** 2 + (swordTipY - enemy.y) ** 2);
       
       if (distance < 15) {
@@ -262,7 +262,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         playScoreSound();
         createParticles(enemy.x, enemy.y);
         
-        setGameState(prev => ({
+        setGameData(prev => ({
           ...prev,
           score: prev.score + 1,
           enemies: prev.enemies.filter((_, index) => index !== i)
@@ -276,7 +276,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const deltaTime = currentTime - lastTimeRef.current;
     lastTimeRef.current = currentTime;
 
-    setGameState(prev => {
+    setGameData(prev => {
       if (prev.gameOver) return prev;
 
       let newState = { ...prev };
@@ -324,10 +324,10 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       return newState;
     });
 
-    if (!gameState.gameOver) {
+    if (!gameData.gameOver) {
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [gameState.gameOver, generateObstacle, generateEnemy, checkCollisions]);
+  }, [gameData.gameOver, generateObstacle, generateEnemy, checkCollisions]);
 
   // Render game
   const render = useCallback(() => {
@@ -342,17 +342,17 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
     // Background gradient (darkens with score)
     const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-    const darkness = Math.min(gameState.score / 100, 0.8);
+    const darkness = Math.min(gameData.score / 100, 0.8);
     gradient.addColorStop(0, `rgba(20, 20, 40, ${darkness})`);
     gradient.addColorStop(1, `rgba(10, 10, 20, ${darkness + 0.2})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    if (!gameState.gameStarted || gameState.gameOver) return;
+    if (!gameData.gameStarted || gameData.gameOver) return;
 
     // Draw obstacles
     ctx.fillStyle = '#666';
-    gameState.obstacles.forEach(obstacle => {
+    gameData.obstacles.forEach(obstacle => {
       // Top part
       ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
       // Bottom part
@@ -360,7 +360,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     });
 
     // Draw enemies
-    gameState.enemies.forEach(enemy => {
+    gameData.enemies.forEach(enemy => {
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
       ctx.rotate(enemy.angle);
@@ -384,8 +384,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
     // Draw sword
     ctx.save();
-    ctx.translate(gameState.swordX, gameState.swordY);
-    ctx.rotate(gameState.swordAngle);
+    ctx.translate(gameData.swordX, gameData.swordY);
+    ctx.rotate(gameData.swordAngle);
     
     if (swordImage) {
       // Draw sword image
@@ -406,7 +406,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.restore();
 
     // Draw particles
-    gameState.particles.forEach(particle => {
+    gameData.particles.forEach(particle => {
       const alpha = particle.life / particle.maxLife;
       ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
       ctx.fillRect(particle.x - 2, particle.y - 2, 4, 4);
@@ -415,9 +415,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     // Draw HUD
     ctx.fillStyle = '#fff';
     ctx.font = '24px Arial';
-    ctx.fillText(`Score: ${gameState.score}`, 20, 40);
-    ctx.fillText(`Best: ${gameState.bestScore}`, 20, 70);
-  }, [gameState, swordImage]);
+    ctx.fillText(`Score: ${gameData.score}`, 20, 40);
+    ctx.fillText(`Best: ${gameData.bestScore}`, 20, 70);
+  }, [gameData, swordImage]);
 
   // Mouse/touch handlers
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -428,7 +428,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    setGameState(prev => ({
+    setGameData(prev => ({
       ...prev,
       mouseX: x,
       mouseY: y
@@ -441,7 +441,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     if (e.detail === 2) {
       // Double click - 360° spin
       playSpinSound();
-      setGameState(prev => ({
+      setGameData(prev => ({
         ...prev,
         swordAngle: prev.swordAngle + Math.PI * 2
       }));
@@ -464,7 +464,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
 
-    setGameState(prev => ({
+    setGameData(prev => ({
       ...prev,
       mouseX: x,
       mouseY: y
@@ -481,13 +481,13 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     if (now - lastTap < 300) {
       // Double tap - 360° spin
       playSpinSound();
-      setGameState(prev => ({
+      setGameData(prev => ({
         ...prev,
         swordAngle: prev.swordAngle + Math.PI * 2
       }));
     } else {
       // Single tap - add 30° clockwise
-      setGameState(prev => ({
+      setGameData(prev => ({
         ...prev,
         swordAngle: prev.swordAngle + Math.PI / 6
       }));
@@ -496,26 +496,31 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     (handleTouchStart as any).lastTap = now;
   }, [playSpinSound]);
 
-  // Start countdown
-  const startCountdown = useCallback(() => {
-    setShowInstructions(false);
+  // Start game handler
+  const handleStartGame = useCallback(() => {
+    setGameState('countdown');
     setCountdown(3);
-    
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownInterval);
-          initGame();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [initGame]);
+  }, []);
+
+  // Countdown logic
+  useEffect(() => {
+    if (gameState === 'countdown') {
+      if (countdown > 0) {
+        const timer = setTimeout(() => {
+          setCountdown(prev => prev - 1);
+        }, 1000);
+        return () => clearTimeout(timer);
+      } else {
+        // Start game
+        setGameState('playing');
+        initGame();
+      }
+    }
+  }, [gameState, countdown, initGame]);
 
   // Start game loop when game starts
   useEffect(() => {
-    if (gameState.gameStarted && !gameState.gameOver) {
+    if (gameState === 'playing' && !gameData.gameOver) {
       lastTimeRef.current = performance.now();
       animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
@@ -525,7 +530,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [gameState.gameStarted, gameState.gameOver, gameLoop]);
+  }, [gameState, gameData.gameOver, gameLoop]);
 
   // Render when game state changes
   useEffect(() => {
@@ -534,81 +539,186 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   // Handle game over
   useEffect(() => {
-    if (gameState.gameOver) {
-      const newBestScore = Math.max(gameState.score, gameState.bestScore);
+    if (gameData.gameOver) {
+      const newBestScore = Math.max(gameData.score, gameData.bestScore);
       localStorage.setItem('bladeBounceBestScore', newBestScore.toString());
       
       setTimeout(() => {
-        onGameEnd(gameState.score, 100); // Assuming 100% accuracy for this game
+        onGameEnd(gameData.score, 100); // Assuming 100% accuracy for this game
       }, 2000);
     }
-  }, [gameState.gameOver, gameState.score, onGameEnd]);
+  }, [gameData.gameOver, gameData.score, onGameEnd]);
+
+  if (gameState === 'ended') {
+    return null;
+  }
+
+  if (gameState === 'ready') {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-orange-900 via-red-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
+          <div className="absolute inset-0 rounded-3xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-orange-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-red-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
+          </div>
+          
+          <div className="relative z-10">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-2xl sm:text-3xl">⚔️</span>
+            </div>
+            
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-orange-300 to-red-300 bg-clip-text text-transparent">
+              Blade Bounce: Mouseblade
+            </h2>
+            <p className="text-orange-200 text-sm mb-4 sm:mb-6 font-medium">Ultimate Sword Control Challenge</p>
+            
+            <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs sm:text-sm font-bold">!</span>
+                </div>
+                <p className="text-white font-semibold">SWORD CONTROL:</p>
+              </div>
+              
+              <div className="space-y-3 pl-8 sm:pl-11">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-semibold">Mouse/Touch:</span> Move sword to follow cursor</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-yellow-300 font-semibold">Single Click:</span> Rotate sword +30° clockwise</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-orange-300 font-semibold">Double Click:</span> Perform 360° spin attack</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-semibold">Blade Hits:</span> Block obstacles and enemies for points</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-red-300 font-semibold">Hilt Hits:</span> Game over! Avoid hitting with handle</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-purple-300 font-semibold">Goal:</span> Survive as long as possible and score points</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
+                <p className="text-xs text-orange-200">
+                  <span className="text-yellow-300 font-bold">🎯 PRECISION:</span> Only the blade edge can block attacks safely. 
+                  The hilt (handle) will cause instant game over if it hits anything!
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+              {!isCompetitionMode && onExit && (
+                <button
+                  onClick={onExit}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base"
+                >
+                  ← Back
+                </button>
+              )}
+              <button
+                onClick={handleStartGame}
+                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse text-sm sm:text-base`}
+              >
+                ⚔️ START BATTLE
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'countdown') {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl p-6 sm:p-12 text-center max-w-md w-full">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Blade Bounce: Mouseblade</h2>
+          <p className="text-sm sm:text-lg text-gray-600 mb-6 sm:mb-8">Control your sword with precision! Blade hits = points, Hilt hits = game over!</p>
+          <div className="text-6xl sm:text-8xl font-bold text-orange-500 animate-pulse">
+            {countdown}
+          </div>
+          <p className="text-xs sm:text-sm text-gray-500 mt-4">Get ready...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">Blade Bounce: Mouseblade</h1>
-          <button
-            onClick={onExit}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Exit Game
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
+          <div className="text-lg font-bold text-gray-900">
+            ⚔️ Blade Bounce: Mouseblade
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="text-gray-600">Score: {gameData.score}</div>
+            <div className="text-gray-600">Best: {gameData.bestScore}</div>
+            {!isCompetitionMode && onExit && (
+              <button 
+                onClick={onExit}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
-        {showInstructions && (
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-bold mb-4">How to Play</h2>
-            <div className="text-left max-w-2xl mx-auto space-y-2">
-              <p>• <strong>Mouse/Touch:</strong> Move your sword to follow the cursor</p>
-              <p>• <strong>Single Click/Tap:</strong> Rotate sword +30° clockwise</p>
-              <p>• <strong>Double Click/Tap:</strong> Perform 360° spin</p>
-              <p>• <strong>Blade hits:</strong> Block obstacles and enemies for points</p>
-              <p>• <strong>Hilt hits:</strong> Game over!</p>
-              <p>• <strong>Goal:</strong> Survive as long as possible and score points</p>
+        {gameState === 'playing' && (
+          <div className="space-y-6">
+            <div className="text-xl font-bold text-gray-900">
+              ⚔️ Control your sword with precision! 🗡️
+              {gameData.gameOver && (
+                <div className="text-xl text-red-600 font-bold animate-bounce mt-2 bg-red-200 px-4 py-2 rounded-lg">
+                  💀 GAME OVER! 💀
+                </div>
+              )}
             </div>
-            <button
-              onClick={startCountdown}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors mt-4"
-            >
-              Start Game
-            </button>
+            
+            {/* Game Area */}
+            <div className="flex justify-center">
+              <canvas
+                ref={canvasRef}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                className="border-2 border-gray-600 rounded-lg bg-gray-900"
+                onMouseMove={handleMouseMove}
+                onClick={handleClick}
+                onTouchMove={handleTouchMove}
+                onTouchStart={handleTouchStart}
+                style={{ touchAction: 'none', userSelect: 'none' }}
+              />
+            </div>
+
+            <div className="text-xs sm:text-sm text-gray-600 text-center">
+              <div className="hidden sm:block">
+                <strong>Desktop:</strong> Move mouse to control sword | <strong>Click:</strong> Rotate sword | <strong>Double-click:</strong> Spin attack
+              </div>
+              <div className="block sm:hidden">
+                <strong>Mobile:</strong> Touch and drag to move sword | <strong>Tap:</strong> Rotate sword | <strong>Double-tap:</strong> Spin attack
+              </div>
+            </div>
           </div>
         )}
 
-        {countdown > 0 && (
-          <div className="text-center mb-6">
-            <div className="text-6xl font-bold text-blue-400">{countdown}</div>
-            <p className="text-xl">Get Ready!</p>
-          </div>
-        )}
-
-        {gameState.gameOver && (
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-red-400 mb-2">Game Over!</h2>
-            <p className="text-xl">Final Score: {gameState.score}</p>
-            <p className="text-lg">Best Score: {Math.max(gameState.score, gameState.bestScore)}</p>
-          </div>
-        )}
-
-        <div className="flex justify-center">
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            className="border-2 border-gray-600 rounded-lg bg-gray-900"
-            onMouseMove={handleMouseMove}
-            onClick={handleClick}
-            onTouchMove={handleTouchMove}
-            onTouchStart={handleTouchStart}
-            style={{ touchAction: 'none', userSelect: 'none' }}
-          />
-        </div>
-
-        <div className="mt-4 text-center text-sm text-gray-400">
-          <p>Use mouse to move sword, click to rotate, double-click to spin!</p>
-          <p>Block obstacles with your blade, avoid hitting with the hilt!</p>
+        <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-600 space-y-2">
+          <div>⚔️ <strong>BLADE CONTROL:</strong> Sword follows mouse/touch with smooth movement!</div>
+          <div>🗡️ <strong>BLADE HITS:</strong> Only the sharp edge can block obstacles safely</div>
+          <div>🛡️ <strong>HILT HITS:</strong> Handle hits cause instant game over</div>
+          <div>🎯 <strong>ENEMY SWORDS:</strong> Block flying enemy swords for bonus points!</div>
+          <div>⚡ <strong>SPIN ATTACK:</strong> Double-click for powerful 360° spin</div>
+          <div>💎 <strong>PRECISION:</strong> Master sword control for high scores!</div>
         </div>
       </div>
     </div>
