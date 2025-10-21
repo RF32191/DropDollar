@@ -72,9 +72,19 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   const [showInstructions, setShowInstructions] = useState(true);
   const [countdown, setCountdown] = useState(3);
+  const [swordImage, setSwordImage] = useState<HTMLImageElement | null>(null);
 
   // Audio context for sound effects
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Load sword image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      setSwordImage(img);
+    };
+    img.src = '/SWORD.png';
+  }, []);
 
   // Initialize audio context
   const initAudio = useCallback(() => {
@@ -354,8 +364,21 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
       ctx.rotate(enemy.angle);
-      ctx.fillStyle = '#ff4444';
-      ctx.fillRect(-10, -5, 20, 10);
+      
+      if (swordImage) {
+        // Draw enemy sword image (smaller and red-tinted)
+        const enemySwordWidth = 20;
+        const enemySwordHeight = 40;
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(-enemySwordWidth/2, -enemySwordHeight/2, enemySwordWidth, enemySwordHeight);
+        ctx.globalAlpha = 1;
+      } else {
+        // Fallback to basic shape
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(-10, -5, 20, 10);
+      }
+      
       ctx.restore();
     });
 
@@ -364,13 +387,21 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.translate(gameState.swordX, gameState.swordY);
     ctx.rotate(gameState.swordAngle);
     
-    // Sword blade
-    ctx.fillStyle = '#cccccc';
-    ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, SWORD_WIDTH);
-    
-    // Sword hilt
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+    if (swordImage) {
+      // Draw sword image
+      const swordWidth = 40;
+      const swordHeight = 80;
+      ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
+    } else {
+      // Fallback to basic shapes if image not loaded
+      // Sword blade
+      ctx.fillStyle = '#cccccc';
+      ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, SWORD_WIDTH);
+      
+      // Sword hilt
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+    }
     
     ctx.restore();
 
@@ -386,7 +417,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.font = '24px Arial';
     ctx.fillText(`Score: ${gameState.score}`, 20, 40);
     ctx.fillText(`Best: ${gameState.bestScore}`, 20, 70);
-  }, [gameState]);
+  }, [gameState, swordImage]);
 
   // Mouse/touch handlers
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

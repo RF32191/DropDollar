@@ -9,6 +9,7 @@ import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
+import BladeBounceGame from '@/components/games/BladeBounceGame';
 import { 
   TrophyIcon, 
   ClockIcon, 
@@ -213,6 +214,8 @@ export default function CompetitionGameFlow({
         return <QuickClickGame {...gameProps} />;
       case 'memory_color':
         return <ColorSequenceGame {...gameProps} />;
+      case 'blade_bounce':
+        return <BladeBounceGame {...gameProps} />;
       default:
         return <div className="text-white text-center">Unknown game type: {gameType}</div>;
     }
@@ -225,6 +228,7 @@ export default function CompetitionGameFlow({
       case 'sword_parry': return '⚔️ Sword Parry';
       case 'number_tap': return '⚡ Quick Click';
       case 'memory_color': return '🧠 Memory Color';
+      case 'blade_bounce': return '⚔️ Blade Bounce';
       default: return '🎮 Game';
     }
   };
