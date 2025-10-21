@@ -190,21 +190,30 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     initAudio();
   }, [initAudio]);
 
-  // Generate obstacles
+  // Generate staggered obstacles (Flappy Bird style)
   const generateObstacle = useCallback(() => {
-    const gapY = Math.random() * (CANVAS_HEIGHT - 100) + 50;
-    const gapHeight = 80;
+    // Create staggered pillars - not directly top/bottom
+    const pillarCount = Math.floor(Math.random() * 3) + 2; // 2-4 pillars
+    const pillars = [];
     
-    return {
-      id: Date.now() + Math.random(),
-      x: CANVAS_WIDTH,
-      y: 0,
-      width: 40,
-      height: gapY,
-      gapY: gapY,
-      gapHeight: gapHeight
-    };
-  }, []);
+    for (let i = 0; i < pillarCount; i++) {
+      const gapY = Math.random() * (CANVAS_HEIGHT - 120) + 60;
+      const gapHeight = Math.max(60, 100 - gameData.score * 0.5); // Gap gets smaller as score increases
+      
+      pillars.push({
+        id: Date.now() + Math.random() + i,
+        x: CANVAS_WIDTH + (i * 60), // Stagger horizontally
+        y: gapY,
+        width: Math.max(20, 50 - gameData.score * 0.3), // Pillars get narrower
+        height: CANVAS_HEIGHT - gapY,
+        gapY: gapY,
+        gapHeight: gapHeight,
+        speed: 2 + gameData.score * 0.02 // Speed increases with score
+      });
+    }
+    
+    return pillars;
+  }, [gameData.score]);
 
   // Generate enemies
   const generateEnemy = useCallback(() => {
@@ -437,13 +446,16 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
     if (gameData.gameOver) return;
 
-    // Draw obstacles
-    ctx.fillStyle = '#666';
+    // Draw staggered obstacles (pillars)
+    ctx.fillStyle = '#8B4513'; // Brown color for pillars
     gameData.obstacles.forEach(obstacle => {
-      // Top part
+      // Draw pillar from gap position to bottom
       ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-      // Bottom part
-      ctx.fillRect(obstacle.x, obstacle.gapY + obstacle.gapHeight, obstacle.width, CANVAS_HEIGHT - obstacle.gapY - obstacle.gapHeight);
+      
+      // Add some visual detail
+      ctx.fillStyle = '#654321'; // Darker brown for pillar edge
+      ctx.fillRect(obstacle.x, obstacle.y, 2, obstacle.height);
+      ctx.fillStyle = '#8B4513'; // Reset to original color
     });
 
     // Draw enemies
@@ -469,9 +481,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.restore();
     });
 
-    // Draw sword
+    // Draw sword (fixed X position, Y follows mouse)
     ctx.save();
-    ctx.translate(gameData.swordX, gameData.swordY);
+    ctx.translate(CANVAS_WIDTH / 2, gameData.swordY); // Fixed X at center, Y follows mouse
     ctx.rotate(gameData.swordAngle);
     
     if (swordImage) {
@@ -481,11 +493,11 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
     } else {
       // Fallback to basic shapes if image not loaded
-      // Sword blade
+      // Sword blade (silver)
       ctx.fillStyle = '#cccccc';
       ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, SWORD_WIDTH);
       
-      // Sword hilt
+      // Sword hilt (brown - death side)
       ctx.fillStyle = '#8B4513';
       ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
     }
@@ -529,21 +541,25 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     ctx.fillText(`Best: ${gameData.bestScore}`, 20, 70);
   }, [gameData, swordImage]);
 
-  // Mouse/touch handlers
+  // Mouse/touch handlers - Only Y axis movement for Flappy Bird style
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (gameState !== 'playing') return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
+    const mouseY = e.clientY - rect.top;
+    
+    // Clamp Y position to canvas bounds (keep sword within playable area)
+    const clampedY = Math.max(50, Math.min(CANVAS_HEIGHT - 50, mouseY));
+    
     setGameData(prev => ({
       ...prev,
-      mouseX: x,
-      mouseY: y
+      swordY: clampedY,
+      mouseY: clampedY
     }));
-  }, []);
+  }, [gameState]);
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -572,20 +588,24 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    if (gameState !== 'playing') return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
     const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const mouseY = touch.clientY - rect.top;
+    
+    // Clamp Y position to canvas bounds (keep sword within playable area)
+    const clampedY = Math.max(50, Math.min(CANVAS_HEIGHT - 50, mouseY));
 
     setGameData(prev => ({
       ...prev,
-      mouseX: x,
-      mouseY: y
+      swordY: clampedY,
+      mouseY: clampedY
     }));
-  }, []);
+  }, [gameState]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -668,7 +688,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         setGameData(prev => {
           const newState = { ...prev };
 
-          // Move obstacles
+          // Move obstacles (staggered pillars)
           newState.obstacles = newState.obstacles.map(obstacle => ({
             ...obstacle,
             x: obstacle.x - obstacle.speed
@@ -697,9 +717,10 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
             intensity: curve.life / curve.maxLife
           })).filter(curve => curve.life > 0);
 
-          // Generate new obstacles
-          if (Math.random() < 0.02) {
-            newState.obstacles.push(generateObstacle());
+          // Generate new obstacles (staggered pillars)
+          if (Math.random() < 0.015) { // Slightly less frequent for staggered pillars
+            const newPillars = generateObstacle();
+            newState.obstacles.push(...newPillars);
           }
 
           // Generate new enemies
