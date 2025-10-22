@@ -721,6 +721,13 @@ export default function GamesPage() {
         duration={3000}
         onComplete={() => {
           setShowCelebration(false);
+          // Reload page for Mouseblade and Cash Stack games
+          if (currentGame === 'blade-bounce' || currentGame === 'cash-stack') {
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+            return;
+          }
           // Force dashboard reload with game data
           setTimeout(() => {
             // Store game result in localStorage for dashboard to show

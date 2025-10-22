@@ -801,6 +801,42 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       const swordHeight = 80;
       ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
       ctx.shadowBlur = 0;
+      
+      // Draw red death zone overlay on sword handle
+      const hiltGradient = ctx.createLinearGradient(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, -SWORD_HILT_WIDTH/2);
+      hiltGradient.addColorStop(0, '#FF0000'); // Bright red
+      hiltGradient.addColorStop(0.3, '#DC2626'); // Red
+      hiltGradient.addColorStop(0.7, '#B91C1C'); // Darker red
+      hiltGradient.addColorStop(1, '#991B1B'); // Darkest red
+      
+      // Add pulsing glow effect for death zone
+      const glowIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.01);
+      ctx.shadowColor = `rgba(255, 0, 0, ${glowIntensity})`;
+      ctx.shadowBlur = 15;
+      
+      ctx.fillStyle = hiltGradient;
+      ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+      
+      // Reset shadow
+      ctx.shadowBlur = 0;
+      
+      // Add warning stripes for death section
+      ctx.fillStyle = '#FFFFFF';
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(1 + i * 3, -SWORD_HILT_WIDTH/2, 2, SWORD_HILT_WIDTH);
+      }
+      
+      // Add danger text on hilt
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 8px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('DANGER', SWORD_HILT_LENGTH/2, 0);
+      
+      // Add red border around death zone
+      ctx.strokeStyle = '#FF0000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
     } else {
       // Enhanced fallback sword with metallic effects
       // Sword blade with gradient
@@ -1202,6 +1238,31 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       }, 2000);
     }
   }, [gameData.gameOver, gameData.score, gameData.accuracy, gameData.totalHits, gameData.successfulHits, onGameEnd]);
+
+  // Lock screen during gameplay
+  useEffect(() => {
+    if (gameState === 'playing') {
+      // Lock screen scrolling
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+    } else {
+      // Unlock screen
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
+  }, [gameState]);
 
   // Cleanup effect to stop game loop on unmount
   useEffect(() => {

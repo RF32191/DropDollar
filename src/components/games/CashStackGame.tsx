@@ -10,11 +10,9 @@ interface CashSprite {
   rotation: number;
   scale: number;
   speed: number;
-  baseSpeed: number;
-  tilt: number;
+  stackedCoins: number; // Number of coins stacked
   isExploding: boolean;
   explosionTime: number;
-  stackedCoins: Coin[]; // Coins stacked on this cash sprite
 }
 
 interface Coin {
@@ -25,10 +23,7 @@ interface Coin {
   scale: number;
   speed: number;
   isStacked: boolean;
-  stackTime: number;
-  targetX?: number; // Target position for stacking
-  targetY?: number;
-  isFalling: boolean;
+  targetCashId?: number;
 }
 
 interface GameState {
@@ -40,7 +35,6 @@ interface GameState {
   gameStarted: boolean;
   perfectStacks: number;
   totalStacks: number;
-  averageStackTime: number;
   gameStartTime: number;
   difficultyLevel: number;
 }
@@ -72,7 +66,6 @@ export default function CashStackGame({
     gameStarted: false,
     perfectStacks: 0,
     totalStacks: 0,
-    averageStackTime: 0,
     gameStartTime: 0,
     difficultyLevel: 1
   });
@@ -93,11 +86,9 @@ export default function CashStackGame({
       rotation: Math.random() * Math.PI * 2,
       scale: 0.8 + Math.random() * 0.4, // Random scale 0.8-1.2
       speed: baseSpeed + speedVariation,
-      baseSpeed: baseSpeed,
-      tilt: 0,
+      stackedCoins: 0,
       isExploding: false,
-      explosionTime: 0,
-      stackedCoins: [] // Initialize empty stack
+      explosionTime: 0
     };
   }, []);
 
@@ -110,9 +101,7 @@ export default function CashStackGame({
       rotation: Math.random() * Math.PI * 2,
       scale: 0.9 + Math.random() * 0.2,
       speed: 2 + Math.random() * 3, // Faster than cash
-      isStacked: false,
-      stackTime: 0,
-      isFalling: true
+      isStacked: false
     };
   }, []);
 
@@ -121,48 +110,31 @@ export default function CashStackGame({
     const stackZoneX = cash.x + (CASH_SIZE * cash.scale) / 2 - STACK_ZONE_WIDTH / 2;
     const stackZoneY = cash.y + (CASH_SIZE * cash.scale) - STACK_ZONE_HEIGHT;
     
-    return (
-      coin.x >= stackZoneX &&
-      coin.x <= stackZoneX + STACK_ZONE_WIDTH &&
-      coin.y >= stackZoneY &&
-      coin.y <= stackZoneY + STACK_ZONE_HEIGHT
-    );
+    return coin.x + COIN_SIZE > stackZoneX &&
+           coin.x < stackZoneX + STACK_ZONE_WIDTH &&
+           coin.y + COIN_SIZE > stackZoneY &&
+           coin.y < stackZoneY + STACK_ZONE_HEIGHT;
   };
 
-  // Check for perfect stack
+  // Check if coin is perfectly stacked
   const isPerfectStack = (coin: Coin, cash: CashSprite): boolean => {
     const centerX = cash.x + (CASH_SIZE * cash.scale) / 2;
     const centerY = cash.y + (CASH_SIZE * cash.scale);
+    const coinCenterX = coin.x + COIN_SIZE / 2;
+    const coinCenterY = coin.y + COIN_SIZE / 2;
     
     const distanceFromCenter = Math.sqrt(
-      Math.pow(coin.x + COIN_SIZE/2 - centerX, 2) + 
-      Math.pow(coin.y + COIN_SIZE/2 - centerY, 2)
+      Math.pow(coinCenterX - centerX, 2) + Math.pow(coinCenterY - centerY, 2)
     );
     
     return distanceFromCenter < 15; // Perfect stack within 15 pixels of center
   };
 
-  // Handle coin stacking - actually stack coins on top of each other
-  const handleCoinStack = useCallback((coin: Coin, cash: CashSprite, stackTime: number) => {
+  // Handle coin stacking
+  const handleCoinStack = useCallback((coin: Coin, cash: CashSprite) => {
     const isPerfect = isPerfectStack(coin, cash);
-    const stackSpeed = 1 / (stackTime / 1000); // Convert to stacks per second
     
     let points = 10; // Base points
-    
-    // Calculate stack position
-    const stackHeight = cash.stackedCoins.length * (COIN_SIZE * 0.8); // Each coin takes up 80% of its size
-    const targetX = cash.x + (CASH_SIZE * cash.scale) / 2 - COIN_SIZE / 2;
-    const targetY = cash.y + (CASH_SIZE * cash.scale) - stackHeight - COIN_SIZE;
-    
-    // Create stacked coin
-    const stackedCoin: Coin = {
-      ...coin,
-      isStacked: true,
-      stackTime: stackTime,
-      targetX: targetX,
-      targetY: targetY,
-      isFalling: false
-    };
     
     if (isPerfect) {
       points += 20; // Bonus for perfect stack
@@ -173,7 +145,7 @@ export default function CashStackGame({
         ...prev,
         cashSprites: prev.cashSprites.map(c => 
           c.id === cash.id 
-            ? { ...c, isExploding: true, explosionTime: Date.now(), stackedCoins: [...c.stackedCoins, stackedCoin] }
+            ? { ...c, isExploding: true, explosionTime: Date.now(), stackedCoins: c.stackedCoins + 1 }
             : c
         ),
         perfectStacks: prev.perfectStacks + 1
@@ -181,31 +153,21 @@ export default function CashStackGame({
     } else {
       playCoinsFalling();
       
-      // Tilt cash sprite based on how off-center the coin is
-      const centerX = cash.x + (CASH_SIZE * cash.scale) / 2;
-      const tiltAmount = (coin.x + COIN_SIZE/2 - centerX) / 50; // Normalize tilt
-      
+      // Add coin to stack
       setGameData(prev => ({
         ...prev,
         cashSprites: prev.cashSprites.map(c => 
           c.id === cash.id 
-            ? { ...c, tilt: Math.max(-0.5, Math.min(0.5, tiltAmount)), stackedCoins: [...c.stackedCoins, stackedCoin] }
+            ? { ...c, stackedCoins: c.stackedCoins + 1 }
             : c
         )
       }));
     }
     
-    // Calculate decimal points based on stacking speed
-    const speedBonus = Math.min(stackSpeed * 0.5, 5); // Max 5 bonus points
-    const finalPoints = points + speedBonus;
-    
     setGameData(prev => ({
       ...prev,
-      score: prev.score + finalPoints,
-      totalStacks: prev.totalStacks + 1,
-      averageStackTime: prev.averageStackTime === 0 
-        ? stackTime 
-        : (prev.averageStackTime + stackTime) / 2
+      score: prev.score + points,
+      totalStacks: prev.totalStacks + 1
     }));
   }, []);
 
@@ -241,7 +203,7 @@ export default function CashStackGame({
         
         // Random speed variation
         if (Math.random() < 0.01) { // 1% chance per frame
-          newCash.speed = newCash.baseSpeed + (Math.random() - 0.5) * 2;
+          newCash.speed = Math.max(0.5, newCash.speed + (Math.random() - 0.5) * 2);
         }
         
         // Random slowdown
@@ -264,7 +226,7 @@ export default function CashStackGame({
           if (explosionDuration > 1000) { // 1 second explosion
             newCash.isExploding = false;
             newCash.explosionTime = 0;
-            newCash.tilt = 0; // Reset tilt after explosion
+            newCash.stackedCoins = 0; // Reset stack after explosion
           }
         }
         
@@ -282,15 +244,15 @@ export default function CashStackGame({
           for (const cash of newState.cashSprites) {
             if (isInStackZone(newCoin, cash)) {
               newCoin.isStacked = true;
-              newCoin.stackTime = currentTime;
-              handleCoinStack(newCoin, cash, currentTime);
+              newCoin.targetCashId = cash.id;
+              handleCoinStack(newCoin, cash);
               break;
             }
           }
         }
         
-        // Remove coin if off screen
-        if (newCoin.y > CANVAS_HEIGHT) {
+        // Remove coins that are off screen or stacked
+        if (newCoin.y > CANVAS_HEIGHT || newCoin.isStacked) {
           return null;
         }
         
@@ -349,7 +311,7 @@ export default function CashStackGame({
   };
 
   // End game
-  const handleEndGame = () => {
+  const endGame = () => {
     setGameState('ended');
     setGameData(prev => ({ ...prev, gameOver: true }));
     
@@ -386,7 +348,7 @@ export default function CashStackGame({
     gameData.cashSprites.forEach(cash => {
       ctx.save();
       ctx.translate(cash.x + CASH_SIZE/2, cash.y + CASH_SIZE/2);
-      ctx.rotate(cash.rotation + cash.tilt);
+      ctx.rotate(cash.rotation);
       ctx.scale(cash.scale, cash.scale);
       
       // Draw 3D cash effect
@@ -441,11 +403,15 @@ export default function CashStackGame({
       ctx.restore();
       
       // Draw stacked coins on this cash sprite
-      cash.stackedCoins.forEach((stackedCoin, index) => {
+      for (let i = 0; i < cash.stackedCoins; i++) {
         ctx.save();
-        ctx.translate(stackedCoin.targetX! + COIN_SIZE/2, stackedCoin.targetY! + COIN_SIZE/2);
-        ctx.rotate(stackedCoin.rotation);
-        ctx.scale(stackedCoin.scale, stackedCoin.scale);
+        const stackHeight = i * (COIN_SIZE * 0.8); // Each coin takes up 80% of its size
+        const targetX = cash.x + (CASH_SIZE * cash.scale) / 2 - COIN_SIZE / 2;
+        const targetY = cash.y + (CASH_SIZE * cash.scale) - stackHeight - COIN_SIZE;
+        
+        ctx.translate(targetX + COIN_SIZE/2, targetY + COIN_SIZE/2);
+        ctx.rotate(cash.rotation);
+        ctx.scale(0.9, 0.9);
         
         // Draw stacked coin with enhanced 3D effect
         const coinGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/2);
@@ -493,13 +459,13 @@ export default function CashStackGame({
         ctx.font = 'bold 14px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${index + 1}`, 1, 1); // Shadow
+        ctx.fillText(`${i + 1}`, 1, 1); // Shadow
         
         ctx.fillStyle = 'white';
-        ctx.fillText(`${index + 1}`, 0, 0); // Main text
+        ctx.fillText(`${i + 1}`, 0, 0); // Main text
         
         ctx.restore();
-      });
+      }
     });
     
     // Draw coins
@@ -561,126 +527,127 @@ export default function CashStackGame({
     ctx.fillText(`Level: ${gameData.level}`, 20, 70);
     ctx.fillText(`Perfect Stacks: ${gameData.perfectStacks}`, 20, 100);
     ctx.fillText(`Total Stacks: ${gameData.totalStacks}`, 20, 130);
-    
-    if (gameData.averageStackTime > 0) {
-      ctx.fillText(`Avg Stack Time: ${(gameData.averageStackTime / 1000).toFixed(2)}s`, 20, 160);
-    }
+    ctx.fillText(`Difficulty: Level ${gameData.difficultyLevel}`, 20, 160);
   };
 
-  // Render loop
+  // Start render loop
   useEffect(() => {
     if (gameState === 'playing') {
       const renderLoop = () => {
         render();
-        if (gameState === 'playing' && !gameData.gameOver) {
+        if (gameState === 'playing') {
           requestAnimationFrame(renderLoop);
         }
       };
       renderLoop();
     }
-  }, [gameState, gameData.gameOver]);
+  }, [gameState, gameData]);
 
-  // Cleanup
+  // Lock screen during gameplay
   useEffect(() => {
+    if (gameState === 'playing') {
+      // Lock screen scrolling
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+    } else {
+      // Unlock screen
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    }
+    
+    // Cleanup on unmount
     return () => {
-      if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current);
-      }
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
     };
-  }, []);
+  }, [gameState]);
+
+  // End game after 60 seconds
+  useEffect(() => {
+    if (gameState === 'playing') {
+      const timer = setTimeout(() => {
+        endGame();
+      }, 60000); // 60 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [gameState]);
+
+  if (gameState === 'ended') {
+    return null;
+  }
+
+  if (showCountdown) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="text-8xl font-bold text-yellow-400 mb-8">
+            {countdown}
+          </div>
+          <p className="text-xl text-gray-300">Game starting in {countdown} seconds...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (gameState === 'ready') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-800 via-emerald-800 to-green-900 text-white flex items-center justify-center">
-        <div className="max-w-4xl mx-auto px-4 py-8 text-center">
-          <h2 className="text-4xl font-bold mb-6">💰 Cash Stack Challenge</h2>
-          <p className="text-xl mb-8">Stack coins on falling cash sprites for points!</p>
-          
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="max-w-4xl w-full">
           {/* Epilepsy Warning */}
-          <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-6 mb-8 shadow-2xl">
+          <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-2xl">
             <div className="flex items-center space-x-3 mb-3">
-              <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
-                <span className="text-white text-lg font-black">⚠️</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                <span className="text-white text-sm sm:text-lg font-black">⚠️</span>
               </div>
-              <p className="text-white font-black text-xl tracking-wide">EPILEPSY WARNING</p>
+              <p className="text-white font-black text-lg sm:text-xl tracking-wide">EPILEPSY WARNING</p>
             </div>
-            <p className="text-base text-white font-semibold leading-relaxed">
+            <p className="text-sm sm:text-base text-white font-semibold leading-relaxed">
               This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
               If you are sensitive to flashing lights, please do not play this game.
             </p>
           </div>
           
           {/* Instructions */}
-          <div className="bg-gradient-to-r from-green-800 to-green-900 border-2 border-green-600 rounded-xl p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white text-lg font-black">💰</span>
-              </div>
-              <h3 className="text-white font-black text-xl">How to Play:</h3>
-            </div>
-            
-            <div className="space-y-3 text-white">
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-green-300 font-bold">Cash Sprites:</span> 3D cash sprites fall at random speeds</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-green-300 font-bold">Stack Coins:</span> Coins appear - stack them on cash sprites</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-green-300 font-bold">Perfect Stack:</span> Center coins for bonus points and explosions</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-green-300 font-bold">Speed Bonus:</span> Faster stacking = more decimal points</p>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                <p><span className="text-green-300 font-bold">Random Speed:</span> Cash speeds up with higher scores</p>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-green-600/30 to-green-500/30 border border-green-400/50 rounded-lg p-3 mt-4">
-              <p className="text-sm text-green-200">
-                <span className="text-green-300 font-bold">💡 Pro Tip:</span> Perfect stacks explode the cash and reset its tilt!
-              </p>
+          <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-r from-green-800 to-green-900 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border-2 border-green-600 shadow-2xl">
+            <h3 className="text-xl sm:text-2xl font-bold text-green-300 mb-4 flex items-center">
+              <span className="mr-2">💰</span>
+              Cash Stack Challenge Instructions
+            </h3>
+            <div className="space-y-3 text-green-100">
+              <p><span className="font-bold text-green-300">🎯 Objective:</span> Stack coins on falling cash sprites to build towers!</p>
+              <p><span className="font-bold text-green-300">🎮 How to Play:</span></p>
+              <ul className="list-disc list-inside ml-4 space-y-2">
+                <li>Cash sprites fall from the top at random speeds</li>
+                <li>Coins fall faster and stack on the cash sprites</li>
+                <li>Perfect stacks (center alignment) give bonus points and explosions</li>
+                <li>Speed increases every 20 seconds for more challenge</li>
+                <li>Build the highest stacks possible!</li>
+              </ul>
+              <p><span className="font-bold text-green-300">🏆 Scoring:</span></p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Base stacking: 10 points per coin</li>
+                <li>Perfect stack bonus: +20 points</li>
+                <li>Explosion bonus: Cash sprite explodes on perfect stacks</li>
+                <li>Level up every 100 points</li>
+              </ul>
             </div>
           </div>
           
-          <button
-            onClick={handleStartGame}
-            className="mt-8 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-4 px-8 rounded-2xl text-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
-          >
-            🚀 Start Cash Stack Challenge
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (showCountdown) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-800 via-emerald-800 to-green-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-8xl font-bold mb-4 animate-pulse">{countdown}</div>
-          <p className="text-2xl">Get ready to stack cash!</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (gameState === 'ended') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-800 via-emerald-800 to-green-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-4xl font-bold mb-6">🎉 Game Over!</h2>
-          <div className="text-2xl space-y-2">
-            <p>Final Score: <span className="text-green-400 font-bold">{gameData.score.toFixed(1)}</span></p>
-            <p>Perfect Stacks: <span className="text-yellow-400 font-bold">{gameData.perfectStacks}</span></p>
-            <p>Total Stacks: <span className="text-blue-400 font-bold">{gameData.totalStacks}</span></p>
-            <p>Level Reached: <span className="text-purple-400 font-bold">{gameData.level}</span></p>
+          {/* Start Button */}
+          <div className="text-center">
+            <button
+              onClick={handleStartGame}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
+            >
+              🚀 Start Cash Stack Challenge
+            </button>
           </div>
         </div>
       </div>
@@ -688,23 +655,14 @@ export default function CashStackGame({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-800 via-emerald-800 to-green-900 text-white flex items-center justify-center">
-      <div className="text-center">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className="border-2 border-green-400 rounded-xl shadow-2xl"
-        />
-        <div className="mt-4">
-          <button
-            onClick={handleEndGame}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-xl transition-colors"
-          >
-            End Game
-          </button>
-        </div>
-      </div>
+    <div className="fixed inset-0 bg-black z-50">
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
+        className="w-full h-full object-contain"
+        style={{ imageRendering: 'pixelated' }}
+      />
     </div>
   );
 }
