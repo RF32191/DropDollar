@@ -320,27 +320,23 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     const swordX = CANVAS_WIDTH / 3;
     const swordY = gameData.swordY;
     
-    // Calculate blade tip positions (sharp end - gives points) - symmetrical top and bottom
+    // Calculate precise sword hitbox areas
+    const tipRadius = 15; // Precise tip hitbox radius
+    const hiltRadius = 20; // Precise hilt hitbox radius
+    
+    // Calculate blade tip center (sharp end - gives points)
     const bladeTipX = swordX + Math.cos(gameData.swordAngle) * SWORD_LENGTH;
     const bladeTipY = swordY + Math.sin(gameData.swordAngle) * SWORD_LENGTH;
     
-    // Calculate opposite blade tip (symmetrical hit box) - opposite side of blade
-    const bladeTipOppositeX = swordX + Math.cos(gameData.swordAngle + Math.PI) * SWORD_LENGTH;
-    const bladeTipOppositeY = swordY + Math.sin(gameData.swordAngle + Math.PI) * SWORD_LENGTH;
+    // Calculate hilt center (handle - causes game over)
+    const hiltX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.5);
+    const hiltY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.5);
     
-    // Calculate blade edge positions (sides of the blade) - more forgiving hit detection
-    const bladeEdge1X = swordX + Math.cos(gameData.swordAngle + Math.PI/2) * (SWORD_LENGTH * 0.7);
-    const bladeEdge1Y = swordY + Math.sin(gameData.swordAngle + Math.PI/2) * (SWORD_LENGTH * 0.7);
-    const bladeEdge2X = swordX + Math.cos(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.7);
-    const bladeEdge2Y = swordY + Math.sin(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.7);
-    
-    // Calculate hilt position (handle - causes game over) - make it bigger and more precise
-    const hiltX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.8);
-    const hiltY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 0.8);
-    
-    // Calculate sword bottom area (larger kill zone)
-    const swordBottomX = swordX + Math.cos(gameData.swordAngle) * (SWORD_HILT_LENGTH * 1.2);
-    const swordBottomY = swordY + Math.sin(gameData.swordAngle) * (SWORD_HILT_LENGTH * 1.2);
+    // Calculate blade edge positions for more precise collision detection
+    const bladeEdge1X = swordX + Math.cos(gameData.swordAngle + Math.PI/2) * (SWORD_LENGTH * 0.8);
+    const bladeEdge1Y = swordY + Math.sin(gameData.swordAngle + Math.PI/2) * (SWORD_LENGTH * 0.8);
+    const bladeEdge2X = swordX + Math.cos(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.8);
+    const bladeEdge2Y = swordY + Math.sin(gameData.swordAngle - Math.PI/2) * (SWORD_LENGTH * 0.8);
 
     let score = gameData.score;
     let gameOver = gameData.gameOver;
@@ -367,20 +363,24 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         });
       }
       
-      // Check which side can destroy obstacles (safe side)
+      // Check which side can destroy obstacles (safe side) with precise hitboxes
       let destroyHit = false;
       
       if (currentDeathZoneSide === 'tip') {
         // Death zone is on tip, so handle can destroy obstacles
-        const handleHit = hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
-            ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
-             (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT));
-        destroyHit = handleHit;
+        // Check if hilt circle intersects with obstacle rectangle
+        const hiltHit = hiltX + hiltRadius >= obstacle.x && 
+                       hiltX - hiltRadius <= obstacle.x + obstacle.width &&
+                       ((hiltY + hiltRadius >= obstacle.y && hiltY - hiltRadius <= obstacle.y + obstacle.height) ||
+                        (hiltY + hiltRadius >= obstacle.gapY + obstacle.gapHeight && hiltY - hiltRadius <= CANVAS_HEIGHT));
+        destroyHit = hiltHit;
       } else {
         // Death zone is on handle, so tip can destroy obstacles
-        const bladeTipHit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
-            ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
-             (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
+        // Check if tip circle intersects with obstacle rectangle
+        const bladeTipHit = bladeTipX + tipRadius >= obstacle.x && 
+                           bladeTipX - tipRadius <= obstacle.x + obstacle.width &&
+                           ((bladeTipY + tipRadius >= obstacle.y && bladeTipY - tipRadius <= obstacle.y + obstacle.height) ||
+                            (bladeTipY + tipRadius >= obstacle.gapY + obstacle.gapHeight && bladeTipY - tipRadius <= CANVAS_HEIGHT));
         destroyHit = bladeTipHit;
       }
       
@@ -412,20 +412,22 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         continue;
       }
       
-      // Check if obstacle hits sword death zone (game over)
+      // Check if obstacle hits sword death zone (game over) with precise hitboxes
       let obstacleDeathHit = false;
       
       if (currentDeathZoneSide === 'tip') {
-        // Death zone is on tip - check tip collision
-        const tipHit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
-            ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
-             (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
+        // Death zone is on tip - check tip circle collision with obstacle rectangle
+        const tipHit = bladeTipX + tipRadius >= obstacle.x && 
+                      bladeTipX - tipRadius <= obstacle.x + obstacle.width &&
+                      ((bladeTipY + tipRadius >= obstacle.y && bladeTipY - tipRadius <= obstacle.y + obstacle.height) ||
+                       (bladeTipY + tipRadius >= obstacle.gapY + obstacle.gapHeight && bladeTipY - tipRadius <= CANVAS_HEIGHT));
         obstacleDeathHit = tipHit;
       } else {
-        // Death zone is on handle - check handle collision
-        const handleHit = hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
-            ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
-             (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT));
+        // Death zone is on handle - check hilt circle collision with obstacle rectangle
+        const handleHit = hiltX + hiltRadius >= obstacle.x && 
+                         hiltX - hiltRadius <= obstacle.x + obstacle.width &&
+                         ((hiltY + hiltRadius >= obstacle.y && hiltY - hiltRadius <= obstacle.y + obstacle.height) ||
+                          (hiltY + hiltRadius >= obstacle.gapY + obstacle.gapHeight && hiltY - hiltRadius <= CANVAS_HEIGHT));
         obstacleDeathHit = handleHit;
       }
       
@@ -493,12 +495,12 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         let swordDeathHit = false;
         
         if (currentDeathZoneSide === 'tip') {
-          // Death zone is on tip - check tip collision
-          const tipHit = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2) < 30;
+          // Death zone is on tip - check tip collision with precise radius
+          const tipHit = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2) < tipRadius;
           swordDeathHit = tipHit;
         } else {
-          // Death zone is on handle - check handle collision
-          const handleHit = Math.sqrt((hiltX - enemy.x) ** 2 + (hiltY - enemy.y) ** 2) < 30;
+          // Death zone is on handle - check handle collision with precise radius
+          const handleHit = Math.sqrt((hiltX - enemy.x) ** 2 + (hiltY - enemy.y) ** 2) < hiltRadius;
           swordDeathHit = handleHit;
         }
         
