@@ -525,6 +525,12 @@ export default function GamesPage() {
     if (!isCompetitionMode) {
       console.log('🎉 Practice game completed! Showing celebration...');
       
+      // Prevent multiple celebrations
+      if (showCelebration) {
+        console.log('🎉 Celebration already showing, skipping...');
+        return;
+      }
+      
       // Reset any existing celebration first
       setShowCelebration(false);
       

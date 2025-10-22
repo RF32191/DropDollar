@@ -178,6 +178,8 @@ export default function CashStackGame({
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
+    console.log('🎮 Cash Stack: Game loop running, gameState:', gameState, 'gameOver:', gameData.gameOver);
+    
     if (gameState !== 'playing' || gameData.gameOver) {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -226,7 +228,10 @@ export default function CashStackGame({
       });
       
       // Spawn new blocks
-      if (Math.random() < 0.02 + (newState.difficultyLevel * 0.01)) {
+      const spawnChance = 0.02 + (newState.difficultyLevel * 0.01);
+      console.log('🎮 Cash Stack: Spawn chance:', spawnChance, 'Random:', Math.random());
+      if (Math.random() < spawnChance) {
+        console.log('🎮 Cash Stack: Spawning new block!');
         newState.blocks.push(generateBlock());
       }
       
@@ -503,7 +508,7 @@ export default function CashStackGame({
       };
       renderLoop();
     }
-  }, [gameState, gameData, render]);
+  }, [gameState, render]);
 
   // Lock screen during gameplay
   useEffect(() => {

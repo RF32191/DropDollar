@@ -414,26 +414,26 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         continue;
       }
       
-      // Check if hilt hits obstacle (game over) - more forgiving hit detection with buffer zone
-      const hiltBuffer = 15; // Buffer zone around hilt to make it more forgiving
-      if (hiltX >= obstacle.x - hiltBuffer && hiltX <= obstacle.x + obstacle.width + hiltBuffer &&
-          ((hiltY >= obstacle.y - hiltBuffer && hiltY <= obstacle.y + obstacle.height + hiltBuffer) ||
-           (hiltY >= obstacle.gapY + obstacle.gapHeight - hiltBuffer && hiltY <= CANVAS_HEIGHT + hiltBuffer))) {
-        
-        console.log('💀 HILT HIT! Game Over!');
-        // Hilt hit - game over
-        playGameOverSound();
-        gameOver = true;
-        return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
+      // Check if obstacle hits sword death zone (game over)
+      let obstacleDeathHit = false;
+      
+      if (currentDeathZoneSide === 'tip') {
+        // Death zone is on tip - check tip collision
+        const tipHit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
+            ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
+             (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
+        obstacleDeathHit = tipHit;
+      } else {
+        // Death zone is on handle - check handle collision
+        const handleHit = hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
+            ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
+             (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT));
+        obstacleDeathHit = handleHit;
       }
       
-      // Check if sword bottom hits obstacle (game over) - bigger kill zone
-      if (swordBottomX >= obstacle.x && swordBottomX <= obstacle.x + obstacle.width &&
-          ((swordBottomY >= obstacle.y && swordBottomY <= obstacle.y + obstacle.height) ||
-           (swordBottomY >= obstacle.gapY + obstacle.gapHeight && swordBottomY <= CANVAS_HEIGHT))) {
-        
-        console.log('💀 SWORD BOTTOM HIT! Game Over!');
-        // Sword bottom hit - game over
+      if (obstacleDeathHit) {
+        console.log('💀 OBSTACLE HIT SWORD DEATH ZONE! Game Over!');
+        // Obstacle hit sword death zone - game over
         playGameOverSound();
         gameOver = true;
         return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
