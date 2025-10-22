@@ -718,6 +718,7 @@ export default function GamesPage() {
         show={showCelebration}
         gameName={currentGame ? GAMES.find(g => g.id === currentGame)?.name || 'Game' : 'Game'}
         score={gameResults?.score || 0}
+        duration={3000}
         onComplete={() => {
           setShowCelebration(false);
           // Force dashboard reload with game data
