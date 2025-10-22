@@ -299,7 +299,7 @@ export default function CashStackGame({
       
       // Spawn new cash sprites
       if (Math.random() < 0.02) { // 2% chance per frame
-        newState.cashSprites.push(generateCashSprite());
+        newState.cashSprites.push(generateCashSprite(newState.difficultyLevel));
       }
       
       // Spawn new coins
@@ -336,7 +336,7 @@ export default function CashStackGame({
             gameStarted: true,
             gameStartTime: Date.now(),
             difficultyLevel: 1,
-            cashSprites: [generateCashSprite()],
+            cashSprites: [generateCashSprite(1)],
             coins: []
           }));
           lastTimeRef.current = performance.now();
@@ -400,25 +400,43 @@ export default function CashStackGame({
         ctx.fillRect(-50, -50, 100, 100);
       }
       
-      // Draw cash sprite (simplified 3D effect)
+      // Draw cash sprite (enhanced 3D effect)
       const cashGradient = ctx.createLinearGradient(-CASH_SIZE/2, -CASH_SIZE/2, CASH_SIZE/2, CASH_SIZE/2);
       cashGradient.addColorStop(0, '#FFD700');
-      cashGradient.addColorStop(0.5, '#FFA500');
-      cashGradient.addColorStop(1, '#FF8C00');
+      cashGradient.addColorStop(0.3, '#FFA500');
+      cashGradient.addColorStop(0.7, '#FF8C00');
+      cashGradient.addColorStop(1, '#FF6B00');
       
+      // Draw 3D cash stack base with depth
       ctx.fillStyle = cashGradient;
       ctx.fillRect(-CASH_SIZE/2, -CASH_SIZE/2, CASH_SIZE, CASH_SIZE);
       
-      // Add cash texture
-      ctx.fillStyle = '#B8860B';
-      ctx.fillRect(-CASH_SIZE/2 + 5, -CASH_SIZE/2 + 5, CASH_SIZE - 10, CASH_SIZE - 10);
+      // Add 3D depth effect
+      const depthGradient = ctx.createLinearGradient(-CASH_SIZE/2, -CASH_SIZE/2, CASH_SIZE/2, CASH_SIZE/2);
+      depthGradient.addColorStop(0, '#FFA500');
+      depthGradient.addColorStop(0.5, '#FF8C00');
+      depthGradient.addColorStop(1, '#B8860B');
       
-      // Add dollar sign
+      ctx.fillStyle = depthGradient;
+      ctx.fillRect(-CASH_SIZE/2 + 2, -CASH_SIZE/2 + 2, CASH_SIZE - 4, CASH_SIZE - 4);
+      
+      // Add cash texture with 3D effect
+      ctx.fillStyle = '#B8860B';
+      ctx.fillRect(-CASH_SIZE/2 + 8, -CASH_SIZE/2 + 8, CASH_SIZE - 16, CASH_SIZE - 16);
+      
+      // Add inner highlight
       ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 24px Arial';
+      ctx.fillRect(-CASH_SIZE/2 + 12, -CASH_SIZE/2 + 12, CASH_SIZE - 24, CASH_SIZE - 24);
+      
+      // Add dollar sign with 3D effect
+      ctx.fillStyle = '#FF8C00';
+      ctx.font = 'bold 28px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('$', 0, 0);
+      ctx.fillText('$', 2, 2); // Shadow
+      
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText('$', 0, 0); // Main text
       
       ctx.restore();
       
@@ -429,34 +447,56 @@ export default function CashStackGame({
         ctx.rotate(stackedCoin.rotation);
         ctx.scale(stackedCoin.scale, stackedCoin.scale);
         
-        // Draw stacked coin with slight offset for depth
+        // Draw stacked coin with enhanced 3D effect
         const coinGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/2);
         coinGradient.addColorStop(0, '#FFD700');
-        coinGradient.addColorStop(0.7, '#FFA500');
-        coinGradient.addColorStop(1, '#FF8C00');
+        coinGradient.addColorStop(0.4, '#FFA500');
+        coinGradient.addColorStop(0.8, '#FF8C00');
+        coinGradient.addColorStop(1, '#B8860B');
         
+        // Draw coin shadow for depth
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.arc(2, 2, COIN_SIZE/2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw main coin
         ctx.fillStyle = coinGradient;
         ctx.beginPath();
         ctx.arc(0, 0, COIN_SIZE/2, 0, Math.PI * 2);
         ctx.fill();
         
-        // Add coin edge
+        // Add coin edge with 3D effect
         ctx.strokeStyle = '#B8860B';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
         
-        // Add coin center
-        ctx.fillStyle = '#FFD700';
+        // Add inner coin edge
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, COIN_SIZE/2 - 2, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Add coin center with 3D effect
+        const centerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/4);
+        centerGradient.addColorStop(0, '#FFD700');
+        centerGradient.addColorStop(1, '#FFA500');
+        
+        ctx.fillStyle = centerGradient;
         ctx.beginPath();
         ctx.arc(0, 0, COIN_SIZE/4, 0, Math.PI * 2);
         ctx.fill();
         
-        // Add stack number indicator
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 12px Arial';
+        // Add stack number indicator with 3D effect
+        ctx.fillStyle = '#B8860B';
+        ctx.font = 'bold 14px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${index + 1}`, 0, 0);
+        ctx.fillText(`${index + 1}`, 1, 1); // Shadow
+        
+        ctx.fillStyle = 'white';
+        ctx.fillText(`${index + 1}`, 0, 0); // Main text
         
         ctx.restore();
       });
@@ -469,24 +509,43 @@ export default function CashStackGame({
       ctx.rotate(coin.rotation);
       ctx.scale(coin.scale, coin.scale);
       
-      // Draw coin
+      // Draw coin with enhanced 3D effect
       const coinGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/2);
       coinGradient.addColorStop(0, '#FFD700');
-      coinGradient.addColorStop(0.7, '#FFA500');
-      coinGradient.addColorStop(1, '#FF8C00');
+      coinGradient.addColorStop(0.4, '#FFA500');
+      coinGradient.addColorStop(0.8, '#FF8C00');
+      coinGradient.addColorStop(1, '#B8860B');
       
+      // Draw coin shadow for depth
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.beginPath();
+      ctx.arc(2, 2, COIN_SIZE/2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw main coin
       ctx.fillStyle = coinGradient;
       ctx.beginPath();
       ctx.arc(0, 0, COIN_SIZE/2, 0, Math.PI * 2);
       ctx.fill();
       
-      // Add coin edge
+      // Add coin edge with 3D effect
       ctx.strokeStyle = '#B8860B';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.stroke();
       
-      // Add coin center
-      ctx.fillStyle = '#FFD700';
+      // Add inner coin edge
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, COIN_SIZE/2 - 2, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Add coin center with 3D effect
+      const centerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/4);
+      centerGradient.addColorStop(0, '#FFD700');
+      centerGradient.addColorStop(1, '#FFA500');
+      
+      ctx.fillStyle = centerGradient;
       ctx.beginPath();
       ctx.arc(0, 0, COIN_SIZE/4, 0, Math.PI * 2);
       ctx.fill();
