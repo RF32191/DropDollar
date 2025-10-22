@@ -367,26 +367,24 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         });
       }
       
-      // Check if blade tip hits obstacle (successful block) - most effective
-      const bladeTipHit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
-          ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
-           (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
+      // Check which side can destroy obstacles (safe side)
+      let destroyHit = false;
       
-      // Check if opposite blade tip hits obstacle (successful block)
-      const bladeTipOppositeHit = bladeTipOppositeX >= obstacle.x && bladeTipOppositeX <= obstacle.x + obstacle.width &&
-          ((bladeTipOppositeY >= obstacle.y && bladeTipOppositeY <= obstacle.y + obstacle.height) ||
-           (bladeTipOppositeY >= obstacle.gapY + obstacle.gapHeight && bladeTipOppositeY <= CANVAS_HEIGHT));
+      if (currentDeathZoneSide === 'tip') {
+        // Death zone is on tip, so handle can destroy obstacles
+        const handleHit = hiltX >= obstacle.x && hiltX <= obstacle.x + obstacle.width &&
+            ((hiltY >= obstacle.y && hiltY <= obstacle.y + obstacle.height) ||
+             (hiltY >= obstacle.gapY + obstacle.gapHeight && hiltY <= CANVAS_HEIGHT));
+        destroyHit = handleHit;
+      } else {
+        // Death zone is on handle, so tip can destroy obstacles
+        const bladeTipHit = bladeTipX >= obstacle.x && bladeTipX <= obstacle.x + obstacle.width &&
+            ((bladeTipY >= obstacle.y && bladeTipY <= obstacle.y + obstacle.height) ||
+             (bladeTipY >= obstacle.gapY + obstacle.gapHeight && bladeTipY <= CANVAS_HEIGHT));
+        destroyHit = bladeTipHit;
+      }
       
-      // Check if blade edges hit obstacle (successful block) - more forgiving
-      const bladeEdge1Hit = bladeEdge1X >= obstacle.x && bladeEdge1X <= obstacle.x + obstacle.width &&
-          ((bladeEdge1Y >= obstacle.y && bladeEdge1Y <= obstacle.y + obstacle.height) ||
-           (bladeEdge1Y >= obstacle.gapY + obstacle.gapHeight && bladeEdge1Y <= CANVAS_HEIGHT));
-      
-      const bladeEdge2Hit = bladeEdge2X >= obstacle.x && bladeEdge2X <= obstacle.x + obstacle.width &&
-          ((bladeEdge2Y >= obstacle.y && bladeEdge2Y <= obstacle.y + obstacle.height) ||
-           (bladeEdge2Y >= obstacle.gapY + obstacle.gapHeight && bladeEdge2Y <= CANVAS_HEIGHT));
-      
-      if (bladeTipHit || bladeTipOppositeHit || bladeEdge1Hit || bladeEdge2Hit) {
+      if (destroyHit) {
         
         console.log('✅ BLADE HIT! Score +1');
         // Blade hit - successful block

@@ -517,6 +517,12 @@ export default function GamesPage() {
 
   const handleGameEnd = async (result: GameResult) => {
     if (!currentGame) return;
+    
+    // Prevent multiple calls
+    if (!isGameActive) {
+      console.log('🎮 Game already ended, ignoring duplicate call');
+      return;
+    }
 
     setIsGameActive(false);
     setGameResults(result);

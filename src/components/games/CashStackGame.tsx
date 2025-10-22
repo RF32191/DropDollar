@@ -250,6 +250,12 @@ export default function CashStackGame({
 
   // End game
   const endGame = useCallback(() => {
+    if (gameState === 'ended' || gameData.gameOver) {
+      console.log('🎮 Cash Stack: Game already ended, ignoring duplicate call');
+      return;
+    }
+    
+    console.log('🎮 Cash Stack: Ending game');
     setGameState('ended');
     setGameData(prev => ({ ...prev, gameOver: true }));
     if (gameLoopRef.current) {
@@ -261,7 +267,7 @@ export default function CashStackGame({
       (gameData.perfectStacks / gameData.totalStacks) * 100 : 100;
     
     onGameEnd({ score: gameData.score, accuracy });
-  }, [gameData.totalStacks, gameData.perfectStacks, gameData.score, onGameEnd]);
+  }, [gameState, gameData.gameOver, gameData.totalStacks, gameData.perfectStacks, gameData.score, onGameEnd]);
 
   // Start game
   const handleStartGame = () => {
@@ -368,6 +374,13 @@ export default function CashStackGame({
     // Draw ground
     ctx.fillStyle = '#8B4513';
     ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, BLOCK_SIZE);
+    
+    // Draw test block to verify rendering works
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(100, 100, 40, 40);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '16px Arial';
+    ctx.fillText(`Blocks: ${gameData.blocks.length}`, 150, 120);
     
     // Draw blocks
     gameData.blocks.forEach(block => {
