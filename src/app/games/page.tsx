@@ -797,7 +797,9 @@ export default function GamesPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Main page content - only show when no game is active */}
+      {!currentGame && (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Clean Navigation */}
       <CleanNavigation variant="gradient" currentPage="games" />
       
@@ -1493,6 +1495,7 @@ export default function GamesPage() {
           allowSkip={true}
           skipAfter={5}
         />
+      )}
       )}
     </>
   );
