@@ -1076,6 +1076,68 @@ export default function GamesPage() {
                       </div>
                     </div>
                   )}
+                  
+                  {game.id === 'blade-bounce' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Mouseblade sword with rotating animation and obstacles */}
+                      <div className="relative w-full h-full">
+                        {/* Main sword in center with rotation */}
+                        <div className="absolute text-6xl animate-spin"
+                             style={{
+                               top: '50%',
+                               left: '50%',
+                               transform: 'translate(-50%, -50%)',
+                               animationDuration: '3s',
+                               animationTimingFunction: 'linear'
+                             }}>🗡️</div>
+                        
+                        {/* Falling obstacles */}
+                        <div className="absolute text-2xl animate-bounce"
+                             style={{
+                               top: '10%',
+                               left: '20%',
+                               animationDelay: '0s',
+                               animationDuration: '2s'
+                             }}>🔥</div>
+                        <div className="absolute text-2xl animate-bounce"
+                             style={{
+                               top: '15%',
+                               right: '25%',
+                               animationDelay: '0.5s',
+                               animationDuration: '2s'
+                             }}>💥</div>
+                        <div className="absolute text-2xl animate-bounce"
+                             style={{
+                               top: '20%',
+                               left: '60%',
+                               animationDelay: '1s',
+                               animationDuration: '2s'
+                             }}>⚡</div>
+                        
+                        {/* Top pillars */}
+                        <div className="absolute text-3xl animate-pulse"
+                             style={{
+                               top: '5%',
+                               left: '10%',
+                               animationDelay: '0.2s'
+                             }}>🏗️</div>
+                        <div className="absolute text-3xl animate-pulse"
+                             style={{
+                               top: '8%',
+                               right: '15%',
+                               animationDelay: '0.7s'
+                             }}>🏗️</div>
+                        
+                        {/* Mouse cursor indicator */}
+                        <div className="absolute text-lg animate-pulse"
+                             style={{
+                               bottom: '20%',
+                               right: '20%',
+                               animationDelay: '1.5s'
+                             }}>🖱️</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="p-8">
