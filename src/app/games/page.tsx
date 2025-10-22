@@ -1485,6 +1485,7 @@ export default function GamesPage() {
         </div>
       </footer>
       </div>
+      )}
       
       {/* Ad Overlay - Shows before practice games */}
       {showAd && (
@@ -1495,7 +1496,6 @@ export default function GamesPage() {
           allowSkip={true}
           skipAfter={5}
         />
-      )}
       )}
     </>
   );
