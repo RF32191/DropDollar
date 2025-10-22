@@ -461,14 +461,11 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       // Check if blade tip hits enemy (successful block)
       const bladeTipHit = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2) < 20;
       
-      // Check if opposite blade tip hits enemy (successful block)
-      const bladeTipOppositeHit = Math.sqrt((bladeTipOppositeX - enemy.x) ** 2 + (bladeTipOppositeY - enemy.y) ** 2) < 20;
-      
       // Check if blade edges hit enemy (successful block) - more forgiving
       const bladeEdge1Hit = Math.sqrt((bladeEdge1X - enemy.x) ** 2 + (bladeEdge1Y - enemy.y) ** 2) < 25;
       const bladeEdge2Hit = Math.sqrt((bladeEdge2X - enemy.x) ** 2 + (bladeEdge2Y - enemy.y) ** 2) < 25;
       
-      if (bladeTipHit || bladeTipOppositeHit || bladeEdge1Hit || bladeEdge2Hit) {
+      if (bladeTipHit || bladeEdge1Hit || bladeEdge2Hit) {
         // Blade hit enemy - successful block
         playClinkSound();
         playScoreSound();
