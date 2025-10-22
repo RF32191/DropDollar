@@ -10,6 +10,7 @@ import { WinnerTakesAllService, WinnerTakesAllConfig, WinnerTakesAllSessionWithP
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { playWinnerTakesAllChing, playButtonHover } from '@/lib/gameAudio';
 import {
   TrophyIcon,
   ClockIcon,
@@ -280,6 +281,19 @@ export default function WinnerTakesAllPage() {
       clearInterval(dataRefresh);
     };
   }, []); // Simple approach - just force re-renders
+
+  // Add ching ching audio effect on page load
+  useEffect(() => {
+    // Play ching ching sound when page loads
+    playWinnerTakesAllChing();
+    
+    // Play ching ching sound every 15 seconds for ambient effect
+    const chingInterval = setInterval(() => {
+      playWinnerTakesAllChing();
+    }, 15000);
+
+    return () => clearInterval(chingInterval);
+  }, []);
 
   const loadWinnerTakesAllData = async () => {
     try {
@@ -1247,12 +1261,12 @@ export default function WinnerTakesAllPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-orange-900 to-yellow-800 text-white relative overflow-hidden animate-gold-flicker">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
       </div>
       
       <CleanNavigation />

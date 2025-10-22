@@ -203,6 +203,65 @@ class GameAudioSystem {
     }
   }
 
+  // Page-specific ambient sounds
+  playWinnerTakesAllChing(): void {
+    // Ching ching sound for Winner Takes It All
+    this.createBeep(2000, 0.1, 0.3);
+    setTimeout(() => this.createBeep(2500, 0.1, 0.3), 100);
+    setTimeout(() => this.createBeep(3000, 0.15, 0.35), 200);
+  }
+
+  playFireplaceCrackle(): void {
+    // Fireplace crackling sound using noise
+    this.createNoise(0.3, 0.15);
+    setTimeout(() => this.createNoise(0.2, 0.1), 150);
+    setTimeout(() => this.createNoise(0.25, 0.12), 300);
+  }
+
+  playClassicGameSound(): void {
+    // Classic arcade game sound
+    this.createBeep(440, 0.1, 0.25);
+    setTimeout(() => this.createBeep(554, 0.1, 0.25), 100);
+    setTimeout(() => this.createBeep(659, 0.15, 0.3), 200);
+  }
+
+  playCoinsFalling(): void {
+    // Multiple coin drop sounds
+    this.createBeep(800, 0.05, 0.2);
+    setTimeout(() => this.createBeep(1000, 0.05, 0.2), 50);
+    setTimeout(() => this.createBeep(1200, 0.05, 0.2), 100);
+    setTimeout(() => this.createBeep(800, 0.05, 0.2), 150);
+    setTimeout(() => this.createBeep(1000, 0.05, 0.2), 200);
+  }
+
+  playNavigationClick(): void {
+    // Subtle navigation click sound
+    this.createBeep(1000, 0.05, 0.15);
+  }
+
+  playPageTransition(): void {
+    // Smooth page transition sound
+    this.createBeep(600, 0.1, 0.2);
+    setTimeout(() => this.createBeep(800, 0.1, 0.2), 50);
+  }
+
+  playButtonHover(): void {
+    // Subtle button hover sound
+    this.createBeep(1200, 0.03, 0.1);
+  }
+
+  playSuccessChime(): void {
+    // Success chime for achievements
+    this.createBeep(800, 0.1, 0.25);
+    setTimeout(() => this.createBeep(1000, 0.1, 0.25), 100);
+    setTimeout(() => this.createBeep(1200, 0.15, 0.3), 200);
+  }
+
+  playErrorBuzz(): void {
+    // Error buzz sound
+    this.createBeep(200, 0.2, 0.2);
+  }
+
   // Utility methods
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
@@ -232,3 +291,14 @@ export const playShootSound = () => gameAudio.playShootSound();
 export const playExplosionSound = () => gameAudio.playExplosionSound();
 export const playEnemyHitSound = () => gameAudio.playEnemyHitSound();
 export const playGameEnd = (performance: 'great' | 'good' | 'poor' = 'good') => gameAudio.playGameEnd(performance);
+
+// Page-specific audio exports
+export const playWinnerTakesAllChing = () => gameAudio.playWinnerTakesAllChing();
+export const playFireplaceCrackle = () => gameAudio.playFireplaceCrackle();
+export const playClassicGameSound = () => gameAudio.playClassicGameSound();
+export const playCoinsFalling = () => gameAudio.playCoinsFalling();
+export const playNavigationClick = () => gameAudio.playNavigationClick();
+export const playPageTransition = () => gameAudio.playPageTransition();
+export const playButtonHover = () => gameAudio.playButtonHover();
+export const playSuccessChime = () => gameAudio.playSuccessChime();
+export const playErrorBuzz = () => gameAudio.playErrorBuzz();

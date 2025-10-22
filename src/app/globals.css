@@ -178,6 +178,123 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
   animation: gradient 3s ease infinite;
 }
 
+/* Flickering animations for page themes */
+@keyframes hotRedFlicker {
+  0%, 100% {
+    background-color: #DC2626;
+    box-shadow: 0 0 20px #DC2626, 0 0 40px #DC2626;
+  }
+  25% {
+    background-color: #EF4444;
+    box-shadow: 0 0 30px #EF4444, 0 0 60px #EF4444;
+  }
+  50% {
+    background-color: #F87171;
+    box-shadow: 0 0 25px #F87171, 0 0 50px #F87171;
+  }
+  75% {
+    background-color: #FCA5A5;
+    box-shadow: 0 0 35px #FCA5A5, 0 0 70px #FCA5A5;
+  }
+}
+
+@keyframes goldFlicker {
+  0%, 100% {
+    background-color: #D97706;
+    box-shadow: 0 0 20px #D97706, 0 0 40px #D97706;
+  }
+  25% {
+    background-color: #F59E0B;
+    box-shadow: 0 0 30px #F59E0B, 0 0 60px #F59E0B;
+  }
+  50% {
+    background-color: #FBBF24;
+    box-shadow: 0 0 25px #FBBF24, 0 0 50px #FBBF24;
+  }
+  75% {
+    background-color: #FCD34D;
+    box-shadow: 0 0 35px #FCD34D, 0 0 70px #FCD34D;
+  }
+}
+
+@keyframes greenGlow {
+  0%, 100% {
+    background-color: #059669;
+    box-shadow: 0 0 20px #059669, 0 0 40px #059669;
+  }
+  25% {
+    background-color: #10B981;
+    box-shadow: 0 0 30px #10B981, 0 0 60px #10B981;
+  }
+  50% {
+    background-color: #34D399;
+    box-shadow: 0 0 25px #34D399, 0 0 50px #34D399;
+  }
+  75% {
+    background-color: #6EE7B7;
+    box-shadow: 0 0 35px #6EE7B7, 0 0 70px #6EE7B7;
+  }
+}
+
+@keyframes orangeFireFlicker {
+  0%, 100% {
+    background-color: #EA580C;
+    box-shadow: 0 0 20px #EA580C, 0 0 40px #EA580C;
+  }
+  25% {
+    background-color: #F97316;
+    box-shadow: 0 0 30px #F97316, 0 0 60px #F97316;
+  }
+  50% {
+    background-color: #FB923C;
+    box-shadow: 0 0 25px #FB923C, 0 0 50px #FB923C;
+  }
+  75% {
+    background-color: #FDBA74;
+    box-shadow: 0 0 35px #FDBA74, 0 0 70px #FDBA74;
+  }
+}
+
+@keyframes whiteHotFlicker {
+  0%, 100% {
+    background-color: #F8FAFC;
+    box-shadow: 0 0 20px #F8FAFC, 0 0 40px #F8FAFC;
+  }
+  25% {
+    background-color: #F1F5F9;
+    box-shadow: 0 0 30px #F1F5F9, 0 0 60px #F1F5F9;
+  }
+  50% {
+    background-color: #E2E8F0;
+    box-shadow: 0 0 25px #E2E8F0, 0 0 50px #E2E8F0;
+  }
+  75% {
+    background-color: #CBD5E1;
+    box-shadow: 0 0 35px #CBD5E1, 0 0 70px #CBD5E1;
+  }
+}
+
+/* Animation classes */
+.animate-hot-red-flicker {
+  animation: hotRedFlicker 2s ease-in-out infinite;
+}
+
+.animate-gold-flicker {
+  animation: goldFlicker 2.5s ease-in-out infinite;
+}
+
+.animate-green-glow {
+  animation: greenGlow 2.2s ease-in-out infinite;
+}
+
+.animate-orange-fire-flicker {
+  animation: orangeFireFlicker 1.8s ease-in-out infinite;
+}
+
+.animate-white-hot-flicker {
+  animation: whiteHotFlicker 1.5s ease-in-out infinite;
+}
+
 .animate-fade-in {
   animation: fadeIn 0.6s ease-out;
 }

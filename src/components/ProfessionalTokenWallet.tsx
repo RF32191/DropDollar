@@ -25,6 +25,7 @@ import MinimalCheckout from '@/components/MinimalCheckout';
 import CelebrationEffect from '@/components/CelebrationEffect';
 import CoinDropAnimation from '@/components/CoinDropAnimation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { playCoinsFalling, playButtonHover } from '@/lib/gameAudio';
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
@@ -263,6 +264,19 @@ export default function ProfessionalTokenWallet() {
 
     refreshHistory();
   }, [activeTab, userProfile]);
+
+  // Add coins falling audio effect on page load
+  useEffect(() => {
+    // Play coins falling sound when page loads
+    playCoinsFalling();
+    
+    // Play coins falling sound every 12 seconds for ambient effect
+    const coinsInterval = setInterval(() => {
+      playCoinsFalling();
+    }, 12000);
+
+    return () => clearInterval(coinsInterval);
+  }, []);
 
   const handlePaymentSuccess = async (paymentIntent: any) => {
     if (!userProfile) {

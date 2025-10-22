@@ -25,6 +25,7 @@ import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
 import { useAuth } from '@/contexts/AuthContext';
+import { playClassicGameSound } from '@/lib/gameAudio';
 import { 
   PuzzlePieceIcon, 
   CursorArrowRaysIcon, 
@@ -403,6 +404,19 @@ export default function GamesPage() {
       }
     };
   }, [adTimeoutId]);
+
+  // Add classic game sound effect on page load
+  useEffect(() => {
+    // Play classic game sound when page loads
+    playClassicGameSound();
+    
+    // Play classic game sound every 20 seconds for ambient effect
+    const gameSoundInterval = setInterval(() => {
+      playClassicGameSound();
+    }, 20000);
+
+    return () => clearInterval(gameSoundInterval);
+  }, []);
 
   const handleGameStart = (gameId: string) => {
     console.log('🎮 Game start requested:', gameId);

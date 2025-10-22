@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import UserMenu from './UserMenu';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { playNavigationClick, playButtonHover } from '@/lib/gameAudio';
 
 interface CleanNavigationProps {
   variant?: 'light' | 'dark' | 'gradient';
@@ -29,6 +30,9 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     console.log(`📍 Current page: ${currentPage}`);
     console.log(`🖥️ User agent: ${navigator.userAgent}`);
     console.log(`📱 Is mobile: ${/Mobi|Android/i.test(navigator.userAgent)}`);
+    
+    // Play navigation click sound
+    playNavigationClick();
   };
 
   // Styles based on variant
@@ -40,7 +44,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
         return 'bg-gray-900 border-b border-gray-800';
       case 'gradient':
       default:
-        return 'bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 shadow-lg';
+        return 'bg-gradient-to-r from-red-600 via-red-500 to-red-700 shadow-lg animate-white-hot-flicker';
     }
   };
 
