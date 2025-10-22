@@ -1261,15 +1261,15 @@ export default function WinnerTakesAllPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-orange-900 to-yellow-800 text-white relative overflow-hidden animate-gold-flicker">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-800 via-yellow-700 to-yellow-600 text-white relative overflow-hidden animate-gold-flicker">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-400/10 rounded-full blur-2xl animate-pulse delay-500"></div>
       </div>
       
-      <CleanNavigation />
+      <CleanNavigation currentPage="winner-takes-all" />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}

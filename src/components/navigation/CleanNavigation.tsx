@@ -35,8 +35,29 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     playNavigationClick();
   };
 
-  // Styles based on variant
+  // Styles based on variant and current page
   const getHeaderStyles = () => {
+    // Page-specific navigation colors
+    if (currentPage) {
+      switch (currentPage) {
+        case 'hot-sell':
+          return 'bg-gradient-to-r from-orange-800 via-red-800 to-orange-900 shadow-lg';
+        case 'winner-takes-all':
+          return 'bg-gradient-to-r from-yellow-700 via-yellow-600 to-yellow-800 shadow-lg';
+        case 'games':
+          return 'bg-gradient-to-r from-blue-800 via-indigo-800 to-purple-800 shadow-lg';
+        case 'buy-tokens':
+          return 'bg-gradient-to-r from-green-700 via-emerald-700 to-green-800 shadow-lg';
+        case 'tournaments':
+          return 'bg-gradient-to-r from-purple-700 via-violet-700 to-purple-800 shadow-lg';
+        case 'categories':
+          return 'bg-gradient-to-r from-teal-700 via-cyan-700 to-teal-800 shadow-lg';
+        default:
+          return 'bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 shadow-lg';
+      }
+    }
+    
+    // Fallback to variant-based styling
     switch (variant) {
       case 'light':
         return 'bg-white border-b border-gray-200 shadow-sm';
@@ -44,7 +65,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
         return 'bg-gray-900 border-b border-gray-800';
       case 'gradient':
       default:
-        return 'bg-gradient-to-r from-red-600 via-red-500 to-red-700 shadow-lg animate-white-hot-flicker';
+        return 'bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 shadow-lg';
     }
   };
 

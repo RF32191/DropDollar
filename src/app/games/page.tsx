@@ -787,7 +787,7 @@ export default function GamesPage() {
 
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
       {/* Clean Navigation */}
-      <CleanNavigation variant="gradient" currentPage="/games" />
+      <CleanNavigation variant="gradient" currentPage="games" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}

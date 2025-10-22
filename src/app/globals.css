@@ -200,20 +200,20 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
 
 @keyframes goldFlicker {
   0%, 100% {
-    background-color: #D97706;
-    box-shadow: 0 0 20px #D97706, 0 0 40px #D97706;
+    background-color: #F59E0B;
+    box-shadow: 0 0 20px #F59E0B, 0 0 40px #F59E0B;
   }
   25% {
-    background-color: #F59E0B;
-    box-shadow: 0 0 30px #F59E0B, 0 0 60px #F59E0B;
+    background-color: #FBBF24;
+    box-shadow: 0 0 30px #FBBF24, 0 0 60px #FBBF24;
   }
   50% {
-    background-color: #FBBF24;
-    box-shadow: 0 0 25px #FBBF24, 0 0 50px #FBBF24;
+    background-color: #FCD34D;
+    box-shadow: 0 0 25px #FCD34D, 0 0 50px #FCD34D;
   }
   75% {
-    background-color: #FCD34D;
-    box-shadow: 0 0 35px #FCD34D, 0 0 70px #FCD34D;
+    background-color: #FDE68A;
+    box-shadow: 0 0 35px #FDE68A, 0 0 70px #FDE68A;
   }
 }
 

@@ -1363,7 +1363,7 @@ export default function HotSellPage() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
       </div>
       
-      <CleanNavigation />
+      <CleanNavigation currentPage="hot-sell" />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}

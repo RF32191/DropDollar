@@ -612,7 +612,7 @@ export default function ProfessionalTokenWallet() {
       />
       
       {/* Clean Navigation */}
-      <CleanNavigation variant="gradient" currentPage="/buy-tokens" />
+      <CleanNavigation variant="gradient" currentPage="buy-tokens" />
       
       {/* User Info and Balance Banner - Only show if logged in */}
       {isLoggedIn && userProfile && (
