@@ -71,6 +71,8 @@ export default function CashStackGame({
   const [countdown, setCountdown] = useState(3);
   const [showCountdown, setShowCountdown] = useState(false);
 
+  console.log('🎮 CashStackGame: Component mounted, gameState:', gameState);
+
   // Generate random cash sprite
   const generateCashSprite = useCallback((): CashSprite => {
     const baseSpeed = 1 + Math.random() * 2; // Random base speed 1-3
@@ -131,7 +133,7 @@ export default function CashStackGame({
   };
 
   // Handle coin stacking
-  const handleCoinStack = (coin: Coin, cash: CashSprite, stackTime: number) => {
+  const handleCoinStack = useCallback((coin: Coin, cash: CashSprite, stackTime: number) => {
     const isPerfect = isPerfectStack(coin, cash);
     const stackSpeed = 1 / (stackTime / 1000); // Convert to stacks per second
     
@@ -180,11 +182,17 @@ export default function CashStackGame({
         ? stackTime 
         : (prev.averageStackTime + stackTime) / 2
     }));
-  };
+  }, []);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
-    if (gameState !== 'playing' || gameData.gameOver) return;
+    if (gameState !== 'playing' || gameData.gameOver) {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = undefined;
+      }
+      return;
+    }
     
     const deltaTime = currentTime - lastTimeRef.current;
     lastTimeRef.current = currentTime;
@@ -429,11 +437,13 @@ export default function CashStackGame({
     if (gameState === 'playing') {
       const renderLoop = () => {
         render();
-        requestAnimationFrame(renderLoop);
+        if (gameState === 'playing' && !gameData.gameOver) {
+          requestAnimationFrame(renderLoop);
+        }
       };
       renderLoop();
     }
-  }, [gameState, gameData]);
+  }, [gameState, gameData.gameOver]);
 
   // Cleanup
   useEffect(() => {
