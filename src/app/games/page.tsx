@@ -39,7 +39,8 @@ import {
   MapPinIcon,
   ShieldCheckIcon,
   BoltIcon,
-  ShieldExclamationIcon
+  ShieldExclamationIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
