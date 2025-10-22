@@ -227,6 +227,8 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
+    console.log('🎮 Game loop running, gameState:', gameState, 'gameOver:', gameData.gameOver);
+    
     if (gameState !== 'playing' || gameData.gameOver) {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -256,9 +258,10 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         return block;
       });
       
-      // Spawn new blocks
-      const spawnChance = 0.01 + (newState.difficultyLevel * 0.005);
+      // Spawn new blocks - much higher chance for immediate spawning
+      const spawnChance = 0.05 + (newState.difficultyLevel * 0.01); // 5% base chance
       if (Math.random() < spawnChance) {
+        console.log('🎮 Spawning new block!');
         newState.blocks.push(generateBlock());
       }
       
@@ -367,6 +370,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
   // Render function
   const render = useCallback(() => {
+    console.log('🎨 Rendering, blocks:', gameData.blocks.length);
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -516,7 +520,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             gameStarted: true,
             gameStartTime: Date.now(),
             difficultyLevel: 1,
-            blocks: [generateBlock()]
+            blocks: [generateBlock(), generateBlock(), generateBlock()] // Start with 3 blocks
           }));
           lastTimeRef.current = performance.now();
           gameLoopRef.current = requestAnimationFrame(gameLoop);
