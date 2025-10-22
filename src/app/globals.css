@@ -161,6 +161,23 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
   }
 }
 
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
 .animate-fade-in {
   animation: fadeIn 0.6s ease-out;
 }

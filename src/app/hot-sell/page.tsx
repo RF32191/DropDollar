@@ -1353,24 +1353,27 @@ export default function HotSellPage() {
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="flex items-center justify-center mb-4">
-            <FireIcon className="w-12 h-12 text-red-500 mr-4 animate-pulse" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">
+        <div className="mb-12 text-center">
+          <div className="flex items-center justify-center mb-6">
+            <div className="relative">
+              <FireIcon className="w-16 h-16 text-red-500 mr-6 animate-bounce" />
+              <div className="absolute inset-0 w-16 h-16 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+            </div>
+            <h1 className="text-6xl font-black bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 bg-clip-text text-transparent animate-gradient">
               HOT SELL
             </h1>
-                </div>
-          <p className="text-xl text-gray-300 mb-2">Massive Cash Prize Tournaments</p>
-          <p className="text-lg text-gray-400">Compete for huge payouts with real money prizes</p>
+          </div>
+          <p className="text-2xl text-gray-200 mb-3 font-light tracking-wide">Elite Cash Prize Tournaments</p>
+          <p className="text-lg text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed">Compete for massive payouts with real money prizes in our most prestigious tournaments</p>
           
           {/* User Token Balance */}
           {isAuthenticated && (
-            <div className="mt-6 inline-flex items-center bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/20">
-              <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
-              <span className="text-lg font-semibold">Your Tokens: {userTokens}</span>
+            <div className="mt-8 inline-flex items-center bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-xl rounded-2xl px-8 py-4 border border-yellow-400/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              <BanknotesIcon className="w-7 h-7 text-yellow-400 mr-4 animate-pulse" />
+              <span className="text-xl font-bold text-yellow-300">Your Tokens: {userTokens}</span>
             </div>
           )}
-            </div>
+        </div>
 
         {/* Message Display */}
         {message && (
@@ -1391,10 +1394,19 @@ export default function HotSellPage() {
         )}
 
         {/* Hot Sell Games - PRIORITY SECTION */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">🎯 HOT SELL GAMES</h2>
-            <p className="text-lg text-gray-300">Daily tournaments with guaranteed prizes and 2-hour timers</p>
+        <div className="mb-16">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <span className="text-5xl mr-4 animate-pulse">🎯</span>
+                <div className="absolute inset-0 text-5xl mr-4 opacity-30 blur-sm animate-pulse">🎯</div>
+              </div>
+              <h2 className="text-4xl font-black bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent animate-gradient">
+                HOT SELL GAMES
+              </h2>
+            </div>
+            <p className="text-xl text-gray-200 mb-4 font-light">Daily tournaments with competitive prizes and 2-hour timers</p>
+            <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-orange-500 mx-auto rounded-full"></div>
             {prizeEligibility && (
               <div className={`mt-4 inline-flex items-center rounded-2xl px-6 py-3 border ${
                 prizeEligibility.eligible 
@@ -1795,16 +1807,25 @@ export default function HotSellPage() {
               </div>
             </div>
 
-        {/* Winner Takes It All Section */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">🏆 WINNER TAKES IT ALL</h2>
-            <p className="text-lg text-gray-300">1 token entry tournaments - Winner gets everything!</p>
-            <p className="text-sm text-gray-400">Base pot: $3, grows with each player! No limits on participants.</p>
+        {/* Elite Tournaments Section */}
+        <div className="mb-16">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <span className="text-5xl mr-4 animate-bounce">🏆</span>
+                <div className="absolute inset-0 text-5xl mr-4 opacity-30 blur-sm animate-pulse">🏆</div>
+              </div>
+              <h2 className="text-4xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient">
+                ELITE TOURNAMENTS
+              </h2>
+            </div>
+            <p className="text-xl text-gray-200 mb-3 font-light">Premium tournaments with exclusive prizes</p>
+            <p className="text-lg text-gray-400 mb-4">Competitive entry tournaments with growing prize pools</p>
+            <div className="w-24 h-1 bg-gradient-to-r from-yellow-500 to-red-500 mx-auto rounded-full"></div>
               </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Winner Takes It All Games */}
+            {/* Elite Tournament Games */}
             {fixedGameConfigs
               .filter(config => config.tournament_type === 'winner_takes_all' && !config.title?.includes('$3 Winner Takes It All'))
               .map((config) => {

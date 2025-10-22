@@ -122,21 +122,51 @@ export default function BlindScoreboardPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 relative overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-red-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+        </div>
+        
         <CleanNavigation />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 relative z-10">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-white mb-4">Blind Scoreboard System</h1>
-            <p className="text-lg text-gray-300 mb-8">Please log in to access competitive matches</p>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 border border-white/20 max-w-md mx-auto">
-              <TrophyIcon className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-4">Features</h2>
-              <ul className="text-gray-300 space-y-2 text-left">
-                <li>• Blind scoring until all players finish</li>
-                <li>• 1v1 and multi-player matches</li>
-                <li>• Token-based entry system</li>
-                <li>• Automatic winner determination</li>
-                <li>• Secure score submission</li>
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <TrophyIcon className="w-16 h-16 text-yellow-500 mr-6 animate-bounce" />
+                <div className="absolute inset-0 w-16 h-16 bg-yellow-500/20 rounded-full blur-xl animate-pulse"></div>
+              </div>
+              <h1 className="text-5xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient">
+                BLIND SCOREBOARD
+              </h1>
+            </div>
+            <p className="text-xl text-gray-200 mb-8 font-light">Please log in to access competitive matches</p>
+            <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/20 max-w-md mx-auto shadow-2xl">
+              <TrophyIcon className="w-16 h-16 text-yellow-400 mx-auto mb-6 animate-pulse" />
+              <h2 className="text-2xl font-bold text-white mb-6">Features</h2>
+              <ul className="text-gray-300 space-y-3 text-left">
+                <li className="flex items-center">
+                  <span className="w-2 h-2 bg-yellow-500 rounded-full mr-3 animate-pulse"></span>
+                  Blind scoring until all players finish
+                </li>
+                <li className="flex items-center">
+                  <span className="w-2 h-2 bg-orange-500 rounded-full mr-3 animate-pulse"></span>
+                  1v1 and multi-player matches
+                </li>
+                <li className="flex items-center">
+                  <span className="w-2 h-2 bg-red-500 rounded-full mr-3 animate-pulse"></span>
+                  Token-based entry system
+                </li>
+                <li className="flex items-center">
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full mr-3 animate-pulse"></span>
+                  Automatic winner determination
+                </li>
+                <li className="flex items-center">
+                  <span className="w-2 h-2 bg-orange-400 rounded-full mr-3 animate-pulse"></span>
+                  Secure score submission
+                </li>
               </ul>
             </div>
           </div>
@@ -151,16 +181,25 @@ export default function BlindScoreboardPage() {
       
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">Blind Scoreboard System</h1>
-          <p className="text-lg text-gray-300 mb-6">Competitive matches with hidden scores until completion</p>
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center mb-6">
+            <div className="relative">
+              <TrophyIcon className="w-16 h-16 text-yellow-500 mr-6 animate-bounce" />
+              <div className="absolute inset-0 w-16 h-16 bg-yellow-500/20 rounded-full blur-xl animate-pulse"></div>
+            </div>
+            <h1 className="text-5xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient">
+              BLIND SCOREBOARD
+            </h1>
+          </div>
+          <p className="text-xl text-gray-200 mb-4 font-light tracking-wide">Competitive matches with hidden scores until completion</p>
+          <div className="w-24 h-1 bg-gradient-to-r from-yellow-500 to-red-500 mx-auto rounded-full mb-6"></div>
           
           {/* Create Listing Button */}
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-4 px-8 rounded-2xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl text-lg"
           >
-            <PlusIcon className="w-5 h-5 inline mr-2" />
+            <PlusIcon className="w-6 h-6 inline mr-3" />
             Create New Listing
           </button>
         </div>
