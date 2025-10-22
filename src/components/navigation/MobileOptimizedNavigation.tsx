@@ -34,13 +34,13 @@ export default function MobileOptimizedNavigation({ variant = 'gradient', curren
 
   const getLinkStyles = (href: string) => {
     const isActive = currentPage === href || (href === '/' && currentPage === 'home');
-    const baseStyles = 'px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200';
+    const baseStyles = 'px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-110 group relative overflow-hidden';
     
     if (isActive) {
-      return `${baseStyles} bg-white/20 text-white`;
+      return `${baseStyles} bg-gradient-to-r from-white/20 to-white/30 text-white shadow-lg`;
     }
     
-    return `${baseStyles} text-white/90 hover:text-white hover:bg-white/10`;
+    return `${baseStyles} text-white/90 hover:text-white hover:bg-gradient-to-r hover:from-white/10 hover:to-white/20`;
   };
 
   return (
@@ -49,8 +49,8 @@ export default function MobileOptimizedNavigation({ variant = 'gradient', curren
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-white">DropDollar</span>
+            <Link href="/" className="flex items-center group">
+              <span className="text-2xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient group-hover:scale-110 transition-transform duration-300">DropDollar</span>
             </Link>
           </div>
 
@@ -58,18 +58,18 @@ export default function MobileOptimizedNavigation({ variant = 'gradient', curren
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white hover:text-white/80 p-2 rounded-lg hover:bg-white/10 transition-colors"
+              className="text-white hover:text-white/80 p-3 rounded-xl hover:bg-gradient-to-r hover:from-white/10 hover:to-white/20 transition-all duration-300 hover:scale-110 hover:rotate-12 group"
             >
               {mobileMenuOpen ? (
-                <XMarkIcon className="h-6 w-6" />
+                <XMarkIcon className="h-6 w-6 transition-all duration-300 rotate-180 group-hover:scale-125" />
               ) : (
-                <Bars3Icon className="h-6 w-6" />
+                <Bars3Icon className="h-6 w-6 transition-all duration-300 group-hover:scale-125" />
               )}
             </button>
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex space-x-2">
+          <nav className="hidden md:flex space-x-3">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -80,8 +80,14 @@ export default function MobileOptimizedNavigation({ variant = 'gradient', curren
                   console.log(`🖱️ Navigation clicked: ${link.label} -> ${link.href}`);
                 }}
               >
-                <span className="mr-1">{link.emoji}</span>
-                {link.label}
+                <span className="relative z-10 flex items-center">
+                  <span className="mr-2 text-lg transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
+                  <span className="font-semibold tracking-wide transition-all duration-300 group-hover:tracking-wider">{link.label}</span>
+                </span>
+                {/* Animated underline */}
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-300 group-hover:w-full"></span>
+                {/* Glow effect */}
+                <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
               </Link>
             ))}
           </nav>
@@ -94,20 +100,26 @@ export default function MobileOptimizedNavigation({ variant = 'gradient', curren
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-white/10 backdrop-blur-xl rounded-lg mt-2">
+          <div className="md:hidden animate-fade-in">
+            <div className="px-4 pt-4 pb-4 space-y-3 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-xl rounded-2xl mt-3 shadow-2xl">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`block px-3 py-2 rounded-lg text-base font-medium transition-colors ${getLinkStyles(link.href)}`}
+                  className={`block px-4 py-3 rounded-xl text-base font-semibold transition-all duration-300 group relative overflow-hidden ${getLinkStyles(link.href)}`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <span className="mr-2">{link.emoji}</span>
-                  {link.label}
+                  <span className="relative z-10 flex items-center">
+                    <span className="mr-3 text-xl transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
+                    <span className="font-semibold tracking-wide transition-all duration-300 group-hover:tracking-wider">{link.label}</span>
+                  </span>
+                  {/* Animated background */}
+                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                  {/* Animated underline */}
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               ))}
-              <div className="pt-2 border-t border-white/20">
+              <div className="pt-3 border-t border-white/20">
                 <UserMenu />
               </div>
             </div>

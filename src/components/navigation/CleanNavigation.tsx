@@ -45,16 +45,16 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
   };
 
   const getLinkStyles = (isActive: boolean) => {
-    const baseStyles = 'font-medium transition-all duration-200 hover:scale-105 px-3 py-2 rounded-lg relative z-10 cursor-pointer';
+    const baseStyles = 'font-semibold transition-all duration-300 hover:scale-110 px-4 py-2 rounded-xl relative z-10 cursor-pointer group overflow-hidden';
     
     switch (variant) {
       case 'light':
-        return `${baseStyles} ${isActive ? 'text-blue-600 font-bold bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`;
+        return `${baseStyles} ${isActive ? 'text-blue-600 font-bold bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg' : 'text-gray-700 hover:text-blue-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 hover:shadow-md'}`;
       case 'dark':
-        return `${baseStyles} ${isActive ? 'text-blue-400 font-bold bg-white/10' : 'text-gray-300 hover:text-white hover:bg-white/5'}`;
+        return `${baseStyles} ${isActive ? 'text-blue-400 font-bold bg-gradient-to-r from-white/15 to-blue-500/20 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-white/10 hover:to-white/5 hover:shadow-md'}`;
       case 'gradient':
       default:
-        return `${baseStyles} ${isActive ? 'text-yellow-300 font-bold bg-white/10' : 'text-white hover:text-yellow-200 hover:bg-white/5'}`;
+        return `${baseStyles} ${isActive ? 'text-yellow-300 font-bold bg-gradient-to-r from-white/20 to-yellow-500/20 shadow-lg' : 'text-white hover:text-yellow-200 hover:bg-gradient-to-r hover:from-white/10 hover:to-white/5 hover:shadow-md'}`;
     }
   };
 
@@ -75,21 +75,21 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3 flex-shrink-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Link href="/" className="flex items-center space-x-3 flex-shrink-0 group">
+            <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:rotate-12 group-hover:animate-pulse">
               <img 
                 src="/DropCoin.png" 
                 alt="DropDollar"
-                className="w-7 h-7 object-contain"
+                className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-110"
               />
             </div>
-            <span className={`text-xl sm:text-2xl font-bold ${getLogoTextStyles()} hidden sm:block`}>
+            <span className={`text-xl sm:text-2xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient ${getLogoTextStyles()} hidden sm:block`}>
               DropDollar
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-2">
+          <nav className="hidden lg:flex items-center space-x-3">
             {navLinks.map((link) => {
               const isActive = currentPage === link.href;
               return (
@@ -103,8 +103,14 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
                     handleNavClick(link.href, link.label);
                   }}
                 >
-                  <span className="hidden xl:inline">{link.emoji} </span>
-                  {link.label}
+                  <span className="relative z-10 flex items-center">
+                    <span className="hidden xl:inline mr-2 text-lg transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
+                    <span className="font-semibold tracking-wide transition-all duration-300 group-hover:tracking-wider">{link.label}</span>
+                  </span>
+                  {/* Animated underline */}
+                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-300 group-hover:w-full"></span>
+                  {/* Glow effect */}
+                  <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                 </Link>
               );
             })}
@@ -120,12 +126,12 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
             <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`p-2 rounded-lg ${variant === 'light' ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}
+              className={`p-3 rounded-xl transition-all duration-300 hover:scale-110 hover:rotate-12 group ${variant === 'light' ? 'text-gray-700 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200' : 'text-white hover:bg-gradient-to-r hover:from-white/10 hover:to-white/20'}`}
             >
               {mobileMenuOpen ? (
-                <XMarkIcon className="h-6 w-6" />
+                <XMarkIcon className="h-6 w-6 transition-all duration-300 rotate-180 group-hover:scale-125" />
               ) : (
-                <Bars3Icon className="h-6 w-6" />
+                <Bars3Icon className="h-6 w-6 transition-all duration-300 group-hover:scale-125" />
               )}
             </button>
           </div>
@@ -133,8 +139,8 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className={`lg:hidden py-4 border-t ${variant === 'light' ? 'border-gray-200' : 'border-white/10'}`}>
-            <nav className="flex flex-col space-y-3">
+          <div className={`lg:hidden py-6 border-t ${variant === 'light' ? 'border-gray-200' : 'border-white/10'} animate-fade-in`}>
+            <nav className="flex flex-col space-y-4">
               {navLinks.map((link) => {
                 const isActive = currentPage === link.href;
                 return (
@@ -142,9 +148,16 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`${getLinkStyles(isActive)} px-4 py-2 rounded-lg ${isActive ? (variant === 'light' ? 'bg-blue-50' : 'bg-white/10') : (variant === 'light' ? 'hover:bg-gray-50' : 'hover:bg-white/5')}`}
+                    className={`${getLinkStyles(isActive)} px-6 py-3 rounded-xl group relative overflow-hidden`}
                   >
-                    {link.emoji} {link.label}
+                    <span className="relative z-10 flex items-center">
+                      <span className="mr-3 text-xl transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
+                      <span className="font-semibold tracking-wide transition-all duration-300 group-hover:tracking-wider">{link.label}</span>
+                    </span>
+                    {/* Animated background */}
+                    <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                    {/* Animated underline */}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-300 group-hover:w-full"></span>
                   </Link>
                 );
               })}
