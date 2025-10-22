@@ -161,9 +161,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const playGameOverSound = useCallback(() => playSound(200, 0.5, 'sawtooth'), [playSound]);
   const playClickSound = useCallback(() => playSound(400, 0.1, 'sine'), [playSound]);
 
-  // Game constants
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
+  // Game constants - Full screen
+  const CANVAS_WIDTH = window.innerWidth;
+  const CANVAS_HEIGHT = window.innerHeight;
   const SWORD_LENGTH = 80; // Increased from 60
   const SWORD_WIDTH = 12; // Increased from 8
   const SWORD_HILT_LENGTH = 30; // Increased from 20
@@ -802,41 +802,43 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
       ctx.shadowBlur = 0;
       
-      // Draw red death zone overlay on sword handle
-      const hiltGradient = ctx.createLinearGradient(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, -SWORD_HILT_WIDTH/2);
-      hiltGradient.addColorStop(0, '#FF0000'); // Bright red
-      hiltGradient.addColorStop(0.3, '#DC2626'); // Red
-      hiltGradient.addColorStop(0.7, '#B91C1C'); // Darker red
-      hiltGradient.addColorStop(1, '#991B1B'); // Darkest red
+      // Draw completely red death zone covering the entire sword
+      const swordGradient = ctx.createLinearGradient(-swordWidth/2, -swordHeight/2, swordWidth/2, swordHeight/2);
+      swordGradient.addColorStop(0, '#FF0000'); // Bright red
+      swordGradient.addColorStop(0.3, '#DC2626'); // Red
+      swordGradient.addColorStop(0.7, '#B91C1C'); // Darker red
+      swordGradient.addColorStop(1, '#991B1B'); // Darkest red
       
-      // Add pulsing glow effect for death zone
-      const glowIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.01);
+      // Add pulsing glow effect for entire sword death zone
+      const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
       ctx.shadowColor = `rgba(255, 0, 0, ${glowIntensity})`;
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 20;
       
-      ctx.fillStyle = hiltGradient;
-      ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+      // Draw red overlay covering entire sword
+      ctx.fillStyle = swordGradient;
+      ctx.fillRect(-swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
       
       // Reset shadow
       ctx.shadowBlur = 0;
       
-      // Add warning stripes for death section
+      // Add warning stripes across entire sword
       ctx.fillStyle = '#FFFFFF';
-      for (let i = 0; i < 4; i++) {
-        ctx.fillRect(1 + i * 3, -SWORD_HILT_WIDTH/2, 2, SWORD_HILT_WIDTH);
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(-swordWidth/2 + 2, -swordHeight/2 + 2 + i * 15, swordWidth - 4, 3);
       }
       
-      // Add danger text on hilt
+      // Add danger text on sword
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 8px Arial';
+      ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('DANGER', SWORD_HILT_LENGTH/2, 0);
+      ctx.fillText('DEATH ZONE', 0, -10);
+      ctx.fillText('PROTECT!', 0, 10);
       
-      // Add red border around death zone
+      // Add red border around entire sword death zone
       ctx.strokeStyle = '#FF0000';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+      ctx.lineWidth = 3;
+      ctx.strokeRect(-swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
     } else {
       // Enhanced fallback sword with metallic effects
       // Sword blade with gradient
@@ -852,41 +854,43 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, 1);
       
-      // Sword hilt - entire handle is red death section with enhanced visibility
-      const hiltGradient = ctx.createLinearGradient(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, -SWORD_HILT_WIDTH/2);
-      hiltGradient.addColorStop(0, '#FF0000'); // Bright red
-      hiltGradient.addColorStop(0.3, '#DC2626'); // Red
-      hiltGradient.addColorStop(0.7, '#B91C1C'); // Darker red
-      hiltGradient.addColorStop(1, '#991B1B'); // Darkest red
+      // Draw completely red death zone covering the entire sword
+      const swordGradient = ctx.createLinearGradient(0, -SWORD_WIDTH/2, SWORD_LENGTH, -SWORD_WIDTH/2);
+      swordGradient.addColorStop(0, '#FF0000'); // Bright red
+      swordGradient.addColorStop(0.3, '#DC2626'); // Red
+      swordGradient.addColorStop(0.7, '#B91C1C'); // Darker red
+      swordGradient.addColorStop(1, '#991B1B'); // Darkest red
       
-      // Add pulsing glow effect for death zone
-      const glowIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.01);
+      // Add pulsing glow effect for entire sword death zone
+      const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
       ctx.shadowColor = `rgba(255, 0, 0, ${glowIntensity})`;
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 20;
       
-      ctx.fillStyle = hiltGradient;
-      ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+      // Draw red overlay covering entire sword
+      ctx.fillStyle = swordGradient;
+      ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, SWORD_WIDTH);
       
       // Reset shadow
       ctx.shadowBlur = 0;
       
-      // Add warning stripes for death section
+      // Add warning stripes across entire sword
       ctx.fillStyle = '#FFFFFF';
-      for (let i = 0; i < 4; i++) {
-        ctx.fillRect(1 + i * 3, -SWORD_HILT_WIDTH/2, 2, SWORD_HILT_WIDTH);
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(2, -SWORD_WIDTH/2 + 2 + i * 2, SWORD_LENGTH - 4, 2);
       }
       
-      // Add danger text on hilt
+      // Add danger text on sword
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 8px Arial';
+      ctx.font = 'bold 10px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('DANGER', SWORD_HILT_LENGTH/2, 0);
+      ctx.fillText('DEATH ZONE', SWORD_LENGTH/2, -5);
+      ctx.fillText('PROTECT!', SWORD_LENGTH/2, 5);
       
-      // Add red border around death zone
+      // Add red border around entire sword death zone
       ctx.strokeStyle = '#FF0000';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
+      ctx.lineWidth = 3;
+      ctx.strokeRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, SWORD_WIDTH);
     }
     
     ctx.restore();
@@ -1428,18 +1432,24 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
               )}
             </div>
             
-            {/* Game Area */}
-            <div className="flex justify-center">
+            {/* Game Area - Full Screen */}
+            <div className="fixed inset-0 bg-black z-50 overflow-hidden">
               <canvas
                 ref={canvasRef}
                 width={CANVAS_WIDTH}
                 height={CANVAS_HEIGHT}
-                className="border-2 border-gray-600 rounded-lg bg-gray-900"
+                className="w-screen h-screen cursor-pointer"
                 onMouseMove={handleMouseMove}
                 onClick={handleClick}
                 onTouchMove={handleTouchMove}
                 onTouchStart={handleTouchStart}
-                style={{ touchAction: 'none', userSelect: 'none' }}
+                style={{ 
+                  touchAction: 'none', 
+                  userSelect: 'none',
+                  display: 'block',
+                  margin: 0,
+                  padding: 0
+                }}
               />
             </div>
 

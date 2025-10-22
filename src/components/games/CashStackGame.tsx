@@ -3,40 +3,56 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { playSuccessChime, playErrorBuzz, playCoinsFalling, playButtonHover } from '@/lib/gameAudio';
 
-interface CashSprite {
+interface Block {
+  id: number;
+  x: number;
+  y: number;
+  color: 'gold' | 'silver' | 'bronze';
+  isFalling: boolean;
+  isGrabbed: boolean;
+}
+
+interface Pillar {
   id: number;
   x: number;
   y: number;
   width: number;
   height: number;
-  speed: number;
-  stackedCash: CashSprite[]; // Cash stacked on this cash sprite
-  isFalling: boolean;
-  isCut: boolean;
-  cutAmount: number; // How much was cut off (0-1)
+  number: number;
+  isDestroyed: boolean;
+}
+
+interface SpawnCircle {
+  id: number;
+  x: number;
+  y: number;
+  number: number;
+  isActive: boolean;
+  clickOrder: number;
 }
 
 interface GameState {
   score: number;
   level: number;
-  cashSprites: CashSprite[];
+  blocks: Block[];
+  pillars: Pillar[];
+  spawnCircles: SpawnCircle[];
   gameOver: boolean;
   gameStarted: boolean;
   perfectStacks: number;
   totalStacks: number;
   gameStartTime: number;
   difficultyLevel: number;
-  currentCash: CashSprite | null;
-  dropTimer: number;
-  maxDropTimer: number;
+  grabbedBlock: Block | null;
+  nextClickOrder: number;
 }
 
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 600;
-const CASH_WIDTH = 100;
-const CASH_HEIGHT = 20;
-const GROUND_Y = CANVAS_HEIGHT - 50;
-const DROP_ZONE_HEIGHT = 50;
+const CANVAS_WIDTH = window.innerWidth;
+const CANVAS_HEIGHT = window.innerHeight;
+const BLOCK_SIZE = 40;
+const PILLAR_WIDTH = 60;
+const PILLAR_HEIGHT = 200;
+const SPAWN_CIRCLE_SIZE = 50;
 
 export default function CashStackGame({ 
   onGameEnd, 
@@ -52,143 +68,146 @@ export default function CashStackGame({
   const [gameData, setGameData] = useState<GameState>({
     score: 0,
     level: 1,
-    cashSprites: [],
+    blocks: [],
+    pillars: [],
+    spawnCircles: [],
     gameOver: false,
     gameStarted: false,
     perfectStacks: 0,
     totalStacks: 0,
     gameStartTime: 0,
     difficultyLevel: 1,
-    currentCash: null,
-    dropTimer: 0,
-    maxDropTimer: 100
+    grabbedBlock: null,
+    nextClickOrder: 1
   });
   const [countdown, setCountdown] = useState(3);
   const [showCountdown, setShowCountdown] = useState(false);
 
   console.log('🎮 CashStackGame: Component mounted, gameState:', gameState);
 
-  // Generate new cash sprite
-  const generateCashSprite = useCallback((): CashSprite => {
+  // Generate random block
+  const generateBlock = useCallback((): Block => {
+    const colors: ('gold' | 'silver' | 'bronze')[] = ['gold', 'silver', 'bronze'];
     return {
       id: Date.now() + Math.random(),
-      x: Math.random() * (CANVAS_WIDTH - CASH_WIDTH),
-      y: GROUND_Y - CASH_HEIGHT,
-      width: CASH_WIDTH,
-      height: CASH_HEIGHT,
-      speed: 1 + Math.random() * 2, // Random speed 1-3
-      stackedCash: [],
-      isFalling: false,
-      isCut: false,
-      cutAmount: 0
-    };
-  }, []);
-
-  // Generate falling cash
-  const generateFallingCash = useCallback((): CashSprite => {
-    return {
-      id: Date.now() + Math.random(),
-      x: CANVAS_WIDTH / 2 - CASH_WIDTH / 2, // Start in center
-      y: 0,
-      width: CASH_WIDTH,
-      height: CASH_HEIGHT,
-      speed: 0, // No horizontal movement when falling
-      stackedCash: [],
+      x: Math.random() * (CANVAS_WIDTH - BLOCK_SIZE),
+      y: -BLOCK_SIZE,
+      color: colors[Math.floor(Math.random() * colors.length)],
       isFalling: true,
-      isCut: false,
-      cutAmount: 0
+      isGrabbed: false
     };
   }, []);
 
-  // Check alignment between falling cash and target cash
-  const checkAlignment = (fallingCash: CashSprite, targetCash: CashSprite): number => {
-    const fallingCenter = fallingCash.x + fallingCash.width / 2;
-    const targetCenter = targetCash.x + targetCash.width / 2;
-    const distance = Math.abs(fallingCenter - targetCenter);
-    const maxDistance = targetCash.width / 2;
-    
-    // Return alignment percentage (0-1, where 1 is perfect)
-    return Math.max(0, 1 - (distance / maxDistance));
+  // Generate pillar
+  const generatePillar = useCallback((): Pillar => {
+    return {
+      id: Date.now() + Math.random(),
+      x: Math.random() * (CANVAS_WIDTH - PILLAR_WIDTH),
+      y: CANVAS_HEIGHT - PILLAR_HEIGHT,
+      width: PILLAR_WIDTH,
+      height: PILLAR_HEIGHT,
+      number: Math.floor(Math.random() * 5) + 1,
+      isDestroyed: false
+    };
+  }, []);
+
+  // Generate spawn circle
+  const generateSpawnCircle = useCallback((): SpawnCircle => {
+    return {
+      id: Date.now() + Math.random(),
+      x: Math.random() * (CANVAS_WIDTH - SPAWN_CIRCLE_SIZE),
+      y: Math.random() * (CANVAS_HEIGHT - SPAWN_CIRCLE_SIZE),
+      number: Math.floor(Math.random() * 5) + 1,
+      isActive: true,
+      clickOrder: 0
+    };
+  }, []);
+
+  // Check if block can stack on another block of same color
+  const canStack = (block1: Block, block2: Block): boolean => {
+    return block1.color === block2.color && 
+           Math.abs(block1.x - block2.x) < BLOCK_SIZE && 
+           Math.abs(block1.y - block2.y) < BLOCK_SIZE;
   };
 
-  // Handle cash drop
-  const handleCashDrop = useCallback(() => {
+  // Handle block stacking
+  const handleBlockStack = useCallback((fallingBlock: Block) => {
     setGameData(prev => {
-      if (!prev.currentCash) return prev;
+      const newState = { ...prev };
       
-      const fallingCash = prev.currentCash;
-      let bestAlignment = 0;
-      let targetCash: CashSprite | null = null;
+      // Find blocks to stack on
+      const stackableBlocks = newState.blocks.filter(block => 
+        !block.isFalling && canStack(fallingBlock, block)
+      );
       
-      // Find the best target cash sprite to stack on
-      for (const cash of prev.cashSprites) {
-        if (cash.y >= GROUND_Y - CASH_HEIGHT - 20) { // Only consider cash near ground
-          const alignment = checkAlignment(fallingCash, cash);
-          if (alignment > bestAlignment) {
-            bestAlignment = alignment;
-            targetCash = cash;
-          }
-        }
-      }
-      
-      if (targetCash && bestAlignment > 0.3) { // Minimum 30% alignment to stack
-        // Stack the cash
-        const points = Math.floor(bestAlignment * 50); // Up to 50 points for perfect alignment
-        
-        if (bestAlignment > 0.8) { // Perfect stack
-          playSuccessChime();
-          return {
-            ...prev,
-            score: prev.score + points + 25, // Bonus for perfect
-            perfectStacks: prev.perfectStacks + 1,
-            totalStacks: prev.totalStacks + 1,
-            cashSprites: prev.cashSprites.map(c => 
-              c.id === targetCash!.id 
-                ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
-                : c
-            ),
-            currentCash: generateFallingCash(),
-            dropTimer: 0,
-            maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10)
-          };
-        } else {
-          playCoinsFalling();
-          return {
-            ...prev,
-            score: prev.score + points,
-            totalStacks: prev.totalStacks + 1,
-            cashSprites: prev.cashSprites.map(c => 
-              c.id === targetCash!.id 
-                ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
-                : c
-            ),
-            currentCash: generateFallingCash(),
-            dropTimer: 0,
-            maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10)
-          };
-        }
-      } else {
-        // Miss - cut the cash and make it smaller
-        playErrorBuzz();
-        const cutAmount = 0.2 + Math.random() * 0.3; // Cut 20-50%
-        const newCash = {
-          ...fallingCash,
-          isCut: true,
-          cutAmount: cutAmount,
-          width: fallingCash.width * (1 - cutAmount),
+      if (stackableBlocks.length > 0) {
+        // Stack the block
+        const targetBlock = stackableBlocks[0];
+        const newBlock = {
+          ...fallingBlock,
+          x: targetBlock.x,
+          y: targetBlock.y - BLOCK_SIZE,
           isFalling: false
         };
         
-        return {
-          ...prev,
-          cashSprites: [...prev.cashSprites, newCash],
-          currentCash: generateFallingCash(),
-          dropTimer: 0,
-          maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10)
+        newState.blocks.push(newBlock);
+        newState.score += 10;
+        newState.totalStacks += 1;
+        
+        // Check for perfect stack (exact alignment)
+        if (Math.abs(fallingBlock.x - targetBlock.x) < 5) {
+          newState.score += 20;
+          newState.perfectStacks += 1;
+          playSuccessChime();
+        } else {
+          playCoinsFalling();
+        }
+      } else {
+        // Block falls to ground
+        const groundBlock = {
+          ...fallingBlock,
+          y: CANVAS_HEIGHT - BLOCK_SIZE,
+          isFalling: false
         };
+        newState.blocks.push(groundBlock);
+        playErrorBuzz();
       }
+      
+      return newState;
     });
-  }, [generateFallingCash]);
+  }, []);
+
+  // Handle spawn circle click
+  const handleSpawnCircleClick = useCallback((circle: SpawnCircle) => {
+    setGameData(prev => {
+      const newState = { ...prev };
+      
+      if (circle.number === newState.nextClickOrder) {
+        // Correct order - destroy pillar
+        newState.pillars = newState.pillars.map(pillar => 
+          pillar.number === circle.number 
+            ? { ...pillar, isDestroyed: true }
+            : pillar
+        );
+        
+        newState.spawnCircles = newState.spawnCircles.map(c => 
+          c.id === circle.id 
+            ? { ...c, isActive: false }
+            : c
+        );
+        
+        newState.nextClickOrder += 1;
+        newState.score += 50;
+        playSuccessChime();
+      } else {
+        // Wrong order - penalty
+        newState.score = Math.max(0, newState.score - 25);
+        playErrorBuzz();
+      }
+      
+      return newState;
+    });
+  }, []);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
@@ -206,100 +225,56 @@ export default function CashStackGame({
     setGameData(prev => {
       const newState = { ...prev };
       
-      // Calculate difficulty progression based on time elapsed
-      const timeElapsed = (currentTime - newState.gameStartTime) / 1000; // Convert to seconds
-      const newDifficultyLevel = Math.max(1, Math.floor(timeElapsed / 20) + 1); // Increase every 20 seconds
+      // Calculate difficulty progression
+      const timeElapsed = (currentTime - newState.gameStartTime) / 1000;
+      const newDifficultyLevel = Math.max(1, Math.floor(timeElapsed / 20) + 1);
       
-      // Update difficulty level
       if (newDifficultyLevel !== newState.difficultyLevel) {
         newState.difficultyLevel = newDifficultyLevel;
-        console.log(`🎮 [CashStack] Difficulty increased to level ${newDifficultyLevel}`);
       }
       
-      // Update falling cash position
-      if (newState.currentCash) {
-        newState.currentCash.y += 3; // Fall speed
-        
-        // Auto-drop if it reaches the ground
-        if (newState.currentCash.y >= GROUND_Y - CASH_HEIGHT) {
-          // Auto-drop logic (same as handleCashDrop but inline)
-          const fallingCash = newState.currentCash;
-          let bestAlignment = 0;
-          let targetCash: CashSprite | null = null;
+      // Update falling blocks
+      newState.blocks = newState.blocks.map(block => {
+        if (block.isFalling && !block.isGrabbed) {
+          const newBlock = { ...block };
+          newBlock.y += 3; // Fall speed
           
-          // Find the best target cash sprite to stack on
-          for (const cash of newState.cashSprites) {
-            if (cash.y >= GROUND_Y - CASH_HEIGHT - 20) {
-              const alignment = checkAlignment(fallingCash, cash);
-              if (alignment > bestAlignment) {
-                bestAlignment = alignment;
-                targetCash = cash;
-              }
-            }
-          }
-          
-          if (targetCash && bestAlignment > 0.3) {
-            const points = Math.floor(bestAlignment * 50);
-            if (bestAlignment > 0.8) {
-              playSuccessChime();
-              newState.score += points + 25;
-              newState.perfectStacks += 1;
-            } else {
-              playCoinsFalling();
-              newState.score += points;
-            }
-            newState.totalStacks += 1;
-            newState.cashSprites = newState.cashSprites.map(c => 
-              c.id === targetCash!.id 
-                ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
-                : c
-            );
+          // Check if block hits ground or another block
+          if (newBlock.y >= CANVAS_HEIGHT - BLOCK_SIZE) {
+            newBlock.y = CANVAS_HEIGHT - BLOCK_SIZE;
+            newBlock.isFalling = false;
           } else {
-            playErrorBuzz();
-            const cutAmount = 0.2 + Math.random() * 0.3;
-            const newCash = {
-              ...fallingCash,
-              isCut: true,
-              cutAmount: cutAmount,
-              width: fallingCash.width * (1 - cutAmount),
-              isFalling: false
-            };
-            newState.cashSprites.push(newCash);
+            // Check for stacking
+            const stackableBlock = newState.blocks.find(b => 
+              !b.isFalling && canStack(newBlock, b) && 
+              Math.abs(newBlock.y - b.y) < BLOCK_SIZE
+            );
+            
+            if (stackableBlock) {
+              newBlock.y = stackableBlock.y - BLOCK_SIZE;
+              newBlock.isFalling = false;
+            }
           }
           
-          // Generate new falling cash
-          newState.currentCash = generateFallingCash();
-          newState.dropTimer = 0;
-          newState.maxDropTimer = Math.max(50, 100 - newState.difficultyLevel * 10);
+          return newBlock;
         }
-      }
-      
-      // Update cash sprites (move horizontally)
-      newState.cashSprites = newState.cashSprites.map(cash => {
-        const newCash = { ...cash };
-        
-        if (!newCash.isFalling) {
-          // Move horizontally
-          newCash.x += newCash.speed;
-          
-          // Bounce off walls
-          if (newCash.x <= 0 || newCash.x + newCash.width >= CANVAS_WIDTH) {
-            newCash.speed = -newCash.speed;
-            newCash.x = Math.max(0, Math.min(CANVAS_WIDTH - newCash.width, newCash.x));
-          }
-        }
-        
-        return newCash;
+        return block;
       });
       
-      // Debug logging
-      if (newState.cashSprites.length > 0) {
-        console.log('🎮 [CashStack] Cash sprites:', newState.cashSprites.length, 'Current cash:', !!newState.currentCash);
-        console.log('🎮 [CashStack] First cash position:', newState.cashSprites[0]?.x, newState.cashSprites[0]?.y, 'Speed:', newState.cashSprites[0]?.speed);
+      // Spawn new blocks
+      if (Math.random() < 0.02) {
+        newState.blocks.push(generateBlock());
       }
       
-      // Update drop timer
-      newState.dropTimer++;
+      // Spawn new pillars
+      if (Math.random() < 0.01) {
+        newState.pillars.push(generatePillar());
+      }
+      
+      // Spawn new spawn circles
+      if (Math.random() < 0.005) {
+        newState.spawnCircles.push(generateSpawnCircle());
+      }
       
       // Level up based on score
       const newLevel = Math.floor(newState.score / 100) + 1;
@@ -312,7 +287,7 @@ export default function CashStackGame({
     });
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, gameData.gameOver, generateCashSprite]);
+  }, [gameState, gameData.gameOver, generateBlock, generatePillar, generateSpawnCircle]);
 
   // Start game
   const handleStartGame = () => {
@@ -330,10 +305,10 @@ export default function CashStackGame({
             gameStarted: true,
             gameStartTime: Date.now(),
             difficultyLevel: 1,
-            cashSprites: [generateCashSprite()],
-            currentCash: generateFallingCash(),
-            dropTimer: 0,
-            maxDropTimer: 100
+            blocks: [generateBlock()],
+            pillars: [generatePillar()],
+            spawnCircles: [generateSpawnCircle()],
+            nextClickOrder: 1
           }));
           lastTimeRef.current = performance.now();
           gameLoopRef.current = requestAnimationFrame(gameLoop);
@@ -360,15 +335,76 @@ export default function CashStackGame({
     onGameEnd({ score: gameData.score, accuracy });
   };
 
-  // Handle click/tap to drop cash
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    console.log('🎮 [CashStack] Click detected, gameState:', gameState);
-    if (gameState === 'playing') {
-      console.log('🎮 [CashStack] Dropping cash, currentCash exists:', !!gameData.currentCash);
-      handleCashDrop();
+  // Handle mouse events
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (gameState !== 'playing' || !gameData.grabbedBlock) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    setGameData(prev => ({
+      ...prev,
+      grabbedBlock: prev.grabbedBlock ? {
+        ...prev.grabbedBlock,
+        x: mouseX - BLOCK_SIZE / 2,
+        y: mouseY - BLOCK_SIZE / 2
+      } : null
+    }));
+  }, [gameState, gameData.grabbedBlock]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (gameState !== 'playing') return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Check if clicking on a block
+    const clickedBlock = gameData.blocks.find(block => 
+      mouseX >= block.x && mouseX <= block.x + BLOCK_SIZE &&
+      mouseY >= block.y && mouseY <= block.y + BLOCK_SIZE &&
+      !block.isFalling
+    );
+    
+    if (clickedBlock) {
+      setGameData(prev => ({
+        ...prev,
+        grabbedBlock: { ...clickedBlock, isGrabbed: true },
+        blocks: prev.blocks.filter(b => b.id !== clickedBlock.id)
+      }));
     }
-  }, [gameState, gameData.currentCash, handleCashDrop]);
+    
+    // Check if clicking on a spawn circle
+    const clickedCircle = gameData.spawnCircles.find(circle => 
+      circle.isActive &&
+      mouseX >= circle.x && mouseX <= circle.x + SPAWN_CIRCLE_SIZE &&
+      mouseY >= circle.y && mouseY <= circle.y + SPAWN_CIRCLE_SIZE
+    );
+    
+    if (clickedCircle) {
+      handleSpawnCircleClick(clickedCircle);
+    }
+  }, [gameState, gameData.blocks, gameData.spawnCircles, handleSpawnCircleClick]);
+
+  const handleMouseUp = useCallback(() => {
+    if (gameState !== 'playing' || !gameData.grabbedBlock) return;
+    
+    // Drop the grabbed block
+    const droppedBlock = { ...gameData.grabbedBlock, isGrabbed: false, isFalling: true };
+    handleBlockStack(droppedBlock);
+    
+    setGameData(prev => ({
+      ...prev,
+      grabbedBlock: null
+    }));
+  }, [gameState, gameData.grabbedBlock, handleBlockStack]);
 
   // Render game
   const render = () => {
@@ -390,98 +426,147 @@ export default function CashStackGame({
     
     // Draw ground
     ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
+    ctx.fillRect(0, CANVAS_HEIGHT - 20, CANVAS_WIDTH, 20);
     
-    // Draw drop zone indicator
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.fillRect(0, GROUND_Y - DROP_ZONE_HEIGHT, CANVAS_WIDTH, DROP_ZONE_HEIGHT);
-    
-    // Draw cash sprites
-    gameData.cashSprites.forEach(cash => {
+    // Draw blocks
+    gameData.blocks.forEach(block => {
       ctx.save();
       
-      // Draw main cash sprite
-      const cashGradient = ctx.createLinearGradient(cash.x, cash.y, cash.x + cash.width, cash.y + cash.height);
-      cashGradient.addColorStop(0, '#FFD700');
-      cashGradient.addColorStop(0.5, '#FFA500');
-      cashGradient.addColorStop(1, '#FF8C00');
+      // Set color based on block type
+      let blockColor: string;
+      switch (block.color) {
+        case 'gold':
+          blockColor = '#FFD700';
+          break;
+        case 'silver':
+          blockColor = '#C0C0C0';
+          break;
+        case 'bronze':
+          blockColor = '#CD7F32';
+          break;
+      }
       
-      ctx.fillStyle = cashGradient;
-      ctx.fillRect(cash.x, cash.y, cash.width, cash.height);
+      // Draw block with 3D effect
+      const blockGradient = ctx.createLinearGradient(block.x, block.y, block.x + BLOCK_SIZE, block.y + BLOCK_SIZE);
+      blockGradient.addColorStop(0, blockColor);
+      blockGradient.addColorStop(0.5, blockColor);
+      blockGradient.addColorStop(1, '#8B4513');
       
-      // Add cash texture
-      ctx.fillStyle = '#B8860B';
-      ctx.fillRect(cash.x + 2, cash.y + 2, cash.width - 4, cash.height - 4);
+      ctx.fillStyle = blockGradient;
+      ctx.fillRect(block.x, block.y, BLOCK_SIZE, BLOCK_SIZE);
       
-      // Add dollar sign
-      ctx.fillStyle = '#FFD700';
+      // Add block border
+      ctx.strokeStyle = '#8B4513';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(block.x, block.y, BLOCK_SIZE, BLOCK_SIZE);
+      
+      // Add color indicator
+      ctx.fillStyle = 'white';
       ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('$', cash.x + cash.width / 2, cash.y + cash.height / 2);
-      
-      // Draw stacked cash
-      cash.stackedCash.forEach((stackedCash, index) => {
-        const stackY = cash.y - (index + 1) * CASH_HEIGHT;
-        
-        const stackGradient = ctx.createLinearGradient(stackedCash.x, stackY, stackedCash.x + stackedCash.width, stackY + stackedCash.height);
-        stackGradient.addColorStop(0, '#FFD700');
-        stackGradient.addColorStop(0.5, '#FFA500');
-        stackGradient.addColorStop(1, '#FF8C00');
-        
-        ctx.fillStyle = stackGradient;
-        ctx.fillRect(stackedCash.x, stackY, stackedCash.width, stackedCash.height);
-        
-        // Add cash texture
-        ctx.fillStyle = '#B8860B';
-        ctx.fillRect(stackedCash.x + 2, stackY + 2, stackedCash.width - 4, stackedCash.height - 4);
-        
-        // Add dollar sign
-        ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('$', stackedCash.x + stackedCash.width / 2, stackY + stackedCash.height / 2);
-        
-        // Add stack number
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 12px Arial';
-        ctx.fillText(`${index + 1}`, stackedCash.x + stackedCash.width / 2, stackY + stackedCash.height / 2 - 8);
-      });
+      ctx.fillText(block.color[0].toUpperCase(), block.x + BLOCK_SIZE/2, block.y + BLOCK_SIZE/2);
       
       ctx.restore();
     });
     
-    // Draw falling cash
-    if (gameData.currentCash) {
+    // Draw grabbed block
+    if (gameData.grabbedBlock) {
       ctx.save();
       
-      const fallingGradient = ctx.createLinearGradient(gameData.currentCash.x, gameData.currentCash.y, gameData.currentCash.x + gameData.currentCash.width, gameData.currentCash.y + gameData.currentCash.height);
-      fallingGradient.addColorStop(0, '#FFD700');
-      fallingGradient.addColorStop(0.5, '#FFA500');
-      fallingGradient.addColorStop(1, '#FF8C00');
+      let blockColor: string;
+      switch (gameData.grabbedBlock.color) {
+        case 'gold':
+          blockColor = '#FFD700';
+          break;
+        case 'silver':
+          blockColor = '#C0C0C0';
+          break;
+        case 'bronze':
+          blockColor = '#CD7F32';
+          break;
+      }
       
-      ctx.fillStyle = fallingGradient;
-      ctx.fillRect(gameData.currentCash.x, gameData.currentCash.y, gameData.currentCash.width, gameData.currentCash.height);
+      // Draw grabbed block with glow effect
+      ctx.shadowColor = blockColor;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = blockColor;
+      ctx.fillRect(gameData.grabbedBlock.x, gameData.grabbedBlock.y, BLOCK_SIZE, BLOCK_SIZE);
+      ctx.shadowBlur = 0;
       
-      // Add cash texture
-      ctx.fillStyle = '#B8860B';
-      ctx.fillRect(gameData.currentCash.x + 2, gameData.currentCash.y + 2, gameData.currentCash.width - 4, gameData.currentCash.height - 4);
+      // Add border
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(gameData.grabbedBlock.x, gameData.grabbedBlock.y, BLOCK_SIZE, BLOCK_SIZE);
       
-      // Add dollar sign
-      ctx.fillStyle = '#FFD700';
+      // Add color indicator
+      ctx.fillStyle = 'white';
       ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('$', gameData.currentCash.x + gameData.currentCash.width / 2, gameData.currentCash.y + gameData.currentCash.height / 2);
-      
-      // Add drop indicator
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = 'bold 14px Arial';
-      ctx.fillText('DROP!', gameData.currentCash.x + gameData.currentCash.width / 2, gameData.currentCash.y - 10);
+      ctx.fillText(gameData.grabbedBlock.color[0].toUpperCase(), 
+                   gameData.grabbedBlock.x + BLOCK_SIZE/2, 
+                   gameData.grabbedBlock.y + BLOCK_SIZE/2);
       
       ctx.restore();
     }
+    
+    // Draw pillars
+    gameData.pillars.forEach(pillar => {
+      if (!pillar.isDestroyed) {
+        ctx.save();
+        
+        // Draw pillar
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(pillar.x, pillar.y, pillar.width, pillar.height);
+        
+        // Add pillar border
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(pillar.x, pillar.y, pillar.width, pillar.height);
+        
+        // Add number
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pillar.number.toString(), 
+                     pillar.x + pillar.width/2, 
+                     pillar.y + pillar.height/2);
+        
+        ctx.restore();
+      }
+    });
+    
+    // Draw spawn circles
+    gameData.spawnCircles.forEach(circle => {
+      if (circle.isActive) {
+        ctx.save();
+        
+        // Draw circle
+        ctx.fillStyle = '#FF6B6B';
+        ctx.beginPath();
+        ctx.arc(circle.x + SPAWN_CIRCLE_SIZE/2, circle.y + SPAWN_CIRCLE_SIZE/2, 
+                SPAWN_CIRCLE_SIZE/2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add circle border
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Add number
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(circle.number.toString(), 
+                     circle.x + SPAWN_CIRCLE_SIZE/2, 
+                     circle.y + SPAWN_CIRCLE_SIZE/2);
+        
+        ctx.restore();
+      }
+    });
     
     // Draw UI
     ctx.fillStyle = 'white';
@@ -491,30 +576,14 @@ export default function CashStackGame({
     ctx.fillText(`Level: ${gameData.level}`, 20, 70);
     ctx.fillText(`Perfect Stacks: ${gameData.perfectStacks}`, 20, 100);
     ctx.fillText(`Total Stacks: ${gameData.totalStacks}`, 20, 130);
-    ctx.fillText(`Difficulty: Level ${gameData.difficultyLevel}`, 20, 160);
+    ctx.fillText(`Next Click: ${gameData.nextClickOrder}`, 20, 160);
     
-    // Draw drop timer
-    if (gameData.currentCash) {
-      const timerWidth = 200;
-      const timerHeight = 20;
-      const timerX = CANVAS_WIDTH - timerWidth - 20;
-      const timerY = 20;
-      
-      // Timer background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(timerX, timerY, timerWidth, timerHeight);
-      
-      // Timer fill
-      const fillWidth = (gameData.dropTimer / gameData.maxDropTimer) * timerWidth;
-      ctx.fillStyle = gameData.dropTimer > gameData.maxDropTimer * 0.8 ? '#ff4444' : '#4CAF50';
-      ctx.fillRect(timerX, timerY, fillWidth, timerHeight);
-      
-      // Timer text
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 16px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('DROP TIMER', timerX + timerWidth / 2, timerY + timerHeight / 2 + 5);
-    }
+    // Draw instructions
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Drag blocks to stack same colors!', CANVAS_WIDTH - 300, 40);
+    ctx.fillText('Click spawn circles in order!', CANVAS_WIDTH - 300, 70);
   };
 
   // Start render loop
@@ -533,20 +602,17 @@ export default function CashStackGame({
   // Lock screen during gameplay
   useEffect(() => {
     if (gameState === 'playing') {
-      // Lock screen scrolling
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
       document.body.style.height = '100%';
     } else {
-      // Unlock screen
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
       document.body.style.height = '';
     }
     
-    // Cleanup on unmount
     return () => {
       document.body.style.overflow = '';
       document.body.style.position = '';
@@ -560,7 +626,7 @@ export default function CashStackGame({
     if (gameState === 'playing') {
       const timer = setTimeout(() => {
         endGame();
-      }, 60000); // 60 seconds
+      }, 60000);
       
       return () => clearTimeout(timer);
     }
@@ -604,24 +670,25 @@ export default function CashStackGame({
           {/* Instructions */}
           <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-r from-green-800 to-green-900 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border-2 border-green-600 shadow-2xl">
             <h3 className="text-xl sm:text-2xl font-bold text-green-300 mb-4 flex items-center">
-              <span className="mr-2">💰</span>
-              Cash Stack Challenge Instructions
+              <span className="mr-2">🎮</span>
+              Tetris Cash Stack Instructions
             </h3>
             <div className="space-y-3 text-green-100">
-              <p><span className="font-bold text-green-300">🎯 Objective:</span> Stack cash pieces by timing your drops perfectly!</p>
+              <p><span className="font-bold text-green-300">🎯 Objective:</span> Stack blocks by color and destroy pillars in order!</p>
               <p><span className="font-bold text-green-300">🎮 How to Play:</span></p>
               <ul className="list-disc list-inside ml-4 space-y-2">
-                <li>Cash pieces move horizontally on the ground</li>
-                <li>New cash falls from the top - click/tap to drop it</li>
-                <li>Perfect alignment gives maximum points and stacks the cash</li>
-                <li>Poor alignment cuts the cash and makes it smaller</li>
-                <li>Build the highest cash towers possible!</li>
+                <li>Drag blocks to stack same colors (Gold with Gold, Silver with Silver, Bronze with Bronze)</li>
+                <li>Click spawn circles in numerical order (1, 2, 3, 4, 5) to destroy pillars</li>
+                <li>Perfect alignment gives bonus points</li>
+                <li>Wrong order clicking gives penalties</li>
+                <li>Build the highest stacks possible!</li>
               </ul>
               <p><span className="font-bold text-green-300">🏆 Scoring:</span></p>
               <ul className="list-disc list-inside ml-4 space-y-1">
-                <li>Perfect alignment (80%+): 50+ points + stack bonus</li>
-                <li>Good alignment (30-80%): 15-50 points + stack</li>
-                <li>Poor alignment (&lt;30%): Cash gets cut and shrinks</li>
+                <li>Stacking same colors: 10 points</li>
+                <li>Perfect alignment: +20 bonus</li>
+                <li>Destroying pillars in order: 50 points</li>
+                <li>Wrong order: -25 penalty</li>
                 <li>Level up every 100 points</li>
               </ul>
             </div>
@@ -633,7 +700,7 @@ export default function CashStackGame({
               onClick={handleStartGame}
               className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-4 px-8 rounded-xl text-xl transition-all duration-300 transform hover:scale-105 shadow-2xl"
             >
-              🚀 Start Cash Stack Challenge
+              🚀 Start Tetris Cash Stack
             </button>
           </div>
         </div>
@@ -642,15 +709,21 @@ export default function CashStackGame({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50">
+    <div className="fixed inset-0 bg-black z-50 overflow-hidden">
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
-        className="w-full h-full object-contain cursor-pointer"
-        style={{ imageRendering: 'pixelated' }}
-        onClick={handleClick}
-        onTouchEnd={handleClick}
+        className="w-screen h-screen cursor-pointer"
+        style={{ 
+          imageRendering: 'pixelated',
+          display: 'block',
+          margin: 0,
+          padding: 0
+        }}
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
       />
     </div>
   );
