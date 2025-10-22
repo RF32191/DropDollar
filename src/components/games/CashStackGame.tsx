@@ -113,79 +113,82 @@ export default function CashStackGame({
 
   // Handle cash drop
   const handleCashDrop = useCallback(() => {
-    if (!gameData.currentCash) return;
-    
-    const fallingCash = gameData.currentCash;
-    let bestAlignment = 0;
-    let targetCash: CashSprite | null = null;
-    
-    // Find the best target cash sprite to stack on
-    for (const cash of gameData.cashSprites) {
-      if (cash.y >= GROUND_Y - CASH_HEIGHT - 20) { // Only consider cash near ground
-        const alignment = checkAlignment(fallingCash, cash);
-        if (alignment > bestAlignment) {
-          bestAlignment = alignment;
-          targetCash = cash;
+    setGameData(prev => {
+      if (!prev.currentCash) return prev;
+      
+      const fallingCash = prev.currentCash;
+      let bestAlignment = 0;
+      let targetCash: CashSprite | null = null;
+      
+      // Find the best target cash sprite to stack on
+      for (const cash of prev.cashSprites) {
+        if (cash.y >= GROUND_Y - CASH_HEIGHT - 20) { // Only consider cash near ground
+          const alignment = checkAlignment(fallingCash, cash);
+          if (alignment > bestAlignment) {
+            bestAlignment = alignment;
+            targetCash = cash;
+          }
         }
       }
-    }
-    
-    if (targetCash && bestAlignment > 0.3) { // Minimum 30% alignment to stack
-      // Stack the cash
-      const points = Math.floor(bestAlignment * 50); // Up to 50 points for perfect alignment
       
-      if (bestAlignment > 0.8) { // Perfect stack
-        playSuccessChime();
-        setGameData(prev => ({
-          ...prev,
-          score: prev.score + points + 25, // Bonus for perfect
-          perfectStacks: prev.perfectStacks + 1,
-          totalStacks: prev.totalStacks + 1,
-          cashSprites: prev.cashSprites.map(c => 
-            c.id === targetCash!.id 
-              ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
-              : c
-          )
-        }));
+      if (targetCash && bestAlignment > 0.3) { // Minimum 30% alignment to stack
+        // Stack the cash
+        const points = Math.floor(bestAlignment * 50); // Up to 50 points for perfect alignment
+        
+        if (bestAlignment > 0.8) { // Perfect stack
+          playSuccessChime();
+          return {
+            ...prev,
+            score: prev.score + points + 25, // Bonus for perfect
+            perfectStacks: prev.perfectStacks + 1,
+            totalStacks: prev.totalStacks + 1,
+            cashSprites: prev.cashSprites.map(c => 
+              c.id === targetCash!.id 
+                ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
+                : c
+            ),
+            currentCash: generateFallingCash(),
+            dropTimer: 0,
+            maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10)
+          };
+        } else {
+          playCoinsFalling();
+          return {
+            ...prev,
+            score: prev.score + points,
+            totalStacks: prev.totalStacks + 1,
+            cashSprites: prev.cashSprites.map(c => 
+              c.id === targetCash!.id 
+                ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
+                : c
+            ),
+            currentCash: generateFallingCash(),
+            dropTimer: 0,
+            maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10)
+          };
+        }
       } else {
-        playCoinsFalling();
-        setGameData(prev => ({
+        // Miss - cut the cash and make it smaller
+        playErrorBuzz();
+        const cutAmount = 0.2 + Math.random() * 0.3; // Cut 20-50%
+        const newCash = {
+          ...fallingCash,
+          isCut: true,
+          cutAmount: cutAmount,
+          width: fallingCash.width * (1 - cutAmount),
+          isFalling: false
+        };
+        
+        return {
           ...prev,
-          score: prev.score + points,
-          totalStacks: prev.totalStacks + 1,
-          cashSprites: prev.cashSprites.map(c => 
-            c.id === targetCash!.id 
-              ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
-              : c
-          )
-        }));
+          cashSprites: [...prev.cashSprites, newCash],
+          currentCash: generateFallingCash(),
+          dropTimer: 0,
+          maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10)
+        };
       }
-    } else {
-      // Miss - cut the cash and make it smaller
-      playErrorBuzz();
-      const cutAmount = 0.2 + Math.random() * 0.3; // Cut 20-50%
-      const newCash = {
-        ...fallingCash,
-        isCut: true,
-        cutAmount: cutAmount,
-        width: fallingCash.width * (1 - cutAmount),
-        isFalling: false
-      };
-      
-      setGameData(prev => ({
-        ...prev,
-        cashSprites: [...prev.cashSprites, newCash]
-      }));
-    }
-    
-    // Generate new falling cash
-    setGameData(prev => ({
-      ...prev,
-      currentCash: generateFallingCash(),
-      dropTimer: 0,
-      maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10) // Faster drops with difficulty
-    }));
-  }, [gameData.currentCash, gameData.cashSprites, generateFallingCash]);
+    });
+  }, [generateFallingCash]);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
@@ -219,7 +222,55 @@ export default function CashStackGame({
         
         // Auto-drop if it reaches the ground
         if (newState.currentCash.y >= GROUND_Y - CASH_HEIGHT) {
-          handleCashDrop();
+          // Auto-drop logic (same as handleCashDrop but inline)
+          const fallingCash = newState.currentCash;
+          let bestAlignment = 0;
+          let targetCash: CashSprite | null = null;
+          
+          // Find the best target cash sprite to stack on
+          for (const cash of newState.cashSprites) {
+            if (cash.y >= GROUND_Y - CASH_HEIGHT - 20) {
+              const alignment = checkAlignment(fallingCash, cash);
+              if (alignment > bestAlignment) {
+                bestAlignment = alignment;
+                targetCash = cash;
+              }
+            }
+          }
+          
+          if (targetCash && bestAlignment > 0.3) {
+            const points = Math.floor(bestAlignment * 50);
+            if (bestAlignment > 0.8) {
+              playSuccessChime();
+              newState.score += points + 25;
+              newState.perfectStacks += 1;
+            } else {
+              playCoinsFalling();
+              newState.score += points;
+            }
+            newState.totalStacks += 1;
+            newState.cashSprites = newState.cashSprites.map(c => 
+              c.id === targetCash!.id 
+                ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
+                : c
+            );
+          } else {
+            playErrorBuzz();
+            const cutAmount = 0.2 + Math.random() * 0.3;
+            const newCash = {
+              ...fallingCash,
+              isCut: true,
+              cutAmount: cutAmount,
+              width: fallingCash.width * (1 - cutAmount),
+              isFalling: false
+            };
+            newState.cashSprites.push(newCash);
+          }
+          
+          // Generate new falling cash
+          newState.currentCash = generateFallingCash();
+          newState.dropTimer = 0;
+          newState.maxDropTimer = Math.max(50, 100 - newState.difficultyLevel * 10);
         }
       }
       
@@ -241,6 +292,12 @@ export default function CashStackGame({
         return newCash;
       });
       
+      // Debug logging
+      if (newState.cashSprites.length > 0) {
+        console.log('🎮 [CashStack] Cash sprites:', newState.cashSprites.length, 'Current cash:', !!newState.currentCash);
+        console.log('🎮 [CashStack] First cash position:', newState.cashSprites[0]?.x, newState.cashSprites[0]?.y, 'Speed:', newState.cashSprites[0]?.speed);
+      }
+      
       // Update drop timer
       newState.dropTimer++;
       
@@ -255,7 +312,7 @@ export default function CashStackGame({
     });
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, gameData.gameOver, handleCashDrop]);
+  }, [gameState, gameData.gameOver, generateCashSprite]);
 
   // Start game
   const handleStartGame = () => {
@@ -304,8 +361,11 @@ export default function CashStackGame({
   };
 
   // Handle click/tap to drop cash
-  const handleClick = useCallback(() => {
-    if (gameState === 'playing' && gameData.currentCash) {
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('🎮 [CashStack] Click detected, gameState:', gameState);
+    if (gameState === 'playing') {
+      console.log('🎮 [CashStack] Dropping cash, currentCash exists:', !!gameData.currentCash);
       handleCashDrop();
     }
   }, [gameState, gameData.currentCash, handleCashDrop]);
@@ -582,13 +642,15 @@ export default function CashStackGame({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50" onClick={handleClick}>
+    <div className="fixed inset-0 bg-black z-50">
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
         className="w-full h-full object-contain cursor-pointer"
         style={{ imageRendering: 'pixelated' }}
+        onClick={handleClick}
+        onTouchEnd={handleClick}
       />
     </div>
   );

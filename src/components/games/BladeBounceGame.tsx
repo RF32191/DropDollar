@@ -164,10 +164,10 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   // Game constants
   const CANVAS_WIDTH = 800;
   const CANVAS_HEIGHT = 600;
-  const SWORD_LENGTH = 60;
-  const SWORD_WIDTH = 8;
-  const SWORD_HILT_LENGTH = 20;
-  const SWORD_HILT_WIDTH = 12;
+  const SWORD_LENGTH = 80; // Increased from 60
+  const SWORD_WIDTH = 12; // Increased from 8
+  const SWORD_HILT_LENGTH = 30; // Increased from 20
+  const SWORD_HILT_WIDTH = 18; // Increased from 12
   const OBSTACLE_SPEED = 2;
   const ENEMY_SPEED = 1.5;
   const PARTICLE_LIFE = 30;
@@ -797,8 +797,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       // Draw sword image with glow effect
       ctx.shadowColor = 'rgba(200, 200, 255, 0.5)';
       ctx.shadowBlur = 10;
-      const swordWidth = 40;
-      const swordHeight = 80;
+      const swordWidth = 60; // Increased from 40
+      const swordHeight = 120; // Increased from 80
       ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
       ctx.shadowBlur = 0;
       
