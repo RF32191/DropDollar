@@ -171,6 +171,9 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const OBSTACLE_SPEED = 2;
   const ENEMY_SPEED = 1.5;
   const PARTICLE_LIFE = 30;
+  
+  // Death zone alternation
+  const [deathZoneSide, setDeathZoneSide] = useState<'tip' | 'handle'>('tip');
 
   // Initialize game
   const initGame = useCallback(() => {
@@ -1266,6 +1269,17 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       document.body.style.width = '';
       document.body.style.height = '';
     };
+  }, [gameState]);
+
+  // Alternate death zone every 10 seconds
+  useEffect(() => {
+    if (gameState === 'playing') {
+      const interval = setInterval(() => {
+        setDeathZoneSide(prev => prev === 'tip' ? 'handle' : 'tip');
+      }, 10000); // 10 seconds
+      
+      return () => clearInterval(interval);
+    }
   }, [gameState]);
 
   // Cleanup effect to stop game loop on unmount

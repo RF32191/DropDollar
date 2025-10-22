@@ -18,8 +18,8 @@ interface Pillar {
   y: number;
   width: number;
   height: number;
-  number: number;
   isDestroyed: boolean;
+  circles: SpawnCircle[];
 }
 
 interface SpawnCircle {
@@ -28,7 +28,7 @@ interface SpawnCircle {
   y: number;
   number: number;
   isActive: boolean;
-  clickOrder: number;
+  pillarId: number;
 }
 
 interface GameState {
@@ -36,7 +36,6 @@ interface GameState {
   level: number;
   blocks: Block[];
   pillars: Pillar[];
-  spawnCircles: SpawnCircle[];
   gameOver: boolean;
   gameStarted: boolean;
   perfectStacks: number;
@@ -44,7 +43,6 @@ interface GameState {
   gameStartTime: number;
   difficultyLevel: number;
   grabbedBlock: Block | null;
-  nextClickOrder: number;
 }
 
 const CANVAS_WIDTH = window.innerWidth;
@@ -70,15 +68,13 @@ export default function CashStackGame({
     level: 1,
     blocks: [],
     pillars: [],
-    spawnCircles: [],
     gameOver: false,
     gameStarted: false,
     perfectStacks: 0,
     totalStacks: 0,
     gameStartTime: 0,
     difficultyLevel: 1,
-    grabbedBlock: null,
-    nextClickOrder: 1
+    grabbedBlock: null
   });
   const [countdown, setCountdown] = useState(3);
   const [showCountdown, setShowCountdown] = useState(false);
@@ -98,30 +94,51 @@ export default function CashStackGame({
     };
   }, []);
 
-  // Generate pillar
+  // Generate pillar with 3 circles
   const generatePillar = useCallback((): Pillar => {
+    const pillarId = Date.now() + Math.random();
+    const x = Math.random() * (CANVAS_WIDTH - PILLAR_WIDTH);
+    const y = Math.random() * (CANVAS_HEIGHT - PILLAR_HEIGHT);
+    
+    // Create 3 circles for this pillar
+    const circles: SpawnCircle[] = [
+      {
+        id: pillarId + 1,
+        x: x + 10,
+        y: y + 10,
+        number: 1,
+        isActive: true,
+        pillarId: pillarId
+      },
+      {
+        id: pillarId + 2,
+        x: x + PILLAR_WIDTH - 40,
+        y: y + 10,
+        number: 2,
+        isActive: true,
+        pillarId: pillarId
+      },
+      {
+        id: pillarId + 3,
+        x: x + PILLAR_WIDTH/2 - 15,
+        y: y + PILLAR_HEIGHT - 40,
+        number: 3,
+        isActive: true,
+        pillarId: pillarId
+      }
+    ];
+    
     return {
-      id: Date.now() + Math.random(),
-      x: Math.random() * (CANVAS_WIDTH - PILLAR_WIDTH),
-      y: CANVAS_HEIGHT - PILLAR_HEIGHT,
+      id: pillarId,
+      x: x,
+      y: y,
       width: PILLAR_WIDTH,
       height: PILLAR_HEIGHT,
-      number: Math.floor(Math.random() * 5) + 1,
-      isDestroyed: false
+      isDestroyed: false,
+      circles: circles
     };
   }, []);
 
-  // Generate spawn circle
-  const generateSpawnCircle = useCallback((): SpawnCircle => {
-    return {
-      id: Date.now() + Math.random(),
-      x: Math.random() * (CANVAS_WIDTH - SPAWN_CIRCLE_SIZE),
-      y: Math.random() * (CANVAS_HEIGHT - SPAWN_CIRCLE_SIZE),
-      number: Math.floor(Math.random() * 5) + 1,
-      isActive: true,
-      clickOrder: 0
-    };
-  }, []);
 
   // Check if block can stack on another block of same color
   const canStack = (block1: Block, block2: Block): boolean => {
@@ -182,28 +199,41 @@ export default function CashStackGame({
     setGameData(prev => {
       const newState = { ...prev };
       
-      if (circle.number === newState.nextClickOrder) {
-        // Correct order - destroy pillar
-        newState.pillars = newState.pillars.map(pillar => 
-          pillar.number === circle.number 
-            ? { ...pillar, isDestroyed: true }
-            : pillar
-        );
-        
-        newState.spawnCircles = newState.spawnCircles.map(c => 
-          c.id === circle.id 
-            ? { ...c, isActive: false }
-            : c
-        );
-        
-        newState.nextClickOrder += 1;
-        newState.score += 50;
+      // Find the pillar this circle belongs to
+      const pillar = newState.pillars.find(p => p.id === circle.pillarId);
+      if (!pillar) return newState;
+      
+      // Mark this circle as inactive
+      const updatedPillar = {
+        ...pillar,
+        circles: pillar.circles.map(c => 
+          c.id === circle.id ? { ...c, isActive: false } : c
+        )
+      };
+      
+      // Check if all circles in this pillar are clicked
+      const allCirclesClicked = updatedPillar.circles.every(c => !c.isActive);
+      
+      if (allCirclesClicked) {
+        // Destroy the pillar and make blocks fall slowly
+        updatedPillar.isDestroyed = true;
+        newState.score += 100; // Bonus for completing a pillar
         playSuccessChime();
+        
+        // Make blocks fall slowly when pillar is destroyed
+        newState.blocks = newState.blocks.map(block => ({
+          ...block,
+          isFalling: true
+        }));
       } else {
-        // Wrong order - penalty
-        newState.score = Math.max(0, newState.score - 25);
-        playErrorBuzz();
+        newState.score += 25; // Points for each circle clicked
+        playCoinsFalling();
       }
+      
+      // Update the pillar
+      newState.pillars = newState.pillars.map(p => 
+        p.id === pillar.id ? updatedPillar : p
+      );
       
       return newState;
     });
@@ -271,10 +301,6 @@ export default function CashStackGame({
         newState.pillars.push(generatePillar());
       }
       
-      // Spawn new spawn circles
-      if (Math.random() < 0.005) {
-        newState.spawnCircles.push(generateSpawnCircle());
-      }
       
       // Level up based on score
       const newLevel = Math.floor(newState.score / 100) + 1;
@@ -287,7 +313,7 @@ export default function CashStackGame({
     });
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, gameData.gameOver, generateBlock, generatePillar, generateSpawnCircle]);
+  }, [gameState, gameData.gameOver, generateBlock, generatePillar]);
 
   // Start game
   const handleStartGame = () => {
@@ -306,9 +332,7 @@ export default function CashStackGame({
             gameStartTime: Date.now(),
             difficultyLevel: 1,
             blocks: [generateBlock()],
-            pillars: [generatePillar()],
-            spawnCircles: [generateSpawnCircle()],
-            nextClickOrder: 1
+            pillars: [generatePillar()]
           }));
           lastTimeRef.current = performance.now();
           gameLoopRef.current = requestAnimationFrame(gameLoop);
@@ -382,16 +406,18 @@ export default function CashStackGame({
     }
     
     // Check if clicking on a spawn circle
-    const clickedCircle = gameData.spawnCircles.find(circle => 
-      circle.isActive &&
-      mouseX >= circle.x && mouseX <= circle.x + SPAWN_CIRCLE_SIZE &&
-      mouseY >= circle.y && mouseY <= circle.y + SPAWN_CIRCLE_SIZE
-    );
+    const clickedCircle = gameData.pillars
+      .flatMap(pillar => pillar.circles)
+      .find(circle => 
+        circle.isActive &&
+        mouseX >= circle.x && mouseX <= circle.x + SPAWN_CIRCLE_SIZE &&
+        mouseY >= circle.y && mouseY <= circle.y + SPAWN_CIRCLE_SIZE
+      );
     
     if (clickedCircle) {
       handleSpawnCircleClick(clickedCircle);
     }
-  }, [gameState, gameData.blocks, gameData.spawnCircles, handleSpawnCircleClick]);
+  }, [gameState, gameData.blocks, gameData.pillars, handleSpawnCircleClick]);
 
   const handleMouseUp = useCallback(() => {
     if (gameState !== 'playing' || !gameData.grabbedBlock) return;
@@ -432,28 +458,46 @@ export default function CashStackGame({
     gameData.blocks.forEach(block => {
       ctx.save();
       
-      // Set color based on block type
-      let blockColor: string;
+      // Set shiny chrome colors based on block type
+      let blockGradient: CanvasGradient;
       switch (block.color) {
         case 'gold':
-          blockColor = '#FFD700';
+          blockGradient = ctx.createLinearGradient(block.x, block.y, block.x + BLOCK_SIZE, block.y + BLOCK_SIZE);
+          blockGradient.addColorStop(0, '#FFD700');
+          blockGradient.addColorStop(0.2, '#FFA500');
+          blockGradient.addColorStop(0.4, '#FFD700');
+          blockGradient.addColorStop(0.6, '#FFA500');
+          blockGradient.addColorStop(0.8, '#FFD700');
+          blockGradient.addColorStop(1, '#B8860B');
           break;
         case 'silver':
-          blockColor = '#C0C0C0';
+          blockGradient = ctx.createLinearGradient(block.x, block.y, block.x + BLOCK_SIZE, block.y + BLOCK_SIZE);
+          blockGradient.addColorStop(0, '#E6E6FA');
+          blockGradient.addColorStop(0.2, '#C0C0C0');
+          blockGradient.addColorStop(0.4, '#E6E6FA');
+          blockGradient.addColorStop(0.6, '#C0C0C0');
+          blockGradient.addColorStop(0.8, '#E6E6FA');
+          blockGradient.addColorStop(1, '#A0A0A0');
           break;
         case 'bronze':
-          blockColor = '#CD7F32';
+          blockGradient = ctx.createLinearGradient(block.x, block.y, block.x + BLOCK_SIZE, block.y + BLOCK_SIZE);
+          blockGradient.addColorStop(0, '#CD7F32');
+          blockGradient.addColorStop(0.2, '#B8860B');
+          blockGradient.addColorStop(0.4, '#CD7F32');
+          blockGradient.addColorStop(0.6, '#B8860B');
+          blockGradient.addColorStop(0.8, '#CD7F32');
+          blockGradient.addColorStop(1, '#8B4513');
           break;
       }
       
-      // Draw block with 3D effect
-      const blockGradient = ctx.createLinearGradient(block.x, block.y, block.x + BLOCK_SIZE, block.y + BLOCK_SIZE);
-      blockGradient.addColorStop(0, blockColor);
-      blockGradient.addColorStop(0.5, blockColor);
-      blockGradient.addColorStop(1, '#8B4513');
-      
+      // Draw block with shiny chrome effect
       ctx.fillStyle = blockGradient;
       ctx.fillRect(block.x, block.y, BLOCK_SIZE, BLOCK_SIZE);
+      
+      // Add reflective highlights
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fillRect(block.x + 2, block.y + 2, BLOCK_SIZE/3, BLOCK_SIZE/3);
+      ctx.fillRect(block.x + BLOCK_SIZE/2, block.y + BLOCK_SIZE/2, BLOCK_SIZE/4, BLOCK_SIZE/4);
       
       // Add block border
       ctx.strokeStyle = '#8B4513';
@@ -576,14 +620,14 @@ export default function CashStackGame({
     ctx.fillText(`Level: ${gameData.level}`, 20, 70);
     ctx.fillText(`Perfect Stacks: ${gameData.perfectStacks}`, 20, 100);
     ctx.fillText(`Total Stacks: ${gameData.totalStacks}`, 20, 130);
-    ctx.fillText(`Next Click: ${gameData.nextClickOrder}`, 20, 160);
+    ctx.fillText(`Difficulty: Level ${gameData.difficultyLevel}`, 20, 160);
     
     // Draw instructions
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'left';
     ctx.fillText('Drag blocks to stack same colors!', CANVAS_WIDTH - 300, 40);
-    ctx.fillText('Click spawn circles in order!', CANVAS_WIDTH - 300, 70);
+    ctx.fillText('Click all 3 circles to destroy pillars!', CANVAS_WIDTH - 300, 70);
   };
 
   // Start render loop
@@ -678,7 +722,7 @@ export default function CashStackGame({
               <p><span className="font-bold text-green-300">🎮 How to Play:</span></p>
               <ul className="list-disc list-inside ml-4 space-y-2">
                 <li>Drag blocks to stack same colors (Gold with Gold, Silver with Silver, Bronze with Bronze)</li>
-                <li>Click spawn circles in numerical order (1, 2, 3, 4, 5) to destroy pillars</li>
+                <li>Click all 3 circles on each pillar to destroy it</li>
                 <li>Perfect alignment gives bonus points</li>
                 <li>Wrong order clicking gives penalties</li>
                 <li>Build the highest stacks possible!</li>
@@ -687,7 +731,8 @@ export default function CashStackGame({
               <ul className="list-disc list-inside ml-4 space-y-1">
                 <li>Stacking same colors: 10 points</li>
                 <li>Perfect alignment: +20 bonus</li>
-                <li>Destroying pillars in order: 50 points</li>
+                <li>Destroying pillars: 100 points</li>
+                <li>Each circle clicked: 25 points</li>
                 <li>Wrong order: -25 penalty</li>
                 <li>Level up every 100 points</li>
               </ul>
