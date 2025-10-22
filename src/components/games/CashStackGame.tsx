@@ -7,44 +7,36 @@ interface CashSprite {
   id: number;
   x: number;
   y: number;
-  rotation: number;
-  scale: number;
+  width: number;
+  height: number;
   speed: number;
-  stackedCoins: number; // Number of coins stacked
-  isExploding: boolean;
-  explosionTime: number;
-}
-
-interface Coin {
-  id: number;
-  x: number;
-  y: number;
-  rotation: number;
-  scale: number;
-  speed: number;
-  isStacked: boolean;
-  targetCashId?: number;
+  stackedCash: CashSprite[]; // Cash stacked on this cash sprite
+  isFalling: boolean;
+  isCut: boolean;
+  cutAmount: number; // How much was cut off (0-1)
 }
 
 interface GameState {
   score: number;
   level: number;
   cashSprites: CashSprite[];
-  coins: Coin[];
   gameOver: boolean;
   gameStarted: boolean;
   perfectStacks: number;
   totalStacks: number;
   gameStartTime: number;
   difficultyLevel: number;
+  currentCash: CashSprite | null;
+  dropTimer: number;
+  maxDropTimer: number;
 }
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
-const CASH_SIZE = 80;
-const COIN_SIZE = 30;
-const STACK_ZONE_WIDTH = 100;
-const STACK_ZONE_HEIGHT = 20;
+const CASH_WIDTH = 100;
+const CASH_HEIGHT = 20;
+const GROUND_Y = CANVAS_HEIGHT - 50;
+const DROP_ZONE_HEIGHT = 50;
 
 export default function CashStackGame({ 
   onGameEnd, 
@@ -61,115 +53,139 @@ export default function CashStackGame({
     score: 0,
     level: 1,
     cashSprites: [],
-    coins: [],
     gameOver: false,
     gameStarted: false,
     perfectStacks: 0,
     totalStacks: 0,
     gameStartTime: 0,
-    difficultyLevel: 1
+    difficultyLevel: 1,
+    currentCash: null,
+    dropTimer: 0,
+    maxDropTimer: 100
   });
   const [countdown, setCountdown] = useState(3);
   const [showCountdown, setShowCountdown] = useState(false);
 
   console.log('🎮 CashStackGame: Component mounted, gameState:', gameState);
 
-  // Generate random cash sprite
-  const generateCashSprite = useCallback((difficultyLevel: number = 1): CashSprite => {
-    const baseSpeed = 1 + Math.random() * 2; // Random base speed 1-3
-    const speedVariation = difficultyLevel * 0.5; // Speed increases with difficulty
-    
+  // Generate new cash sprite
+  const generateCashSprite = useCallback((): CashSprite => {
     return {
       id: Date.now() + Math.random(),
-      x: Math.random() * (CANVAS_WIDTH - CASH_SIZE),
-      y: -CASH_SIZE,
-      rotation: Math.random() * Math.PI * 2,
-      scale: 0.8 + Math.random() * 0.4, // Random scale 0.8-1.2
-      speed: baseSpeed + speedVariation,
-      stackedCoins: 0,
-      isExploding: false,
-      explosionTime: 0
+      x: Math.random() * (CANVAS_WIDTH - CASH_WIDTH),
+      y: GROUND_Y - CASH_HEIGHT,
+      width: CASH_WIDTH,
+      height: CASH_HEIGHT,
+      speed: 1 + Math.random() * 2, // Random speed 1-3
+      stackedCash: [],
+      isFalling: false,
+      isCut: false,
+      cutAmount: 0
     };
   }, []);
 
-  // Generate coin
-  const generateCoin = useCallback((): Coin => {
+  // Generate falling cash
+  const generateFallingCash = useCallback((): CashSprite => {
     return {
       id: Date.now() + Math.random(),
-      x: Math.random() * (CANVAS_WIDTH - COIN_SIZE),
-      y: -COIN_SIZE,
-      rotation: Math.random() * Math.PI * 2,
-      scale: 0.9 + Math.random() * 0.2,
-      speed: 2 + Math.random() * 3, // Faster than cash
-      isStacked: false
+      x: CANVAS_WIDTH / 2 - CASH_WIDTH / 2, // Start in center
+      y: 0,
+      width: CASH_WIDTH,
+      height: CASH_HEIGHT,
+      speed: 0, // No horizontal movement when falling
+      stackedCash: [],
+      isFalling: true,
+      isCut: false,
+      cutAmount: 0
     };
   }, []);
 
-  // Check if coin is in stack zone
-  const isInStackZone = (coin: Coin, cash: CashSprite): boolean => {
-    const stackZoneX = cash.x + (CASH_SIZE * cash.scale) / 2 - STACK_ZONE_WIDTH / 2;
-    const stackZoneY = cash.y + (CASH_SIZE * cash.scale) - STACK_ZONE_HEIGHT;
+  // Check alignment between falling cash and target cash
+  const checkAlignment = (fallingCash: CashSprite, targetCash: CashSprite): number => {
+    const fallingCenter = fallingCash.x + fallingCash.width / 2;
+    const targetCenter = targetCash.x + targetCash.width / 2;
+    const distance = Math.abs(fallingCenter - targetCenter);
+    const maxDistance = targetCash.width / 2;
     
-    return coin.x + COIN_SIZE > stackZoneX &&
-           coin.x < stackZoneX + STACK_ZONE_WIDTH &&
-           coin.y + COIN_SIZE > stackZoneY &&
-           coin.y < stackZoneY + STACK_ZONE_HEIGHT;
+    // Return alignment percentage (0-1, where 1 is perfect)
+    return Math.max(0, 1 - (distance / maxDistance));
   };
 
-  // Check if coin is perfectly stacked
-  const isPerfectStack = (coin: Coin, cash: CashSprite): boolean => {
-    const centerX = cash.x + (CASH_SIZE * cash.scale) / 2;
-    const centerY = cash.y + (CASH_SIZE * cash.scale);
-    const coinCenterX = coin.x + COIN_SIZE / 2;
-    const coinCenterY = coin.y + COIN_SIZE / 2;
+  // Handle cash drop
+  const handleCashDrop = useCallback(() => {
+    if (!gameData.currentCash) return;
     
-    const distanceFromCenter = Math.sqrt(
-      Math.pow(coinCenterX - centerX, 2) + Math.pow(coinCenterY - centerY, 2)
-    );
+    const fallingCash = gameData.currentCash;
+    let bestAlignment = 0;
+    let targetCash: CashSprite | null = null;
     
-    return distanceFromCenter < 15; // Perfect stack within 15 pixels of center
-  };
-
-  // Handle coin stacking
-  const handleCoinStack = useCallback((coin: Coin, cash: CashSprite) => {
-    const isPerfect = isPerfectStack(coin, cash);
+    // Find the best target cash sprite to stack on
+    for (const cash of gameData.cashSprites) {
+      if (cash.y >= GROUND_Y - CASH_HEIGHT - 20) { // Only consider cash near ground
+        const alignment = checkAlignment(fallingCash, cash);
+        if (alignment > bestAlignment) {
+          bestAlignment = alignment;
+          targetCash = cash;
+        }
+      }
+    }
     
-    let points = 10; // Base points
-    
-    if (isPerfect) {
-      points += 20; // Bonus for perfect stack
-      playSuccessChime();
+    if (targetCash && bestAlignment > 0.3) { // Minimum 30% alignment to stack
+      // Stack the cash
+      const points = Math.floor(bestAlignment * 50); // Up to 50 points for perfect alignment
       
-      // Explode cash sprite
-      setGameData(prev => ({
-        ...prev,
-        cashSprites: prev.cashSprites.map(c => 
-          c.id === cash.id 
-            ? { ...c, isExploding: true, explosionTime: Date.now(), stackedCoins: c.stackedCoins + 1 }
-            : c
-        ),
-        perfectStacks: prev.perfectStacks + 1
-      }));
+      if (bestAlignment > 0.8) { // Perfect stack
+        playSuccessChime();
+        setGameData(prev => ({
+          ...prev,
+          score: prev.score + points + 25, // Bonus for perfect
+          perfectStacks: prev.perfectStacks + 1,
+          totalStacks: prev.totalStacks + 1,
+          cashSprites: prev.cashSprites.map(c => 
+            c.id === targetCash!.id 
+              ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
+              : c
+          )
+        }));
+      } else {
+        playCoinsFalling();
+        setGameData(prev => ({
+          ...prev,
+          score: prev.score + points,
+          totalStacks: prev.totalStacks + 1,
+          cashSprites: prev.cashSprites.map(c => 
+            c.id === targetCash!.id 
+              ? { ...c, stackedCash: [...c.stackedCash, fallingCash] }
+              : c
+          )
+        }));
+      }
     } else {
-      playCoinsFalling();
+      // Miss - cut the cash and make it smaller
+      playErrorBuzz();
+      const cutAmount = 0.2 + Math.random() * 0.3; // Cut 20-50%
+      const newCash = {
+        ...fallingCash,
+        isCut: true,
+        cutAmount: cutAmount,
+        width: fallingCash.width * (1 - cutAmount),
+        isFalling: false
+      };
       
-      // Add coin to stack
       setGameData(prev => ({
         ...prev,
-        cashSprites: prev.cashSprites.map(c => 
-          c.id === cash.id 
-            ? { ...c, stackedCoins: c.stackedCoins + 1 }
-            : c
-        )
+        cashSprites: [...prev.cashSprites, newCash]
       }));
     }
     
+    // Generate new falling cash
     setGameData(prev => ({
       ...prev,
-      score: prev.score + points,
-      totalStacks: prev.totalStacks + 1
+      currentCash: generateFallingCash(),
+      dropTimer: 0,
+      maxDropTimer: Math.max(50, 100 - prev.difficultyLevel * 10) // Faster drops with difficulty
     }));
-  }, []);
+  }, [gameData.currentCash, gameData.cashSprites, generateFallingCash]);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
@@ -197,77 +213,36 @@ export default function CashStackGame({
         console.log(`🎮 [CashStack] Difficulty increased to level ${newDifficultyLevel}`);
       }
       
-      // Update cash sprites
+      // Update falling cash position
+      if (newState.currentCash) {
+        newState.currentCash.y += 3; // Fall speed
+        
+        // Auto-drop if it reaches the ground
+        if (newState.currentCash.y >= GROUND_Y - CASH_HEIGHT) {
+          handleCashDrop();
+        }
+      }
+      
+      // Update cash sprites (move horizontally)
       newState.cashSprites = newState.cashSprites.map(cash => {
-        let newCash = { ...cash };
+        const newCash = { ...cash };
         
-        // Random speed variation
-        if (Math.random() < 0.01) { // 1% chance per frame
-          newCash.speed = Math.max(0.5, newCash.speed + (Math.random() - 0.5) * 2);
-        }
-        
-        // Random slowdown
-        if (Math.random() < 0.005) { // 0.5% chance per frame
-          newCash.speed = Math.max(0.5, newCash.speed * 0.7);
-        }
-        
-        // Move cash sprite
-        newCash.y += newCash.speed;
-        newCash.rotation += 0.02;
-        
-        // Reset if off screen
-        if (newCash.y > CANVAS_HEIGHT) {
-          newCash = generateCashSprite(newState.difficultyLevel);
-        }
-        
-        // Update explosion
-        if (newCash.isExploding) {
-          const explosionDuration = currentTime - newCash.explosionTime;
-          if (explosionDuration > 1000) { // 1 second explosion
-            newCash.isExploding = false;
-            newCash.explosionTime = 0;
-            newCash.stackedCoins = 0; // Reset stack after explosion
+        if (!newCash.isFalling) {
+          // Move horizontally
+          newCash.x += newCash.speed;
+          
+          // Bounce off walls
+          if (newCash.x <= 0 || newCash.x + newCash.width >= CANVAS_WIDTH) {
+            newCash.speed = -newCash.speed;
+            newCash.x = Math.max(0, Math.min(CANVAS_WIDTH - newCash.width, newCash.x));
           }
         }
         
         return newCash;
       });
       
-      // Update coins
-      newState.coins = newState.coins.map(coin => {
-        const newCoin = { ...coin };
-        newCoin.y += newCoin.speed;
-        newCoin.rotation += 0.05;
-        
-        // Check for stacking
-        if (!newCoin.isStacked) {
-          for (const cash of newState.cashSprites) {
-            if (isInStackZone(newCoin, cash)) {
-              newCoin.isStacked = true;
-              newCoin.targetCashId = cash.id;
-              handleCoinStack(newCoin, cash);
-              break;
-            }
-          }
-        }
-        
-        // Remove coins that are off screen or stacked
-        if (newCoin.y > CANVAS_HEIGHT || newCoin.isStacked) {
-          return null;
-        }
-        
-        return newCoin;
-      }).filter(coin => coin !== null) as Coin[];
-      
-      // Spawn new cash sprites
-      if (Math.random() < 0.02) { // 2% chance per frame
-        newState.cashSprites.push(generateCashSprite(newState.difficultyLevel));
-      }
-      
-      // Spawn new coins
-      if (Math.random() < 0.03) { // 3% chance per frame
-        newState.coins.push(generateCoin());
-      }
+      // Update drop timer
+      newState.dropTimer++;
       
       // Level up based on score
       const newLevel = Math.floor(newState.score / 100) + 1;
@@ -280,7 +255,7 @@ export default function CashStackGame({
     });
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, gameData.gameOver, generateCashSprite, generateCoin, handleCoinStack]);
+  }, [gameState, gameData.gameOver, handleCashDrop]);
 
   // Start game
   const handleStartGame = () => {
@@ -298,8 +273,10 @@ export default function CashStackGame({
             gameStarted: true,
             gameStartTime: Date.now(),
             difficultyLevel: 1,
-            cashSprites: [generateCashSprite(1)],
-            coins: []
+            cashSprites: [generateCashSprite()],
+            currentCash: generateFallingCash(),
+            dropTimer: 0,
+            maxDropTimer: 100
           }));
           lastTimeRef.current = performance.now();
           gameLoopRef.current = requestAnimationFrame(gameLoop);
@@ -326,6 +303,13 @@ export default function CashStackGame({
     onGameEnd({ score: gameData.score, accuracy });
   };
 
+  // Handle click/tap to drop cash
+  const handleClick = useCallback(() => {
+    if (gameState === 'playing' && gameData.currentCash) {
+      handleCashDrop();
+    }
+  }, [gameState, gameData.currentCash, handleCashDrop]);
+
   // Render game
   const render = () => {
     const canvas = canvasRef.current;
@@ -344,190 +328,133 @@ export default function CashStackGame({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
+    // Draw ground
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
+    
+    // Draw drop zone indicator
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(0, GROUND_Y - DROP_ZONE_HEIGHT, CANVAS_WIDTH, DROP_ZONE_HEIGHT);
+    
     // Draw cash sprites
     gameData.cashSprites.forEach(cash => {
       ctx.save();
-      ctx.translate(cash.x + CASH_SIZE/2, cash.y + CASH_SIZE/2);
-      ctx.rotate(cash.rotation);
-      ctx.scale(cash.scale, cash.scale);
       
-      // Draw 3D cash effect
-      if (cash.isExploding) {
-        // Explosion effect
-        const explosionGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 50);
-        explosionGradient.addColorStop(0, '#FFD700');
-        explosionGradient.addColorStop(0.5, '#FFA500');
-        explosionGradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = explosionGradient;
-        ctx.fillRect(-50, -50, 100, 100);
-      }
-      
-      // Draw cash sprite (enhanced 3D effect)
-      const cashGradient = ctx.createLinearGradient(-CASH_SIZE/2, -CASH_SIZE/2, CASH_SIZE/2, CASH_SIZE/2);
+      // Draw main cash sprite
+      const cashGradient = ctx.createLinearGradient(cash.x, cash.y, cash.x + cash.width, cash.y + cash.height);
       cashGradient.addColorStop(0, '#FFD700');
-      cashGradient.addColorStop(0.3, '#FFA500');
-      cashGradient.addColorStop(0.7, '#FF8C00');
-      cashGradient.addColorStop(1, '#FF6B00');
+      cashGradient.addColorStop(0.5, '#FFA500');
+      cashGradient.addColorStop(1, '#FF8C00');
       
-      // Draw 3D cash stack base with depth
       ctx.fillStyle = cashGradient;
-      ctx.fillRect(-CASH_SIZE/2, -CASH_SIZE/2, CASH_SIZE, CASH_SIZE);
+      ctx.fillRect(cash.x, cash.y, cash.width, cash.height);
       
-      // Add 3D depth effect
-      const depthGradient = ctx.createLinearGradient(-CASH_SIZE/2, -CASH_SIZE/2, CASH_SIZE/2, CASH_SIZE/2);
-      depthGradient.addColorStop(0, '#FFA500');
-      depthGradient.addColorStop(0.5, '#FF8C00');
-      depthGradient.addColorStop(1, '#B8860B');
-      
-      ctx.fillStyle = depthGradient;
-      ctx.fillRect(-CASH_SIZE/2 + 2, -CASH_SIZE/2 + 2, CASH_SIZE - 4, CASH_SIZE - 4);
-      
-      // Add cash texture with 3D effect
+      // Add cash texture
       ctx.fillStyle = '#B8860B';
-      ctx.fillRect(-CASH_SIZE/2 + 8, -CASH_SIZE/2 + 8, CASH_SIZE - 16, CASH_SIZE - 16);
+      ctx.fillRect(cash.x + 2, cash.y + 2, cash.width - 4, cash.height - 4);
       
-      // Add inner highlight
+      // Add dollar sign
       ctx.fillStyle = '#FFD700';
-      ctx.fillRect(-CASH_SIZE/2 + 12, -CASH_SIZE/2 + 12, CASH_SIZE - 24, CASH_SIZE - 24);
-      
-      // Add dollar sign with 3D effect
-      ctx.fillStyle = '#FF8C00';
-      ctx.font = 'bold 28px Arial';
+      ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('$', 2, 2); // Shadow
+      ctx.fillText('$', cash.x + cash.width / 2, cash.y + cash.height / 2);
       
-      ctx.fillStyle = '#FFD700';
-      ctx.fillText('$', 0, 0); // Main text
-      
-      ctx.restore();
-      
-      // Draw stacked coins on this cash sprite
-      for (let i = 0; i < cash.stackedCoins; i++) {
-        ctx.save();
-        const stackHeight = i * (COIN_SIZE * 0.8); // Each coin takes up 80% of its size
-        const targetX = cash.x + (CASH_SIZE * cash.scale) / 2 - COIN_SIZE / 2;
-        const targetY = cash.y + (CASH_SIZE * cash.scale) - stackHeight - COIN_SIZE;
+      // Draw stacked cash
+      cash.stackedCash.forEach((stackedCash, index) => {
+        const stackY = cash.y - (index + 1) * CASH_HEIGHT;
         
-        ctx.translate(targetX + COIN_SIZE/2, targetY + COIN_SIZE/2);
-        ctx.rotate(cash.rotation);
-        ctx.scale(0.9, 0.9);
+        const stackGradient = ctx.createLinearGradient(stackedCash.x, stackY, stackedCash.x + stackedCash.width, stackY + stackedCash.height);
+        stackGradient.addColorStop(0, '#FFD700');
+        stackGradient.addColorStop(0.5, '#FFA500');
+        stackGradient.addColorStop(1, '#FF8C00');
         
-        // Draw stacked coin with enhanced 3D effect
-        const coinGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/2);
-        coinGradient.addColorStop(0, '#FFD700');
-        coinGradient.addColorStop(0.4, '#FFA500');
-        coinGradient.addColorStop(0.8, '#FF8C00');
-        coinGradient.addColorStop(1, '#B8860B');
+        ctx.fillStyle = stackGradient;
+        ctx.fillRect(stackedCash.x, stackY, stackedCash.width, stackedCash.height);
         
-        // Draw coin shadow for depth
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.beginPath();
-        ctx.arc(2, 2, COIN_SIZE/2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw main coin
-        ctx.fillStyle = coinGradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, COIN_SIZE/2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Add coin edge with 3D effect
-        ctx.strokeStyle = '#B8860B';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        
-        // Add inner coin edge
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(0, 0, COIN_SIZE/2 - 2, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Add coin center with 3D effect
-        const centerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/4);
-        centerGradient.addColorStop(0, '#FFD700');
-        centerGradient.addColorStop(1, '#FFA500');
-        
-        ctx.fillStyle = centerGradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, COIN_SIZE/4, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Add stack number indicator with 3D effect
+        // Add cash texture
         ctx.fillStyle = '#B8860B';
-        ctx.font = 'bold 14px Arial';
+        ctx.fillRect(stackedCash.x + 2, stackY + 2, stackedCash.width - 4, stackedCash.height - 4);
+        
+        // Add dollar sign
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 16px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${i + 1}`, 1, 1); // Shadow
+        ctx.fillText('$', stackedCash.x + stackedCash.width / 2, stackY + stackedCash.height / 2);
         
+        // Add stack number
         ctx.fillStyle = 'white';
-        ctx.fillText(`${i + 1}`, 0, 0); // Main text
-        
-        ctx.restore();
-      }
-    });
-    
-    // Draw coins
-    gameData.coins.forEach(coin => {
-      ctx.save();
-      ctx.translate(coin.x + COIN_SIZE/2, coin.y + COIN_SIZE/2);
-      ctx.rotate(coin.rotation);
-      ctx.scale(coin.scale, coin.scale);
-      
-      // Draw coin with enhanced 3D effect
-      const coinGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/2);
-      coinGradient.addColorStop(0, '#FFD700');
-      coinGradient.addColorStop(0.4, '#FFA500');
-      coinGradient.addColorStop(0.8, '#FF8C00');
-      coinGradient.addColorStop(1, '#B8860B');
-      
-      // Draw coin shadow for depth
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.beginPath();
-      ctx.arc(2, 2, COIN_SIZE/2, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Draw main coin
-      ctx.fillStyle = coinGradient;
-      ctx.beginPath();
-      ctx.arc(0, 0, COIN_SIZE/2, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Add coin edge with 3D effect
-      ctx.strokeStyle = '#B8860B';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      
-      // Add inner coin edge
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(0, 0, COIN_SIZE/2 - 2, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Add coin center with 3D effect
-      const centerGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/4);
-      centerGradient.addColorStop(0, '#FFD700');
-      centerGradient.addColorStop(1, '#FFA500');
-      
-      ctx.fillStyle = centerGradient;
-      ctx.beginPath();
-      ctx.arc(0, 0, COIN_SIZE/4, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText(`${index + 1}`, stackedCash.x + stackedCash.width / 2, stackY + stackedCash.height / 2 - 8);
+      });
       
       ctx.restore();
     });
+    
+    // Draw falling cash
+    if (gameData.currentCash) {
+      ctx.save();
+      
+      const fallingGradient = ctx.createLinearGradient(gameData.currentCash.x, gameData.currentCash.y, gameData.currentCash.x + gameData.currentCash.width, gameData.currentCash.y + gameData.currentCash.height);
+      fallingGradient.addColorStop(0, '#FFD700');
+      fallingGradient.addColorStop(0.5, '#FFA500');
+      fallingGradient.addColorStop(1, '#FF8C00');
+      
+      ctx.fillStyle = fallingGradient;
+      ctx.fillRect(gameData.currentCash.x, gameData.currentCash.y, gameData.currentCash.width, gameData.currentCash.height);
+      
+      // Add cash texture
+      ctx.fillStyle = '#B8860B';
+      ctx.fillRect(gameData.currentCash.x + 2, gameData.currentCash.y + 2, gameData.currentCash.width - 4, gameData.currentCash.height - 4);
+      
+      // Add dollar sign
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', gameData.currentCash.x + gameData.currentCash.width / 2, gameData.currentCash.y + gameData.currentCash.height / 2);
+      
+      // Add drop indicator
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText('DROP!', gameData.currentCash.x + gameData.currentCash.width / 2, gameData.currentCash.y - 10);
+      
+      ctx.restore();
+    }
     
     // Draw UI
     ctx.fillStyle = 'white';
     ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${gameData.score.toFixed(1)}`, 20, 40);
+    ctx.fillText(`Score: ${gameData.score}`, 20, 40);
     ctx.fillText(`Level: ${gameData.level}`, 20, 70);
     ctx.fillText(`Perfect Stacks: ${gameData.perfectStacks}`, 20, 100);
     ctx.fillText(`Total Stacks: ${gameData.totalStacks}`, 20, 130);
     ctx.fillText(`Difficulty: Level ${gameData.difficultyLevel}`, 20, 160);
+    
+    // Draw drop timer
+    if (gameData.currentCash) {
+      const timerWidth = 200;
+      const timerHeight = 20;
+      const timerX = CANVAS_WIDTH - timerWidth - 20;
+      const timerY = 20;
+      
+      // Timer background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(timerX, timerY, timerWidth, timerHeight);
+      
+      // Timer fill
+      const fillWidth = (gameData.dropTimer / gameData.maxDropTimer) * timerWidth;
+      ctx.fillStyle = gameData.dropTimer > gameData.maxDropTimer * 0.8 ? '#ff4444' : '#4CAF50';
+      ctx.fillRect(timerX, timerY, fillWidth, timerHeight);
+      
+      // Timer text
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('DROP TIMER', timerX + timerWidth / 2, timerY + timerHeight / 2 + 5);
+    }
   };
 
   // Start render loop
@@ -621,20 +548,20 @@ export default function CashStackGame({
               Cash Stack Challenge Instructions
             </h3>
             <div className="space-y-3 text-green-100">
-              <p><span className="font-bold text-green-300">🎯 Objective:</span> Stack coins on falling cash sprites to build towers!</p>
+              <p><span className="font-bold text-green-300">🎯 Objective:</span> Stack cash pieces by timing your drops perfectly!</p>
               <p><span className="font-bold text-green-300">🎮 How to Play:</span></p>
               <ul className="list-disc list-inside ml-4 space-y-2">
-                <li>Cash sprites fall from the top at random speeds</li>
-                <li>Coins fall faster and stack on the cash sprites</li>
-                <li>Perfect stacks (center alignment) give bonus points and explosions</li>
-                <li>Speed increases every 20 seconds for more challenge</li>
-                <li>Build the highest stacks possible!</li>
+                <li>Cash pieces move horizontally on the ground</li>
+                <li>New cash falls from the top - click/tap to drop it</li>
+                <li>Perfect alignment gives maximum points and stacks the cash</li>
+                <li>Poor alignment cuts the cash and makes it smaller</li>
+                <li>Build the highest cash towers possible!</li>
               </ul>
               <p><span className="font-bold text-green-300">🏆 Scoring:</span></p>
               <ul className="list-disc list-inside ml-4 space-y-1">
-                <li>Base stacking: 10 points per coin</li>
-                <li>Perfect stack bonus: +20 points</li>
-                <li>Explosion bonus: Cash sprite explodes on perfect stacks</li>
+                <li>Perfect alignment (80%+): 50+ points + stack bonus</li>
+                <li>Good alignment (30-80%): 15-50 points + stack</li>
+                <li>Poor alignment (&lt;30%): Cash gets cut and shrinks</li>
                 <li>Level up every 100 points</li>
               </ul>
             </div>
@@ -655,12 +582,12 @@ export default function CashStackGame({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50">
+    <div className="fixed inset-0 bg-black z-50" onClick={handleClick}>
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-contain cursor-pointer"
         style={{ imageRendering: 'pixelated' }}
       />
     </div>

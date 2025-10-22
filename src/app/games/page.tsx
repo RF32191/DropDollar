@@ -748,7 +748,6 @@ export default function GamesPage() {
             router.push('/dashboard');
           }, 500);
         }}
-        duration={3000}
       />
       
       {/* Game Components */}
