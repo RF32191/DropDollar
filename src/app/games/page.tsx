@@ -10,6 +10,7 @@ import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import BladeBounceGame from '@/components/games/BladeBounceGame';
+import CashStackGame from '@/components/games/CashStackGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import CelebrationEffect from '@/components/CelebrationEffect';
 import GameVictoryAnimation from '@/components/GameVictoryAnimation';
@@ -111,6 +112,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Mouse Control', 'Reaction Time', 'Precision', 'Strategy'],
     component: BladeBounceGame
+  },
+  {
+    id: 'cash-stack',
+    name: 'Cash Stack Challenge',
+    description: 'Stack coins on falling 3D cash sprites with random speeds and perfect stacking bonuses',
+    icon: BanknotesIcon,
+    difficulty: 'Hard',
+    avgTime: '90s',
+    skills: ['Timing', 'Precision', 'Strategy', 'Speed'],
+    component: CashStackGame
   }
 ];
 
@@ -1135,6 +1146,72 @@ export default function GamesPage() {
                                right: '20%',
                                animationDelay: '1.5s'
                              }}>🖱️</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {game.id === 'cash-stack' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Cash Stack animation with falling cash and coins */}
+                      <div className="relative w-full h-full">
+                        {/* Falling cash sprites */}
+                        <div className="absolute text-4xl animate-bounce"
+                             style={{
+                               top: '10%',
+                               left: '20%',
+                               animationDelay: '0s',
+                               animationDuration: '3s'
+                             }}>💰</div>
+                        <div className="absolute text-4xl animate-bounce"
+                             style={{
+                               top: '20%',
+                               right: '25%',
+                               animationDelay: '1s',
+                               animationDuration: '2.5s'
+                             }}>💰</div>
+                        <div className="absolute text-4xl animate-bounce"
+                             style={{
+                               top: '30%',
+                               left: '60%',
+                               animationDelay: '2s',
+                               animationDuration: '2.8s'
+                             }}>💰</div>
+                        
+                        {/* Stacking coins */}
+                        <div className="absolute text-2xl animate-pulse"
+                             style={{
+                               top: '40%',
+                               left: '25%',
+                               animationDelay: '0.5s'
+                             }}>🪙</div>
+                        <div className="absolute text-2xl animate-pulse"
+                             style={{
+                               top: '50%',
+                               right: '30%',
+                               animationDelay: '1.5s'
+                             }}>🪙</div>
+                        <div className="absolute text-2xl animate-pulse"
+                             style={{
+                               top: '60%',
+                               left: '70%',
+                               animationDelay: '2.5s'
+                             }}>🪙</div>
+                        
+                        {/* Explosion effect */}
+                        <div className="absolute text-3xl animate-ping"
+                             style={{
+                               top: '35%',
+                               left: '45%',
+                               animationDelay: '1s'
+                             }}>💥</div>
+                        
+                        {/* Score indicator */}
+                        <div className="absolute text-lg animate-pulse"
+                             style={{
+                               bottom: '15%',
+                               left: '10%',
+                               animationDelay: '0.8s'
+                             }}>📊</div>
                       </div>
                     </div>
                   )}
