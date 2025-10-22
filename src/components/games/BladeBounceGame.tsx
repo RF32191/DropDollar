@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 interface BladeBounceGameProps {
-  onGameEnd: (score: number, accuracy: number) => void;
+  onGameEnd: (result: { score: number; accuracy: number }) => void;
   onExit: () => void;
   listingId?: string;
   entryNumber?: number;
@@ -24,6 +24,8 @@ interface GameState {
   accuracy: number;
   totalHits: number;
   successfulHits: number;
+  gameStartTime: number;
+  difficultyLevel: number;
   obstacles: Array<{
     id: number;
     x: number;
@@ -82,6 +84,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     accuracy: 100,
     totalHits: 0,
     successfulHits: 0,
+    gameStartTime: 0,
+    difficultyLevel: 1,
     obstacles: [],
     enemies: [],
     particles: [],
@@ -200,14 +204,16 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   }, [initAudio]);
 
   // Generate staggered obstacles (Flappy Bird style) + pillars at top
-  const generateObstacle = useCallback(() => {
+  const generateObstacle = useCallback((difficultyLevel: number = 1) => {
     // Create staggered pillars - not directly top/bottom
-    const pillarCount = Math.floor(Math.random() * 3) + 2; // 2-4 pillars
+    const basePillarCount = Math.floor(Math.random() * 2) + 1; // Start with 1-2 pillars
+    const pillarCount = Math.min(basePillarCount + Math.floor(difficultyLevel / 2), 4); // Max 4 pillars
     const pillars = [];
     
     for (let i = 0; i < pillarCount; i++) {
       const gapY = Math.random() * (CANVAS_HEIGHT - 120) + 60;
-      const gapHeight = Math.max(60, 100 - gameData.score * 0.5); // Gap gets smaller as score increases
+      const baseGapHeight = 120; // Start with larger gaps
+      const gapHeight = Math.max(60, baseGapHeight - (difficultyLevel - 1) * 10); // Gap gets smaller with difficulty
       
       pillars.push({
         id: Date.now() + Math.random() + i,
@@ -241,17 +247,15 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   }, [gameData.score]);
 
   // Generate enemies (fireballs with increasing spawn rate and speed)
-  const generateEnemy = useCallback(() => {
+  const generateEnemy = useCallback((difficultyLevel: number = 1) => {
     const side = Math.random() < 0.5 ? 'left' : 'right';
     const x = side === 'left' ? -20 : CANVAS_WIDTH + 20;
     const y = Math.random() * CANVAS_HEIGHT;
     
-    // Increase fireball speed every 2 seconds (based on game timer)
-    const timeElapsed = 60 - gameTimer; // Time elapsed in seconds
-    const speedMultiplier = Math.floor(timeElapsed / 2) + 1; // Increases every 2 seconds
-    const baseSpeed = 1.5;
-    const speedIncrease = gameData.score * 0.02;
-    const fireballSpeed = (baseSpeed + speedIncrease) * speedMultiplier;
+    // Start with slower speed, increase with difficulty
+    const baseSpeed = 1.0; // Start slower
+    const speedIncrease = (difficultyLevel - 1) * 0.5; // Increase with difficulty
+    const fireballSpeed = baseSpeed + speedIncrease;
     
     return {
       id: Date.now() + Math.random(),
@@ -556,15 +560,27 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         intensity: curve.life / curve.maxLife
       })).filter(curve => curve.life > 0);
 
-      // Generate new obstacles
-      if (Math.random() < 0.02) {
-        const newObstacles = generateObstacle();
+      // Calculate difficulty progression based on time elapsed
+      const timeElapsed = (currentTime - newState.gameStartTime) / 1000; // Convert to seconds
+      const newDifficultyLevel = Math.max(1, Math.floor(timeElapsed / 20) + 1); // Increase every 20 seconds
+      
+      // Update difficulty level
+      if (newDifficultyLevel !== newState.difficultyLevel) {
+        newState.difficultyLevel = newDifficultyLevel;
+        console.log(`🎮 [BladeBounce] Difficulty increased to level ${newDifficultyLevel}`);
+      }
+
+      // Generate new obstacles with difficulty-based spawn rate
+      const obstacleSpawnRate = Math.min(0.005 + (newState.difficultyLevel - 1) * 0.005, 0.03); // Start slow, increase with difficulty
+      if (Math.random() < obstacleSpawnRate) {
+        const newObstacles = generateObstacle(newState.difficultyLevel);
         newState.obstacles.push(...newObstacles);
       }
 
-      // Generate new enemies - increased spawn rate
-      if (Math.random() < 0.03) { // Increased from 0.01 to 0.03
-        newState.enemies.push(generateEnemy());
+      // Generate new enemies with difficulty-based spawn rate
+      const enemySpawnRate = Math.min(0.01 + (newState.difficultyLevel - 1) * 0.01, 0.05); // Start slow, increase with difficulty
+      if (Math.random() < enemySpawnRate) {
+        newState.enemies.push(generateEnemy(newState.difficultyLevel));
       }
 
       // Check collisions
@@ -893,24 +909,14 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     
     if (gameState !== 'playing') return;
     
-    if (e.detail === 2) {
-      // Double click - 180° spin
-      playSpinSound();
-      createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
-      setGameData(prev => ({
-        ...prev,
-        swordAngle: prev.swordAngle + Math.PI
-      }));
-    } else {
-      // Single click - add 45° clockwise
-      playClickSound();
-      createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
-      setGameData(prev => ({
-        ...prev,
-        swordAngle: prev.swordAngle + Math.PI / 4 // 45 degrees
-      }));
-    }
-  }, [playSpinSound, playClickSound, gameState, createLightCurve]);
+    // Single click - add 45° clockwise (no double click feature)
+    playClickSound();
+    createLightCurve(gameData.swordX, gameData.swordY, gameData.swordAngle);
+    setGameData(prev => ({
+      ...prev,
+      swordAngle: prev.swordAngle + Math.PI / 4 // 45 degrees
+    }));
+  }, [playClickSound, gameState, createLightCurve]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
@@ -936,27 +942,14 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     
-    // Simple tap detection for mobile
-    const now = Date.now();
-    const lastTap = (handleTouchStart as any).lastTap || 0;
+    if (gameState !== 'playing') return;
     
-    if (now - lastTap < 300) {
-      // Double tap - 360° spin
-      playSpinSound();
-      setGameData(prev => ({
-        ...prev,
-        swordAngle: prev.swordAngle + Math.PI * 2
-      }));
-    } else {
-      // Single tap - add 30° clockwise
-      setGameData(prev => ({
-        ...prev,
-        swordAngle: prev.swordAngle + Math.PI / 6
-      }));
-    }
-    
-    (handleTouchStart as any).lastTap = now;
-  }, [playSpinSound]);
+    // Single tap - add 45° clockwise (no double tap feature)
+    setGameData(prev => ({
+      ...prev,
+      swordAngle: prev.swordAngle + Math.PI / 4 // 45 degrees
+    }));
+  }, [gameState]);
 
   // Start game handler
   const handleStartGame = useCallback(() => {
@@ -985,6 +978,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           score: 0,
           gameOver: false,
           gameStarted: true,
+          gameStartTime: Date.now(),
+          difficultyLevel: 1,
           swordX: CANVAS_WIDTH / 3, // Updated to match new position
           swordY: CANVAS_HEIGHT / 2,
           mouseX: CANVAS_WIDTH / 3,
@@ -1168,8 +1163,8 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       
       setTimeout(() => {
         try {
-          console.log('🎮 [BladeBounce] Calling onGameEnd with:', gameData.score, finalAccuracy);
-          onGameEnd(gameData.score, finalAccuracy);
+          console.log('🎮 [BladeBounce] Calling onGameEnd with:', { score: gameData.score, accuracy: finalAccuracy });
+          onGameEnd({ score: gameData.score, accuracy: finalAccuracy });
         } catch (error) {
           console.error('🎮 [BladeBounce] Error calling onGameEnd:', error);
         }

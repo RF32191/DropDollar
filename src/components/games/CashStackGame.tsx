@@ -14,6 +14,7 @@ interface CashSprite {
   tilt: number;
   isExploding: boolean;
   explosionTime: number;
+  stackedCoins: Coin[]; // Coins stacked on this cash sprite
 }
 
 interface Coin {
@@ -25,6 +26,9 @@ interface Coin {
   speed: number;
   isStacked: boolean;
   stackTime: number;
+  targetX?: number; // Target position for stacking
+  targetY?: number;
+  isFalling: boolean;
 }
 
 interface GameState {
@@ -37,6 +41,8 @@ interface GameState {
   perfectStacks: number;
   totalStacks: number;
   averageStackTime: number;
+  gameStartTime: number;
+  difficultyLevel: number;
 }
 
 const CANVAS_WIDTH = 800;
@@ -50,7 +56,7 @@ export default function CashStackGame({
   onGameEnd, 
   isCompetitionMode = false 
 }: { 
-  onGameEnd: (score: number, accuracy: number) => void;
+  onGameEnd: (result: { score: number; accuracy: number }) => void;
   isCompetitionMode?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,7 +72,9 @@ export default function CashStackGame({
     gameStarted: false,
     perfectStacks: 0,
     totalStacks: 0,
-    averageStackTime: 0
+    averageStackTime: 0,
+    gameStartTime: 0,
+    difficultyLevel: 1
   });
   const [countdown, setCountdown] = useState(3);
   const [showCountdown, setShowCountdown] = useState(false);
@@ -74,9 +82,9 @@ export default function CashStackGame({
   console.log('🎮 CashStackGame: Component mounted, gameState:', gameState);
 
   // Generate random cash sprite
-  const generateCashSprite = useCallback((): CashSprite => {
+  const generateCashSprite = useCallback((difficultyLevel: number = 1): CashSprite => {
     const baseSpeed = 1 + Math.random() * 2; // Random base speed 1-3
-    const speedVariation = gameData.level * 0.5; // Speed increases with level
+    const speedVariation = difficultyLevel * 0.5; // Speed increases with difficulty
     
     return {
       id: Date.now() + Math.random(),
@@ -88,9 +96,10 @@ export default function CashStackGame({
       baseSpeed: baseSpeed,
       tilt: 0,
       isExploding: false,
-      explosionTime: 0
+      explosionTime: 0,
+      stackedCoins: [] // Initialize empty stack
     };
-  }, [gameData.level]);
+  }, []);
 
   // Generate coin
   const generateCoin = useCallback((): Coin => {
@@ -102,7 +111,8 @@ export default function CashStackGame({
       scale: 0.9 + Math.random() * 0.2,
       speed: 2 + Math.random() * 3, // Faster than cash
       isStacked: false,
-      stackTime: 0
+      stackTime: 0,
+      isFalling: true
     };
   }, []);
 
@@ -132,12 +142,27 @@ export default function CashStackGame({
     return distanceFromCenter < 15; // Perfect stack within 15 pixels of center
   };
 
-  // Handle coin stacking
+  // Handle coin stacking - actually stack coins on top of each other
   const handleCoinStack = useCallback((coin: Coin, cash: CashSprite, stackTime: number) => {
     const isPerfect = isPerfectStack(coin, cash);
     const stackSpeed = 1 / (stackTime / 1000); // Convert to stacks per second
     
     let points = 10; // Base points
+    
+    // Calculate stack position
+    const stackHeight = cash.stackedCoins.length * (COIN_SIZE * 0.8); // Each coin takes up 80% of its size
+    const targetX = cash.x + (CASH_SIZE * cash.scale) / 2 - COIN_SIZE / 2;
+    const targetY = cash.y + (CASH_SIZE * cash.scale) - stackHeight - COIN_SIZE;
+    
+    // Create stacked coin
+    const stackedCoin: Coin = {
+      ...coin,
+      isStacked: true,
+      stackTime: stackTime,
+      targetX: targetX,
+      targetY: targetY,
+      isFalling: false
+    };
     
     if (isPerfect) {
       points += 20; // Bonus for perfect stack
@@ -148,7 +173,7 @@ export default function CashStackGame({
         ...prev,
         cashSprites: prev.cashSprites.map(c => 
           c.id === cash.id 
-            ? { ...c, isExploding: true, explosionTime: Date.now() }
+            ? { ...c, isExploding: true, explosionTime: Date.now(), stackedCoins: [...c.stackedCoins, stackedCoin] }
             : c
         ),
         perfectStacks: prev.perfectStacks + 1
@@ -164,7 +189,7 @@ export default function CashStackGame({
         ...prev,
         cashSprites: prev.cashSprites.map(c => 
           c.id === cash.id 
-            ? { ...c, tilt: Math.max(-0.5, Math.min(0.5, tiltAmount)) }
+            ? { ...c, tilt: Math.max(-0.5, Math.min(0.5, tiltAmount)), stackedCoins: [...c.stackedCoins, stackedCoin] }
             : c
         )
       }));
@@ -200,6 +225,16 @@ export default function CashStackGame({
     setGameData(prev => {
       const newState = { ...prev };
       
+      // Calculate difficulty progression based on time elapsed
+      const timeElapsed = (currentTime - newState.gameStartTime) / 1000; // Convert to seconds
+      const newDifficultyLevel = Math.max(1, Math.floor(timeElapsed / 20) + 1); // Increase every 20 seconds
+      
+      // Update difficulty level
+      if (newDifficultyLevel !== newState.difficultyLevel) {
+        newState.difficultyLevel = newDifficultyLevel;
+        console.log(`🎮 [CashStack] Difficulty increased to level ${newDifficultyLevel}`);
+      }
+      
       // Update cash sprites
       newState.cashSprites = newState.cashSprites.map(cash => {
         let newCash = { ...cash };
@@ -220,7 +255,7 @@ export default function CashStackGame({
         
         // Reset if off screen
         if (newCash.y > CANVAS_HEIGHT) {
-          newCash = generateCashSprite();
+          newCash = generateCashSprite(newState.difficultyLevel);
         }
         
         // Update explosion
@@ -299,6 +334,8 @@ export default function CashStackGame({
           setGameData(prev => ({
             ...prev,
             gameStarted: true,
+            gameStartTime: Date.now(),
+            difficultyLevel: 1,
             cashSprites: [generateCashSprite()],
             coins: []
           }));
@@ -324,7 +361,7 @@ export default function CashStackGame({
       ? (gameData.perfectStacks / gameData.totalStacks) * 100 
       : 100;
     
-    onGameEnd(gameData.score, accuracy);
+    onGameEnd({ score: gameData.score, accuracy });
   };
 
   // Render game
@@ -384,6 +421,45 @@ export default function CashStackGame({
       ctx.fillText('$', 0, 0);
       
       ctx.restore();
+      
+      // Draw stacked coins on this cash sprite
+      cash.stackedCoins.forEach((stackedCoin, index) => {
+        ctx.save();
+        ctx.translate(stackedCoin.targetX! + COIN_SIZE/2, stackedCoin.targetY! + COIN_SIZE/2);
+        ctx.rotate(stackedCoin.rotation);
+        ctx.scale(stackedCoin.scale, stackedCoin.scale);
+        
+        // Draw stacked coin with slight offset for depth
+        const coinGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, COIN_SIZE/2);
+        coinGradient.addColorStop(0, '#FFD700');
+        coinGradient.addColorStop(0.7, '#FFA500');
+        coinGradient.addColorStop(1, '#FF8C00');
+        
+        ctx.fillStyle = coinGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, COIN_SIZE/2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add coin edge
+        ctx.strokeStyle = '#B8860B';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Add coin center
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(0, 0, COIN_SIZE/4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add stack number indicator
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${index + 1}`, 0, 0);
+        
+        ctx.restore();
+      });
     });
     
     // Draw coins
