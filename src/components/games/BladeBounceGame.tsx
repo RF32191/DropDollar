@@ -307,7 +307,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
   }, []);
 
   // Check collisions - returns collision results without updating state
-  const checkCollisions = useCallback((gameData: GameState): { 
+  const checkCollisions = useCallback((gameData: GameState, currentDeathZoneSide: 'tip' | 'handle'): { 
     score: number; 
     gameOver: boolean; 
     particles?: any[]; 
@@ -491,12 +491,22 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         successfulHits += 1;
         enemiesToRemove.push(i);
       } else {
-        // Check if fireball hits sword bottom (game over)
-        const swordBottomHit = Math.sqrt((swordBottomX - enemy.x) ** 2 + (swordBottomY - enemy.y) ** 2) < 30;
+        // Check if fireball hits sword death zone (game over)
+        let swordDeathHit = false;
         
-        if (swordBottomHit) {
-          console.log('💀 FIREBALL HIT SWORD BOTTOM! Game Over!');
-          // Fireball hit sword bottom - game over
+        if (currentDeathZoneSide === 'tip') {
+          // Death zone is on tip - check tip collision
+          const tipHit = Math.sqrt((bladeTipX - enemy.x) ** 2 + (bladeTipY - enemy.y) ** 2) < 30;
+          swordDeathHit = tipHit;
+        } else {
+          // Death zone is on handle - check handle collision
+          const handleHit = Math.sqrt((hiltX - enemy.x) ** 2 + (hiltY - enemy.y) ** 2) < 30;
+          swordDeathHit = handleHit;
+        }
+        
+        if (swordDeathHit) {
+          console.log('💀 FIREBALL HIT SWORD DEATH ZONE! Game Over!');
+          // Fireball hit sword death zone - game over
           playGameOverSound();
           gameOver = true;
           return { score, gameOver, particles, obstaclesToRemove, enemiesToRemove, totalHits, successfulHits };
@@ -510,7 +520,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
     }
     
     return null; // No collision detected
-  }, [playClinkSound, playScoreSound, playGameOverSound]);
+  }, [playClinkSound, playScoreSound, playGameOverSound, deathZoneSide]);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
@@ -587,14 +597,14 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       }
 
       // Check collisions
-      checkCollisions(newState);
+      checkCollisions(newState, deathZoneSide);
 
       return newState;
     });
 
     // Continue game loop if not over
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [generateObstacle, generateEnemy, checkCollisions]);
+  }, [generateObstacle, generateEnemy, checkCollisions, deathZoneSide]);
 
   // Render game
   const render = useCallback(() => {
@@ -805,42 +815,70 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.drawImage(swordImage, -swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
       ctx.shadowBlur = 0;
       
-      // Draw completely red death zone covering the entire sword
-      const swordGradient = ctx.createLinearGradient(-swordWidth/2, -swordHeight/2, swordWidth/2, swordHeight/2);
-      swordGradient.addColorStop(0, '#FF0000'); // Bright red
-      swordGradient.addColorStop(0.3, '#DC2626'); // Red
-      swordGradient.addColorStop(0.7, '#B91C1C'); // Darker red
-      swordGradient.addColorStop(1, '#991B1B'); // Darkest red
-      
-      // Add pulsing glow effect for entire sword death zone
-      const glowIntensity = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
-      ctx.shadowColor = `rgba(255, 0, 0, ${glowIntensity})`;
-      ctx.shadowBlur = 20;
-      
-      // Draw red overlay covering entire sword
-      ctx.fillStyle = swordGradient;
-      ctx.fillRect(-swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
-      
-      // Reset shadow
-      ctx.shadowBlur = 0;
-      
-      // Add warning stripes across entire sword
-      ctx.fillStyle = '#FFFFFF';
-      for (let i = 0; i < 6; i++) {
-        ctx.fillRect(-swordWidth/2 + 2, -swordHeight/2 + 2 + i * 15, swordWidth - 4, 3);
+      // Draw alternating death zone with gold glow on safe side
+      if (deathZoneSide === 'tip') {
+        // Death zone on tip, gold glow on handle
+        // Draw red death zone on tip
+        const tipGradient = ctx.createLinearGradient(-swordWidth/2, -swordHeight/2, swordWidth/2, -swordHeight/2 + swordHeight/3);
+        tipGradient.addColorStop(0, '#FF0000');
+        tipGradient.addColorStop(1, '#DC2626');
+        
+        ctx.fillStyle = tipGradient;
+        ctx.fillRect(-swordWidth/2, -swordHeight/2, swordWidth, swordHeight/3);
+        
+        // Draw gold glow on handle (safe side)
+        const handleGradient = ctx.createLinearGradient(-swordWidth/2, -swordHeight/2 + swordHeight/3, swordWidth/2, swordHeight/2);
+        handleGradient.addColorStop(0, '#FFD700');
+        handleGradient.addColorStop(0.5, '#FFA500');
+        handleGradient.addColorStop(1, '#FF8C00');
+        
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = handleGradient;
+        ctx.fillRect(-swordWidth/2, -swordHeight/2 + swordHeight/3, swordWidth, swordHeight * 2/3);
+        ctx.shadowBlur = 0;
+        
+        // Add text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('DEATH', 0, -swordHeight/3);
+        ctx.fillText('SAFE', 0, swordHeight/6);
+      } else {
+        // Death zone on handle, gold glow on tip
+        // Draw gold glow on tip (safe side)
+        const tipGradient = ctx.createLinearGradient(-swordWidth/2, -swordHeight/2, swordWidth/2, -swordHeight/2 + swordHeight/3);
+        tipGradient.addColorStop(0, '#FFD700');
+        tipGradient.addColorStop(0.5, '#FFA500');
+        tipGradient.addColorStop(1, '#FF8C00');
+        
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+        ctx.shadowBlur = 15;
+        ctx.fillStyle = tipGradient;
+        ctx.fillRect(-swordWidth/2, -swordHeight/2, swordWidth, swordHeight/3);
+        ctx.shadowBlur = 0;
+        
+        // Draw red death zone on handle
+        const handleGradient = ctx.createLinearGradient(-swordWidth/2, -swordHeight/2 + swordHeight/3, swordWidth/2, swordHeight/2);
+        handleGradient.addColorStop(0, '#FF0000');
+        handleGradient.addColorStop(1, '#DC2626');
+        
+        ctx.fillStyle = handleGradient;
+        ctx.fillRect(-swordWidth/2, -swordHeight/2 + swordHeight/3, swordWidth, swordHeight * 2/3);
+        
+        // Add text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('SAFE', 0, -swordHeight/3);
+        ctx.fillText('DEATH', 0, swordHeight/6);
       }
       
-      // Add danger text on sword
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 12px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('DEATH ZONE', 0, -10);
-      ctx.fillText('PROTECT!', 0, 10);
-      
-      // Add red border around entire sword death zone
-      ctx.strokeStyle = '#FF0000';
-      ctx.lineWidth = 3;
+      // Add border
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
       ctx.strokeRect(-swordWidth/2, -swordHeight/2, swordWidth, swordHeight);
     } else {
       // Enhanced fallback sword with metallic effects
@@ -1140,7 +1178,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
           }
 
           // Check collisions
-          const collisionResult = checkCollisions(newState);
+          const collisionResult = checkCollisions(newState, deathZoneSide);
           if (collisionResult) {
             // Update score and accuracy
             newState.score = collisionResult.score;
@@ -1205,7 +1243,7 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, [gameState, render, generateObstacle, generateEnemy, checkCollisions]);
+  }, [gameState, render, generateObstacle, generateEnemy, checkCollisions, deathZoneSide]);
 
   // Handle game over
   useEffect(() => {
