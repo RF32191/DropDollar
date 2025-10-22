@@ -334,14 +334,15 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
             <p className="text-green-200 text-sm mb-4 sm:mb-6 font-medium">Lightning Reaction Challenge</p>
             
             {/* Epilepsy Warning */}
-            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-                  <span className="text-white text-xs sm:text-sm font-bold">⚠️</span>
+            {/* Epilepsy Warning - Enhanced Visibility */}
+            <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-2xl">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                  <span className="text-white text-sm sm:text-lg font-black">⚠️</span>
                 </div>
-                <p className="text-red-200 font-bold text-sm sm:text-base">EPILEPSY WARNING</p>
+                <p className="text-white font-black text-lg sm:text-xl tracking-wide">EPILEPSY WARNING</p>
               </div>
-              <p className="text-xs sm:text-sm text-red-100">
+              <p className="text-sm sm:text-base text-white font-semibold leading-relaxed">
                 This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
                 If you are sensitive to flashing lights, please do not play this game.
               </p>

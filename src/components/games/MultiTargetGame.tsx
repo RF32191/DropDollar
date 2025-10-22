@@ -463,53 +463,55 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
             <p className="text-green-200 text-sm mb-6 font-medium">Precision & Speed Challenge</p>
             
             {/* Epilepsy Warning */}
-            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-4 mb-6">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-                  <span className="text-white text-sm font-bold">⚠️</span>
+            {/* Epilepsy Warning - Enhanced Visibility */}
+            <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-6 mb-8 shadow-2xl">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                  <span className="text-white text-lg font-black">⚠️</span>
                 </div>
-                <p className="text-red-200 font-bold">EPILEPSY WARNING</p>
+                <p className="text-white font-black text-xl tracking-wide">EPILEPSY WARNING</p>
               </div>
-              <p className="text-sm text-red-100">
+              <p className="text-base text-white font-semibold leading-relaxed">
                 This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
                 If you are sensitive to flashing lights, please do not play this game.
               </p>
             </div>
             
-            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+            {/* Instructions - Dark Money Green Theme */}
+            <div className="text-left text-sm text-white mb-8 space-y-4 bg-gradient-to-r from-green-800 to-green-900 rounded-2xl p-6 backdrop-blur-sm border-2 border-green-600 shadow-2xl">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">?</span>
+                <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-white text-lg font-black">?</span>
                 </div>
-                <p className="text-white font-semibold">How to Play:</p>
+                <h3 className="text-white font-black text-xl">How to Play:</h3>
               </div>
               
               <div className="space-y-3 pl-11">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-green-300 font-semibold">Find:</span> Look for ALL glowing/pulsing targets</p>
+                  <p><span className="text-green-300 font-bold">Find:</span> Look for ALL glowing/pulsing targets</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-blue-300 font-semibold">Click:</span> Hit each correct target as fast as possible</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-bold">Click:</span> Hit each correct target as fast as possible</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-yellow-300 font-semibold">Multiple:</span> Later rounds have multiple correct targets</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-bold">Multiple:</span> Later rounds have multiple correct targets</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-purple-300 font-semibold">Difficulty:</span> More targets and faster pace each round</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-bold">Difficulty:</span> More targets and faster pace each round</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-red-300 font-semibold">Scoring:</span> Speed, accuracy, and target difficulty matter</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-300 font-bold">Scoring:</span> Speed, accuracy, and target difficulty matter</p>
                 </div>
               </div>
               
-              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-400/30 rounded-xl p-4 mt-6">
+              <div className="bg-gradient-to-r from-green-600/30 to-green-500/30 border border-green-400/50 rounded-lg p-4 mt-6">
                 <p className="text-xs text-green-200">
-                  <span className="text-cyan-300 font-bold">🎯 Pro Tip:</span> Requires rapid visual scanning and precise clicking. 
+                  <span className="text-green-300 font-bold">🎯 Pro Tip:</span> Requires rapid visual scanning and precise clicking. 
                   Look for the pulsing/glowing targets and click them all!
                 </p>
               </div>

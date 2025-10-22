@@ -1213,57 +1213,59 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
             <p className="text-orange-200 text-sm mb-4 sm:mb-6 font-medium">Ultimate Sword Control Challenge</p>
             
             {/* Epilepsy Warning */}
-            <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-                  <span className="text-white text-xs sm:text-sm font-bold">⚠️</span>
+            {/* Epilepsy Warning - Enhanced Visibility */}
+            <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-2xl">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                  <span className="text-white text-sm sm:text-lg font-black">⚠️</span>
                 </div>
-                <p className="text-red-200 font-bold text-sm sm:text-base">EPILEPSY WARNING</p>
+                <p className="text-white font-black text-lg sm:text-xl tracking-wide">EPILEPSY WARNING</p>
               </div>
-              <p className="text-xs sm:text-sm text-red-100">
+              <p className="text-sm sm:text-base text-white font-semibold leading-relaxed">
                 This game contains flashing lights, rapid color changes, and intense visual effects that may trigger seizures in people with photosensitive epilepsy. 
                 If you are sensitive to flashing lights, please do not play this game.
               </p>
             </div>
             
-            <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
+            {/* Instructions - Dark Money Green Theme */}
+            <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-r from-green-800 to-green-900 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border-2 border-green-600 shadow-2xl">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs sm:text-sm font-bold">!</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-white text-sm sm:text-lg font-black">!</span>
                 </div>
-                <p className="text-white font-semibold">SWORD CONTROL:</p>
+                <h3 className="text-white font-black text-lg sm:text-xl">SWORD CONTROL:</h3>
               </div>
               
               <div className="space-y-3 pl-8 sm:pl-11">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-green-300 font-semibold">Mouse/Touch:</span> Move sword to follow cursor</p>
+                  <p><span className="text-green-300 font-bold">Mouse/Touch:</span> Move sword to follow cursor</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-semibold">Single Click:</span> Rotate sword +30° clockwise</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-bold">Single Click:</span> Rotate sword +45° clockwise</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-orange-300 font-semibold">Double Click:</span> Perform 360° spin attack</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-bold">Double Click:</span> Perform 360° spin attack</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-blue-300 font-semibold">Blade Hits:</span> Block obstacles and enemies for points</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-bold">Blade Hits:</span> Block obstacles and enemies for points</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-red-300 font-semibold">Hilt Hits:</span> Game over! Avoid hitting with handle</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-bold">Hilt Hits:</span> Game over! Avoid hitting with handle</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-purple-300 font-semibold">Goal:</span> Survive as long as possible and score points</p>
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-green-300 font-bold">Goal:</span> Survive as long as possible and score points</p>
                 </div>
               </div>
               
-              <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
-                <p className="text-xs text-orange-200">
-                  <span className="text-yellow-300 font-bold">🎯 PRECISION:</span> Only the blade edge can block attacks safely. 
+              <div className="bg-gradient-to-r from-green-600/30 to-green-500/30 border border-green-400/50 rounded-lg p-3 mt-4">
+                <p className="text-xs sm:text-sm text-green-200">
+                  <span className="text-green-300 font-bold">💡 Pro Tip:</span> Only the blade edge can block attacks safely. 
                   The hilt (handle) will cause instant game over if it hits anything! (Hit detection is more forgiving now)
                 </p>
               </div>
