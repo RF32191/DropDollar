@@ -287,10 +287,10 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       setCorrectAnswers(prev => prev + 1);
       setFeedback('correct');
       
-      // Clear correct feedback after a short time so player can continue
+      // Clear correct feedback after 3 seconds
       setTimeout(() => {
         setFeedback('');
-      }, 600);
+      }, 3000);
       
       console.log('Score breakdown:', {
         base: baseScore.toFixed(2),
@@ -311,17 +311,17 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       GameAudio.playTargetMiss();
       
       setFeedback('wrong');
-      // Small penalty for wrong clicks to discourage spam clicking
+      // Penalty for wrong clicks to discourage spam clicking
       setScore(prev => {
-        const newScore = Math.max(0, prev - 5);
+        const newScore = Math.max(0, prev - 25); // Increased penalty from 5 to 25 points
         currentScoreRef.current = newScore; // Update ref for accurate game end reporting
         return newScore;
       });
       
-      // Clear wrong feedback after a short time so player can continue
+      // Clear wrong feedback after 3 seconds
       setTimeout(() => {
         setFeedback('');
-      }, 800);
+      }, 3000);
     }
 
     // Check if all correct targets have been hit (use newHitTargets if we just hit a correct target)
@@ -409,10 +409,10 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       baseClass = baseColors[target.color as keyof typeof baseColors] || 'bg-gradient-to-br from-gray-400 to-gray-600 hover:from-gray-300 hover:to-gray-500';
     }
     
-    // Pulse effects for correct targets that haven't been hit yet
+    // Subtle pulse effects for correct targets that haven't been hit yet
     const pulseClass = target.isCorrect && !isHit ? 
-      `animate-pulse ring-4 ring-white ring-opacity-90 shadow-2xl` : 
-      'hover:shadow-lg';
+      `animate-pulse ring-1 ring-white ring-opacity-30 shadow-lg` : 
+      'hover:shadow-md';
     
     // Disable interaction for already hit targets
     const interactionClass = isHit && target.isCorrect ? 
@@ -429,9 +429,9 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
         transform: 'translate(-50%, -50%)',
         animationDuration: target.isCorrect ? `${target.pulseSpeed}s` : undefined,
         boxShadow: target.isCorrect ? 
-          `0 0 ${target.size/2}px rgba(255, 255, 255, 1), 0 0 ${target.size}px rgba(255, 255, 255, 0.6), 0 0 ${target.size*1.5}px rgba(255, 255, 255, 0.3), inset 0 0 ${target.size/4}px rgba(255, 255, 255, 0.2)` : 
-          `0 0 ${target.size/3}px rgba(255, 255, 255, 0.5), inset 0 0 ${target.size/6}px rgba(255, 255, 255, 0.1)`,
-        filter: target.isCorrect ? 'brightness(1.3) contrast(1.2)' : 'brightness(1.1) contrast(1.1)'
+          `0 0 ${target.size/4}px rgba(255, 255, 255, 0.3), 0 0 ${target.size/2}px rgba(255, 255, 255, 0.1)` : 
+          `0 0 ${target.size/6}px rgba(255, 255, 255, 0.2)`,
+        filter: target.isCorrect ? 'brightness(1.1) contrast(1.05)' : 'brightness(1.05) contrast(1.02)'
       }
     };
   };

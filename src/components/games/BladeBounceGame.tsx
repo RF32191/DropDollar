@@ -800,40 +800,20 @@ export default function BladeBounceGame({ onGameEnd, onExit, listingId, entryNum
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.fillRect(0, -SWORD_WIDTH/2, SWORD_LENGTH, 1);
       
-      // Sword hilt with leather texture effect
+      // Sword hilt - entire handle is red death section
       const hiltGradient = ctx.createLinearGradient(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, -SWORD_HILT_WIDTH/2);
-      hiltGradient.addColorStop(0, '#8B4513');
-      hiltGradient.addColorStop(0.5, '#654321');
-      hiltGradient.addColorStop(1, '#4A2C17');
+      hiltGradient.addColorStop(0, '#DC2626'); // Red
+      hiltGradient.addColorStop(0.5, '#B91C1C'); // Darker red
+      hiltGradient.addColorStop(1, '#991B1B'); // Darkest red
       
       ctx.fillStyle = hiltGradient;
       ctx.fillRect(0, -SWORD_HILT_WIDTH/2, SWORD_HILT_LENGTH, SWORD_HILT_WIDTH);
       
-      // Hilt grip lines
-      ctx.fillStyle = '#2F1B14';
+      // Red grip lines for death section
+      ctx.fillStyle = '#7F1D1D';
       for (let i = 0; i < 3; i++) {
         ctx.fillRect(2 + i * 4, -SWORD_HILT_WIDTH/2, 1, SWORD_HILT_WIDTH);
       }
-    }
-    
-    // DEBUG: Draw hit boxes for collision detection
-    if (gameData.gameStarted) {
-      // Blade tip hit boxes (green - gives points) - symmetrical
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-      ctx.beginPath();
-      ctx.arc(SWORD_LENGTH, 0, 5, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Opposite blade tip
-      ctx.beginPath();
-      ctx.arc(-SWORD_LENGTH, 0, 5, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Hilt hit box (red - causes game over)
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-      ctx.beginPath();
-      ctx.arc(SWORD_HILT_LENGTH, 0, 5, 0, Math.PI * 2);
-      ctx.fill();
     }
     
     ctx.restore();

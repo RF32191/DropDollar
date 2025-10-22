@@ -287,7 +287,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
         } else {
           console.log('ColorSequence: Timer expired in feedback timeout, game will end automatically');
         }
-      }, 1500);
+      }, 3000);
     } else {
       // Check if current selection is correct so far
       const isCorrectSoFar = sequence[newUserSequence.length - 1] === colorIndex;
@@ -301,7 +301,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
           } else {
             setGameState('ended');
           }
-        }, 1500);
+        }, 3000);
       }
     }
   }, [gameState, userSequence, sequence, inputStartTime, round, timer.timeLeft, startNewRound, playSound]);

@@ -520,11 +520,39 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
               </p>
             </div>
             
-            <div className="text-gray-600 space-y-2">
-              <p>Catch falling objects with your cash case!</p>
-              <p>Objects have realistic physics - they bounce and drift unpredictably</p>
-              <p>Use <strong>Arrow Keys</strong> or <strong>A/D</strong> to move your cash case</p>
-              <p>🎯 Each caught object = 1 point</p>
+            {/* Instructions with Green/Money Theme */}
+            <div className="bg-gradient-to-r from-green-500/20 to-yellow-500/20 border border-green-400/50 rounded-xl p-6 space-y-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-yellow-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">💰</span>
+                </div>
+                <p className="text-green-800 font-bold text-lg">How to Play:</p>
+              </div>
+              
+              <div className="space-y-3 text-green-700">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-600 font-semibold">Catch:</span> Use your cash case to catch falling money!</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-yellow-600 font-semibold">Move:</span> Use <strong>Arrow Keys</strong> or <strong>A/D</strong> to move your cash case</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-green-500 font-semibold">Physics:</span> Objects bounce and drift unpredictably - be ready!</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-yellow-500 font-semibold">Scoring:</span> 🎯 Each caught object = 1 point</p>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-green-400/30 to-yellow-400/30 border border-green-300/50 rounded-lg p-3 mt-4">
+                <p className="text-xs text-green-600">
+                  <span className="text-green-700 font-bold">💡 Pro Tip:</span> Keep your cash case moving and watch for bouncing patterns!
+                </p>
+              </div>
             </div>
             <button
               onClick={handleStartGame}
