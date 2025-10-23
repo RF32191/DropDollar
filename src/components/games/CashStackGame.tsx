@@ -202,7 +202,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     level: 1,
     lines: 0,
     gameOver: false,
-    dropTime: 1000,
+    dropTime: 3000, // Much slower falling - 3 seconds per drop
     lastTime: 0,
     explosions: [],
     grabbedPiece: null,
@@ -611,10 +611,18 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     setGameData(prev => {
       if (!prev.currentPiece) return prev;
       
-      const newPiece = { ...prev.currentPiece, x: prev.currentPiece.x + dx, y: prev.currentPiece.y + dy };
+      // Allow faster movement - move multiple cells at once
+      const moveSpeed = 2; // Move 2 cells at a time for faster movement
+      const newPiece = { ...prev.currentPiece, x: prev.currentPiece.x + (dx * moveSpeed), y: prev.currentPiece.y + (dy * moveSpeed) };
       
       if (isValidPosition(newPiece, prev.board)) {
         return { ...prev, currentPiece: newPiece };
+      }
+      
+      // If fast movement fails, try single cell movement
+      const singleMovePiece = { ...prev.currentPiece, x: prev.currentPiece.x + dx, y: prev.currentPiece.y + dy };
+      if (isValidPosition(singleMovePiece, prev.board)) {
+        return { ...prev, currentPiece: singleMovePiece };
       }
       
       return prev;
@@ -694,7 +702,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-          dropTime: Math.max(50, 1000 - (prev.level * 50)),
+              dropTime: Math.max(2000, 3000 - (prev.level * 100)), // Keep falling slow even with levels
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -1142,39 +1150,65 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         console.log('Countdown:', prev);
         if (prev <= 1) {
           clearInterval(countdownInterval);
-          setShowCountdown(false);
-          setGameState('playing');
-          console.log('Starting game with timer:', 120000);
-          setGameData(prev => ({
-            ...prev,
-            board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
-            currentPiece: createPiece(),
-            nextPiece: createPiece(),
-            score: 0,
-            level: 1,
-            lines: 0,
-            gameOver: false,
-            dropTime: 1000,
-            lastTime: performance.now(),
-            explosions: [],
-            grabbedPiece: null,
-            isGrabbing: false,
-            gameTime: 0,
-            startTime: Date.now(),
-            timeRemaining: 120000, // 2 minutes in milliseconds
-            perfectGaps: 0,
-            verticalClears: 0,
-            numberMatches: 0
-          }));
-          // Start game loop immediately
+          // Show "GO!" for a brief moment
           setTimeout(() => {
-            console.log('Starting game loop...');
-            gameLoopRef.current = requestAnimationFrame(gameLoop);
-          }, 100);
+            setShowCountdown(false);
+            setGameState('playing');
+            console.log('Starting game with timer:', 120000);
+            setGameData(prev => ({
+              ...prev,
+              board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
+              currentPiece: createPiece(),
+              nextPiece: createPiece(),
+              score: 0,
+              level: 1,
+              lines: 0,
+              gameOver: false,
+              dropTime: 3000, // Much slower falling - 3 seconds per drop
+              lastTime: performance.now(),
+              explosions: [],
+              grabbedPiece: null,
+              isGrabbing: false,
+              gameTime: 0,
+              startTime: Date.now(),
+              timeRemaining: 120000, // 2 minutes in milliseconds
+              perfectGaps: 0,
+              verticalClears: 0,
+              numberMatches: 0
+            }));
+            // Start game loop immediately
+            setTimeout(() => {
+              console.log('Starting game loop...');
+              gameLoopRef.current = requestAnimationFrame(gameLoop);
+            }, 100);
+          }, 500); // Show "GO!" for 500ms
           return 0;
         }
         // Play countdown sound
-        playCountdownSound();
+        if (prev > 1) {
+          playCountdownSound();
+        } else {
+          // Play "GO!" sound effect
+          try {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(2000, audioContext.currentTime + 0.3);
+            
+            gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+          } catch (error) {
+            console.log('Audio not supported');
+          }
+        }
         return prev - 1;
       });
     }, 1000);
@@ -1282,7 +1316,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               <div className="space-y-3 pl-8 sm:pl-11">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-bold">Arrow Keys:</span> Move and rotate gold bars</p>
+                  <p><span className="text-yellow-300 font-bold">Arrow Keys:</span> Move pieces FAST (2 cells at once)</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="flex items-start space-x-3">
@@ -1308,7 +1342,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             {/* Pro Tip */}
             <div className="bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 border border-yellow-400/50 rounded-lg p-3 mt-4">
               <p className="text-xs sm:text-sm text-yellow-200">
-                <span className="text-yellow-300 font-bold">💡 Pro Tip:</span> Mix different gold bar sizes for maximum explosion effects and points!
+                <span className="text-yellow-300 font-bold">💡 Pro Tip:</span> Pieces fall slowly (3 seconds) - use arrow keys for FAST movement!
               </p>
             </div>
 
@@ -1341,8 +1375,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         <div className="bg-gradient-to-br from-yellow-800 to-yellow-900 rounded-2xl p-6 sm:p-12 text-center max-w-md w-full border-2 border-yellow-600">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Cash Stack Tetris</h2>
           <p className="text-sm sm:text-lg text-yellow-200 mb-6 sm:mb-8">Stack gold bars and watch them explode!</p>
-          <div className="text-6xl sm:text-8xl font-bold text-yellow-400 animate-pulse">{countdown}</div>
-          <p className="text-xs sm:text-sm text-yellow-300 mt-4">Get ready to stack...</p>
+          {countdown > 0 ? (
+            <div className="text-8xl sm:text-9xl font-bold text-yellow-400 animate-bounce">{countdown}</div>
+          ) : (
+            <div className="text-6xl sm:text-7xl font-bold text-green-400 animate-pulse">GO!</div>
+          )}
+          <p className="text-xs sm:text-sm text-yellow-300 mt-4">
+            {countdown > 0 ? 'Get ready to stack...' : 'Start stacking!'}
+          </p>
         </div>
       </div>
     );
