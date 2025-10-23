@@ -203,7 +203,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     level: 1,
     lines: 0,
     gameOver: false,
-    dropTime: 3000, // Much slower falling - 3 seconds per drop
+    dropTime: 2000, // Start at 2 seconds per drop
     lastTime: 0,
     explosions: [],
     grabbedPiece: null,
@@ -687,7 +687,11 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         scoreIncrease += timeBonus;
         
         // Create next piece
-        const currentPiece = prev.nextPiece || createPiece();
+        const currentPiece = prev.nextPiece ? {
+          ...prev.nextPiece,
+          x: Math.floor(BOARD_WIDTH / 2) - Math.floor(prev.nextPiece.shape[0].length / 2),
+          y: 0
+        } : createPiece();
         const nextPiece = createPiece();
         
         // Check game over - only if the new piece can't be placed at the starting position
@@ -703,7 +707,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-              dropTime: Math.max(2000, 3000 - (prev.level * 100)), // Keep falling slow even with levels
+              dropTime: Math.max(500, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 200), // Speed up every 20 seconds
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -1205,7 +1209,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               level: 1,
               lines: 0,
               gameOver: false,
-              dropTime: 3000, // Much slower falling - 3 seconds per drop
+              dropTime: 2000, // Start at 2 seconds per drop
               lastTime: performance.now(),
               explosions: [],
               grabbedPiece: null,
