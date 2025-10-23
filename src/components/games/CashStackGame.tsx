@@ -759,7 +759,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
     const deltaTime = currentTime - gameData.lastTime;
     
-    // Update timer and game state every frame
+    // Update timer first
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
@@ -768,22 +768,16 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining, deltaTime:', deltaTime);
       }
       
-      // Additional debug for timer issues
-      if (prev.timeRemaining <= 0) {
-        console.log('Timer already at 0, setting game over');
-        return { ...prev, gameOver: true, timeRemaining: 0 };
-      }
-      
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
         console.log('Game over due to timer!');
-        return { ...prev, gameOver: true, timeRemaining: 0 };
+        return { ...prev, gameOver: true, timeRemaining: 0, lastTime: currentTime };
       }
       
       return {
         ...prev,
-        lastTime: currentTime,
         timeRemaining: newTimeRemaining,
+        lastTime: currentTime,
         explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
           ...explosion,
           life: explosion.life - 1
@@ -1139,11 +1133,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
   // Start game
   const handleStartGame = () => {
+    console.log('Starting countdown...');
     setShowCountdown(true);
     setCountdown(3);
     
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
+        console.log('Countdown:', prev);
         if (prev <= 1) {
           clearInterval(countdownInterval);
           setShowCountdown(false);
@@ -1172,6 +1168,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           }));
           // Start game loop immediately
           setTimeout(() => {
+            console.log('Starting game loop...');
             gameLoopRef.current = requestAnimationFrame(gameLoop);
           }, 100);
           return 0;
@@ -1196,6 +1193,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       onGameEnd({ score: gameData.score, accuracy });
     }
   }, [gameData.gameOver, gameState, gameData.score, onGameEnd]);
+
+  // Start game loop when playing
+  useEffect(() => {
+    if (gameState === 'playing' && !gameData.gameOver && !gameLoopRef.current) {
+      console.log('Starting game loop from useEffect...');
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
+    }
+  }, [gameState, gameData.gameOver, gameLoop]);
 
   // Handle timer expiration
   useEffect(() => {
