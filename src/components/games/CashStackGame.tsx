@@ -695,9 +695,16 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         const nextPiece = createPiece();
         
         // Check game over - only if the new piece can't be placed at the starting position
+        console.log('Checking game over for piece:', currentPiece);
+        console.log('Piece position:', currentPiece.x, currentPiece.y);
+        console.log('Board state:', clearedBoard.slice(0, 3)); // Show top 3 rows
+        
         if (!isValidPosition(currentPiece, clearedBoard)) {
+          console.log('GAME OVER: Piece cannot be placed at starting position');
           return { ...prev, gameOver: true };
         }
+        
+        console.log('Piece can be placed, continuing game');
         
         return {
           ...prev,
@@ -800,8 +807,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     });
     
     // Drop piece if needed
+    console.log('Delta time:', deltaTime, 'Drop time:', gameData.dropTime);
     if (deltaTime >= gameData.dropTime) {
+      console.log('Dropping piece automatically');
       dropPiece();
+      // Reset timing after drop to prevent accumulation
+      setGameData(prev => ({ ...prev, lastTime: currentTime }));
     }
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
