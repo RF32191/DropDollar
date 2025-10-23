@@ -694,16 +694,35 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         } : createPiece();
         const nextPiece = createPiece();
         
-        // Check game over - only if the new piece can't be placed at the starting position
-        // Create a test piece at the starting position to check if game should end
+        // Check if game should end - only when timer expires, not when pieces can't be placed
+        // The game should continue for the full 2 minutes regardless of piece placement
         const testPiece = {
           ...currentPiece,
           x: Math.floor(BOARD_WIDTH / 2) - Math.floor(currentPiece.shape[0].length / 2),
           y: 0
         };
         
+        // If piece can't be placed, skip it and try the next one instead of ending game
         if (!isValidPosition(testPiece, clearedBoard)) {
-          return { ...prev, gameOver: true };
+          // Skip this piece, try the next one
+          const nextPiece = createPiece();
+          const skipPiece = {
+            ...nextPiece,
+            x: Math.floor(BOARD_WIDTH / 2) - Math.floor(nextPiece.shape[0].length / 2),
+            y: 0
+          };
+          
+          return {
+            ...prev,
+            board: clearedBoard,
+            currentPiece: skipPiece,
+            nextPiece: createPiece(),
+            score: prev.score + scoreIncrease,
+            lines: prev.lines + linesCleared,
+            level: Math.floor((prev.lines + linesCleared) / 10) + 1,
+            dropTime: Math.max(800, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 150),
+            explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
+          };
         }
         
         return {
@@ -783,8 +802,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
+      // Debug timer every 10 seconds
+      if (Math.floor(prev.timeRemaining / 10000) !== Math.floor(newTimeRemaining / 10000)) {
+        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining');
+      }
+      
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
+        console.log('Game over due to timer!');
         return { ...prev, gameOver: true, timeRemaining: 0, lastTime: currentTime };
       }
       
