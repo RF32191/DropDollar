@@ -696,7 +696,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       
       // Debug timer every second
       if (Math.floor(prev.timeRemaining / 1000) !== Math.floor(newTimeRemaining / 1000)) {
-        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining');
+        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining, deltaTime:', deltaTime);
+      }
+      
+      // Additional debug for timer issues
+      if (prev.timeRemaining <= 0) {
+        console.log('Timer already at 0, setting game over');
+        return { ...prev, gameOver: true, timeRemaining: 0 };
       }
       
       // Check for game over due to time
@@ -724,6 +730,71 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
   }, [gameState, gameData.gameOver, gameData.lastTime, gameData.dropTime, dropPiece]);
+
+  // Touch controls for mobile
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (gameState !== 'playing') return;
+    
+    const touch = e.touches[0];
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    setTouchStart({ x, y });
+    setIsDragging(false);
+  }, [gameState]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (gameState !== 'playing' || !touchStart) return;
+    
+    const touch = e.touches[0];
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    const deltaX = x - touchStart.x;
+    const deltaY = y - touchStart.y;
+    
+    // If moved more than 10 pixels, consider it dragging
+    if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+      setIsDragging(true);
+      
+      // Move piece horizontally based on touch movement
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        const direction = deltaX > 0 ? 1 : -1;
+        movePiece(direction);
+      }
+    }
+  }, [gameState, touchStart, movePiece]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (gameState !== 'playing' || !touchStart) return;
+    
+    const touch = e.changedTouches[0];
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    const deltaX = x - touchStart.x;
+    const deltaY = y - touchStart.y;
+    
+    // If it was a tap (not a drag), rotate the piece
+    if (!isDragging && Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+      rotateCurrentPiece();
+    }
+    
+    setTouchStart(null);
+    setIsDragging(false);
+  }, [gameState, touchStart, isDragging, rotateCurrentPiece]);
 
   // Handle keyboard input
   const handleKeyPress = useCallback((e: KeyboardEvent) => {
@@ -1005,6 +1076,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           clearInterval(countdownInterval);
           setShowCountdown(false);
           setGameState('playing');
+          console.log('Starting game with timer:', 120000);
           setGameData(prev => ({
             ...prev,
             board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
@@ -1021,7 +1093,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             isGrabbing: false,
             gameTime: 0,
             startTime: Date.now(),
-            timeRemaining: 120000,
+            timeRemaining: 120000, // 2 minutes in milliseconds
             perfectGaps: 0,
             verticalClears: 0,
             numberMatches: 0
@@ -1204,6 +1276,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         style={{ imageRendering: 'pixelated' }}
         onClick={handleCanvasClick}
         onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
     </div>
   );
