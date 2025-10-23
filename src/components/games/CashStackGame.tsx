@@ -204,7 +204,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     lines: 0,
     gameOver: false,
     dropTime: 2000, // Start at 2 seconds per drop
-    lastTime: 0,
+    lastTime: performance.now(),
     explosions: [],
     grabbedPiece: null,
     isGrabbing: false,
@@ -825,8 +825,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       };
     });
     
-    // Drop piece if needed
+    // Drop piece if needed - use the current deltaTime calculation
     if (deltaTime >= gameData.dropTime) {
+      console.log('Dropping piece - deltaTime:', deltaTime, 'dropTime:', gameData.dropTime);
       dropPiece();
     }
     
@@ -1307,13 +1308,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     }
   }, [gameState, gameData.gameOver, gameLoop]);
 
-  // Handle timer expiration
-  useEffect(() => {
-    if (gameData.timeRemaining <= 0 && gameState === 'playing') {
-      console.log('Timer expired - triggering game over');
-      setGameData(prev => ({ ...prev, gameOver: true }));
-    }
-  }, [gameData.timeRemaining, gameState]);
+  // Timer expiration is handled in the game loop, no need for separate useEffect
 
   // Add keyboard event listeners
   useEffect(() => {
