@@ -263,12 +263,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     return { explosions, scoreIncrease };
   }, []);
 
-  // Check for color alignment row clearing (5+ same colors in a row)
+  // Check for color alignment row clearing (3+ same colors in a row)
   const checkColorAlignment = useCallback((board: number[][]): { explosions: Explosion[], scoreIncrease: number } => {
     const explosions: Explosion[] = [];
     let scoreIncrease = 0;
     
-    // Check horizontal rows for 5+ same colors
+    // Check horizontal rows for 3+ same colors
     for (let y = 0; y < BOARD_HEIGHT; y++) {
       let currentColor = 0;
       let count = 0;
@@ -280,7 +280,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         if (cellColor === currentColor && cellColor !== 0) {
           count++;
         } else {
-          if (count >= 5 && currentColor !== 0) {
+          if (count >= 3 && currentColor !== 0) {
             // Clear the row segment
             for (let clearX = startX; clearX < startX + count; clearX++) {
               explosions.push({
@@ -302,7 +302,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       }
     }
     
-    // Check vertical columns for 5+ same colors
+    // Check vertical columns for 3+ same colors
     for (let x = 0; x < BOARD_WIDTH; x++) {
       let currentColor = 0;
       let count = 0;
@@ -314,7 +314,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         if (cellColor === currentColor && cellColor !== 0) {
           count++;
         } else {
-          if (count >= 5 && currentColor !== 0) {
+          if (count >= 3 && currentColor !== 0) {
             // Clear the column segment
             for (let clearY = startY; clearY < startY + count; clearY++) {
               explosions.push({
@@ -478,7 +478,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     explosions.push(...verticalExplosions);
     totalScoreIncrease += verticalScore;
     
-    // Check for color alignment (5+ same colors in a row)
+    // Check for color alignment (3+ same colors in a row)
     const { explosions: colorExplosions, scoreIncrease: colorScore } = checkColorAlignment(newBoard);
     explosions.push(...colorExplosions);
     totalScoreIncrease += colorScore;
@@ -699,8 +699,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
+      // Debug timer
+      if (Math.floor(prev.timeRemaining / 1000) !== Math.floor(newTimeRemaining / 1000)) {
+        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining');
+      }
+      
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
+        console.log('Game over due to timer!');
         return { ...prev, gameOver: true };
       }
       
