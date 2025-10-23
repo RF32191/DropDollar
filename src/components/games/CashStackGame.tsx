@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
 // Cash/Gold bar piece shapes with different sizes
 const PIECES = [
   // I piece - Large gold bars
@@ -113,6 +112,72 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
   
+  // Audio effects
+  const playMoneySound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (error) {
+      console.log('Audio not supported');
+    }
+  }, []);
+
+  const playExplosionSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.3);
+      
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.log('Audio not supported');
+    }
+  }, []);
+
+  const playCountdownSound = useCallback(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+      
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      console.log('Audio not supported');
+    }
+  }, []);
+
   // Seeded random number generator for fairness
   let seed = rngSeed;
   const seededRandom = () => {
@@ -223,6 +288,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               maxLife: 30,
               type: 'cash'
             });
+            playMoneySound(); // Play money sound for perfect gaps
             scoreIncrease += 500; // Big bonus for perfect gaps
           }
         }
@@ -501,6 +567,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     
     // Create explosions for cleared lines
     if (linesCleared > 0) {
+      playExplosionSound(); // Play explosion sound for line clearing
       for (let i = 0; i < linesCleared; i++) {
         const clearedRow = board[i];
         let goldCount = 0;
@@ -916,7 +983,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   // Draw explosion effect
   const drawExplosion = useCallback((ctx: CanvasRenderingContext2D, explosion: Explosion) => {
     const alpha = explosion.life / explosion.maxLife;
-    const size = (1 - alpha) * 50;
+    const size = (1 - alpha) * 80; // Increased explosion size
     
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -925,17 +992,20 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     let color = '#FFD700';
     if (explosion.type === 'row') color = '#FF6B6B';
     if (explosion.type === 'landing') color = '#32CD32';
+    if (explosion.type === 'cash') color = '#FFD700';
     
     // Draw explosion particles
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const distance = size * (0.5 + Math.random() * 0.5);
+    for (let i = 0; i < 12; i++) { // More particles
+      const angle = (i / 12) * Math.PI * 2;
+      const distance = size * (0.3 + Math.random() * 0.7);
       const particleX = explosion.x + Math.cos(angle) * distance;
       const particleY = explosion.y + Math.sin(angle) * distance;
       
       ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(particleX, particleY, 3, 0, Math.PI * 2);
+      ctx.arc(particleX, particleY, size * 0.1, 0, Math.PI * 2);
       ctx.fill();
     }
     
@@ -1100,9 +1170,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             verticalClears: 0,
             numberMatches: 0
           }));
-          gameLoopRef.current = requestAnimationFrame(gameLoop);
+          // Start game loop immediately
+          setTimeout(() => {
+            gameLoopRef.current = requestAnimationFrame(gameLoop);
+          }, 100);
           return 0;
         }
+        // Play countdown sound
+        playCountdownSound();
         return prev - 1;
       });
     }, 1000);
