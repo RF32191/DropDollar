@@ -695,16 +695,16 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         const nextPiece = createPiece();
         
         // Check game over - only if the new piece can't be placed at the starting position
-        console.log('Checking game over for piece:', currentPiece);
-        console.log('Piece position:', currentPiece.x, currentPiece.y);
-        console.log('Board state:', clearedBoard.slice(0, 3)); // Show top 3 rows
+        // Create a test piece at the starting position to check if game should end
+        const testPiece = {
+          ...currentPiece,
+          x: Math.floor(BOARD_WIDTH / 2) - Math.floor(currentPiece.shape[0].length / 2),
+          y: 0
+        };
         
-        if (!isValidPosition(currentPiece, clearedBoard)) {
-          console.log('GAME OVER: Piece cannot be placed at starting position');
+        if (!isValidPosition(testPiece, clearedBoard)) {
           return { ...prev, gameOver: true };
         }
-        
-        console.log('Piece can be placed, continuing game');
         
         return {
           ...prev,
@@ -714,7 +714,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-              dropTime: Math.max(500, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 200), // Speed up every 20 seconds
+              dropTime: Math.max(800, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 150), // More gradual speed increase
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -779,25 +779,19 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
     const deltaTime = currentTime - gameData.lastTime;
     
-    // Update timer first
+    // Update timer and game state every frame
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
-      // Debug timer every second
-      if (Math.floor(prev.timeRemaining / 1000) !== Math.floor(newTimeRemaining / 1000)) {
-        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining, deltaTime:', deltaTime);
-      }
-      
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
-        console.log('Game over due to timer!');
         return { ...prev, gameOver: true, timeRemaining: 0, lastTime: currentTime };
       }
       
       return {
         ...prev,
-        timeRemaining: newTimeRemaining,
         lastTime: currentTime,
+        timeRemaining: newTimeRemaining,
         explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
           ...explosion,
           life: explosion.life - 1
@@ -807,12 +801,8 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     });
     
     // Drop piece if needed
-    console.log('Delta time:', deltaTime, 'Drop time:', gameData.dropTime);
     if (deltaTime >= gameData.dropTime) {
-      console.log('Dropping piece automatically');
       dropPiece();
-      // Reset timing after drop to prevent accumulation
-      setGameData(prev => ({ ...prev, lastTime: currentTime }));
     }
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
