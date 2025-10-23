@@ -687,10 +687,10 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         scoreIncrease += timeBonus;
         
         // Create next piece
-        const nextPiece = prev.nextPiece || createPiece();
-        const currentPiece = createPiece();
+        const currentPiece = prev.nextPiece || createPiece();
+        const nextPiece = createPiece();
         
-        // Check game over
+        // Check game over - only if the new piece can't be placed at the starting position
         if (!isValidPosition(currentPiece, clearedBoard)) {
           return { ...prev, gameOver: true };
         }
