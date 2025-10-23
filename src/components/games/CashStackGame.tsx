@@ -632,6 +632,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
   // Drop piece
   const dropPiece = useCallback(() => {
+    console.log('dropPiece called - current piece:', gameData.currentPiece);
     setGameData(prev => {
       if (!prev.currentPiece) return prev;
       
@@ -641,6 +642,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         return { ...prev, currentPiece: newPiece };
       } else {
         // Piece can't move down, place it
+        console.log('Piece landed, placing it on board');
         const { newBoard: placedBoard, explosions: cashExplosions, scoreIncrease: cashScore } = placePiece(prev.currentPiece, prev.board);
         const { newBoard: clearedBoard, linesCleared, explosions: lineExplosions } = clearLines(placedBoard);
         
@@ -702,42 +704,35 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           y: 0
         };
         
-        // If piece can't be placed, skip it and try the next one instead of ending game
+        // Always continue the game - never end due to piece placement
+        // If piece can't be placed, just use the next piece
+        let finalCurrentPiece = currentPiece;
+        let finalNextPiece = nextPiece;
+        
         if (!isValidPosition(testPiece, clearedBoard)) {
-          // Skip this piece, try the next one
-          const nextPiece = createPiece();
-          const skipPiece = {
+          console.log('Piece cannot be placed, using next piece instead');
+          finalCurrentPiece = nextPiece ? {
             ...nextPiece,
             x: Math.floor(BOARD_WIDTH / 2) - Math.floor(nextPiece.shape[0].length / 2),
             y: 0
-          };
-          
-          return {
-            ...prev,
-            board: clearedBoard,
-            currentPiece: skipPiece,
-            nextPiece: createPiece(),
-            score: prev.score + scoreIncrease,
-            lines: prev.lines + linesCleared,
-            level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-            dropTime: Math.max(800, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 150),
-            explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
-          };
+          } : createPiece();
+          finalNextPiece = createPiece();
         }
         
         return {
           ...prev,
           board: clearedBoard,
-          currentPiece,
-          nextPiece,
+          currentPiece: finalCurrentPiece,
+          nextPiece: finalNextPiece,
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-              dropTime: Math.max(800, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 150), // More gradual speed increase
+          dropTime: Math.max(800, 2000 - Math.floor((Date.now() - prev.startTime) / 20000) * 150),
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
     });
+    console.log('dropPiece completed');
   }, [isValidPosition, placePiece, clearLines, createPiece]);
 
   // Rotate current piece
@@ -792,6 +787,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
         gameLoopRef.current = undefined;
+      }
+      if (gameData.gameOver) {
+        console.log('Game loop stopped due to gameOver:', gameData.gameOver);
       }
       return;
     }
