@@ -120,6 +120,8 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     return seed / 233280;
   };
   
+  // Force deployment trigger
+  
   // Game constants
   const BOARD_WIDTH = 10;
   const BOARD_HEIGHT = 20;
