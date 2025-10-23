@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+
 // Cash/Gold bar piece shapes with different sizes
 const PIECES = [
   // I piece - Large gold bars
@@ -899,82 +900,122 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     
     ctx.save();
     
-    // Create gradient based on bar type
-    const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+    // Add sparkly animation for all blocks
+    const time = Date.now() * 0.005;
+    const sparkleIntensity = Math.sin(time + x * 0.1 + y * 0.1) * 0.3 + 0.7;
     
+    // Special effects for green cash blocks
     if (barInfo.type === 'cash') {
-      // Cash blocks - green with money pattern
-      gradient.addColorStop(0, '#32CD32');
-      gradient.addColorStop(0.3, '#228B22');
-      gradient.addColorStop(0.7, '#32CD32');
-      gradient.addColorStop(1, '#006400');
+      // Bright green glow with flashing effect
+      const flashIntensity = Math.sin(time * 3) * 0.5 + 0.5;
+      const glowIntensity = Math.sin(time * 2) * 0.3 + 0.7;
+      
+      // Outer glow effect
+      ctx.shadowColor = `rgba(50, 205, 50, ${0.8 * glowIntensity})`;
+      ctx.shadowBlur = 20 * glowIntensity;
+      
+      // Create bright green gradient with flashing
+      const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+      gradient.addColorStop(0, `rgba(50, 255, 50, ${flashIntensity})`);
+      gradient.addColorStop(0.3, `rgba(34, 255, 34, ${flashIntensity})`);
+      gradient.addColorStop(0.7, `rgba(50, 255, 50, ${flashIntensity})`);
+      gradient.addColorStop(1, `rgba(0, 255, 0, ${flashIntensity})`);
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, size, size);
+      
+      // Add sparkles around green blocks
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity})`;
+      for (let i = 0; i < 4; i++) {
+        const sparkleX = x + (i % 2) * size + Math.sin(time + i) * 5;
+        const sparkleY = y + Math.floor(i / 2) * size + Math.cos(time + i) * 5;
+        ctx.fillRect(sparkleX, sparkleY, 2, 2);
+      }
+      
+      // Inner bright core
+      const coreGradient = ctx.createLinearGradient(x + size/4, y + size/4, x + 3*size/4, y + 3*size/4);
+      coreGradient.addColorStop(0, `rgba(255, 255, 255, ${flashIntensity * 0.8})`);
+      coreGradient.addColorStop(1, `rgba(50, 255, 50, ${flashIntensity})`);
+      ctx.fillStyle = coreGradient;
+      ctx.fillRect(x + size/4, y + size/4, size/2, size/2);
+      
     } else {
-      // Metal bars - different gradients for each type
+      // Regular metal bars with sparkly effects
+      const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+      
       switch (barType) {
         case 1: // Bronze
-          gradient.addColorStop(0, '#CD7F32');
-          gradient.addColorStop(0.3, '#B8860B');
-          gradient.addColorStop(0.7, '#CD7F32');
-          gradient.addColorStop(1, '#8B4513');
+          gradient.addColorStop(0, `rgba(205, 127, 50, ${sparkleIntensity})`);
+          gradient.addColorStop(0.3, `rgba(184, 134, 11, ${sparkleIntensity})`);
+          gradient.addColorStop(0.7, `rgba(205, 127, 50, ${sparkleIntensity})`);
+          gradient.addColorStop(1, `rgba(139, 69, 19, ${sparkleIntensity})`);
           break;
         case 2: // Silver
-          gradient.addColorStop(0, '#E6E6FA');
-          gradient.addColorStop(0.3, '#C0C0C0');
-          gradient.addColorStop(0.7, '#E6E6FA');
-          gradient.addColorStop(1, '#A0A0A0');
+          gradient.addColorStop(0, `rgba(230, 230, 250, ${sparkleIntensity})`);
+          gradient.addColorStop(0.3, `rgba(192, 192, 192, ${sparkleIntensity})`);
+          gradient.addColorStop(0.7, `rgba(230, 230, 250, ${sparkleIntensity})`);
+          gradient.addColorStop(1, `rgba(160, 160, 160, ${sparkleIntensity})`);
           break;
         case 3: // Gold
-          gradient.addColorStop(0, '#FFD700');
-          gradient.addColorStop(0.3, '#FFA500');
-          gradient.addColorStop(0.7, '#FFD700');
-          gradient.addColorStop(1, '#B8860B');
+          gradient.addColorStop(0, `rgba(255, 215, 0, ${sparkleIntensity})`);
+          gradient.addColorStop(0.3, `rgba(255, 165, 0, ${sparkleIntensity})`);
+          gradient.addColorStop(0.7, `rgba(255, 215, 0, ${sparkleIntensity})`);
+          gradient.addColorStop(1, `rgba(184, 134, 11, ${sparkleIntensity})`);
           break;
         case 4: // Platinum
-          gradient.addColorStop(0, '#F5F5F5');
-          gradient.addColorStop(0.3, '#E5E4E2');
-          gradient.addColorStop(0.7, '#F5F5F5');
-          gradient.addColorStop(1, '#C0C0C0');
+          gradient.addColorStop(0, `rgba(245, 245, 245, ${sparkleIntensity})`);
+          gradient.addColorStop(0.3, `rgba(229, 228, 226, ${sparkleIntensity})`);
+          gradient.addColorStop(0.7, `rgba(245, 245, 245, ${sparkleIntensity})`);
+          gradient.addColorStop(1, `rgba(192, 192, 192, ${sparkleIntensity})`);
           break;
+      }
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, size, size);
+      
+      // Add sparkles for metal blocks
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity * 0.6})`;
+      for (let i = 0; i < 2; i++) {
+        const sparkleX = x + Math.random() * size;
+        const sparkleY = y + Math.random() * size;
+        ctx.fillRect(sparkleX, sparkleY, 1, 1);
       }
     }
     
-    // Draw main bar
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, size, size);
-    
     // Add highlight for 3D effect
     const highlightGradient = ctx.createLinearGradient(x, y, x + size/3, y + size/3);
-    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0.1)');
+    highlightGradient.addColorStop(0, `rgba(255, 255, 255, ${0.6 * sparkleIntensity})`);
+    highlightGradient.addColorStop(1, `rgba(255, 255, 255, ${0.1 * sparkleIntensity})`);
     ctx.fillStyle = highlightGradient;
     ctx.fillRect(x + 2, y + 2, size/3, size/3);
     
     // Add shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.3 * sparkleIntensity})`;
     ctx.fillRect(x + 2, y + 2, size, size);
     
     // Draw border based on type
     if (barInfo.type === 'cash') {
-      ctx.strokeStyle = '#228B22';
+      ctx.strokeStyle = `rgba(34, 139, 34, ${sparkleIntensity})`;
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, size, size);
-      ctx.strokeStyle = '#32CD32';
+      ctx.strokeStyle = `rgba(50, 205, 50, ${sparkleIntensity})`;
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
       
       // Add dollar sign for cash blocks
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity})`;
       ctx.font = 'bold 16px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('$', x + size/2, y + size/2);
     } else {
-      ctx.strokeStyle = barInfo.color;
+      ctx.strokeStyle = `rgba(${parseInt(barInfo.color.slice(1, 3), 16)}, ${parseInt(barInfo.color.slice(3, 5), 16)}, ${parseInt(barInfo.color.slice(5, 7), 16)}, ${sparkleIntensity})`;
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, size, size);
       
       // Add inner border for depth
-      ctx.strokeStyle = barInfo.color;
+      ctx.strokeStyle = `rgba(${parseInt(barInfo.color.slice(1, 3), 16)}, ${parseInt(barInfo.color.slice(3, 5), 16)}, ${parseInt(barInfo.color.slice(5, 7), 16)}, ${sparkleIntensity * 0.7})`;
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
     }
@@ -1305,45 +1346,80 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             </div>
 
             {/* Instructions */}
-            <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-r from-yellow-800 to-yellow-900 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border-2 border-yellow-600 shadow-2xl">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-yellow-600 to-yellow-500 rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-white text-sm sm:text-lg font-black">!</span>
-                </div>
-                <h3 className="text-white font-black text-lg sm:text-xl">HOW TO PLAY:</h3>
+            <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-lg border-2 border-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 shadow-2xl relative overflow-hidden">
+              {/* Animated background pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-yellow-400/20 via-transparent to-yellow-600/20 animate-pulse"></div>
+                <div className="absolute top-4 left-4 w-2 h-2 bg-yellow-400 rounded-full animate-ping"></div>
+                <div className="absolute top-8 right-8 w-1 h-1 bg-yellow-500 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
+                <div className="absolute bottom-6 left-8 w-1.5 h-1.5 bg-yellow-400 rounded-full animate-ping" style={{animationDelay: '1s'}}></div>
+                <div className="absolute bottom-4 right-4 w-2 h-2 bg-yellow-500 rounded-full animate-ping" style={{animationDelay: '1.5s'}}></div>
               </div>
               
-              <div className="space-y-3 pl-8 sm:pl-11">
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-bold">Arrow Keys:</span> Move pieces FAST (2 cells at once)</p>
+              <div className="flex items-center space-x-4 mb-6 relative z-10">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-xl animate-pulse">
+                  <span className="text-white text-lg sm:text-xl font-black">🎮</span>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                    <p><span className="text-yellow-300 font-bold">Click:</span> Grab pieces to move them</p>
+                <div>
+                  <h3 className="text-white font-black text-xl sm:text-2xl bg-gradient-to-r from-yellow-300 to-yellow-100 bg-clip-text text-transparent">HOW TO PLAY</h3>
+                  <p className="text-yellow-200 text-sm">Master the art of stacking!</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4 pl-4 sm:pl-6 relative z-10">
+                <div className="flex items-start space-x-4 group hover:bg-white/5 rounded-xl p-3 transition-all duration-300">
+                  <div className="w-3 h-3 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full mt-1 animate-pulse flex-shrink-0 shadow-lg"></div>
+                  <div>
+                    <p className="text-yellow-200 font-semibold">Arrow Keys</p>
+                    <p className="text-gray-300 text-sm">Move pieces FAST (2 cells at once)</p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-bold">Double Click:</span> Rotate pieces</p>
+                
+                <div className="flex items-start space-x-4 group hover:bg-white/5 rounded-xl p-3 transition-all duration-300">
+                  <div className="w-3 h-3 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full mt-1 animate-pulse flex-shrink-0 shadow-lg"></div>
+                  <div>
+                    <p className="text-blue-200 font-semibold">Click & Drag</p>
+                    <p className="text-gray-300 text-sm">Grab pieces to move them around</p>
+                  </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-bold">Complete Rows:</span> Watch gold bars explode!</p>
+                
+                <div className="flex items-start space-x-4 group hover:bg-white/5 rounded-xl p-3 transition-all duration-300">
+                  <div className="w-3 h-3 bg-gradient-to-r from-purple-400 to-purple-500 rounded-full mt-1 animate-pulse flex-shrink-0 shadow-lg"></div>
+                  <div>
+                    <p className="text-purple-200 font-semibold">Double Click</p>
+                    <p className="text-gray-300 text-sm">Rotate pieces for perfect fit</p>
+                  </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-yellow-300 font-bold">More Gold = More Points:</span> Gold bars give bonus points!</p>
+                
+                <div className="flex items-start space-x-4 group hover:bg-white/5 rounded-xl p-3 transition-all duration-300">
+                  <div className="w-3 h-3 bg-gradient-to-r from-red-400 to-red-500 rounded-full mt-1 animate-pulse flex-shrink-0 shadow-lg"></div>
+                  <div>
+                    <p className="text-red-200 font-semibold">Complete Rows</p>
+                    <p className="text-gray-300 text-sm">Watch gold bars explode! 💥</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-4 group hover:bg-white/5 rounded-xl p-3 transition-all duration-300">
+                  <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-green-500 rounded-full mt-1 animate-pulse flex-shrink-0 shadow-lg"></div>
+                  <div>
+                    <p className="text-green-200 font-semibold">Green Cash Blocks</p>
+                    <p className="text-gray-300 text-sm">Glow bright and flash for bonus points!</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Pro Tip */}
-            <div className="bg-gradient-to-r from-yellow-600/30 to-yellow-500/30 border border-yellow-400/50 rounded-lg p-3 mt-4">
-              <p className="text-xs sm:text-sm text-yellow-200">
-                <span className="text-yellow-300 font-bold">💡 Pro Tip:</span> Pieces fall slowly (3 seconds) - use arrow keys for FAST movement!
-              </p>
+            <div className="bg-gradient-to-r from-yellow-600/20 via-yellow-500/30 to-yellow-600/20 border border-yellow-400/60 rounded-2xl p-4 mt-6 backdrop-blur-sm shadow-xl relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/10 via-transparent to-yellow-600/10 animate-pulse"></div>
+              <div className="relative z-10 flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-white text-sm">💡</span>
+                </div>
+                <p className="text-sm sm:text-base text-yellow-100 font-semibold">
+                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall slowly (3 seconds) - use arrow keys for FAST movement!
+                </p>
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -1389,12 +1465,21 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50 overflow-hidden flex items-center justify-center">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-gray-900 to-black z-50 overflow-hidden flex items-center justify-center relative">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-yellow-400/5 via-transparent to-yellow-600/5 animate-pulse"></div>
+        <div className="absolute top-10 left-10 w-4 h-4 bg-yellow-400/20 rounded-full animate-ping"></div>
+        <div className="absolute top-20 right-20 w-2 h-2 bg-yellow-500/30 rounded-full animate-ping" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 left-20 w-3 h-3 bg-yellow-400/25 rounded-full animate-ping" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-10 right-10 w-2 h-2 bg-yellow-600/20 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
+      </div>
+      
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH + 200}
         height={CANVAS_HEIGHT}
-        className="border border-yellow-600"
+        className="border-2 border-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 shadow-2xl rounded-lg"
         style={{ imageRendering: 'pixelated' }}
         onClick={handleCanvasClick}
         onContextMenu={(e) => e.preventDefault()}
