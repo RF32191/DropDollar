@@ -46,13 +46,13 @@ const PIECES = [
   ]
 ];
 
-// Different bar types: 1=Large Gold, 2=Medium Gold, 3=Small Gold, 4=Silver, 5=Bronze
+// Different bar types: 1=Bronze, 2=Silver, 3=Gold, 4=Platinum, 5=Cash
 const BAR_TYPES = {
-  1: { color: '#FFD700', name: 'Large Gold', value: 100, size: 'large' },
-  2: { color: '#FFA500', name: 'Medium Gold', value: 75, size: 'medium' },
-  3: { color: '#FF8C00', name: 'Small Gold', value: 50, size: 'small' },
-  4: { color: '#C0C0C0', name: 'Silver', value: 30, size: 'medium' },
-  5: { color: '#CD7F32', name: 'Bronze', value: 20, size: 'small' }
+  1: { color: '#CD7F32', name: 'Bronze', value: 25, size: 'small', type: 'metal' },
+  2: { color: '#C0C0C0', name: 'Silver', value: 50, size: 'medium', type: 'metal' },
+  3: { color: '#FFD700', name: 'Gold', value: 100, size: 'large', type: 'metal' },
+  4: { color: '#E5E4E2', name: 'Platinum', value: 200, size: 'large', type: 'metal' },
+  5: { color: '#32CD32', name: 'Cash', value: 150, size: 'medium', type: 'cash' }
 };
 
 interface Piece {
@@ -83,6 +83,12 @@ interface GameState {
   explosions: Explosion[];
   grabbedPiece: Piece | null;
   isGrabbing: boolean;
+  gameTime: number;
+  startTime: number;
+  timeRemaining: number;
+  perfectGaps: number;
+  verticalClears: number;
+  numberMatches: number;
 }
 
 interface CashStackGameProps {
@@ -124,7 +130,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     lastTime: 0,
     explosions: [],
     grabbedPiece: null,
-    isGrabbing: false
+    isGrabbing: false,
+    gameTime: 0,
+    startTime: 0,
+    timeRemaining: 120000,
+    perfectGaps: 0,
+    verticalClears: 0,
+    numberMatches: 0
   });
 
   // Create a new piece with random bar types
@@ -132,12 +144,17 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     const shapeIndex = Math.floor(Math.random() * PIECES.length);
     const baseShape = PIECES[shapeIndex];
     
-    // Convert shape to use different bar types
+    // Convert shape to use different bar types with numbers
     const newShape = baseShape.map(row => 
       row.map(cell => {
         if (cell === 0) return 0;
-        // Randomly assign bar types (1-5)
-        return Math.floor(Math.random() * 5) + 1;
+        // Weighted random: Bronze(35%), Silver(30%), Gold(15%), Platinum(10%), Cash(10%)
+        const rand = Math.random();
+        if (rand < 0.35) return 1; // Bronze
+        if (rand < 0.65) return 2; // Silver
+        if (rand < 0.8) return 3; // Gold
+        if (rand < 0.9) return 4; // Platinum
+        return 5; // Cash
       })
     );
     
@@ -175,9 +192,179 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     return true;
   }, []);
 
+  // Check for perfect gap fills
+  const checkPerfectGaps = useCallback((board: number[][]): { explosions: Explosion[], scoreIncrease: number } => {
+    const explosions: Explosion[] = [];
+    let scoreIncrease = 0;
+    
+    // Check for perfect 2x2 gaps that get filled
+    for (let y = 0; y < BOARD_HEIGHT - 1; y++) {
+      for (let x = 0; x < BOARD_WIDTH - 1; x++) {
+        if (board[y][x] && board[y][x+1] && board[y+1][x] && board[y+1][x+1]) {
+          // Check if this forms a perfect 2x2 square
+          const sameType = board[y][x];
+          if (board[y][x+1] === sameType && board[y+1][x] === sameType && board[y+1][x+1] === sameType) {
+            // Perfect gap filled!
+            explosions.push({
+              x: (x + 0.5) * CELL_SIZE,
+              y: (y + 0.5) * CELL_SIZE,
+              life: 30,
+              maxLife: 30,
+              type: 'cash'
+            });
+            scoreIncrease += 500; // Big bonus for perfect gaps
+          }
+        }
+      }
+    }
+    
+    return { explosions, scoreIncrease };
+  }, []);
+
+  // Check for vertical column clearing
+  const checkVerticalClears = useCallback((board: number[][]): { explosions: Explosion[], scoreIncrease: number } => {
+    const explosions: Explosion[] = [];
+    let scoreIncrease = 0;
+    
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      let columnFilled = true;
+      for (let y = 0; y < BOARD_HEIGHT; y++) {
+        if (!board[y][x]) {
+          columnFilled = false;
+          break;
+        }
+      }
+      
+      if (columnFilled) {
+        // Clear the column and create explosions
+        for (let y = 0; y < BOARD_HEIGHT; y++) {
+          explosions.push({
+            x: x * CELL_SIZE + CELL_SIZE / 2,
+            y: y * CELL_SIZE + CELL_SIZE / 2,
+            life: 25,
+            maxLife: 25,
+            type: 'row'
+          });
+          board[y][x] = 0;
+        }
+        scoreIncrease += 1000; // Big bonus for vertical clears
+      }
+    }
+    
+    return { explosions, scoreIncrease };
+  }, []);
+
+  // Check for number matching (same numbers touching)
+  const checkNumberMatches = useCallback((board: number[][]): { explosions: Explosion[], scoreIncrease: number } => {
+    const explosions: Explosion[] = [];
+    let scoreIncrease = 0;
+    const visited = Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(false));
+    
+    // Generate random numbers for each block (1-9)
+    const numberBoard = board.map(row => row.map(cell => cell ? Math.floor(Math.random() * 9) + 1 : 0));
+    
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (board[y][x] && !visited[y][x]) {
+          const currentNumber = numberBoard[y][x];
+          const matches: {x: number, y: number}[] = [];
+          
+          // Find all connected blocks with the same number
+          const findMatches = (checkX: number, checkY: number) => {
+            if (checkX < 0 || checkX >= BOARD_WIDTH || checkY < 0 || checkY >= BOARD_HEIGHT) return;
+            if (visited[checkY][checkX] || !board[checkY][checkX]) return;
+            if (numberBoard[checkY][checkX] !== currentNumber) return;
+            
+            visited[checkY][checkX] = true;
+            matches.push({x: checkX, y: checkY});
+            
+            // Check adjacent cells
+            findMatches(checkX + 1, checkY);
+            findMatches(checkX - 1, checkY);
+            findMatches(checkX, checkY + 1);
+            findMatches(checkX, checkY - 1);
+          };
+          
+          findMatches(x, y);
+          
+          // If we found 2 or more matching numbers, clear them
+          if (matches.length >= 2) {
+            matches.forEach(match => {
+              explosions.push({
+                x: match.x * CELL_SIZE + CELL_SIZE / 2,
+                y: match.y * CELL_SIZE + CELL_SIZE / 2,
+                life: 20,
+                maxLife: 20,
+                type: 'cash'
+              });
+              board[match.y][match.x] = 0;
+            });
+            scoreIncrease += matches.length * 100; // Points per matched block
+          }
+        }
+      }
+    }
+    
+    return { explosions, scoreIncrease };
+  }, []);
+
+  // Check for cash stacking explosions
+  const checkCashStacking = useCallback((board: number[][], placedX: number, placedY: number): { explosions: Explosion[], scoreIncrease: number } => {
+    const explosions: Explosion[] = [];
+    let scoreIncrease = 0;
+    
+    // Check if placed block is cash (type 5)
+    if (board[placedY][placedX] === 5) {
+      // Check surrounding cells for other cash blocks
+      const directions = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]];
+      let cashNeighbors = 0;
+      
+      directions.forEach(([dx, dy]) => {
+        const checkX = placedX + dx;
+        const checkY = placedY + dy;
+        
+        if (checkX >= 0 && checkX < BOARD_WIDTH && checkY >= 0 && checkY < BOARD_HEIGHT) {
+          if (board[checkY][checkX] === 5) {
+            cashNeighbors++;
+          }
+        }
+      });
+      
+      // If cash block has neighbors, create explosion
+      if (cashNeighbors > 0) {
+        explosions.push({
+          x: placedX * CELL_SIZE + CELL_SIZE / 2,
+          y: placedY * CELL_SIZE + CELL_SIZE / 2,
+          life: 25,
+          maxLife: 25,
+          type: 'cash'
+        });
+        
+        // Score based on number of cash neighbors
+        scoreIncrease = cashNeighbors * 100;
+        
+        // Clear the cash blocks that exploded
+        board[placedY][placedX] = 0;
+        directions.forEach(([dx, dy]) => {
+          const checkX = placedX + dx;
+          const checkY = placedY + dy;
+          if (checkX >= 0 && checkX < BOARD_WIDTH && checkY >= 0 && checkY < BOARD_HEIGHT) {
+            if (board[checkY][checkX] === 5) {
+              board[checkY][checkX] = 0;
+            }
+          }
+        });
+      }
+    }
+    
+    return { explosions, scoreIncrease };
+  }, []);
+
   // Place piece on board
-  const placePiece = useCallback((piece: Piece, board: number[][]): number[][] => {
+  const placePiece = useCallback((piece: Piece, board: number[][]): { newBoard: number[][], explosions: Explosion[], scoreIncrease: number } => {
     const newBoard = board.map(row => [...row]);
+    const explosions: Explosion[] = [];
+    let totalScoreIncrease = 0;
     
     for (let y = 0; y < piece.shape.length; y++) {
       for (let x = 0; x < piece.shape[y].length; x++) {
@@ -186,13 +373,33 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           const boardY = piece.y + y;
           if (boardY >= 0) {
             newBoard[boardY][boardX] = piece.shape[y][x];
+            
+            // Check for cash stacking explosions
+            const { explosions: cashExplosions, scoreIncrease } = checkCashStacking(newBoard, boardX, boardY);
+            explosions.push(...cashExplosions);
+            totalScoreIncrease += scoreIncrease;
           }
         }
       }
     }
     
-    return newBoard;
-  }, []);
+    // Check for perfect gaps
+    const { explosions: gapExplosions, scoreIncrease: gapScore } = checkPerfectGaps(newBoard);
+    explosions.push(...gapExplosions);
+    totalScoreIncrease += gapScore;
+    
+    // Check for vertical clears
+    const { explosions: verticalExplosions, scoreIncrease: verticalScore } = checkVerticalClears(newBoard);
+    explosions.push(...verticalExplosions);
+    totalScoreIncrease += verticalScore;
+    
+    // Check for number matches
+    const { explosions: numberExplosions, scoreIncrease: numberScore } = checkNumberMatches(newBoard);
+    explosions.push(...numberExplosions);
+    totalScoreIncrease += numberScore;
+    
+    return { newBoard, explosions, scoreIncrease: totalScoreIncrease };
+  }, [checkCashStacking, checkPerfectGaps, checkVerticalClears, checkNumberMatches]);
 
   // Clear completed lines and create explosions
   const clearLines = useCallback((board: number[][]): { newBoard: number[][]; linesCleared: number; explosions: Explosion[] } => {
@@ -266,8 +473,8 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         return { ...prev, currentPiece: newPiece };
       } else {
         // Piece can't move down, place it
-        const newBoard = placePiece(prev.currentPiece, prev.board);
-        const { newBoard: clearedBoard, linesCleared, explosions } = clearLines(newBoard);
+        const { newBoard: placedBoard, explosions: cashExplosions, scoreIncrease: cashScore } = placePiece(prev.currentPiece, prev.board);
+        const { newBoard: clearedBoard, linesCleared, explosions: lineExplosions } = clearLines(placedBoard);
         
         // Create landing explosions
         const landingExplosions: Explosion[] = [];
@@ -289,19 +496,27 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           }
         }
         
-        // Calculate score based on gold bars
-        let scoreIncrease = 0;
+        // Calculate score based on bar types and timer
+        let scoreIncrease = cashScore; // Cash explosion points
         if (linesCleared > 0) {
-          // Count gold bars in cleared lines for bonus
-          let goldBarsInClearedLines = 0;
+          // Count different bar types in cleared lines for bonus
+          let platinumBars = 0, goldBars = 0, silverBars = 0, bronzeBars = 0;
           for (let i = 0; i < linesCleared; i++) {
             const clearedRow = prev.board[i];
             clearedRow.forEach(cell => {
-              if (cell >= 1 && cell <= 3) goldBarsInClearedLines++; // Gold bars
+              if (cell === 4) platinumBars++; // Platinum
+              if (cell === 3) goldBars++; // Gold
+              if (cell === 2) silverBars++; // Silver
+              if (cell === 1) bronzeBars++; // Bronze
             });
           }
-          scoreIncrease = linesCleared * 100 * prev.level + goldBarsInClearedLines * 50;
+          scoreIncrease += linesCleared * 100 * prev.level + 
+                          platinumBars * 200 + goldBars * 100 + silverBars * 50 + bronzeBars * 25;
         }
+        
+        // Add time bonus (faster completion = more points)
+        const timeBonus = Math.max(0, 1000 - (Date.now() - prev.startTime) / 1000) * 10;
+        scoreIncrease += timeBonus;
         
         // Create next piece
         const nextPiece = prev.nextPiece || createPiece();
@@ -321,7 +536,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
           dropTime: Math.max(50, 1000 - (prev.level * 50)),
-          explosions: [...prev.explosions, ...explosions, ...landingExplosions]
+          explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
     });
@@ -390,14 +605,25 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       setGameData(prev => ({ ...prev, lastTime: currentTime }));
     }
     
-    // Update explosions
-    setGameData(prev => ({
-      ...prev,
-      explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
-        ...explosion,
-        life: explosion.life - 1
-      }))
-    }));
+    // Update explosions and timer
+    setGameData(prev => {
+      const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
+      
+      // Check for game over due to time
+      if (newTimeRemaining <= 0) {
+        return { ...prev, gameOver: true };
+      }
+      
+      return {
+        ...prev,
+        explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
+          ...explosion,
+          life: explosion.life - 1
+        })),
+        gameTime: Date.now() - prev.startTime,
+        timeRemaining: newTimeRemaining
+      };
+    });
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
   }, [gameState, gameData.gameOver, gameData.lastTime, gameData.dropTime, dropPiece]);
@@ -427,19 +653,51 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     }
   }, [gameState, movePiece, dropPiece, rotateCurrentPiece]);
 
-  // Draw gold bar with realistic 3D effect
+  // Draw bar with realistic 3D effect based on type
   const drawGoldBar = useCallback((ctx: CanvasRenderingContext2D, x: number, y: number, barType: number, size: number = CELL_SIZE) => {
     const barInfo = BAR_TYPES[barType as keyof typeof BAR_TYPES];
     if (!barInfo) return;
     
     ctx.save();
     
-    // Create gradient for realistic gold effect
+    // Create gradient based on bar type
     const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
-    gradient.addColorStop(0, barInfo.color);
-    gradient.addColorStop(0.3, '#FFA500');
-    gradient.addColorStop(0.7, '#FF8C00');
-    gradient.addColorStop(1, '#B8860B');
+    
+    if (barInfo.type === 'cash') {
+      // Cash blocks - green with money pattern
+      gradient.addColorStop(0, '#32CD32');
+      gradient.addColorStop(0.3, '#228B22');
+      gradient.addColorStop(0.7, '#32CD32');
+      gradient.addColorStop(1, '#006400');
+    } else {
+      // Metal bars - different gradients for each type
+      switch (barType) {
+        case 1: // Bronze
+          gradient.addColorStop(0, '#CD7F32');
+          gradient.addColorStop(0.3, '#B8860B');
+          gradient.addColorStop(0.7, '#CD7F32');
+          gradient.addColorStop(1, '#8B4513');
+          break;
+        case 2: // Silver
+          gradient.addColorStop(0, '#E6E6FA');
+          gradient.addColorStop(0.3, '#C0C0C0');
+          gradient.addColorStop(0.7, '#E6E6FA');
+          gradient.addColorStop(1, '#A0A0A0');
+          break;
+        case 3: // Gold
+          gradient.addColorStop(0, '#FFD700');
+          gradient.addColorStop(0.3, '#FFA500');
+          gradient.addColorStop(0.7, '#FFD700');
+          gradient.addColorStop(1, '#B8860B');
+          break;
+        case 4: // Platinum
+          gradient.addColorStop(0, '#F5F5F5');
+          gradient.addColorStop(0.3, '#E5E4E2');
+          gradient.addColorStop(0.7, '#F5F5F5');
+          gradient.addColorStop(1, '#C0C0C0');
+          break;
+      }
+    }
     
     // Draw main bar
     ctx.fillStyle = gradient;
@@ -456,15 +714,31 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.fillRect(x + 2, y + 2, size, size);
     
-    // Draw border
-    ctx.strokeStyle = '#B8860B';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, size, size);
-    
-    // Add inner border for depth
-    ctx.strokeStyle = '#FFD700';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+    // Draw border based on type
+    if (barInfo.type === 'cash') {
+      ctx.strokeStyle = '#228B22';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, size, size);
+      ctx.strokeStyle = '#32CD32';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+      
+      // Add dollar sign for cash blocks
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', x + size/2, y + size/2);
+    } else {
+      ctx.strokeStyle = barInfo.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, size, size);
+      
+      // Add inner border for depth
+      ctx.strokeStyle = barInfo.color;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+    }
     
     ctx.restore();
   }, []);
@@ -576,6 +850,20 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     ctx.fillText(`📊 Level: ${gameData.level}`, CANVAS_WIDTH + 20, 80);
     ctx.fillText(`📈 Lines: ${gameData.lines}`, CANVAS_WIDTH + 20, 120);
     
+    // Draw timer
+    const minutes = Math.floor(gameData.timeRemaining / 60000);
+    const seconds = Math.floor((gameData.timeRemaining % 60000) / 1000);
+    ctx.fillStyle = gameData.timeRemaining < 30000 ? '#FF0000' : '#FFD700'; // Red if less than 30 seconds
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText(`⏰ Time: ${minutes}:${seconds.toString().padStart(2, '0')}`, CANVAS_WIDTH + 20, 160);
+    
+    // Draw stats
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px Arial';
+    ctx.fillText(`🎯 Perfect Gaps: ${gameData.perfectGaps}`, CANVAS_WIDTH + 20, 190);
+    ctx.fillText(`📊 Vertical Clears: ${gameData.verticalClears}`, CANVAS_WIDTH + 20, 210);
+    ctx.fillText(`🔢 Number Matches: ${gameData.numberMatches}`, CANVAS_WIDTH + 20, 230);
+    
     // Draw controls
     ctx.fillStyle = '#FFFFFF';
     ctx.font = '14px Arial';
@@ -633,7 +921,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             lastTime: performance.now(),
             explosions: [],
             grabbedPiece: null,
-            isGrabbing: false
+            isGrabbing: false,
+            gameTime: 0,
+            startTime: Date.now(),
+            timeRemaining: 120000,
+            perfectGaps: 0,
+            verticalClears: 0,
+            numberMatches: 0
           }));
           gameLoopRef.current = requestAnimationFrame(gameLoop);
           return 0;
