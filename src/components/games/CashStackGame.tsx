@@ -690,16 +690,11 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
     const deltaTime = currentTime - gameData.lastTime;
     
-    if (deltaTime >= gameData.dropTime) {
-      dropPiece();
-      setGameData(prev => ({ ...prev, lastTime: currentTime }));
-    }
-    
-    // Update explosions and timer
+    // Update timer and game state every frame
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
-      // Debug timer
+      // Debug timer every second
       if (Math.floor(prev.timeRemaining / 1000) !== Math.floor(newTimeRemaining / 1000)) {
         console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining');
       }
@@ -707,19 +702,25 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
         console.log('Game over due to timer!');
-        return { ...prev, gameOver: true };
+        return { ...prev, gameOver: true, timeRemaining: 0 };
       }
       
       return {
         ...prev,
+        lastTime: currentTime,
+        timeRemaining: newTimeRemaining,
         explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
           ...explosion,
           life: explosion.life - 1
         })),
-        gameTime: Date.now() - prev.startTime,
-        timeRemaining: newTimeRemaining
+        gameTime: Date.now() - prev.startTime
       };
     });
+    
+    // Drop piece if needed
+    if (deltaTime >= gameData.dropTime) {
+      dropPiece();
+    }
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
   }, [gameState, gameData.gameOver, gameData.lastTime, gameData.dropTime, dropPiece]);
@@ -1046,6 +1047,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       onGameEnd({ score: gameData.score, accuracy });
     }
   }, [gameData.gameOver, gameState, gameData.score, onGameEnd]);
+
+  // Handle timer expiration
+  useEffect(() => {
+    if (gameData.timeRemaining <= 0 && gameState === 'playing') {
+      console.log('Timer expired - triggering game over');
+      setGameData(prev => ({ ...prev, gameOver: true }));
+    }
+  }, [gameData.timeRemaining, gameState]);
 
   // Add keyboard event listeners
   useEffect(() => {
