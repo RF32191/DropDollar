@@ -98,18 +98,27 @@ interface CashStackGameProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   gameId?: string;
+  rngSeed?: number;
 }
 
 const CashStackGame: React.FC<CashStackGameProps> = ({
   onGameEnd,
   onExit,
-  isCompetitionMode = false
+  isCompetitionMode = false,
+  rngSeed = 1
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameLoopRef = useRef<number>();
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'ended'>('ready');
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  
+  // Seeded random number generator for fairness
+  let seed = rngSeed;
+  const seededRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
   
   // Game constants
   const BOARD_WIDTH = 10;
@@ -248,6 +257,82 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           board[y][x] = 0;
         }
         scoreIncrease += 1000; // Big bonus for vertical clears
+      }
+    }
+    
+    return { explosions, scoreIncrease };
+  }, []);
+
+  // Check for color alignment row clearing (5+ same colors in a row)
+  const checkColorAlignment = useCallback((board: number[][]): { explosions: Explosion[], scoreIncrease: number } => {
+    const explosions: Explosion[] = [];
+    let scoreIncrease = 0;
+    
+    // Check horizontal rows for 5+ same colors
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      let currentColor = 0;
+      let count = 0;
+      let startX = 0;
+      
+      for (let x = 0; x <= BOARD_WIDTH; x++) {
+        const cellColor = x < BOARD_WIDTH ? board[y][x] : 0;
+        
+        if (cellColor === currentColor && cellColor !== 0) {
+          count++;
+        } else {
+          if (count >= 5 && currentColor !== 0) {
+            // Clear the row segment
+            for (let clearX = startX; clearX < startX + count; clearX++) {
+              explosions.push({
+                x: clearX * CELL_SIZE + CELL_SIZE / 2,
+                y: y * CELL_SIZE + CELL_SIZE / 2,
+                life: 25,
+                maxLife: 25,
+                type: 'row'
+              });
+              board[y][clearX] = 0;
+            }
+            scoreIncrease += count * 100; // Points per cleared block
+          }
+          
+          currentColor = cellColor;
+          count = cellColor !== 0 ? 1 : 0;
+          startX = x;
+        }
+      }
+    }
+    
+    // Check vertical columns for 5+ same colors
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      let currentColor = 0;
+      let count = 0;
+      let startY = 0;
+      
+      for (let y = 0; y <= BOARD_HEIGHT; y++) {
+        const cellColor = y < BOARD_HEIGHT ? board[y][x] : 0;
+        
+        if (cellColor === currentColor && cellColor !== 0) {
+          count++;
+        } else {
+          if (count >= 5 && currentColor !== 0) {
+            // Clear the column segment
+            for (let clearY = startY; clearY < startY + count; clearY++) {
+              explosions.push({
+                x: x * CELL_SIZE + CELL_SIZE / 2,
+                y: clearY * CELL_SIZE + CELL_SIZE / 2,
+                life: 25,
+                maxLife: 25,
+                type: 'row'
+              });
+              board[clearY][x] = 0;
+            }
+            scoreIncrease += count * 100; // Points per cleared block
+          }
+          
+          currentColor = cellColor;
+          count = cellColor !== 0 ? 1 : 0;
+          startY = y;
+        }
       }
     }
     
@@ -393,13 +478,18 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     explosions.push(...verticalExplosions);
     totalScoreIncrease += verticalScore;
     
+    // Check for color alignment (5+ same colors in a row)
+    const { explosions: colorExplosions, scoreIncrease: colorScore } = checkColorAlignment(newBoard);
+    explosions.push(...colorExplosions);
+    totalScoreIncrease += colorScore;
+    
     // Check for number matches
     const { explosions: numberExplosions, scoreIncrease: numberScore } = checkNumberMatches(newBoard);
     explosions.push(...numberExplosions);
     totalScoreIncrease += numberScore;
     
     return { newBoard, explosions, scoreIncrease: totalScoreIncrease };
-  }, [checkCashStacking, checkPerfectGaps, checkVerticalClears, checkNumberMatches]);
+  }, [checkCashStacking, checkPerfectGaps, checkVerticalClears, checkColorAlignment, checkNumberMatches]);
 
   // Clear completed lines and create explosions
   const clearLines = useCallback((board: number[][]): { newBoard: number[][]; linesCleared: number; explosions: Explosion[] } => {

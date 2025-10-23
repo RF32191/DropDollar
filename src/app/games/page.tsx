@@ -690,6 +690,7 @@ export default function GamesPage() {
           onExit={handleGameExit}
           listingId={listingId || undefined}
           entryNumber={entryNumber}
+          rngSeed={Math.floor(Math.random() * 10) + 1} // Random seed 1-10 for fairness
         />
       );
     } catch (error) {
