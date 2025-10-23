@@ -1,31 +1,78 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-// Sound effects will be added later
 
-interface TetrisBlock {
-  id: number;
+// Tetris piece shapes
+const PIECES = [
+  // I piece
+  [
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0]
+  ],
+  // O piece
+  [
+    [1, 1],
+    [1, 1]
+  ],
+  // T piece
+  [
+    [0, 1, 0],
+    [1, 1, 1],
+    [0, 0, 0]
+  ],
+  // S piece
+  [
+    [0, 1, 1],
+    [1, 1, 0],
+    [0, 0, 0]
+  ],
+  // Z piece
+  [
+    [1, 1, 0],
+    [0, 1, 1],
+    [0, 0, 0]
+  ],
+  // J piece
+  [
+    [1, 0, 0],
+    [1, 1, 1],
+    [0, 0, 0]
+  ],
+  // L piece
+  [
+    [0, 0, 1],
+    [1, 1, 1],
+    [0, 0, 0]
+  ]
+];
+
+const COLORS = [
+  '#00FFFF', // I - Cyan
+  '#FFFF00', // O - Yellow
+  '#800080', // T - Purple
+  '#00FF00', // S - Green
+  '#FF0000', // Z - Red
+  '#0000FF', // J - Blue
+  '#FFA500'  // L - Orange
+];
+
+interface Piece {
+  shape: number[][];
   x: number;
   y: number;
-  width: number;
-  height: number;
-  color: 'gold' | 'silver' | 'bronze' | 'cash';
-  isFalling: boolean;
-  isGrabbed: boolean;
-  rotation: number;
+  color: string;
 }
 
 interface GameState {
+  board: number[][];
+  currentPiece: Piece | null;
+  nextPiece: Piece | null;
   score: number;
   level: number;
-  blocks: TetrisBlock[];
+  lines: number;
   gameOver: boolean;
-  gameStarted: boolean;
-  perfectStacks: number;
-  totalStacks: number;
-  gameStartTime: number;
-  difficultyLevel: number;
-  grabbedBlock: TetrisBlock | null;
-  mouseX: number;
-  mouseY: number;
+  dropTime: number;
+  lastTime: number;
 }
 
 interface CashStackGameProps {
@@ -44,191 +91,181 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameLoopRef = useRef<number>();
-  const lastTimeRef = useRef<number>(0);
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'ended'>('ready');
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  
+  // Game constants
+  const BOARD_WIDTH = 10;
+  const BOARD_HEIGHT = 20;
+  const CELL_SIZE = 30;
+  const CANVAS_WIDTH = BOARD_WIDTH * CELL_SIZE;
+  const CANVAS_HEIGHT = BOARD_HEIGHT * CELL_SIZE;
+  
   const [gameData, setGameData] = useState<GameState>({
+    board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
+    currentPiece: null,
+    nextPiece: null,
     score: 0,
     level: 1,
-    blocks: [],
+    lines: 0,
     gameOver: false,
-    gameStarted: false,
-    perfectStacks: 0,
-    totalStacks: 0,
-    gameStartTime: 0,
-    difficultyLevel: 1,
-    grabbedBlock: null,
-    mouseX: 0,
-    mouseY: 0
+    dropTime: 1000,
+    lastTime: 0
   });
 
-  // Game constants
-  const CANVAS_WIDTH = window.innerWidth;
-  const CANVAS_HEIGHT = window.innerHeight;
-  const BLOCK_SIZE = 30;
-  const GRID_WIDTH = Math.floor(CANVAS_WIDTH / BLOCK_SIZE);
-  const GRID_HEIGHT = Math.floor(CANVAS_HEIGHT / BLOCK_SIZE);
-  const GROUND_Y = CANVAS_HEIGHT - BLOCK_SIZE * 3;
-
-  const COLORS = {
-    gold: '#FFD700',
-    silver: '#C0C0C0',
-    bronze: '#CD7F32',
-    cash: '#00FF00'
-  };
-
-  // Generate new falling block
-  const generateBlock = useCallback((): TetrisBlock => {
-    const colors: ('gold' | 'silver' | 'bronze' | 'cash')[] = ['gold', 'silver', 'bronze', 'cash'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    
+  // Create a new piece
+  const createPiece = useCallback((): Piece => {
+    const shapeIndex = Math.floor(Math.random() * PIECES.length);
     return {
-      id: Date.now() + Math.random(),
-      x: Math.random() * (CANVAS_WIDTH - BLOCK_SIZE),
-      y: -BLOCK_SIZE,
-      width: BLOCK_SIZE,
-      height: BLOCK_SIZE,
-      color,
-      isFalling: true,
-      isGrabbed: false,
-      rotation: 0
+      shape: PIECES[shapeIndex],
+      x: Math.floor(BOARD_WIDTH / 2) - Math.floor(PIECES[shapeIndex][0].length / 2),
+      y: 0,
+      color: COLORS[shapeIndex]
     };
   }, []);
 
-  // Check if block can move to position
-  const canMoveTo = useCallback((block: TetrisBlock, newX: number, newY: number): boolean => {
-    // Check boundaries
-    if (newX < 0 || newX + BLOCK_SIZE > CANVAS_WIDTH) return false;
-    if (newY + BLOCK_SIZE > CANVAS_HEIGHT) return false;
-    
-    // Check collision with other blocks
-    return !gameData.blocks.some(otherBlock => 
-      otherBlock.id !== block.id &&
-      !otherBlock.isFalling &&
-      newX < otherBlock.x + otherBlock.width &&
-      newX + BLOCK_SIZE > otherBlock.x &&
-      newY < otherBlock.y + otherBlock.height &&
-      newY + BLOCK_SIZE > otherBlock.y
-    );
-  }, [gameData.blocks]);
+  // Check if piece can be placed at position
+  const isValidPosition = useCallback((piece: Piece, board: number[][], dx: number = 0, dy: number = 0): boolean => {
+    const newX = piece.x + dx;
+    const newY = piece.y + dy;
 
-  // Check for color matches and explosions
-  const checkMatches = useCallback(() => {
-    const newBlocks = [...gameData.blocks];
-    let scoreIncrease = 0;
-    let perfectStacksIncrease = 0;
-    let totalStacksIncrease = 0;
+    for (let y = 0; y < piece.shape.length; y++) {
+      for (let x = 0; x < piece.shape[y].length; x++) {
+        if (piece.shape[y][x]) {
+          const boardX = newX + x;
+          const boardY = newY + y;
 
-    // Group blocks by color and check for matches
-    const colorGroups = {
-      gold: newBlocks.filter(b => b.color === 'gold' && !b.isFalling),
-      silver: newBlocks.filter(b => b.color === 'silver' && !b.isFalling),
-      bronze: newBlocks.filter(b => b.color === 'bronze' && !b.isFalling),
-      cash: newBlocks.filter(b => b.color === 'cash' && !b.isFalling)
-    };
-
-    // Check for cash explosions
-    colorGroups.cash.forEach(cashBlock => {
-      const nearbyBlocks = newBlocks.filter(block => 
-        block.id !== cashBlock.id &&
-        Math.abs(block.x - cashBlock.x) < BLOCK_SIZE * 2 &&
-        Math.abs(block.y - cashBlock.y) < BLOCK_SIZE * 2
-      );
-      
-      if (nearbyBlocks.length > 0) {
-        // Explosion! Remove nearby blocks
-        nearbyBlocks.forEach(block => {
-          const index = newBlocks.findIndex(b => b.id === block.id);
-          if (index !== -1) {
-            newBlocks.splice(index, 1);
-            scoreIncrease += 100;
+          // Check boundaries
+          if (boardX < 0 || boardX >= BOARD_WIDTH || boardY >= BOARD_HEIGHT) {
+            return false;
           }
-        });
+
+          // Check collision with existing blocks
+          if (boardY >= 0 && board[boardY][boardX]) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }, []);
+
+  // Place piece on board
+  const placePiece = useCallback((piece: Piece, board: number[][]): number[][] => {
+    const newBoard = board.map(row => [...row]);
+    
+    for (let y = 0; y < piece.shape.length; y++) {
+      for (let x = 0; x < piece.shape[y].length; x++) {
+        if (piece.shape[y][x]) {
+          const boardX = piece.x + x;
+          const boardY = piece.y + y;
+          if (boardY >= 0) {
+            newBoard[boardY][boardX] = 1;
+          }
+        }
+      }
+    }
+    
+    return newBoard;
+  }, []);
+
+  // Clear completed lines
+  const clearLines = useCallback((board: number[][]): { newBoard: number[][]; linesCleared: number } => {
+    const newBoard = board.filter(row => row.some(cell => cell === 0));
+    const linesCleared = BOARD_HEIGHT - newBoard.length;
+    
+    // Add empty lines at the top
+    while (newBoard.length < BOARD_HEIGHT) {
+      newBoard.unshift(Array(BOARD_WIDTH).fill(0));
+    }
+    
+    return { newBoard, linesCleared };
+  }, []);
+
+  // Rotate piece
+  const rotatePiece = useCallback((piece: Piece): Piece => {
+    const rotated = piece.shape[0].map((_, index) =>
+      piece.shape.map(row => row[index]).reverse()
+    );
+    return { ...piece, shape: rotated };
+  }, []);
+
+  // Move piece
+  const movePiece = useCallback((dx: number, dy: number) => {
+    setGameData(prev => {
+      if (!prev.currentPiece) return prev;
+      
+      const newPiece = { ...prev.currentPiece, x: prev.currentPiece.x + dx, y: prev.currentPiece.y + dy };
+      
+      if (isValidPosition(newPiece, prev.board)) {
+        return { ...prev, currentPiece: newPiece };
+      }
+      
+      return prev;
+    });
+  }, [isValidPosition]);
+
+  // Drop piece
+  const dropPiece = useCallback(() => {
+    setGameData(prev => {
+      if (!prev.currentPiece) return prev;
+      
+      const newPiece = { ...prev.currentPiece, y: prev.currentPiece.y + 1 };
+      
+      if (isValidPosition(newPiece, prev.board)) {
+        return { ...prev, currentPiece: newPiece };
+      } else {
+        // Piece can't move down, place it
+        const newBoard = placePiece(prev.currentPiece, prev.board);
+        const { newBoard: clearedBoard, linesCleared } = clearLines(newBoard);
         
-        // Remove the cash block too
-        const cashIndex = newBlocks.findIndex(b => b.id === cashBlock.id);
-        if (cashIndex !== -1) {
-          newBlocks.splice(cashIndex, 1);
-          scoreIncrease += 50;
+        // Calculate score
+        let scoreIncrease = 0;
+        if (linesCleared > 0) {
+          scoreIncrease = linesCleared * 100 * prev.level;
         }
         
-        console.log('🎉 Success chime!');
+        // Create next piece
+        const nextPiece = prev.nextPiece || createPiece();
+        const currentPiece = createPiece();
+        
+        // Check game over
+        if (!isValidPosition(currentPiece, clearedBoard)) {
+          return { ...prev, gameOver: true };
+        }
+        
+        return {
+          ...prev,
+          board: clearedBoard,
+          currentPiece,
+          nextPiece,
+          score: prev.score + scoreIncrease,
+          lines: prev.lines + linesCleared,
+          level: Math.floor((prev.lines + linesCleared) / 10) + 1,
+          dropTime: Math.max(50, 1000 - (prev.level * 50))
+        };
       }
     });
+  }, [isValidPosition, placePiece, clearLines, createPiece]);
 
-    // Check for color matches (3+ blocks of same color touching)
-    Object.entries(colorGroups).forEach(([color, blocks]) => {
-      if (color === 'cash') return; // Already handled above
+  // Rotate current piece
+  const rotateCurrentPiece = useCallback(() => {
+    setGameData(prev => {
+      if (!prev.currentPiece) return prev;
       
-      const groups = [];
-      const processed = new Set<number>();
+      const rotatedPiece = rotatePiece(prev.currentPiece);
       
-      blocks.forEach(block => {
-        if (processed.has(block.id)) return;
-        
-        const group = [block];
-        processed.add(block.id);
-        
-        // Find connected blocks
-        const findConnected = (currentBlock: TetrisBlock) => {
-          blocks.forEach(otherBlock => {
-            if (processed.has(otherBlock.id)) return;
-            
-            const distance = Math.sqrt(
-              (currentBlock.x - otherBlock.x) ** 2 + 
-              (currentBlock.y - otherBlock.y) ** 2
-            );
-            
-            if (distance < BLOCK_SIZE * 1.5) {
-              group.push(otherBlock);
-              processed.add(otherBlock.id);
-              findConnected(otherBlock);
-            }
-          });
-        };
-        
-        findConnected(block);
-        
-        if (group.length >= 3) {
-          groups.push(group);
-        }
-      });
+      if (isValidPosition(rotatedPiece, prev.board)) {
+        return { ...prev, currentPiece: rotatedPiece };
+      }
       
-      // Remove matched groups
-      groups.forEach(group => {
-        group.forEach(block => {
-          const index = newBlocks.findIndex(b => b.id === block.id);
-          if (index !== -1) {
-            newBlocks.splice(index, 1);
-            scoreIncrease += group.length * 25;
-            totalStacksIncrease++;
-            
-            if (group.length >= 5) {
-              perfectStacksIncrease++;
-            }
-          }
-        });
-        
-        console.log('💰 Coins falling!');
-      });
+      return prev;
     });
-
-    if (scoreIncrease > 0) {
-      setGameData(prev => ({
-        ...prev,
-        blocks: newBlocks,
-        score: prev.score + scoreIncrease,
-        perfectStacks: prev.perfectStacks + perfectStacksIncrease,
-        totalStacks: prev.totalStacks + totalStacksIncrease
-      }));
-    }
-  }, [gameData.blocks]);
+  }, [isValidPosition, rotatePiece]);
 
   // Game loop
   const gameLoop = useCallback((currentTime: number) => {
-    console.log('🎮 Game loop running, gameState:', gameState, 'gameOver:', gameData.gameOver);
-    
     if (gameState !== 'playing' || gameData.gameOver) {
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -237,140 +274,43 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       return;
     }
 
-    const deltaTime = currentTime - lastTimeRef.current;
-    lastTimeRef.current = currentTime;
-
-    setGameData(prev => {
-      const newState = { ...prev };
-      
-      // Move falling blocks down
-      newState.blocks = newState.blocks.map(block => {
-        if (block.isFalling && !block.isGrabbed) {
-          const newY = block.y + 2; // Fall speed
-          
-          if (canMoveTo(block, block.x, newY)) {
-            return { ...block, y: newY };
-          } else {
-            // Block has landed
-            return { ...block, isFalling: false, y: Math.floor(block.y / BLOCK_SIZE) * BLOCK_SIZE };
-          }
-        }
-        return block;
-      });
-      
-      // Spawn new blocks - much higher chance for immediate spawning
-      const spawnChance = 0.05 + (newState.difficultyLevel * 0.01); // 5% base chance
-      if (Math.random() < spawnChance) {
-        console.log('🎮 Spawning new block!');
-        newState.blocks.push(generateBlock());
-      }
-      
-      // Level up based on score
-      const newLevel = Math.floor(newState.score / 200) + 1;
-      if (newLevel > newState.level) {
-        newState.level = newLevel;
-        newState.difficultyLevel = newLevel;
-        console.log('🎉 Success chime!');
-      }
-      
-      return newState;
-    });
+    const deltaTime = currentTime - gameData.lastTime;
+    
+    if (deltaTime >= gameData.dropTime) {
+      dropPiece();
+      setGameData(prev => ({ ...prev, lastTime: currentTime }));
+    }
     
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, gameData.gameOver, generateBlock, canMoveTo]);
+  }, [gameState, gameData.gameOver, gameData.lastTime, gameData.dropTime, dropPiece]);
 
-  // Handle mouse move
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  // Handle keyboard input
+  const handleKeyPress = useCallback((e: KeyboardEvent) => {
     if (gameState !== 'playing') return;
     
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    setGameData(prev => {
-      const newState = { ...prev, mouseX, mouseY };
-      
-      // Move grabbed block with mouse
-      if (newState.grabbedBlock) {
-        const block = newState.grabbedBlock;
-        const newX = mouseX - BLOCK_SIZE / 2;
-        const newY = mouseY - BLOCK_SIZE / 2;
-        
-        if (canMoveTo(block, newX, newY)) {
-          newState.grabbedBlock = { ...block, x: newX, y: newY };
-        }
-      }
-      
-      return newState;
-    });
-  }, [gameState, canMoveTo]);
-
-  // Handle mouse down (grab block)
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (gameState !== 'playing') return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    setGameData(prev => {
-      // Find block under mouse
-      const clickedBlock = prev.blocks.find(block => 
-        mouseX >= block.x && mouseX <= block.x + block.width &&
-        mouseY >= block.y && mouseY <= block.y + block.height
-      );
-      
-      if (clickedBlock) {
-        return {
-          ...prev,
-          grabbedBlock: { ...clickedBlock, isGrabbed: true },
-          mouseX,
-          mouseY
-        };
-      }
-      
-      return prev;
-    });
-  }, [gameState]);
-
-  // Handle mouse up (drop block)
-  const handleMouseUp = useCallback(() => {
-    if (gameState !== 'playing' || !gameData.grabbedBlock) return;
-    
-    setGameData(prev => {
-      const newState = { ...prev };
-      
-      if (newState.grabbedBlock) {
-        // Snap to grid
-        const snappedX = Math.floor(newState.grabbedBlock.x / BLOCK_SIZE) * BLOCK_SIZE;
-        const snappedY = Math.floor(newState.grabbedBlock.y / BLOCK_SIZE) * BLOCK_SIZE;
-        
-        // Update the block in the blocks array
-        newState.blocks = newState.blocks.map(block => 
-          block.id === newState.grabbedBlock!.id 
-            ? { ...block, x: snappedX, y: snappedY, isGrabbed: false, isFalling: false }
-            : block
-        );
-        
-        newState.grabbedBlock = null;
-        
-        // Check for matches after dropping
-        setTimeout(() => checkMatches(), 100);
-      }
-      
-      return newState;
-    });
-  }, [gameState, gameData.grabbedBlock, checkMatches]);
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        movePiece(-1, 0);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        movePiece(1, 0);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        dropPiece();
+        break;
+      case 'ArrowUp':
+      case ' ':
+        e.preventDefault();
+        rotateCurrentPiece();
+        break;
+    }
+  }, [gameState, movePiece, dropPiece, rotateCurrentPiece]);
 
   // Render function
   const render = useCallback(() => {
-    console.log('🎨 Rendering, blocks:', gameData.blocks.length);
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -381,115 +321,70 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
     // Draw background
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-    bgGradient.addColorStop(0, '#1a1a2e');
-    bgGradient.addColorStop(1, '#16213e');
-    ctx.fillStyle = bgGradient;
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
-    // Draw grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= CANVAS_WIDTH; x += BLOCK_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, CANVAS_HEIGHT);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= CANVAS_HEIGHT; y += BLOCK_SIZE) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(CANVAS_WIDTH, y);
-      ctx.stroke();
-    }
-    
-    // Draw ground
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
-    
-    // Draw blocks
-    gameData.blocks.forEach(block => {
-      ctx.save();
-      
-      // Set color based on block type
-      let blockColor = COLORS[block.color];
-      
-      // Create gradient for shiny effect
-      const gradient = ctx.createLinearGradient(block.x, block.y, block.x + BLOCK_SIZE, block.y + BLOCK_SIZE);
-      gradient.addColorStop(0, blockColor);
-      gradient.addColorStop(0.3, lightenColor(blockColor, 20));
-      gradient.addColorStop(0.7, blockColor);
-      gradient.addColorStop(1, darkenColor(blockColor, 20));
-      
-      ctx.fillStyle = gradient;
-      ctx.fillRect(block.x, block.y, BLOCK_SIZE, BLOCK_SIZE);
-      
-      // Add highlight
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.fillRect(block.x + 2, block.y + 2, BLOCK_SIZE / 3, BLOCK_SIZE / 3);
-      
-      // Add border
-      ctx.strokeStyle = darkenColor(blockColor, 30);
-      ctx.lineWidth = 2;
-      ctx.strokeRect(block.x, block.y, BLOCK_SIZE, BLOCK_SIZE);
-      
-      // Add color indicator
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 12px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(block.color[0].toUpperCase(), block.x + BLOCK_SIZE/2, block.y + BLOCK_SIZE/2);
-      
-      // Highlight grabbed block
-      if (block.isGrabbed) {
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(block.x - 2, block.y - 2, BLOCK_SIZE + 4, BLOCK_SIZE + 4);
+    // Draw board
+    for (let y = 0; y < BOARD_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        if (gameData.board[y][x]) {
+          ctx.fillStyle = '#333333';
+          ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          ctx.strokeStyle = '#666666';
+          ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
       }
-      
-      ctx.restore();
-    });
+    }
+    
+    // Draw current piece
+    if (gameData.currentPiece) {
+      ctx.fillStyle = gameData.currentPiece.color;
+      for (let y = 0; y < gameData.currentPiece.shape.length; y++) {
+        for (let x = 0; x < gameData.currentPiece.shape[y].length; x++) {
+          if (gameData.currentPiece.shape[y][x]) {
+            const drawX = (gameData.currentPiece.x + x) * CELL_SIZE;
+            const drawY = (gameData.currentPiece.y + y) * CELL_SIZE;
+            ctx.fillRect(drawX, drawY, CELL_SIZE, CELL_SIZE);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.strokeRect(drawX, drawY, CELL_SIZE, CELL_SIZE);
+          }
+        }
+      }
+    }
+    
+    // Draw next piece preview
+    if (gameData.nextPiece) {
+      ctx.fillStyle = gameData.nextPiece.color;
+      ctx.globalAlpha = 0.7;
+      for (let y = 0; y < gameData.nextPiece.shape.length; y++) {
+        for (let x = 0; x < gameData.nextPiece.shape[y].length; x++) {
+          if (gameData.nextPiece.shape[y][x]) {
+            const drawX = (x + BOARD_WIDTH + 1) * CELL_SIZE;
+            const drawY = (y + 2) * CELL_SIZE;
+            ctx.fillRect(drawX, drawY, CELL_SIZE, CELL_SIZE);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.strokeRect(drawX, drawY, CELL_SIZE, CELL_SIZE);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
     
     // Draw UI
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 20px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${gameData.score}`, 20, 40);
-    ctx.fillText(`Level: ${gameData.level}`, 20, 70);
-    ctx.fillText(`Perfect Stacks: ${gameData.perfectStacks}`, 20, 100);
-    ctx.fillText(`Total Stacks: ${gameData.totalStacks}`, 20, 130);
+    ctx.font = '20px Arial';
+    ctx.fillText(`Score: ${gameData.score}`, CANVAS_WIDTH + 20, 40);
+    ctx.fillText(`Level: ${gameData.level}`, CANVAS_WIDTH + 20, 80);
+    ctx.fillText(`Lines: ${gameData.lines}`, CANVAS_WIDTH + 20, 120);
     
-    // Draw instructions
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('Click and drag blocks to stack!', CANVAS_WIDTH - 300, 40);
-    ctx.fillText('Match colors for points!', CANVAS_WIDTH - 300, 70);
-    ctx.fillText('Cash blocks explode when touching others!', CANVAS_WIDTH - 300, 100);
+    // Draw controls
+    ctx.font = '14px Arial';
+    ctx.fillText('Controls:', CANVAS_WIDTH + 20, 200);
+    ctx.fillText('← → Move', CANVAS_WIDTH + 20, 230);
+    ctx.fillText('↓ Drop', CANVAS_WIDTH + 20, 250);
+    ctx.fillText('↑ Rotate', CANVAS_WIDTH + 20, 270);
+    ctx.fillText('Space Rotate', CANVAS_WIDTH + 20, 290);
   }, [gameData]);
-
-  // Helper functions for color manipulation
-  const lightenColor = (color: string, percent: number): string => {
-    const num = parseInt(color.replace("#", ""), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = (num >> 8 & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-      (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-  };
-
-  const darkenColor = (color: string, percent: number): string => {
-    const num = parseInt(color.replace("#", ""), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) - amt;
-    const G = (num >> 8 & 0x00FF) - amt;
-    const B = (num & 0x0000FF) - amt;
-    return "#" + (0x1000000 + (R > 255 ? 255 : R < 0 ? 0 : R) * 0x10000 +
-      (G > 255 ? 255 : G < 0 ? 0 : G) * 0x100 +
-      (B > 255 ? 255 : B < 0 ? 0 : B)).toString(16).slice(1);
-  };
 
   // Start render loop
   useEffect(() => {
@@ -517,12 +412,16 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           setGameState('playing');
           setGameData(prev => ({
             ...prev,
-            gameStarted: true,
-            gameStartTime: Date.now(),
-            difficultyLevel: 1,
-            blocks: [generateBlock(), generateBlock(), generateBlock()] // Start with 3 blocks
+            board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
+            currentPiece: createPiece(),
+            nextPiece: createPiece(),
+            score: 0,
+            level: 1,
+            lines: 0,
+            gameOver: false,
+            dropTime: 1000,
+            lastTime: performance.now()
           }));
-          lastTimeRef.current = performance.now();
           gameLoopRef.current = requestAnimationFrame(gameLoop);
           return 0;
         }
@@ -531,53 +430,27 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     }, 1000);
   };
 
-  // End game
-  const endGame = useCallback(() => {
-    if (gameState === 'ended' || gameData.gameOver) {
-      return;
-    }
-    
-    setGameState('ended');
-    setGameData(prev => ({ ...prev, gameOver: true }));
-    if (gameLoopRef.current) {
-      cancelAnimationFrame(gameLoopRef.current);
-      gameLoopRef.current = undefined;
-    }
-    
-    const accuracy = gameData.totalStacks > 0 ? 
-      (gameData.perfectStacks / gameData.totalStacks) * 100 : 100;
-    
-    onGameEnd({ score: gameData.score, accuracy });
-  }, [gameState, gameData.gameOver, gameData.totalStacks, gameData.perfectStacks, gameData.score, onGameEnd]);
-
-  // Check for game over
+  // Handle game over
   useEffect(() => {
-    if (gameData.blocks.some(block => block.y <= 0 && !block.isFalling)) {
-      endGame();
+    if (gameData.gameOver && gameState === 'playing') {
+      setGameState('ended');
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = undefined;
+      }
+      
+      const accuracy = 100; // Tetris doesn't have accuracy concept
+      onGameEnd({ score: gameData.score, accuracy });
     }
-  }, [gameData.blocks, endGame]);
+  }, [gameData.gameOver, gameState, gameData.score, onGameEnd]);
 
-  // Lock screen during gameplay
+  // Add keyboard event listeners
   useEffect(() => {
     if (gameState === 'playing') {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = '100%';
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
+      window.addEventListener('keydown', handleKeyPress);
+      return () => window.removeEventListener('keydown', handleKeyPress);
     }
-    
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
-    };
-  }, [gameState]);
+  }, [gameState, handleKeyPress]);
 
   // Cleanup
   useEffect(() => {
@@ -595,27 +468,27 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-emerald-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
         <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
           {/* Background effects */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
-            <div className="absolute bottom-0 right-0 w-40 h-40 bg-emerald-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
+            <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/20 rounded-full blur-xl animate-pulse"></div>
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-purple-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-cyan-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
           </div>
 
           <div className="relative z-10">
             {/* Game Icon */}
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center shadow-lg animate-bounce">
-              <span className="text-2xl sm:text-3xl">💰</span>
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full mx-auto mb-4 sm:mb-6 flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-2xl sm:text-3xl">🧩</span>
             </div>
 
             {/* Game Title */}
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-green-300 to-emerald-300 bg-clip-text text-transparent">
-              Cash Stack Challenge
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">
+              Cash Stack Tetris
             </h2>
-            <p className="text-green-200 text-sm mb-4 sm:mb-6 font-medium">
-              Tetris-Style Block Stacking Game
+            <p className="text-blue-200 text-sm mb-4 sm:mb-6 font-medium">
+              Classic Tetris Gameplay
             </p>
 
             {/* Epilepsy Warning */}
@@ -632,9 +505,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             </div>
 
             {/* Instructions */}
-            <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-r from-green-800 to-green-900 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border-2 border-green-600 shadow-2xl">
+            <div className="text-left text-sm sm:text-base text-white mb-6 sm:mb-8 space-y-4 bg-gradient-to-r from-blue-800 to-purple-900 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border-2 border-blue-600 shadow-2xl">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-600 to-green-500 rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white text-sm sm:text-lg font-black">!</span>
                 </div>
                 <h3 className="text-white font-black text-lg sm:text-xl">HOW TO PLAY:</h3>
@@ -642,32 +515,32 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               
               <div className="space-y-3 pl-8 sm:pl-11">
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-green-300 font-bold">Click & Drag:</span> Grab blocks and move them around</p>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-bold">Arrow Keys:</span> Move and rotate pieces</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-green-300 font-bold">Color Match:</span> Stack same colors together for points</p>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-bold">Space:</span> Rotate piece</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-green-300 font-bold">Cash Explosions:</span> Cash blocks explode when touching others</p>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-bold">Complete Lines:</span> Clear rows for points</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-green-300 font-bold">Perfect Stacks:</span> 5+ blocks = perfect stack bonus</p>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-bold">Level Up:</span> Game gets faster each level</p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-green-300 font-bold">Goal:</span> Score as many points as possible!</p>
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
+                  <p><span className="text-blue-300 font-bold">Goal:</span> Survive as long as possible!</p>
                 </div>
               </div>
             </div>
 
             {/* Pro Tip */}
-            <div className="bg-gradient-to-r from-green-600/30 to-green-500/30 border border-green-400/50 rounded-lg p-3 mt-4">
-              <p className="text-xs sm:text-sm text-green-200">
-                <span className="text-green-300 font-bold">💡 Pro Tip:</span> Cash blocks are explosive! Use them strategically to clear large areas.
+            <div className="bg-gradient-to-r from-blue-600/30 to-purple-500/30 border border-blue-400/50 rounded-lg p-3 mt-4">
+              <p className="text-xs sm:text-sm text-blue-200">
+                <span className="text-blue-300 font-bold">💡 Pro Tip:</span> Plan ahead and leave space for the I-piece to clear multiple lines!
               </p>
             </div>
 
@@ -683,9 +556,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               )}
               <button
                 onClick={handleStartGame}
-                className={`${isCompetitionMode ? 'w-full' : 'flex-1'} bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-4 sm:py-5 px-6 sm:px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl border-2 border-green-400 hover:border-green-300 relative z-20`}
+                className={`${isCompetitionMode ? 'w-full' : 'flex-1'} bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-4 sm:py-5 px-6 sm:px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl border-2 border-blue-400 hover:border-blue-300 relative z-20`}
               >
-                💰 START STACKING 💰
+                🧩 START TETRIS 🧩
               </button>
             </div>
           </div>
@@ -698,9 +571,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     return (
       <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl p-6 sm:p-12 text-center max-w-md w-full">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Cash Stack Challenge</h2>
-          <p className="text-sm sm:text-lg text-gray-600 mb-6 sm:mb-8">Stack blocks and create explosive combinations!</p>
-          <div className="text-6xl sm:text-8xl font-bold text-green-500 animate-pulse">{countdown}</div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">Cash Stack Tetris</h2>
+          <p className="text-sm sm:text-lg text-gray-600 mb-6 sm:mb-8">Classic Tetris gameplay with falling pieces!</p>
+          <div className="text-6xl sm:text-8xl font-bold text-blue-500 animate-pulse">{countdown}</div>
           <p className="text-xs sm:text-sm text-gray-500 mt-4">Get ready...</p>
         </div>
       </div>
@@ -708,19 +581,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50 overflow-hidden">
+    <div className="fixed inset-0 bg-black z-50 overflow-hidden flex items-center justify-center">
       <canvas
         ref={canvasRef}
-        width={CANVAS_WIDTH}
+        width={CANVAS_WIDTH + 200}
         height={CANVAS_HEIGHT}
-        className="w-screen h-screen cursor-grab"
+        className="border border-gray-600"
         style={{ imageRendering: 'pixelated' }}
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onTouchMove={handleMouseMove}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
       />
     </div>
   );
