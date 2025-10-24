@@ -6,6 +6,7 @@
 DELETE FROM winner_takes_all_shared_sessions;
 
 -- 2. Clear all competitions data for Winner Takes It All tournaments
+-- This completely resets all completion status for all users
 DELETE FROM competitions 
 WHERE tournament_type = 'winner_takes_all';
 
@@ -29,6 +30,10 @@ WHERE id::text IN (
 -- 5. Create fresh default sessions for each Winner Takes It All tournament
 -- This ensures banners show as available to join
 -- Prize calculation: Winner gets 85%, Platform gets 15%
+-- 
+-- NOTE: This SQL script clears server-side data only.
+-- Client-side localStorage data (winnerTakesAllCompletions_${userId}) 
+-- will be cleared by the JavaScript completeBannerReset() function.
 
 INSERT INTO winner_takes_all_shared_sessions (
   id,
@@ -86,7 +91,14 @@ SELECT
   COUNT(CASE WHEN participants_count = 0 THEN 1 END) as empty_sessions
 FROM winner_takes_all_shared_sessions;
 
--- 7. Show all reset sessions with prize calculations
+-- 7. Verify competitions data was cleared
+SELECT 
+  'Competitions Cleared' as status,
+  COUNT(*) as remaining_competitions
+FROM competitions 
+WHERE tournament_type = 'winner_takes_all';
+
+-- 8. Show all reset sessions with prize calculations
 SELECT 
   config_id,
   current_pot,
