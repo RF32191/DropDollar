@@ -232,6 +232,9 @@ export default function WinnerTakesAllPage() {
     // Emergency reset for $2 game on page load
     emergencyReset2DollarGame();
     
+    // Complete banner reset to ensure all banners are fresh
+    completeBannerReset();
+    
     // Load user completion state from localStorage on page load
     if (user?.id) {
       try {
@@ -724,6 +727,34 @@ export default function WinnerTakesAllPage() {
 
       console.log('✅ [Winner Takes It All] Tournament reset successfully');
       
+      // Create a fresh session immediately to ensure banner shows as available
+      if (sessionData?.config_id) {
+        const config = configs.find(c => c.id === sessionData.config_id);
+        if (config) {
+          const { error: createError } = await supabase
+            .from('winner_takes_all_shared_sessions')
+            .insert({
+              config_id: sessionData.config_id,
+              current_pot: 0,
+              base_price: config.base_price,
+              participants_count: 0,
+              status: 'waiting',
+              timer_started_at: null,
+              participants: [],
+              winner_paid: false,
+              winner_user_id: null,
+              prize_awarded: 0,
+              completed_at: null
+            });
+
+          if (createError) {
+            console.error('❌ [Winner Takes It All] Error creating fresh session:', createError);
+          } else {
+            console.log('✅ [Winner Takes It All] Created fresh session for config:', sessionData.config_id);
+          }
+        }
+      }
+      
       // Wait a moment then refresh data to show new empty session
       setTimeout(async () => {
         await refreshParticipantsData();
@@ -838,6 +869,94 @@ export default function WinnerTakesAllPage() {
       console.log('✅ [Winner Takes It All] Emergency reset completed');
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error in emergency reset:', error);
+    }
+  };
+
+  // Complete banner reset for all Winner Takes It All games
+  const completeBannerReset = async () => {
+    try {
+      console.log('🚨 [Winner Takes It All] Complete banner reset for all games');
+      
+      // Clear all localStorage data for all Winner Takes It All games
+      if (user?.id) {
+        const savedCompletions = localStorage.getItem(`winnerTakesAllCompletions_${user.id}`);
+        if (savedCompletions) {
+          const parsedCompletions = JSON.parse(savedCompletions);
+          // Clear all Winner Takes It All completions
+          Object.keys(parsedCompletions).forEach(configId => {
+            if (configId.startsWith('wta-')) {
+              delete parsedCompletions[configId];
+            }
+          });
+          localStorage.setItem(`winnerTakesAllCompletions_${user.id}`, JSON.stringify(parsedCompletions));
+          setUserCompletions(parsedCompletions);
+          console.log('✅ [Winner Takes It All] Cleared all localStorage completions');
+        }
+      }
+      
+      // Clear all payout data
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('winnerTakesAllPayout_')) {
+          localStorage.removeItem(key);
+          console.log('✅ [Winner Takes It All] Cleared payout data:', key);
+        }
+      });
+      
+      // Clear all competitions data for Winner Takes It All
+      const { error: competitionsError } = await supabase
+        .from('competitions')
+        .delete()
+        .eq('tournament_type', 'winner_takes_all');
+
+      if (competitionsError) {
+        console.error('❌ [Winner Takes It All] Error clearing competitions data:', competitionsError);
+      } else {
+        console.log('✅ [Winner Takes It All] Cleared all competitions data');
+      }
+      
+      // Clear all shared sessions and recreate fresh ones
+      const { error: deleteError } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (deleteError) {
+        console.error('❌ [Winner Takes It All] Error clearing sessions:', deleteError);
+      } else {
+        console.log('✅ [Winner Takes It All] Cleared all sessions');
+      }
+      
+      // Create fresh sessions for all games
+      const freshSessions = hardcodedListings.map(config => ({
+        config_id: config.id,
+        current_pot: 0,
+        base_price: config.base_price,
+        participants_count: 0,
+        status: 'waiting',
+        timer_started_at: null,
+        participants: [],
+        winner_paid: false,
+        winner_user_id: null,
+        prize_awarded: 0,
+        completed_at: null
+      }));
+
+      const { error: insertError } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .insert(freshSessions);
+
+      if (insertError) {
+        console.error('❌ [Winner Takes It All] Error creating fresh sessions:', insertError);
+      } else {
+        console.log('✅ [Winner Takes It All] Created fresh sessions for all games');
+      }
+      
+      // Refresh data
+      await refreshParticipantsData();
+      console.log('✅ [Winner Takes It All] Complete banner reset completed');
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error in complete banner reset:', error);
     }
   };
 
