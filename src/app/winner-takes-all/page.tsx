@@ -556,6 +556,18 @@ export default function WinnerTakesAllPage() {
     try {
       console.log('🔄 [Winner Takes It All] Resetting completed tournament:', sessionId);
       
+      // Get the session to find the config_id before deleting
+      const { data: sessionData, error: fetchError } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .select('config_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ [Winner Takes It All] Error fetching session for reset:', fetchError);
+        return;
+      }
+
       // Delete the completed session from Supabase
       const { error } = await supabase
         .from('winner_takes_all_shared_sessions')
@@ -564,13 +576,109 @@ export default function WinnerTakesAllPage() {
 
       if (error) {
         console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
+        return;
+      }
+
+      // Clear completion data from Supabase competitions table
+      if (sessionData?.config_id) {
+        const { error: competitionsError } = await supabase
+          .from('competitions')
+          .delete()
+          .eq('session_id', sessionId);
+
+        if (competitionsError) {
+          console.error('❌ [Winner Takes It All] Error clearing competitions data:', competitionsError);
+        } else {
+          console.log('✅ [Winner Takes It All] Cleared competitions data for session:', sessionId);
+        }
+      }
+
+      // Clear completion data from localStorage for all users
+      if (user?.id) {
+        try {
+          const savedCompletions = localStorage.getItem(`winnerTakesAllCompletions_${user.id}`);
+          if (savedCompletions) {
+            const parsedCompletions = JSON.parse(savedCompletions);
+            // Remove completion for this specific config
+            if (sessionData?.config_id && parsedCompletions[sessionData.config_id]) {
+              delete parsedCompletions[sessionData.config_id];
+              localStorage.setItem(`winnerTakesAllCompletions_${user.id}`, JSON.stringify(parsedCompletions));
+              setUserCompletions(parsedCompletions);
+              console.log('✅ [Winner Takes It All] Cleared localStorage completion for config:', sessionData.config_id);
+            }
+          }
+        } catch (error) {
+          console.error('❌ [Winner Takes It All] Error clearing localStorage completion:', error);
+        }
+      }
+
+      // Clear payout data from localStorage
+      localStorage.removeItem(`winnerTakesAllPayout_${sessionId}`);
+      console.log('✅ [Winner Takes It All] Cleared payout data from localStorage');
+
+      console.log('✅ [Winner Takes It All] Tournament reset successfully');
+      // Refresh data to show new empty session
+      await refreshParticipantsData();
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
+    }
+  };
+
+  // Force reset specific tournament (for manual reset)
+  const forceResetTournament = async (configId: string) => {
+    try {
+      console.log('🔄 [Winner Takes It All] Force resetting tournament for config:', configId);
+      
+      // Find the session for this config
+      const { data: sessionData, error: fetchError } = await supabase
+        .from('winner_takes_all_shared_sessions')
+        .select('id')
+        .eq('config_id', configId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ [Winner Takes It All] Error fetching session for force reset:', fetchError);
+        return;
+      }
+
+      if (sessionData?.id) {
+        await resetCompletedTournament(sessionData.id);
       } else {
-        console.log('✅ [Winner Takes It All] Tournament reset successfully');
-        // Refresh data to show new empty session
+        // If no session found, just clear localStorage data
+        if (user?.id) {
+          try {
+            const savedCompletions = localStorage.getItem(`winnerTakesAllCompletions_${user.id}`);
+            if (savedCompletions) {
+              const parsedCompletions = JSON.parse(savedCompletions);
+              if (parsedCompletions[configId]) {
+                delete parsedCompletions[configId];
+                localStorage.setItem(`winnerTakesAllCompletions_${user.id}`, JSON.stringify(parsedCompletions));
+                setUserCompletions(parsedCompletions);
+                console.log('✅ [Winner Takes It All] Cleared localStorage completion for config:', configId);
+              }
+            }
+          } catch (error) {
+            console.error('❌ [Winner Takes It All] Error clearing localStorage completion:', error);
+          }
+        }
+        
+        // Clear competitions data from Supabase
+        const { error: competitionsError } = await supabase
+          .from('competitions')
+          .delete()
+          .eq('game_type', 'multi_target') // Assuming $2 game is multi-target
+          .eq('tournament_type', 'winner_takes_all');
+
+        if (competitionsError) {
+          console.error('❌ [Winner Takes It All] Error clearing competitions data:', competitionsError);
+        } else {
+          console.log('✅ [Winner Takes It All] Cleared competitions data');
+        }
+        
         await refreshParticipantsData();
       }
     } catch (error) {
-      console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
+      console.error('❌ [Winner Takes It All] Error force resetting tournament:', error);
     }
   };
 
@@ -1750,13 +1858,28 @@ export default function WinnerTakesAllPage() {
                       const userCompletion = userCompletions[config.id];
                       if (userCompletion && userCompletion.completed) {
                         return (
-                          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
-                            <div className="flex items-center justify-center">
-                              <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
-                              <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                          <div className="space-y-3">
+                            <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                                <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                              </div>
+                              <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
+                              <p className="text-green-200 text-xs mt-1">You cannot play again</p>
                             </div>
-                            <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
-                            <p className="text-green-200 text-xs mt-1">You cannot play again</p>
+                            
+                            {/* Special reset button for $2 game */}
+                            {config.id === 'wta-2-sword-parry' && (
+                              <button
+                                onClick={async () => {
+                                  console.log('🔄 [Winner Takes It All] Force resetting $2 game');
+                                  await forceResetTournament(config.id);
+                                }}
+                                className="w-full py-2 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 transition-all duration-300"
+                              >
+                                🔄 FORCE RESET $2 GAME
+                              </button>
+                            )}
                           </div>
                         );
                       }
