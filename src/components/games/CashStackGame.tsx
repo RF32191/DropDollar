@@ -203,14 +203,14 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     level: 1,
     lines: 0,
     gameOver: false,
-    dropTime: 8000, // Start at 8 seconds per drop for very slow, controlled falling
+    dropTime: 15000, // Start at 15 seconds per drop for extremely slow, controlled falling
     lastTime: 0, // Will be set when game starts
     explosions: [],
     grabbedPiece: null,
     isGrabbing: false,
     gameTime: 0,
     startTime: 0,
-    timeRemaining: 120000,
+    timeRemaining: 120000, // Exactly 2 minutes
     perfectGaps: 0,
     verticalClears: 0,
     numberMatches: 0
@@ -728,7 +728,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-          dropTime: Math.max(2000, 8000 - Math.floor((Date.now() - prev.startTime) / 60000) * 500), // Very gradual speed increase
+          dropTime: Math.max(3000, 15000 - Math.floor((Date.now() - prev.startTime) / 120000) * 1000), // Extremely gradual speed increase
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -930,19 +930,19 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     
     ctx.save();
     
-    // Add subtle sparkly animation for all blocks
-    const time = Date.now() * 0.002; // Slower animation
-    const sparkleIntensity = Math.sin(time + x * 0.05 + y * 0.05) * 0.15 + 0.85; // More subtle
+    // Add very subtle sparkly animation for all blocks
+    const time = Date.now() * 0.001; // Even slower animation
+    const sparkleIntensity = Math.sin(time + x * 0.02 + y * 0.02) * 0.1 + 0.9; // Very subtle
     
     // Special effects for green cash blocks
     if (barInfo.type === 'cash') {
-      // Subtle green glow with gentle flashing effect
-      const flashIntensity = Math.sin(time * 1.5) * 0.2 + 0.8; // Much more subtle
-      const glowIntensity = Math.sin(time * 1) * 0.15 + 0.85; // Gentler glow
+      // Very subtle green glow with gentle flashing effect
+      const flashIntensity = Math.sin(time * 0.8) * 0.1 + 0.9; // Very subtle
+      const glowIntensity = Math.sin(time * 0.5) * 0.08 + 0.92; // Very gentle glow
       
-      // Subtle outer glow effect
-      ctx.shadowColor = `rgba(50, 205, 50, ${0.4 * glowIntensity})`;
-      ctx.shadowBlur = 8 * glowIntensity;
+      // Very subtle outer glow effect
+      ctx.shadowColor = `rgba(50, 205, 50, ${0.2 * glowIntensity})`;
+      ctx.shadowBlur = 4 * glowIntensity;
       
       // Create bright green gradient with flashing
       const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
@@ -954,13 +954,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       ctx.fillStyle = gradient;
       ctx.fillRect(x, y, size, size);
       
-      // Add subtle sparkles around green blocks
+      // Add very subtle sparkles around green blocks
       ctx.shadowBlur = 0;
-      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity * 0.6})`;
-      for (let i = 0; i < 2; i++) { // Fewer sparkles
-        const sparkleX = x + (i % 2) * size + Math.sin(time + i) * 2; // Smaller movement
-        const sparkleY = y + Math.floor(i / 2) * size + Math.cos(time + i) * 2;
-        ctx.fillRect(sparkleX, sparkleY, 1, 1); // Smaller sparkles
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity * 0.3})`;
+      for (let i = 0; i < 1; i++) { // Only one sparkle
+        const sparkleX = x + (i % 2) * size + Math.sin(time + i) * 1; // Very small movement
+        const sparkleY = y + Math.floor(i / 2) * size + Math.cos(time + i) * 1;
+        ctx.fillRect(sparkleX, sparkleY, 1, 1); // Small sparkles
       }
       
       // Inner bright core
@@ -1004,13 +1004,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       ctx.fillStyle = gradient;
       ctx.fillRect(x, y, size, size);
       
-      // Add subtle sparkles for metal blocks
-      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity * 0.3})`;
-      for (let i = 0; i < 1; i++) { // Only one sparkle
-        const sparkleX = x + Math.random() * size;
-        const sparkleY = y + Math.random() * size;
-        ctx.fillRect(sparkleX, sparkleY, 1, 1);
-      }
+      // Add very subtle sparkles for metal blocks
+      ctx.fillStyle = `rgba(255, 255, 255, ${sparkleIntensity * 0.2})`;
+      // Remove sparkles entirely for better performance
     }
     
     // Add highlight for 3D effect
@@ -1237,7 +1233,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               level: 1,
               lines: 0,
               gameOver: false,
-              dropTime: 8000, // Start at 8 seconds per drop for very slow, controlled falling
+              dropTime: 15000, // Start at 15 seconds per drop for extremely slow, controlled falling
               lastTime: startTime, // Initialize with start time
               explosions: [],
               grabbedPiece: null,
@@ -1472,7 +1468,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
                   <span className="text-white text-sm">💡</span>
                 </div>
                 <p className="text-sm sm:text-base text-yellow-100 font-semibold">
-                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall VERY slowly (8 seconds) - use arrow keys for FAST movement! Speed increases gradually over time.
+                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall EXTREMELY slowly (15 seconds) - use arrow keys for FAST movement! Speed increases very gradually over 2 minutes.
                 </p>
               </div>
             </div>
