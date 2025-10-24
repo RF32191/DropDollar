@@ -203,7 +203,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     level: 1,
     lines: 0,
     gameOver: false,
-    dropTime: 3000, // Start at 3 seconds per drop for slower, more controlled falling
+    dropTime: 8000, // Start at 8 seconds per drop for very slow, controlled falling
     lastTime: 0, // Will be set when game starts
     explosions: [],
     grabbedPiece: null,
@@ -728,7 +728,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-          dropTime: Math.max(1000, 3000 - Math.floor((Date.now() - prev.startTime) / 30000) * 200), // More gradual speed increase
+          dropTime: Math.max(2000, 8000 - Math.floor((Date.now() - prev.startTime) / 60000) * 500), // Very gradual speed increase
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -1237,7 +1237,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               level: 1,
               lines: 0,
               gameOver: false,
-              dropTime: 3000, // Start at 3 seconds per drop for slower, more controlled falling
+              dropTime: 8000, // Start at 8 seconds per drop for very slow, controlled falling
               lastTime: startTime, // Initialize with start time
               explosions: [],
               grabbedPiece: null,
@@ -1472,7 +1472,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
                   <span className="text-white text-sm">💡</span>
                 </div>
                 <p className="text-sm sm:text-base text-yellow-100 font-semibold">
-                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall slowly (3 seconds) - use arrow keys for FAST movement! Speed increases gradually.
+                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall VERY slowly (8 seconds) - use arrow keys for FAST movement! Speed increases gradually over time.
                 </p>
               </div>
             </div>
