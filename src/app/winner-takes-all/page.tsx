@@ -223,6 +223,7 @@ export default function WinnerTakesAllPage() {
   const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
   const [userCompletions, setUserCompletions] = useState<{ [configId: string]: { score: number; completed: boolean } }>({});
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
+  const [processingPayouts, setProcessingPayouts] = useState<Set<string>>(new Set()); // Track sessions being processed
 
   useEffect(() => {
     // Always load hardcoded data, regardless of authentication
@@ -293,6 +294,12 @@ export default function WinnerTakesAllPage() {
 
         // Check each session for completion and pending payouts
         for (const session of sessionsData) {
+          // Skip if already being processed to prevent duplicate payouts
+          if (processingPayouts.has(session.id)) {
+            console.log('💰 [Winner Takes It All] Session already being processed, skipping:', session.id);
+            continue;
+          }
+          
           if (isTournamentCompleted(session) && !session.winner_paid) {
             const participantsWithScores = session.participants.filter((p: any) => p.score !== null && p.score !== undefined);
             if (participantsWithScores.length > 0) {
@@ -325,13 +332,29 @@ export default function WinnerTakesAllPage() {
                   prizeAmount
                 });
                 
+                // Mark session as being processed to prevent duplicate payouts
+                setProcessingPayouts(prev => new Set(prev).add(session.id));
+                
                 const payoutSuccess = await payoutWinner(session.id, winner.user_id, prizeAmount);
                 if (payoutSuccess) {
                   // After successful payout, reset the tournament
                   console.log('🔄 [Winner Takes It All] Auto-resetting tournament after payout');
                   setTimeout(() => {
                     resetCompletedTournament(session.id);
+                    // Remove from processing set after reset
+                    setProcessingPayouts(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(session.id);
+                      return newSet;
+                    });
                   }, 2000);
+                } else {
+                  // Remove from processing set if payout failed
+                  setProcessingPayouts(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(session.id);
+                    return newSet;
+                  });
                 }
               }
             }
@@ -342,10 +365,13 @@ export default function WinnerTakesAllPage() {
       }
     };
 
-    // Run immediately and then every 5 seconds for aggressive automatic payouts
-    checkPendingPayouts();
-    const intervalId = setInterval(checkPendingPayouts, 5000);
-    return () => clearInterval(intervalId);
+    // Run after a short delay to ensure data is loaded, then every 30 seconds
+    const timeoutId = setTimeout(checkPendingPayouts, 2000);
+    const intervalId = setInterval(checkPendingPayouts, 30000); // 30 seconds instead of 5
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
   }, [configs.length, sessions.length]);
 
   // Refresh participants data every 30 seconds
@@ -1924,15 +1950,32 @@ export default function WinnerTakesAllPage() {
                         const isPaid = isPaidFromSupabase || isPaidFromLocalStorage;
                         
                         // Auto-payout winner if not already paid (for any winner, not just current user)
-                        if (winner && !isPaid) {
+                        if (winner && !isPaid && !processingPayouts.has(session.id)) {
                           console.log('💰 [Winner Takes It All] Triggering automatic payout for winner:', winner.user_id);
+                          
+                          // Mark session as being processed
+                          setProcessingPayouts(prev => new Set(prev).add(session.id));
+                          
                           payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize).then((payoutSuccess) => {
                             if (payoutSuccess) {
                               // After successful automatic payout, reset the tournament
                               console.log('🔄 [Winner Takes It All] Auto-resetting tournament after automatic payout');
                               setTimeout(() => {
                                 resetCompletedTournament(session.id);
+                                // Remove from processing set after reset
+                                setProcessingPayouts(prev => {
+                                  const newSet = new Set(prev);
+                                  newSet.delete(session.id);
+                                  return newSet;
+                                });
                               }, 2000);
+                            } else {
+                              // Remove from processing set if payout failed
+                              setProcessingPayouts(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(session.id);
+                                return newSet;
+                              });
                             }
                           });
                         }
