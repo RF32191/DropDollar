@@ -149,6 +149,71 @@ export default function WinnerTakesAllPage() {
       rng_seed: 7,
       winner_prize: 4.25,
       platform_fee: 0.75
+    },
+    {
+      id: 'wta-1000-cash-stack',
+      game_type: 'cash_stack',
+      title: '$1000 Winner Takes It All - Cash Stack',
+      description: 'Winner takes the entire $1000 prize pool!',
+      entry_fee: 1,
+      prize_pool: 1000,
+      base_price: 1000,
+      game_duration: 300,
+      rng_seed: 8,
+      winner_prize: 850,
+      platform_fee: 150
+    },
+    {
+      id: 'wta-2500-falling-objects',
+      game_type: 'falling_object',
+      title: '$2500 Winner Takes It All - Falling Objects',
+      description: 'Winner takes the entire $2500 prize pool!',
+      entry_fee: 1,
+      prize_pool: 2500,
+      base_price: 2500,
+      game_duration: 360,
+      rng_seed: 9,
+      winner_prize: 2125,
+      platform_fee: 375
+    },
+    {
+      id: 'wta-5000-color-sequence',
+      game_type: 'color_sequence',
+      title: '$5000 Winner Takes It All - Color Sequence',
+      description: 'Winner takes the entire $5000 prize pool!',
+      entry_fee: 1,
+      prize_pool: 5000,
+      base_price: 5000,
+      game_duration: 420,
+      rng_seed: 10,
+      winner_prize: 4250,
+      platform_fee: 750
+    },
+    {
+      id: 'wta-10000-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$10000 Winner Takes It All - Laser Dodge',
+      description: 'Winner takes the entire $10000 prize pool!',
+      entry_fee: 1,
+      prize_pool: 10000,
+      base_price: 10000,
+      game_duration: 480,
+      rng_seed: 11,
+      winner_prize: 8500,
+      platform_fee: 1500
+    },
+    {
+      id: 'wta-25000-multi-target',
+      game_type: 'multi_target_reaction',
+      title: '$25000 Winner Takes It All - Multi Target',
+      description: 'Winner takes the entire $25000 prize pool!',
+      entry_fee: 1,
+      prize_pool: 25000,
+      base_price: 25000,
+      game_duration: 600,
+      rng_seed: 12,
+      winner_prize: 21250,
+      platform_fee: 3750
     }
   ];
   
@@ -252,7 +317,7 @@ export default function WinnerTakesAllPage() {
                   console.log('🔄 [Winner Takes It All] Auto-resetting tournament after payout');
                   setTimeout(() => {
                     resetCompletedTournament(session.id);
-                  }, 3000);
+                  }, 2000);
                 }
               }
             }
@@ -617,8 +682,12 @@ export default function WinnerTakesAllPage() {
       console.log('✅ [Winner Takes It All] Cleared payout data from localStorage');
 
       console.log('✅ [Winner Takes It All] Tournament reset successfully');
-      // Refresh data to show new empty session
-      await refreshParticipantsData();
+      
+      // Wait a moment then refresh data to show new empty session
+      setTimeout(async () => {
+        await refreshParticipantsData();
+        console.log('🔄 [Winner Takes It All] Refreshed data after reset');
+      }, 1000);
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error resetting tournament:', error);
     }
@@ -1799,7 +1868,7 @@ export default function WinnerTakesAllPage() {
                               console.log('🔄 [Winner Takes It All] Auto-resetting tournament after automatic payout');
                               setTimeout(() => {
                                 resetCompletedTournament(session.id);
-                              }, 3000);
+                              }, 2000);
                             }
                           });
                         }
@@ -1858,28 +1927,13 @@ export default function WinnerTakesAllPage() {
                       const userCompletion = userCompletions[config.id];
                       if (userCompletion && userCompletion.completed) {
                         return (
-                          <div className="space-y-3">
-                            <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
-                              <div className="flex items-center justify-center">
-                                <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
-                                <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
-                              </div>
-                              <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
-                              <p className="text-green-200 text-xs mt-1">You cannot play again</p>
+                          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                            <div className="flex items-center justify-center">
+                              <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                              <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
-                            
-                            {/* Special reset button for $2 game */}
-                            {config.id === 'wta-2-sword-parry' && (
-                              <button
-                                onClick={async () => {
-                                  console.log('🔄 [Winner Takes It All] Force resetting $2 game');
-                                  await forceResetTournament(config.id);
-                                }}
-                                className="w-full py-2 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 transition-all duration-300"
-                              >
-                                🔄 FORCE RESET $2 GAME
-                              </button>
-                            )}
+                            <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
+                            <p className="text-green-200 text-xs mt-1">Tournament will reset automatically after payout</p>
                           </div>
                         );
                       }
