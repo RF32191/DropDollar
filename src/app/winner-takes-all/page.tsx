@@ -307,10 +307,14 @@ export default function WinnerTakesAllPage() {
                   continue;
                 }
                 
-                // Double-check if winner has already been paid (check localStorage too)
+                // Process automatic payout for any completed tournament
                 const isPaidFromLocalStorage = localStorage.getItem(`winnerTakesAllPayout_${session.id}`);
                 if (isPaidFromLocalStorage) {
-                  console.log('💰 [Winner Takes It All] Winner already paid (localStorage check), skipping payout for session:', session.id);
+                  console.log('💰 [Winner Takes It All] Winner already paid (localStorage check), auto-resetting tournament');
+                  // Even if paid, reset the tournament to start fresh
+                  setTimeout(() => {
+                    resetCompletedTournament(session.id);
+                  }, 1000);
                   continue;
                 }
                 
@@ -338,9 +342,10 @@ export default function WinnerTakesAllPage() {
       }
     };
 
-    // Run after a short delay to ensure data is loaded
-    const timeoutId = setTimeout(checkPendingPayouts, 2000);
-    return () => clearTimeout(timeoutId);
+    // Run immediately and then every 5 seconds for aggressive automatic payouts
+    checkPendingPayouts();
+    const intervalId = setInterval(checkPendingPayouts, 5000);
+    return () => clearInterval(intervalId);
   }, [configs.length, sessions.length]);
 
   // Refresh participants data every 30 seconds
@@ -1918,8 +1923,8 @@ export default function WinnerTakesAllPage() {
                         const isPaidFromLocalStorage = localStorage.getItem(`winnerTakesAllPayout_${session.id}`);
                         const isPaid = isPaidFromSupabase || isPaidFromLocalStorage;
                         
-                        // Auto-payout winner if not already paid (only if current user is the winner)
-                        if (winner && !isPaid && winner.user_id === user?.id) {
+                        // Auto-payout winner if not already paid (for any winner, not just current user)
+                        if (winner && !isPaid) {
                           console.log('💰 [Winner Takes It All] Triggering automatic payout for winner:', winner.user_id);
                           payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize).then((payoutSuccess) => {
                             if (payoutSuccess) {
@@ -1946,36 +1951,10 @@ export default function WinnerTakesAllPage() {
                                 {isPaid ? '✅ Winner has been paid out!' : '⏳ Processing payout...'}
                               </p>
                             </div>
-                            <div className="space-y-2">
-                              {!isPaid && (
-                                <button
-                                  onClick={async () => {
-                                    if (winner) {
-                                      console.log('💰 [Winner Takes It All] Manual payout triggered');
-                                      const payoutSuccess = await payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize);
-                                      if (payoutSuccess) {
-                                        // After successful payout, automatically reset the tournament
-                                        console.log('🔄 [Winner Takes It All] Auto-resetting tournament after payout');
-                                        setTimeout(() => {
-                                          resetCompletedTournament(session.id);
-                                        }, 2000);
-                                      }
-                                    }
-                                  }}
-                                  className="w-full py-2 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 transition-all duration-300"
-                                >
-                                  💰 MANUAL PAYOUT WINNER
-                                </button>
-                              )}
-                              <button
-                                onClick={async () => {
-                                  console.log('🔄 [Winner Takes It All] Manual reset triggered');
-                                  await resetCompletedTournament(session.id);
-                                }}
-                                className="w-full py-3 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all duration-300"
-                              >
-                                🔄 START NEW TOURNAMENT
-                              </button>
+                            <div className="text-center">
+                              <p className="text-yellow-200 text-sm">
+                                {isPaid ? '✅ Tournament completed and reset automatically!' : '⏳ Processing automatic payout and reset...'}
+                              </p>
                             </div>
                           </div>
                         );
