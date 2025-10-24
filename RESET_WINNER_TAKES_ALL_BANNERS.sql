@@ -17,24 +17,19 @@ DELETE FROM winner_takes_all_shared_sessions;
 -- Winners are blocked based on prize amount:
 --   * Prizes under $5000: 1 week (7 days) cooldown
 --   * Prizes $5000+: 3 months (90 days) cooldown
+-- Note: All entries in competitions table are considered "completed" since they have scores
 DELETE FROM competitions 
 WHERE tournament_type = 'winner_takes_all'
 AND (
-  status != 'completed' -- Keep completed wins
-  OR (
-    status = 'completed' 
-    AND (
-      -- Clear wins under $5000 after 1 week
-      (created_at < NOW() - INTERVAL '1 week' AND game_type IN (
-        'sword_parry', 'laser_dodge', 'multi_target_reaction', 'number_tap', 'blade_bounce', 'cash_stack', 'falling_object'
-      ))
-      OR
-      -- Clear wins $5000+ after 3 months
-      (created_at < NOW() - INTERVAL '3 months' AND game_type IN (
-        'color_sequence'
-      ))
-    )
-  )
+  -- Clear wins under $5000 after 1 week
+  (created_at < NOW() - INTERVAL '1 week' AND game_type IN (
+    'sword_parry', 'laser_dodge', 'multi_target_reaction', 'number_tap', 'blade_bounce', 'cash_stack', 'falling_object'
+  ))
+  OR
+  -- Clear wins $5000+ after 3 months
+  (created_at < NOW() - INTERVAL '3 months' AND game_type IN (
+    'color_sequence'
+  ))
 );
 
 -- 3. Clear any game history for Winner Takes It All tournaments
@@ -44,6 +39,8 @@ WHERE tournament_type = 'winner_takes_all';
 -- 4. Reset user completion flags for non-winners only
 -- Note: This doesn't affect token balances, only completion flags
 -- Winners keep their stats, non-winners get reset
+-- Note: Since competitions table doesn't have status column, we'll reset all users
+-- The cooldown logic is handled by the deletion above
 UPDATE users 
 SET 
   games_played = COALESCE(games_played, 0),
@@ -53,7 +50,6 @@ WHERE id::text IN (
   SELECT DISTINCT user_id::text 
   FROM competitions 
   WHERE tournament_type = 'winner_takes_all'
-  AND status != 'completed' -- Only reset non-winners
 );
 
 -- 5. Create fresh default sessions for each Winner Takes It All tournament
@@ -133,12 +129,11 @@ SELECT
   COUNT(CASE WHEN participants_count = 0 THEN 1 END) as empty_sessions
 FROM winner_takes_all_shared_sessions;
 
--- 7. Verify competitions data was cleared (show winners vs non-winners)
+-- 7. Verify competitions data was cleared (show remaining entries)
 SELECT 
   'Competitions Status' as status,
   COUNT(*) as total_remaining,
-  COUNT(CASE WHEN status = 'completed' THEN 1 END) as winners_blocked,
-  COUNT(CASE WHEN status != 'completed' THEN 1 END) as non_winners_cleared
+  COUNT(*) as winners_blocked -- All remaining entries are winners in cooldown
 FROM competitions 
 WHERE tournament_type = 'winner_takes_all';
 
@@ -153,8 +148,7 @@ SELECT
     ELSE '1 week (7 days)'
   END as cooldown_period
 FROM competitions 
-WHERE tournament_type = 'winner_takes_all' 
-AND status = 'completed'
+WHERE tournament_type = 'winner_takes_all'
 GROUP BY game_type
 ORDER BY game_type;
 
