@@ -203,7 +203,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     level: 1,
     lines: 0,
     gameOver: false,
-    dropTime: 15000, // Start at 15 seconds per drop for extremely slow, controlled falling
+    dropTime: 30000, // Start at 30 seconds per drop for extremely slow, controlled falling
     lastTime: 0, // Will be set when game starts
     explosions: [],
     grabbedPiece: null,
@@ -728,7 +728,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-          dropTime: Math.max(3000, 15000 - Math.floor((Date.now() - prev.startTime) / 120000) * 1000), // Extremely gradual speed increase
+          dropTime: Math.max(5000, 30000 - Math.floor((Date.now() - prev.startTime) / 180000) * 2000), // Extremely gradual speed increase over 3 minutes
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -801,9 +801,9 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
-      // Debug timer every 10 seconds
-      if (Math.floor(prev.timeRemaining / 10000) !== Math.floor(newTimeRemaining / 10000)) {
-        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining');
+      // Debug timer every 5 seconds for better visibility
+      if (Math.floor(prev.timeRemaining / 5000) !== Math.floor(newTimeRemaining / 5000)) {
+        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining (', Math.floor(newTimeRemaining / 60000), 'minutes', Math.floor((newTimeRemaining % 60000) / 1000), 'seconds)');
       }
       
       // Check for game over due to time
@@ -1233,18 +1233,19 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               level: 1,
               lines: 0,
               gameOver: false,
-              dropTime: 15000, // Start at 15 seconds per drop for extremely slow, controlled falling
+              dropTime: 30000, // Start at 30 seconds per drop for extremely slow, controlled falling
               lastTime: startTime, // Initialize with start time
               explosions: [],
               grabbedPiece: null,
               isGrabbing: false,
               gameTime: 0,
               startTime: startTime,
-              timeRemaining: 120000, // 2 minutes in milliseconds
+              timeRemaining: 120000, // Exactly 2 minutes in milliseconds
               perfectGaps: 0,
               verticalClears: 0,
               numberMatches: 0
             }));
+            console.log('Game started with timer set to:', 120000, 'ms (2 minutes)');
             // Start game loop immediately
             setTimeout(() => {
               console.log('Starting game loop...');
@@ -1468,7 +1469,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
                   <span className="text-white text-sm">💡</span>
                 </div>
                 <p className="text-sm sm:text-base text-yellow-100 font-semibold">
-                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall EXTREMELY slowly (15 seconds) - use arrow keys for FAST movement! Speed increases very gradually over 2 minutes.
+                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall ULTRA slowly (30 seconds) - use arrow keys for FAST movement! Speed increases very gradually over 2 minutes.
                 </p>
               </div>
             </div>
