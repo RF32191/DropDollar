@@ -4,19 +4,37 @@
 --
 -- LOGIC:
 -- - Non-winners: Can play again immediately (completion data cleared)
--- - Winners: Blocked for 1 week (completion data kept for 1 week)
--- - After 1 week: Winners can play again (old completion data cleared)
+-- - Winners: Blocked based on prize amount
+--   * Prizes under $5000: 1 week (7 days) cooldown
+--   * Prizes $5000+: 3 months (90 days) cooldown
+-- - After cooldown period: Winners can play again (old completion data cleared)
 
 -- 1. Clear all Winner Takes It All shared sessions
 DELETE FROM winner_takes_all_shared_sessions;
 
 -- 2. Clear competitions data for Winner Takes It All tournaments
--- Only clear non-winners - keep winners blocked for 1 week
+-- Only clear non-winners and expired winner cooldowns
+-- Winners are blocked based on prize amount:
+--   * Prizes under $5000: 1 week (7 days) cooldown
+--   * Prizes $5000+: 3 months (90 days) cooldown
 DELETE FROM competitions 
 WHERE tournament_type = 'winner_takes_all'
 AND (
   status != 'completed' -- Keep completed wins
-  OR created_at < NOW() - INTERVAL '1 week' -- Clear old wins after 1 week
+  OR (
+    status = 'completed' 
+    AND (
+      -- Clear wins under $5000 after 1 week
+      (created_at < NOW() - INTERVAL '1 week' AND game_type IN (
+        'sword_parry', 'laser_dodge', 'multi_target_reaction', 'number_tap', 'blade_bounce', 'cash_stack', 'falling_object'
+      ))
+      OR
+      -- Clear wins $5000+ after 3 months
+      (created_at < NOW() - INTERVAL '3 months' AND game_type IN (
+        'color_sequence'
+      ))
+    )
+  )
 );
 
 -- 3. Clear any game history for Winner Takes It All tournaments
@@ -42,6 +60,19 @@ WHERE id::text IN (
 -- This ensures banners show as available to join
 -- Prize calculation: Winner gets 85%, Platform gets 15%
 -- 
+-- COOLDOWN PERIODS BY GAME TYPE:
+-- 1 week (7 days) cooldown for prizes under $5000:
+--   - sword_parry ($2, $50)
+--   - laser_dodge ($10, $100, $10000)
+--   - multi_target_reaction ($25, $25000)
+--   - number_tap ($250)
+--   - blade_bounce ($5)
+--   - cash_stack ($1000)
+--   - falling_object ($2500)
+--
+-- 3 months (90 days) cooldown for prizes $5000+:
+--   - color_sequence ($5000)
+--
 -- NOTE: This SQL script clears server-side data only.
 -- Client-side localStorage data (winnerTakesAllCompletions_${userId}) 
 -- will be cleared by the JavaScript completeBannerReset() function.
@@ -111,7 +142,23 @@ SELECT
 FROM competitions 
 WHERE tournament_type = 'winner_takes_all';
 
--- 8. Show all reset sessions with prize calculations
+-- 8. Show winner cooldown status by game type
+SELECT 
+  game_type,
+  COUNT(*) as winners_blocked,
+  MIN(created_at) as earliest_win,
+  MAX(created_at) as latest_win,
+  CASE 
+    WHEN game_type = 'color_sequence' THEN '3 months (90 days)'
+    ELSE '1 week (7 days)'
+  END as cooldown_period
+FROM competitions 
+WHERE tournament_type = 'winner_takes_all' 
+AND status = 'completed'
+GROUP BY game_type
+ORDER BY game_type;
+
+-- 9. Show all reset sessions with prize calculations
 SELECT 
   config_id,
   current_pot,
