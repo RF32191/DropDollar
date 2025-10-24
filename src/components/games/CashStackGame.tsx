@@ -642,7 +642,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         return { ...prev, currentPiece: newPiece };
       } else {
         // Piece can't move down, place it
-        console.log('Piece landed, placing it on board');
+        console.log('Piece landed, placing it on board - piece position:', prev.currentPiece.x, prev.currentPiece.y);
         const { newBoard: placedBoard, explosions: cashExplosions, scoreIncrease: cashScore } = placePiece(prev.currentPiece, prev.board);
         const { newBoard: clearedBoard, linesCleared, explosions: lineExplosions } = clearLines(placedBoard);
         
@@ -719,6 +719,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           finalNextPiece = createPiece();
         }
         
+        console.log('Piece placement completed - new current piece:', finalCurrentPiece);
         return {
           ...prev,
           board: clearedBoard,
@@ -1306,7 +1307,10 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     }
   }, [gameState, gameData.gameOver, gameLoop]);
 
-  // Timer expiration is handled in the game loop, no need for separate useEffect
+  // Debug countdown state
+  useEffect(() => {
+    console.log('Countdown state changed - showCountdown:', showCountdown, 'countdown:', countdown);
+  }, [showCountdown, countdown]);
 
   // Add keyboard event listeners
   useEffect(() => {
