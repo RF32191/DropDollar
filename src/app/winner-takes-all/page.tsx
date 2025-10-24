@@ -232,6 +232,13 @@ export default function WinnerTakesAllPage() {
               const config = configs.find(c => c.id === session.config_id);
               
               if (winner && config) {
+                // Double-check if winner has already been paid (check localStorage too)
+                const isPaidFromLocalStorage = localStorage.getItem(`winnerTakesAllPayout_${session.id}`);
+                if (isPaidFromLocalStorage) {
+                  console.log('💰 [Winner Takes It All] Winner already paid (localStorage check), skipping payout for session:', session.id);
+                  continue;
+                }
+                
                 const prizeAmount = config.winner_prize;
                 console.log('💰 [Winner Takes It All] Processing pending payout:', {
                   sessionId: session.id,
@@ -239,7 +246,14 @@ export default function WinnerTakesAllPage() {
                   prizeAmount
                 });
                 
-                await payoutWinner(session.id, winner.user_id, prizeAmount);
+                const payoutSuccess = await payoutWinner(session.id, winner.user_id, prizeAmount);
+                if (payoutSuccess) {
+                  // After successful payout, reset the tournament
+                  console.log('🔄 [Winner Takes It All] Auto-resetting tournament after payout');
+                  setTimeout(() => {
+                    resetCompletedTournament(session.id);
+                  }, 3000);
+                }
               }
             }
           }
@@ -1668,8 +1682,8 @@ export default function WinnerTakesAllPage() {
                         const isPaidFromLocalStorage = localStorage.getItem(`winnerTakesAllPayout_${session.id}`);
                         const isPaid = isPaidFromSupabase || isPaidFromLocalStorage;
                         
-                        // Auto-payout winner if not already paid
-                        if (winner && !isPaid) {
+                        // Auto-payout winner if not already paid (only if current user is the winner)
+                        if (winner && !isPaid && winner.user_id === user?.id) {
                           console.log('💰 [Winner Takes It All] Triggering automatic payout for winner:', winner.user_id);
                           payoutWinner(session.id, winner.user_id, prizeDistribution.winnerPrize).then((payoutSuccess) => {
                             if (payoutSuccess) {
