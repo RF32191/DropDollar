@@ -1,21 +1,31 @@
 -- RESET WINNER TAKES ALL BANNERS AND COMPLETION DATA
 -- This SQL script resets all Winner Takes It All tournaments and clears completion data
 -- Run this to fix banners that aren't resetting after payout
+--
+-- LOGIC:
+-- - Non-winners: Can play again immediately (completion data cleared)
+-- - Winners: Blocked for 1 week (completion data kept for 1 week)
+-- - After 1 week: Winners can play again (old completion data cleared)
 
 -- 1. Clear all Winner Takes It All shared sessions
 DELETE FROM winner_takes_all_shared_sessions;
 
--- 2. Clear all competitions data for Winner Takes It All tournaments
--- This completely resets all completion status for all users
+-- 2. Clear competitions data for Winner Takes It All tournaments
+-- Only clear non-winners - keep winners blocked for 1 week
 DELETE FROM competitions 
-WHERE tournament_type = 'winner_takes_all';
+WHERE tournament_type = 'winner_takes_all'
+AND (
+  status != 'completed' -- Keep completed wins
+  OR created_at < NOW() - INTERVAL '1 week' -- Clear old wins after 1 week
+);
 
 -- 3. Clear any game history for Winner Takes It All tournaments
 DELETE FROM game_history 
 WHERE tournament_type = 'winner_takes_all';
 
--- 4. Reset any user completion flags (if stored in users table)
+-- 4. Reset user completion flags for non-winners only
 -- Note: This doesn't affect token balances, only completion flags
+-- Winners keep their stats, non-winners get reset
 UPDATE users 
 SET 
   games_played = COALESCE(games_played, 0),
@@ -25,6 +35,7 @@ WHERE id::text IN (
   SELECT DISTINCT user_id::text 
   FROM competitions 
   WHERE tournament_type = 'winner_takes_all'
+  AND status != 'completed' -- Only reset non-winners
 );
 
 -- 5. Create fresh default sessions for each Winner Takes It All tournament
@@ -91,10 +102,12 @@ SELECT
   COUNT(CASE WHEN participants_count = 0 THEN 1 END) as empty_sessions
 FROM winner_takes_all_shared_sessions;
 
--- 7. Verify competitions data was cleared
+-- 7. Verify competitions data was cleared (show winners vs non-winners)
 SELECT 
-  'Competitions Cleared' as status,
-  COUNT(*) as remaining_competitions
+  'Competitions Status' as status,
+  COUNT(*) as total_remaining,
+  COUNT(CASE WHEN status = 'completed' THEN 1 END) as winners_blocked,
+  COUNT(CASE WHEN status != 'completed' THEN 1 END) as non_winners_cleared
 FROM competitions 
 WHERE tournament_type = 'winner_takes_all';
 
