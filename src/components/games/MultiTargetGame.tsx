@@ -442,8 +442,8 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+      <div className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm overflow-y-auto">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl my-8">
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 right-0 w-36 h-36 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
