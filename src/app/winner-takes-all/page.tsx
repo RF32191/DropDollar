@@ -224,6 +224,7 @@ export default function WinnerTakesAllPage() {
   const [userCompletions, setUserCompletions] = useState<{ [configId: string]: { score: number; completed: boolean } }>({});
   const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
   const [processingPayouts, setProcessingPayouts] = useState<Set<string>>(new Set()); // Track sessions being processed
+  const [winnerCooldowns, setWinnerCooldowns] = useState<{ [configId: string]: { isWinner: boolean; cooldownEndsAt: Date | null; timeRemaining: string } }>({});
 
   useEffect(() => {
     // Always load hardcoded data, regardless of authentication
@@ -275,6 +276,20 @@ export default function WinnerTakesAllPage() {
     if (user?.id) {
       console.log('👤 [Winner Takes It All] User changed, refreshing data for:', user.id);
       refreshParticipantsData();
+      updateWinnerCooldowns(); // Update winner cooldowns when user changes
+    }
+  }, [user?.id]);
+
+  // Update winner cooldowns every minute
+  useEffect(() => {
+    if (user?.id) {
+      updateWinnerCooldowns(); // Initial load
+      
+      const interval = setInterval(() => {
+        updateWinnerCooldowns();
+      }, 60000); // Update every minute
+
+      return () => clearInterval(interval);
     }
   }, [user?.id]);
 
@@ -659,6 +674,83 @@ export default function WinnerTakesAllPage() {
     }
     
     return isCompleted;
+  };
+
+  // Function to check if user is a winner and calculate cooldown time
+  const checkWinnerCooldown = async (configId: string) => {
+    if (!user?.id) return { isWinner: false, cooldownEndsAt: null, timeRemaining: '' };
+
+    try {
+      // Check competitions table for completed wins
+      const { data: competitionsData, error: competitionsError } = await supabase
+        .from('competitions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('tournament_type', 'winner_takes_all')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
+
+      if (competitionsError) {
+        console.error('❌ [Winner Takes It All] Error checking winner status:', competitionsError);
+        return { isWinner: false, cooldownEndsAt: null, timeRemaining: '' };
+      }
+
+      // Find matching competition by game type
+      const config = hardcodedListings.find(c => c.id === configId);
+      if (!config) return { isWinner: false, cooldownEndsAt: null, timeRemaining: '' };
+
+      const matchingCompetition = competitionsData?.find(comp => comp.game_type === config.game_type);
+      
+      if (!matchingCompetition) {
+        return { isWinner: false, cooldownEndsAt: null, timeRemaining: '' };
+      }
+
+      // Calculate cooldown period based on prize amount
+      const cooldownDays = config.base_price >= 5000 ? 90 : 7; // 3 months for $5000+, 1 week for others
+      const cooldownEndsAt = new Date(matchingCompetition.created_at);
+      cooldownEndsAt.setDate(cooldownEndsAt.getDate() + cooldownDays);
+
+      const now = new Date();
+      const timeDiff = cooldownEndsAt.getTime() - now.getTime();
+
+      if (timeDiff <= 0) {
+        // Cooldown has expired
+        return { isWinner: false, cooldownEndsAt: null, timeRemaining: '' };
+      }
+
+      // Calculate time remaining
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+      let timeRemaining = '';
+      if (days > 0) {
+        timeRemaining = `${days}d ${hours}h ${minutes}m`;
+      } else if (hours > 0) {
+        timeRemaining = `${hours}h ${minutes}m`;
+      } else {
+        timeRemaining = `${minutes}m`;
+      }
+
+      return { isWinner: true, cooldownEndsAt, timeRemaining };
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error checking winner cooldown:', error);
+      return { isWinner: false, cooldownEndsAt: null, timeRemaining: '' };
+    }
+  };
+
+  // Function to update winner cooldowns for all configs
+  const updateWinnerCooldowns = async () => {
+    if (!user?.id) return;
+
+    const cooldowns: { [configId: string]: { isWinner: boolean; cooldownEndsAt: Date | null; timeRemaining: string } } = {};
+    
+    for (const config of hardcodedListings) {
+      const cooldown = await checkWinnerCooldown(config.id);
+      cooldowns[config.id] = cooldown;
+    }
+
+    setWinnerCooldowns(cooldowns);
   };
 
   const resetCompletedTournament = async (sessionId: string) => {
@@ -2122,7 +2214,33 @@ export default function WinnerTakesAllPage() {
                         );
                       }
                       
-                      // Check if user already completed this tournament (has a score)
+                      // Check if user is a winner and in cooldown period
+                      const winnerCooldown = winnerCooldowns[config.id];
+                      if (winnerCooldown && winnerCooldown.isWinner) {
+                        const cooldownDays = config.base_price >= 5000 ? 90 : 7;
+                        return (
+                          <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-center">
+                            <div className="flex items-center justify-center">
+                              <TrophyIcon className="w-6 h-6 text-yellow-400 mr-2" />
+                              <span className="text-yellow-300 text-lg font-semibold">WINNER COOLDOWN</span>
+                            </div>
+                            <p className="text-yellow-200 text-sm mt-1">You won this tournament!</p>
+                            <p className="text-yellow-200 text-xs mt-1">
+                              Wait {cooldownDays} days before playing again
+                            </p>
+                            <div className="mt-2 p-2 bg-yellow-600/20 rounded-lg">
+                              <div className="flex items-center justify-center">
+                                <ClockIcon className="w-4 h-4 text-yellow-300 mr-1" />
+                                <span className="text-yellow-200 text-sm font-mono">
+                                  {winnerCooldown.timeRemaining}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Check if user already completed this tournament (has a score) but is not a winner
                       // Check user completion state first (most reliable)
                       const userCompletion = userCompletions[config.id];
                       if (userCompletion && userCompletion.completed) {
