@@ -797,7 +797,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
 
     const deltaTime = currentTime - gameData.lastTime;
     
-    // Update timer and game state every frame
+    // Update timer and game state every frame - consolidated into single update
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
       
@@ -809,11 +809,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
         console.log('Game over due to timer!');
-        return { ...prev, gameOver: true, timeRemaining: 0 };
+        return { ...prev, gameOver: true, timeRemaining: 0, lastTime: currentTime };
       }
       
       return {
         ...prev,
+        lastTime: currentTime,
         timeRemaining: newTimeRemaining,
         explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
           ...explosion,
@@ -822,12 +823,6 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         gameTime: Date.now() - prev.startTime
       };
     });
-    
-    // Update lastTime separately to prevent deltaTime accumulation
-    setGameData(prev => ({
-      ...prev,
-      lastTime: currentTime
-    }));
     
     // Drop piece if needed - use the current deltaTime calculation
     if (deltaTime >= gameData.dropTime) {
@@ -1257,7 +1252,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             // Start game loop immediately
             setTimeout(() => {
               console.log('Starting game loop...');
-              gameLoopRef.current = requestAnimationFrame(gameLoop);
+              try {
+                gameLoopRef.current = requestAnimationFrame(gameLoop);
+                console.log('Game loop started from handleStartGame');
+              } catch (error) {
+                console.error('Error starting game loop from handleStartGame:', error);
+              }
             }, 100);
           }, 1000); // Show "GO!" for 1 second to make it more visible
           return 0;
@@ -1295,6 +1295,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   // Handle game over
   useEffect(() => {
     if (gameData.gameOver && gameState === 'playing') {
+      console.log('Game over detected, transitioning to ended state');
       setGameState('ended');
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
@@ -1302,6 +1303,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       }
       
       const accuracy = 100; // Tetris doesn't have accuracy concept
+      console.log('Calling onGameEnd with score:', gameData.score);
       onGameEnd({ score: gameData.score, accuracy });
     }
   }, [gameData.gameOver, gameState, gameData.score, onGameEnd]);
@@ -1310,11 +1312,25 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   useEffect(() => {
     if (gameState === 'playing' && !gameData.gameOver && !gameLoopRef.current) {
       console.log('Starting game loop from useEffect...');
+      console.log('Game data state:', { 
+        gameOver: gameData.gameOver, 
+        lastTime: gameData.lastTime, 
+        timeRemaining: gameData.timeRemaining,
+        currentPiece: gameData.currentPiece ? 'exists' : 'null'
+      });
+      
       // Initialize lastTime if it's 0
       if (gameData.lastTime === 0) {
+        console.log('Initializing lastTime...');
         setGameData(prev => ({ ...prev, lastTime: performance.now() }));
       }
-      gameLoopRef.current = requestAnimationFrame(gameLoop);
+      
+      try {
+        gameLoopRef.current = requestAnimationFrame(gameLoop);
+        console.log('Game loop started successfully');
+      } catch (error) {
+        console.error('Error starting game loop:', error);
+      }
     }
   }, [gameState, gameData.gameOver, gameData.lastTime, gameLoop]);
 
@@ -1334,6 +1350,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   // Cleanup
   useEffect(() => {
     return () => {
+      console.log('CashStackGame cleanup - stopping game loop');
       if (gameLoopRef.current) {
         cancelAnimationFrame(gameLoopRef.current);
         gameLoopRef.current = undefined;
