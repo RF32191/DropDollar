@@ -2214,7 +2214,7 @@ export default function WinnerTakesAllPage() {
                         );
                       }
                       
-                      // Check if user is a winner and in cooldown period
+                      // Check if user is a winner and in cooldown period FIRST
                       const winnerCooldown = winnerCooldowns[config.id];
                       if (winnerCooldown && winnerCooldown.isWinner) {
                         const cooldownDays = config.base_price >= 5000 ? 90 : 7;
@@ -2240,20 +2240,58 @@ export default function WinnerTakesAllPage() {
                         );
                       }
 
-                      // Check if user already completed this tournament (has a score) but is not a winner
-                      // Check user completion state first (most reliable)
+                      // If user is NOT a winner, check if they completed the tournament
+                      // Non-winners should be able to play again after tournament resets
                       const userCompletion = userCompletions[config.id];
                       if (userCompletion && userCompletion.completed) {
-                        return (
-                          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
-                            <div className="flex items-center justify-center">
-                              <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
-                              <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                        // Check if this is a fresh tournament (no current session or empty participants)
+                        const isFreshTournament = !session || !session.participants || session.participants.length === 0;
+                        
+                        if (isFreshTournament) {
+                          // Fresh tournament - non-winners can play again
+                          return (
+                            <button
+                              onClick={() => handleJoinGame(config.id)}
+                              disabled={joiningWinnerTakesAll}
+                              className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
+                                joiningWinnerTakesAll
+                                  ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                                  : locationVerified
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                                  : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                              }`}
+                            >
+                              {joiningWinnerTakesAll ? (
+                                <div className="flex items-center justify-center">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
+                                  <span className="text-lg">Joining Game...</span>
+                                </div>
+                              ) : locationVerified ? (
+                                <div className="flex items-center justify-center">
+                                  <span className="text-xl mr-2">🔓</span>
+                                  <span>JOIN GAME - ${config.entry_fee}.00</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center">
+                                  <span className="text-xl mr-2">🔒</span>
+                                  <span>JOIN GAME - VERIFY LOCATION</span>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        } else {
+                          // Tournament in progress - show completed status
+                          return (
+                            <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                              <div className="flex items-center justify-center">
+                                <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                                <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                              </div>
+                              <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
+                              <p className="text-green-200 text-xs mt-1">Tournament will reset automatically after payout</p>
                             </div>
-                            <p className="text-green-200 text-sm mt-1">Your score: {userCompletion.score}</p>
-                            <p className="text-green-200 text-xs mt-1">Tournament will reset automatically after payout</p>
-                          </div>
-                        );
+                          );
+                        }
                       }
 
                       // Fallback: Check session data
