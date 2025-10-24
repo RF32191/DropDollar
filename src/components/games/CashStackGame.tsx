@@ -204,7 +204,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     lines: 0,
     gameOver: false,
     dropTime: 2000, // Start at 2 seconds per drop
-    lastTime: performance.now(),
+    lastTime: 0, // Will be set when game starts
     explosions: [],
     grabbedPiece: null,
     isGrabbing: false,
@@ -809,12 +809,11 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       // Check for game over due to time
       if (newTimeRemaining <= 0) {
         console.log('Game over due to timer!');
-        return { ...prev, gameOver: true, timeRemaining: 0, lastTime: currentTime };
+        return { ...prev, gameOver: true, timeRemaining: 0 };
       }
       
       return {
         ...prev,
-        lastTime: currentTime,
         timeRemaining: newTimeRemaining,
         explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
           ...explosion,
@@ -823,6 +822,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
         gameTime: Date.now() - prev.startTime
       };
     });
+    
+    // Update lastTime separately to prevent deltaTime accumulation
+    setGameData(prev => ({
+      ...prev,
+      lastTime: currentTime
+    }));
     
     // Drop piece if needed - use the current deltaTime calculation
     if (deltaTime >= gameData.dropTime) {
@@ -871,7 +876,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
       // Move piece horizontally based on touch movement
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
         const direction = deltaX > 0 ? 1 : -1;
-        movePiece(direction);
+        movePiece(direction, 0);
       }
     }
   }, [gameState, touchStart, movePiece]);
@@ -1226,6 +1231,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             setShowCountdown(false);
             setGameState('playing');
             console.log('Starting game with timer:', 120000);
+            const startTime = Date.now();
             setGameData(prev => ({
               ...prev,
               board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
@@ -1236,12 +1242,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               lines: 0,
               gameOver: false,
               dropTime: 2000, // Start at 2 seconds per drop
-              lastTime: performance.now(),
+              lastTime: startTime, // Initialize with start time
               explosions: [],
               grabbedPiece: null,
               isGrabbing: false,
               gameTime: 0,
-              startTime: Date.now(),
+              startTime: startTime,
               timeRemaining: 120000, // 2 minutes in milliseconds
               perfectGaps: 0,
               verticalClears: 0,
@@ -1303,9 +1309,13 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
   useEffect(() => {
     if (gameState === 'playing' && !gameData.gameOver && !gameLoopRef.current) {
       console.log('Starting game loop from useEffect...');
+      // Initialize lastTime if it's 0
+      if (gameData.lastTime === 0) {
+        setGameData(prev => ({ ...prev, lastTime: performance.now() }));
+      }
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     }
-  }, [gameState, gameData.gameOver, gameLoop]);
+  }, [gameState, gameData.gameOver, gameData.lastTime, gameLoop]);
 
   // Debug countdown state
   useEffect(() => {
