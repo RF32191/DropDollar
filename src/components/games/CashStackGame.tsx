@@ -210,7 +210,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     isGrabbing: false,
     gameTime: 0,
     startTime: 0,
-    timeRemaining: 120000, // Exactly 2 minutes
+    timeRemaining: 60000, // Exactly 1 minute
     perfectGaps: 0,
     verticalClears: 0,
     numberMatches: 0
@@ -728,7 +728,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           score: prev.score + scoreIncrease,
           lines: prev.lines + linesCleared,
           level: Math.floor((prev.lines + linesCleared) / 10) + 1,
-          dropTime: Math.max(10000, 60000 - Math.floor((Date.now() - prev.startTime) / 120000) * 10000), // Gradual speed increase: starts at 60s, decreases by 10s every 2 minutes
+          dropTime: Math.max(10000, 60000 - Math.floor((Date.now() - prev.startTime) / 60000) * 10000), // Gradual speed increase: starts at 60s, decreases by 10s every 1 minute
           explosions: [...prev.explosions, ...cashExplosions, ...lineExplosions, ...landingExplosions]
         };
       }
@@ -796,12 +796,18 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     }
 
     const deltaTime = currentTime - gameData.lastTime;
-    console.log('Game loop - currentTime:', currentTime, 'lastTime:', gameData.lastTime, 'deltaTime:', deltaTime);
+    // Reduced logging for better performance - only log every 200 frames
+    if (Math.floor(currentTime / 200) % 200 === 0) {
+      console.log('Game loop - deltaTime:', deltaTime);
+    }
     
     // Update timer and game state every frame - consolidated into single update
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
-      console.log('Timer calculation - prev.timeRemaining:', prev.timeRemaining, 'deltaTime:', deltaTime, 'newTimeRemaining:', newTimeRemaining);
+      // Reduced logging for better performance - only log every 10 seconds
+      if (Math.floor(prev.timeRemaining / 10000) !== Math.floor(newTimeRemaining / 10000)) {
+        console.log('Timer calculation - newTimeRemaining:', newTimeRemaining);
+      }
       
       // Debug timer every 5 seconds for better visibility
       if (Math.floor(prev.timeRemaining / 5000) !== Math.floor(newTimeRemaining / 5000)) {
@@ -1242,12 +1248,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
               isGrabbing: false,
               gameTime: 0,
               startTime: startTime,
-              timeRemaining: 120000, // Exactly 2 minutes in milliseconds
+              timeRemaining: 60000, // Exactly 1 minute in milliseconds
               perfectGaps: 0,
               verticalClears: 0,
               numberMatches: 0
             }));
-            console.log('Game started with timer set to:', 120000, 'ms (2 minutes)');
+            console.log('Game started with timer set to:', 60000, 'ms (1 minute)');
             // Start game loop immediately
             setTimeout(() => {
               console.log('Starting game loop...');
@@ -1471,7 +1477,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
                   <span className="text-white text-sm">💡</span>
                 </div>
                 <p className="text-sm sm:text-base text-yellow-100 font-semibold">
-                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall slowly (60 seconds) - use arrow keys for FAST movement! Speed increases gradually over time.
+                  <span className="text-yellow-200 font-bold">Pro Tip:</span> Pieces fall slowly (60 seconds) - use arrow keys for FAST movement! Game lasts 1 minute with gradual speed increase.
                 </p>
               </div>
             </div>
