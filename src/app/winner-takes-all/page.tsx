@@ -228,6 +228,9 @@ export default function WinnerTakesAllPage() {
     // Always load hardcoded data, regardless of authentication
     loadWinnerTakesAllData();
     
+    // Emergency reset for $2 game on page load
+    emergencyReset2DollarGame();
+    
     // Load user completion state from localStorage on page load
     if (user?.id) {
       try {
@@ -297,6 +300,13 @@ export default function WinnerTakesAllPage() {
               const config = configs.find(c => c.id === session.config_id);
               
               if (winner && config) {
+                // Special handling for $2 game - force reset if it's completed
+                if (session.config_id === 'wta-2-sword-parry') {
+                  console.log('🚨 [Winner Takes It All] $2 game detected as completed, forcing reset');
+                  await resetCompletedTournament(session.id);
+                  continue;
+                }
+                
                 // Double-check if winner has already been paid (check localStorage too)
                 const isPaidFromLocalStorage = localStorage.getItem(`winnerTakesAllPayout_${session.id}`);
                 if (isPaidFromLocalStorage) {
@@ -735,7 +745,7 @@ export default function WinnerTakesAllPage() {
         const { error: competitionsError } = await supabase
           .from('competitions')
           .delete()
-          .eq('game_type', 'multi_target') // Assuming $2 game is multi-target
+          .eq('game_type', 'sword_parry') // $2 game is sword_parry
           .eq('tournament_type', 'winner_takes_all');
 
         if (competitionsError) {
@@ -748,6 +758,55 @@ export default function WinnerTakesAllPage() {
       }
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error force resetting tournament:', error);
+    }
+  };
+
+  // Emergency reset for $2 game - call this on page load
+  const emergencyReset2DollarGame = async () => {
+    try {
+      console.log('🚨 [Winner Takes It All] Emergency reset for $2 game');
+      
+      // Clear all localStorage data for $2 game
+      if (user?.id) {
+        const savedCompletions = localStorage.getItem(`winnerTakesAllCompletions_${user.id}`);
+        if (savedCompletions) {
+          const parsedCompletions = JSON.parse(savedCompletions);
+          if (parsedCompletions['wta-2-sword-parry']) {
+            delete parsedCompletions['wta-2-sword-parry'];
+            localStorage.setItem(`winnerTakesAllCompletions_${user.id}`, JSON.stringify(parsedCompletions));
+            setUserCompletions(parsedCompletions);
+            console.log('✅ [Winner Takes It All] Emergency cleared $2 game completion');
+          }
+        }
+      }
+      
+      // Clear any payout data for $2 game sessions
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('winnerTakesAllPayout_') && key.includes('wta-2')) {
+          localStorage.removeItem(key);
+          console.log('✅ [Winner Takes It All] Emergency cleared payout data:', key);
+        }
+      });
+      
+      // Clear competitions data for sword_parry games
+      const { error: competitionsError } = await supabase
+        .from('competitions')
+        .delete()
+        .eq('game_type', 'sword_parry')
+        .eq('tournament_type', 'winner_takes_all');
+
+      if (competitionsError) {
+        console.error('❌ [Winner Takes It All] Error clearing competitions data:', competitionsError);
+      } else {
+        console.log('✅ [Winner Takes It All] Emergency cleared competitions data');
+      }
+      
+      // Refresh data
+      await refreshParticipantsData();
+      console.log('✅ [Winner Takes It All] Emergency reset completed');
+    } catch (error) {
+      console.error('❌ [Winner Takes It All] Error in emergency reset:', error);
     }
   };
 
