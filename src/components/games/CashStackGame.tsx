@@ -796,10 +796,12 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     }
 
     const deltaTime = currentTime - gameData.lastTime;
+    console.log('Game loop - currentTime:', currentTime, 'lastTime:', gameData.lastTime, 'deltaTime:', deltaTime);
     
     // Update timer and game state every frame - consolidated into single update
     setGameData(prev => {
       const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
+      console.log('Timer calculation - prev.timeRemaining:', prev.timeRemaining, 'deltaTime:', deltaTime, 'newTimeRemaining:', newTimeRemaining);
       
       // Debug timer every 5 seconds for better visibility
       if (Math.floor(prev.timeRemaining / 5000) !== Math.floor(newTimeRemaining / 5000)) {
@@ -820,7 +822,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
           ...explosion,
           life: explosion.life - 1
         })),
-        gameTime: Date.now() - prev.startTime
+        gameTime: performance.now() - prev.startTime
       };
     });
     
@@ -1223,7 +1225,7 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             setShowCountdown(false);
             setGameState('playing');
             console.log('Starting game with timer:', 120000);
-            const startTime = Date.now();
+            const startTime = performance.now(); // Use performance.now() for consistency with requestAnimationFrame
             setGameData(prev => ({
               ...prev,
               board: Array(BOARD_HEIGHT).fill(null).map(() => Array(BOARD_WIDTH).fill(0)),
