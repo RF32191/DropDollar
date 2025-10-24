@@ -210,11 +210,45 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     isGrabbing: false,
     gameTime: 0,
     startTime: 0,
-    timeRemaining: 60000, // Exactly 1 minute
+    timeRemaining: 60, // Timer in seconds (not milliseconds) - simpler approach
     perfectGaps: 0,
     verticalClears: 0,
     numberMatches: 0
   });
+
+  // Separate timer state for reliable countdown
+  const [gameTimer, setGameTimer] = useState(60);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (gameState === 'playing' && gameTimer > 0) {
+      timerIntervalRef.current = setInterval(() => {
+        setGameTimer(prev => {
+          const newTime = prev - 1;
+          console.log('Timer countdown:', newTime, 'seconds remaining');
+          if (newTime <= 0) {
+            console.log('Game over due to timer!');
+            setGameData(prev => ({ ...prev, gameOver: true }));
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000); // Count down every second
+    } else {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [gameState, gameTimer]);
 
   // Create a new piece with random bar types
   const createPiece = useCallback((): Piece => {
@@ -798,26 +832,11 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     const deltaTime = currentTime - gameData.lastTime;
     console.log('Game loop - currentTime:', currentTime, 'lastTime:', gameData.lastTime, 'deltaTime:', deltaTime);
     
-    // Update timer and game state every frame - consolidated into single update
+    // Update game state every frame - timer handled separately
     setGameData(prev => {
-      const newTimeRemaining = Math.max(0, prev.timeRemaining - deltaTime);
-      console.log('Timer calculation - prev.timeRemaining:', prev.timeRemaining, 'deltaTime:', deltaTime, 'newTimeRemaining:', newTimeRemaining);
-      
-      // Debug timer every 5 seconds for better visibility
-      if (Math.floor(prev.timeRemaining / 5000) !== Math.floor(newTimeRemaining / 5000)) {
-        console.log('Timer:', Math.floor(newTimeRemaining / 1000), 'seconds remaining (', Math.floor(newTimeRemaining / 60000), 'minutes', Math.floor((newTimeRemaining % 60000) / 1000), 'seconds)');
-      }
-      
-      // Check for game over due to time
-      if (newTimeRemaining <= 0) {
-        console.log('Game over due to timer!');
-        return { ...prev, gameOver: true, timeRemaining: 0, lastTime: currentTime };
-      }
-      
       return {
         ...prev,
         lastTime: currentTime,
-        timeRemaining: newTimeRemaining,
         explosions: prev.explosions.filter(explosion => explosion.life > 0).map(explosion => ({
           ...explosion,
           life: explosion.life - 1
@@ -1161,10 +1180,10 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
     ctx.fillText(`📊 Level: ${gameData.level}`, CANVAS_WIDTH + 20, 80);
     ctx.fillText(`📈 Lines: ${gameData.lines}`, CANVAS_WIDTH + 20, 120);
     
-    // Draw timer
-    const minutes = Math.floor(gameData.timeRemaining / 60000);
-    const seconds = Math.floor((gameData.timeRemaining % 60000) / 1000);
-    ctx.fillStyle = gameData.timeRemaining < 30000 ? '#FF0000' : '#FFD700'; // Red if less than 30 seconds
+    // Draw timer with separate state
+    const minutes = Math.floor(gameTimer / 60);
+    const seconds = gameTimer % 60;
+    ctx.fillStyle = gameTimer < 30 ? '#FF0000' : '#FFD700'; // Red if less than 30 seconds
     ctx.font = 'bold 20px Arial';
     ctx.fillText(`⏰ Time: ${minutes}:${seconds.toString().padStart(2, '0')}`, CANVAS_WIDTH + 20, 160);
     
@@ -1224,7 +1243,8 @@ const CashStackGame: React.FC<CashStackGameProps> = ({
             console.log('Hiding countdown, starting game...');
             setShowCountdown(false);
             setGameState('playing');
-            console.log('Starting game with timer:', 120000);
+            setGameTimer(60); // Reset timer to 60 seconds
+            console.log('Starting game with timer set to:', 60, 'seconds (1 minute)');
             const startTime = performance.now(); // Use performance.now() for consistency with requestAnimationFrame
             setGameData(prev => ({
               ...prev,
