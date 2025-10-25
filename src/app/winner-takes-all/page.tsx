@@ -622,6 +622,35 @@ export default function WinnerTakesAllPage() {
         text: `🎉 Winner: ${userData?.username || 'Unknown'} (Score: ${winner.score}) won ${winnerPayout.toFixed(2)} tokens! (Pot: ${totalPot.toFixed(2)}, Platform Fee: -${platformFeeAmount.toFixed(2)})` 
       });
       
+      // Refresh token balance for all users (especially the winner)
+      console.log('🔄 [Winner Takes All] Refreshing token balances...');
+      
+      // Small delay to ensure database update propagates
+      setTimeout(() => {
+        refreshTokens();
+        
+        // If the winner is the current user, force refresh their token display
+        if (winner.user_id === user?.id) {
+          console.log('🎯 [Winner Takes All] Winner is current user, forcing token refresh...');
+          // Force refresh the token sync hook
+          window.dispatchEvent(new CustomEvent('tokensUpdated', { 
+            detail: { 
+              newBalance: verifyUser.tokens, 
+              userId: winner.user_id
+            } 
+          }));
+        }
+        
+        // Dispatch token refresh event for other components
+        window.dispatchEvent(new CustomEvent('tokensRefreshed', { 
+          detail: { 
+            newBalance: verifyUser.tokens, 
+            userId: winner.user_id,
+            payoutAmount: winnerPayout
+          } 
+        }));
+      }, 500); // 500ms delay
+      
       // Reload sessions to get updated data
       loadSessions();
     } catch (error) {
