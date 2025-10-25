@@ -331,12 +331,12 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Check if user already joined
-    const hasJoined = session.participants.some(p => p.user_id === user.id);
-    if (hasJoined) {
-      setMessage({ type: 'error', text: 'You have already joined this tournament!' });
-      return;
-    }
+    // Allow rejoining - remove the check that prevents rejoining
+    // const hasJoined = session.participants.some(p => p.user_id === user.id);
+    // if (hasJoined) {
+    //   setMessage({ type: 'error', text: 'You have already joined this tournament!' });
+    //   return;
+    // }
 
     // Check if user has enough tokens
     if (userTokens < config.entry_fee) {
@@ -553,6 +553,17 @@ export default function WinnerTakesAllPage() {
         <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-orange-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+        
+        {/* Additional animated elements */}
+        <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-yellow-400/5 rounded-full blur-xl animate-bounce delay-700"></div>
+        <div className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-amber-400/5 rounded-full blur-2xl animate-pulse delay-300"></div>
+        <div className="absolute top-3/4 left-1/3 w-24 h-24 bg-orange-400/5 rounded-full blur-lg animate-ping delay-1000"></div>
+        
+        {/* Floating particles */}
+        <div className="absolute top-10 left-10 w-2 h-2 bg-yellow-400/30 rounded-full animate-ping delay-200"></div>
+        <div className="absolute top-20 right-20 w-3 h-3 bg-amber-400/30 rounded-full animate-ping delay-500"></div>
+        <div className="absolute bottom-20 left-20 w-2 h-2 bg-orange-400/30 rounded-full animate-ping delay-800"></div>
+        <div className="absolute bottom-10 right-10 w-3 h-3 bg-yellow-400/30 rounded-full animate-ping delay-1200"></div>
       </div>
       
       <CleanNavigation />
@@ -638,6 +649,9 @@ export default function WinnerTakesAllPage() {
             const canJoin = userTokens >= config.entry_fee;
             const hasJoined = session?.participants.some(p => p.user_id === user?.id) || false;
             const hasCompleted = session?.participants.find(p => p.user_id === user?.id)?.score !== null;
+            
+            // Reset completed status - allow rejoining
+            const canRejoin = true;
             
             return (
               <div key={config.id} className="bg-yellow-500/10 backdrop-blur-xl rounded-3xl p-6 border border-yellow-500/20 hover:bg-yellow-500/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
@@ -814,14 +828,6 @@ export default function WinnerTakesAllPage() {
                     ) : !canJoin ? (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
                         <p className="text-red-300 text-sm">You need {config.entry_fee} token to join</p>
-                      </div>
-                    ) : hasCompleted ? (
-                      <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
-                        <div className="flex items-center justify-center">
-                          <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
-                          <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
-                        </div>
-                        <p className="text-green-200 text-sm mt-1">Your score: {session?.participants.find(p => p.user_id === user?.id)?.score}</p>
                       </div>
                     ) : (
                       <button
