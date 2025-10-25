@@ -92,7 +92,25 @@ export function useTokenSync() {
       }
     };
 
+    // Listen for login events to ensure seamless loading
+    const handleUserLoggedIn = (event: CustomEvent) => {
+      if (event.detail?.seamless && event.detail?.userId === user.id) {
+        console.log('💰 [useTokenSync] User logged in seamlessly, updating tokens:', event.detail.tokens);
+        setTokenBalance(event.detail.tokens || 0);
+        setIsLoading(false);
+      }
+    };
+
+    // Listen for logout events
+    const handleUserLoggedOut = () => {
+      console.log('💰 [useTokenSync] User logged out, clearing tokens');
+      setTokenBalance(0);
+      setIsLoading(false);
+    };
+
     // Add event listeners
+    window.addEventListener('userLoggedIn', handleUserLoggedIn as EventListener);
+    window.addEventListener('userLoggedOut', handleUserLoggedOut);
     window.addEventListener('tokensUpdated', handleTokensUpdated as EventListener);
     window.addEventListener('tokensRefreshed', handleTokensRefreshed as EventListener);
     window.addEventListener('storage', handleStorageChange);
@@ -101,6 +119,8 @@ export function useTokenSync() {
 
     // Cleanup
     return () => {
+      window.removeEventListener('userLoggedIn', handleUserLoggedIn as EventListener);
+      window.removeEventListener('userLoggedOut', handleUserLoggedOut);
       window.removeEventListener('tokensUpdated', handleTokensUpdated as EventListener);
       window.removeEventListener('tokensRefreshed', handleTokensRefreshed as EventListener);
       window.removeEventListener('storage', handleStorageChange);

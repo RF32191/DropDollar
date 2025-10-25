@@ -246,6 +246,15 @@ export default function WinnerTakesAllPage() {
   const loadSessions = useCallback(async () => {
     try {
       console.log('🔄 [Winner Takes All] Loading sessions from database...');
+      
+      // Call the conditional reset function first
+      const { data: resetData, error: resetError } = await supabase.rpc('conditional_wta_reset');
+      if (resetError) {
+        console.error('❌ [Winner Takes All] Conditional reset error:', resetError);
+      } else {
+        console.log('✅ [Winner Takes All] Conditional reset result:', resetData);
+      }
+
       const { data, error } = await supabase.rpc('get_all_winner_takes_all_sessions');
       
       if (error) {

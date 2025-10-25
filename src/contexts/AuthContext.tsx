@@ -269,6 +269,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🚪 Logging out...');
       
+      // Clear state first to prevent UI issues
+      setUser(null);
+      setIsAuthenticated(false);
+      
       // Sign out from Supabase
       await supabase.auth.signOut();
       
@@ -280,19 +284,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('loginTime');
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('lastActivity');
+      localStorage.removeItem('userLocation');
+      localStorage.removeItem('locationPermission');
+      localStorage.removeItem('locationTimestamp');
       
       // Clear cookies
       document.cookie = 'dropdollar_session=; path=/; max-age=0';
       document.cookie = 'dropdollar_user=; path=/; max-age=0';
       document.cookie = 'dropdollar_remember=; path=/; max-age=0';
       
-      // Clear state
-      setUser(null);
-      setIsAuthenticated(false);
+      // Dispatch logout event for other components
+      window.dispatchEvent(new CustomEvent('userLoggedOut'));
       
       console.log('✅ Logged out successfully');
     } catch (error) {
       console.error('❌ Logout error:', error);
+      // Still clear state even if there's an error
+      setUser(null);
+      setIsAuthenticated(false);
     }
   };
 
