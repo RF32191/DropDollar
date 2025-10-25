@@ -484,30 +484,88 @@ export default function WinnerTakesAllPage() {
     setSelectedGameFlow(null);
   };
 
-  // Handle manual payout trigger
+  // Handle manual payout trigger using existing functions
   const handleManualPayout = async (configId: string) => {
     try {
       console.log('💰 [Winner Takes All] Manual payout triggered for:', configId);
       
-      const { data, error } = await supabase.rpc('process_payout_by_config', {
-        config_id_param: configId
-      });
-      
-      if (error) {
-        console.error('❌ [Winner Takes All] Payout error:', error);
-        setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
-      } else if (data && data.success) {
-        console.log('✅ [Winner Takes All] Payout successful:', data);
-        setMessage({ 
-          type: 'success', 
-          text: `🎉 Winner: ${data.winner_username} (Score: ${data.winner_score}) won ${data.payout_amount} tokens!` 
-        });
-      } else if (data && !data.success) {
-        console.log('ℹ️ [Winner Takes All] Payout info:', data.message);
-        if (!data.message.includes('already paid')) {
-          setMessage({ type: 'error', text: `Payout issue: ${data.message}` });
-        }
+      // Find the session for this config
+      const session = sessions.find(s => s.config_id === configId);
+      if (!session) {
+        setMessage({ type: 'error', text: 'Session not found for payout' });
+        return;
       }
+
+      // Check if already completed
+      if (session.status === 'completed') {
+        setMessage({ type: 'error', text: 'Session already completed and paid out' });
+        return;
+      }
+
+      // Get participants with scores
+      const participantsWithScores = session.participants.filter(p => p.score !== null);
+      if (participantsWithScores.length === 0) {
+        setMessage({ type: 'error', text: 'No participants with scores found' });
+        return;
+      }
+
+      // Find winner with highest score
+      const winner = participantsWithScores.reduce((prev, current) => 
+        (current.score || 0) > (prev.score || 0) ? current : prev
+      );
+
+      console.log('🏆 [Winner Takes All] Winner found:', winner);
+
+      // Manual payout process
+      const payoutAmount = session.current_pot;
+      
+      // Update winner's tokens (this would normally be done by SQL function)
+      const { data: updateData, error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          tokens: supabase.raw(`tokens + ${payoutAmount}`),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', winner.user_id)
+        .select();
+
+      if (updateError) {
+        console.error('❌ [Winner Takes All] Token update error:', updateError);
+        setMessage({ type: 'error', text: `Failed to update winner tokens: ${updateError.message}` });
+        return;
+      }
+
+      // Mark session as completed
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('winner_takes_all_sessions')
+        .update({
+          status: 'completed',
+          winner_user_id: winner.user_id,
+          prize_amount: payoutAmount,
+          platform_fee: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session.id)
+        .select();
+
+      if (sessionError) {
+        console.error('❌ [Winner Takes All] Session update error:', sessionError);
+        setMessage({ type: 'error', text: `Failed to update session: ${sessionError.message}` });
+        return;
+      }
+
+      // Get winner's username for display
+      const { data: userData } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', winner.user_id)
+        .single();
+
+      console.log('✅ [Winner Takes All] Payout successful');
+      setMessage({ 
+        type: 'success', 
+        text: `🎉 Winner: ${userData?.username || 'Unknown'} (Score: ${winner.score}) won ${payoutAmount} tokens!` 
+      });
       
       // Reload sessions to get updated data
       loadSessions();
