@@ -786,8 +786,27 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Live Scoreboard - Only show if there are participants with scores */}
-                  {session && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && (
+                  {/* Message for users who haven't joined yet */}
+                  {session && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && !userParticipant && (
+                    <div className="mb-6">
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
+                        <div className="flex items-center">
+                          <TrophyIcon className="w-5 h-5 text-yellow-400 mr-3" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-yellow-200">
+                              Live Scores Available
+                            </h4>
+                            <p className="text-xs text-yellow-300 mt-1">
+                              Join this tournament to see live scores and compete with other players!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Live Scoreboard - Only show to users who have joined and if there are participants with scores */}
+                  {session && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && userParticipant && (
                     <div className="mb-6">
                       <button
                         onClick={() => {
