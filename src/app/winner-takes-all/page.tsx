@@ -469,6 +469,32 @@ export default function WinnerTakesAllPage() {
       } else {
         console.log('✅ [Winner Takes It All] Score recorded successfully:', data);
         setMessage({ type: 'success', text: `Game completed! Your score: ${score}` });
+        
+        // After score is saved, try to pay the winner
+        try {
+          console.log('💰 [Winner Takes All] Attempting to pay winner...');
+          const { data: paymentData, error: paymentError } = await supabase.rpc('pay_winner_by_config', {
+            config_id_param: selectedGameFlow.configId
+          });
+          
+          if (paymentError) {
+            console.error('❌ [Winner Takes All] Payment error:', paymentError);
+          } else if (paymentData && paymentData.success) {
+            console.log('✅ [Winner Takes All] Winner paid successfully:', paymentData);
+            setMessage({ 
+              type: 'success', 
+              text: `🎉 Winner: ${paymentData.winner_username} (Score: ${paymentData.winner_score}) won ${paymentData.payout_amount} tokens!` 
+            });
+          } else if (paymentData && !paymentData.success) {
+            console.log('ℹ️ [Winner Takes All] Payment info:', paymentData.message);
+            // Don't show error for "already paid" - that's expected
+            if (!paymentData.message.includes('already paid')) {
+              setMessage({ type: 'error', text: `Payment issue: ${paymentData.message}` });
+            }
+          }
+        } catch (paymentError) {
+          console.error('❌ [Winner Takes All] Payment system error:', paymentError);
+        }
       }
 
       // Reload sessions to get updated data
