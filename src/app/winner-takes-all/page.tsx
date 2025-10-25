@@ -647,11 +647,9 @@ export default function WinnerTakesAllPage() {
             const session = sessions.find(s => s.config_id === config.id);
             const timeRemaining = session ? calculateTimeRemaining(session) : null;
             const canJoin = userTokens >= config.entry_fee;
-            const hasJoined = session?.participants.some(p => p.user_id === user?.id) || false;
-            const hasCompleted = session?.participants.find(p => p.user_id === user?.id)?.score !== null;
-            
-            // Reset completed status - allow rejoining
-            const canRejoin = true;
+            const userParticipant = session?.participants.find(p => p.user_id === user?.id);
+            const hasJoined = !!userParticipant;
+            const hasCompleted = !!userParticipant && userParticipant.score !== null && userParticipant.completed_at !== null;
             
             return (
               <div key={config.id} className="bg-yellow-500/10 backdrop-blur-xl rounded-3xl p-6 border border-yellow-500/20 hover:bg-yellow-500/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
@@ -763,7 +761,7 @@ export default function WinnerTakesAllPage() {
                   </div>
                   
                   {/* Live Scoreboard - Only show if there are participants with scores */}
-                  {session && session.participants.filter(p => p.score !== null).length > 0 && (
+                  {session && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && (
                     <div className="mb-6">
                       <button
                         onClick={() => {
@@ -776,7 +774,7 @@ export default function WinnerTakesAllPage() {
                       >
                         <h4 className="text-sm font-semibold text-white flex items-center">
                           <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                          Live Scoreboard ({session.participants.filter(p => p.score !== null).length} player{session.participants.filter(p => p.score !== null).length !== 1 ? 's' : ''})
+                          Live Scoreboard ({session.participants.filter(p => p.score !== null && p.completed_at !== null).length} player{session.participants.filter(p => p.score !== null && p.completed_at !== null).length !== 1 ? 's' : ''})
                         </h4>
                         <span className="text-gray-400 text-xs">Click to expand</span>
                       </button>
@@ -789,7 +787,7 @@ export default function WinnerTakesAllPage() {
                           </div>
                           <div className="space-y-2">
                             {session.participants
-                              .filter(p => p.score !== null)
+                              .filter(p => p.score !== null && p.completed_at !== null)
                               .sort((a, b) => (b.score || 0) - (a.score || 0))
                               .map((participant, index) => {
                                 const isCurrentUser = participant.user_id === user?.id;
@@ -843,7 +841,7 @@ export default function WinnerTakesAllPage() {
                           <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
                           <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                         </div>
-                        <p className="text-green-200 text-sm mt-1">Your score: {session?.participants.find(p => p.user_id === user?.id)?.score}</p>
+                        <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score || 0}</p>
                       </div>
                     ) : (
                       <button
