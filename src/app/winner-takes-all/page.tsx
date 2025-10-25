@@ -1992,32 +1992,6 @@ export default function WinnerTakesAllPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* Enhanced Current Pot with Calculator */}
-                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
-                    <div className="text-center">
-                      <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                      <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
-                      <p className="text-purple-200 text-xs mt-1">Base pot: ${prizeDistribution.totalPrize}, grows with each player's token</p>
-                      
-                      {/* Live Calculator Display */}
-                      <div className="mt-3 p-3 bg-white/10 rounded-lg">
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="text-center">
-                            <div className="text-yellow-300 font-semibold">Winner Gets:</div>
-                            <div className="text-white font-bold">${((session?.current_pot || 0) * 0.85).toFixed(2)}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-red-300 font-semibold">Platform Fee (15%):</div>
-                            <div className="text-white font-bold">${((session?.current_pot || 0) * 0.15).toFixed(2)}</div>
-                          </div>
-                        </div>
-                        <div className="mt-2 text-xs text-purple-200">
-                          💰 Pot grows by {config.entry_fee} token per player
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                   
                   {/* Progress Bar - Current pot to base price */}
                   <div className="mb-4">
