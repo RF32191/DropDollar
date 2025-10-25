@@ -331,12 +331,12 @@ export default function WinnerTakesAllPage() {
       return;
     }
 
-    // Allow rejoining - remove the check that prevents rejoining
-    // const hasJoined = session.participants.some(p => p.user_id === user.id);
-    // if (hasJoined) {
-    //   setMessage({ type: 'error', text: 'You have already joined this tournament!' });
-    //   return;
-    // }
+    // Check if user already joined
+    const hasJoined = session.participants.some(p => p.user_id === user.id);
+    if (hasJoined) {
+      setMessage({ type: 'error', text: 'You have already joined this tournament!' });
+      return;
+    }
 
     // Check if user has enough tokens
     if (userTokens < config.entry_fee) {
@@ -828,6 +828,22 @@ export default function WinnerTakesAllPage() {
                     ) : !canJoin ? (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
                         <p className="text-red-300 text-sm">You need {config.entry_fee} token to join</p>
+                      </div>
+                    ) : hasJoined ? (
+                      <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 text-center">
+                        <div className="flex items-center justify-center">
+                          <CheckCircleIcon className="w-6 h-6 text-blue-400 mr-2" />
+                          <span className="text-blue-300 text-lg font-semibold">JOINED</span>
+                        </div>
+                        <p className="text-blue-200 text-sm mt-1">You have joined this tournament</p>
+                      </div>
+                    ) : hasCompleted ? (
+                      <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                        <div className="flex items-center justify-center">
+                          <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                          <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                        </div>
+                        <p className="text-green-200 text-sm mt-1">Your score: {session?.participants.find(p => p.user_id === user?.id)?.score}</p>
                       </div>
                     ) : (
                       <button
