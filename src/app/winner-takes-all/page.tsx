@@ -525,8 +525,18 @@ export default function WinnerTakesAllPage() {
 
       console.log('🏆 [Winner Takes All] Winner found:', winner);
 
-      // Manual payout process
-      const payoutAmount = session.current_pot;
+      // Manual payout process - calculate actual pot amount and platform fee
+      const totalPot = session.current_pot;
+      const platformFeePercent = 15; // 15% platform fee
+      const platformFeeAmount = totalPot * (platformFeePercent / 100);
+      const winnerPayout = totalPot - platformFeeAmount;
+      
+      console.log('💰 [Winner Takes All] Payout calculation:', {
+        totalPot,
+        platformFeePercent,
+        platformFeeAmount,
+        winnerPayout
+      });
       
       // Get current token balance first
       const { data: currentUser, error: userError } = await supabase
@@ -541,11 +551,14 @@ export default function WinnerTakesAllPage() {
         return;
       }
 
-      // Update winner's tokens
+      console.log('💰 [Winner Takes All] Winner current tokens:', currentUser.tokens);
+      console.log('💰 [Winner Takes All] Adding tokens:', winnerPayout);
+
+      // Update winner's tokens with actual payout amount
       const { data: updateData, error: updateError } = await supabase
         .from('users')
         .update({ 
-          tokens: (currentUser.tokens || 0) + payoutAmount,
+          tokens: (currentUser.tokens || 0) + winnerPayout,
           updated_at: new Date().toISOString()
         })
         .eq('id', winner.user_id)
@@ -557,14 +570,34 @@ export default function WinnerTakesAllPage() {
         return;
       }
 
+      // Verify the token update was successful
+      const { data: verifyUser, error: verifyError } = await supabase
+        .from('users')
+        .select('tokens')
+        .eq('id', winner.user_id)
+        .single();
+
+      if (verifyError) {
+        console.error('❌ [Winner Takes All] Error verifying token update:', verifyError);
+        setMessage({ type: 'error', text: `Failed to verify token update: ${verifyError.message}` });
+        return;
+      }
+
+      console.log('✅ [Winner Takes All] Token update verified:', {
+        tokensBefore: currentUser.tokens,
+        tokensAfter: verifyUser.tokens,
+        tokensAdded: verifyUser.tokens - currentUser.tokens,
+        expectedAmount: winnerPayout
+      });
+
       // Mark session as completed
       const { data: sessionData, error: sessionError } = await supabase
         .from('winner_takes_all_sessions')
         .update({
           status: 'completed',
           winner_user_id: winner.user_id,
-          prize_amount: payoutAmount,
-          platform_fee: 0,
+          prize_amount: winnerPayout,
+          platform_fee: platformFeeAmount,
           updated_at: new Date().toISOString()
         })
         .eq('id', session.id)
@@ -586,7 +619,7 @@ export default function WinnerTakesAllPage() {
       console.log('✅ [Winner Takes All] Payout successful');
       setMessage({ 
         type: 'success', 
-        text: `🎉 Winner: ${userData?.username || 'Unknown'} (Score: ${winner.score}) won ${payoutAmount} tokens!` 
+        text: `🎉 Winner: ${userData?.username || 'Unknown'} (Score: ${winner.score}) won ${winnerPayout.toFixed(2)} tokens! (Pot: ${totalPot.toFixed(2)}, Platform Fee: -${platformFeeAmount.toFixed(2)})` 
       });
       
       // Reload sessions to get updated data
