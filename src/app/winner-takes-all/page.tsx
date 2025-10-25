@@ -314,22 +314,29 @@ export default function WinnerTakesAllPage() {
 
   // Handle joining a session
   const handleJoinSession = async (configId: string) => {
+    console.log('🎮 [Winner Takes All] Join button clicked for config:', configId);
+    
     if (!user || !isAuthenticated) {
+      console.log('❌ [Winner Takes All] User not authenticated');
       setMessage({ type: 'error', text: 'Please log in to join tournaments' });
       return;
     }
 
     const config = configs.find(c => c.id === configId);
     if (!config) {
+      console.log('❌ [Winner Takes All] Config not found:', configId);
       setMessage({ type: 'error', text: 'Tournament not found!' });
       return;
     }
 
     const session = sessions.find(s => s.config_id === configId);
     if (!session) {
+      console.log('❌ [Winner Takes All] Session not found for config:', configId);
       setMessage({ type: 'error', text: 'Session not found!' });
       return;
     }
+    
+    console.log('✅ [Winner Takes All] Found config and session:', { config, session });
 
     // Check if user already joined
     const hasJoined = session.participants.some(p => p.user_id === user.id);
@@ -339,13 +346,17 @@ export default function WinnerTakesAllPage() {
     }
 
     // Check if user has enough tokens
+    console.log('💰 [Winner Takes All] Token check:', { userTokens, entryFee: config.entry_fee });
     if (userTokens < config.entry_fee) {
+      console.log('❌ [Winner Takes All] Insufficient tokens');
       setMessage({ type: 'error', text: `You need ${config.entry_fee} token to join` });
       return;
     }
 
     // Location verification
+    console.log('🌍 [Winner Takes All] Location check:', { improvedLocation, isGamingAllowed: improvedLocation ? ImprovedLocationService.isGamingAllowed(improvedLocation) : false });
     if (!improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)) {
+      console.log('❌ [Winner Takes All] Location not allowed');
       setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
       return;
     }
@@ -353,12 +364,15 @@ export default function WinnerTakesAllPage() {
     setJoiningSession(true);
 
     try {
+      console.log('🔄 [Winner Takes All] Calling SQL function to join session...');
       // Call the SQL function to join session
       const { data, error } = await supabase.rpc('join_winner_takes_all_session', {
         session_id_param: session.id,
         user_id_param: user.id,
         entry_fee_param: config.entry_fee
       });
+
+      console.log('📊 [Winner Takes All] SQL response:', { data, error });
 
       if (error) {
         console.error('❌ [Winner Takes It All] Error joining session:', error);
@@ -367,10 +381,12 @@ export default function WinnerTakesAllPage() {
       }
 
       if (!data.success) {
+        console.log('❌ [Winner Takes All] SQL returned failure:', data.message);
         setMessage({ type: 'error', text: data.message });
         return;
       }
 
+      console.log('✅ [Winner Takes All] Successfully joined session, refreshing data...');
       // Refresh token balance
       refreshTokens();
       
@@ -378,6 +394,13 @@ export default function WinnerTakesAllPage() {
       loadSessions();
 
       setMessage({ type: 'success', text: 'Successfully joined tournament! Starting game...' });
+
+      console.log('🎮 [Winner Takes All] Starting game with config:', {
+        gameType: config.game_type,
+        sessionId: session.id,
+        configId: configId,
+        entryFee: config.entry_fee
+      });
 
       // Start the game
       setSelectedGameFlow({

@@ -43,7 +43,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
         case 'hot-sell':
           return 'bg-gradient-to-r from-orange-800 via-red-800 to-orange-900 shadow-lg';
         case 'winner-takes-all':
-          return 'bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 shadow-lg';
+          return 'bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-700 shadow-lg';
         case 'games':
           return 'bg-gradient-to-r from-blue-800 via-indigo-800 to-purple-800 shadow-lg';
         case 'buy-tokens':
