@@ -554,60 +554,26 @@ export default function WinnerTakesAllPage() {
       console.log('💰 [Winner Takes All] Winner current tokens:', currentUser.tokens);
       console.log('💰 [Winner Takes All] Adding tokens:', winnerPayout);
 
-      // Update winner's tokens with actual payout amount
-      const { data: updateData, error: updateError } = await supabase
-        .from('users')
-        .update({ 
-          tokens: (currentUser.tokens || 0) + winnerPayout,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', winner.user_id)
-        .select();
-
-      if (updateError) {
-        console.error('❌ [Winner Takes All] Token update error:', updateError);
-        setMessage({ type: 'error', text: `Failed to update winner tokens: ${updateError.message}` });
-        return;
-      }
-
-      // Verify the token update was successful
-      const { data: verifyUser, error: verifyError } = await supabase
-        .from('users')
-        .select('tokens')
-        .eq('id', winner.user_id)
-        .single();
-
-      if (verifyError) {
-        console.error('❌ [Winner Takes All] Error verifying token update:', verifyError);
-        setMessage({ type: 'error', text: `Failed to verify token update: ${verifyError.message}` });
-        return;
-      }
-
-      console.log('✅ [Winner Takes All] Token update verified:', {
-        tokensBefore: currentUser.tokens,
-        tokensAfter: verifyUser.tokens,
-        tokensAdded: verifyUser.tokens - currentUser.tokens,
-        expectedAmount: winnerPayout
+      // Use direct SQL function for payout
+      const { data: payoutData, error: payoutError } = await supabase.rpc('direct_winner_payout', {
+        session_id_param: session.id,
+        winner_user_id_param: winner.user_id,
+        payout_amount_param: winnerPayout
       });
 
-      // Mark session as completed
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('winner_takes_all_sessions')
-        .update({
-          status: 'completed',
-          winner_user_id: winner.user_id,
-          prize_amount: winnerPayout,
-          platform_fee: platformFeeAmount,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', session.id)
-        .select();
-
-      if (sessionError) {
-        console.error('❌ [Winner Takes All] Session update error:', sessionError);
-        setMessage({ type: 'error', text: `Failed to update session: ${sessionError.message}` });
+      if (payoutError) {
+        console.error('❌ [Winner Takes All] Direct payout error:', payoutError);
+        setMessage({ type: 'error', text: `Failed to process payout: ${payoutError.message}` });
         return;
       }
+
+      if (!payoutData || !payoutData.success) {
+        console.error('❌ [Winner Takes All] Payout failed:', payoutData);
+        setMessage({ type: 'error', text: `Payout failed: ${payoutData?.message || 'Unknown error'}` });
+        return;
+      }
+
+      console.log('✅ [Winner Takes All] Direct payout successful:', payoutData);
 
       // Get winner's username for display
       const { data: userData } = await supabase
@@ -619,7 +585,7 @@ export default function WinnerTakesAllPage() {
       console.log('✅ [Winner Takes All] Payout successful');
       setMessage({ 
         type: 'success', 
-        text: `🎉 Winner: ${userData?.username || 'Unknown'} (Score: ${winner.score}) won ${winnerPayout.toFixed(2)} tokens! (Pot: ${totalPot.toFixed(2)}, Platform Fee: -${platformFeeAmount.toFixed(2)})` 
+        text: `🎉 Winner: ${userData?.username || 'Unknown'} (Score: ${winner.score}) won ${payoutData.tokens_after - payoutData.tokens_before} tokens! (Pot: ${totalPot.toFixed(2)}, Platform Fee: -${platformFeeAmount.toFixed(2)})` 
       });
       
       // Refresh token balance for all users (especially the winner)
@@ -635,7 +601,7 @@ export default function WinnerTakesAllPage() {
           // Force refresh the token sync hook
           window.dispatchEvent(new CustomEvent('tokensUpdated', { 
             detail: { 
-              newBalance: verifyUser.tokens, 
+              newBalance: payoutData.tokens_after, 
               userId: winner.user_id
             } 
           }));
@@ -644,7 +610,7 @@ export default function WinnerTakesAllPage() {
         // Dispatch token refresh event for other components
         window.dispatchEvent(new CustomEvent('tokensRefreshed', { 
           detail: { 
-            newBalance: verifyUser.tokens, 
+            newBalance: payoutData.tokens_after, 
             userId: winner.user_id,
             payoutAmount: winnerPayout
           } 
