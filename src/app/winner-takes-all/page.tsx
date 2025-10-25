@@ -8,6 +8,7 @@ import { UserService } from '@/lib/supabase/userService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import {
   TrophyIcon,
   ClockIcon,
@@ -15,7 +16,8 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   StarIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 
 interface WinnerTakesAllSession {
@@ -77,6 +79,8 @@ export default function WinnerTakesAllPage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
+  const [improvedLocation, setImprovedLocation] = useState<any>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   // Hardcoded Winner Takes It All configurations
   const configs: WinnerTakesAllConfig[] = [
@@ -261,6 +265,28 @@ export default function WinnerTakesAllPage() {
     setIsLoading(false);
   }, [loadSessions]);
 
+  // Location verification
+  useEffect(() => {
+    const verifyLocation = async () => {
+      setLocationLoading(true);
+      try {
+        const location = await ImprovedLocationService.getCurrentLocation();
+        setImprovedLocation(location);
+        setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
+        console.log('🎮 [Winner Takes It All] Location verified:', location);
+      } catch (error) {
+        console.error('❌ [Winner Takes It All] Location verification failed:', error);
+        setLocationVerified(false);
+      } finally {
+        setLocationLoading(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      verifyLocation();
+    }
+  }, [isAuthenticated]);
+
   // Real-time updates
   useEffect(() => {
     const channel = supabase
@@ -319,25 +345,9 @@ export default function WinnerTakesAllPage() {
     }
 
     // Location verification
-    if (!locationVerified) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          });
-        });
-
-        console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
-        setLocationVerified(true);
-        setMessage({ type: 'success', text: 'Location verified! Click JOIN GAME again to start playing.' });
-        return;
-      } catch (error) {
-        console.error('❌ [Winner Takes It All] Location verification failed:', error);
-        setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
-        return;
-      }
+    if (!improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)) {
+      setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
+      return;
     }
 
     setJoiningSession(true);
@@ -492,12 +502,12 @@ export default function WinnerTakesAllPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
+      <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-900 to-orange-900 text-white">
         <CleanNavigation />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <span className="ml-4 text-lg">Loading Winner Takes It All tournaments...</span>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+            <span className="ml-4 text-lg text-yellow-200">Loading Winner Takes It All tournaments...</span>
           </div>
         </div>
       </div>
@@ -511,12 +521,12 @@ export default function WinnerTakesAllPage() {
     
     return (
       <ErrorBoundary>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
+        <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-900 to-orange-900 text-white">
           <CleanNavigation />
           <div className="container mx-auto px-4 py-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-4">Playing: {gameConfig?.title}</h1>
-              <p className="text-gray-300">Complete the game to record your score!</p>
+              <h1 className="text-3xl font-bold text-yellow-200 mb-4">Playing: {gameConfig?.title}</h1>
+              <p className="text-yellow-300">Complete the game to record your score!</p>
             </div>
             
             <CompetitionGameFlow
@@ -537,53 +547,66 @@ export default function WinnerTakesAllPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-amber-900 to-orange-900 text-white relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-orange-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
       </div>
       
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Location Verification Banner */}
+        {isAuthenticated && (
+          <div className={`mb-6 p-4 rounded-xl border ${
+            locationLoading 
+              ? 'bg-blue-500/20 border-blue-500/50' 
+              : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
+              ? 'bg-green-500/20 border-green-500/50' 
+              : 'bg-red-500/20 border-red-500/50'
+          }`}>
+            <div className="flex items-center justify-center">
+              {locationLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-3"></div>
+                  <span className="text-blue-300 text-lg font-semibold">Verifying Location...</span>
+                </>
+              ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
+                <>
+                  <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
+                  <span className="text-green-300 text-lg font-semibold">Location Verified - Gaming Allowed</span>
+                  <span className="text-green-200 text-sm ml-2">({improvedLocation.city}, {improvedLocation.state})</span>
+                </>
+              ) : (
+                <>
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
+                  <span className="text-red-300 text-lg font-semibold">Gaming Not Allowed in Your Location</span>
+                  <span className="text-red-200 text-sm ml-2">({improvedLocation?.city || 'Unknown'}, {improvedLocation?.state || 'Unknown'})</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
-            <TrophyIcon className="w-12 h-12 text-yellow-500 mr-4 animate-pulse" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+            <TrophyIcon className="w-16 h-16 text-yellow-500 mr-6 animate-pulse" />
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent animate-pulse">
               WINNER TAKES IT ALL
             </h1>
           </div>
-          <p className="text-xl text-gray-300 mb-2">1 Token Entry - Winner Gets Everything!</p>
-          <p className="text-lg text-gray-400">Unlimited players, base price matching prize amount</p>
+          <p className="text-2xl text-yellow-200 mb-2 font-semibold">1 Token Entry - Winner Gets Everything!</p>
+          <p className="text-xl text-yellow-300">Unlimited players, base price matching prize amount</p>
           
           {/* User Status */}
           {isAuthenticated && (
-            <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-center">
-              <div className="inline-flex items-center bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/20">
-                <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
-                <span className="text-lg font-semibold">Your Tokens: {userTokens}</span>
-              </div>
-              
-              {/* Location Verification Status */}
-              <div className={`inline-flex items-center backdrop-blur-xl rounded-2xl px-6 py-3 border ${
-                locationVerified 
-                  ? 'bg-green-500/20 border-green-500/50' 
-                  : 'bg-red-500/20 border-red-500/50'
-              }`}>
-                {locationVerified ? (
-                  <>
-                    <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
-                    <span className="text-lg font-semibold text-green-300">Location Verified</span>
-                  </>
-                ) : (
-                  <>
-                    <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
-                    <span className="text-lg font-semibold text-red-300">Location Not Verified</span>
-                  </>
-                )}
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <div className="inline-flex items-center bg-yellow-500/20 backdrop-blur-xl rounded-2xl px-8 py-4 border border-yellow-500/30">
+                <BanknotesIcon className="w-8 h-8 text-yellow-400 mr-4" />
+                <span className="text-2xl font-bold text-yellow-200">Your Tokens: {userTokens}</span>
               </div>
             </div>
           )}
@@ -617,7 +640,7 @@ export default function WinnerTakesAllPage() {
             const hasCompleted = session?.participants.find(p => p.user_id === user?.id)?.score !== null;
             
             return (
-              <div key={config.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+              <div key={config.id} className="bg-yellow-500/10 backdrop-blur-xl rounded-3xl p-6 border border-yellow-500/20 hover:bg-yellow-500/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
                 {/* Game Header */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
@@ -803,13 +826,13 @@ export default function WinnerTakesAllPage() {
                     ) : (
                       <button
                         onClick={() => handleJoinSession(config.id)}
-                        disabled={joiningSession}
+                        disabled={joiningSession || !improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)}
                         className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
                           joiningSession
                             ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                            : locationVerified
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
-                            : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                            : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
+                            ? 'bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 hover:scale-105 shadow-lg hover:shadow-xl'
+                            : 'bg-gradient-to-r from-red-600 to-red-700 cursor-not-allowed opacity-50'
                         }`}
                       >
                         {joiningSession ? (
@@ -817,15 +840,15 @@ export default function WinnerTakesAllPage() {
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
                             <span className="text-lg">Joining Game...</span>
                           </div>
-                        ) : locationVerified ? (
+                        ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
                           <div className="flex items-center justify-center">
                             <span className="text-xl mr-2">🔓</span>
                             <span>JOIN GAME - ${config.entry_fee}.00</span>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center">
-                            <span className="text-xl mr-2">🔒</span>
-                            <span>JOIN GAME - VERIFY LOCATION</span>
+                            <LockClosedIcon className="w-6 h-6 mr-2" />
+                            <span>GAMING NOT ALLOWED</span>
                           </div>
                         )}
                       </button>
