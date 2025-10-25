@@ -387,13 +387,22 @@ export default function WinnerTakesAllPage() {
 
       if (error) {
         console.error('❌ [Winner Takes It All] Error joining session:', error);
-        setMessage({ type: 'error', text: error.message || 'Failed to join session' });
+        console.error('❌ [Winner Takes It All] Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          sessionId: session.id,
+          userId: user.id,
+          entryFee: config.entry_fee
+        });
+        setMessage({ type: 'error', text: `Failed to join session: ${error.message || 'Unknown error'}` });
         return;
       }
 
-      if (!data.success) {
-        console.log('❌ [Winner Takes All] SQL returned failure:', data.message);
-        setMessage({ type: 'error', text: data.message });
+      if (!data || !data.success) {
+        console.log('❌ [Winner Takes All] SQL returned failure:', data);
+        setMessage({ type: 'error', text: data?.message || 'Failed to join session' });
         return;
       }
 
@@ -519,11 +528,24 @@ export default function WinnerTakesAllPage() {
       // Manual payout process
       const payoutAmount = session.current_pot;
       
-      // Update winner's tokens (this would normally be done by SQL function)
+      // Get current token balance first
+      const { data: currentUser, error: userError } = await supabase
+        .from('users')
+        .select('tokens')
+        .eq('id', winner.user_id)
+        .single();
+
+      if (userError) {
+        console.error('❌ [Winner Takes All] Error getting user tokens:', userError);
+        setMessage({ type: 'error', text: `Failed to get user tokens: ${userError.message}` });
+        return;
+      }
+
+      // Update winner's tokens
       const { data: updateData, error: updateError } = await supabase
         .from('users')
         .update({ 
-          tokens: supabase.raw(`tokens + ${payoutAmount}`),
+          tokens: (currentUser.tokens || 0) + payoutAmount,
           updated_at: new Date().toISOString()
         })
         .eq('id', winner.user_id)
@@ -571,7 +593,13 @@ export default function WinnerTakesAllPage() {
       loadSessions();
     } catch (error) {
       console.error('❌ [Winner Takes All] Payout system error:', error);
-      setMessage({ type: 'error', text: 'Payout system error occurred.' });
+      console.error('❌ [Winner Takes All] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        configId,
+        session: session?.config_id
+      });
+      setMessage({ type: 'error', text: `Payout system error: ${error.message || 'Unknown error occurred'}` });
     }
   };
 
