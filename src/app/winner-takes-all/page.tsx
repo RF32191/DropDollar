@@ -423,12 +423,24 @@ export default function WinnerTakesAllPage() {
 
   // Handle game completion
   const handleGameComplete = async (score: number) => {
+    console.log('🎮 [Winner Takes All] Game completed with score:', score);
+    console.log('👤 [Winner Takes All] Current user:', user);
+    console.log('🎯 [Winner Takes All] Selected game flow:', selectedGameFlow);
+    
     if (!user || !selectedGameFlow) {
       console.error('❌ [Winner Takes It All] Missing user or game flow data');
+      setMessage({ type: 'error', text: 'Missing user or game data. Please try again.' });
       return;
     }
 
     try {
+      console.log('🔄 [Winner Takes All] Calling update_winner_takes_all_score with:', {
+        session_id_param: selectedGameFlow.sessionId,
+        user_id_param: user.id,
+        score_param: score,
+        accuracy_param: 95.0
+      });
+
       // Update score in database
       const { data, error } = await supabase.rpc('update_winner_takes_all_score', {
         session_id_param: selectedGameFlow.sessionId,
@@ -437,11 +449,16 @@ export default function WinnerTakesAllPage() {
         accuracy_param: 95.0 // Default accuracy
       });
 
+      console.log('📊 [Winner Takes All] Score save response:', { data, error });
+
       if (error) {
         console.error('❌ [Winner Takes It All] Error updating score:', error);
-        setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
+        setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
+      } else if (data && !data.success) {
+        console.error('❌ [Winner Takes It All] Score save failed:', data.message);
+        setMessage({ type: 'error', text: `Score save failed: ${data.message}` });
       } else {
-        console.log('✅ [Winner Takes It All] Score recorded:', score);
+        console.log('✅ [Winner Takes It All] Score recorded successfully:', data);
         setMessage({ type: 'success', text: `Game completed! Your score: ${score}` });
       }
 
@@ -753,7 +770,7 @@ export default function WinnerTakesAllPage() {
                     <div className="w-full bg-gray-700 rounded-full h-3">
                       <div 
                         className={`h-3 rounded-full transition-all duration-300 ${
-                          session?.status === 'active' ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                          session?.status === 'active' ? 'bg-gradient-to-r from-pink-500 to-purple-500' : 'bg-gradient-to-r from-pink-400 to-purple-400'
                         }`}
                         style={{ 
                           width: `${Math.min(100, ((session?.current_pot || 0) / config.base_price) * 100)}%` 
