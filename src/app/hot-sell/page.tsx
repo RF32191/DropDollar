@@ -1387,6 +1387,24 @@ export default function HotSellPage() {
               <span className="text-xl font-bold text-yellow-300">Your Tokens: {userTokens}</span>
             </div>
           )}
+
+          {/* Admin Testing Button - TEMPORARY */}
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                // Set all hot sell timers to 20 seconds for testing
+                const updatedSessions = hotSellSessions.map(session => ({
+                  ...session,
+                  expires_at: new Date(Date.now() + 20 * 1000).toISOString()
+                }));
+                setHotSellSessions(updatedSessions);
+                console.log('🔥 [Admin] Hot sell timers set to 20 seconds for testing');
+              }}
+              className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl text-sm"
+            >
+              🔥 ADMIN: Set Hot Sell Timer to 20s (Testing Only)
+            </button>
+          </div>
         </div>
 
         {/* Message Display */}
