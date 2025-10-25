@@ -469,32 +469,6 @@ export default function WinnerTakesAllPage() {
       } else {
         console.log('✅ [Winner Takes It All] Score recorded successfully:', data);
         setMessage({ type: 'success', text: `Game completed! Your score: ${score}` });
-        
-        // After score is saved, try to pay the winner
-        try {
-          console.log('💰 [Winner Takes All] Attempting to pay winner...');
-          const { data: paymentData, error: paymentError } = await supabase.rpc('pay_winner_by_config', {
-            config_id_param: selectedGameFlow.configId
-          });
-          
-          if (paymentError) {
-            console.error('❌ [Winner Takes All] Payment error:', paymentError);
-          } else if (paymentData && paymentData.success) {
-            console.log('✅ [Winner Takes All] Winner paid successfully:', paymentData);
-            setMessage({ 
-              type: 'success', 
-              text: `🎉 Winner: ${paymentData.winner_username} (Score: ${paymentData.winner_score}) won ${paymentData.payout_amount} tokens!` 
-            });
-          } else if (paymentData && !paymentData.success) {
-            console.log('ℹ️ [Winner Takes All] Payment info:', paymentData.message);
-            // Don't show error for "already paid" - that's expected
-            if (!paymentData.message.includes('already paid')) {
-              setMessage({ type: 'error', text: `Payment issue: ${paymentData.message}` });
-            }
-          }
-        } catch (paymentError) {
-          console.error('❌ [Winner Takes All] Payment system error:', paymentError);
-        }
       }
 
       // Reload sessions to get updated data
@@ -508,6 +482,39 @@ export default function WinnerTakesAllPage() {
     // Return to list view
     setCurrentView('list');
     setSelectedGameFlow(null);
+  };
+
+  // Handle manual payout trigger
+  const handleManualPayout = async (configId: string) => {
+    try {
+      console.log('💰 [Winner Takes All] Manual payout triggered for:', configId);
+      
+      const { data, error } = await supabase.rpc('process_payout_by_config', {
+        config_id_param: configId
+      });
+      
+      if (error) {
+        console.error('❌ [Winner Takes All] Payout error:', error);
+        setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
+      } else if (data && data.success) {
+        console.log('✅ [Winner Takes All] Payout successful:', data);
+        setMessage({ 
+          type: 'success', 
+          text: `🎉 Winner: ${data.winner_username} (Score: ${data.winner_score}) won ${data.payout_amount} tokens!` 
+        });
+      } else if (data && !data.success) {
+        console.log('ℹ️ [Winner Takes All] Payout info:', data.message);
+        if (!data.message.includes('already paid')) {
+          setMessage({ type: 'error', text: `Payout issue: ${data.message}` });
+        }
+      }
+      
+      // Reload sessions to get updated data
+      loadSessions();
+    } catch (error) {
+      console.error('❌ [Winner Takes All] Payout system error:', error);
+      setMessage({ type: 'error', text: 'Payout system error occurred.' });
+    }
   };
 
   // Calculate time remaining for active sessions
@@ -792,6 +799,16 @@ export default function WinnerTakesAllPage() {
                           {formatTimeRemaining(timeRemaining.hours, timeRemaining.minutes, timeRemaining.seconds)}
                         </p>
                         <p className="text-lg text-red-200 font-semibold animate-pulse">More players can join and add to the pot!</p>
+                        
+                        {/* Manual Payout Button */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => handleManualPayout(session.config_id)}
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                          >
+                            💰 Pay Winner Now
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
