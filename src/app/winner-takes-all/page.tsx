@@ -728,18 +728,18 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Live Timer Display */}
+                  {/* Live Timer Display - Big, Flashing, Red */}
                   {timeRemaining && (
-                    <div className="mb-4">
-                      <div className="text-center p-3 rounded-xl bg-green-500/20 border border-green-500/50">
-                        <div className="flex items-center justify-center mb-2">
-                          <ClockIcon className="w-5 h-5 mr-2 text-green-400" />
-                          <span className="font-semibold text-green-300">Game Timer Active!</span>
+                    <div className="mb-6">
+                      <div className="text-center p-6 rounded-2xl bg-red-500/30 border-2 border-red-500/70 animate-pulse">
+                        <div className="flex items-center justify-center mb-3">
+                          <ClockIcon className="w-8 h-8 mr-3 text-red-400 animate-pulse" />
+                          <span className="text-2xl font-bold text-red-200 animate-pulse">GAME TIMER ACTIVE!</span>
                         </div>
-                        <p className="text-lg font-bold text-green-300">
+                        <p className="text-4xl font-black text-red-100 mb-2 animate-pulse">
                           {formatTimeRemaining(timeRemaining.hours, timeRemaining.minutes, timeRemaining.seconds)}
                         </p>
-                        <p className="text-sm text-green-200 mt-1">More players can join and add to the pot!</p>
+                        <p className="text-lg text-red-200 font-semibold animate-pulse">More players can join and add to the pot!</p>
                       </div>
                     </div>
                   )}
