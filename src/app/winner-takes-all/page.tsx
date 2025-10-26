@@ -535,7 +535,8 @@ export default function WinnerTakesAllPage() {
         totalPot,
         platformFeePercent,
         platformFeeAmount,
-        winnerPayout
+        winnerPayout,
+        calculation: `${totalPot} - ${platformFeeAmount} = ${winnerPayout}`
       });
       
       // Get current token balance first
@@ -558,6 +559,12 @@ export default function WinnerTakesAllPage() {
       const newTokenBalance = (currentUser.tokens || 0) + winnerPayout;
       
       console.log('💰 [Winner Takes All] New token balance will be:', newTokenBalance);
+      console.log('💰 [Winner Takes All] Payout verification:', {
+        currentTokens: currentUser.tokens,
+        winnerPayout,
+        newBalance: newTokenBalance,
+        isPayoutValid: winnerPayout > 0
+      });
 
       // Update winner's tokens
       const { data: updateData, error: updateError } = await supabase
@@ -629,7 +636,7 @@ export default function WinnerTakesAllPage() {
       console.log('✅ [Winner Takes All] Payout successful');
       setMessage({ 
         type: 'success', 
-        text: `🎉 Winner: ${verifyUser.username || 'Unknown'} (Score: ${winner.score}) won ${verifyUser.tokens - currentUser.tokens} tokens! (Pot: ${totalPot.toFixed(2)}, Platform Fee: -${platformFeeAmount.toFixed(2)})` 
+        text: `🎉 Winner: ${verifyUser.username || 'Unknown'} (Score: ${winner.score}) won ${winnerPayout.toFixed(2)} tokens! (Pot: ${totalPot.toFixed(2)}, Platform Fee: -${platformFeeAmount.toFixed(2)})` 
       });
       
       // Refresh token balance for all users (especially the winner)
