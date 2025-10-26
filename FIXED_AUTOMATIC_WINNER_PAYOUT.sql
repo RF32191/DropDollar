@@ -1,15 +1,14 @@
 -- ============================================================================
--- AUTOMATIC WINNER PAYOUT TRIGGER
+-- FIXED AUTOMATIC WINNER PAYOUT SYSTEM
 -- ============================================================================
--- This script creates an automatic payout system that:
--- 1. Runs the winner_payout() function when timer expires
--- 2. Automatically pays the winner without manual button click
--- 3. Works seamlessly in the background
+-- This script fixes the ambiguous column reference error
 -- ============================================================================
 
--- First, ensure the winner_payout function exists
+-- Drop existing functions
 DROP FUNCTION IF EXISTS public.winner_payout(UUID);
+DROP FUNCTION IF EXISTS public.auto_payout_expired_sessions();
 
+-- Create the winner payout function with unambiguous variables
 CREATE OR REPLACE FUNCTION public.winner_payout(session_id_param UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -19,8 +18,8 @@ DECLARE
   session_record RECORD;
   winner_record RECORD;
   total_pot DECIMAL(10,2);
-  calculated_platform_fee DECIMAL(10,2);
-  calculated_winner_payout DECIMAL(10,2);
+  fee_amount DECIMAL(10,2);
+  payout_amount DECIMAL(10,2);
   winner_current_tokens NUMERIC(10,2);
   winner_new_tokens NUMERIC(10,2);
   result JSONB;
@@ -62,8 +61,8 @@ BEGIN
   
   -- Calculate payout
   total_pot := COALESCE(session_record.current_pot, 0);
-  calculated_platform_fee := total_pot * 0.15;
-  calculated_winner_payout := total_pot - calculated_platform_fee;
+  fee_amount := total_pot * 0.15;
+  payout_amount := total_pot - fee_amount;
   
   -- Get winner's current tokens
   SELECT tokens INTO winner_current_tokens
@@ -71,13 +70,13 @@ BEGIN
   WHERE id = winner_record.user_id;
   
   -- Calculate new token balance
-  winner_new_tokens := COALESCE(winner_current_tokens, 0) + calculated_winner_payout;
+  winner_new_tokens := COALESCE(winner_current_tokens, 0) + payout_amount;
   
   -- Update winner's tokens
   UPDATE public.users
   SET 
     tokens = winner_new_tokens,
-    total_winnings = COALESCE(total_winnings, 0) + calculated_winner_payout,
+    total_winnings = COALESCE(total_winnings, 0) + payout_amount,
     games_won = COALESCE(games_won, 0) + 1,
     updated_at = NOW()
   WHERE id = winner_record.user_id;
@@ -87,7 +86,7 @@ BEGIN
   SET 
     status = 'completed',
     winner_user_id = winner_record.user_id,
-    prize_amount = calculated_winner_payout,
+    prize_amount = payout_amount,
     updated_at = NOW()
   WHERE id = session_id_param;
   
@@ -96,8 +95,8 @@ BEGIN
     'success', true,
     'message', 'Winner paid out successfully',
     'winner_user_id', winner_record.user_id,
-    'payout_amount', calculated_winner_payout,
-    'platform_fee', calculated_platform_fee,
+    'payout_amount', payout_amount,
+    'platform_fee', fee_amount,
     'tokens_before', winner_current_tokens,
     'tokens_after', winner_new_tokens
   );
@@ -157,9 +156,6 @@ $$;
 
 -- Grant execute permission
 GRANT EXECUTE ON FUNCTION public.auto_payout_expired_sessions() TO authenticated, anon;
-
--- Add comment
-COMMENT ON FUNCTION public.auto_payout_expired_sessions() IS 'Automatically pays out winners for expired sessions';
 
 -- Test the auto-payout function
 SELECT public.auto_payout_expired_sessions() as sessions_paid_out;

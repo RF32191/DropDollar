@@ -261,6 +261,9 @@ export default function WinnerTakesAllPage() {
         console.error('❌ [Winner Takes All] Auto-payout error:', payoutError);
       } else {
         console.log('✅ [Winner Takes All] Auto-payout result:', payoutData);
+        if (payoutData && payoutData > 0) {
+          console.log(`💰 [Winner Takes All] ${payoutData} session(s) auto-paid out!`);
+        }
       }
 
       const { data, error } = await supabase.rpc('get_all_winner_takes_all_sessions');
@@ -561,29 +564,53 @@ export default function WinnerTakesAllPage() {
       }
 
       console.log('💰 [Winner Takes All] Winner current tokens:', currentUser.tokens);
-      console.log('💰 [Winner Takes All] Using SQL payout function');
+      
+      // Update winner's tokens directly (no SQL function needed)
+      const newTokenBalance = (currentUser.tokens || 0) + winnerPayout;
+      
+      console.log('💰 [Winner Takes All] Updating tokens to:', newTokenBalance);
 
-      // Use SQL function for payout
-      const { data: payoutResult, error: payoutError } = await supabase.rpc('winner_payout', {
-        session_id_param: session.id
-      });
+      // Update winner's tokens
+      const { data: updateData, error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          tokens: newTokenBalance,
+          total_winnings: (currentUser.tokens || 0) + winnerPayout,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', winner.user_id)
+        .select('tokens');
 
-      if (payoutError) {
-        console.error('❌ [Winner Takes All] Payout RPC error:', payoutError);
-        setMessage({ type: 'error', text: `Failed to process payout: ${payoutError.message}` });
+      if (updateError) {
+        console.error('❌ [Winner Takes All] Token update error:', updateError);
+        setMessage({ type: 'error', text: `Failed to update tokens: ${updateError.message}` });
         return;
       }
 
-      if (!payoutResult || !payoutResult.success) {
-        console.error('❌ [Winner Takes All] Payout failed:', payoutResult);
-        setMessage({ type: 'error', text: `Payout failed: ${payoutResult?.message || 'Unknown error'}` });
+      console.log('✅ [Winner Takes All] Token update successful:', updateData);
+
+      // Mark session as completed
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('winner_takes_all_sessions')
+        .update({
+          status: 'completed',
+          winner_user_id: winner.user_id,
+          prize_amount: winnerPayout,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session.id)
+        .select();
+
+      if (sessionError) {
+        console.error('❌ [Winner Takes All] Session update error:', sessionError);
+        setMessage({ type: 'error', text: `Failed to mark session complete: ${sessionError.message}` });
         return;
       }
 
-      console.log('✅ [Winner Takes All] Payout successful:', payoutResult);
+      console.log('✅ [Winner Takes All] Session marked as completed');
       setMessage({ 
         type: 'success', 
-        text: `🎉 Winner paid ${payoutResult.payout_amount} tokens! (Tokens: ${payoutResult.tokens_before} → ${payoutResult.tokens_after})` 
+        text: `🎉 Winner paid ${winnerPayout.toFixed(2)} tokens! (Pot: ${totalPot.toFixed(2)}, Fee: ${platformFeeAmount.toFixed(2)})` 
       });
       
       // Refresh token balance for all users (especially the winner)
@@ -599,7 +626,7 @@ export default function WinnerTakesAllPage() {
           // Force refresh the token sync hook
           window.dispatchEvent(new CustomEvent('tokensUpdated', { 
             detail: { 
-              newBalance: payoutResult.tokens_after, 
+              newBalance: newTokenBalance, 
               userId: winner.user_id
             } 
           }));
@@ -608,9 +635,9 @@ export default function WinnerTakesAllPage() {
         // Dispatch token refresh event for other components
         window.dispatchEvent(new CustomEvent('tokensRefreshed', { 
           detail: { 
-            newBalance: payoutResult.tokens_after, 
+            newBalance: newTokenBalance, 
             userId: winner.user_id,
-            payoutAmount: payoutResult.payout_amount
+            payoutAmount: winnerPayout
           } 
         }));
       }, 500); // 500ms delay
