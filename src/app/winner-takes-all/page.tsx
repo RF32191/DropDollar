@@ -267,12 +267,12 @@ export default function WinnerTakesAllPage() {
       }
 
       const { data, error } = await supabase.rpc('get_all_winner_takes_all_sessions');
-      
-      if (error) {
+
+        if (error) {
         console.error('❌ [Winner Takes It All] Error loading sessions:', error);
-        return;
-      }
-      
+          return;
+        }
+
       console.log('📊 [Winner Takes All] Sessions data:', data);
       setSessions(data || []);
       console.log('✅ [Winner Takes It All] Sessions loaded:', data?.length || 0);
@@ -364,8 +364,8 @@ export default function WinnerTakesAllPage() {
     const hasJoined = session.participants.some(p => p.user_id === user.id);
     if (hasJoined) {
       setMessage({ type: 'error', text: 'You have already joined this tournament!' });
-      return;
-    }
+        return;
+      }
 
     // Check if user has enough tokens
     console.log('💰 [Winner Takes All] Token check:', { userTokens, entryFee: config.entry_fee });
@@ -565,40 +565,41 @@ export default function WinnerTakesAllPage() {
 
       console.log('💰 [Winner Takes All] Winner current tokens:', currentUser.tokens);
       
-      // Update winner's tokens directly (no SQL function needed)
-      const newTokenBalance = (currentUser.tokens || 0) + winnerPayout;
-      
-      console.log('💰 [Winner Takes All] Updating tokens to:', newTokenBalance);
+      // Use SQL function to add tokens to winner
+      console.log('💰 [Winner Takes All] Calling add_tokens_to_user function...');
 
-      // Update winner's tokens
-      const { data: updateData, error: updateError } = await supabase
-        .from('users')
-        .update({ 
-          tokens: newTokenBalance,
-          total_winnings: (currentUser.tokens || 0) + winnerPayout,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', winner.user_id)
-        .select('tokens');
+      const { data: payoutResult, error: payoutError } = await supabase.rpc('add_tokens_to_user', {
+        user_id_param: winner.user_id,
+        token_amount: winnerPayout
+      });
 
-      if (updateError) {
-        console.error('❌ [Winner Takes All] Token update error:', updateError);
-        setMessage({ type: 'error', text: `Failed to update tokens: ${updateError.message}` });
+      if (payoutError) {
+        console.error('❌ [Winner Takes All] Payout RPC error:', payoutError);
+        setMessage({ type: 'error', text: `Failed to process payout: ${payoutError.message}` });
         return;
       }
 
-      console.log('✅ [Winner Takes All] Token update successful:', updateData);
+      if (!payoutResult || !payoutResult.success) {
+        console.error('❌ [Winner Takes All] Payout failed:', payoutResult);
+        setMessage({ type: 'error', text: `Payout failed: ${payoutResult?.message || 'Unknown error'}` });
+        return;
+      }
+
+      console.log('✅ [Winner Takes All] Token update successful:', payoutResult);
+      
+      // Get new token balance
+      const newTokenBalance = payoutResult.tokens_after;
 
       // Mark session as completed
       const { data: sessionData, error: sessionError } = await supabase
         .from('winner_takes_all_sessions')
-        .update({
+              .update({ 
           status: 'completed',
           winner_user_id: winner.user_id,
           prize_amount: winnerPayout,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', session.id)
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', session.id)
         .select();
 
       if (sessionError) {
@@ -752,17 +753,17 @@ export default function WinnerTakesAllPage() {
               <p className="text-yellow-300">Complete the game to record your score!</p>
             </div>
             
-            <CompetitionGameFlow
-              gameType={selectedGameFlow.gameType}
-              sessionId={selectedGameFlow.sessionId}
-              configId={selectedGameFlow.configId}
+        <CompetitionGameFlow
+          gameType={selectedGameFlow.gameType}
+          sessionId={selectedGameFlow.sessionId}
+          configId={selectedGameFlow.configId}
               onComplete={handleGameComplete}
-              onCancel={() => {
-                setCurrentView('list');
-                setSelectedGameFlow(null);
-              }}
+          onCancel={() => {
+            setCurrentView('list');
+            setSelectedGameFlow(null);
+          }}
               rngSeed={rngSeed}
-            />
+        />
           </div>
         </div>
       </ErrorBoundary>
@@ -793,14 +794,14 @@ export default function WinnerTakesAllPage() {
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Location Verification Banner */}
-        {isAuthenticated && (
+          {isAuthenticated && (
           <div className={`mb-6 p-4 rounded-xl border ${
             locationLoading 
               ? 'bg-blue-500/20 border-blue-500/50' 
               : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
-              ? 'bg-green-500/20 border-green-500/50' 
-              : 'bg-red-500/20 border-red-500/50'
-          }`}>
+                  ? 'bg-green-500/20 border-green-500/50' 
+                  : 'bg-red-500/20 border-red-500/50'
+              }`}>
             <div className="flex items-center justify-center">
               {locationLoading ? (
                 <>
@@ -808,21 +809,21 @@ export default function WinnerTakesAllPage() {
                   <span className="text-blue-300 text-lg font-semibold">Verifying Location...</span>
                 </>
               ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
-                <>
-                  <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
+                  <>
+                    <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
                   <span className="text-green-300 text-lg font-semibold">Location Verified - Gaming Allowed</span>
                   <span className="text-green-200 text-sm ml-2">({improvedLocation.city}, {improvedLocation.state})</span>
-                </>
-              ) : (
-                <>
-                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
+                  </>
+                ) : (
+                  <>
+                    <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
                   <span className="text-red-300 text-lg font-semibold">Gaming Not Allowed in Your Location</span>
                   <span className="text-red-200 text-sm ml-2">({improvedLocation?.city || 'Unknown'}, {improvedLocation?.state || 'Unknown'})</span>
-                </>
-              )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Header */}
         <div className="text-center mb-12">
@@ -947,11 +948,11 @@ export default function WinnerTakesAllPage() {
                           >
                             💰 Pay Winner Now
                           </button>
-                        </div>
+                            </div>
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Progress Bar */}
                   <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
@@ -1015,59 +1016,59 @@ export default function WinnerTakesAllPage() {
                   
                   {/* Live Scoreboard - Only show to users who have joined and if there are participants with scores */}
                   {session && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && userParticipant && (
-                    <div className="mb-6">
-                      <button
-                        onClick={() => {
+                      <div className="mb-6">
+                          <button
+                            onClick={() => {
                           const scoreboard = document.getElementById(`scoreboard-${config.id}`);
-                          if (scoreboard) {
-                            scoreboard.classList.toggle('hidden');
-                          }
-                        }}
+                              if (scoreboard) {
+                                scoreboard.classList.toggle('hidden');
+                              }
+                            }}
                         className="w-full flex items-center justify-between text-left"
-                      >
-                        <h4 className="text-sm font-semibold text-white flex items-center">
-                          <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                          >
+                            <h4 className="text-sm font-semibold text-white flex items-center">
+                              <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
                           Live Scoreboard ({session.participants.filter(p => p.score !== null && p.completed_at !== null).length} player{session.participants.filter(p => p.score !== null && p.completed_at !== null).length !== 1 ? 's' : ''})
-                        </h4>
+                            </h4>
                         <span className="text-gray-400 text-xs">Click to expand</span>
-                      </button>
+                          </button>
                       
                       <div id={`scoreboard-${config.id}`} className="hidden mt-3">
-                        <div className="bg-white/5 rounded-xl p-4">
-                          <div className="flex justify-between text-sm text-gray-400 mb-2">
-                            <span>Player</span>
-                            <span>Score</span>
-                          </div>
-                          <div className="space-y-2">
+                          <div className="bg-white/5 rounded-xl p-4">
+                            <div className="flex justify-between text-sm text-gray-400 mb-2">
+                              <span>Player</span>
+                              <span>Score</span>
+                            </div>
+                            <div className="space-y-2">
                             {session.participants
                               .filter(p => p.score !== null && p.completed_at !== null)
-                              .sort((a, b) => (b.score || 0) - (a.score || 0))
-                              .map((participant, index) => {
-                                const isCurrentUser = participant.user_id === user?.id;
-                                return (
-                                  <div key={participant.id} className={`rounded-lg p-3 ${
-                                    isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
-                                  }`}>
-                                    <div className="flex items-center justify-between">
-                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                        index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-600'
+                                  .sort((a, b) => (b.score || 0) - (a.score || 0))
+                                  .map((participant, index) => {
+                                    const isCurrentUser = participant.user_id === user?.id;
+                                    return (
+                                      <div key={participant.id} className={`rounded-lg p-3 ${
+                                        isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
                                       }`}>
-                                        <span className="text-xs font-bold text-white">{index + 1}</span>
+                                        <div className="flex items-center justify-between">
+                                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                                            index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-gray-600'
+                                          }`}>
+                                            <span className="text-xs font-bold text-white">{index + 1}</span>
+                                          </div>
+                                          <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
+                                            {isCurrentUser ? 'You' : `Player ${participant.user_id.slice(-4)}`}
+                                          </span>
+                                          <span className={`font-semibold ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
+                                            {participant.score}
+                                          </span>
+                                        </div>
                                       </div>
-                                      <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
-                                        {isCurrentUser ? 'You' : `Player ${participant.user_id.slice(-4)}`}
-                                      </span>
-                                      <span className={`font-semibold ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
-                                        {participant.score}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
+                                    );
                               })}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
                   )}
                   
                   {/* Join Button */}
@@ -1082,49 +1083,49 @@ export default function WinnerTakesAllPage() {
                       </div>
                     ) : hasJoined ? (
                       <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 text-center">
-                        <div className="flex items-center justify-center">
+                            <div className="flex items-center justify-center">
                           <CheckCircleIcon className="w-6 h-6 text-blue-400 mr-2" />
                           <span className="text-blue-300 text-lg font-semibold">JOINED</span>
-                        </div>
+                            </div>
                         <p className="text-blue-200 text-sm mt-1">You have joined this tournament</p>
-                      </div>
+                          </div>
                     ) : hasCompleted ? (
-                      <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
-                        <div className="flex items-center justify-center">
-                          <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
-                          <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
-                        </div>
+                          <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-center">
+                            <div className="flex items-center justify-center">
+                              <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
+                              <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
+                            </div>
                         <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score || 0}</p>
-                      </div>
+                          </div>
                     ) : (
-                      <button
+                        <button
                         onClick={() => handleJoinSession(config.id)}
                         disabled={joiningSession || !improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)}
-                        className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
+                          className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
                           joiningSession
-                            ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                              ? 'bg-gray-600 cursor-not-allowed opacity-50'
                             : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
                             ? 'bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 hover:scale-105 shadow-lg hover:shadow-xl'
                             : 'bg-gradient-to-r from-red-600 to-red-700 cursor-not-allowed opacity-50'
                         }`}
                       >
                         {joiningSession ? (
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
-                            <span className="text-lg">Joining Game...</span>
-                          </div>
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
+                              <span className="text-lg">Joining Game...</span>
+                            </div>
                         ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
-                          <div className="flex items-center justify-center">
-                            <span className="text-xl mr-2">🔓</span>
-                            <span>JOIN GAME - ${config.entry_fee}.00</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center">
+                            <div className="flex items-center justify-center">
+                              <span className="text-xl mr-2">🔓</span>
+                              <span>JOIN GAME - ${config.entry_fee}.00</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
                             <LockClosedIcon className="w-6 h-6 mr-2" />
                             <span>GAMING NOT ALLOWED</span>
-                          </div>
-                        )}
-                      </button>
+                            </div>
+                          )}
+                        </button>
                     )}
                   </div>
                 </div>
