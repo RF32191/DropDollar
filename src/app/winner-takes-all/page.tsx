@@ -255,6 +255,14 @@ export default function WinnerTakesAllPage() {
         console.log('✅ [Winner Takes All] Conditional reset result:', resetData);
       }
 
+      // Auto-pay out expired sessions
+      const { data: payoutData, error: payoutError } = await supabase.rpc('auto_payout_expired_sessions');
+      if (payoutError) {
+        console.error('❌ [Winner Takes All] Auto-payout error:', payoutError);
+      } else {
+        console.log('✅ [Winner Takes All] Auto-payout result:', payoutData);
+      }
+
       const { data, error } = await supabase.rpc('get_all_winner_takes_all_sessions');
       
       if (error) {
