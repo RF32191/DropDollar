@@ -122,7 +122,7 @@ DECLARE
   payout_count INTEGER := 0;
 BEGIN
   -- Find all active sessions that should be paid out (status is 'active' and timer expired)
-  SELECT ARRAY_AGG(id)
+  SELECT ARRAY_AGG(public.winner_takes_all_sessions.id)
   INTO expired_sessions
   FROM public.winner_takes_all_sessions
   WHERE status = 'active'
@@ -131,8 +131,8 @@ BEGIN
   AND EXISTS (
     SELECT 1 
     FROM public.winner_takes_all_participants 
-    WHERE session_id = public.winner_takes_all_sessions.id 
-    AND score IS NOT NULL
+    WHERE public.winner_takes_all_participants.session_id = public.winner_takes_all_sessions.id 
+    AND public.winner_takes_all_participants.score IS NOT NULL
   );
   
   -- If no expired sessions, return 0
