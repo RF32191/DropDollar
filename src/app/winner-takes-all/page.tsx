@@ -268,12 +268,17 @@ export default function WinnerTakesAllPage() {
         console.error('❌ [Winner Takes It All] Error loading sessions:', error);
           return;
         }
+        if (!data) {
+          console.error('❌ [Winner Takes It All] No data returned');
+          return;
+        }
 
       console.log('📊 [Winner Takes All] Sessions data:', data);
       setSessions(data || []);
       console.log('✅ [Winner Takes It All] Sessions loaded:', data?.length || 0);
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error loading sessions:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ [Winner Takes It All] Error loading sessions:', errorMessage);
     }
   }, []);
 
@@ -724,15 +729,17 @@ export default function WinnerTakesAllPage() {
       
       // Reload sessions to get updated data
       loadSessions();
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
       console.error('❌ [Winner Takes All] Payout system error:', error);
       console.error('❌ [Winner Takes All] Error details:', {
-        message: error.message,
-        stack: error.stack,
+        message: errorMessage,
+        stack: errorStack,
         configId,
-        session: session?.config_id
+        session: sessions.find(s => s.config_id === configId)?.config_id
       });
-      setMessage({ type: 'error', text: `Payout system error: ${error.message || 'Unknown error occurred'}` });
+      setMessage({ type: 'error', text: `Payout system error: ${errorMessage}` });
     }
   };
 
@@ -953,7 +960,7 @@ export default function WinnerTakesAllPage() {
             const canJoin = userTokens >= config.entry_fee;
             const userParticipant = session?.participants.find(p => p.user_id === user?.id);
             const hasJoined = !!userParticipant;
-            const hasCompleted = !!userParticipant && userParticipant.score !== null && userParticipant.completed_at !== null;
+            const hasCompleted = !!userParticipant && userParticipant?.score !== null && userParticipant?.completed_at !== null;
             
             return (
               <div key={config.id} className="bg-yellow-500/10 backdrop-blur-xl rounded-3xl p-6 border border-yellow-500/20 hover:bg-yellow-500/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
@@ -1022,7 +1029,7 @@ export default function WinnerTakesAllPage() {
                         {/* Manual Payout Button */}
                         <div className="mt-4">
                           <button
-                            onClick={() => handleManualPayout(session.config_id)}
+                            onClick={() => session && handleManualPayout(session.config_id)}
                             className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                           >
                             💰 Pay Winner Now
@@ -1174,7 +1181,7 @@ export default function WinnerTakesAllPage() {
                               <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
                               <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
-                        <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score || 0}</p>
+                        <p className="text-green-200 text-sm mt-1">Your score: {(userParticipant?.score ?? 0).toString()}</p>
                           </div>
                     ) : (
                         <button
