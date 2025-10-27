@@ -309,6 +309,27 @@ export default function WinnerTakesAllPage() {
     }
   }, [isAuthenticated]);
 
+  // Timer check - auto payout when timer hits zero
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Check each session for expired timer
+      sessions.forEach(async (session) => {
+        if (session.status === 'active' && session.timer_started_at) {
+          const timeRemaining = calculateTimeRemaining(session);
+          if (timeRemaining && timeRemaining.total <= 0) {
+            console.log('⏰ [Winner Takes All] Timer expired for session:', session.id);
+            // Trigger auto payout
+            await supabase.rpc('auto_payout_on_timer_expiry');
+            // Reload to refresh listing
+            loadSessions();
+          }
+        }
+      });
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, [sessions, loadSessions]);
+
   // Real-time updates
   useEffect(() => {
     const channel = supabase
