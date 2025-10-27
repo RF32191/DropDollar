@@ -81,6 +81,9 @@ export default function WinnerTakesAllPage() {
   const [locationVerified, setLocationVerified] = useState(false);
   const [improvedLocation, setImprovedLocation] = useState<any>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Hardcoded 30-second timer state for each session
+  const [sessionTimers, setSessionTimers] = useState<Record<string, { startTime: number; duration: number }>>({});
 
   // Hardcoded Winner Takes It All configurations
   const configs: WinnerTakesAllConfig[] = [
@@ -275,11 +278,35 @@ export default function WinnerTakesAllPage() {
 
       console.log('📊 [Winner Takes All] Sessions data:', data);
       setSessions(data || []);
+      
+      // Check each session and start timer if pot meets base price
+      if (data) {
+        data.forEach((session: WinnerTakesAllSession) => {
+          const config = configs.find(c => c.id === session.config_id);
+          if (config && session.current_pot >= config.base_price && session.status === 'active') {
+            // Check if timer already exists for this session
+            setSessionTimers(prev => {
+              if (!prev[session.config_id]) {
+                console.log(`🔥 [Winner Takes All] Session ${session.config_id} pot filled! Starting 30-second timer...`);
+                return {
+                  ...prev,
+                  [session.config_id]: {
+                    startTime: Date.now(),
+                    duration: 30 // 30 seconds
+                  }
+                };
+              }
+              return prev;
+            });
+          }
+        });
+      }
+      
       console.log('✅ [Winner Takes It All] Sessions loaded:', data?.length || 0);
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading sessions:', error);
     }
-  }, []);
+  }, [configs]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -308,6 +335,34 @@ export default function WinnerTakesAllPage() {
       verifyLocation();
     }
   }, [isAuthenticated]);
+
+  // Monitor hardcoded timers and trigger payout when they hit 0
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Object.keys(sessionTimers).forEach(async (configId) => {
+        const timeRemaining = calculateHardcodedTimeRemaining(configId);
+        
+        if (timeRemaining && timeRemaining.totalSeconds <= 0) {
+          console.log(`⏰ [Winner Takes All] Timer expired for ${configId}! Triggering payout...`);
+          
+          // Remove timer
+          setSessionTimers(prev => {
+            const newTimers = { ...prev };
+            delete newTimers[configId];
+            return newTimers;
+          });
+          
+          // Trigger manual payout for this session
+          await handleManualPayout(configId);
+          
+          // Reload sessions
+          await loadSessions();
+        }
+      });
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, [sessionTimers]);
 
   // Real-time updates
   useEffect(() => {
@@ -418,6 +473,19 @@ export default function WinnerTakesAllPage() {
       }
 
       console.log('✅ [Winner Takes All] Successfully joined session, refreshing data...');
+      
+      // Check if pot now meets base price and start 30-second timer
+      if (data.new_pot >= config.base_price) {
+        console.log('🔥 [Winner Takes All] Base price met! Starting 30-second hardcoded timer...');
+        setSessionTimers(prev => ({
+          ...prev,
+          [configId]: {
+            startTime: Date.now(),
+            duration: 30 // 30 seconds
+          }
+        }));
+      }
+      
       // Refresh token balance
       refreshTokens();
       
@@ -657,7 +725,23 @@ export default function WinnerTakesAllPage() {
     }
   };
 
-  // Calculate time remaining for active sessions
+  // Calculate time remaining for hardcoded timer
+  const calculateHardcodedTimeRemaining = (configId: string) => {
+    const timer = sessionTimers[configId];
+    if (!timer) {
+      return null;
+    }
+
+    const elapsed = Math.floor((Date.now() - timer.startTime) / 1000);
+    const remaining = Math.max(0, timer.duration - elapsed);
+
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+
+    return { minutes, seconds, total: remaining, totalSeconds: remaining };
+  };
+
+  // Calculate time remaining for active sessions (legacy/fallback)
   const calculateTimeRemaining = (session: WinnerTakesAllSession) => {
     if (!session.timer_started_at || session.status !== 'active') {
       return null;
@@ -870,7 +954,9 @@ export default function WinnerTakesAllPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {configs.map((config) => {
             const session = sessions.find(s => s.config_id === config.id);
-            const timeRemaining = session ? calculateTimeRemaining(session) : null;
+            // Use hardcoded timer if available, otherwise fall back to database timer
+            const hardcodedTimeRemaining = calculateHardcodedTimeRemaining(config.id);
+            const timeRemaining = hardcodedTimeRemaining || (session ? calculateTimeRemaining(session) : null);
             const canJoin = userTokens >= config.entry_fee;
             const userParticipant = session?.participants.find(p => p.user_id === user?.id);
             const hasJoined = !!userParticipant;
@@ -927,28 +1013,33 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Live Timer Display - Big, Flashing, Red */}
-                  {timeRemaining && (
+                  {/* Live Timer Display - Big, Flashing, Red - Only show if pot meets base price */}
+                  {timeRemaining && session && session.current_pot >= config.base_price && (
                     <div className="mb-6">
                       <div className="text-center p-6 rounded-2xl bg-red-500/30 border-2 border-red-500/70 animate-pulse">
                         <div className="flex items-center justify-center mb-3">
                           <ClockIcon className="w-8 h-8 mr-3 text-red-400 animate-pulse" />
-                          <span className="text-2xl font-bold text-red-200 animate-pulse">GAME TIMER ACTIVE!</span>
+                          <span className="text-2xl font-bold text-red-200 animate-pulse">HOT SELL TIMER!</span>
                         </div>
                         <p className="text-4xl font-black text-red-100 mb-2 animate-pulse">
-                          {formatTimeRemaining(timeRemaining.hours, timeRemaining.minutes, timeRemaining.seconds)}
+                          {hardcodedTimeRemaining 
+                            ? `${hardcodedTimeRemaining.minutes}:${hardcodedTimeRemaining.seconds.toString().padStart(2, '0')}`
+                            : formatTimeRemaining(timeRemaining.hours || 0, timeRemaining.minutes || 0, timeRemaining.seconds || 0)
+                          }
                         </p>
                         <p className="text-lg text-red-200 font-semibold animate-pulse">More players can join and add to the pot!</p>
                         
-                        {/* Manual Payout Button */}
-                        <div className="mt-4">
-                          <button
-                            onClick={() => handleManualPayout(session.config_id)}
-                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                          >
-                            💰 Pay Winner Now
-                          </button>
-                            </div>
+                        {/* Manual Payout Button - Only show if timer is active */}
+                        {session.config_id && (
+                          <div className="mt-4">
+                            <button
+                              onClick={() => handleManualPayout(session.config_id)}
+                              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                            >
+                              💰 Pay Winner Now
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
