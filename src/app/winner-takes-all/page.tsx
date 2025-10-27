@@ -298,6 +298,34 @@ export default function WinnerTakesAllPage() {
     }
   }, [isAuthenticated]);
 
+  // AUTO-TRIGGER PAYOUT: Click payout button 3 seconds after timer hits 0
+  useEffect(() => {
+    const autoPayoutTimers: NodeJS.Timeout[] = [];
+
+    sessions.forEach((session) => {
+      if (session.status === 'active' && session.timer_started_at) {
+        const timeRemaining = calculateTimeRemaining(session);
+        
+        // When timer hits 0, wait 3 seconds then auto-trigger payout
+        if (timeRemaining && timeRemaining.total <= 0) {
+          console.log(`⏰ [AUTO-PAYOUT] Timer expired for ${session.config_id}, will auto-payout in 3 seconds...`);
+          
+          const timer = setTimeout(() => {
+            console.log(`💰 [AUTO-PAYOUT] Auto-triggering payout for ${session.config_id}`);
+            handleManualPayout(session.config_id);
+          }, 3000); // 3 seconds delay
+          
+          autoPayoutTimers.push(timer);
+        }
+      }
+    });
+
+    // Cleanup timers on unmount
+    return () => {
+      autoPayoutTimers.forEach(timer => clearTimeout(timer));
+    };
+  }, [sessions]); // Re-run when sessions change
+
   // Real-time updates
   useEffect(() => {
     const channel = supabase
