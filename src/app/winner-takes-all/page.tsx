@@ -318,8 +318,15 @@ export default function WinnerTakesAllPage() {
           const timeRemaining = calculateTimeRemaining(session);
           if (timeRemaining && timeRemaining.total <= 0) {
             console.log('⏰ [Winner Takes All] Timer expired for session:', session.id);
-            // Trigger auto payout
-            await supabase.rpc('auto_payout_on_timer_expiry');
+            // Ensure payout + reset for this specific session
+            const { data: prData, error: prErr } = await supabase.rpc('payout_and_reset_session', {
+              session_id_param: session.id
+            });
+            if (prErr) {
+              console.error('❌ [Winner Takes All] payout_and_reset_session error:', prErr);
+            } else {
+              console.log('✅ [Winner Takes All] payout_and_reset_session result:', prData);
+            }
             // Reload to refresh listing
             loadSessions();
           }
@@ -327,7 +334,7 @@ export default function WinnerTakesAllPage() {
       });
     }, 1000); // Check every second
 
-    return () => clearInterval(interval);
+      return () => clearInterval(interval);
   }, [sessions, loadSessions]);
 
   // Real-time updates
@@ -597,14 +604,14 @@ export default function WinnerTakesAllPage() {
       if (payoutError) {
         console.error('❌ [Winner Takes All] Payout RPC error:', payoutError);
         setMessage({ type: 'error', text: `Failed to process payout: ${payoutError.message}` });
-        return;
-      }
+      return;
+    }
 
       if (!payoutResult || !payoutResult.success) {
         console.error('❌ [Winner Takes All] Payout failed:', payoutResult);
         setMessage({ type: 'error', text: `Payout failed: ${payoutResult?.message || 'Unknown error'}` });
-        return;
-      }
+      return;
+    }
 
       console.log('✅ [Winner Takes All] Token update successful:', payoutResult);
       
@@ -665,7 +672,7 @@ export default function WinnerTakesAllPage() {
       
       // Small delay to ensure database update propagates
       setTimeout(() => {
-        refreshTokens();
+      refreshTokens();
         
         // If the winner is the current user, force refresh their token display
         if (winner.user_id === user?.id) {
