@@ -609,6 +609,31 @@ export default function WinnerTakesAllPage() {
       }
 
       console.log('✅ [Winner Takes All] Session marked as completed');
+      
+      // Reset session for next game
+      console.log('🔄 [Winner Takes All] Resetting session...');
+      
+      // Delete participants
+      await supabase
+        .from('winner_takes_all_participants')
+        .delete()
+        .eq('session_id', session.id);
+      
+      // Reset session
+      await supabase
+        .from('winner_takes_all_sessions')
+        .update({
+          status: 'waiting',
+          current_pot: 0,
+          participants_count: 0,
+          timer_started_at: null,
+          winner_user_id: null,
+          prize_amount: null
+        })
+        .eq('id', session.id);
+      
+      console.log('✅ [Winner Takes All] Session reset complete!');
+      
       setMessage({ 
         type: 'success', 
         text: `🎉 Winner paid ${winnerPayout.toFixed(2)} tokens! (Pot: ${totalPot.toFixed(2)}, Fee: ${platformFeeAmount.toFixed(2)})` 
