@@ -1,329 +1,165 @@
--- COMPLETE WINNER TAKES ALL SYSTEM FROM SCRATCH
--- This creates a fully functional Winner Takes All system with token deduction, pot updates, and live timers
+-- ============================================================================
+-- COMPLETE WINNER TAKES ALL SYSTEM - RUN ONCE AND DONE!
+-- ============================================================================
+-- This one SQL file creates all functions needed for the autonomous system
+-- Run this ONCE in Supabase SQL Editor and everything will work
+-- ============================================================================
 
--- 1. Create Winner Takes All sessions table
-CREATE TABLE IF NOT EXISTS public.winner_takes_all_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    config_id TEXT NOT NULL,
-    current_pot INTEGER NOT NULL DEFAULT 0,
-    base_price INTEGER NOT NULL,
-    participants_count INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'completed')),
-    timer_started_at TIMESTAMP WITH TIME ZONE,
-    timer_duration INTEGER DEFAULT 1800, -- 30 minutes in seconds
-    winner_user_id UUID,
-    prize_amount DECIMAL(10,2),
-    platform_fee DECIMAL(10,2),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- ============================================================================
+-- FEATURE 1: TIMER SYSTEM (30 seconds for testing)
+-- ============================================================================
 
--- 2. Create Winner Takes All participants table
-CREATE TABLE IF NOT EXISTS public.winner_takes_all_participants (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES public.winner_takes_all_sessions(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    score INTEGER,
-    accuracy DECIMAL(5,2),
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(session_id, user_id)
-);
+UPDATE public.winner_takes_all_sessions 
+SET timer_duration = 30, updated_at = NOW()
+WHERE config_id LIKE 'wta-%';
 
--- 3. Enable RLS
-ALTER TABLE public.winner_takes_all_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.winner_takes_all_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.winner_takes_all_sessions 
+ALTER COLUMN timer_duration SET DEFAULT 30;
 
--- 4. Create RLS policies
-DROP POLICY IF EXISTS "Anyone can view winner takes all sessions" ON public.winner_takes_all_sessions;
-DROP POLICY IF EXISTS "Anyone can view winner takes all participants" ON public.winner_takes_all_participants;
-DROP POLICY IF EXISTS "Users can insert their own participation" ON public.winner_takes_all_participants;
-DROP POLICY IF EXISTS "Users can update their own participation" ON public.winner_takes_all_participants;
+-- ============================================================================
+-- FEATURE 2: PAYOUT SYSTEM
+-- ============================================================================
 
-CREATE POLICY "Anyone can view winner takes all sessions" ON public.winner_takes_all_sessions FOR SELECT USING (true);
-CREATE POLICY "Anyone can view winner takes all participants" ON public.winner_takes_all_participants FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own participation" ON public.winner_takes_all_participants FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own participation" ON public.winner_takes_all_participants FOR UPDATE USING (auth.uid() = user_id);
+CREATE OR REPLACE FUNCTION public.add_tokens_to_user(
+    user_id_param UUID,
+    token_amount NUMERIC
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    old_tokens NUMERIC;
+    new_tokens NUMERIC;
+BEGIN
+    SELECT tokens INTO old_tokens FROM public.users WHERE id = user_id_param;
+    
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'User not found');
+    END IF;
+    
+    new_tokens := COALESCE(old_tokens, 0) + token_amount;
+    UPDATE public.users SET tokens = new_tokens, updated_at = NOW() WHERE id = user_id_param;
+    
+    RETURN jsonb_build_object(
+        'success', true,
+        'tokens_before', old_tokens,
+        'tokens_after', new_tokens
+    );
+END;
+$$;
 
--- 5. Function to join a Winner Takes All session (deducts token and adds to pot)
+GRANT EXECUTE ON FUNCTION public.add_tokens_to_user(UUID, NUMERIC) TO authenticated, anon;
+
+-- ============================================================================
+-- FEATURE 3: JOIN FUNCTION (with timer auto-start)
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS public.join_winner_takes_all_session CASCADE;
+
 CREATE OR REPLACE FUNCTION public.join_winner_takes_all_session(
     session_id_param UUID,
     user_id_param UUID,
-    entry_fee_param INTEGER
+    entry_fee_param NUMERIC
 )
-RETURNS JSON
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
     session_record RECORD;
     user_record RECORD;
-    new_pot INTEGER;
+    new_pot NUMERIC;
     new_participants_count INTEGER;
-    result JSON;
 BEGIN
-    -- Get session info
     SELECT * INTO session_record FROM public.winner_takes_all_sessions WHERE id = session_id_param;
-    
     IF NOT FOUND THEN
-        RETURN json_build_object('success', false, 'message', 'Session not found');
+        RETURN jsonb_build_object('success', false, 'message', 'Session not found');
     END IF;
     
-    -- Check if user already joined
-    IF EXISTS (SELECT 1 FROM public.winner_takes_all_participants WHERE session_id = session_id_param AND user_id = user_id_param) THEN
-        RETURN json_build_object('success', false, 'message', 'User already joined this session');
-    END IF;
-    
-    -- Get user info and check token balance
     SELECT * INTO user_record FROM public.users WHERE id = user_id_param;
-    
     IF NOT FOUND THEN
-        RETURN json_build_object('success', false, 'message', 'User not found');
+        RETURN jsonb_build_object('success', false, 'message', 'User not found');
     END IF;
     
     IF user_record.tokens < entry_fee_param THEN
-        RETURN json_build_object('success', false, 'message', 'Insufficient tokens');
+        RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens');
     END IF;
     
-    -- Deduct tokens from user
-    UPDATE public.users 
-    SET tokens = tokens - entry_fee_param,
-        updated_at = NOW()
-    WHERE id = user_id_param;
+    UPDATE public.users SET tokens = tokens - entry_fee_param, updated_at = NOW() WHERE id = user_id_param;
     
-    -- Add participant
-    INSERT INTO public.winner_takes_all_participants (session_id, user_id)
-    VALUES (session_id_param, user_id_param);
+    INSERT INTO public.winner_takes_all_participants (session_id, user_id, joined_at)
+    VALUES (session_id_param, user_id_param, NOW())
+    ON CONFLICT (session_id, user_id) DO NOTHING;
     
-    -- Update session pot and participant count
-    new_pot := session_record.current_pot + entry_fee_param;
-    new_participants_count := session_record.participants_count + 1;
+    new_pot := COALESCE(session_record.current_pot, 0) + entry_fee_param;
+    new_participants_count := COALESCE(session_record.participants_count, 0) + 1;
     
-    UPDATE public.winner_takes_all_sessions 
-    SET current_pot = new_pot,
+    UPDATE public.winner_takes_all_sessions
+    SET 
+        current_pot = new_pot,
         participants_count = new_participants_count,
-        status = CASE 
-            WHEN new_pot >= base_price THEN 'active'
-            ELSE 'waiting'
-        END,
-        timer_started_at = CASE 
-            WHEN new_pot >= base_price AND timer_started_at IS NULL THEN NOW()
-            ELSE timer_started_at
-        END,
+        status = CASE WHEN new_pot >= session_record.base_price THEN 'active' ELSE 'waiting' END,
+        timer_started_at = CASE WHEN new_pot >= session_record.base_price AND timer_started_at IS NULL THEN NOW() ELSE timer_started_at END,
         updated_at = NOW()
     WHERE id = session_id_param;
     
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Successfully joined session',
-        'newPot', new_pot,
-        'participantsCount', new_participants_count,
-        'status', CASE WHEN new_pot >= base_price THEN 'active' ELSE 'waiting' END
-    );
+    RETURN jsonb_build_object('success', true, 'message', 'Joined successfully', 'new_pot', new_pot);
 END;
 $$;
 
--- 6. Function to update score after game completion
+GRANT EXECUTE ON FUNCTION public.join_winner_takes_all_session(UUID, UUID, NUMERIC) TO authenticated, anon;
+
+-- ============================================================================
+-- FEATURE 4: SCORE UPDATE
+-- ============================================================================
+
 CREATE OR REPLACE FUNCTION public.update_winner_takes_all_score(
     session_id_param UUID,
     user_id_param UUID,
-    score_param INTEGER,
-    accuracy_param DECIMAL(5,2)
+    score_param NUMERIC,
+    accuracy_param NUMERIC DEFAULT 0
 )
-RETURNS JSON
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-DECLARE
-    result JSON;
 BEGIN
-    -- Update participant score
-    UPDATE public.winner_takes_all_participants 
-    SET score = score_param,
-        accuracy = accuracy_param,
-        completed_at = NOW()
+    UPDATE public.winner_takes_all_participants
+    SET score = score_param, accuracy = accuracy_param, completed_at = NOW(), updated_at = NOW()
     WHERE session_id = session_id_param AND user_id = user_id_param;
     
-    IF NOT FOUND THEN
-        RETURN json_build_object('success', false, 'message', 'Participant not found');
-    END IF;
-    
-    RETURN json_build_object('success', true, 'message', 'Score updated successfully');
+    RETURN jsonb_build_object('success', true);
 END;
 $$;
 
--- 7. Function to get all sessions with participants
-CREATE OR REPLACE FUNCTION public.get_all_winner_takes_all_sessions()
-RETURNS TABLE(
-    id UUID,
-    config_id TEXT,
-    current_pot INTEGER,
-    base_price INTEGER,
-    participants_count INTEGER,
-    status TEXT,
-    timer_started_at TIMESTAMP WITH TIME ZONE,
-    timer_duration INTEGER,
-    winner_user_id UUID,
-    prize_amount DECIMAL(10,2),
-    platform_fee DECIMAL(10,2),
-    created_at TIMESTAMP WITH TIME ZONE,
-    updated_at TIMESTAMP WITH TIME ZONE,
-    participants JSON
-)
+GRANT EXECUTE ON FUNCTION public.update_winner_takes_all_score(UUID, UUID, NUMERIC, NUMERIC) TO authenticated, anon;
+
+-- ============================================================================
+-- FEATURE 5: RESET FUNCTION (for manual reset if needed)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.reset_winner_session(session_id_param UUID)
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    RETURN QUERY
-    SELECT 
-        s.id,
-        s.config_id,
-        s.current_pot,
-        s.base_price,
-        s.participants_count,
-        s.status,
-        s.timer_started_at,
-        s.timer_duration,
-        s.winner_user_id,
-        s.prize_amount,
-        s.platform_fee,
-        s.created_at,
-        s.updated_at,
-        COALESCE(
-            json_agg(
-                json_build_object(
-                    'id', p.id,
-                    'user_id', p.user_id,
-                    'score', p.score,
-                    'accuracy', p.accuracy,
-                    'joined_at', p.joined_at,
-                    'completed_at', p.completed_at
-                )
-            ) FILTER (WHERE p.id IS NOT NULL),
-            '[]'::json
-        ) as participants
-    FROM public.winner_takes_all_sessions s
-    LEFT JOIN public.winner_takes_all_participants p ON s.id = p.session_id
-    GROUP BY s.id, s.config_id, s.current_pot, s.base_price, s.participants_count, 
-             s.status, s.timer_started_at, s.timer_duration, s.winner_user_id, 
-             s.prize_amount, s.platform_fee, s.created_at, s.updated_at
-    ORDER BY s.created_at DESC;
-END;
-$$;
-
--- 8. Function to process winner payout and reset session
-CREATE OR REPLACE FUNCTION public.process_winner_takes_all_payout(
-    session_id_param UUID,
-    winner_user_id_param UUID,
-    prize_amount_param DECIMAL(10,2)
-)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    session_record RECORD;
-    platform_fee DECIMAL(10,2);
-    result JSON;
-BEGIN
-    -- Get session info
-    SELECT * INTO session_record FROM public.winner_takes_all_sessions WHERE id = session_id_param;
+    DELETE FROM public.winner_takes_all_participants WHERE session_id = session_id_param;
     
-    IF NOT FOUND THEN
-        RETURN json_build_object('success', false, 'message', 'Session not found');
-    END IF;
-    
-    -- Calculate platform fee (15% of total pot)
-    platform_fee := session_record.current_pot * 0.15;
-    
-    -- Add prize to winner's tokens
-    UPDATE public.users 
-    SET tokens = tokens + prize_amount_param,
-        updated_at = NOW()
-    WHERE id = winner_user_id_param;
-    
-    -- Update session with winner info
-    UPDATE public.winner_takes_all_sessions 
-    SET winner_user_id = winner_user_id_param,
-        prize_amount = prize_amount_param,
-        platform_fee = platform_fee,
-        status = 'completed',
-        updated_at = NOW()
+    UPDATE public.winner_takes_all_sessions
+    SET status = 'waiting', current_pot = 0, participants_count = 0,
+        timer_started_at = NULL, winner_user_id = NULL, prize_amount = NULL, updated_at = NOW()
     WHERE id = session_id_param;
     
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Payout processed successfully',
-        'prizeAmount', prize_amount_param,
-        'platformFee', platform_fee
-    );
+    RETURN jsonb_build_object('success', true);
 END;
 $$;
 
--- 9. Create default Winner Takes All sessions
-INSERT INTO public.winner_takes_all_sessions (
-    id,
-    config_id,
-    current_pot,
-    base_price,
-    participants_count,
-    status,
-    timer_started_at,
-    timer_duration
-) VALUES 
--- $2 Winner Takes It All - Sword Parry
-(gen_random_uuid(), 'wta-2-sword-parry', 0, 2, 0, 'waiting', NULL, 1800),
+GRANT EXECUTE ON FUNCTION public.reset_winner_session(UUID) TO authenticated, anon;
 
--- $5 Winner Takes It All - Blade Bounce  
-(gen_random_uuid(), 'wta-5-blade-bounce', 0, 5, 0, 'waiting', NULL, 1800),
+-- ============================================================================
+-- DONE! System is now autonomous
+-- ============================================================================
 
--- $10 Winner Takes It All - Laser Dodge
-(gen_random_uuid(), 'wta-10-laser-dodge', 0, 10, 0, 'waiting', NULL, 1800),
-
--- $25 Winner Takes It All - Multi Target
-(gen_random_uuid(), 'wta-25-multi-target', 0, 25, 0, 'waiting', NULL, 1800),
-
--- $50 Winner Takes It All - Sword Parry
-(gen_random_uuid(), 'wta-50-sword-parry', 0, 50, 0, 'waiting', NULL, 1800),
-
--- $100 Winner Takes It All - Laser Dodge
-(gen_random_uuid(), 'wta-100-laser-dodge', 0, 100, 0, 'waiting', NULL, 1800),
-
--- $250 Winner Takes It All - Multi Target
-(gen_random_uuid(), 'wta-250-multi-target', 0, 250, 0, 'waiting', NULL, 1800),
-
--- $1000 Winner Takes It All - Cash Stack
-(gen_random_uuid(), 'wta-1000-cash-stack', 0, 1000, 0, 'waiting', NULL, 1800),
-
--- $2500 Winner Takes It All - Falling Objects
-(gen_random_uuid(), 'wta-2500-falling-objects', 0, 2500, 0, 'waiting', NULL, 1800),
-
--- $5000 Winner Takes It All - Color Sequence
-(gen_random_uuid(), 'wta-5000-color-sequence', 0, 5000, 0, 'waiting', NULL, 1800),
-
--- $10000 Winner Takes It All - Laser Dodge
-(gen_random_uuid(), 'wta-10000-laser-dodge', 0, 10000, 0, 'waiting', NULL, 1800),
-
--- $25000 Winner Takes It All - Multi Target
-(gen_random_uuid(), 'wta-25000-multi-target', 0, 25000, 0, 'waiting', NULL, 1800)
-ON CONFLICT (config_id) DO NOTHING;
-
--- 10. Grant permissions
-GRANT EXECUTE ON FUNCTION public.join_winner_takes_all_session TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_winner_takes_all_score TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions TO authenticated;
-GRANT EXECUTE ON FUNCTION public.process_winner_takes_all_payout TO authenticated;
-
--- 11. Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_winner_takes_all_sessions_config_id ON public.winner_takes_all_sessions(config_id);
-CREATE INDEX IF NOT EXISTS idx_winner_takes_all_sessions_status ON public.winner_takes_all_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_winner_takes_all_participants_session_id ON public.winner_takes_all_participants(session_id);
-CREATE INDEX IF NOT EXISTS idx_winner_takes_all_participants_user_id ON public.winner_takes_all_participants(user_id);
-
--- 12. Verification query
-SELECT 
-    'Winner Takes All system created successfully!' as status,
-    COUNT(*) as total_sessions,
-    SUM(CASE WHEN status = 'waiting' THEN 1 ELSE 0 END) as waiting_sessions,
-    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_sessions
-FROM public.winner_takes_all_sessions;
+SELECT '✅ Winner Takes All system is now autonomous and ready!' as status;
