@@ -165,6 +165,79 @@ $$;
 GRANT EXECUTE ON FUNCTION public.reset_winner_session(UUID) TO authenticated, anon;
 
 -- ============================================================================
+-- FEATURE 6: AUTO PAYOUT (when timer expires)
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS public.auto_payout_on_timer_expiry CASCADE;
+
+CREATE OR REPLACE FUNCTION public.auto_payout_on_timer_expiry()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    expired_sessions UUID[];
+    session_id UUID;
+    session_record RECORD;
+    winner_record RECORD;
+    total_pot NUMERIC;
+    platform_fee NUMERIC;
+    winner_payout NUMERIC;
+    payout_count INTEGER := 0;
+    result JSONB;
+BEGIN
+    -- Find sessions where timer expired
+    SELECT ARRAY_AGG(id) INTO expired_sessions
+    FROM public.winner_takes_all_sessions
+    WHERE status = 'active'
+    AND timer_started_at IS NOT NULL
+    AND (NOW() - timer_started_at) >= INTERVAL '1 second' * timer_duration
+    AND EXISTS (SELECT 1 FROM public.winner_takes_all_participants WHERE session_id = public.winner_takes_all_sessions.id AND score IS NOT NULL);
+    
+    IF expired_sessions IS NULL THEN
+        RETURN 0;
+    END IF;
+    
+    FOREACH session_id IN ARRAY expired_sessions
+    LOOP
+        BEGIN
+            -- Get session
+            SELECT * INTO session_record FROM public.winner_takes_all_sessions WHERE id = session_id;
+            
+            -- Find winner (highest score)
+            SELECT * INTO winner_record FROM public.winner_takes_all_participants
+            WHERE session_id = session_id AND score IS NOT NULL
+            ORDER BY score DESC LIMIT 1;
+            
+            IF winner_record IS NOT NULL THEN
+                -- Calculate payout
+                total_pot := COALESCE(session_record.current_pot, 0);
+                platform_fee := total_pot * 0.15;
+                winner_payout := total_pot - platform_fee;
+                
+                -- Pay winner
+                SELECT public.add_tokens_to_user(winner_record.user_id, winner_payout) INTO result;
+                
+                -- Mark session completed
+                UPDATE public.winner_takes_all_sessions
+                SET status = 'completed', winner_user_id = winner_record.user_id,
+                    prize_amount = winner_payout, updated_at = NOW()
+                WHERE id = session_id;
+            END IF;
+            
+            payout_count := payout_count + 1;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to auto-payout session %: %', session_id, SQLERRM;
+        END;
+    END LOOP;
+    
+    RETURN payout_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.auto_payout_on_timer_expiry() TO authenticated, anon;
+
+-- ============================================================================
 -- DONE! System is now autonomous
 -- ============================================================================
 
