@@ -247,22 +247,18 @@ export default function WinnerTakesAllPage() {
     try {
       console.log('🔄 [Winner Takes All] Loading sessions from database...');
       
-      // Call the conditional reset function first
-      const { data: resetData, error: resetError } = await supabase.rpc('conditional_wta_reset');
-      if (resetError) {
-        console.error('❌ [Winner Takes All] Conditional reset error:', resetError);
+      // Auto-check and payout expired sessions
+      const { data: autoPayoutData, error: autoPayoutError } = await supabase.rpc('auto_check_and_payout_expired');
+      if (autoPayoutError) {
+        console.error('❌ [Winner Takes All] Auto-payout check error:', autoPayoutError);
       } else {
-        console.log('✅ [Winner Takes All] Conditional reset result:', resetData);
-      }
-
-      // Auto-pay out expired sessions when timer expires
-      const { data: payoutData, error: payoutError } = await supabase.rpc('auto_payout_on_timer_expiry');
-      if (payoutError) {
-        console.error('❌ [Winner Takes All] Auto-payout error:', payoutError);
-      } else {
-        console.log('✅ [Winner Takes All] Auto-payout result:', payoutData);
-        if (payoutData && payoutData > 0) {
-          console.log(`💰 [Winner Takes All] ${payoutData} session(s) auto-paid out!`);
+        console.log('✅ [Winner Takes All] Auto-payout check result:', autoPayoutData);
+        if (autoPayoutData && autoPayoutData.sessions_paid_out > 0) {
+          console.log(`💰 [Winner Takes All] ${autoPayoutData.sessions_paid_out} session(s) auto-paid out!`);
+          setMessage({ 
+            type: 'success', 
+            text: `🎉 ${autoPayoutData.sessions_paid_out} winner(s) have been paid out!` 
+          });
         }
       }
 
@@ -316,17 +312,34 @@ export default function WinnerTakesAllPage() {
       sessions.forEach(async (session) => {
         if (session.status === 'active' && session.timer_started_at) {
           const timeRemaining = calculateTimeRemaining(session);
+          
+          // Log timer status for debugging
+          if (timeRemaining) {
+            console.log(`⏱️ [Winner Takes All] Session ${session.config_id}: ${timeRemaining.total}s remaining`);
+          }
+          
           if (timeRemaining && timeRemaining.total <= 0) {
-            console.log('⏰ [Winner Takes All] Timer expired for session:', session.id);
+            console.log('⏰ [Winner Takes All] ⚠️ TIMER EXPIRED for session:', session.id);
+            console.log('💰 [Winner Takes All] Processing automatic payout...');
+            
             // Ensure payout + reset for this specific session
             const { data: prData, error: prErr } = await supabase.rpc('payout_and_reset_session', {
               session_id_param: session.id
             });
+            
             if (prErr) {
               console.error('❌ [Winner Takes All] payout_and_reset_session error:', prErr);
+              setMessage({ type: 'error', text: `Payout failed: ${prErr.message}` });
             } else {
               console.log('✅ [Winner Takes All] payout_and_reset_session result:', prData);
+              if (prData && prData.success) {
+                setMessage({ 
+                  type: 'success', 
+                  text: `🎉 Winner paid ${prData.payout_amount?.toFixed(2)} tokens! Session reset.` 
+                });
+              }
             }
+            
             // Reload to refresh listing
             loadSessions();
           }
@@ -446,6 +459,19 @@ export default function WinnerTakesAllPage() {
       }
 
       console.log('✅ [Winner Takes All] Successfully joined session, refreshing data...');
+      
+      // After successful join, check if we need to start the timer
+      console.log('⏰ [Winner Takes All] Checking if timer needs to start...');
+      const { data: timerData, error: timerError } = await supabase.rpc('check_and_start_timer', {
+        session_id_param: session.id
+      });
+      
+      if (timerError) {
+        console.error('❌ [Winner Takes All] Timer check error:', timerError);
+      } else {
+        console.log('✅ [Winner Takes All] Timer check result:', timerData);
+      }
+      
       // Refresh token balance
       refreshTokens();
       
