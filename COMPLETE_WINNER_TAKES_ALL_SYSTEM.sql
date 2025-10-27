@@ -20,6 +20,8 @@ ALTER COLUMN timer_duration SET DEFAULT 30;
 -- FEATURE 2: PAYOUT SYSTEM
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS public.add_tokens_to_user CASCADE;
+
 CREATE OR REPLACE FUNCTION public.add_tokens_to_user(
     user_id_param UUID,
     token_amount NUMERIC
@@ -114,6 +116,8 @@ GRANT EXECUTE ON FUNCTION public.join_winner_takes_all_session(UUID, UUID, NUMER
 -- FEATURE 4: SCORE UPDATE
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS public.update_winner_takes_all_score CASCADE;
+
 CREATE OR REPLACE FUNCTION public.update_winner_takes_all_score(
     session_id_param UUID,
     user_id_param UUID,
@@ -138,6 +142,8 @@ GRANT EXECUTE ON FUNCTION public.update_winner_takes_all_score(UUID, UUID, NUMER
 -- ============================================================================
 -- FEATURE 5: RESET FUNCTION (for manual reset if needed)
 -- ============================================================================
+
+DROP FUNCTION IF EXISTS public.reset_winner_session CASCADE;
 
 CREATE OR REPLACE FUNCTION public.reset_winner_session(session_id_param UUID)
 RETURNS JSONB
