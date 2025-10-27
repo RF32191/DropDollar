@@ -81,6 +81,9 @@ export default function WinnerTakesAllPage() {
   const [locationVerified, setLocationVerified] = useState(false);
   const [improvedLocation, setImprovedLocation] = useState<any>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Track which sessions have triggered auto-payout to prevent duplicates
+  const [autoPayoutTriggered, setAutoPayoutTriggered] = useState<Set<string>>(new Set());
 
   // Hardcoded Winner Takes It All configurations
   const configs: WinnerTakesAllConfig[] = [
@@ -298,33 +301,50 @@ export default function WinnerTakesAllPage() {
     }
   }, [isAuthenticated]);
 
-  // AUTO-TRIGGER PAYOUT: Click payout button 3 seconds after timer hits 0
+  // CONDITIONAL AUTO-PAYOUT: If payout button not clicked within 3 seconds, auto-activate
   useEffect(() => {
-    const autoPayoutTimers: NodeJS.Timeout[] = [];
-
-    sessions.forEach((session) => {
-      if (session.status === 'active' && session.timer_started_at) {
-        const timeRemaining = calculateTimeRemaining(session);
-        
-        // When timer hits 0, wait 3 seconds then auto-trigger payout
-        if (timeRemaining && timeRemaining.total <= 0) {
-          console.log(`⏰ [AUTO-PAYOUT] Timer expired for ${session.config_id}, will auto-payout in 3 seconds...`);
+    const checkInterval = setInterval(() => {
+      sessions.forEach((session) => {
+        if (session.status === 'active' && session.timer_started_at) {
+          const timeRemaining = calculateTimeRemaining(session);
           
-          const timer = setTimeout(() => {
-            console.log(`💰 [AUTO-PAYOUT] Auto-triggering payout for ${session.config_id}`);
-            handleManualPayout(session.config_id);
-          }, 3000); // 3 seconds delay
-          
-          autoPayoutTimers.push(timer);
+          // Check if timer has expired and payout hasn't been triggered yet
+          if (timeRemaining && timeRemaining.total <= 0) {
+            const sessionKey = session.config_id;
+            
+            // Only trigger if not already triggered for this session
+            if (!autoPayoutTriggered.has(sessionKey)) {
+              console.log(`⏰ [CONDITIONAL AUTO-PAYOUT] Timer at 0:00 for ${sessionKey}`);
+              console.log(`⏱️ [CONDITIONAL AUTO-PAYOUT] Starting 3-second countdown...`);
+              
+              // Mark as triggered immediately to prevent duplicates
+              setAutoPayoutTriggered(prev => new Set(prev).add(sessionKey));
+              
+              // Wait 3 seconds, then check if manual payout happened
+              setTimeout(async () => {
+                console.log(`💰 [CONDITIONAL AUTO-PAYOUT] 3 seconds elapsed, triggering payout for ${sessionKey}`);
+                
+                try {
+                  await handleManualPayout(sessionKey);
+                  console.log(`✅ [CONDITIONAL AUTO-PAYOUT] Payout completed for ${sessionKey}`);
+                } catch (error) {
+                  console.error(`❌ [CONDITIONAL AUTO-PAYOUT] Error for ${sessionKey}:`, error);
+                  // Remove from triggered set so it can retry
+                  setAutoPayoutTriggered(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(sessionKey);
+                    return newSet;
+                  });
+                }
+              }, 3000); // 3 second delay
+            }
+          }
         }
-      }
-    });
+      });
+    }, 1000); // Check every second
 
-    // Cleanup timers on unmount
-    return () => {
-      autoPayoutTimers.forEach(timer => clearTimeout(timer));
-    };
-  }, [sessions]); // Re-run when sessions change
+    return () => clearInterval(checkInterval);
+  }, [sessions, autoPayoutTriggered]);
 
   // Real-time updates
   useEffect(() => {
@@ -516,6 +536,13 @@ export default function WinnerTakesAllPage() {
   const handleManualPayout = async (configId: string) => {
     try {
       console.log('💰 [Winner Takes All] Manual payout triggered for:', configId);
+      
+      // Clear auto-payout tracking for this session since we're paying out now
+      setAutoPayoutTriggered(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(configId);
+        return newSet;
+      });
       
       const { data, error } = await supabase.rpc('process_payout_by_config', {
         config_id_param: configId
