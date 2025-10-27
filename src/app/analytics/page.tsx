@@ -1,312 +1,312 @@
 'use client';
 
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase/client';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
+import {
+  TrophyIcon,
+  ChartBarIcon,
+  UserIcon,
+  CurrencyDollarIcon,
+  FireIcon
+} from '@heroicons/react/24/outline';
 
-interface GamePopularity {
-  gameId: string;
-  timesPlayed: number;
-  timesUsedInListings: number;
-  avgScore: number;
-  popularityScore: number;
+interface WinnerResult {
+  id: string;
+  config_id: string;
+  winner_user_id: string;
+  winner_email: string;
+  prize_amount: number;
+  platform_fee: number;
+  current_pot: number;
+  created_at: string;
+  updated_at: string;
+  // From participants
+  winner_score: number;
+  winner_accuracy: number;
 }
 
 export default function AnalyticsPage() {
-  const [loading, setLoading] = useState(true);
-  const [bestScores, setBestScores] = useState<{[key: string]: number}>({});
-  const [gamePopularity, setGamePopularity] = useState<{[key: string]: GamePopularity}>({});
+  const [winners, setWinners] = useState<WinnerResult[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | '2' | '5' | '10' | '25' | '50' | '100' | '250' | '1000' | '2500' | '5000' | '10000' | '25000'>('all');
+
+  // Prize tier labels
+  const prizeTierLabels: Record<string, string> = {
+    'wta-2-sword-parry': '$2 Sword Parry',
+    'wta-5-blade-bounce': '$5 Blade Bounce',
+    'wta-10-laser-dodge': '$10 Laser Dodge',
+    'wta-25-multi-target': '$25 Multi Target',
+    'wta-50-sword-parry': '$50 Sword Parry',
+    'wta-100-laser-dodge': '$100 Laser Dodge',
+    'wta-250-multi-target': '$250 Multi Target',
+    'wta-1000-cash-stack': '$1000 Cash Stack',
+    'wta-2500-falling-objects': '$2500 Falling Objects',
+    'wta-5000-color-sequence': '$5000 Color Sequence',
+    'wta-10000-laser-dodge': '$10000 Laser Dodge',
+    'wta-25000-multi-target': '$25000 Multi Target'
+  };
 
   useEffect(() => {
-    // Load your actual best scores and game popularity data from localStorage
-    const savedScores = localStorage.getItem('bestScores');
-    if (savedScores) {
-      setBestScores(JSON.parse(savedScores));
-    }
-
-    const savedPopularity = localStorage.getItem('gamePopularity');
-    if (savedPopularity) {
-      setGamePopularity(JSON.parse(savedPopularity));
-    }
-    
-    setTimeout(() => setLoading(false), 1000);
+    loadWinners();
   }, []);
 
-  // Update score displays when scores change
-  useEffect(() => {
-    if (!loading) {
-      // Update the score displays with your actual average scores
-      const multiTargetElement = document.getElementById('multi-target-score');
-      const fallingObjectsElement = document.getElementById('falling-objects-score');
-      const colorSequenceElement = document.getElementById('color-sequence-score');
+  const loadWinners = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get all completed sessions with winners
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('winner_takes_all_sessions')
+        .select('*')
+        .eq('status', 'completed')
+        .not('winner_user_id', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(100);
 
-      if (multiTargetElement) {
-        const avgScore = gamePopularity['multi-target']?.avgScore || 0;
-        const timesPlayed = gamePopularity['multi-target']?.timesPlayed || 0;
-        multiTargetElement.textContent = avgScore > 0 ? avgScore.toFixed(1) : '-';
-        
-        const playCountElement = document.getElementById('multi-target-plays');
-        if (playCountElement) {
-          playCountElement.textContent = timesPlayed > 0 ? `${timesPlayed} games played` : 'No games yet';
-        }
+      if (sessionsError) {
+        console.error('Error loading sessions:', sessionsError);
+        return;
       }
-      if (fallingObjectsElement) {
-        const avgScore = gamePopularity['falling-objects']?.avgScore || 0;
-        const timesPlayed = gamePopularity['falling-objects']?.timesPlayed || 0;
-        fallingObjectsElement.textContent = avgScore > 0 ? avgScore.toFixed(1) : '-';
-        
-        const playCountElement = document.getElementById('falling-objects-plays');
-        if (playCountElement) {
-          playCountElement.textContent = timesPlayed > 0 ? `${timesPlayed} games played` : 'No games yet';
-        }
+
+      if (!sessions || sessions.length === 0) {
+        setWinners([]);
+        return;
       }
-      if (colorSequenceElement) {
-        const avgScore = gamePopularity['color-sequence']?.avgScore || 0;
-        const timesPlayed = gamePopularity['color-sequence']?.timesPlayed || 0;
-        colorSequenceElement.textContent = avgScore > 0 ? avgScore.toFixed(1) : '-';
-        
-        const playCountElement = document.getElementById('color-sequence-plays');
-        if (playCountElement) {
-          playCountElement.textContent = timesPlayed > 0 ? `${timesPlayed} games played` : 'No games yet';
-        }
-      }
+
+      // Get winner details for each session
+      const winnersData = await Promise.all(
+        sessions.map(async (session) => {
+          // Get user email
+          const { data: userData } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', session.winner_user_id)
+            .single();
+
+          // Get winner's score from participants
+          const { data: participantData } = await supabase
+            .from('winner_takes_all_participants')
+            .select('score, accuracy')
+            .eq('session_id', session.id)
+            .eq('user_id', session.winner_user_id)
+            .single();
+
+          return {
+            ...session,
+            winner_email: userData?.email || 'Unknown',
+            winner_score: participantData?.score || 0,
+            winner_accuracy: participantData?.accuracy || 0
+          };
+        })
+      );
+
+      setWinners(winnersData);
+    } catch (error) {
+      console.error('Error loading winners:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [loading, gamePopularity]);
+  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredWinners = winners.filter(winner => {
+    if (filter === 'all') return true;
+    return winner.config_id.includes(`-${filter}-`);
+  });
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const getTierColor = (configId: string) => {
+    if (configId.includes('-2-')) return 'from-green-500 to-emerald-500';
+    if (configId.includes('-5-')) return 'from-blue-500 to-cyan-500';
+    if (configId.includes('-10-')) return 'from-purple-500 to-pink-500';
+    if (configId.includes('-25-')) return 'from-orange-500 to-red-500';
+    if (configId.includes('-50-')) return 'from-yellow-500 to-amber-500';
+    if (configId.includes('-100-')) return 'from-indigo-500 to-purple-500';
+    if (configId.includes('-250-')) return 'from-pink-500 to-rose-500';
+    if (configId.includes('-1000-')) return 'from-red-500 to-orange-500';
+    if (configId.includes('-2500-')) return 'from-violet-500 to-purple-500';
+    if (configId.includes('-5000-')) return 'from-fuchsia-500 to-pink-500';
+    if (configId.includes('-10000-')) return 'from-amber-500 to-yellow-500';
+    return 'from-gray-500 to-slate-500';
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
-                <img
-                  src="/DropCoin.png"
-                  alt="DropDollar Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white transition-colors">DropDollar</span>
-            </Link>
-            <nav className="flex items-center space-x-6">
-              <Link href="/listings" className="text-gray-700 hover:text-green-600 font-medium">Browse</Link>
-              <Link href="/categories" className="text-gray-700 hover:text-green-600 font-medium">Categories</Link>
-              <Link href="/games" className="text-purple-600 hover:text-purple-700 font-bold">🎮 Games</Link>
-              <Link href="/hot-sell" className="text-red-600 hover:text-red-700 font-bold">🔥 Hot Sell</Link>
-              <Link href="/how-it-works" className="text-gray-700 hover:text-green-600 font-medium">How It Works</Link>
-              <Link href="/buy-tokens" className="text-green-600 hover:text-green-700 font-bold">💰 Buy Tokens</Link>
-              <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-                <Link href="/analytics" className="text-blue-600 hover:text-blue-700 font-bold">📊 Analytics</Link>
-                <Link href="/auth/login" className="text-gray-700 hover:text-green-600 font-medium">Sign In</Link>
-                <Link href="/auth/register" className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sign Up</Link>
-                <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Sell</Link>
-              </div>
-            </nav>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <CleanNavigation />
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center mb-4">
+            <ChartBarIcon className="w-12 h-12 text-yellow-400 mr-4" />
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+              Winner Takes All Analytics
+            </h1>
+            <TrophyIcon className="w-12 h-12 text-yellow-400 ml-4" />
           </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Platform Analytics</h1>
-          <p className="text-gray-600">Real-time insights into DROP token ecosystem and gaming platform</p>
+          <p className="text-xl text-gray-300">All-time winners and results</p>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Current Token Price</p>
-                <p className="text-3xl font-bold text-green-600">$1.00</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">💰</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                Starting Price
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-3xl font-bold text-blue-600">1</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">👤</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                Platform Owner
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Listings</p>
-                <p className="text-3xl font-bold text-purple-600">0</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📋</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                Coming Soon
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Games Available</p>
-                <p className="text-3xl font-bold text-orange-600">3</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">🎮</span>
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                Ready to Play
-              </span>
-            </div>
-          </div>
+        {/* Filter Buttons */}
+        <div className="mb-8 flex flex-wrap gap-2 justify-center">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              filter === 'all'
+                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            All Tiers
+          </button>
+          {['2', '5', '10', '25', '50', '100', '250', '1000', '2500', '5000', '10000', '25000'].map(tier => (
+            <button
+              key={tier}
+              onClick={() => setFilter(tier as any)}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                filter === tier
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              ${tier}
+            </button>
+          ))}
         </div>
 
-        {/* Your Personal Stats */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 shadow-lg border border-blue-200 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Your Gaming Stats</h2>
-              <p className="text-gray-600">Personal performance across all games</p>
-            </div>
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <span className="text-3xl">🏆</span>
-            </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
+            <span className="ml-4 text-lg text-gray-300">Loading winners...</span>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg p-4 text-center">
-              <div className="text-lg font-bold text-blue-600 mb-2">Multi-Target Reaction</div>
-              <div className="text-sm text-gray-600 mb-1">Average Score</div>
-              <div className="text-2xl font-bold text-gray-900" id="multi-target-score">-</div>
-              <div className="text-xs text-blue-600 mt-1" id="multi-target-plays">No games yet</div>
-            </div>
-            
-            <div className="bg-white rounded-lg p-4 text-center">
-              <div className="text-lg font-bold text-green-600 mb-2">Falling Object Catch</div>
-              <div className="text-sm text-gray-600 mb-1">Average Score</div>
-              <div className="text-2xl font-bold text-gray-900" id="falling-objects-score">-</div>
-              <div className="text-xs text-green-600 mt-1" id="falling-objects-plays">No games yet</div>
-            </div>
-            
-            <div className="bg-white rounded-lg p-4 text-center">
-              <div className="text-lg font-bold text-purple-600 mb-2">Color Sequence Memory</div>
-              <div className="text-sm text-gray-600 mb-1">Average Score</div>
-              <div className="text-2xl font-bold text-gray-900" id="color-sequence-score">-</div>
-              <div className="text-xs text-purple-600 mt-1" id="color-sequence-plays">No games yet</div>
-            </div>
-          </div>
-          
-          <div className="mt-6 text-center">
-            <Link href="/games" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-              🎮 Play Games Now
-            </Link>
-          </div>
-        </div>
+        )}
 
-        {/* Coming Soon */}
-        <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200 text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <span className="text-3xl">🚧</span>
+        {/* No Results */}
+        {!isLoading && filteredWinners.length === 0 && (
+          <div className="text-center py-12">
+            <TrophyIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+            <p className="text-xl text-gray-400">No winners yet for this tier</p>
+            <p className="text-gray-500 mt-2">Be the first to win!</p>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">Advanced Analytics Coming Soon</h3>
-          <p className="text-gray-600 mb-6">
-            We're building comprehensive analytics including price charts, token distribution, 
-            game performance metrics, and blockchain insights.
-          </p>
-          <div className="grid md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-2">📈 Price Analytics</h4>
-              <p className="text-gray-600">Historical price data, trends, and predictions</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-2">🎯 Game Metrics</h4>
-              <p className="text-gray-600">Performance stats, win rates, and leaderboards</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-2">⛓️ Blockchain Data</h4>
-              <p className="text-gray-600">Transaction history, token distribution, network health</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        )}
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                  <img src="/DropCoin.png" alt="Logo" className="w-full h-full object-contain" />
+        {/* Winners Grid */}
+        {!isLoading && filteredWinners.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredWinners.map((winner, index) => (
+              <div
+                key={winner.id}
+                className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 hover:border-yellow-500/50 transition-all duration-300 hover:scale-105"
+              >
+                {/* Rank Badge */}
+                {index < 3 && (
+                  <div className="flex justify-end mb-2">
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      index === 0 ? 'bg-yellow-500 text-black' :
+                      index === 1 ? 'bg-gray-400 text-black' :
+                      'bg-orange-600 text-white'
+                    }`}>
+                      #{index + 1}
+                    </div>
+                  </div>
+                )}
+
+                {/* Prize Tier */}
+                <div className={`bg-gradient-to-r ${getTierColor(winner.config_id)} rounded-xl p-4 mb-4`}>
+                  <h3 className="text-white font-bold text-lg text-center">
+                    {prizeTierLabels[winner.config_id] || winner.config_id}
+                  </h3>
                 </div>
-                <span className="text-lg font-bold">DropDollar</span>
+
+                {/* Winner Info */}
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <UserIcon className="w-5 h-5 text-gray-400 mr-2" />
+                    <span className="text-gray-300 text-sm">Winner:</span>
+                    <span className="text-white font-semibold ml-2 truncate">
+                      {winner.winner_email.split('@')[0]}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center">
+                    <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
+                    <span className="text-gray-300 text-sm">Score:</span>
+                    <span className="text-white font-bold ml-2">
+                      {winner.winner_score.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center">
+                    <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
+                    <span className="text-gray-300 text-sm">Prize Won:</span>
+                    <span className="text-green-400 font-bold ml-2">
+                      {formatAmount(winner.prize_amount)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center">
+                    <TrophyIcon className="w-5 h-5 text-purple-400 mr-2" />
+                    <span className="text-gray-300 text-sm">Total Pot:</span>
+                    <span className="text-purple-400 font-semibold ml-2">
+                      {formatAmount(winner.current_pot)}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-700">
+                    <span className="text-gray-500 text-xs">
+                      {formatDate(winner.updated_at)}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-gray-400 text-sm">Real-time analytics for the DROP token ecosystem.</p>
+            ))}
+          </div>
+        )}
+
+        {/* Stats Summary */}
+        {!isLoading && winners.length > 0 && (
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-br from-yellow-500/20 to-amber-500/20 rounded-2xl p-6 border border-yellow-500/30">
+              <h3 className="text-yellow-400 font-bold text-lg mb-2">Total Winners</h3>
+              <p className="text-4xl font-black text-white">{winners.length}</p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Analytics</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link href="/analytics" className="hover:text-white">Platform Metrics</Link></li>
-                <li><a href="#" className="hover:text-white">Token Analytics</a></li>
-                <li><a href="#" className="hover:text-white">Game Statistics</a></li>
-              </ul>
+
+            <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-2xl p-6 border border-green-500/30">
+              <h3 className="text-green-400 font-bold text-lg mb-2">Total Paid Out</h3>
+              <p className="text-4xl font-black text-white">
+                {formatAmount(winners.reduce((sum, w) => sum + w.prize_amount, 0))}
+              </p>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Platform</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link href="/games" className="hover:text-white">Games</Link></li>
-                <li><Link href="/listings" className="hover:text-white">Browse Listings</Link></li>
-                <li><Link href="/buy-tokens" className="hover:text-white">Buy Tokens</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link href="/how-it-works" className="hover:text-white">How It Works</Link></li>
-                <li><a href="#" className="hover:text-white">API Documentation</a></li>
-                <li><a href="#" className="hover:text-white">Contact Us</a></li>
-              </ul>
+
+            <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl p-6 border border-purple-500/30">
+              <h3 className="text-purple-400 font-bold text-lg mb-2">Highest Score</h3>
+              <p className="text-4xl font-black text-white">
+                {Math.max(...winners.map(w => w.winner_score)).toFixed(2)}
+              </p>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2024 DropDollar. All rights reserved. Analytics powered by blockchain data.</p>
-          </div>
-        </div>
-      </footer>
+        )}
+      </div>
     </div>
   );
 }
