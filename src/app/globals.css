@@ -17,6 +17,21 @@
   }
 }
 
+/* Animated gradient for navigation */
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 3s ease infinite;
+}
+
 /* Location banner spacing */
 .location-banner-spacer {
   padding-top: 4rem; /* Account for fixed header */

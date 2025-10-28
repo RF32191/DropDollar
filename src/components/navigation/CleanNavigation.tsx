@@ -41,6 +41,9 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     // Page-specific navigation colors - Metallic theme
     if (currentPage) {
       switch (currentPage) {
+        case '/':
+        case 'home':
+          return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Purple-Pink with animation
         case 'hot-sell':
           return 'bg-gradient-to-r from-orange-700 via-amber-600 to-yellow-700 shadow-2xl'; // Copper
         case 'winner-takes-all':
@@ -56,12 +59,12 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
         case 'categories':
           return 'bg-gradient-to-r from-orange-600 via-amber-600 to-orange-600 shadow-2xl'; // Copper
         default:
-          return 'bg-gradient-to-r from-gray-700 via-slate-600 to-gray-700 shadow-2xl'; // Silver
+          return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Default to purple-pink
       }
     }
     
-    // Fallback to metallic silver
-    return 'bg-gradient-to-r from-gray-700 via-slate-600 to-gray-700 shadow-2xl';
+    // Fallback to purple-pink gradient
+    return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x';
   };
 
   const getLinkStyles = (isActive: boolean) => {
