@@ -25,6 +25,9 @@ DECLARE
   third_prize NUMERIC;
   v_second_place_user_id UUID;
   v_third_place_user_id UUID;
+  v_first_winner_name TEXT;
+  v_second_winner_name TEXT;
+  v_third_winner_name TEXT;
 BEGIN
   RAISE NOTICE '🔍 [Hot Sell Payout] Starting for config: %', config_id_param;
 
@@ -88,6 +91,7 @@ BEGIN
 
   -- Calculate 1st place prize
   first_prize := distributable_pot * (config_record.first_place_percent / 100);
+  v_first_winner_name := first_place_record.username;
 
   -- Pay 1st place
   UPDATE public.users
@@ -96,7 +100,7 @@ BEGIN
   WHERE id = first_place_record.user_id;
 
   RAISE NOTICE '🥇 [Hot Sell Payout] 1st place: % (score: %) won %', 
-    first_place_record.username, first_place_record.score, first_prize;
+    v_first_winner_name, first_place_record.score, first_prize;
 
   -- Find 2nd place winner (second highest score)
   SELECT p.*, u.email as username
@@ -112,6 +116,7 @@ BEGIN
   IF FOUND THEN
     second_prize := distributable_pot * (config_record.second_place_percent / 100);
     v_second_place_user_id := second_place_record.user_id;
+    v_second_winner_name := second_place_record.username;
     
     -- Pay 2nd place
     UPDATE public.users
@@ -120,9 +125,10 @@ BEGIN
     WHERE id = v_second_place_user_id;
 
     RAISE NOTICE '🥈 [Hot Sell Payout] 2nd place: % (score: %) won %', 
-      second_place_record.username, second_place_record.score, second_prize;
+      v_second_winner_name, second_place_record.score, second_prize;
   ELSE
     v_second_place_user_id := NULL;
+    v_second_winner_name := 'N/A';
   END IF;
 
   -- Find 3rd place winner (only if third_place_percent > 0)
@@ -141,6 +147,7 @@ BEGIN
     IF FOUND THEN
       third_prize := distributable_pot * (config_record.third_place_percent / 100);
       v_third_place_user_id := third_place_record.user_id;
+      v_third_winner_name := third_place_record.username;
       
       -- Pay 3rd place
       UPDATE public.users
@@ -149,12 +156,14 @@ BEGIN
       WHERE id = v_third_place_user_id;
 
       RAISE NOTICE '🥉 [Hot Sell Payout] 3rd place: % (score: %) won %', 
-        third_place_record.username, third_place_record.score, third_prize;
+        v_third_winner_name, third_place_record.score, third_prize;
     ELSE
       v_third_place_user_id := NULL;
+      v_third_winner_name := 'N/A';
     END IF;
   ELSE
     v_third_place_user_id := NULL;
+    v_third_winner_name := 'N/A';
   END IF;
 
   -- Mark session as completed
@@ -189,11 +198,11 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'message', 'Payout successful',
-    'first_place_winner', first_place_record.username,
+    'first_place_winner', v_first_winner_name,
     'first_place_amount', first_prize,
-    'second_place_winner', COALESCE(second_place_record.username, 'N/A'),
+    'second_place_winner', v_second_winner_name,
     'second_place_amount', COALESCE(second_prize, 0),
-    'third_place_winner', COALESCE(third_place_record.username, 'N/A'),
+    'third_place_winner', v_third_winner_name,
     'third_place_amount', COALESCE(third_prize, 0),
     'total_pot', total_pot,
     'platform_fee', platform_fee_amount
