@@ -7,11 +7,24 @@
 -- ============================================================================
 
 -- ============================================================================
--- STEP 1: Ensure update_1v1_score Function Exists with Proper Permissions
+-- STEP 1: Drop All Versions of update_1v1_score to Clear Cache
 -- ============================================================================
 
--- Drop and recreate to ensure it's in the schema cache
+-- Drop ALL possible versions of the function
 DROP FUNCTION IF EXISTS public.update_1v1_score(UUID, UUID, NUMERIC, NUMERIC) CASCADE;
+DROP FUNCTION IF EXISTS public.update_1v1_score(session_id_param UUID, user_id_param UUID, score_param NUMERIC, accuracy_param NUMERIC) CASCADE;
+DROP FUNCTION IF EXISTS public.update_1v1_score CASCADE;
+
+-- Force a schema cache refresh
+DO $$
+BEGIN
+  PERFORM pg_notify('pgrst', 'reload schema');
+  RAISE NOTICE '🔄 Forcing schema cache refresh...';
+END $$;
+
+-- ============================================================================
+-- STEP 2: Recreate update_1v1_score Function with Named Parameters
+-- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.update_1v1_score(
   session_id_param UUID,
@@ -85,7 +98,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 2: Add Check to Prevent Joining Same Game Twice
+-- STEP 3: Add Check to Prevent Joining Same Game Twice
 -- ============================================================================
 
 -- Update join function to check if user already joined
@@ -198,7 +211,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 3: Verify Functions Are in Schema Cache
+-- STEP 4: Verify Functions Are in Schema Cache
 -- ============================================================================
 
 DO $$
@@ -238,7 +251,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 4: Test Current State
+-- STEP 5: Test Current State
 -- ============================================================================
 
 -- Show all 1v1 sessions

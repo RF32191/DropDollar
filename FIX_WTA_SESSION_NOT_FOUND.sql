@@ -1,14 +1,30 @@
 -- ============================================================================
--- FIX WINNER TAKES ALL TIMER PERSISTENCE AND AUTO-PAYOUT
+-- FIX WINNER TAKES ALL SESSION NOT FOUND
 -- ============================================================================
--- This fixes:
--- 1. Timer not persisting on page reload
--- 2. Payout not happening automatically
--- 3. Conditional reset being too aggressive
+-- This ensures sessions always exist for all Winner Takes All configs
 -- ============================================================================
 
 -- ============================================================================
--- STEP 1: Ensure All Configs Have Sessions (Fix "Session Not Found")
+-- STEP 1: Check Current State
+-- ============================================================================
+
+DO $$
+DECLARE
+  config_count INTEGER;
+  session_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO config_count FROM winner_takes_all_configs;
+  SELECT COUNT(*) INTO session_count FROM winner_takes_all_sessions;
+  
+  RAISE NOTICE '═══════════════════════════════════════════════════════════';
+  RAISE NOTICE '📊 Current State:';
+  RAISE NOTICE '   Configs: %', config_count;
+  RAISE NOTICE '   Sessions: %', session_count;
+  RAISE NOTICE '═══════════════════════════════════════════════════════════';
+END $$;
+
+-- ============================================================================
+-- STEP 2: Ensure All Configs Have Sessions
 -- ============================================================================
 
 -- Create sessions for any configs that don't have one
@@ -35,28 +51,10 @@ FROM winner_takes_all_configs c
 WHERE NOT EXISTS (
   SELECT 1 FROM winner_takes_all_sessions s 
   WHERE s.config_id = c.id
-)
-ON CONFLICT DO NOTHING;
-
-DO $$
-DECLARE
-  config_count INTEGER;
-  session_count INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO config_count FROM winner_takes_all_configs;
-  SELECT COUNT(*) INTO session_count FROM winner_takes_all_sessions WHERE config_id LIKE 'wta-%';
-  
-  RAISE NOTICE '📊 Configs: %, Sessions: %', config_count, session_count;
-  
-  IF session_count < config_count THEN
-    RAISE NOTICE '⚠️  Some configs are missing sessions - they will be auto-created';
-  ELSE
-    RAISE NOTICE '✅ All configs have sessions';
-  END IF;
-END $$;
+);
 
 -- ============================================================================
--- STEP 2: Update Conditional Reset to Use 30-Minute Timer (Never Delete Sessions)
+-- STEP 3: Update conditional_wta_reset to NOT Delete Sessions
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS public.conditional_wta_reset() CASCADE;
@@ -93,6 +91,7 @@ BEGIN
         DELETE FROM public.winner_takes_all_participants 
         WHERE session_id = session_record.id;
         
+        -- Reset the session (DON'T DELETE IT, just reset values)
         UPDATE public.winner_takes_all_sessions
         SET 
             status = 'waiting',
@@ -124,7 +123,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.conditional_wta_reset() TO authenticated, anon;
 
 -- ============================================================================
--- STEP 3: Ensure Get Sessions Function Returns All Timer Data & Auto-Creates Sessions
+-- STEP 4: Update get_all_winner_takes_all_sessions to Auto-Create Missing Sessions
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions() CASCADE;
@@ -150,7 +149,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- First, ensure all configs have sessions (auto-recovery)
+    -- First, ensure all configs have sessions
     INSERT INTO winner_takes_all_sessions (
         config_id,
         current_pot,
@@ -219,148 +218,46 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated, anon;
 
 -- ============================================================================
--- STEP 4: Ensure Process Payout Function is Available
--- ============================================================================
-
--- Verify the payout function exists
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_proc 
-        WHERE proname = 'process_payout_by_config'
-    ) THEN
-        RAISE EXCEPTION 'process_payout_by_config function does not exist! Run FIX_PAYOUT_SCORING_ERROR.sql first';
-    END IF;
-    
-    RAISE NOTICE '✅ process_payout_by_config function exists';
-END $$;
-
--- ============================================================================
--- STEP 4: Create Automatic Payout Checker (Optional - for backend cron)
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION public.check_and_payout_expired_sessions()
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    session_record RECORD;
-    payout_result JSONB;
-    payout_count INTEGER := 0;
-    result_array JSONB := '[]'::jsonb;
-BEGIN
-    RAISE NOTICE '🔍 [Auto Payout Check] Checking for expired sessions...';
-    
-    -- Find sessions where timer has expired (30 minutes = 1800 seconds)
-    FOR session_record IN 
-        SELECT 
-            s.id, 
-            s.config_id, 
-            s.timer_started_at,
-            s.timer_duration,
-            s.status,
-            s.winner_user_id
-        FROM public.winner_takes_all_sessions s
-        WHERE s.config_id LIKE 'wta-%'
-        AND s.status = 'active'
-        AND s.timer_started_at IS NOT NULL
-        AND s.winner_user_id IS NULL -- Not yet paid out
-        AND (
-            -- Timer has expired
-            s.timer_started_at + (COALESCE(s.timer_duration, 1800) || ' seconds')::INTERVAL < NOW()
-        )
-    LOOP
-        RAISE NOTICE '⏰ [Auto Payout Check] Timer expired for: % (Started: %)', 
-            session_record.config_id, 
-            session_record.timer_started_at;
-        
-        -- Trigger payout
-        BEGIN
-            SELECT public.process_payout_by_config(session_record.config_id) INTO payout_result;
-            
-            result_array := result_array || payout_result;
-            payout_count := payout_count + 1;
-            
-            RAISE NOTICE '✅ [Auto Payout Check] Payout triggered for: %', session_record.config_id;
-        EXCEPTION WHEN OTHERS THEN
-            RAISE NOTICE '❌ [Auto Payout Check] Error for %: %', session_record.config_id, SQLERRM;
-        END;
-    END LOOP;
-    
-    IF payout_count = 0 THEN
-        RAISE NOTICE 'ℹ️  [Auto Payout Check] No expired sessions found';
-    END IF;
-    
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Auto payout check completed',
-        'payouts_triggered', payout_count,
-        'results', result_array,
-        'timestamp', NOW()
-    );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.check_and_payout_expired_sessions() TO authenticated, anon;
-
--- ============================================================================
--- STEP 5: Verify All Active Sessions Have Correct Timer Duration
--- ============================================================================
-
-UPDATE public.winner_takes_all_sessions
-SET timer_duration = 1800  -- 30 minutes = 1800 seconds
-WHERE timer_duration IS NULL OR timer_duration != 1800;
-
--- ============================================================================
--- STEP 6: Show Current State
+-- STEP 5: Verify All Sessions Exist Now
 -- ============================================================================
 
 DO $$
 DECLARE
-    active_session_count INTEGER;
-    waiting_session_count INTEGER;
-    completed_session_count INTEGER;
+  config_count INTEGER;
+  session_count INTEGER;
+  missing_sessions INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO active_session_count 
-    FROM public.winner_takes_all_sessions 
-    WHERE status = 'active' AND config_id LIKE 'wta-%';
-    
-    SELECT COUNT(*) INTO waiting_session_count 
-    FROM public.winner_takes_all_sessions 
-    WHERE status = 'waiting' AND config_id LIKE 'wta-%';
-    
-    SELECT COUNT(*) INTO completed_session_count 
-    FROM public.winner_takes_all_sessions 
-    WHERE status = 'completed' AND config_id LIKE 'wta-%';
-    
+  SELECT COUNT(*) INTO config_count FROM winner_takes_all_configs;
+  SELECT COUNT(*) INTO session_count FROM winner_takes_all_sessions;
+  missing_sessions := config_count - session_count;
+  
+  IF missing_sessions <= 0 THEN
     RAISE NOTICE '═══════════════════════════════════════════════════════════';
-    RAISE NOTICE '✅ Winner Takes All Timer & Payout Fix Complete!';
+    RAISE NOTICE '✅ All Winner Takes All Sessions Verified!';
     RAISE NOTICE '═══════════════════════════════════════════════════════════';
-    RAISE NOTICE '📊 Active Sessions:     %', active_session_count;
-    RAISE NOTICE '⏳ Waiting Sessions:    %', waiting_session_count;
-    RAISE NOTICE '✅ Completed Sessions:  %', completed_session_count;
+    RAISE NOTICE '📊 Configs: %', config_count;
+    RAISE NOTICE '📊 Sessions: %', session_count;
+    RAISE NOTICE '✅ All configs have sessions!';
     RAISE NOTICE '';
     RAISE NOTICE '🔧 Functions Updated:';
-    RAISE NOTICE '   ✓ conditional_wta_reset() - Now uses 30-minute timer';
-    RAISE NOTICE '   ✓ get_all_winner_takes_all_sessions() - Returns timer data';
-    RAISE NOTICE '   ✓ check_and_payout_expired_sessions() - Auto-payout checker';
-    RAISE NOTICE '';
-    RAISE NOTICE '⏱️  Timer Duration: 30 minutes (1800 seconds)';
+    RAISE NOTICE '   ✓ conditional_wta_reset() - Never deletes sessions';
+    RAISE NOTICE '   ✓ get_all_winner_takes_all_sessions() - Auto-creates missing sessions';
     RAISE NOTICE '';
     RAISE NOTICE '🎯 What This Fixes:';
-    RAISE NOTICE '   1. Timer now persists on page reload';
-    RAISE NOTICE '   2. Conditional reset won''t interfere with active timers';
-    RAISE NOTICE '   3. Auto-payout will trigger when timer expires';
-    RAISE NOTICE '   4. Backend can call check_and_payout_expired_sessions() via cron';
+    RAISE NOTICE '   1. "Session not found" errors eliminated';
+    RAISE NOTICE '   2. Sessions always exist for all configs';
+    RAISE NOTICE '   3. Resets clear data but keep the session';
+    RAISE NOTICE '   4. Auto-recovery if sessions get deleted';
     RAISE NOTICE '═══════════════════════════════════════════════════════════';
+  ELSE
+    RAISE EXCEPTION 'Missing % sessions! Something is wrong.', missing_sessions;
+  END IF;
 END $$;
 
 -- ============================================================================
--- VERIFICATION QUERIES
+-- STEP 6: Show All Sessions
 -- ============================================================================
 
--- Show all active sessions with timer info
 SELECT 
     config_id,
     status,
@@ -375,7 +272,7 @@ SELECT
         ELSE NULL
     END as seconds_remaining,
     winner_user_id IS NOT NULL as has_winner
-FROM public.winner_takes_all_sessions
+FROM winner_takes_all_sessions
 WHERE config_id LIKE 'wta-%'
 ORDER BY config_id;
 
