@@ -88,6 +88,18 @@ export default function HotSellPage() {
   const [locationVerified, setLocationVerified] = useState(false);
   const [improvedLocation, setImprovedLocation] = useState<any>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  
+  // Stable token display to prevent flickering
+  const [displayTokens, setDisplayTokens] = useState<number>(0);
+  const [hasLoadedTokens, setHasLoadedTokens] = useState(false);
+
+  // Update display tokens only when they actually change
+  useEffect(() => {
+    if (!tokensLoading && userTokens !== displayTokens) {
+      setDisplayTokens(userTokens);
+      setHasLoadedTokens(true);
+    }
+  }, [userTokens, tokensLoading]);
 
   // Hardcoded Hot Sell configurations (NO 1v1, NO $50,000)
   const configs: HotSellConfig[] = [
@@ -365,7 +377,7 @@ export default function HotSellPage() {
       return;
     }
 
-    if (userTokens < config.entry_fee) {
+    if (displayTokens < config.entry_fee) {
       setMessage({ type: 'error', text: 'Insufficient tokens' });
       return;
     }
@@ -671,7 +683,13 @@ export default function HotSellPage() {
                 <BanknotesIcon className="w-8 h-8 text-orange-300 mr-4" />
                 <div className="text-left">
                   <p className="text-sm text-orange-300 font-medium">Your Tokens</p>
-                  <p className="text-3xl font-bold text-white">{tokensLoading ? '...' : userTokens.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-white">
+                    {!hasLoadedTokens ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      displayTokens.toFixed(2)
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -878,7 +896,7 @@ export default function HotSellPage() {
                   ) : (
                     <button
                       onClick={() => handleJoinSession(config)}
-                      disabled={joiningSession || userTokens < config.entry_fee}
+                      disabled={joiningSession || displayTokens < config.entry_fee}
                       className="w-full px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                       {joiningSession ? (
@@ -886,7 +904,7 @@ export default function HotSellPage() {
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Joining...
                         </>
-                      ) : userTokens < config.entry_fee ? (
+                      ) : displayTokens < config.entry_fee ? (
                         <>
                           <LockClosedIcon className="w-5 h-5 mr-2" />
                           Need {config.entry_fee} Token{config.entry_fee > 1 ? 's' : ''}
