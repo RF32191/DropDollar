@@ -216,42 +216,53 @@ END $$;
 -- STEP 6: Show All Sessions
 -- ============================================================================
 
--- Winner Takes All Sessions
+-- Show Winner Takes All Sessions
+DO $$
+BEGIN
+  RAISE NOTICE '';
+  RAISE NOTICE '📊 Winner Takes All Sessions:';
+END $$;
+
 SELECT 
-  'WINNER TAKES ALL' as game_type,
   config_id,
   status,
   current_pot,
   participants_count,
-  created_at
+  timer_duration
 FROM winner_takes_all_sessions
 WHERE config_id LIKE 'wta-%'
-ORDER BY config_id
+ORDER BY config_id;
 
-UNION ALL
+-- Show Hot Sell Sessions
+DO $$
+BEGIN
+  RAISE NOTICE '';
+  RAISE NOTICE '📊 Hot Sell Sessions:';
+END $$;
 
--- Hot Sell Sessions
 SELECT 
-  'HOT SELL' as game_type,
   config_id,
   status,
   current_pot,
   participants_count,
-  created_at
+  max_participants
 FROM hot_sell_sessions
 WHERE config_id LIKE 'hs-%'
-ORDER BY config_id
+ORDER BY config_id;
 
-UNION ALL
+-- Show 1v1 Sessions
+DO $$
+BEGIN
+  RAISE NOTICE '';
+  RAISE NOTICE '📊 1v1 Sessions:';
+END $$;
 
--- 1v1 Sessions
 SELECT 
-  '1V1' as game_type,
   config_id,
   status,
   current_pot,
   participants_count,
-  created_at
+  max_participants
 FROM one_v_one_sessions
 WHERE config_id LIKE '1v1-%'
 ORDER BY config_id;
