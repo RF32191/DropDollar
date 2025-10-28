@@ -4,1358 +4,571 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
-import { TournamentService, HotSellListing, HotSellParticipant } from '@/lib/supabase/tournamentService';
-import { FixedGamesService, FixedGameConfig, HotSellSession, PrizeEligibility, FixedGameParticipant } from '@/lib/supabase/fixedGamesService';
-import { UserService } from '@/lib/supabase/userService';
-import { SimpleGameService } from '@/lib/supabase/simpleGameService';
-import { BlindScoreboardService, BlindListing } from '@/lib/supabase/blindScoreboardService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
-import BlindScoreboard from '@/components/games/BlindScoreboard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { playFireplaceCrackle, playButtonHover } from '@/lib/gameAudio';
-import { 
-  FireIcon, 
-  TrophyIcon, 
-  BanknotesIcon, 
-  UsersIcon,
+import { ImprovedLocationService } from '@/lib/improvedLocationService';
+import {
+  FireIcon,
+  TrophyIcon,
   ClockIcon,
-  StarIcon,
-  ExclamationTriangleIcon,
+  BanknotesIcon,
   CheckCircleIcon,
-  EyeIcon,
-  PlayIcon,
-  BoltIcon,
-  LockClosedIcon
+  ExclamationTriangleIcon,
+  StarIcon,
+  LockClosedIcon,
+  MapPinIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
+
+interface HotSellSession {
+  id: string;
+  config_id: string;
+  current_pot: number;
+  base_price: number;
+  max_participants: number;
+  participants_count: number;
+  status: 'waiting' | 'active' | 'completed';
+  first_place_user_id: string | null;
+  second_place_user_id: string | null;
+  third_place_user_id: string | null;
+  first_place_prize: number | null;
+  second_place_prize: number | null;
+  third_place_prize: number | null;
+  platform_fee: number | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  participants: Array<{
+    id: string;
+    user_id: string;
+    score: number | null;
+    accuracy: number | null;
+    joined_at: string;
+    completed_at: string | null;
+  }>;
+}
+
+interface HotSellConfig {
+  id: string;
+  game_type: string;
+  title: string;
+  description: string;
+  entry_fee: number;
+  base_price: number;
+  max_participants: number;
+  game_duration: number;
+  rng_seed: number;
+  first_place_percent: number;
+  second_place_percent: number;
+  third_place_percent: number;
+  platform_fee_percent: number;
+}
+
+interface Message {
+  type: 'success' | 'error';
+  text: string;
+}
 
 export default function HotSellPage() {
   const { user, isAuthenticated } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
   
-  // Add setUserTokens function for compatibility
-  const setUserTokens = useCallback((tokens: number) => {
-    // This is handled by useTokenSync hook
-    console.log('Token update requested:', tokens);
-  }, []);
-  const [hotSellListings, setHotSellListings] = useState<HotSellListing[]>([]);
-  const [participants, setParticipants] = useState<{ [listingId: string]: HotSellParticipant[] }>({});
-  const [sessionParticipants, setSessionParticipants] = useState<{ [sessionId: string]: FixedGameParticipant[] }>({});
-  const [fixedGameConfigs, setFixedGameConfigs] = useState<FixedGameConfig[]>([]);
-  const [hotSellSessions, setHotSellSessions] = useState<HotSellSession[]>([]);
-  const [userParticipations, setUserParticipations] = useState<string[]>([]);
-  const [blindListings, setBlindListings] = useState<BlindListing[]>([]);
+  const [sessions, setSessions] = useState<HotSellSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [joiningListing, setJoiningListing] = useState<string | null>(null);
-  const [joiningSession, setJoiningSession] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [currentView, setCurrentView] = useState<'listings' | 'game' | 'scoreboard'>('listings');
+  const [message, setMessage] = useState<Message | null>(null);
+  const [currentView, setCurrentView] = useState<'list' | 'game'>('list');
   const [selectedGameFlow, setSelectedGameFlow] = useState<{
     gameType: string;
     sessionId: string;
     configId: string;
-    entryFee?: number;
+    entryFee: number;
   } | null>(null);
-  const [selectedListing, setSelectedListing] = useState<HotSellListing | null>(null);
+  const [joiningSession, setJoiningSession] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
-  const [prizeEligibility, setPrizeEligibility] = useState<PrizeEligibility | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<{ [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } }>({});
-  
-  // Winner Takes It All state
-  const [winnerTakesAllSessions, setWinnerTakesAllSessions] = useState<any[]>([]);
-  const [winnerTakesAllParticipants, setWinnerTakesAllParticipants] = useState<{ [sessionId: string]: any[] }>({});
-  const [joiningWinnerTakesAll, setJoiningWinnerTakesAll] = useState(false);
+  const [improvedLocation, setImprovedLocation] = useState<any>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
-  useEffect(() => {
-    // Always load data, regardless of authentication
-    loadHotSellData();
-    loadWinnerTakesAllData();
-    
-    // Only check user eligibility if authenticated
-    if (isAuthenticated && user) {
-      checkUserEligibility();
+  // Hardcoded Hot Sell configurations (NO 1v1, NO $50,000)
+  const configs: HotSellConfig[] = [
+    {
+      id: 'hs-2-sword-parry',
+      game_type: 'sword_parry',
+      title: '$2 Hot Sell - Sword Parry',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 2,
+      max_participants: 10,
+      game_duration: 30,
+      rng_seed: 5,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-5-blade-bounce',
+      game_type: 'blade_bounce',
+      title: '$5 Hot Sell - Blade Bounce',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 5,
+      max_participants: 15,
+      game_duration: 30,
+      rng_seed: 7,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-10-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$10 Hot Sell - Laser Dodge',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 10,
+      max_participants: 20,
+      game_duration: 30,
+      rng_seed: 9,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-25-multi-target',
+      game_type: 'multi_target_reaction',
+      title: '$25 Hot Sell - Multi Target',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 25,
+      max_participants: 30,
+      game_duration: 30,
+      rng_seed: 11,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-50-sword-parry',
+      game_type: 'sword_parry',
+      title: '$50 Hot Sell - Sword Parry',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 50,
+      max_participants: 40,
+      game_duration: 30,
+      rng_seed: 13,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-100-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$100 Hot Sell - Laser Dodge',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 100,
+      max_participants: 50,
+      game_duration: 30,
+      rng_seed: 15,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-250-multi-target',
+      game_type: 'multi_target_reaction',
+      title: '$250 Hot Sell - Multi Target',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 250,
+      max_participants: 75,
+      game_duration: 30,
+      rng_seed: 17,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-1000-cash-stack',
+      game_type: 'cash_stack',
+      title: '$1000 Hot Sell - Cash Stack',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 1000,
+      max_participants: 100,
+      game_duration: 30,
+      rng_seed: 19,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-2500-falling-objects',
+      game_type: 'falling_object',
+      title: '$2500 Hot Sell - Falling Objects',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 2500,
+      max_participants: 150,
+      game_duration: 30,
+      rng_seed: 21,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-5000-color-sequence',
+      game_type: 'color_sequence',
+      title: '$5000 Hot Sell - Color Sequence',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 5000,
+      max_participants: 200,
+      game_duration: 30,
+      rng_seed: 23,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-10000-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$10000 Hot Sell - Laser Dodge',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 10000,
+      max_participants: 250,
+      game_duration: 30,
+      rng_seed: 25,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-25000-multi-target',
+      game_type: 'multi_target_reaction',
+      title: '$25000 Hot Sell - Multi Target',
+      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 25000,
+      max_participants: 300,
+      game_duration: 30,
+      rng_seed: 27,
+      first_place_percent: 60,
+      second_place_percent: 25,
+      third_place_percent: 15,
+      platform_fee_percent: 15
     }
-  }, [isAuthenticated, user?.id]); // Use user.id instead of user object to prevent unnecessary re-renders
+  ];
 
-  // Refresh participants data every 30 seconds
-  useEffect(() => {
-    if (hotSellSessions.length > 0) {
-      const interval = setInterval(() => {
-        refreshParticipantsData();
-      }, 30000); // Refresh every 30 seconds
-
-      return () => clearInterval(interval);
+  const loadSessions = useCallback(async () => {
+    try {
+      console.log('🔥 [Hot Sell] Loading sessions...');
+      const { data, error } = await supabase.rpc('get_all_hot_sell_sessions');
+      
+      if (error) {
+        console.error('❌ [Hot Sell] Error loading sessions:', error);
+        return;
+      }
+      
+      console.log('📊 [Hot Sell] Sessions data:', data);
+      setSessions(data || []);
+      console.log('✅ [Hot Sell] Sessions loaded:', data?.length || 0);
+    } catch (error) {
+      console.error('❌ [Hot Sell] Error loading sessions:', error);
     }
-  }, [hotSellSessions.length]);
-
-  useEffect(() => {
-    // Update timers every second
-    const timer = setInterval(() => {
-      updateTimers();
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []); // Remove hotSellSessions dependency to prevent infinite re-renders
-
-  // Add fireplace audio effect on page load
-  useEffect(() => {
-    // Play fireplace crackle sound when page loads
-    playFireplaceCrackle();
-    
-    // Play fireplace sound every 10 seconds for ambient effect
-    const fireplaceInterval = setInterval(() => {
-      playFireplaceCrackle();
-    }, 10000);
-
-    return () => clearInterval(fireplaceInterval);
   }, []);
 
-  const loadHotSellData = async () => {
+  const checkLocation = useCallback(async () => {
+    if (!isAuthenticated) return;
+    
     try {
-      setIsLoading(true);
-      
-      // Load data in parallel for better performance
-      const [listings, configs, sessions, blindListings] = await Promise.all([
-        TournamentService.getActiveHotSellListings(),
-        FixedGamesService.getFixedGameConfigs('hot_sell'),
-        FixedGamesService.getHotSellSessions(),
-        BlindScoreboardService.getOpenListings()
-      ]);
-      
-      setHotSellListings(listings);
-      setFixedGameConfigs(configs);
-      setHotSellSessions(sessions);
-      setBlindListings(blindListings);
-      
-      // Load participants for each listing (limit to first 3 for performance)
-      const participantsData: { [listingId: string]: HotSellParticipant[] } = {};
-      const limitedListings = listings.slice(0, 3);
-      for (const listing of limitedListings) {
-        try {
-          const listingParticipants = await TournamentService.getHotSellParticipants(listing.id);
-          participantsData[listing.id] = listingParticipants;
-        } catch (error) {
-          console.warn('Failed to load participants for listing:', listing.id);
-        }
-      }
-      setParticipants(participantsData);
-      
-      // Load participants for each session (limit to first 5 for performance)
-      const sessionParticipantsData: { [sessionId: string]: FixedGameParticipant[] } = {};
-      const limitedSessions = sessions.slice(0, 5);
-      for (const session of limitedSessions) {
-        try {
-          const sessionConfig = configs.find(c => c.id === session.config_id);
-          if (sessionConfig) {
-            const participants = await FixedGamesService.getFixedGameParticipants(session.id);
-            sessionParticipantsData[session.id] = participants;
-          }
-        } catch (error) {
-          console.warn(`Failed to load participants for session ${session.id}:`, error);
-          sessionParticipantsData[session.id] = [];
-        }
-      }
-      setSessionParticipants(sessionParticipantsData);
-      
-      // Ensure all configs have sessions (make all banners enterable)
-      await ensureAllConfigsHaveSessions(configs, sessions);
-      
+      setLocationLoading(true);
+      const location = await ImprovedLocationService.getCurrentLocation();
+      setImprovedLocation(location);
+      setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
+      console.log('🎮 [Hot Sell] Location verified:', location);
     } catch (error) {
-      console.error('❌ [HotSell] Error loading data:', error);
+      console.error('❌ [Hot Sell] Location verification failed:', error);
+      setLocationVerified(false);
     } finally {
-      setIsLoading(false);
+      setLocationLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  // Winner Takes It All functions
-  const loadWinnerTakesAllData = async () => {
-    try {
-      console.log('🔄 [Winner Takes It All] Loading data...');
-      
-      // Load Winner Takes It All sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .rpc('get_all_winner_takes_all_sessions');
-      
-      if (sessionsError) {
-        console.error('❌ [Winner Takes It All] Error loading sessions:', sessionsError);
-        return;
-      }
-      
-      setWinnerTakesAllSessions(sessionsData || []);
-      
-      // Load participants for each session
-      const participantsData: { [sessionId: string]: any[] } = {};
-      for (const session of sessionsData || []) {
-        try {
-          const { data: sessionData, error: sessionError } = await supabase
-            .rpc('get_winner_takes_all_session', { session_id_param: session.id });
-          
-          if (sessionError) {
-            console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, sessionError);
-            participantsData[session.id] = [];
-          } else {
-            participantsData[session.id] = sessionData?.participants || [];
-          }
-        } catch (error) {
-          console.warn(`Failed to load participants for Winner Takes It All session ${session.id}:`, error);
-          participantsData[session.id] = [];
-        }
-      }
-      setWinnerTakesAllParticipants(participantsData);
-      
-      console.log('✅ [Winner Takes It All] Data loaded successfully');
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error loading data:', error);
-    }
-  };
+  useEffect(() => {
+    loadSessions();
+    checkLocation();
+    
+    // Refresh sessions every 30 seconds
+    const interval = setInterval(loadSessions, 30000);
+    return () => clearInterval(interval);
+  }, [loadSessions, checkLocation]);
 
-  const joinWinnerTakesAllSession = async (configId: string) => {
+  const handleJoinSession = async (config: HotSellConfig) => {
     if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
+      setMessage({ type: 'error', text: 'Please sign in to join' });
       return;
     }
 
-    console.log('🎮 [Winner Takes It All] Starting join process for config:', configId);
-    console.log('🎮 [Winner Takes It All] User authenticated:', isAuthenticated, 'User ID:', user?.id);
-    
-    setJoiningWinnerTakesAll(true);
-    
-    try {
-      // Location verification for legal compliance
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      console.log('🎮 [Winner Takes It All] Location verified:', position.coords);
-      setLocationVerified(true);
-
-      // Find or create Winner Takes It All session
-      let session = winnerTakesAllSessions.find(s => s.config_id === configId);
-      console.log('🎮 [Winner Takes It All] Existing sessions:', winnerTakesAllSessions);
-      console.log('🎮 [Winner Takes It All] Looking for config:', configId);
-      console.log('🎮 [Winner Takes It All] Found session:', session);
-      
-      if (!session) {
-        console.log('🎮 [Winner Takes It All] Creating new session for config:', configId);
-        // Create new session
-        const { data: sessionId, error: createError } = await supabase
-          .rpc('create_winner_takes_all_session', { config_id_param: configId });
-        
-        if (createError) {
-          console.error('❌ [Winner Takes It All] Error creating session:', createError);
-          setMessage({ type: 'error', text: 'Failed to create session. Please try again.' });
-          return;
-        }
-        
-        console.log('🎮 [Winner Takes It All] Created session with ID:', sessionId);
-        
-        // Get the created session
-        const { data: sessionData, error: sessionError } = await supabase
-          .rpc('get_winner_takes_all_session', { session_id_param: sessionId });
-        
-        if (sessionError) {
-          console.error('❌ [Winner Takes It All] Error getting session:', sessionError);
-          setMessage({ type: 'error', text: 'Failed to get session. Please try again.' });
-          return;
-        }
-        
-        session = sessionData;
-      }
-
-      // Check if user already joined
-      const hasJoined = winnerTakesAllParticipants[session.id]?.some(
-        p => p.user_id === user.id
-      );
-      
-      if (hasJoined) {
-        setMessage({ type: 'error', text: 'You have already joined this Winner Takes It All tournament!' });
-        return;
-      }
-
-      // Join the session
-      console.log('🎮 [Winner Takes It All] Joining session:', session.id);
-      const { data: joinResult, error: joinError } = await supabase
-        .rpc('join_winner_takes_all_session', { session_id_param: session.id });
-      
-      if (joinError) {
-        console.error('❌ [Winner Takes It All] Error joining session:', joinError);
-        console.error('❌ [Winner Takes It All] Join error details:', JSON.stringify(joinError, null, 2));
-        setMessage({ type: 'error', text: 'Failed to join session. Please try again.' });
-        return;
-      }
-      
-      console.log('🎮 [Winner Takes It All] Successfully joined session:', joinResult);
-
-      // Deduct token from user's wallet
-      const { error: deductError } = await supabase
-        .from('token_transactions')
-        .insert({
-          user_id: user.id,
-          amount: -1, // Deduct 1 token
-          transaction_type: 'tournament_entry',
-          description: `Winner Takes It All tournament entry - ${session.id}`,
-          metadata: { session_id: session.id, config_id: configId }
-        });
-
-      if (deductError) {
-        console.error('❌ [Winner Takes It All] Error deducting token:', deductError);
-        setMessage({ type: 'error', text: 'Failed to deduct token. Please try again.' });
-        return;
-      }
-
-      // Refresh token balance
-      refreshTokens();
-
-      // Start the game
-      const config = fixedGameConfigs.find(c => c.id === configId);
-      if (config) {
-        setSelectedGameFlow({
-          gameType: config.game_type,
-          sessionId: session.id,
-          configId: configId,
-          entryFee: 1
-        });
-        setCurrentView('game');
-      }
-
-      setMessage({ type: 'success', text: 'Successfully joined Winner Takes It All tournament!' });
-      
-      // Refresh data
-      await loadWinnerTakesAllData();
-      
-    } catch (error) {
-      console.error('❌ [Winner Takes It All] Error joining session:', error);
-      if (error instanceof GeolocationPositionError) {
-        setMessage({ type: 'error', text: 'Location verification required to join tournaments' });
-      } else {
-        setMessage({ type: 'error', text: 'Failed to join tournament. Please try again.' });
-      }
-    } finally {
-      setJoiningWinnerTakesAll(false);
-    }
-  };
-
-  const ensureAllConfigsHaveSessions = async (configs: FixedGameConfig[], sessions: HotSellSession[]) => {
-    try {
-      console.log('🔄 [HotSell] Ensuring all configs have sessions...');
-      
-      for (const config of configs) {
-        const hasSession = sessions.some(session => session.config_id === config.id);
-        
-        if (!hasSession) {
-          console.log(`📝 [HotSell] Creating session for config: ${config.title}`);
-          try {
-            const newSession = await FixedGamesService.createHotSellSession(config.id);
-            if (newSession) {
-              console.log(`✅ [HotSell] Created session for ${config.title}`);
-              // Add to local state
-              setHotSellSessions(prev => [...prev, newSession]);
-            }
-          } catch (error) {
-            console.error(`❌ [HotSell] Failed to create session for ${config.title}:`, error);
-          }
-        }
-      }
-      
-      console.log('✅ [HotSell] All configs now have sessions');
-    } catch (error) {
-      console.error('❌ [HotSell] Error ensuring sessions:', error);
-    }
-  };
-
-  const checkUserEligibility = async () => {
-    if (!user) return;
-    
-    try {
-      const eligibility = await FixedGamesService.checkPrizeEligibility(user.id, 100);
-      setPrizeEligibility(eligibility);
-    } catch (error) {
-      console.error('❌ [HotSell] Error checking eligibility:', error);
-    }
-  };
-
-  const updateTimers = () => {
-    // Only update if we have sessions to avoid unnecessary state updates
-    if (hotSellSessions.length === 0) return;
-    
-    const newTimeRemaining: { [sessionId: string]: { minutes: number; seconds: number; isHotSell: boolean; hours?: number; isBasePriceMet?: boolean; canJoin?: boolean; isTimerActive?: boolean; basePrice?: number; currentPot?: number; } } = {};
-    
-    hotSellSessions.forEach(session => {
-      const config = fixedGameConfigs.find(c => c.id === session.config_id);
-      const isWinnerTakesAll = config?.title?.includes('Winner Takes It All');
-      
-      if (isWinnerTakesAll) {
-        // Winner Takes It All timer logic
-        const payouts = calculateWinnerTakesAllPayouts(config!);
-        if (payouts) {
-          // For Winner Takes It All, use target_pot as base price
-          const basePrice = session.target_pot || payouts.basePrice;
-          const isBasePriceMet = (session.current_pot || 0) >= basePrice;
-          const isTimerActive = session.status === 'active' && session.timer_started_at;
-          
-          let timeRemaining = 0;
-          if (isTimerActive && session.timer_started_at) {
-            const elapsed = Math.floor((Date.now() - new Date(session.timer_started_at).getTime()) / 1000);
-            timeRemaining = Math.max(0, config!.game_duration - elapsed);
-          }
-          
-          newTimeRemaining[session.id] = {
-            hours: Math.floor(timeRemaining / 3600),
-            minutes: Math.floor((timeRemaining % 3600) / 60),
-            seconds: timeRemaining % 60,
-            isHotSell: false, // Winner Takes It All doesn't have hot sell mode
-            isBasePriceMet: isBasePriceMet,
-            canJoin: isBasePriceMet,
-            isTimerActive: isTimerActive,
-            basePrice: basePrice,
-            currentPot: session.current_pot || 0
-          };
-        }
-      } else {
-        // Regular Hot Sell timer logic
-        const basePriceMet = session.current_pot >= session.target_pot;
-        
-        if (basePriceMet) {
-          const timeData = FixedGamesService.getTimeUntilHotSell(session.expires_at);
-          newTimeRemaining[session.id] = timeData;
-          
-          // Update session status if timer expired (but don't call this every second)
-          if (timeData.isHotSell && session.status === 'waiting') {
-            // Only update once per session to prevent infinite loops
-            // Remove the automatic update call to prevent re-renders
-            // FixedGamesService.updateHotSellPot(session.id);
-          }
-        } else {
-          // Base price not met yet - show waiting state
-          newTimeRemaining[session.id] = { 
-            minutes: 0, 
-            seconds: 0, 
-            isHotSell: false 
-          };
-        }
-      }
-    });
-    
-    // Only update state if there are actual changes to prevent unnecessary re-renders
-    const hasChanges = JSON.stringify(newTimeRemaining) !== JSON.stringify(timeRemaining);
-    if (hasChanges) {
-      setTimeRemaining(newTimeRemaining);
-    }
-  };
-
-  const joinWinnerTakesAll = async (configId: string) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
-      return;
-    }
-
-    // Find the config for this game
-    const config = fixedGameConfigs.find(c => c.id === configId);
-    if (!config) {
-      setMessage({ type: 'error', text: 'Game configuration not found' });
-      return;
-    }
-
-    // Get the actual Winner Takes It All payout calculation
-    const payouts = calculateWinnerTakesAllPayouts(config);
-    if (!payouts) {
-      setMessage({ type: 'error', text: 'Could not calculate tournament payouts' });
-      return;
-    }
-
-    // Use the actual tournament configuration
-    const winnerTakesAllConfig = {
-      ...config,
-      entry_fee: payouts.entryFee,
-      prize_pool: payouts.totalPrize,
-      max_participants: payouts.maxPlayers,
-      description: `1 token entry - Winner takes ${formatPrizeAmount(payouts.winnerPrize)}! Base price: ${formatPrizeAmount(payouts.basePrice)}`
-    };
-
-    // Location verification for legal compliance
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      console.log('Location verified:', position.coords);
-    } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Location verification required to join tournaments for legal compliance. Please enable location services.' 
-      });
-      return;
-    }
-
-    if (userTokens < winnerTakesAllConfig.entry_fee) {
-      setMessage({ type: 'error', text: `You need ${winnerTakesAllConfig.entry_fee} token to join this tournament` });
-      return;
-    }
-
-    setJoiningSession(configId);
-    
-    try {
-      // Create a winner-takes-all session (or join existing one)
-      let session = await FixedGamesService.createHotSellSession(configId);
-      
-      if (!session) {
-        // If creation failed, try to find an existing session
-        const existingSessions = await FixedGamesService.getHotSellSessions();
-        session = existingSessions.find(s => s.config_id === configId);
-      }
-      
-      if (session) {
-        // Actually join the session using the fixed function
-        const participant = await FixedGamesService.joinHotSellSession(
-          session.id,
-          user.id,
-          winnerTakesAllConfig.entry_fee
-        );
-        
-        if (participant) {
-          console.log('✅ [WinnerTakesAll] User added to participants:', participant);
-          
-          // Track user participation locally
-          addUserParticipation(session.id);
-          
-          // Check if this is a duplicate join (user already had a score)
-          const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
-          
-          if (isDuplicateJoin) {
-            setMessage({ type: 'success', text: `You have already played this tournament! Your score: ${participant.score}` });
-            // Don't start the game again, just show the message
-            return;
-          }
-          
-          setMessage({ type: 'success', text: `Successfully joined Winner Takes All tournament! Game starting in 3 seconds...` });
-          
-          // Start the game flow with 3-second countdown
-          setSelectedGameFlow({
-            gameType: config.game_type,
-            sessionId: session.id,
-            configId: config.id,
-            entryFee: winnerTakesAllConfig.entry_fee // Pass entry fee for token deduction
-          });
-          setCurrentView('game');
-          
-          // Refresh sessions and participants
-          const updatedSessions = await FixedGamesService.getHotSellSessions();
-          setHotSellSessions(updatedSessions);
-          
-          // Refresh participants for this session
-          const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
-          const activeGame = activeGames.find(game => game.config_id === session.config_id);
-          
-          if (activeGame) {
-            const updatedParticipants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
-            setSessionParticipants(prev => ({
-              ...prev,
-              [session.id]: updatedParticipants
-            }));
-          }
-        } else {
-          console.error('❌ [WinnerTakesAll] Failed to add user to participants');
-          setMessage({ type: 'error', text: 'Failed to join the tournament. Please try again.' });
-        }
-      } else {
-        setMessage({ type: 'error', text: 'Failed to create or find tournament session.' });
-      }
-      
-    } catch (error: any) {
-      console.error('Error joining winner takes all:', error);
-      
-      // Check if it's a duplicate user error
-      if (error?.code === '23505' || error?.message?.includes('already exists')) {
-        setMessage({ 
-          type: 'error', 
-          text: 'You have already joined this tournament!' 
-        });
-      } else {
-        // Refund tokens on other errors
-        try {
-          await UserService.updateUserTokens(user.id, userTokens);
-        } catch (refundError) {
-          console.error('Failed to refund tokens:', refundError);
-        }
-        setMessage({ 
-          type: 'error', 
-          text: 'Failed to join tournament. Tokens refunded.' 
-        });
-      }
-    } finally {
-      setJoiningSession(null);
-    }
-  };
-
-  const joinHotSellSession = async (session: HotSellSession, config: FixedGameConfig) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
-      return;
-    }
-
-    // Check if user has already joined this competition
-    if (hasUserJoined(session.id)) {
-      setMessage({ type: 'error', text: 'You have already joined this competition!' });
-      return;
-    }
-
-    // Location verification for legal compliance
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      console.log('Location verified:', position.coords);
-    } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Location verification required to join tournaments for legal compliance. Please enable location services.' 
-      });
+    if (!locationVerified) {
+      setMessage({ type: 'error', text: 'Gaming not allowed in your location' });
       return;
     }
 
     if (userTokens < config.entry_fee) {
-      setMessage({ type: 'error', text: `You need ${config.entry_fee} tokens to join this tournament` });
-      return;
-    }
-
-    // Check prize eligibility for significant prizes
-    if (config.prize_pool >= 100) {
-      const eligibility = await FixedGamesService.checkPrizeEligibility(user.id, config.prize_pool);
-      if (!eligibility.eligible) {
-        setMessage({ type: 'error', text: eligibility.reason });
-        return;
-      }
-    }
-
-    try {
-      setJoiningSession(session.id);
-      
-      console.log('👤 [HotSell] Adding user to fixed game participants...');
-      
-      // Add user to fixed_game_participants table using the correct function
-      const participant = await FixedGamesService.joinHotSellSession(
-        session.id,
-        user.id,
-        config.entry_fee
-      );
-      
-      if (participant) {
-        console.log('✅ [HotSell] User added to participants:', participant);
-        
-        // Track user participation locally
-        addUserParticipation(session.id);
-        
-        // Check if this is a duplicate join (user already had a score)
-        const isDuplicateJoin = participant.score !== null && participant.score !== undefined;
-        
-        if (isDuplicateJoin) {
-            setMessage({ type: 'success', text: `You have already played this tournament! Your score: ${participant.score}` });
-          // Don't start the game again, just show the message
-          return;
-        }
-        
-        setMessage({ type: 'success', text: `Successfully joined ${config.title}! Game starting in 3 seconds...` });
-        
-        // Start the game flow with 3-second countdown
-        console.log('🎮 [HotSell] Starting game flow:', {
-          gameType: config.game_type,
-          sessionId: session.id,
-          configId: config.id,
-          entryFee: config.entry_fee
-        });
-        
-        setSelectedGameFlow({
-          gameType: config.game_type,
-          sessionId: session.id,
-          configId: config.id,
-          entryFee: config.entry_fee // Pass entry fee for token deduction
-        });
-        setCurrentView('game');
-        
-        // Refresh sessions and participants
-        const updatedSessions = await FixedGamesService.getHotSellSessions();
-        setHotSellSessions(updatedSessions);
-        
-        // Refresh participants for this session
-        // Find the active game for this session's config
-        const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
-        const activeGame = activeGames.find(game => game.config_id === session.config_id);
-        
-        if (activeGame) {
-          const updatedParticipants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
-          setSessionParticipants(prev => ({
-            ...prev,
-            [session.id]: updatedParticipants
-          }));
-        }
-        
-        console.log('✅ [HotSell] Sessions and participants refreshed');
-      } else {
-        console.error('❌ [HotSell] Failed to add user to participants');
-        setMessage({ type: 'error', text: 'Failed to join the tournament. Please try again.' });
-      }
-      
-    } catch (error: any) {
-      console.error('❌ [HotSell] Error joining session:', error);
-      
-      // Check if it's a duplicate user error
-      if (error?.code === 'P0001' || error?.message?.includes('already joined')) {
-        setMessage({ 
-          type: 'success', 
-          text: 'You have already joined this tournament!' 
-        });
-      } else {
-        setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
-      }
-    } finally {
-      setJoiningSession(null);
-    }
-  };
-
-  const createHotSellSession = async (config: FixedGameConfig) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to create tournaments' });
-      return;
-    }
-
-    // Location verification for legal compliance
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      console.log('Location verified:', position.coords);
-    } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Location verification required to create tournaments for legal compliance. Please enable location services.' 
-      });
+      setMessage({ type: 'error', text: 'Insufficient tokens' });
       return;
     }
 
     try {
-      const session = await FixedGamesService.createHotSellSession(config.id);
-      if (session) {
-        setMessage({ type: 'success', text: `Created new ${config.title} session!` });
-        loadHotSellData(); // Refresh the list
-      } else {
-        setMessage({ type: 'error', text: 'Failed to create hot sell session' });
-      }
-    } catch (error) {
-      console.error('❌ [HotSell] Error creating session:', error);
-      setMessage({ type: 'error', text: 'An error occurred while creating the session' });
-    }
-  };
+      setJoiningSession(true);
+      console.log('🎮 [Hot Sell] Joining session for config:', config.id);
 
-  const joinHotSellListing = async (listing: HotSellListing) => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
-      return;
-    }
-
-    if (userTokens < listing.entry_fee) {
-      setMessage({ type: 'error', text: `You need ${listing.entry_fee} tokens to join this tournament` });
-      return;
-    }
-
-    try {
-      setJoiningListing(listing.id);
+      // Find active session for this config
+      const session = sessions.find(s => s.config_id === config.id && s.status !== 'completed');
       
-      // Deduct tokens from user
-      const newTokenBalance = userTokens - listing.entry_fee;
-      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
-      
-      if (!tokenUpdateSuccess) {
-        setMessage({ type: 'error', text: 'Failed to deduct tokens. Please try again.' });
+      if (!session) {
+        setMessage({ type: 'error', text: 'No active session found' });
         return;
       }
 
-      // Join the listing
-      const participant = await TournamentService.joinHotSellListing(
-        listing.id,
-        user.id,
-        listing.entry_fee
-      );
+      // Call join function
+      const { data, error } = await supabase.rpc('join_hot_sell_session', {
+        session_id_param: session.id,
+        user_id_param: user.id,
+        entry_fee_param: config.entry_fee
+      });
 
-      if (participant) {
-        setUserTokens(newTokenBalance);
-        setMessage({ type: 'success', text: `Successfully joined ${listing.title}!` });
-        
-        // Refresh participants
-        const updatedParticipants = await TournamentService.getHotSellParticipants(listing.id);
-        setParticipants(prev => ({
-          ...prev,
-          [listing.id]: updatedParticipants
-        }));
-      } else {
-        // Refund tokens if join failed
-        await UserService.updateUserTokens(user.id, userTokens);
-        setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+      console.log('📊 [Hot Sell] SQL response:', { data, error });
+
+      if (error) {
+        console.error('❌ [Hot Sell] Error joining session:', error);
+        setMessage({ type: 'error', text: error.message || 'Failed to join session' });
+        return;
       }
-      
+
+      const result = Array.isArray(data) ? data[0] : data;
+
+      if (!result?.success) {
+        setMessage({ type: 'error', text: result?.message || 'Failed to join session' });
+        return;
+      }
+
+      console.log('✅ [Hot Sell] Joined successfully:', result);
+
+      // Refresh tokens and sessions
+      await Promise.all([
+        refreshTokens(),
+        loadSessions()
+      ]);
+
+      setMessage({ type: 'success', text: `Joined! Pot: $${result.new_pot?.toFixed(2) || '0.00'}` });
+
+      // Start game
+      setSelectedGameFlow({
+        gameType: config.game_type,
+        sessionId: session.id,
+        configId: config.id,
+        entryFee: config.entry_fee
+      });
+
+      setCurrentView('game');
+
     } catch (error) {
-      console.error('❌ [HotSell] Error joining listing:', error);
-      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+      console.error('❌ [Hot Sell] Error joining session:', error);
+      setMessage({ type: 'error', text: 'Failed to join tournament. Please try again.' });
     } finally {
-      setJoiningListing(null);
+      setJoiningSession(false);
     }
-  };
-
-  const startGame = (listing: HotSellListing) => {
-    setSelectedListing(listing);
-    setCurrentView('game');
-    setLocationVerified(false);
-  };
-
-  const viewScoreboard = (listing: HotSellListing) => {
-    setSelectedListing(listing);
-    setCurrentView('scoreboard');
   };
 
   const handleGameComplete = async (score: number, accuracy: number) => {
-    if (!user || !selectedListing) return;
+    console.log('🎯 [Hot Sell] Selected game flow:', selectedGameFlow);
+    
+    if (!user || !selectedGameFlow) {
+      console.error('❌ [Hot Sell] Missing user or game flow data');
+      setMessage({ type: 'error', text: 'Missing user or game data. Please try again.' });
+      return;
+    }
 
     try {
-      // Save game history
-      await SimpleGameService.saveGameHistory({
-        userId: user.id,
-        gameType: 'hot-sell',
-        score: score,
-        accuracy: accuracy,
-        isPractice: false,
-        isCompetition: true,
-        listingId: selectedListing.id,
-        metadata: {
-          game_type: 'hot-sell',
-          rng_seed: Math.floor(Math.random() * 20) + 1,
-          tournament_type: 'hot_sell'
-        }
+      console.log('💾 [Hot Sell] Recording score:', { sessionId: selectedGameFlow.sessionId, userId: user.id, score, accuracy });
+
+      // Update score
+      const { data, error } = await supabase.rpc('update_hot_sell_score', {
+        session_id_param: selectedGameFlow.sessionId,
+        user_id_param: user.id,
+        score_param: score,
+        accuracy_param: accuracy
       });
 
-      // Update participant score
-      await TournamentService.updateHotSellParticipantScore(
-        selectedListing.id,
-        user.id,
-        score
-      );
+      console.log('📊 [Hot Sell] Score save response:', { data, error });
 
-      console.log('✅ [HotSell] Game completed and saved:', { score, accuracy });
-      
-      // Show scoreboard after game completion
-      setTimeout(() => {
-        setCurrentView('scoreboard');
-      }, 2000);
-      
-    } catch (error) {
-      console.error('❌ [HotSell] Error saving game result:', error);
-    }
-  };
-
-  const handleLocationVerified = () => {
-    setLocationVerified(true);
-  };
-
-  const backToListings = () => {
-    setCurrentView('listings');
-    setSelectedListing(null);
-    setLocationVerified(false);
-  };
-
-  // Check if user has already joined a competition
-  const hasUserJoined = (competitionId: string) => {
-    if (!user?.id) return false;
-    
-    // Check local state first
-    if (userParticipations.includes(competitionId)) {
-      return true;
-    }
-    
-    // Check database participants for this session
-    const participants = sessionParticipants[competitionId];
-    if (participants && participants.length > 0) {
-      const hasJoined = participants.some(p => p.user_id === user.id);
-      console.log(`🔍 [HotSell] Checking if user ${user.id} joined ${competitionId}:`, hasJoined, participants);
-      return hasJoined;
-    }
-    
-    return false;
-  };
-
-  // Add user participation tracking
-  const addUserParticipation = (competitionId: string) => {
-    setUserParticipations(prev => [...prev, competitionId]);
-  };
-
-  const refreshParticipantsData = async () => {
-    if (!hotSellSessions.length) return;
-    
-    try {
-      console.log('🔄 Refreshing participants data...');
-      const participantsData: { [sessionId: string]: FixedGameParticipant[] } = {};
-      
-      // Get all active games first
-      const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
-      
-      for (const session of hotSellSessions) {
-        try {
-          // Find the active game for this session's config
-          const activeGame = activeGames.find(game => game.config_id === session.config_id);
-          
-          if (activeGame) {
-            const participants = await FixedGamesService.getFixedGameParticipants(activeGame.id);
-            participantsData[session.id] = participants;
-          } else {
-            participantsData[session.id] = [];
-          }
-        } catch (error) {
-          console.error(`❌ Error loading participants for session ${session.id}:`, error);
-          participantsData[session.id] = [];
-        }
+      if (error) {
+        console.error('❌ [Hot Sell] Error updating score:', error);
+        setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
+      } else {
+        console.log('✅ [Hot Sell] Score recorded successfully:', data);
+        setMessage({ type: 'success', text: `Game completed! Your score: ${score.toFixed(2)}` });
       }
-      
-      setSessionParticipants(participantsData);
-      console.log('✅ Participants data refreshed');
+
+      // Return to list view
+      setCurrentView('list');
+      setSelectedGameFlow(null);
+      loadSessions();
+
     } catch (error) {
-      console.error('❌ Error refreshing participants data:', error);
+      console.error('❌ [Hot Sell] Error recording score:', error);
+      setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
     }
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Callback to deduct tokens after game completion
-  const handleGameCompletion = async (score: number, accuracy: number) => {
-    if (!user || !selectedGameFlow?.entryFee) return;
-    
+  const handleManualPayout = async (configId: string) => {
     try {
-      console.log('🎮 [HotSell] Game completed with score:', score, 'accuracy:', accuracy);
+      console.log('💰 [Hot Sell] Manual payout triggered for:', configId);
       
-      // First, save the game history
-      await SimpleGameService.saveGameHistory({
-        user_id: user.id,
-        game_type: selectedGameFlow.gameType,
-        score: score,
-        accuracy: accuracy,
-        avg_reaction_time: 0,
-        is_practice: false,
-        listing_id: selectedGameFlow.sessionId,
-        entry_number: 1,
-        game_duration: 60
+      const { data, error } = await supabase.rpc('process_hot_sell_payout', {
+        config_id_param: configId
       });
-      
-      console.log('✅ [HotSell] Game history saved');
-      
-      // Update the participant score in fixed_game_participants table
-      // Find the active_fixed_games record for this session's config
-      const session = hotSellSessions.find(s => s.id === selectedGameFlow.sessionId);
-      if (session) {
-        // Find the active_fixed_games record for this config
-        const activeGames = await FixedGamesService.getActiveFixedGames('hot_sell');
-        const activeGame = activeGames.find(game => game.config_id === session.config_id);
-        
-        if (activeGame) {
-          const participantUpdate = await FixedGamesService.updateFixedGameScore(
-            activeGame.id,
-            user.id,
-            score,
-            accuracy
-          );
-          
-          if (participantUpdate) {
-            console.log('✅ [HotSell] Participant score updated:', participantUpdate);
-          } else {
-            console.log('⚠️ [HotSell] Participant score update failed, but continuing...');
-          }
-        } else {
-          console.log('⚠️ [HotSell] Could not find active game for config, skipping score update');
-        }
-      } else {
-        console.log('⚠️ [HotSell] Could not find session, skipping score update');
+
+      if (error) {
+        console.error('❌ [Hot Sell] Payout error:', error);
+        setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
+        return;
       }
-      
-      // Deduct tokens after score is saved
-      const newTokenBalance = userTokens - selectedGameFlow.entryFee;
-      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
-      
-      if (tokenUpdateSuccess) {
-        setUserTokens(newTokenBalance);
-        console.log(`✅ Tokens deducted: ${selectedGameFlow.entryFee} tokens`);
-        console.log(`✅ New balance: ${newTokenBalance} tokens`);
+
+      const result = Array.isArray(data) ? data[0] : data;
+
+      if (result?.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `🎉 1st: ${result.first_place_winner} ($${result.first_place_amount?.toFixed(2)}), 2nd: ${result.second_place_winner} ($${result.second_place_amount?.toFixed(2)}), 3rd: ${result.third_place_winner} ($${result.third_place_amount?.toFixed(2)})` 
+        });
         
-        // Update the hot sell pot with the entry fee
-        if (selectedGameFlow.sessionId) {
-          console.log('💰 Updating hot sell pot with entry fee...');
-          await FixedGamesService.updateHotSellPot(selectedGameFlow.sessionId);
-          
-          // Refresh sessions to show updated pot
-          const updatedSessions = await FixedGamesService.getHotSellSessions();
-          setHotSellSessions(updatedSessions);
-          
-          // Refresh participants for this session
-          const updatedParticipants = await FixedGamesService.getFixedGameParticipants(selectedGameFlow.sessionId);
-          setSessionParticipants(prev => ({
-            ...prev,
-            [selectedGameFlow.sessionId]: updatedParticipants
-          }));
-          
-          console.log('✅ Hot sell pot updated, sessions refreshed, and participants updated');
-          console.log('📊 Updated participants:', updatedParticipants.length, 'players with scores');
-        }
+        // Refresh
+        await Promise.all([
+          refreshTokens(),
+          loadSessions()
+        ]);
       } else {
-        console.error('❌ Failed to deduct tokens after game completion');
+        setMessage({ type: 'error', text: result?.message || 'Payout failed' });
       }
-      
-      // Store a flag so dashboard knows to refresh
-      localStorage.setItem('hasNewGameScore', 'true');
-      console.log('🎉 [HotSell] ✅✅✅ SCORE SAVED SUCCESSFULLY TO YOUR DASHBOARD! ✅✅✅');
-      
     } catch (error) {
-      console.error('❌ Error in game completion:', error);
+      console.error('❌ [Hot Sell] Payout error:', error);
+      setMessage({ type: 'error', text: 'Payout system error occurred.' });
     }
   };
 
-  const formatPrizeAmount = (amount: number) => {
-    // For amounts less than $10, show decimals. For $10 and above, show whole dollars
-    const showDecimals = amount < 10;
-    
+  const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: showDecimals ? 2 : 0,
-      maximumFractionDigits: showDecimals ? 2 : 0
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
-  // Winner Takes It All payout calculation (hardcoded for specific tournaments)
-  const calculateWinnerTakesAllPayouts = (config: FixedGameConfig) => {
-    const title = config.title || '';
-    
-    // Hardcoded configurations for specific Winner Takes It All tournaments
-    if (title.includes('$100 Winner Takes It All')) {
-      return {
-        winnerPrize: 85, // Winner gets $85
-        platformFee: 15, // Platform fee $15
-        totalPrize: 100, // Total prize $100
-        entryFee: 1, // 1 token entry
-        basePrice: 10, // Base price $10 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    if (title.includes('$250 Winner Takes It All')) {
-      return {
-        winnerPrize: 212.50, // Winner gets $212.50
-        platformFee: 37.50, // Platform fee $37.50
-        totalPrize: 250, // Total prize $250
-        entryFee: 1, // 1 token entry
-        basePrice: 25, // Base price $25 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    if (title.includes('$1000 Winner Takes It All')) {
-      return {
-        winnerPrize: 850, // Winner gets $850
-        platformFee: 150, // Platform fee $150
-        totalPrize: 1000, // Total prize $1000
-        entryFee: 1, // 1 token entry
-        basePrice: 100, // Base price $100 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    if (title.includes('$2500 Winner Takes It All')) {
-      return {
-        winnerPrize: 2125, // Winner gets $2125
-        platformFee: 375, // Platform fee $375
-        totalPrize: 2500, // Total prize $2500
-        entryFee: 1, // 1 token entry
-        basePrice: 250, // Base price $250 (10% of total)
-        maxPlayers: null, // No limit
-        isWinnerTakesAll: true
-      };
-    }
-    
-    // Default fallback
-    console.warn('Could not find hardcoded configuration for Winner Takes It All title:', title);
-    return null;
+  const getProgressPercent = (currentPot: number, maxParticipants: number, entryFee: number) => {
+    const targetPot = maxParticipants * entryFee;
+    return Math.min((currentPot / targetPot) * 100, 100);
   };
 
-  // Comprehensive payout calculation system for Hot Sell tournaments
-  const calculateTournamentPayouts = (config: FixedGameConfig) => {
-    const title = config.title || '';
-    
-    // Extract prize amount from title (e.g., "$100 Hot Sell" -> 100 or "$100 Winner Takes It All - Laser Dodge" -> 100)
-    const prizeMatch = title.match(/\$(\d+(?:,\d{3})*)/);
-    if (!prizeMatch) {
-      console.warn('Could not extract prize amount from title:', title);
-      return null;
-    }
-    
-    const prizeAmount = parseInt(prizeMatch[1].replace(/,/g, ''));
-    const platformFee = prizeAmount * 0.15; // 15% platform fee
-    const remainingPool = prizeAmount - platformFee;
-    
-    // Determine payout structure based on prize amount
-    let payouts;
-    
-    if (prizeAmount === 2) {
-      // $2 Hot Sell: 1st gets $1.50, 2nd gets $0.35, no 3rd
-      payouts = {
-        first: 1.50,
-        second: 0.35,
-        third: 0,
-        platformFee: 0.15,
-        maxPlayers: 2
-      };
-    } else if (prizeAmount === 3) {
-      // $3 Hot Sell: Winner gets $2.10, 2nd gets $0.45, no 3rd
-      payouts = {
-        first: 2.10,
-        second: 0.45,
-        third: 0,
-        platformFee: 0.45,
-        maxPlayers: 2
-      };
-    } else if (prizeAmount === 10) {
-      // $10 Hot Sell: 1st gets $4.25, 2nd gets $2.55, 3rd gets $1.70
-      payouts = {
-        first: 4.25,
-        second: 2.55,
-        third: 1.70,
-        platformFee: 1.50,
-        maxPlayers: 10
-      };
-    } else if (prizeAmount === 100) {
-      // $100 Hot Sell: Winner gets $85, 2nd gets $15, no 3rd
-      payouts = {
-        first: 85,
-        second: 15,
-        third: 0,
-        platformFee: 15,
-        maxPlayers: 100
-      };
-    } else if (prizeAmount === 250) {
-      // $250 Hot Sell: Winner gets $212.50, 2nd gets $37.50, no 3rd
-      payouts = {
-        first: 212.50,
-        second: 37.50,
-        third: 0,
-        platformFee: 37.50,
-        maxPlayers: 250
-      };
-    } else if (prizeAmount === 1000) {
-      // $1000 Hot Sell: Winner gets $850, 2nd gets $150, no 3rd
-      payouts = {
-        first: 850,
-        second: 150,
-        third: 0,
-        platformFee: 150,
-        maxPlayers: 1000
-      };
-    } else if (prizeAmount === 2500) {
-      // $2500 Hot Sell: Winner gets $2125, 2nd gets $375, no 3rd
-      payouts = {
-        first: 2125,
-        second: 375,
-        third: 0,
-        platformFee: 375,
-        maxPlayers: 2500
-      };
-    } else {
-      // Default calculation for other amounts
-      payouts = {
-        first: Math.round(remainingPool * 0.5 * 100) / 100,
-        second: Math.round(remainingPool * 0.3 * 100) / 100,
-        third: Math.round(remainingPool * 0.2 * 100) / 100,
-        platformFee: Math.round(platformFee * 100) / 100,
-        maxPlayers: prizeAmount // 1 player per dollar
-      };
-    }
+  const calculatePrizes = (config: HotSellConfig, currentPot: number) => {
+    const platformFee = currentPot * (config.platform_fee_percent / 100);
+    const distributablePot = currentPot - platformFee;
+    const firstPlace = distributablePot * (config.first_place_percent / 100);
+    const secondPlace = distributablePot * (config.second_place_percent / 100);
+    const thirdPlace = distributablePot * (config.third_place_percent / 100);
     
     return {
-      ...payouts,
-      totalPrize: prizeAmount,
-      entryFee: 1, // Always 1 token = $1
-      playersNeeded: payouts.maxPlayers
+      firstPlace,
+      secondPlace,
+      thirdPlace,
+      platformFee
     };
   };
 
-  // Adjust entry fees using appropriate payout calculation
-  const adjustEntryFee = (config: FixedGameConfig) => {
-    // Check if this is a Winner Takes It All tournament
-    // Convert Winner Takes It All tournaments to regular hot sell tournaments
-    if (config.title?.includes('Winner Takes It All')) {
-      const title = config.title || '';
-      
-      // Extract prize amount and convert to regular hot sell format
-      if (title.includes('$100 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$100 Hot Sell - Laser Dodge',
-          description: '1st place: $42.50, 2nd place: $25.50, 3rd place: $17.00. Platform fee: $15.00',
-          entry_fee: 1,
-          prize_pool: 100,
-          max_participants: 100
-        };
-      }
-      
-      if (title.includes('$250 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$250 Hot Sell - Multi Target',
-          description: '1st place: $106.25, 2nd place: $63.75, 3rd place: $42.50. Platform fee: $37.50',
-          entry_fee: 1,
-          prize_pool: 250,
-          max_participants: 250
-        };
-      }
-      
-      if (title.includes('$1000 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$1000 Hot Sell - Sword Parry',
-          description: '1st place: $425.00, 2nd place: $255.00, 3rd place: $170.00. Platform fee: $150.00',
-          entry_fee: 1,
-          prize_pool: 1000,
-          max_participants: 1000
-        };
-      }
-      
-      if (title.includes('$2500 Winner Takes It All')) {
-        return {
-          ...config,
-          title: '$2500 Hot Sell - Laser Dodge',
-          description: '1st place: $1062.50, 2nd place: $637.50, 3rd place: $425.00. Platform fee: $375.00',
-          entry_fee: 1,
-          prize_pool: 2500,
-          max_participants: 2500
-        };
-      }
-    }
-    
-    // Regular hot sell tournaments
-    const payouts = calculateTournamentPayouts(config);
-    
-    if (!payouts) {
-      console.warn('Could not calculate payouts for config:', config.title);
-      return config;
-    }
-    
-    return {
-      ...config,
-      entry_fee: payouts.entryFee,
-      prize_pool: payouts.totalPrize,
-      max_participants: payouts.maxPlayers
-    };
-  };
+  // Prevent back navigation during game
+  useEffect(() => {
+    if (currentView === 'game') {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = 'Are you sure you want to leave? Your progress will be lost.';
+        return 'Are you sure you want to leave? Your progress will be lost.';
+      };
 
-  const getGameIcon = (gameType: string) => {
-    switch (gameType) {
-      case 'multi_target_reaction': return '🎯';
-      case 'multi_target': return '🎯'; // Add support for multi_target
-      case 'sword_parry': return '⚔️';
-      case 'laser_dodge': return '💥';
-      case 'memory_color': return '🎨';
-      case 'number_tap': return '🔢';
-      default: return '🎮';
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
     }
-  };
-
-  const formatTimeRemaining = (minutes: number, seconds: number): string => {
-    if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
-    }
-    return `${seconds}s`;
-  };
+  }, [currentView]);
 
   if (isLoading) {
-  return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white">
         <CleanNavigation />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <span className="ml-4 text-lg">Loading hot sell tournaments...</span>
-                </div>
-              </div>
-              </div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400"></div>
+            <span className="ml-4 text-lg text-orange-200">Loading Hot Sell tournaments...</span>
+          </div>
+        </div>
+      </div>
     );
   }
 
   // Render game flow view
   if (currentView === 'game' && selectedGameFlow) {
-    // Find the game configuration to get the RNG seed
-    const gameConfig = fixedGameConfigs.find(config => config.id === selectedGameFlow.configId);
+    const gameConfig = configs.find(c => c.id === selectedGameFlow.configId);
     const rngSeed = gameConfig?.rng_seed || 1;
-    
-    console.log('🎮 [HotSell] Rendering CompetitionGameFlow:', {
-      currentView,
-      selectedGameFlow,
-      gameConfig,
-      rngSeed
-    });
     
     return (
       <ErrorBoundary>
-        <CompetitionGameFlow
-          gameType={selectedGameFlow.gameType}
-          sessionId={selectedGameFlow.sessionId}
-          configId={selectedGameFlow.configId}
-          rngSeed={rngSeed}
-          onComplete={(score, accuracy) => {
-            console.log('Game completed:', { score, accuracy });
-            // Deduct tokens after game completion
-            handleGameCompletion(score, accuracy);
-            setCurrentView('listings');
-            setSelectedGameFlow(null);
-          }}
-          onCancel={() => {
-            setCurrentView('listings');
-            setSelectedGameFlow(null);
-          }}
-        />
+        <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white">
+          <CleanNavigation />
+          <div className="container mx-auto px-4 py-8">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-orange-200 mb-4">Playing: {gameConfig?.title}</h1>
+              <p className="text-orange-300">Complete the game to record your score!</p>
+            </div>
+            
+            <CompetitionGameFlow
+              gameType={selectedGameFlow.gameType}
+              sessionId={selectedGameFlow.sessionId}
+              configId={selectedGameFlow.configId}
+              onComplete={handleGameComplete}
+              onCancel={() => {
+                setCurrentView('list');
+                setSelectedGameFlow(null);
+              }}
+              rngSeed={rngSeed}
+            />
+          </div>
+        </div>
       </ErrorBoundary>
     );
   }
 
-  // Render legacy game view
-  if (currentView === 'game' && selectedListing) {
-    return (
-      <HotSellGame
-        listing={selectedListing}
-        onGameComplete={handleGameComplete}
-        onLocationVerified={handleLocationVerified}
-      />
-    );
-  }
-
-  // Render scoreboard view
-  if (currentView === 'scoreboard' && selectedListing) {
-    return (
-      <HotSellScoreboard listing={selectedListing} />
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-900 via-red-900 to-red-800 text-white relative overflow-hidden animate-orange-fire-flicker">
+    <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -1363,1003 +576,296 @@ export default function HotSellPage() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
       </div>
       
-      <CleanNavigation currentPage="hot-sell" />
+      <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative">
-              <FireIcon className="w-16 h-16 text-red-500 mr-6 animate-bounce" />
-              <div className="absolute inset-0 w-16 h-16 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
+        {/* Location Verification Banner */}
+        {isAuthenticated && (
+          <div className={`mb-6 p-4 rounded-xl border ${
+            locationLoading 
+              ? 'bg-blue-500/20 border-blue-500/50' 
+              : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
+              ? 'bg-green-500/20 border-green-500/50' 
+              : 'bg-red-500/20 border-red-500/50'
+          }`}>
+            <div className="flex items-center justify-center">
+              {locationLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-3"></div>
+                  <span className="text-blue-300 text-lg font-semibold">Verifying Location...</span>
+                </>
+              ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
+                <>
+                  <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
+                  <span className="text-green-300 text-lg font-semibold">Location Verified - Gaming Allowed</span>
+                  <span className="text-green-200 text-sm ml-2">({improvedLocation.city}, {improvedLocation.state})</span>
+                </>
+              ) : (
+                <>
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
+                  <span className="text-red-300 text-lg font-semibold">Gaming Not Allowed in Your Location</span>
+                  <span className="text-red-200 text-sm ml-2">({improvedLocation?.city || 'Unknown'}, {improvedLocation?.state || 'Unknown'})</span>
+                </>
+              )}
             </div>
-            <h1 className="text-6xl font-black bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 bg-clip-text text-transparent animate-gradient">
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center mb-4">
+            <div className="animate-bounce">
+              <span className="text-6xl">🔥</span>
+            </div>
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-orange-400 via-red-400 to-yellow-400 bg-clip-text text-transparent animate-pulse mx-6">
               HOT SELL
             </h1>
+            <div className="animate-bounce">
+              <span className="text-6xl">🔥</span>
+            </div>
           </div>
-          <p className="text-2xl text-gray-200 mb-3 font-light tracking-wide">Elite Cash Prize Tournaments</p>
-          <p className="text-lg text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed">Compete for massive payouts with real money prizes in our most prestigious tournaments</p>
+          <p className="text-2xl text-orange-200 mb-2 font-semibold">1 Token Entry - Top 3 Win Prizes!</p>
+          <p className="text-xl text-orange-300">1st: 60% | 2nd: 25% | 3rd: 15%</p>
           
-          {/* User Token Balance */}
+          {/* User Status */}
           {isAuthenticated && (
-            <div className="mt-8 inline-flex items-center bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-xl rounded-2xl px-8 py-4 border border-yellow-400/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-              <BanknotesIcon className="w-7 h-7 text-yellow-400 mr-4 animate-pulse" />
-              <span className="text-xl font-bold text-yellow-300">Your Tokens: {userTokens}</span>
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <div className="inline-flex items-center bg-orange-500/20 backdrop-blur-xl rounded-2xl px-8 py-4 border border-orange-500/30">
+                <BanknotesIcon className="w-8 h-8 text-orange-300 mr-4" />
+                <div className="text-left">
+                  <p className="text-sm text-orange-300 font-medium">Your Tokens</p>
+                  <p className="text-3xl font-bold text-white">{tokensLoading ? '...' : userTokens.toFixed(2)}</p>
+                </div>
+              </div>
             </div>
           )}
-
-          {/* Admin Testing Button - TEMPORARY */}
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                // Set all hot sell timers to 20 seconds for testing
-                const updatedSessions = hotSellSessions.map(session => ({
-                  ...session,
-                  expires_at: new Date(Date.now() + 20 * 1000).toISOString()
-                }));
-                setHotSellSessions(updatedSessions);
-                console.log('🔥 [Admin] Hot sell timers set to 20 seconds for testing');
-              }}
-              className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl text-sm"
-            >
-              🔥 ADMIN: Set Hot Sell Timer to 20s (Testing Only)
-            </button>
-          </div>
         </div>
 
         {/* Message Display */}
         {message && (
           <div className={`mb-6 p-4 rounded-xl border ${
             message.type === 'success' 
-              ? 'bg-green-500/20 border-green-500/50 text-green-300' 
-              : 'bg-red-500/20 border-red-500/50 text-red-300'
+              ? 'bg-green-500/20 border-green-500/50' 
+              : 'bg-red-500/20 border-red-500/50'
           }`}>
-            <div className="flex items-center">
-              {message.type === 'success' ? (
-                <CheckCircleIcon className="w-5 h-5 mr-2" />
-              ) : (
-                <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
-              )}
+            <p className={`text-center font-semibold ${
+              message.type === 'success' ? 'text-green-300' : 'text-red-300'
+            }`}>
               {message.text}
-            </div>
+            </p>
           </div>
         )}
 
-        {/* Hot Sell Games - PRIORITY SECTION */}
-        <div className="mb-16">
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center mb-6">
-              <div className="relative">
-                <span className="text-5xl mr-4 animate-pulse">🎯</span>
-                <div className="absolute inset-0 text-5xl mr-4 opacity-30 blur-sm animate-pulse">🎯</div>
-              </div>
-              <h2 className="text-4xl font-black bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent animate-gradient">
-                HOT SELL GAMES
-              </h2>
-            </div>
-            <p className="text-xl text-gray-200 mb-4 font-light">Daily tournaments with competitive prizes and 2-hour timers</p>
-            <div className="w-24 h-1 bg-gradient-to-r from-red-500 to-orange-500 mx-auto rounded-full"></div>
-            {prizeEligibility && (
-              <div className={`mt-4 inline-flex items-center rounded-2xl px-6 py-3 border ${
-                prizeEligibility.eligible 
-                  ? 'bg-green-500/20 border-green-500/50 text-green-300' 
-                  : 'bg-red-500/20 border-red-500/50 text-red-300'
-              }`}>
-                {prizeEligibility.eligible ? (
-                  <CheckCircleIcon className="w-5 h-5 mr-2" />
-                ) : (
-                  <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
-                )}
-                <span className="text-sm">{prizeEligibility.reason}</span>
-        </div>
-            )}
-              </div>
+        {/* Hot Sell Games */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {configs.map((config) => {
+            const session = sessions.find(s => s.config_id === config.id);
+            if (!session) return null;
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {fixedGameConfigs
-              .filter(config => !config.title?.includes('$3 Winner Takes It All'))
-              .map((config) => {
-              const adjustedConfig = adjustEntryFee(config);
-              const session = hotSellSessions.find(s => s.config_id === config.id);
-              const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculateTournamentPayouts(adjustedConfig);
-              const isHotSell = timer?.isHotSell || false;
-              const canJoin = userTokens >= adjustedConfig.entry_fee;
-              const isWinnerTakesAll = config.title?.includes('Winner Takes It All') || false;
-              
-              // Skip rendering if payout calculation failed
-              if (!prizeDistribution) {
-                console.warn('Skipping config due to payout calculation failure:', adjustedConfig.title);
-                return null;
-              }
-              
-              return (
-                <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-                  isHotSell ? 'border-red-500/50 bg-red-500/10' : 'border-white/20 hover:bg-white/15'
-                }`}>
-                  {/* Game Header */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center">
-                        <span className="text-3xl mr-3">{getGameIcon(config.game_type)}</span>
-                        <h3 className="text-xl font-bold text-white">{adjustedConfig.title}</h3>
-              </div>
-                      <div className={`flex items-center rounded-full px-3 py-1 ${
-                        isHotSell ? 'bg-red-500/20 text-red-300' : 'bg-blue-500/20 text-blue-300'
-                      }`}>
-                        {isHotSell ? (
-                          <>
-                            <BoltIcon className="w-4 h-4 mr-1" />
-                            <span className="text-xs font-semibold">HOT SELL</span>
-                          </>
-                        ) : (
-                          <>
-                            <ClockIcon className="w-4 h-4 mr-1" />
-                            <span className="text-xs font-semibold">WAITING</span>
-                          </>
-                        )}
-              </div>
-            </div>
-                    
-                    <p className="text-gray-300 mb-4">{adjustedConfig.description}</p>
-                    
-                    {/* Prize Pool */}
-                    <div className={`rounded-2xl p-4 mb-4 ${
-                      isHotSell 
-                        ? 'bg-gradient-to-r from-red-500 to-orange-500' 
-                        : 'bg-gradient-to-r from-yellow-500 to-orange-500'
-                    }`}>
-          <div className="text-center">
-                        <p className="text-yellow-100 text-sm font-medium mb-1">PRIZE POOL</p>
-                        <p className="text-2xl font-bold text-white">{formatPrizeAmount(adjustedConfig.prize_pool)}</p>
-                        {session && (
-                          <p className="text-yellow-100 text-xs mt-1">
-                            Current Pot: {formatPrizeAmount(session.current_pot)} ({session.participants_count} players)
-                          </p>
-                        )}
-          </div>
-        </div>
-      </div>
+            const hasJoined = session.participants.some(p => p.user_id === user?.id);
+            const hasPlayed = session.participants.some(p => p.user_id === user?.id && p.score !== null);
+            const isCompleted = session.status === 'completed';
+            const isFull = session.participants_count >= config.max_participants;
+            const progressPercent = getProgressPercent(session.current_pot, config.max_participants, config.entry_fee);
+            const prizes = calculatePrizes(config, session.current_pot);
 
-                  {/* Timer Display */}
-                  {timer && (
-                    <div className="mb-4">
-                      <div className={`text-center p-3 rounded-xl ${
-                        isWinnerTakesAll ? (
-                          timer.isBasePriceMet ? 'bg-green-500/20 border border-green-500/50' : 'bg-yellow-500/20 border border-yellow-500/50'
-                        ) : (
-                          isHotSell ? 'bg-red-500/20 border border-red-500/50' : 
-                          session && session.current_pot >= session.target_pot ? 'bg-blue-500/20 border border-blue-500/50' :
-                          'bg-yellow-500/20 border border-yellow-500/50'
-                        )
-                      }`}>
-                        <div className="flex items-center justify-center mb-2">
-                          <ClockIcon className={`w-5 h-5 mr-2 ${
-                            isWinnerTakesAll ? (
-                              timer.isBasePriceMet ? 'text-green-400' : 'text-yellow-400'
-                            ) : (
-                              isHotSell ? 'text-red-400' : 
-                              session && session.current_pot >= session.target_pot ? 'text-blue-400' :
-                              'text-yellow-400'
-                            )
-                          }`} />
-                          <span className={`font-semibold ${
-                            isWinnerTakesAll ? (
-                              timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
-                            ) : (
-                              isHotSell ? 'text-red-300' : 
-                              session && session.current_pot >= session.target_pot ? 'text-blue-300' :
-                              'text-yellow-300'
-                            )
-                          }`}>
-                            {isWinnerTakesAll ? (
-                              timer.isBasePriceMet ? 'Game Timer Active!' : 'Waiting for Base Price'
-                            ) : (
-                              isHotSell ? 'HOT SELL MODE!' : 
-                              session && session.current_pot >= session.target_pot ? 'Time Remaining' :
-                              'Waiting for Base Price'
-                            )}
-                          </span>
-                        </div>
-                        <p className={`text-lg font-bold ${
-                          isWinnerTakesAll ? (
-                            timer.isBasePriceMet ? 'text-green-300' : 'text-yellow-300'
-                          ) : (
-                            isHotSell ? 'text-red-300' : 
-                            session && session.current_pot >= session.target_pot ? 'text-blue-300' :
-                            'text-yellow-300'
-                          )
-                        }`}>
-                          {isWinnerTakesAll ? (
-                            timer.isBasePriceMet ? formatTimeRemaining(timer.minutes, timer.seconds) : 
-                            `Need $${timer.basePrice || 0} more to start`
-                          ) : (
-                            isHotSell ? formatTimeRemaining(timer.minutes, timer.seconds) :
-                            session && session.current_pot >= session.target_pot ? formatTimeRemaining(timer.minutes, timer.seconds) :
-                            `Need ${session?.target_pot || 0} more players`
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+            // User's score
+            const userParticipant = session.participants.find(p => p.user_id === user?.id);
+            const userScore = userParticipant?.score;
 
-                  {/* Prize Distribution */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
-                      <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                      Prize Distribution
-                    </h4>
-                    <div className="space-y-2">
-                      {/* Regular Hot Sell display for all tournaments */}
-                      <>
-                        <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                          <div className="flex items-center">
-                            <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-white font-bold text-xs">1</span>
-              </div>
-                            <span className="text-white text-sm">1st Place</span>
-              </div>
-                          <span className="text-yellow-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.first)}</span>
-              </div>
-                        <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                          <div className="flex items-center">
-                            <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-white font-bold text-xs">2</span>
-              </div>
-                            <span className="text-white text-sm">2nd Place</span>
-              </div>
-                          <span className="text-gray-300 font-bold text-sm">{formatPrizeAmount(prizeDistribution.second)}</span>
-              </div>
-                        {/* Only show 3rd place if there's a prize for it */}
-                        {prizeDistribution.third > 0 && (
-                          <div className="flex items-center justify-between bg-white/5 rounded-lg p-2">
-                            <div className="flex items-center">
-                              <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-white font-bold text-xs">3</span>
-            </div>
-                              <span className="text-white text-sm">3rd Place</span>
-          </div>
-                            <span className="text-orange-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.third)}</span>
-        </div>
-                        )}
-                        <div className="flex items-center justify-between bg-red-500/20 rounded-lg p-2 border border-red-500/30">
-                          <div className="flex items-center">
-                            <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-white font-bold text-xs">📊</span>
-      </div>
-                            <span className="text-red-300 text-sm">Platform Fee (15%)</span>
-              </div>
-                          <span className="text-red-400 font-bold text-sm">{formatPrizeAmount(prizeDistribution.platformFee)}</span>
-                        </div>
-                      </>
-                    </div>
-                  </div>
+            // Top scores (hide if user hasn't joined)
+            const topScores = session.participants
+              .filter(p => p.score !== null)
+              .sort((a, b) => (b.score || 0) - (a.score || 0))
+              .slice(0, 3);
 
-                  {/* Progress Bar - All tournaments use tokens to base price */}
-                <div className="mb-4">
-                      <div className="flex justify-between text-sm text-gray-300 mb-2">
-                        <span>Token Progress</span>
-                        <span>{session?.current_pot || 0} / {prizeDistribution.maxPlayers} tokens to base price</span>
-                  </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3">
-                        <div 
-                          className={`h-3 rounded-full transition-all duration-300 ${
-                            isHotSell 
-                              ? 'bg-gradient-to-r from-red-500 to-orange-500' 
-                              : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                          }`} 
-                          style={{ 
-                            width: `${Math.min(100, ((session?.current_pot || 0) / prizeDistribution.maxPlayers) * 100)}%` 
-                          }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Base Price: {prizeDistribution.maxPlayers} tokens</span>
-                        <span>Current Pot: {session?.current_pot || 0} tokens</span>
-                  </div>
-                </div>
-                
-                  {/* Game Info */}
-                  <div className="mb-6 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <BanknotesIcon className="w-4 h-4 text-green-400 mr-2" />
-                        <span className="text-gray-300 text-sm">Entry Fee</span>
-                      </div>
-                      <span className="text-white font-semibold text-sm">{adjustedConfig.entry_fee} tokens</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <UsersIcon className="w-4 h-4 text-blue-400 mr-2" />
-                        <span className="text-gray-300 text-sm">Max Players</span>
-                      </div>
-                      <span className="text-white font-semibold text-sm">{adjustedConfig.max_participants}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <ClockIcon className="w-4 h-4 text-blue-400 mr-2" />
-                        <span className="text-gray-300 text-sm">Duration</span>
-                      </div>
-                      <span className="text-white font-semibold text-sm">{adjustedConfig.game_duration}s</span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="space-y-3">
-                    {!isAuthenticated ? (
-                      <div className="bg-gray-600 rounded-xl p-3 text-center">
-                        <p className="text-gray-300 text-sm">Please log in to join tournaments</p>
-                      </div>
-                    ) : !canJoin ? (
-                      <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
-                        <p className="text-red-300 text-sm">You need {adjustedConfig.entry_fee} tokens to join</p>
-                      </div>
-                    ) : (
-                      <>
-                        {session ? (
-                          <button
-                            onClick={() => joinHotSellSession(session, adjustedConfig)}
-                            disabled={joiningSession === session.id || hasUserJoined(session.id)}
-                            className={`w-full font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
-                              isHotSell 
-                                ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white'
-                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white'
-                            }`}
-                          >
-                            {joiningSession === session.id ? (
-                              <div className="flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Joining...
-                              </div>
-                            ) : hasUserJoined(session.id) ? (
-                              <div className="flex items-center justify-center">
-                                ✅ ALREADY JOINED
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center">
-                                {isHotSell ? (
-                                  <>
-                                    <LockClosedIcon className="w-4 h-4 mr-2" />
-                                    <BoltIcon className="w-4 h-4 mr-2" />
-                                    JOIN HOT SELL - {adjustedConfig.entry_fee} TOKENS
-                                  </>
-                                ) : (
-                                  <>
-                                    <LockClosedIcon className="w-4 h-4 mr-2" />
-                                    <PlayIcon className="w-4 h-4 mr-2" />
-                                    JOIN SESSION - {adjustedConfig.entry_fee} TOKENS
-                                  </>
-                                )}
-                              </div>
-                            )}
-                    </button>
-                        ) : (
-                          <button
-                            onClick={() => createHotSellSession(adjustedConfig)}
-                            className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                          >
-                            <div className="flex items-center justify-center">
-                              <LockClosedIcon className="w-4 h-4 mr-2" />
-                              START NEW SESSION
-                            </div>
-                    </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Scoreboard Section */}
-                  <div className="mt-6">
-                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                      <button
-                        onClick={() => {
-                          const scoreboardElement = document.getElementById(`scoreboard-${config.id}`);
-                          if (scoreboardElement) {
-                            scoreboardElement.classList.toggle('hidden');
-                          }
-                        }}
-                        className="w-full flex items-center justify-between text-left"
-                      >
-                        <h4 className="text-sm font-semibold text-white flex items-center">
-                          <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                          Live Scoreboard
-                        </h4>
-                        <span className="text-gray-400 text-xs">Click to expand</span>
-                    </button>
-                      
-                      <div id={`scoreboard-${config.id}`} className="hidden mt-3">
-                        {session && session.participants_count > 0 ? (
-                          <div className="space-y-2">
-                            {/* Show locked message for users who haven't played */}
-                            {!hasUserJoined(session.id) && (
-                              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
-                                <div className="flex items-center justify-center">
-                                  <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                                  <span className="text-yellow-300 text-sm font-medium">
-                                    Join the game to see live scores!
-                                  </span>
-                  </div>
-                </div>
-                            )}
-                            
-                            {/* Show scores for users who have played */}
-                            {hasUserJoined(session.id) && (
-                              <div className="space-y-2">
-                                <div className="text-center text-gray-400 text-xs mb-2">
-                                  <UsersIcon className="w-4 h-4 inline mr-1" />
-                                  {session.participants_count} players • {session.participants_count > 0 ? 'Game in progress' : 'Waiting for players'}
-                                </div>
-                                
-                                {/* Real participant scores */}
-                                {winnerTakesAllParticipants[session.id] && winnerTakesAllParticipants[session.id].length > 0 ? (
-                                  <div className="space-y-2">
-                                    {winnerTakesAllParticipants[session.id]
-                                      .filter(p => p.score !== null && p.score !== undefined)
-                                      .sort((a, b) => (b.score || 0) - (a.score || 0))
-                                      .map((participant, index) => (
-                                        <div key={participant.id} className="bg-white/5 rounded-lg p-3">
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center">
-                                              <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-                                                participant.user_id === user?.id ? 'bg-yellow-500' : 
-                                                index === 0 ? 'bg-yellow-500' : 
-                                                index === 1 ? 'bg-gray-400' : 
-                                                index === 2 ? 'bg-orange-500' : 'bg-gray-600'
-                                              }`}>
-                                                <span className="text-white font-bold text-xs">{index + 1}</span>
-                </div>
-                                              <span className="text-white text-sm">
-                                                {participant.user_id === user?.id ? 'You' : `Player ${participant.user_id.slice(-4)}`}
-                                              </span>
-                                            </div>
-                                            <span className="text-yellow-400 font-bold text-sm">{participant.score}</span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                  </div>
-                                ) : (
-                                  <div className="bg-white/5 rounded-lg p-3 text-center">
-                                    <span className="text-gray-400 text-sm">No scores yet - game in progress</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center text-gray-400 text-sm">
-                            {session ? 'No players yet. Be the first to join!' : 'No active session. Create a session to start playing!'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-              </div>
-            </div>
-
-        {/* Elite Tournaments Section */}
-        <div className="mb-16">
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center mb-6">
-              <div className="relative">
-                <span className="text-5xl mr-4 animate-bounce">🏆</span>
-                <div className="absolute inset-0 text-5xl mr-4 opacity-30 blur-sm animate-pulse">🏆</div>
-              </div>
-              <h2 className="text-4xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient">
-                ELITE TOURNAMENTS
-              </h2>
-            </div>
-            <p className="text-xl text-gray-200 mb-3 font-light">Premium tournaments with exclusive prizes</p>
-            <p className="text-lg text-gray-400 mb-4">Competitive entry tournaments with growing prize pools</p>
-            <div className="w-24 h-1 bg-gradient-to-r from-yellow-500 to-red-500 mx-auto rounded-full"></div>
-              </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Elite Tournament Games */}
-            {fixedGameConfigs
-              .filter(config => config.tournament_type === 'winner_takes_all' && !config.title?.includes('$3 Winner Takes It All'))
-              .map((config) => {
-              
-              // Use Winner Takes It All sessions instead of hot sell sessions
-              const adjustedConfig = adjustEntryFee(config);
-              const session = winnerTakesAllSessions.find(s => s.config_id === config.id);
-              const timer = session ? timeRemaining[session.id] : null;
-              const prizeDistribution = calculateWinnerTakesAllPayouts(adjustedConfig);
-              const isHotSell = timer?.isHotSell || false;
-              const canJoin = userTokens >= adjustedConfig.entry_fee;
-              
-              // Skip rendering if payout calculation failed
-              if (!prizeDistribution) {
-                console.warn('Skipping Winner Takes It All config due to payout calculation failure:', adjustedConfig.title);
-                return null;
-              }
-              
-              return (
-                <div key={config.id} className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-                  isHotSell ? 'border-red-500/50 bg-red-500/10' : 'border-white/20 hover:bg-white/15'
-                }`}>
-                  {/* Game Header */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center">
-                        <span className="text-3xl mr-3">🏆</span>
-                        <h3 className="text-xl font-bold text-white">{adjustedConfig.title}</h3>
-                  </div>
-                      <div className="flex items-center rounded-full px-3 py-1 bg-purple-500/20 text-purple-300">
-                        <StarIcon className="w-4 h-4 mr-1" />
-                        <span className="text-xs font-semibold">WINNER TAKES ALL</span>
-                  </div>
-                </div>
-                
-                    <p className="text-gray-300 mb-4">{adjustedConfig.description}</p>
-                    
-                    {/* Entry Fee */}
-                    <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-green-500 to-emerald-500">
-                      <div className="text-center">
-                        <p className="text-green-100 text-sm font-medium mb-1">ENTRY FEE</p>
-                        <p className="text-2xl font-bold text-white">${adjustedConfig.entry_fee}.00</p>
-                  </div>
-                </div>
-                
-                    {/* Current Pot */}
-                    <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
-                      <div className="text-center">
-                        <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                        <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
-                        <p className="text-purple-200 text-xs mt-1">Base pot: ${adjustedConfig.prize_pool}, grows with each player's token</p>
-                      </div>
-                    </div>
-                
-                    {/* Progress Bar - Current pot to base price */}
-                <div className="mb-4">
-                      <div className="flex justify-between text-sm text-gray-300 mb-2">
-                        <span>Progress to Base Price</span>
-                        <span>{session?.current_pot || 0} / {adjustedConfig.prize_pool} tokens</span>
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3">
-                        <div 
-                          className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-green-500 to-emerald-500" 
-                          style={{ 
-                            width: `${Math.min(100, ((session?.current_pot || 0) / adjustedConfig.prize_pool) * 100)}%` 
-                          }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 mt-1">
-                        <span>Base Price: {adjustedConfig.prize_pool} tokens</span>
-                        <span>Current Pot: {session?.current_pot || 0} tokens</span>
-                      </div>
-                    </div>
-                
-                    {/* Game Info */}
-                    <div className="space-y-2 text-sm text-gray-300 mb-6">
-                      <div className="flex justify-between">
-                        <span>Game Type:</span>
-                        <span className="text-white font-medium">{getGameIcon(config.game_type)} {config.game_type.replace('_', ' ').toUpperCase()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Duration:</span>
-                        <span className="text-white font-medium">{config.game_duration}s</span>
-                      </div>
-                    </div>
-                
-                    {/* Scoreboard Section */}
-                    <div className="mt-6 mb-4">
-                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                        <button
-                          onClick={() => {
-                            const scoreboardElement = document.getElementById(`winner-scoreboard-${config.id}`);
-                            if (scoreboardElement) {
-                              scoreboardElement.classList.toggle('hidden');
-                            }
-                          }}
-                          className="w-full flex items-center justify-between text-left"
-                        >
-                          <h4 className="text-sm font-semibold text-white flex items-center">
-                            <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                            Live Scoreboard
-                          </h4>
-                          <span className="text-gray-400 text-xs">Click to expand</span>
-                    </button>
-                        
-                        <div id={`winner-scoreboard-${config.id}`} className="hidden mt-3">
-                          <div className="space-y-2">
-                            {/* Show locked message for users who haven't played */}
-                            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
-                              <div className="flex items-center justify-center">
-                                <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                                <span className="text-yellow-300 text-sm font-medium">
-                                  Join the game to see live scores!
-                                </span>
-                  </div>
-                </div>
-                
-                            {/* Payout Information */}
-                            <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
-                              <div className="text-center">
-                                <div className="text-green-700 text-xs font-medium mb-1">Winner Takes All</div>
-                                <div className="text-green-800 font-bold text-sm">
-                                  Winner Gets: $3.00
-                                  <span className="text-xs text-green-600 ml-1">(grows with each player)</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Join Button - Use same logic as hot sell banners */}
-                    <div className="space-y-3">
-                      {!isAuthenticated ? (
-                        <div className="bg-gray-600 rounded-xl p-3 text-center">
-                          <p className="text-gray-300 text-sm">Please log in to join tournaments</p>
-                        </div>
-                      ) : !canJoin ? (
-                        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
-                          <p className="text-red-300 text-sm">You need {adjustedConfig.entry_fee} tokens to join</p>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => joinWinnerTakesAllSession(config.id)}
-                          disabled={joiningWinnerTakesAll}
-                          className={`w-full py-3 px-6 rounded-2xl font-bold text-white transition-all duration-300 ${
-                            joiningWinnerTakesAll
-                              ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                              : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 hover:scale-105 shadow-lg hover:shadow-xl'
-                          }`}
-                        >
-                          {joiningWinnerTakesAll ? (
-                            <div className="flex items-center justify-center">
-                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                              Joining...
-                            </div>
-                          ) : (
-                            `🔒 JOIN FOR $${adjustedConfig.entry_fee}.00`
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-              </div>
-            </div>
-
-        {/* Blind Scoreboard Section */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">🎯 BLIND SCOREBOARD</h2>
-            <p className="text-lg text-gray-300">Competitive matches with hidden scores until completion</p>
-            <p className="text-sm text-gray-400">Scores are revealed only after all players finish</p>
-                </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {blindListings.map((listing) => (
-              <div key={listing.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:bg-white/15">
-                {/* Game Header */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <span className="text-3xl mr-3">{getGameIcon(listing.game_key)}</span>
-                      <h3 className="text-xl font-bold text-white">{listing.title}</h3>
-                    </div>
-                    <div className="flex items-center bg-purple-500/20 rounded-full px-3 py-1">
-                      <LockClosedIcon className="w-4 h-4 mr-1" />
-                      <span className="text-purple-300 text-xs font-semibold">BLIND</span>
-              </div>
-            </div>
-
-                  <p className="text-gray-300 mb-4">{listing.game_key.replace('_', ' ').toUpperCase()}</p>
-                  
-                  {/* Entry Fee */}
-                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
-                    <div className="text-center">
-                      <p className="text-purple-100 text-sm font-medium mb-1">ENTRY FEE</p>
-                      <p className="text-2xl font-bold text-white">{listing.entry_cost_tokens} tokens</p>
-              </div>
-                  </div>
-                  
-                  {/* Players Required */}
-                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-blue-500 to-cyan-500">
-                    <div className="text-center">
-                      <p className="text-blue-100 text-sm font-medium mb-1">PLAYERS REQUIRED</p>
-                      <p className="text-2xl font-bold text-white">{listing.required_players}</p>
-                  </div>
-                  </div>
-                </div>
-                
-                {/* Blind Scoreboard Component */}
-                <BlindScoreboard
-                  listing={listing}
-                  onGameStart={(matchId) => {
-                    console.log('🎮 Blind game starting for match:', matchId);
-                    // Handle game start
-                  }}
-                  onScoreSubmit={(matchId, score) => {
-                    console.log('📊 Blind score submitted:', { matchId, score });
-                    // Handle score submission
-                  }}
-                />
-              </div>
-            ))}
-                  </div>
-                </div>
-                
-        {/* Hot Sell Listings */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {hotSellListings.map((listing) => {
-            const listingParticipants = participants[listing.id] || [];
-            const prizeDistribution = calculateTournamentPayouts({ title: listing.title, prize_pool: listing.prize_pool } as FixedGameConfig);
-            const isJoined = listingParticipants.some(p => p.user_id === user?.id);
-            const canJoin = userTokens >= listing.entry_fee && !isJoined && listingParticipants.length < listing.max_participants;
-            
-            // Skip rendering if payout calculation failed
-            if (!prizeDistribution) {
-              console.warn('Skipping listing due to payout calculation failure:', listing.title);
-              return null;
-            }
-            
             return (
-              <div key={listing.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                {/* Tournament Header */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold text-white">{listing.title}</h2>
-                    <div className="flex items-center bg-red-500/20 rounded-full px-4 py-2">
-                      <FireIcon className="w-5 h-5 text-red-400 mr-2" />
-                      <span className="text-red-300 font-semibold">HOT</span>
-              </div>
-                  </div>
-                  
-                  <p className="text-gray-300 mb-4">{listing.description}</p>
-                  
-                  {/* Prize Pool */}
-                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6">
-                    <div className="text-center">
-                      <p className="text-yellow-100 text-sm font-medium mb-2">TOTAL PRIZE POOL</p>
-                      <p className="text-4xl font-bold text-white">{formatPrizeAmount(listing.prize_pool)}</p>
-                      <p className="text-yellow-100 text-sm mt-2">(15% fee deducted from prizes)</p>
+              <div key={config.id} className="bg-gradient-to-br from-orange-900/50 to-red-900/50 backdrop-blur-xl rounded-2xl p-6 border border-orange-500/30 shadow-2xl hover:shadow-orange-500/20 transition-all duration-300">
+                {/* Title */}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-2xl font-bold text-yellow-300">{config.title.replace(' Hot Sell - ', ' ')}</h3>
+                  <TrophyIcon className="w-8 h-8 text-yellow-400" />
                 </div>
-              </div>
-            </div>
 
-                {/* Prize Distribution */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                    <TrophyIcon className="w-5 h-5 mr-2 text-yellow-400" />
-                    Prize Distribution
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">1</span>
-              </div>
-                        <span className="text-white font-medium">1st Place</span>
-                      </div>
-                      <span className="text-yellow-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.first)}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">2</span>
-                        </div>
-                        <span className="text-white font-medium">2nd Place</span>
-                      </div>
-                      <span className="text-gray-300 font-bold text-lg">{formatPrizeAmount(prizeDistribution.second)}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white/5 rounded-xl p-3">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-bold text-sm">3</span>
-                        </div>
-                        <span className="text-white font-medium">3rd Place</span>
-                      </div>
-                      <span className="text-orange-400 font-bold text-lg">{formatPrizeAmount(prizeDistribution.third)}</span>
+                {/* Prize Breakdown */}
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-orange-300">🥇 1st Place (60%)</span>
+                    <span className="text-yellow-400 font-bold">{formatAmount(prizes.firstPlace)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-orange-300">🥈 2nd Place (25%)</span>
+                    <span className="text-gray-300 font-bold">{formatAmount(prizes.secondPlace)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-orange-300">🥉 3rd Place (15%)</span>
+                    <span className="text-orange-400 font-bold">{formatAmount(prizes.thirdPlace)}</span>
+                  </div>
+                  <div className="border-t border-orange-500/30 pt-2 mt-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-orange-400">Platform Fee (15%)</span>
+                      <span className="text-red-300">-{formatAmount(prizes.platformFee)}</span>
                     </div>
                   </div>
                 </div>
-                
-                {/* Tournament Info */}
-                <div className="mb-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <BanknotesIcon className="w-5 h-5 text-green-400 mr-2" />
-                      <span className="text-gray-300">Entry Fee</span>
+
+                {/* Current Pot */}
+                <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
+                  <div className="flex justify-between items-center">
+                    <span className="text-yellow-200 font-semibold">Current Pot</span>
+                    <span className="text-2xl font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
                   </div>
-                    <span className="text-white font-semibold">{listing.entry_fee} tokens</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <UsersIcon className="w-5 h-5 text-blue-400 mr-2" />
-                      <span className="text-gray-300">Participants</span>
-            </div>
-                    <span className="text-white font-semibold">{listingParticipants.length}/{listing.max_participants}</span>
                 </div>
-                
-                  {/* Progress Bar for Original Hot Sell Listings */}
+
+                {/* Progress Bar - YELLOW THEME */}
                 <div className="mb-4">
-                    <div className="flex justify-between text-sm text-gray-300 mb-2">
-                      <span>Participants Progress</span>
-                      <span>{listingParticipants.length} / {listing.max_participants} players</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-3">
-                      <div 
-                        className="h-3 rounded-full transition-all duration-300 bg-gradient-to-r from-yellow-500 to-orange-500" 
-                        style={{ 
-                          width: `${Math.min(100, (listingParticipants.length / listing.max_participants) * 100)}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>Target: {listing.max_participants} players</span>
-                      <span>Remaining: {Math.max(0, listing.max_participants - listingParticipants.length)} players</span>
-                    </div>
+                  <div className="flex justify-between text-xs text-orange-300 mb-2">
+                    <span>{session.participants_count} / {config.max_participants} Players</span>
+                    <span>{progressPercent.toFixed(0)}%</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <StarIcon className="w-5 h-5 text-purple-400 mr-2" />
-                      <span className="text-gray-300">Game Type</span>
-                    </div>
-                    <span className="text-white font-semibold capitalize">{listing.game_type.replace('-', ' ')}</span>
+                  <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden border border-yellow-500/30">
+                    <div 
+                      className="h-full bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 rounded-full transition-all duration-500 ease-out shadow-lg shadow-yellow-500/50"
+                      style={{ width: `${progressPercent}%` }}
+                    ></div>
                   </div>
                 </div>
-                
-                {/* Scoreboard Section */}
-                <div className="mt-6 mb-4">
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <button
-                      onClick={() => {
-                        const scoreboardElement = document.getElementById(`listing-scoreboard-${listing.id}`);
-                        if (scoreboardElement) {
-                          scoreboardElement.classList.toggle('hidden');
-                        }
-                      }}
-                      className="w-full flex items-center justify-between text-left"
-                    >
-                      <h4 className="text-sm font-semibold text-white flex items-center">
-                        <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                        Live Scoreboard
-                      </h4>
-                      <span className="text-gray-400 text-xs">Click to expand</span>
-                </button>
-                
-                    <div id={`listing-scoreboard-${listing.id}`} className="hidden mt-3">
-                      {listingParticipants.length > 0 ? (
-                        <div className="space-y-2">
-                          {/* Show locked message for users who haven't played */}
-                          {!isJoined && (
-                            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 text-center">
-                              <div className="flex items-center justify-center">
-                                <LockClosedIcon className="w-4 h-4 mr-2 text-yellow-400" />
-                                <span className="text-yellow-300 text-sm font-medium">
-                                  Join the tournament to see live scores!
-                                </span>
-                </div>
-              </div>
-                          )}
-                          
-                          {/* Show scores for users who have played */}
-                          {isJoined && (
-                            <div className="space-y-2">
-                              <div className="text-center text-gray-400 text-xs mb-2">
-                                <UsersIcon className="w-4 h-4 inline mr-1" />
-                                {listingParticipants.length} players • Tournament active
-            </div>
 
-                              {/* Placeholder for actual scores - will be populated after game completion */}
-                              <div className="bg-white/5 rounded-lg p-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center">
-                                    <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center mr-2">
-                                      <span className="text-white font-bold text-xs">1</span>
-              </div>
-                                    <span className="text-white text-sm">Your Score</span>
-                                  </div>
-                                  <span className="text-yellow-400 font-bold text-sm">--</span>
-                                </div>
-                              </div>
-                              
-                              <div className="text-center text-gray-500 text-xs">
-                                Scores will appear after game completion
+                {/* Top Scores (only show if user has joined) */}
+                {hasJoined && topScores.length > 0 && (
+                  <div className="mb-4 p-3 bg-black/30 rounded-xl">
+                    <h4 className="text-xs font-semibold text-orange-300 mb-2 uppercase">Current Top 3</h4>
+                    {topScores.map((p, idx) => (
+                      <div key={p.id} className="flex justify-between items-center text-xs mb-1">
+                        <span className="text-gray-300">
+                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} Player {idx + 1}
+                        </span>
+                        <span className="text-yellow-400 font-bold">{p.score?.toFixed(2)}</span>
+                      </div>
+                    ))}
                   </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center text-gray-400 text-sm">
-                          No players yet. Be the first to join!
-                        </div>
-                      )}
+                )}
+
+                {/* User's Score */}
+                {hasPlayed && userScore !== null && (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl border border-blue-500/30">
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-200 font-semibold">Your Score</span>
+                      <span className="text-xl font-bold text-blue-300">{userScore.toFixed(2)}</span>
                     </div>
                   </div>
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="space-y-3">
+                )}
+
+                {/* Action Button */}
+                <div className="space-y-2">
                   {!isAuthenticated ? (
-                    <div className="bg-gray-600 rounded-xl p-4">
-                      <p className="text-gray-300 mb-2">Please log in to join tournaments</p>
-                    </div>
-                  ) : isJoined ? (
-                    <div className="space-y-3">
-                      <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4">
-                        <div className="flex items-center justify-center">
-                          <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                          <span className="text-green-300 font-semibold">You're in this tournament!</span>
-                  </div>
-                </div>
-                
-                      {/* Play Game Button */}
+                    <button
+                      disabled
+                      className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                    >
+                      <LockClosedIcon className="w-5 h-5 mr-2" />
+                      Sign In to Play
+                    </button>
+                  ) : !locationVerified ? (
+                    <button
+                      disabled
+                      className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                    >
+                      <MapPinIcon className="w-5 h-5 mr-2" />
+                      Location Not Verified
+                    </button>
+                  ) : isCompleted ? (
+                    <>
                       <button
-                        onClick={() => startGame(listing)}
-                        className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                        disabled
+                        className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
                       >
-                        <div className="flex items-center justify-center">
-                          <PlayIcon className="w-5 h-5 mr-2" />
-                          PLAY GAME
-                        </div>
-                </button>
-                
-                      {/* View Scoreboard Button */}
-                      <button
-                        onClick={() => viewScoreboard(listing)}
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                      >
-                        <div className="flex items-center justify-center">
-                          <EyeIcon className="w-5 h-5 mr-2" />
-                          VIEW SCOREBOARD
-                </div>
+                        <CheckCircleIcon className="w-5 h-5 mr-2" />
+                        Completed
                       </button>
-              </div>
-                  ) : !canJoin ? (
-                    <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
-                      <p className="text-red-300">
-                        {userTokens < listing.entry_fee 
-                          ? `You need ${listing.entry_fee} tokens to join`
-                          : 'Tournament is full'
-                        }
-                      </p>
-            </div>
+                      {/* Admin Payout Button */}
+                      <button
+                        onClick={() => handleManualPayout(config.id)}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold text-sm transition-all transform hover:scale-105"
+                      >
+                        💰 Process Payout (Admin)
+                      </button>
+                    </>
+                  ) : hasPlayed ? (
+                    <button
+                      disabled
+                      className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                    >
+                      <CheckCircleIcon className="w-5 h-5 mr-2" />
+                      Already Played
+                    </button>
+                  ) : isFull ? (
+                    <button
+                      disabled
+                      className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                    >
+                      <UsersIcon className="w-5 h-5 mr-2" />
+                      Session Full
+                    </button>
+                  ) : hasJoined ? (
+                    <button
+                      onClick={() => handleJoinSession(config)}
+                      disabled={joiningSession}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                      {joiningSession ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <FireIcon className="w-5 h-5 mr-2" />
+                          Play Now!
+                        </>
+                      )}
+                    </button>
                   ) : (
                     <button
-                      onClick={() => joinHotSellListing(listing)}
-                      disabled={joiningListing === listing.id}
-                      className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => handleJoinSession(config)}
+                      disabled={joiningSession || userTokens < config.entry_fee}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
-                      {joiningListing === listing.id ? (
-                        <div className="flex items-center justify-center">
+                      {joiningSession ? (
+                        <>
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Joining...
-          </div>
+                        </>
+                      ) : userTokens < config.entry_fee ? (
+                        <>
+                          <LockClosedIcon className="w-5 h-5 mr-2" />
+                          Need {config.entry_fee} Token{config.entry_fee > 1 ? 's' : ''}
+                        </>
                       ) : (
-                        <div className="flex items-center justify-center">
+                        <>
                           <FireIcon className="w-5 h-5 mr-2" />
-                          JOIN TOURNAMENT - {listing.entry_fee} TOKENS
-                        </div>
+                          Join ({config.entry_fee} Token{config.entry_fee > 1 ? 's' : ''})
+                        </>
                       )}
                     </button>
                   )}
+                </div>
+
+                {/* Game Info */}
+                <div className="mt-4 pt-4 border-t border-orange-500/30 grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center text-orange-300">
+                    <UsersIcon className="w-4 h-4 mr-1" />
+                    <span>Max: {config.max_participants}</span>
+                  </div>
+                  <div className="flex items-center text-orange-300">
+                    <ClockIcon className="w-4 h-4 mr-1" />
+                    <span>{config.game_duration}s game</span>
+                  </div>
                 </div>
               </div>
             );
           })}
-      </div>
-
-        {/* Create Tournament Button */}
-        {isAuthenticated && (
-          <div className="mt-12 text-center">
-            <button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
-              <div className="flex items-center">
-                <TrophyIcon className="w-6 h-6 mr-2" />
-                Create Your Own Tournament
-          </div>
-            </button>
         </div>
-        )}
       </div>
     </div>
   );
