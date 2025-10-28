@@ -85,24 +85,24 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
 
   return (
     <header className={`${getHeaderStyles()} relative z-50`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3 flex-shrink-0 group">
-            <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:rotate-12 group-hover:animate-pulse">
+      <div className="w-full px-2">
+        <div className="flex items-center justify-start h-16 gap-4">
+          {/* Logo - Against left edge */}
+          <Link href="/" className="flex items-center space-x-2 flex-shrink-0 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:rotate-12 group-hover:animate-pulse">
               <img 
                 src="/DropCoin.png" 
                 alt="DropDollar"
-                className="w-8 h-8 object-contain transition-transform duration-300 group-hover:scale-110"
+                className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-110"
               />
             </div>
-            <span className={`text-xl sm:text-2xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient ${getLogoTextStyles()} hidden sm:block`}>
+            <span className="text-lg sm:text-xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient whitespace-nowrap">
               DropDollar
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-3">
+          {/* Desktop Navigation - Left aligned */}
+          <nav className="hidden lg:flex items-center space-x-2 flex-1">
             {navLinks.map((link) => {
               const isActive = currentPage === link.href;
               return (
@@ -129,13 +129,13 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
             })}
           </nav>
 
-          {/* Desktop User Menu */}
-          <div className="hidden lg:flex items-center space-x-4">
+          {/* Desktop User Menu - Right side */}
+          <div className="hidden lg:flex items-center ml-auto pr-2">
             <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex lg:hidden items-center space-x-4">
+          <div className="flex lg:hidden items-center space-x-2 ml-auto pr-2">
             <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
