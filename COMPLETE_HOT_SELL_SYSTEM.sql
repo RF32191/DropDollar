@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS hot_sell_configs (
   max_participants INTEGER NOT NULL, -- Fixed number of participants
   game_duration INTEGER DEFAULT 30, -- Game duration in seconds
   rng_seed INTEGER DEFAULT 1,
-  first_place_percent NUMERIC DEFAULT 60, -- 60% of pot
-  second_place_percent NUMERIC DEFAULT 25, -- 25% of pot
+  first_place_percent NUMERIC DEFAULT 50, -- 50% of pot
+  second_place_percent NUMERIC DEFAULT 20, -- 20% of pot
   third_place_percent NUMERIC DEFAULT 15, -- 15% of pot
   platform_fee_percent NUMERIC DEFAULT 15, -- 15% platform fee
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -80,22 +80,22 @@ CREATE TABLE IF NOT EXISTS hot_sell_participants (
 DELETE FROM hot_sell_configs;
 
 -- Insert Hot Sell configurations (NO 1v1, NO $50,000)
--- All games have 1st (60%), 2nd (25%), 3rd (15%) place prizes
+-- All games have 1st (50%), 2nd (20%), 3rd (15%) place prizes
 -- Platform takes 15% fee before distribution
 
 INSERT INTO hot_sell_configs (id, game_type, title, description, entry_fee, base_price, max_participants, game_duration, rng_seed, first_place_percent, second_place_percent, third_place_percent, platform_fee_percent) VALUES
-('hs-2-sword-parry', 'sword_parry', '$2 Hot Sell - Sword Parry', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 2, 10, 30, 5, 60, 25, 15, 15),
-('hs-5-blade-bounce', 'blade_bounce', '$5 Hot Sell - Blade Bounce', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 5, 15, 30, 7, 60, 25, 15, 15),
-('hs-10-laser-dodge', 'laser_dodge', '$10 Hot Sell - Laser Dodge', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 10, 20, 30, 9, 60, 25, 15, 15),
-('hs-25-multi-target', 'multi_target_reaction', '$25 Hot Sell - Multi Target', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 25, 30, 30, 11, 60, 25, 15, 15),
-('hs-50-sword-parry', 'sword_parry', '$50 Hot Sell - Sword Parry', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 50, 40, 30, 13, 60, 25, 15, 15),
-('hs-100-laser-dodge', 'laser_dodge', '$100 Hot Sell - Laser Dodge', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 100, 50, 30, 15, 60, 25, 15, 15),
-('hs-250-multi-target', 'multi_target_reaction', '$250 Hot Sell - Multi Target', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 250, 75, 30, 17, 60, 25, 15, 15),
-('hs-1000-cash-stack', 'cash_stack', '$1000 Hot Sell - Cash Stack', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 1000, 100, 30, 19, 60, 25, 15, 15),
-('hs-2500-falling-objects', 'falling_object', '$2500 Hot Sell - Falling Objects', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 2500, 150, 30, 21, 60, 25, 15, 15),
-('hs-5000-color-sequence', 'color_sequence', '$5000 Hot Sell - Color Sequence', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 5000, 200, 30, 23, 60, 25, 15, 15),
-('hs-10000-laser-dodge', 'laser_dodge', '$10000 Hot Sell - Laser Dodge', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 10000, 250, 30, 25, 60, 25, 15, 15),
-('hs-25000-multi-target', 'multi_target_reaction', '$25000 Hot Sell - Multi Target', '1st: 60%, 2nd: 25%, 3rd: 15%', 1, 25000, 300, 30, 27, 60, 25, 15, 15);
+('hs-2-sword-parry', 'sword_parry', '$2 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2, 10, 30, 5, 50, 20, 15, 15),
+('hs-5-blade-bounce', 'blade_bounce', '$5 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 15, 30, 7, 50, 20, 15, 15),
+('hs-10-laser-dodge', 'laser_dodge', '$10 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10, 20, 30, 9, 50, 20, 15, 15),
+('hs-25-multi-target', 'multi_target_reaction', '$25 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25, 30, 30, 11, 50, 20, 15, 15),
+('hs-50-sword-parry', 'sword_parry', '$50 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 50, 40, 30, 13, 50, 20, 15, 15),
+('hs-100-laser-dodge', 'laser_dodge', '$100 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 100, 50, 30, 15, 50, 20, 15, 15),
+('hs-250-multi-target', 'multi_target_reaction', '$250 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 250, 75, 30, 17, 50, 20, 15, 15),
+('hs-1000-cash-stack', 'cash_stack', '$1000 Hot Sell - Cash Stack', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 1000, 100, 30, 19, 50, 20, 15, 15),
+('hs-2500-falling-objects', 'falling_object', '$2500 Hot Sell - Falling Objects', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2500, 150, 30, 21, 50, 20, 15, 15),
+('hs-5000-color-sequence', 'color_sequence', '$5000 Hot Sell - Color Sequence', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5000, 200, 30, 23, 50, 20, 15, 15),
+('hs-10000-laser-dodge', 'laser_dodge', '$10000 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10000, 250, 30, 25, 50, 20, 15, 15),
+('hs-25000-multi-target', 'multi_target_reaction', '$25000 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25000, 300, 30, 27, 50, 20, 15, 15);
 
 -- ============================================================================
 -- FUNCTION: Get All Hot Sell Sessions
@@ -532,7 +532,7 @@ DO $$
 BEGIN
   RAISE NOTICE '✅ Hot Sell system created successfully!';
   RAISE NOTICE '📊 12 configurations added (NO 1v1, NO $50,000)';
-  RAISE NOTICE '🏆 3-place prize system: 1st (60%%), 2nd (25%%), 3rd (15%%)';
+  RAISE NOTICE '🏆 3-place prize system: 1st (50%%), 2nd (20%%), 3rd (15%%)';
   RAISE NOTICE '💰 Platform fee: 15%%';
   RAISE NOTICE '⏱️  No timers - games complete when max participants reached';
 END $$;

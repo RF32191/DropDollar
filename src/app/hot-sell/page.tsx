@@ -95,14 +95,14 @@ export default function HotSellPage() {
       id: 'hs-2-sword-parry',
       game_type: 'sword_parry',
       title: '$2 Hot Sell - Sword Parry',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 2,
       max_participants: 10,
       game_duration: 30,
       rng_seed: 5,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -110,14 +110,14 @@ export default function HotSellPage() {
       id: 'hs-5-blade-bounce',
       game_type: 'blade_bounce',
       title: '$5 Hot Sell - Blade Bounce',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 5,
       max_participants: 15,
       game_duration: 30,
       rng_seed: 7,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -125,14 +125,14 @@ export default function HotSellPage() {
       id: 'hs-10-laser-dodge',
       game_type: 'laser_dodge',
       title: '$10 Hot Sell - Laser Dodge',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 10,
       max_participants: 20,
       game_duration: 30,
       rng_seed: 9,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -140,14 +140,14 @@ export default function HotSellPage() {
       id: 'hs-25-multi-target',
       game_type: 'multi_target_reaction',
       title: '$25 Hot Sell - Multi Target',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 25,
       max_participants: 30,
       game_duration: 30,
       rng_seed: 11,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -155,14 +155,14 @@ export default function HotSellPage() {
       id: 'hs-50-sword-parry',
       game_type: 'sword_parry',
       title: '$50 Hot Sell - Sword Parry',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 50,
       max_participants: 40,
       game_duration: 30,
       rng_seed: 13,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -170,14 +170,14 @@ export default function HotSellPage() {
       id: 'hs-100-laser-dodge',
       game_type: 'laser_dodge',
       title: '$100 Hot Sell - Laser Dodge',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 100,
       max_participants: 50,
       game_duration: 30,
       rng_seed: 15,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -185,14 +185,14 @@ export default function HotSellPage() {
       id: 'hs-250-multi-target',
       game_type: 'multi_target_reaction',
       title: '$250 Hot Sell - Multi Target',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 250,
       max_participants: 75,
       game_duration: 30,
       rng_seed: 17,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -200,14 +200,14 @@ export default function HotSellPage() {
       id: 'hs-1000-cash-stack',
       game_type: 'cash_stack',
       title: '$1000 Hot Sell - Cash Stack',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 1000,
       max_participants: 100,
       game_duration: 30,
       rng_seed: 19,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -215,14 +215,14 @@ export default function HotSellPage() {
       id: 'hs-2500-falling-objects',
       game_type: 'falling_object',
       title: '$2500 Hot Sell - Falling Objects',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 2500,
       max_participants: 150,
       game_duration: 30,
       rng_seed: 21,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -230,14 +230,14 @@ export default function HotSellPage() {
       id: 'hs-5000-color-sequence',
       game_type: 'color_sequence',
       title: '$5000 Hot Sell - Color Sequence',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 5000,
       max_participants: 200,
       game_duration: 30,
       rng_seed: 23,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -245,14 +245,14 @@ export default function HotSellPage() {
       id: 'hs-10000-laser-dodge',
       game_type: 'laser_dodge',
       title: '$10000 Hot Sell - Laser Dodge',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 10000,
       max_participants: 250,
       game_duration: 30,
       rng_seed: 25,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
@@ -260,14 +260,14 @@ export default function HotSellPage() {
       id: 'hs-25000-multi-target',
       game_type: 'multi_target_reaction',
       title: '$25000 Hot Sell - Multi Target',
-      description: '1st: 60%, 2nd: 25%, 3rd: 15%',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 25000,
       max_participants: 300,
       game_duration: 30,
       rng_seed: 27,
-      first_place_percent: 60,
-      second_place_percent: 25,
+      first_place_percent: 50,
+      second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     }
@@ -662,7 +662,7 @@ export default function HotSellPage() {
             </div>
           </div>
           <p className="text-2xl text-orange-200 mb-2 font-semibold">1 Token Entry - Top 3 Win Prizes!</p>
-          <p className="text-xl text-orange-300">1st: 60% | 2nd: 25% | 3rd: 15%</p>
+          <p className="text-xl text-orange-300">1st: 50% | 2nd: 20% | 3rd: 15%</p>
           
           {/* User Status */}
           {isAuthenticated && (
@@ -740,11 +740,11 @@ export default function HotSellPage() {
                 {/* Prize Breakdown */}
                 <div className="mb-4 space-y-2">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-orange-300">🥇 1st Place (60%)</span>
+                    <span className="text-orange-300">🥇 1st Place (50%)</span>
                     <span className="text-yellow-400 font-bold">{formatAmount(prizes.firstPlace)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-orange-300">🥈 2nd Place (25%)</span>
+                    <span className="text-orange-300">🥈 2nd Place (20%)</span>
                     <span className="text-gray-300 font-bold">{formatAmount(prizes.secondPlace)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
