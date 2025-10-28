@@ -79,7 +79,10 @@ $$;
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION public.update_1v1_score(UUID, UUID, NUMERIC, NUMERIC) TO authenticated, anon;
 
-RAISE NOTICE '✅ update_1v1_score function created and permissions granted';
+DO $$
+BEGIN
+  RAISE NOTICE '✅ update_1v1_score function created and permissions granted';
+END $$;
 
 -- ============================================================================
 -- STEP 2: Add Check to Prevent Joining Same Game Twice
@@ -189,7 +192,10 @@ $$;
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION public.join_1v1_session(UUID, UUID, NUMERIC) TO authenticated, anon;
 
-RAISE NOTICE '✅ join_1v1_session function updated with duplicate check';
+DO $$
+BEGIN
+  RAISE NOTICE '✅ join_1v1_session function updated with duplicate check';
+END $$;
 
 -- ============================================================================
 -- STEP 3: Verify Functions Are in Schema Cache
