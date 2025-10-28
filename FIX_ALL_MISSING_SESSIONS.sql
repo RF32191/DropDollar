@@ -87,7 +87,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO hot_sell_sessions (
   config_id,
   current_pot,
-  prize_pool,
+  base_price,
   participants_count,
   max_participants,
   status,
