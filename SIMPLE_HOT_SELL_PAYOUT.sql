@@ -23,6 +23,8 @@ DECLARE
   first_prize NUMERIC;
   second_prize NUMERIC;
   third_prize NUMERIC;
+  second_place_user_id UUID;
+  third_place_user_id UUID;
 BEGIN
   RAISE NOTICE '🔍 [Hot Sell Payout] Starting for config: %', config_id_param;
 
@@ -109,15 +111,18 @@ BEGIN
 
   IF FOUND THEN
     second_prize := distributable_pot * (config_record.second_place_percent / 100);
+    second_place_user_id := second_place_record.user_id;
     
     -- Pay 2nd place
     UPDATE public.users
     SET tokens = COALESCE(tokens, 0) + second_prize,
         updated_at = NOW()
-    WHERE id = second_place_record.user_id;
+    WHERE id = second_place_user_id;
 
     RAISE NOTICE '🥈 [Hot Sell Payout] 2nd place: % (score: %) won %', 
       second_place_record.username, second_place_record.score, second_prize;
+  ELSE
+    second_place_user_id := NULL;
   END IF;
 
   -- Find 3rd place winner (only if third_place_percent > 0)
@@ -135,16 +140,21 @@ BEGIN
 
     IF FOUND THEN
       third_prize := distributable_pot * (config_record.third_place_percent / 100);
+      third_place_user_id := third_place_record.user_id;
       
       -- Pay 3rd place
       UPDATE public.users
       SET tokens = COALESCE(tokens, 0) + third_prize,
           updated_at = NOW()
-      WHERE id = third_place_record.user_id;
+      WHERE id = third_place_user_id;
 
       RAISE NOTICE '🥉 [Hot Sell Payout] 3rd place: % (score: %) won %', 
         third_place_record.username, third_place_record.score, third_prize;
+    ELSE
+      third_place_user_id := NULL;
     END IF;
+  ELSE
+    third_place_user_id := NULL;
   END IF;
 
   -- Mark session as completed
@@ -152,8 +162,8 @@ BEGIN
   SET 
     status = 'completed',
     first_place_user_id = first_place_record.user_id,
-    second_place_user_id = second_place_record.user_id,
-    third_place_user_id = third_place_record.user_id,
+    second_place_user_id = second_place_user_id,
+    third_place_user_id = third_place_user_id,
     first_place_prize = first_prize,
     second_place_prize = COALESCE(second_prize, 0),
     third_place_prize = COALESCE(third_prize, 0),
