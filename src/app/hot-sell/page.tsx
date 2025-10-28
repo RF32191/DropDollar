@@ -557,19 +557,44 @@ export default function HotSellPage() {
     if (!sessions.length || !user) return;
 
     const checkAndAutoPayout = async () => {
+      console.log('🔍 [Hot Sell] Checking for auto-payout...', {
+        sessionCount: sessions.length,
+        userId: user.id
+      });
+
       for (const session of sessions) {
         const config = configs.find(c => c.id === session.config_id);
-        if (!config) continue;
+        if (!config) {
+          console.log('⚠️ [Hot Sell] No config found for:', session.config_id);
+          continue;
+        }
+
+        console.log(`📊 [Hot Sell] Checking session ${session.config_id}:`, {
+          participants: session.participants.length,
+          max: config.max_participants,
+          first_place_user_id: session.first_place_user_id,
+          scores: session.participants.map(p => ({ user: p.user_id, score: p.score }))
+        });
 
         // Skip if already paid out
-        if (session.first_place_user_id) continue;
+        if (session.first_place_user_id) {
+          console.log('✅ [Hot Sell] Already paid out, skipping');
+          continue;
+        }
 
         // Check if session is full and all players have scores
         const isFull = session.participants.length >= config.max_participants;
         const allHaveScores = session.participants.every(p => p.score !== null && p.score !== undefined);
         
+        console.log(`🎯 [Hot Sell] Payout check for ${session.config_id}:`, {
+          isFull,
+          allHaveScores,
+          participantCount: session.participants.length,
+          maxParticipants: config.max_participants
+        });
+        
         if (isFull && allHaveScores) {
-          console.log('🔔 [Hot Sell] Auto-payout conditions met:', {
+          console.log('🔔 [Hot Sell] ✅ AUTO-PAYOUT CONDITIONS MET!', {
             config_id: session.config_id,
             participants: session.participants.length,
             max: config.max_participants,
@@ -579,9 +604,13 @@ export default function HotSellPage() {
           // Wait 3 seconds for smooth UX
           await new Promise(resolve => setTimeout(resolve, 3000));
           
-          console.log('💰 [Hot Sell] Triggering auto-payout for:', session.config_id);
+          console.log('💰 [Hot Sell] TRIGGERING AUTO-PAYOUT NOW for:', session.config_id);
           await handleManualPayout(session.config_id);
           break; // Only process one at a time
+        } else {
+          console.log('⏸️ [Hot Sell] Not ready for payout:', {
+            reason: !isFull ? 'Not full' : 'Missing scores'
+          });
         }
       }
     };
