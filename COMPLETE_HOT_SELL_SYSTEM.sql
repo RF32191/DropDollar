@@ -17,8 +17,13 @@ DROP FUNCTION IF EXISTS reset_hot_sell_session_by_config_id(TEXT) CASCADE;
 -- TABLES
 -- ============================================================================
 
+-- Drop existing tables to ensure clean slate
+DROP TABLE IF EXISTS hot_sell_participants CASCADE;
+DROP TABLE IF EXISTS hot_sell_sessions CASCADE;
+DROP TABLE IF EXISTS hot_sell_configs CASCADE;
+
 -- Hot Sell Configurations (hardcoded game types with fixed prizes)
-CREATE TABLE IF NOT EXISTS hot_sell_configs (
+CREATE TABLE hot_sell_configs (
   id TEXT PRIMARY KEY,
   game_type TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -37,7 +42,7 @@ CREATE TABLE IF NOT EXISTS hot_sell_configs (
 );
 
 -- Hot Sell Sessions (one per config)
-CREATE TABLE IF NOT EXISTS hot_sell_sessions (
+CREATE TABLE hot_sell_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   config_id TEXT NOT NULL REFERENCES hot_sell_configs(id),
   current_pot NUMERIC DEFAULT 0,
@@ -61,7 +66,7 @@ CREATE TABLE IF NOT EXISTS hot_sell_sessions (
 );
 
 -- Hot Sell Participants
-CREATE TABLE IF NOT EXISTS hot_sell_participants (
+CREATE TABLE hot_sell_participants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES hot_sell_sessions(id) ON DELETE CASCADE,
   user_id UUID NOT NULL,
@@ -75,9 +80,6 @@ CREATE TABLE IF NOT EXISTS hot_sell_participants (
 -- ============================================================================
 -- INSERT HOT SELL CONFIGURATIONS
 -- ============================================================================
-
--- Clear existing configs
-DELETE FROM hot_sell_configs;
 
 -- Insert Hot Sell configurations (NO 1v1, NO $50,000)
 -- All games have 1st (50%), 2nd (20%), 3rd (15%) place prizes
