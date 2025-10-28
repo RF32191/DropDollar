@@ -393,34 +393,6 @@ export default function AnalyticsPage() {
           </button>
         </div>
 
-        {/* Filter Buttons - Only for Winner Takes All */}
-        {activeTab === 'winner-takes-all' && (
-          <div className="mb-8 flex flex-wrap gap-2 justify-center">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                filter === 'all'
-                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              All Tiers
-            </button>
-            {['2', '5', '10', '25', '50', '100', '250', '1000', '2500', '5000', '10000', '25000'].map(tier => (
-              <button
-                key={tier}
-                onClick={() => setFilter(tier as any)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  filter === tier
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                ${tier}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Loading State */}
         {isLoading && (
@@ -431,10 +403,10 @@ export default function AnalyticsPage() {
         )}
 
         {/* No Results */}
-        {!isLoading && activeTab === 'winner-takes-all' && filteredWinners.length === 0 && (
+        {!isLoading && activeTab === 'winner-takes-all' && winners.length === 0 && (
           <div className="text-center py-12">
             <TrophyIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <p className="text-xl text-gray-400">No winners yet for this tier</p>
+            <p className="text-xl text-gray-400">No winners yet</p>
             <p className="text-gray-500 mt-2">Be the first to win!</p>
           </div>
         )}
@@ -456,19 +428,18 @@ export default function AnalyticsPage() {
         )}
 
         {/* Winner Takes All Table */}
-        {!isLoading && activeTab === 'winner-takes-all' && filteredWinners.length > 0 && (
+        {!isLoading && activeTab === 'winner-takes-all' && winners.length > 0 && (
           <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-yellow-500 to-amber-500">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Username</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Score</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Game</th>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Pot</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Prize</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {filteredWinners.map((winner, index) => (
+                {winners.map((winner, index) => (
                   <tr
                     key={winner.id}
                     className={`hover:bg-gray-700/50 transition-colors ${
@@ -477,15 +448,6 @@ export default function AnalyticsPage() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center">
-                        {index < 3 && (
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
-                            index === 0 ? 'bg-yellow-500' :
-                            index === 1 ? 'bg-gray-400' :
-                            'bg-orange-600'
-                          }`}>
-                            <span className="text-xs font-bold text-black">{index + 1}</span>
-                          </div>
-                        )}
                         <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
                         <span className="text-white font-semibold">{winner.winner_username}</span>
             </div>
@@ -497,12 +459,9 @@ export default function AnalyticsPage() {
             </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-gray-300">{winner.game_type}</span>
-                    </td>
-                    <td className="px-6 py-4">
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
-                        <span className="text-green-400 font-bold">{formatAmount(winner.current_pot)}</span>
+                        <span className="text-green-400 font-bold">{formatAmount(winner.prize_amount)}</span>
             </div>
                     </td>
                   </tr>
