@@ -166,165 +166,126 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
--- FUNCTION: Join Hot Sell Session
+-- FUNCTION: Join Hot Sell Session (Emulates Winner Takes All pattern)
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION join_hot_sell_session(
+CREATE OR REPLACE FUNCTION public.join_hot_sell_session(
   session_id_param UUID,
   user_id_param UUID,
   entry_fee_param NUMERIC
 )
-RETURNS TABLE (
-  success BOOLEAN,
-  message TEXT,
-  new_pot NUMERIC,
-  participants_count INTEGER,
-  session_id UUID
-) AS $$
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 DECLARE
-  v_session_id UUID;
-  v_config_id TEXT;
-  v_current_pot NUMERIC;
-  v_participants_count INTEGER;
-  v_max_participants INTEGER;
-  v_user_tokens NUMERIC;
-  v_already_joined BOOLEAN;
-  v_session_status TEXT;
+  session_record RECORD;
+  user_record RECORD;
+  new_pot NUMERIC;
+  new_participants_count INTEGER;
+  result JSON;
 BEGIN
-  -- Get session details
-  SELECT s.id, s.config_id, s.current_pot, s.participants_count, s.max_participants, s.status
-  INTO v_session_id, v_config_id, v_current_pot, v_participants_count, v_max_participants, v_session_status
-  FROM hot_sell_sessions s
-  WHERE s.id = session_id_param;
-
-  IF v_session_id IS NULL THEN
-    RETURN QUERY SELECT FALSE, 'Session not found', 0::NUMERIC, 0, NULL::UUID;
-    RETURN;
-  END IF;
-
-  -- Check if session is completed
-  IF v_session_status = 'completed' THEN
-    RETURN QUERY SELECT FALSE, 'Session is already completed', v_current_pot, v_participants_count, v_session_id;
-    RETURN;
-  END IF;
-
-  -- Check if user already joined this session
-  SELECT EXISTS(
-    SELECT 1 FROM hot_sell_participants
-    WHERE session_id = v_session_id AND user_id = user_id_param
-  ) INTO v_already_joined;
-
-  IF v_already_joined THEN
-    RETURN QUERY SELECT FALSE, 'You have already joined this session', v_current_pot, v_participants_count, v_session_id;
-    RETURN;
-  END IF;
-
-  -- Check if session is full
-  IF v_participants_count >= v_max_participants THEN
-    RETURN QUERY SELECT FALSE, 'Session is full', v_current_pot, v_participants_count, v_session_id;
-    RETURN;
-  END IF;
-
-  -- Check user's token balance
-  SELECT tokens INTO v_user_tokens FROM users WHERE id = user_id_param;
+  -- Get session info
+  SELECT * INTO session_record FROM public.hot_sell_sessions WHERE id = session_id_param;
   
-  IF v_user_tokens IS NULL OR v_user_tokens < entry_fee_param THEN
-    RETURN QUERY SELECT FALSE, 'Insufficient tokens', v_current_pot, v_participants_count, v_session_id;
-    RETURN;
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'message', 'Session not found');
   END IF;
-
+  
+  -- Check if session is completed
+  IF session_record.status = 'completed' THEN
+    RETURN json_build_object('success', false, 'message', 'Session is already completed');
+  END IF;
+  
+  -- Check if session is full
+  IF session_record.participants_count >= session_record.max_participants THEN
+    RETURN json_build_object('success', false, 'message', 'Session is full');
+  END IF;
+  
+  -- Check if user already joined
+  IF EXISTS (SELECT 1 FROM public.hot_sell_participants WHERE session_id = session_id_param AND user_id = user_id_param) THEN
+    RETURN json_build_object('success', false, 'message', 'User already joined this session');
+  END IF;
+  
+  -- Get user info and check token balance
+  SELECT * INTO user_record FROM public.users WHERE id = user_id_param;
+  
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'message', 'User not found');
+  END IF;
+  
+  IF user_record.tokens < entry_fee_param THEN
+    RETURN json_build_object('success', false, 'message', 'Insufficient tokens');
+  END IF;
+  
   -- Deduct tokens from user
-  UPDATE users SET tokens = tokens - entry_fee_param WHERE id = user_id_param;
-
+  UPDATE public.users 
+  SET tokens = tokens - entry_fee_param,
+      updated_at = NOW()
+  WHERE id = user_id_param;
+  
   -- Add participant
-  INSERT INTO hot_sell_participants (session_id, user_id)
-  VALUES (v_session_id, user_id_param);
-
-  -- Update session
-  UPDATE hot_sell_sessions
-  SET 
-    current_pot = current_pot + entry_fee_param,
-    participants_count = participants_count + 1,
-    status = CASE 
-      WHEN participants_count + 1 >= max_participants THEN 'active'
-      ELSE 'waiting'
-    END,
-    updated_at = NOW()
-  WHERE id = v_session_id
-  RETURNING current_pot, participants_count INTO v_current_pot, v_participants_count;
-
-  RETURN QUERY SELECT TRUE, 'Successfully joined session', v_current_pot, v_participants_count, v_session_id;
+  INSERT INTO public.hot_sell_participants (session_id, user_id)
+  VALUES (session_id_param, user_id_param);
+  
+  -- Update session pot and participant count
+  new_pot := session_record.current_pot + entry_fee_param;
+  new_participants_count := session_record.participants_count + 1;
+  
+  UPDATE public.hot_sell_sessions 
+  SET current_pot = new_pot,
+      participants_count = new_participants_count,
+      status = CASE 
+        WHEN new_participants_count >= max_participants THEN 'active'
+        ELSE 'waiting'
+      END,
+      updated_at = NOW()
+  WHERE id = session_id_param;
+  
+  RETURN json_build_object(
+    'success', true,
+    'message', 'Successfully joined session',
+    'newPot', new_pot,
+    'participantsCount', new_participants_count,
+    'status', CASE WHEN new_participants_count >= session_record.max_participants THEN 'active' ELSE 'waiting' END
+  );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================================
 -- FUNCTION: Update Hot Sell Score
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION update_hot_sell_score(
+CREATE OR REPLACE FUNCTION public.update_hot_sell_score(
   session_id_param UUID,
   user_id_param UUID,
   score_param NUMERIC,
   accuracy_param NUMERIC
 )
-RETURNS TABLE (
-  success BOOLEAN,
-  message TEXT
-) AS $$
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 DECLARE
-  v_participant_exists BOOLEAN;
-  v_session_status TEXT;
-  v_participants_count INTEGER;
-  v_max_participants INTEGER;
+  result JSON;
 BEGIN
-  -- Check if participant exists
-  SELECT EXISTS(
-    SELECT 1 FROM hot_sell_participants
-    WHERE session_id = session_id_param AND user_id = user_id_param
-  ) INTO v_participant_exists;
-
-  IF NOT v_participant_exists THEN
-    RETURN QUERY SELECT FALSE, 'Participant not found in this session';
-    RETURN;
-  END IF;
-
   -- Update participant score
-  UPDATE hot_sell_participants
-  SET 
-    score = score_param,
-    accuracy = accuracy_param,
-    completed_at = NOW()
+  UPDATE public.hot_sell_participants 
+  SET score = score_param,
+      accuracy = accuracy_param,
+      completed_at = NOW()
   WHERE session_id = session_id_param AND user_id = user_id_param;
-
-  -- Get session info
-  SELECT status, participants_count, max_participants
-  INTO v_session_status, v_participants_count, v_max_participants
-  FROM hot_sell_sessions
-  WHERE id = session_id_param;
-
-  -- If all participants have joined and played, mark as completed
-  IF v_participants_count >= v_max_participants THEN
-    DECLARE
-      v_completed_count INTEGER;
-    BEGIN
-      SELECT COUNT(*) INTO v_completed_count
-      FROM hot_sell_participants
-      WHERE session_id = session_id_param AND score IS NOT NULL;
-
-      IF v_completed_count >= v_max_participants THEN
-        UPDATE hot_sell_sessions
-        SET 
-          status = 'completed',
-          completed_at = NOW(),
-          updated_at = NOW()
-        WHERE id = session_id_param;
-      END IF;
-    END;
+  
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'message', 'Participant not found');
   END IF;
-
-  RETURN QUERY SELECT TRUE, 'Score updated successfully';
+  
+  RETURN json_build_object(
+    'success', true,
+    'message', 'Score updated successfully'
+  );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================================
 -- FUNCTION: Save Hot Sell Result to Dashboard
