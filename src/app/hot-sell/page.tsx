@@ -495,8 +495,43 @@ export default function HotSellPage() {
           console.log('🔍 [Hot Sell] Checking for payout trigger...');
           const configId = selectedGameFlow.configId;
           
-          // Manually trigger payout check
-          await handleManualPayout(configId);
+          // Re-fetch the session to check if ready
+          const { data: checkSession } = await supabase
+            .from('hot_sell_sessions')
+            .select(`
+              *,
+              participants:hot_sell_participants(user_id, score)
+            `)
+            .eq('config_id', configId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (checkSession) {
+            const config = configs.find(c => c.id === configId);
+            if (!config) return;
+            
+            const isFull = checkSession.participants.length >= config.max_participants;
+            const allHaveScores = checkSession.participants.every((p: any) => p.score !== null && p.score !== undefined);
+            const notPaid = !checkSession.first_place_user_id;
+            
+            console.log('📊 [Hot Sell] Payout readiness check:', {
+              configId,
+              isFull,
+              allHaveScores,
+              notPaid,
+              participantCount: checkSession.participants.length,
+              maxParticipants: config.max_participants,
+              scores: checkSession.participants.map((p: any) => p.score)
+            });
+            
+            if (isFull && allHaveScores && notPaid) {
+              console.log('✅ [Hot Sell] ALL CONDITIONS MET! Triggering payout...');
+              await handleManualPayout(configId);
+            } else {
+              console.log('⏸️ [Hot Sell] Not ready for payout yet');
+            }
+          }
         }, 3000);
       }
 
