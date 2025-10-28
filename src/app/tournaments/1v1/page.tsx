@@ -145,27 +145,39 @@ export default function OneVOnePage() {
     }
   }, []);
 
-  // Location verification
+  // Location verification - check for ALL users (authenticated or not)
   useEffect(() => {
     const verifyLocation = async () => {
       setLocationLoading(true);
       try {
+        console.log('📍 [1v1] Starting location verification...');
         const locationData = await ImprovedLocationService.getLocation();
+        console.log('📍 [1v1] Location data:', locationData);
         const isAllowed = await ImprovedLocationService.isLocationAllowed(locationData);
         setLocationVerified(isAllowed);
         console.log('📍 [1v1] Location verified:', isAllowed);
+        
+        if (!isAllowed) {
+          setMessage({ 
+            type: 'error', 
+            text: 'Gaming is not available in your location. You are in a restricted jurisdiction.' 
+          });
+        }
       } catch (error) {
         console.error('❌ [1v1] Location verification error:', error);
         setLocationVerified(false);
+        setMessage({ 
+          type: 'error', 
+          text: 'Unable to verify location. Gaming may be restricted.' 
+        });
       } finally {
         setLocationLoading(false);
       }
     };
 
-    if (isAuthenticated) {
-      verifyLocation();
-    }
-  }, [isAuthenticated]);
+    // Always verify location (even for non-authenticated users)
+    verifyLocation();
+  }, []); // Run once on mount
 
   // Load configs and sessions on mount
   useEffect(() => {
