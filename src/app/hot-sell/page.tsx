@@ -747,7 +747,7 @@ export default function HotSellPage() {
                 )}
 
                 {/* User's Score */}
-                {hasPlayed && userScore !== null && (
+                {hasPlayed && userScore !== null && userScore !== undefined && (
                   <div className="mb-4 p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl border border-blue-500/30">
                     <div className="flex justify-between items-center">
                       <span className="text-blue-200 font-semibold">Your Score</span>
