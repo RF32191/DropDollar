@@ -195,11 +195,11 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_hot_sell_payout TO authenticated;
 
 -- Success message
-DO $$
+DO $success_msg$
 BEGIN
   RAISE NOTICE '✅ Simple Hot Sell payout function created!';
   RAISE NOTICE '📝 Mimics Winner Takes All pattern';
   RAISE NOTICE '🏆 Handles 1st, 2nd, 3rd place dynamically';
   RAISE NOTICE '🔄 Auto-resets session after payout';
-END $$;
+END $success_msg$;
 
