@@ -36,34 +36,34 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     playNavigationClick();
   };
 
-  // Styles based on variant and current page - Gold, Silver, Copper theme
+  // Styles based on variant and current page - Animated metallic theme
   const getHeaderStyles = () => {
-    // Page-specific navigation colors - Metallic theme
+    // Page-specific navigation colors - Metallic theme with animations
     if (currentPage) {
       switch (currentPage) {
         case '/':
         case 'home':
-          return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Purple-Pink with animation
+          return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Purple-Pink animated
         case 'hot-sell':
-          return 'bg-gradient-to-r from-orange-700 via-amber-600 to-yellow-700 shadow-2xl'; // Copper
+          return 'bg-gradient-to-r from-orange-700 via-amber-600 to-yellow-700 shadow-2xl'; // Copper - static (looks good)
         case 'winner-takes-all':
-          return 'bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-600 shadow-2xl'; // Gold
+          return 'bg-gradient-to-r from-yellow-700 via-yellow-400 to-amber-700 shadow-2xl animate-gradient-x'; // Dark gold to light gold animated
         case 'games':
-          return 'bg-gradient-to-r from-gray-600 via-gray-500 to-slate-600 shadow-2xl'; // Silver
+          return 'bg-gradient-to-r from-purple-700 via-blue-600 to-purple-700 shadow-2xl animate-gradient-x'; // Purple to blue animated
         case 'buy-tokens':
-          return 'bg-gradient-to-r from-yellow-700 via-amber-600 to-yellow-700 shadow-2xl'; // Gold
+          return 'bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 shadow-2xl animate-gradient-x'; // Green animated
         case 'tournaments':
-          return 'bg-gradient-to-r from-amber-700 via-orange-600 to-amber-700 shadow-2xl'; // Copper
+          return 'bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-600 shadow-2xl animate-gradient-x'; // Indigo-purple animated
         case 'analytics':
-          return 'bg-gradient-to-r from-slate-600 via-gray-500 to-slate-600 shadow-2xl'; // Silver
+          return 'bg-gradient-to-r from-slate-700 via-gray-500 to-slate-700 shadow-2xl animate-gradient-x'; // Silver animated
         case 'categories':
-          return 'bg-gradient-to-r from-orange-600 via-amber-600 to-orange-600 shadow-2xl'; // Copper
+          return 'bg-gradient-to-r from-teal-600 via-cyan-500 to-teal-600 shadow-2xl animate-gradient-x'; // Teal animated
         default:
-          return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Default to purple-pink
+          return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Default to purple-pink animated
       }
     }
     
-    // Fallback to purple-pink gradient
+    // Fallback to purple-pink gradient animated
     return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x';
   };
 
