@@ -360,13 +360,13 @@ END $$;
 -- Show current index usage
 SELECT 
   schemaname,
-  tablename,
-  indexname,
+  relname as tablename,
+  indexrelname as indexname,
   idx_scan as times_used,
   idx_tup_read as tuples_read
 FROM pg_stat_user_indexes
 WHERE schemaname = 'public'
-AND (indexname LIKE 'idx_wta%%' OR indexname LIKE 'idx_hs%%' OR indexname LIKE 'idx_1v1%%')
+AND (indexrelname LIKE 'idx_wta%%' OR indexrelname LIKE 'idx_hs%%' OR indexrelname LIKE 'idx_1v1%%')
 ORDER BY idx_scan DESC
 LIMIT 10;
 
