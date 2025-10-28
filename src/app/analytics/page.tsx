@@ -15,15 +15,12 @@ interface WinnerResult {
   id: string;
   config_id: string;
   winner_user_id: string;
-  winner_email: string;
+  winner_username: string;
   prize_amount: number;
-  platform_fee: number;
   current_pot: number;
-  created_at: string;
   updated_at: string;
-  // From participants
   winner_score: number;
-  winner_accuracy: number;
+  game_type: string;
 }
 
 export default function AnalyticsPage() {
@@ -87,16 +84,24 @@ export default function AnalyticsPage() {
           // Get winner's score from participants
           const { data: participantData } = await supabase
             .from('winner_takes_all_participants')
-            .select('score, accuracy')
+            .select('score')
             .eq('session_id', session.id)
             .eq('user_id', session.winner_user_id)
             .single();
 
+          // Extract game type from config_id
+          const gameType = prizeTierLabels[session.config_id] || session.config_id;
+
           return {
-            ...session,
-            winner_email: userData?.email || 'Unknown',
+            id: session.id,
+            config_id: session.config_id,
+            winner_user_id: session.winner_user_id,
+            winner_username: userData?.email?.split('@')[0] || 'Unknown',
+            prize_amount: session.prize_amount || 0,
+            current_pot: session.current_pot || 0,
+            updated_at: session.updated_at,
             winner_score: participantData?.score || 0,
-            winner_accuracy: participantData?.accuracy || 0
+            game_type: gameType
           };
         })
       );
@@ -210,76 +215,60 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Winners Grid */}
+        {/* Winners Table - Simple and Clean */}
         {!isLoading && filteredWinners.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredWinners.map((winner, index) => (
-              <div
-                key={winner.id}
-                className="bg-gray-800/50 backdrop-blur-xl rounded-2xl p-6 border border-gray-700 hover:border-yellow-500/50 transition-all duration-300 hover:scale-105"
-              >
-                {/* Rank Badge */}
-                {index < 3 && (
-                  <div className="flex justify-end mb-2">
-                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      index === 0 ? 'bg-yellow-500 text-black' :
-                      index === 1 ? 'bg-gray-400 text-black' :
-                      'bg-orange-600 text-white'
-                    }`}>
-                      #{index + 1}
-                    </div>
-                  </div>
-                )}
-
-                {/* Prize Tier */}
-                <div className={`bg-gradient-to-r ${getTierColor(winner.config_id)} rounded-xl p-4 mb-4`}>
-                  <h3 className="text-white font-bold text-lg text-center">
-                    {prizeTierLabels[winner.config_id] || winner.config_id}
-                  </h3>
-                </div>
-
-                {/* Winner Info */}
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <UserIcon className="w-5 h-5 text-gray-400 mr-2" />
-                    <span className="text-gray-300 text-sm">Winner:</span>
-                    <span className="text-white font-semibold ml-2 truncate">
-                      {winner.winner_email.split('@')[0]}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center">
-                    <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
-                    <span className="text-gray-300 text-sm">Score:</span>
-                    <span className="text-white font-bold ml-2">
-                      {winner.winner_score.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center">
-                    <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
-                    <span className="text-gray-300 text-sm">Prize Won:</span>
-                    <span className="text-green-400 font-bold ml-2">
-                      {formatAmount(winner.prize_amount)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center">
-                    <TrophyIcon className="w-5 h-5 text-purple-400 mr-2" />
-                    <span className="text-gray-300 text-sm">Total Pot:</span>
-                    <span className="text-purple-400 font-semibold ml-2">
-                      {formatAmount(winner.current_pot)}
-                    </span>
-                  </div>
-
-                  <div className="pt-2 border-t border-gray-700">
-                    <span className="text-gray-500 text-xs">
-                      {formatDate(winner.updated_at)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-yellow-500 to-amber-500">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Username</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Score</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Game</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Pot</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {filteredWinners.map((winner, index) => (
+                  <tr
+                    key={winner.id}
+                    className={`hover:bg-gray-700/50 transition-colors ${
+                      index % 2 === 0 ? 'bg-gray-800/30' : 'bg-gray-800/10'
+                    }`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        {index < 3 && (
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                            index === 0 ? 'bg-yellow-500' :
+                            index === 1 ? 'bg-gray-400' :
+                            'bg-orange-600'
+                          }`}>
+                            <span className="text-xs font-bold text-black">{index + 1}</span>
+                          </div>
+                        )}
+                        <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
+                        <span className="text-white font-semibold">{winner.winner_username}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
+                        <span className="text-white font-bold text-lg">{winner.winner_score.toFixed(2)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-gray-300">{winner.game_type}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
+                        <span className="text-green-400 font-bold">{formatAmount(winner.current_pot)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 

@@ -20,6 +20,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     { href: '/tournaments', label: 'Tournaments', emoji: '🏆' },
     { href: '/hot-sell', label: 'Hot Sell', emoji: '🔥' },
     { href: '/winner-takes-all', label: 'Winner Takes It All', emoji: '👑' },
+    { href: '/analytics', label: 'Analytics', emoji: '📊' },
     { href: '/categories', label: 'Categories', emoji: '📦' },
     { href: '/buy-tokens', label: 'Buy Tokens', emoji: '💰' },
   ];
