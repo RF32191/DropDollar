@@ -513,27 +513,38 @@ export default function HotSellPage() {
         config_id_param: configId
       });
 
+      console.log('📊 [Hot Sell] Payout response:', { data, error });
+
       if (error) {
         console.error('❌ [Hot Sell] Payout error:', error);
         setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
         return;
       }
 
-      const result = Array.isArray(data) ? data[0] : data;
-
-      if (result?.success) {
-        setMessage({ 
-          type: 'success', 
-          text: `🎉 1st: ${result.first_place_winner} ($${result.first_place_amount?.toFixed(2)}), 2nd: ${result.second_place_winner} ($${result.second_place_amount?.toFixed(2)}), 3rd: ${result.third_place_winner} ($${result.third_place_amount?.toFixed(2)})` 
-        });
+      if (data && data.success) {
+        console.log('✅ [Hot Sell] Payout successful:', data);
         
-        // Refresh
+        // Build success message based on what we have
+        let successMsg = `🎉 1st: ${data.first_place_winner} ($${data.first_place_amount?.toFixed(2)})`;
+        if (data.second_place_winner && data.second_place_winner !== 'N/A') {
+          successMsg += `, 2nd: ${data.second_place_winner} ($${data.second_place_amount?.toFixed(2)})`;
+        }
+        if (data.third_place_winner && data.third_place_winner !== 'N/A') {
+          successMsg += `, 3rd: ${data.third_place_winner} ($${data.third_place_amount?.toFixed(2)})`;
+        }
+        
+        setMessage({ type: 'success', text: successMsg });
+        
+        // Refresh tokens and sessions
         await Promise.all([
           refreshTokens(),
           loadSessions()
         ]);
-      } else {
-        setMessage({ type: 'error', text: result?.message || 'Payout failed' });
+      } else if (data && !data.success) {
+        console.log('ℹ️ [Hot Sell] Payout info:', data.message);
+        if (!data.already_paid) {
+          setMessage({ type: 'error', text: `Payout issue: ${data.message}` });
+        }
       }
     } catch (error) {
       console.error('❌ [Hot Sell] Payout error:', error);
