@@ -80,6 +80,9 @@ END $$;
 -- PART 3: OPTIMIZE FUNCTIONS FOR CONCURRENT ACCESS
 -- ============================================================================
 
+-- Drop existing function first to avoid return type conflicts
+DROP FUNCTION IF EXISTS public.join_winner_takes_all_session(UUID, UUID, NUMERIC) CASCADE;
+
 -- Optimized join function with row-level locking to prevent race conditions
 CREATE OR REPLACE FUNCTION public.join_winner_takes_all_session(
     session_id_param UUID,
