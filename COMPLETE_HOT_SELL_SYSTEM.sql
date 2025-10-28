@@ -85,10 +85,12 @@ CREATE TABLE hot_sell_participants (
 -- All games have 1st (50%), 2nd (20%), 3rd (15%) place prizes
 -- Platform takes 15% fee before distribution
 
--- Max participants = base_price (so $2 = 2 players, $5 = 5 players, etc.)
+-- Max participants = base_price (so $2 = 2 players, $3 = 3 players, $5 = 5 players, etc.)
+-- $2 listing has only 2 players (no 3rd place): 1st: 70%, 2nd: 15%, Platform: 15%
 INSERT INTO hot_sell_configs (id, game_type, title, description, entry_fee, base_price, max_participants, game_duration, rng_seed, first_place_percent, second_place_percent, third_place_percent, platform_fee_percent) VALUES
-('hs-2-sword-parry', 'sword_parry', '$2 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2, 2, 30, 5, 50, 20, 15, 15),
-('hs-5-blade-bounce', 'blade_bounce', '$5 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 5, 30, 7, 50, 20, 15, 15),
+('hs-2-sword-parry', 'sword_parry', '$2 Hot Sell - Sword Parry', '1st: 70%, 2nd: 15%', 1, 2, 2, 30, 5, 70, 15, 0, 15),
+('hs-3-blade-bounce', 'blade_bounce', '$3 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 3, 3, 30, 6, 50, 20, 15, 15),
+('hs-5-laser-dodge', 'laser_dodge', '$5 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 5, 30, 7, 50, 20, 15, 15),
 ('hs-10-laser-dodge', 'laser_dodge', '$10 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10, 10, 30, 9, 50, 20, 15, 15),
 ('hs-25-multi-target', 'multi_target_reaction', '$25 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25, 25, 30, 11, 50, 20, 15, 15),
 ('hs-50-sword-parry', 'sword_parry', '$50 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 50, 50, 30, 13, 50, 20, 15, 15),
@@ -532,9 +534,10 @@ GRANT EXECUTE ON FUNCTION reset_hot_sell_session_by_config_id(TEXT) TO anon, aut
 DO $$
 BEGIN
   RAISE NOTICE '✅ Hot Sell system created successfully!';
-  RAISE NOTICE '📊 12 configurations added (NO 1v1, NO $50,000)';
-  RAISE NOTICE '🏆 3-place prize system: 1st (50%%), 2nd (20%%), 3rd (15%%)';
-  RAISE NOTICE '💰 Platform fee: 15%%';
+  RAISE NOTICE '📊 13 configurations added (NO 1v1, NO $50,000)';
+  RAISE NOTICE '🎮 $2 game: 2 players only (1st: 70%%, 2nd: 15%%)';
+  RAISE NOTICE '🏆 $3+ games: 3-place prizes (1st: 50%%, 2nd: 20%%, 3rd: 15%%)';
+  RAISE NOTICE '💰 Platform fee: 15%% across all games';
   RAISE NOTICE '⏱️  No timers - games complete when max participants reached';
 END $$;
 

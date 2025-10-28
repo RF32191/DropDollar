@@ -102,27 +102,43 @@ export default function HotSellPage() {
   }, [userTokens, tokensLoading]);
 
   // Hardcoded Hot Sell configurations (NO 1v1, NO $50,000)
-  // Max participants = base_price (so $2 game = 2 players)
+  // Max participants = base_price (so $2 game = 2 players, $3 = 3 players)
+  // $2 listing has only 2 players (no 3rd place): 1st: 70%, 2nd: 15%, Platform: 15%
   const configs: HotSellConfig[] = [
     {
       id: 'hs-2-sword-parry',
       game_type: 'sword_parry',
       title: '$2 Hot Sell - Sword Parry',
-      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
+      description: '1st: 70%, 2nd: 15%',
       entry_fee: 1,
       base_price: 2,
       max_participants: 2,
       game_duration: 30,
       rng_seed: 5,
+      first_place_percent: 70,
+      second_place_percent: 15,
+      third_place_percent: 0,
+      platform_fee_percent: 15
+    },
+    {
+      id: 'hs-3-blade-bounce',
+      game_type: 'blade_bounce',
+      title: '$3 Hot Sell - Blade Bounce',
+      description: '1st: 50%, 2nd: 20%, 3rd: 15%',
+      entry_fee: 1,
+      base_price: 3,
+      max_participants: 3,
+      game_duration: 30,
+      rng_seed: 6,
       first_place_percent: 50,
       second_place_percent: 20,
       third_place_percent: 15,
       platform_fee_percent: 15
     },
     {
-      id: 'hs-5-blade-bounce',
-      game_type: 'blade_bounce',
-      title: '$5 Hot Sell - Blade Bounce',
+      id: 'hs-5-laser-dodge',
+      game_type: 'laser_dodge',
+      title: '$5 Hot Sell - Laser Dodge',
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 5,
