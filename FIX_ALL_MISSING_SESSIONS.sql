@@ -1,5 +1,5 @@
 -- ============================================================================
--- FIX ALL MISSING SESSIONS - WINNER TAKES ALL, HOT SELL, AND 1V1
+-- FIX ALL MISSING SESSIONS - WINNER TAKES ALL, HOT SELL, AND 1V
 -- ============================================================================
 -- This creates sessions for ALL game types that are missing them
 -- Run this FIRST to fix all "Session not found" errors
