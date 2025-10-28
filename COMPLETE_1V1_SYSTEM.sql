@@ -38,7 +38,7 @@ CREATE TABLE one_v_one_sessions (
   participants_count INTEGER DEFAULT 0,
   max_participants INTEGER DEFAULT 2,
   status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'completed')),
-  winner_user_id UUID REFERENCES auth.users(id),
+  winner_user_id UUID REFERENCES public.users(id),
   prize_amount NUMERIC DEFAULT 0,
   platform_fee NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -49,7 +49,7 @@ CREATE TABLE one_v_one_sessions (
 CREATE TABLE one_v_one_participants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES one_v_one_sessions(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   score NUMERIC,
   accuracy NUMERIC,
   joined_at TIMESTAMPTZ DEFAULT NOW(),
