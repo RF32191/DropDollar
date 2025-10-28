@@ -81,34 +81,61 @@ WHERE NOT EXISTS (
 ON CONFLICT DO NOTHING;
 
 -- ============================================================================
--- STEP 3: Create Missing Hot Sell Sessions
+-- STEP 3: Create Missing Hot Sell Sessions (Using Only Existing Columns)
 -- ============================================================================
 
+-- First, let's add sessions with only the columns we KNOW exist
 INSERT INTO hot_sell_sessions (
   config_id,
   current_pot,
-  base_price,
-  participants_count,
-  max_participants,
-  status,
-  created_at,
-  updated_at
+  status
 )
 SELECT 
   c.id,
   0,
-  c.base_price,
-  0,
-  c.max_participants,
-  'waiting',
-  NOW(),
-  NOW()
+  'waiting'
 FROM hot_sell_configs c
 WHERE NOT EXISTS (
   SELECT 1 FROM hot_sell_sessions s 
   WHERE s.config_id = c.id
 )
 ON CONFLICT DO NOTHING;
+
+-- Then update with additional columns if they exist
+DO $$
+BEGIN
+  -- Try to update base_price if column exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'hot_sell_sessions' AND column_name = 'base_price'
+  ) THEN
+    UPDATE hot_sell_sessions hs
+    SET base_price = c.base_price
+    FROM hot_sell_configs c
+    WHERE hs.config_id = c.id AND hs.base_price IS NULL;
+  END IF;
+  
+  -- Try to update max_participants if column exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'hot_sell_sessions' AND column_name = 'max_participants'
+  ) THEN
+    UPDATE hot_sell_sessions hs
+    SET max_participants = c.max_participants
+    FROM hot_sell_configs c
+    WHERE hs.config_id = c.id AND hs.max_participants IS NULL;
+  END IF;
+  
+  -- Try to update participants_count if column exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'hot_sell_sessions' AND column_name = 'participants_count'
+  ) THEN
+    UPDATE hot_sell_sessions
+    SET participants_count = 0
+    WHERE participants_count IS NULL;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- STEP 4: Create Missing 1v1 Sessions
