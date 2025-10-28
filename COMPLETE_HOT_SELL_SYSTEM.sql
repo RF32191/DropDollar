@@ -528,9 +528,12 @@ GRANT EXECUTE ON FUNCTION reset_hot_sell_session_by_config_id(TEXT) TO anon, aut
 -- COMPLETE
 -- ============================================================================
 
-RAISE NOTICE '✅ Hot Sell system created successfully!';
-RAISE NOTICE '📊 12 configurations added (NO 1v1, NO $50,000)';
-RAISE NOTICE '🏆 3-place prize system: 1st (60%%), 2nd (25%%), 3rd (15%%)';
-RAISE NOTICE '💰 Platform fee: 15%%';
-RAISE NOTICE '⏱️  No timers - games complete when max participants reached';
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Hot Sell system created successfully!';
+  RAISE NOTICE '📊 12 configurations added (NO 1v1, NO $50,000)';
+  RAISE NOTICE '🏆 3-place prize system: 1st (60%%), 2nd (25%%), 3rd (15%%)';
+  RAISE NOTICE '💰 Platform fee: 15%%';
+  RAISE NOTICE '⏱️  No timers - games complete when max participants reached';
+END $$;
 
