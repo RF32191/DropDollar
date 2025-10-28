@@ -489,12 +489,21 @@ export default function HotSellPage() {
       } else {
         console.log('✅ [Hot Sell] Score recorded successfully:', data);
         setMessage({ type: 'success', text: `Game completed! Your score: ${score.toFixed(2)}` });
+        
+        // Check if we should trigger payout
+        setTimeout(async () => {
+          console.log('🔍 [Hot Sell] Checking for payout trigger...');
+          const configId = selectedGameFlow.configId;
+          
+          // Manually trigger payout check
+          await handleManualPayout(configId);
+        }, 3000);
       }
 
       // Return to list view
       setCurrentView('list');
       setSelectedGameFlow(null);
-      loadSessions();
+      await loadSessions();
 
     } catch (error) {
       console.error('❌ [Hot Sell] Error recording score:', error);
