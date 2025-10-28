@@ -85,8 +85,12 @@ export default function WinnerTakesAllPage() {
   // Track which sessions have triggered auto-payout to prevent duplicates
   const [autoPayoutTriggered, setAutoPayoutTriggered] = useState<Set<string>>(new Set());
 
-  // Hardcoded Winner Takes It All configurations
-  const configs: WinnerTakesAllConfig[] = [
+  // State for dynamically loaded configs
+  const [configs, setConfigs] = useState<WinnerTakesAllConfig[]>([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
+
+  // Fallback hardcoded configurations (will be replaced by DB configs)
+  const fallbackConfigs: WinnerTakesAllConfig[] = [
     {
       id: 'wta-2-sword-parry',
       game_type: 'sword_parry',
@@ -273,8 +277,38 @@ export default function WinnerTakesAllPage() {
     }
   }, []);
 
-  // Load sessions on mount
+  // Load configs from database
+  const loadConfigs = async () => {
+    try {
+      setLoadingConfigs(true);
+      console.log('📥 [Winner Takes All] Loading configs from database...');
+      
+      const { data, error } = await supabase
+        .from('winner_takes_all_configs')
+        .select('*')
+        .order('base_price', { ascending: true});
+
+      if (error) {
+        console.warn('⚠️ [Winner Takes All] Could not load configs from DB, using fallback:', error.message);
+        setConfigs(fallbackConfigs);
+      } else if (data && data.length > 0) {
+        console.log(`✅ [Winner Takes All] Loaded ${data.length} configs from database`);
+        setConfigs(data as WinnerTakesAllConfig[]);
+      } else {
+        console.warn('⚠️ [Winner Takes All] No configs found in DB, using fallback');
+        setConfigs(fallbackConfigs);
+      }
+    } catch (err) {
+      console.error('❌ [Winner Takes All] Error loading configs:', err);
+      setConfigs(fallbackConfigs);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  // Load configs and sessions on mount
   useEffect(() => {
+    loadConfigs();
     loadSessions();
     setIsLoading(false);
   }, [loadSessions]);
