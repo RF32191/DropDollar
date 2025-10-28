@@ -543,31 +543,42 @@ export default function HotSellPage() {
 
   // Auto-payout when session is full and all players have scores
   useEffect(() => {
-    if (!sessions.length) return;
+    if (!sessions.length || !user) return;
 
     const checkAndAutoPayout = async () => {
       for (const session of sessions) {
         const config = configs.find(c => c.id === session.config_id);
         if (!config) continue;
 
+        // Skip if already paid out
+        if (session.first_place_user_id) continue;
+
         // Check if session is full and all players have scores
-        if (session.participants.length >= config.max_participants) {
-          const allHaveScores = session.participants.every(p => p.score !== null && p.score !== undefined);
+        const isFull = session.participants.length >= config.max_participants;
+        const allHaveScores = session.participants.every(p => p.score !== null && p.score !== undefined);
+        
+        if (isFull && allHaveScores) {
+          console.log('🔔 [Hot Sell] Auto-payout conditions met:', {
+            config_id: session.config_id,
+            participants: session.participants.length,
+            max: config.max_participants,
+            scores: session.participants.map(p => p.score)
+          });
           
-          if (allHaveScores && !session.first_place_user_id) {
-            console.log('🔔 [Hot Sell] Auto-payout triggered for full session:', session.config_id);
-            
-            // Wait 3 seconds then trigger payout
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            await handleManualPayout(session.config_id);
-            break; // Only process one at a time
-          }
+          // Wait 3 seconds for smooth UX
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          console.log('💰 [Hot Sell] Triggering auto-payout for:', session.config_id);
+          await handleManualPayout(session.config_id);
+          break; // Only process one at a time
         }
       }
     };
 
-    checkAndAutoPayout();
-  }, [sessions]);
+    // Debounce to avoid multiple calls
+    const timeoutId = setTimeout(checkAndAutoPayout, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [sessions, user]);
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

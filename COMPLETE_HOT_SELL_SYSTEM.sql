@@ -327,7 +327,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
--- FUNCTION: Process Hot Sell Payout (3 Winners)
+-- FUNCTION: Process Hot Sell Payout (3 Winners) + Auto Reset
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION process_hot_sell_payout(config_id_param TEXT)
@@ -344,6 +344,9 @@ RETURNS TABLE (
 DECLARE
   v_session_id UUID;
   v_current_pot NUMERIC;
+  v_max_participants INTEGER;
+  v_participants_count INTEGER;
+  v_completed_count INTEGER;
   v_platform_fee_percent NUMERIC;
   v_first_percent NUMERIC;
   v_second_percent NUMERIC;
@@ -360,19 +363,38 @@ DECLARE
   v_second_email TEXT;
   v_third_email TEXT;
 BEGIN
-  -- Get active session for this config
-  SELECT id, current_pot INTO v_session_id, v_current_pot
-  FROM hot_sell_sessions
-  WHERE config_id = config_id_param AND status = 'completed'
-  ORDER BY completed_at DESC
+  -- Get the ACTIVE session for this config (not completed, not waiting)
+  SELECT s.id, s.current_pot, s.max_participants, s.participants_count
+  INTO v_session_id, v_current_pot, v_max_participants, v_participants_count
+  FROM hot_sell_sessions s
+  WHERE s.config_id = config_id_param 
+    AND s.status IN ('waiting', 'active')
+    AND s.first_place_user_id IS NULL
+  ORDER BY s.created_at DESC
   LIMIT 1;
 
   IF v_session_id IS NULL THEN
-    RETURN QUERY SELECT FALSE, 'No completed session found', ''::TEXT, ''::TEXT, ''::TEXT, 0::NUMERIC, 0::NUMERIC, 0::NUMERIC;
+    RETURN QUERY SELECT FALSE, 'No active session found', ''::TEXT, ''::TEXT, ''::TEXT, 0::NUMERIC, 0::NUMERIC, 0::NUMERIC;
     RETURN;
   END IF;
 
-  -- Get prize percentages
+  -- Check if session is full
+  IF v_participants_count < v_max_participants THEN
+    RETURN QUERY SELECT FALSE, 'Session not full yet', ''::TEXT, ''::TEXT, ''::TEXT, 0::NUMERIC, 0::NUMERIC, 0::NUMERIC;
+    RETURN;
+  END IF;
+
+  -- Check if all participants have scores
+  SELECT COUNT(*) INTO v_completed_count
+  FROM hot_sell_participants
+  WHERE session_id = v_session_id AND score IS NOT NULL;
+
+  IF v_completed_count < v_max_participants THEN
+    RETURN QUERY SELECT FALSE, 'Not all players have completed', ''::TEXT, ''::TEXT, ''::TEXT, 0::NUMERIC, 0::NUMERIC, 0::NUMERIC;
+    RETURN;
+  END IF;
+
+  -- Get prize percentages from config
   SELECT platform_fee_percent, first_place_percent, second_place_percent, third_place_percent
   INTO v_platform_fee_percent, v_first_percent, v_second_percent, v_third_percent
   FROM hot_sell_configs
@@ -387,44 +409,56 @@ BEGIN
   v_second_prize := v_distributable_pot * (v_second_percent / 100);
   v_third_prize := v_distributable_pot * (v_third_percent / 100);
 
-  -- Get top 3 winners
+  -- Get 1st place winner (highest score)
   SELECT user_id INTO v_first_user_id
   FROM hot_sell_participants
   WHERE session_id = v_session_id AND score IS NOT NULL
   ORDER BY score DESC, completed_at ASC
   LIMIT 1;
 
+  -- Get 2nd place winner (second highest score, excluding 1st)
   SELECT user_id INTO v_second_user_id
   FROM hot_sell_participants
-  WHERE session_id = v_session_id AND score IS NOT NULL AND user_id != v_first_user_id
+  WHERE session_id = v_session_id 
+    AND score IS NOT NULL 
+    AND user_id != v_first_user_id
   ORDER BY score DESC, completed_at ASC
   LIMIT 1;
 
-  SELECT user_id INTO v_third_user_id
-  FROM hot_sell_participants
-  WHERE session_id = v_session_id AND score IS NOT NULL AND user_id NOT IN (v_first_user_id, v_second_user_id)
-  ORDER BY score DESC, completed_at ASC
-  LIMIT 1;
+  -- Get 3rd place winner (third highest score, excluding 1st and 2nd) - only if third_place_percent > 0
+  IF v_third_percent > 0 THEN
+    SELECT user_id INTO v_third_user_id
+    FROM hot_sell_participants
+    WHERE session_id = v_session_id 
+      AND score IS NOT NULL 
+      AND user_id NOT IN (v_first_user_id, COALESCE(v_second_user_id, '00000000-0000-0000-0000-000000000000'::UUID))
+    ORDER BY score DESC, completed_at ASC
+    LIMIT 1;
+  END IF;
 
   IF v_first_user_id IS NULL THEN
     RETURN QUERY SELECT FALSE, 'No winners found', ''::TEXT, ''::TEXT, ''::TEXT, 0::NUMERIC, 0::NUMERIC, 0::NUMERIC;
     RETURN;
   END IF;
 
-  -- Award prizes
-  UPDATE users SET tokens = tokens + v_first_prize WHERE id = v_first_user_id;
+  -- Award prizes to winners
+  UPDATE users SET tokens = tokens + v_first_prize, updated_at = NOW() 
+  WHERE id = v_first_user_id;
   
-  IF v_second_user_id IS NOT NULL THEN
-    UPDATE users SET tokens = tokens + v_second_prize WHERE id = v_second_user_id;
+  IF v_second_user_id IS NOT NULL AND v_second_prize > 0 THEN
+    UPDATE users SET tokens = tokens + v_second_prize, updated_at = NOW() 
+    WHERE id = v_second_user_id;
   END IF;
   
-  IF v_third_user_id IS NOT NULL THEN
-    UPDATE users SET tokens = tokens + v_third_prize WHERE id = v_third_user_id;
+  IF v_third_user_id IS NOT NULL AND v_third_prize > 0 THEN
+    UPDATE users SET tokens = tokens + v_third_prize, updated_at = NOW() 
+    WHERE id = v_third_user_id;
   END IF;
 
-  -- Update session with winners
+  -- Mark session as completed with winner info
   UPDATE hot_sell_sessions
   SET
+    status = 'completed',
     first_place_user_id = v_first_user_id,
     second_place_user_id = v_second_user_id,
     third_place_user_id = v_third_user_id,
@@ -432,23 +466,35 @@ BEGIN
     second_place_prize = v_second_prize,
     third_place_prize = v_third_prize,
     platform_fee = v_platform_fee,
+    completed_at = NOW(),
     updated_at = NOW()
   WHERE id = v_session_id;
 
-  -- Get winner emails
+  -- Create a NEW waiting session for this config (auto-reset)
+  INSERT INTO hot_sell_sessions (config_id, current_pot, base_price, max_participants, status)
+  SELECT 
+    config_id_param,
+    0,
+    base_price,
+    max_participants,
+    'waiting'
+  FROM hot_sell_configs
+  WHERE id = config_id_param;
+
+  -- Get winner emails for display
   SELECT email INTO v_first_email FROM users WHERE id = v_first_user_id;
   SELECT email INTO v_second_email FROM users WHERE id = v_second_user_id;
   SELECT email INTO v_third_email FROM users WHERE id = v_third_user_id;
 
   RETURN QUERY SELECT 
     TRUE, 
-    'Payout completed', 
+    'Payout completed and session reset', 
     COALESCE(v_first_email, 'Unknown'),
     COALESCE(v_second_email, 'Unknown'),
-    COALESCE(v_third_email, 'Unknown'),
+    COALESCE(v_third_email, 'N/A'),
     v_first_prize,
-    v_second_prize,
-    v_third_prize;
+    COALESCE(v_second_prize, 0::NUMERIC),
+    COALESCE(v_third_prize, 0::NUMERIC);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
