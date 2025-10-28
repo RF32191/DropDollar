@@ -199,8 +199,7 @@ export default function AnalyticsPage() {
       const { data: sessions, error: sessionsError } = await supabase
         .from('hot_sell_sessions')
         .select('*')
-        .eq('status', 'completed')
-        .not('winner_user_id', 'is', null)
+        .not('first_place_user_id', 'is', null)
         .order('updated_at', { ascending: false })
         .limit(100);
 
@@ -215,33 +214,85 @@ export default function AnalyticsPage() {
         return;
       }
 
-      // Get winner details for each session
-      const winnersData = await Promise.all(
-        sessions.map(async (session) => {
-          // Get user email
-          const { data: userData } = await supabase
+      // Get winner details for each session (top 3)
+      const winnersData: any[] = [];
+      
+      for (const session of sessions) {
+        // Get 1st place winner
+        if (session.first_place_user_id) {
+          const { data: user1 } = await supabase
             .from('users')
             .select('email')
-            .eq('id', session.winner_user_id)
+            .eq('id', session.first_place_user_id)
             .single();
-
-          // Get winner's score from participants
-          const { data: participantData } = await supabase
+          
+          const { data: participant1 } = await supabase
             .from('hot_sell_participants')
             .select('score')
             .eq('session_id', session.id)
-            .eq('user_id', session.winner_user_id)
+            .eq('user_id', session.first_place_user_id)
             .single();
-
-          return {
-            id: session.id,
+          
+          winnersData.push({
+            id: `${session.id}-1st`,
             config_id: session.config_id,
-            winner_username: userData?.email?.split('@')[0] || 'Unknown',
-            winner_score: participantData?.score || 0,
-            prize_amount: session.prize_amount || 0
-          };
-        })
-      );
+            winner_username: user1?.email?.split('@')[0] || 'Unknown',
+            winner_score: participant1?.score || 0,
+            prize_amount: session.first_place_prize || 0,
+            rank: 1
+          });
+        }
+
+        // Get 2nd place winner
+        if (session.second_place_user_id) {
+          const { data: user2 } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', session.second_place_user_id)
+            .single();
+          
+          const { data: participant2 } = await supabase
+            .from('hot_sell_participants')
+            .select('score')
+            .eq('session_id', session.id)
+            .eq('user_id', session.second_place_user_id)
+            .single();
+          
+          winnersData.push({
+            id: `${session.id}-2nd`,
+            config_id: session.config_id,
+            winner_username: user2?.email?.split('@')[0] || 'Unknown',
+            winner_score: participant2?.score || 0,
+            prize_amount: session.second_place_prize || 0,
+            rank: 2
+          });
+        }
+
+        // Get 3rd place winner
+        if (session.third_place_user_id) {
+          const { data: user3 } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', session.third_place_user_id)
+            .single();
+          
+          const { data: participant3 } = await supabase
+            .from('hot_sell_participants')
+            .select('score')
+            .eq('session_id', session.id)
+            .eq('user_id', session.third_place_user_id)
+            .single();
+          
+          winnersData.push({
+            id: `${session.id}-3rd`,
+            config_id: session.config_id,
+            winner_username: user3?.email?.split('@')[0] || 'Unknown',
+            winner_score: participant3?.score || 0,
+            prize_amount: session.third_place_prize || 0,
+            rank: 3
+          });
+        }
+      }
 
       setHotSellWinners(winnersData);
     } catch (error) {
@@ -296,7 +347,7 @@ export default function AnalyticsPage() {
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+      {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
             <ChartBarIcon className="w-12 h-12 text-yellow-400 mr-4" />
@@ -437,13 +488,13 @@ export default function AnalyticsPage() {
                         )}
                         <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
                         <span className="text-white font-semibold">{winner.winner_username}</span>
-                      </div>
+            </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
                         <span className="text-white font-bold text-lg">{winner.winner_score.toFixed(2)}</span>
-                      </div>
+            </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-gray-300">{winner.game_type}</span>
@@ -452,7 +503,7 @@ export default function AnalyticsPage() {
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
                         <span className="text-green-400 font-bold">{formatAmount(winner.current_pot)}</span>
-                      </div>
+            </div>
                     </td>
                   </tr>
                 ))}
@@ -490,13 +541,13 @@ export default function AnalyticsPage() {
                       <div className="flex items-center">
                         <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
                         <span className="text-white font-semibold">{winner.winner_username}</span>
-                      </div>
+          </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
                         <span className="text-white font-bold text-lg">{winner.winner_score.toFixed(2)}</span>
-                      </div>
+        </div>
                     </td>
                   </tr>
                 ))}
@@ -511,7 +562,7 @@ export default function AnalyticsPage() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-orange-500 to-red-500">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Username</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Rank & Username</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Score</th>
                   <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Prize</th>
                 </tr>
@@ -526,30 +577,30 @@ export default function AnalyticsPage() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center">
-                        {index < 3 && (
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
-                            index === 0 ? 'bg-yellow-500' :
-                            index === 1 ? 'bg-gray-400' :
-                            'bg-orange-600'
+                        {winner.rank && (
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                            winner.rank === 1 ? 'bg-yellow-500 shadow-lg shadow-yellow-500/50' :
+                            winner.rank === 2 ? 'bg-gray-400 shadow-lg shadow-gray-400/50' :
+                            'bg-orange-600 shadow-lg shadow-orange-600/50'
                           }`}>
-                            <span className="text-xs font-bold text-black">{index + 1}</span>
+                            <span className="text-sm font-bold text-black">{winner.rank}</span>
                           </div>
                         )}
                         <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
                         <span className="text-white font-semibold">{winner.winner_username}</span>
-                      </div>
+            </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
                         <span className="text-white font-bold text-lg">{winner.winner_score.toFixed(2)}</span>
-                      </div>
+            </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
                         <span className="text-green-400 font-bold">{formatAmount(winner.prize_amount)}</span>
-                      </div>
+            </div>
                     </td>
                   </tr>
                 ))}
@@ -581,7 +632,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>
     </div>
   );
 }

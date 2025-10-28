@@ -85,19 +85,20 @@ CREATE TABLE hot_sell_participants (
 -- All games have 1st (50%), 2nd (20%), 3rd (15%) place prizes
 -- Platform takes 15% fee before distribution
 
+-- Max participants = base_price (so $2 = 2 players, $5 = 5 players, etc.)
 INSERT INTO hot_sell_configs (id, game_type, title, description, entry_fee, base_price, max_participants, game_duration, rng_seed, first_place_percent, second_place_percent, third_place_percent, platform_fee_percent) VALUES
-('hs-2-sword-parry', 'sword_parry', '$2 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2, 10, 30, 5, 50, 20, 15, 15),
-('hs-5-blade-bounce', 'blade_bounce', '$5 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 15, 30, 7, 50, 20, 15, 15),
-('hs-10-laser-dodge', 'laser_dodge', '$10 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10, 20, 30, 9, 50, 20, 15, 15),
-('hs-25-multi-target', 'multi_target_reaction', '$25 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25, 30, 30, 11, 50, 20, 15, 15),
-('hs-50-sword-parry', 'sword_parry', '$50 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 50, 40, 30, 13, 50, 20, 15, 15),
-('hs-100-laser-dodge', 'laser_dodge', '$100 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 100, 50, 30, 15, 50, 20, 15, 15),
-('hs-250-multi-target', 'multi_target_reaction', '$250 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 250, 75, 30, 17, 50, 20, 15, 15),
-('hs-1000-cash-stack', 'cash_stack', '$1000 Hot Sell - Cash Stack', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 1000, 100, 30, 19, 50, 20, 15, 15),
-('hs-2500-falling-objects', 'falling_object', '$2500 Hot Sell - Falling Objects', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2500, 150, 30, 21, 50, 20, 15, 15),
-('hs-5000-color-sequence', 'color_sequence', '$5000 Hot Sell - Color Sequence', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5000, 200, 30, 23, 50, 20, 15, 15),
-('hs-10000-laser-dodge', 'laser_dodge', '$10000 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10000, 250, 30, 25, 50, 20, 15, 15),
-('hs-25000-multi-target', 'multi_target_reaction', '$25000 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25000, 300, 30, 27, 50, 20, 15, 15);
+('hs-2-sword-parry', 'sword_parry', '$2 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2, 2, 30, 5, 50, 20, 15, 15),
+('hs-5-blade-bounce', 'blade_bounce', '$5 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 5, 30, 7, 50, 20, 15, 15),
+('hs-10-laser-dodge', 'laser_dodge', '$10 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10, 10, 30, 9, 50, 20, 15, 15),
+('hs-25-multi-target', 'multi_target_reaction', '$25 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25, 25, 30, 11, 50, 20, 15, 15),
+('hs-50-sword-parry', 'sword_parry', '$50 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 50, 50, 30, 13, 50, 20, 15, 15),
+('hs-100-laser-dodge', 'laser_dodge', '$100 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 100, 100, 30, 15, 50, 20, 15, 15),
+('hs-250-multi-target', 'multi_target_reaction', '$250 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 250, 250, 30, 17, 50, 20, 15, 15),
+('hs-1000-cash-stack', 'cash_stack', '$1000 Hot Sell - Cash Stack', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 1000, 1000, 30, 19, 50, 20, 15, 15),
+('hs-2500-falling-objects', 'falling_object', '$2500 Hot Sell - Falling Objects', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 2500, 2500, 30, 21, 50, 20, 15, 15),
+('hs-5000-color-sequence', 'color_sequence', '$5000 Hot Sell - Color Sequence', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5000, 5000, 30, 23, 50, 20, 15, 15),
+('hs-10000-laser-dodge', 'laser_dodge', '$10000 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10000, 10000, 30, 25, 50, 20, 15, 15),
+('hs-25000-multi-target', 'multi_target_reaction', '$25000 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25000, 25000, 30, 27, 50, 20, 15, 15);
 
 -- ============================================================================
 -- FUNCTION: Get All Hot Sell Sessions
@@ -322,6 +323,43 @@ BEGIN
   END IF;
 
   RETURN QUERY SELECT TRUE, 'Score updated successfully';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- FUNCTION: Save Hot Sell Result to Dashboard
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION save_hot_sell_to_dashboard(
+  session_id_param UUID,
+  user_id_param UUID,
+  score_param NUMERIC,
+  config_id_param TEXT
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- Save to user_game_history for dashboard
+  INSERT INTO user_game_history (
+    user_id,
+    game_type,
+    score,
+    accuracy,
+    tokens_won,
+    created_at
+  ) VALUES (
+    user_id_param,
+    'hot_sell_' || config_id_param,
+    score_param,
+    0, -- accuracy not tracked for hot sell
+    0, -- tokens_won updated after payout
+    NOW()
+  )
+  ON CONFLICT DO NOTHING;
+  
+  RETURN TRUE;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

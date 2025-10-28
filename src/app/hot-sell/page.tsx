@@ -102,6 +102,7 @@ export default function HotSellPage() {
   }, [userTokens, tokensLoading]);
 
   // Hardcoded Hot Sell configurations (NO 1v1, NO $50,000)
+  // Max participants = base_price (so $2 game = 2 players)
   const configs: HotSellConfig[] = [
     {
       id: 'hs-2-sword-parry',
@@ -110,7 +111,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 2,
-      max_participants: 10,
+      max_participants: 2,
       game_duration: 30,
       rng_seed: 5,
       first_place_percent: 50,
@@ -125,7 +126,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 5,
-      max_participants: 15,
+      max_participants: 5,
       game_duration: 30,
       rng_seed: 7,
       first_place_percent: 50,
@@ -140,7 +141,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 10,
-      max_participants: 20,
+      max_participants: 10,
       game_duration: 30,
       rng_seed: 9,
       first_place_percent: 50,
@@ -155,7 +156,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 25,
-      max_participants: 30,
+      max_participants: 25,
       game_duration: 30,
       rng_seed: 11,
       first_place_percent: 50,
@@ -170,7 +171,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 50,
-      max_participants: 40,
+      max_participants: 50,
       game_duration: 30,
       rng_seed: 13,
       first_place_percent: 50,
@@ -185,7 +186,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 100,
-      max_participants: 50,
+      max_participants: 100,
       game_duration: 30,
       rng_seed: 15,
       first_place_percent: 50,
@@ -200,7 +201,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 250,
-      max_participants: 75,
+      max_participants: 250,
       game_duration: 30,
       rng_seed: 17,
       first_place_percent: 50,
@@ -215,7 +216,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 1000,
-      max_participants: 100,
+      max_participants: 1000,
       game_duration: 30,
       rng_seed: 19,
       first_place_percent: 50,
@@ -230,7 +231,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 2500,
-      max_participants: 150,
+      max_participants: 2500,
       game_duration: 30,
       rng_seed: 21,
       first_place_percent: 50,
@@ -245,7 +246,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 5000,
-      max_participants: 200,
+      max_participants: 5000,
       game_duration: 30,
       rng_seed: 23,
       first_place_percent: 50,
@@ -260,7 +261,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 10000,
-      max_participants: 250,
+      max_participants: 10000,
       game_duration: 30,
       rng_seed: 25,
       first_place_percent: 50,
@@ -275,7 +276,7 @@ export default function HotSellPage() {
       description: '1st: 50%, 2nd: 20%, 3rd: 15%',
       entry_fee: 1,
       base_price: 25000,
-      max_participants: 300,
+      max_participants: 25000,
       game_duration: 30,
       rng_seed: 27,
       first_place_percent: 50,
@@ -523,6 +524,34 @@ export default function HotSellPage() {
       setMessage({ type: 'error', text: 'Payout system error occurred.' });
     }
   };
+
+  // Auto-payout when session is full and all players have scores
+  useEffect(() => {
+    if (!sessions.length) return;
+
+    const checkAndAutoPayout = async () => {
+      for (const session of sessions) {
+        const config = configs.find(c => c.id === session.config_id);
+        if (!config) continue;
+
+        // Check if session is full and all players have scores
+        if (session.participants.length >= config.max_participants) {
+          const allHaveScores = session.participants.every(p => p.score !== null && p.score !== undefined);
+          
+          if (allHaveScores && !session.first_place_user_id) {
+            console.log('🔔 [Hot Sell] Auto-payout triggered for full session:', session.config_id);
+            
+            // Wait 3 seconds then trigger payout
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            await handleManualPayout(session.config_id);
+            break; // Only process one at a time
+          }
+        }
+      }
+    };
+
+    checkAndAutoPayout();
+  }, [sessions]);
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
