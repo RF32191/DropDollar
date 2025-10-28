@@ -45,7 +45,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
         case 'home':
           return 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 shadow-2xl animate-gradient-x'; // Purple-Pink animated
         case 'hot-sell':
-          return 'bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600 shadow-2xl animate-gradient-x'; // Gold animated with shine
+          return 'bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 shadow-2xl animate-gradient-x'; // Red and gold animated transition
         case 'winner-takes-all':
           return 'bg-gradient-to-r from-yellow-700 via-yellow-400 to-amber-700 shadow-2xl animate-gradient-x'; // Dark gold to light gold animated
         case 'games':
