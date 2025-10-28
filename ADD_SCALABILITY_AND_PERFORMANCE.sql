@@ -35,9 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_tokens ON users(tokens) WHERE tokens > 0;
 CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at DESC);
 
--- Game History Indexes
-CREATE INDEX IF NOT EXISTS idx_game_history_user_date ON game_history(user_id, played_at DESC);
-CREATE INDEX IF NOT EXISTS idx_game_history_type_date ON game_history(game_type, played_at DESC);
+-- Game History Indexes (use created_at if played_at doesn't exist)
+CREATE INDEX IF NOT EXISTS idx_game_history_user_date ON game_history(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_game_history_type_date ON game_history(game_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_user_game_history_user ON user_game_history(user_id, created_at DESC);
 
 DO $$

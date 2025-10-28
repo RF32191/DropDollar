@@ -71,13 +71,12 @@ BEGIN
   RAISE NOTICE '═══════════════════════════════════════════════════════════';
 END $$;
 
--- Create missing Hot Sell sessions (using exact structure from COMPLETE_HOT_SELL_SYSTEM.sql)
+-- Create missing Hot Sell sessions (using actual table structure)
 INSERT INTO hot_sell_sessions (
   config_id,
   current_pot,
   base_price,
   max_participants,
-  participants_count,
   status,
   created_at,
   updated_at
@@ -87,7 +86,6 @@ SELECT
   0,
   c.base_price,
   c.max_participants,
-  0,
   'waiting',
   NOW(),
   NOW()
@@ -96,6 +94,103 @@ WHERE NOT EXISTS (
   SELECT 1 FROM hot_sell_sessions s 
   WHERE s.config_id = c.id
 );
+
+-- ============================================================================
+-- PART 2B: RESTORE HOT SELL FUNCTIONS
+-- ============================================================================
+
+-- Create get_all_hot_sell_sessions function
+DROP FUNCTION IF EXISTS public.get_all_hot_sell_sessions() CASCADE;
+
+CREATE OR REPLACE FUNCTION public.get_all_hot_sell_sessions()
+RETURNS TABLE (
+    id UUID,
+    config_id TEXT,
+    current_pot NUMERIC,
+    base_price NUMERIC,
+    max_participants INTEGER,
+    status TEXT,
+    first_place_user_id UUID,
+    second_place_user_id UUID,
+    third_place_user_id UUID,
+    first_place_prize NUMERIC,
+    second_place_prize NUMERIC,
+    third_place_prize NUMERIC,
+    platform_fee NUMERIC,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    participants JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- Auto-create missing sessions
+    INSERT INTO hot_sell_sessions (
+        config_id,
+        current_pot,
+        base_price,
+        max_participants,
+        status,
+        created_at,
+        updated_at
+    )
+    SELECT 
+        c.id,
+        0,
+        c.base_price,
+        c.max_participants,
+        'waiting',
+        NOW(),
+        NOW()
+    FROM hot_sell_configs c
+    WHERE NOT EXISTS (
+        SELECT 1 FROM hot_sell_sessions s 
+        WHERE s.config_id = c.id
+    );
+
+    RETURN QUERY
+    SELECT 
+        s.id,
+        s.config_id,
+        s.current_pot,
+        s.base_price,
+        s.max_participants,
+        s.status,
+        s.first_place_user_id,
+        s.second_place_user_id,
+        s.third_place_user_id,
+        s.first_place_prize,
+        s.second_place_prize,
+        s.third_place_prize,
+        s.platform_fee,
+        s.created_at,
+        s.updated_at,
+        s.completed_at,
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'id', p.id,
+                        'user_id', p.user_id,
+                        'score', p.score,
+                        'accuracy', p.accuracy,
+                        'joined_at', p.joined_at
+                    )
+                )
+                FROM public.hot_sell_participants p
+                WHERE p.session_id = s.id
+            ),
+            '[]'::jsonb
+        ) as participants
+    FROM public.hot_sell_sessions s
+    WHERE s.config_id LIKE 'hs-%'
+    ORDER BY s.config_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_all_hot_sell_sessions() TO authenticated, anon;
 
 -- ============================================================================
 -- PART 3: VERIFY AND CREATE 1V1 SESSIONS
@@ -142,6 +237,99 @@ WHERE NOT EXISTS (
   SELECT 1 FROM one_v_one_sessions s 
   WHERE s.config_id = c.id
 );
+
+-- ============================================================================
+-- PART 3B: RESTORE 1V1 GET SESSIONS FUNCTION
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS public.get_all_1v1_sessions() CASCADE;
+
+CREATE OR REPLACE FUNCTION public.get_all_1v1_sessions()
+RETURNS TABLE (
+    id UUID,
+    config_id TEXT,
+    current_pot NUMERIC,
+    prize_pool NUMERIC,
+    participants_count INTEGER,
+    max_participants INTEGER,
+    status TEXT,
+    winner_user_id UUID,
+    prize_amount NUMERIC,
+    platform_fee NUMERIC,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    participants JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- Auto-create missing sessions
+    INSERT INTO one_v_one_sessions (
+        config_id,
+        current_pot,
+        prize_pool,
+        participants_count,
+        max_participants,
+        status,
+        created_at,
+        updated_at
+    )
+    SELECT 
+        c.id,
+        0,
+        c.prize_pool,
+        0,
+        2,
+        'waiting',
+        NOW(),
+        NOW()
+    FROM one_v_one_configs c
+    WHERE NOT EXISTS (
+        SELECT 1 FROM one_v_one_sessions s 
+        WHERE s.config_id = c.id
+    );
+
+    RETURN QUERY
+    SELECT 
+        s.id,
+        s.config_id,
+        s.current_pot,
+        s.prize_pool,
+        s.participants_count,
+        s.max_participants,
+        s.status,
+        s.winner_user_id,
+        s.prize_amount,
+        s.platform_fee,
+        s.created_at,
+        s.updated_at,
+        s.completed_at,
+        COALESCE(
+            (
+                SELECT jsonb_agg(
+                    jsonb_build_object(
+                        'id', p.id,
+                        'user_id', p.user_id,
+                        'score', p.score,
+                        'accuracy', p.accuracy,
+                        'joined_at', p.joined_at,
+                        'completed_at', p.completed_at
+                    )
+                )
+                FROM public.one_v_one_participants p
+                WHERE p.session_id = s.id
+            ),
+            '[]'::jsonb
+        ) as participants
+    FROM public.one_v_one_sessions s
+    WHERE s.status IN ('waiting', 'active')
+    ORDER BY s.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_all_1v1_sessions() TO authenticated, anon;
 
 -- ============================================================================
 -- PART 4: RESTORE WINNER TAKES ALL FUNCTIONS
@@ -487,7 +675,8 @@ FROM winner_takes_all_sessions
 ORDER BY config_id 
 LIMIT 3;
 
-SELECT 'HOT SELL' as type, config_id, status, current_pot, participants_count 
+SELECT 'HOT SELL' as type, config_id, status, current_pot, 
+  (SELECT COUNT(*) FROM hot_sell_participants WHERE session_id = hot_sell_sessions.id) as participants_count
 FROM hot_sell_sessions 
 ORDER BY config_id 
 LIMIT 3;
