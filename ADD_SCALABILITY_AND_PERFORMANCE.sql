@@ -265,10 +265,10 @@ UNION ALL
 SELECT 
   'Hot Sell' as game_type,
   COUNT(*) as active_count,
-  SUM(current_pot) as total_pot,
-  SUM(participants_count) as total_participants
-FROM hot_sell_sessions
-WHERE status IN ('waiting', 'active')
+  SUM(hs.current_pot) as total_pot,
+  (SELECT COUNT(*) FROM hot_sell_participants WHERE session_id IN (SELECT id FROM hot_sell_sessions WHERE status IN ('waiting', 'active'))) as total_participants
+FROM hot_sell_sessions hs
+WHERE hs.status IN ('waiting', 'active')
 UNION ALL
 SELECT 
   '1v1' as game_type,
