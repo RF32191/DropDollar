@@ -15,7 +15,8 @@ import {
   CheckCircleIcon,
   LockClosedIcon,
   MapPinIcon,
-  FireIcon
+  FireIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 interface OneVOneSession {
@@ -79,6 +80,7 @@ export default function OneVOnePage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
+  const [improvedLocation, setImprovedLocation] = useState<any>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
   // Wallet display state (prevent flickering)
@@ -145,39 +147,27 @@ export default function OneVOnePage() {
     }
   }, []);
 
-  // Location verification - check for ALL users (authenticated or not)
+  // Location verification - using same method as Winner Takes All
   useEffect(() => {
     const verifyLocation = async () => {
       setLocationLoading(true);
       try {
-        console.log('📍 [1v1] Starting location verification...');
-        const locationData = await ImprovedLocationService.getLocation();
-        console.log('📍 [1v1] Location data:', locationData);
-        const isAllowed = await ImprovedLocationService.isLocationAllowed(locationData);
-        setLocationVerified(isAllowed);
-        console.log('📍 [1v1] Location verified:', isAllowed);
-        
-        if (!isAllowed) {
-          setMessage({ 
-            type: 'error', 
-            text: 'Gaming is not available in your location. You are in a restricted jurisdiction.' 
-          });
-        }
+        const location = await ImprovedLocationService.getCurrentLocation();
+        setImprovedLocation(location);
+        setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
+        console.log('🎮 [1v1] Location verified:', location);
       } catch (error) {
-        console.error('❌ [1v1] Location verification error:', error);
+        console.error('❌ [1v1] Location verification failed:', error);
         setLocationVerified(false);
-        setMessage({ 
-          type: 'error', 
-          text: 'Unable to verify location. Gaming may be restricted.' 
-        });
       } finally {
         setLocationLoading(false);
       }
     };
 
-    // Always verify location (even for non-authenticated users)
-    verifyLocation();
-  }, []); // Run once on mount
+    if (isAuthenticated) {
+      verifyLocation();
+    }
+  }, [isAuthenticated]);
 
   // Load configs and sessions on mount
   useEffect(() => {
@@ -196,8 +186,10 @@ export default function OneVOnePage() {
       return;
     }
 
-    if (!locationVerified) {
-      setMessage({ type: 'error', text: 'Gaming not allowed in your location' });
+    console.log('🌍 [1v1] Location check:', { improvedLocation, isGamingAllowed: improvedLocation ? ImprovedLocationService.isGamingAllowed(improvedLocation) : false });
+    if (!improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)) {
+      console.log('❌ [1v1] Location not allowed');
+      setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
       return;
     }
 
@@ -450,14 +442,33 @@ export default function OneVOnePage() {
           </div>
 
           {/* Location Banner */}
-          {!locationVerified && (
-            <div className="mb-6 p-6 bg-red-500/20 border border-red-500/50 rounded-xl backdrop-blur-xl">
-              <div className="flex items-center">
-                <MapPinIcon className="w-8 h-8 text-red-400 mr-4" />
-                <div>
-                  <p className="text-red-300 font-semibold text-lg">Location Not Verified</p>
-                  <p className="text-red-200 text-sm">Gaming is only available in legal jurisdictions</p>
-                </div>
+          {isAuthenticated && (
+            <div className={`mb-6 p-6 rounded-xl backdrop-blur-xl ${
+              locationLoading
+                ? 'bg-blue-500/20 border border-blue-500/50'
+                : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
+                  ? 'bg-green-500/20 border border-green-500/50' 
+                  : 'bg-red-500/20 border border-red-500/50'
+              }`}>
+            <div className="flex items-center justify-center">
+              {locationLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-3"></div>
+                  <span className="text-blue-300 text-lg font-semibold">Verifying Location...</span>
+                </>
+              ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
+                  <>
+                    <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
+                  <span className="text-green-300 text-lg font-semibold">Location Verified - Gaming Allowed</span>
+                  <span className="text-green-200 text-sm ml-2">({improvedLocation.city}, {improvedLocation.state})</span>
+                  </>
+                ) : (
+                  <>
+                    <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
+                  <span className="text-red-300 text-lg font-semibold">Gaming Not Allowed in Your Location</span>
+                  <span className="text-red-200 text-sm ml-2">({improvedLocation?.city || 'Unknown'}, {improvedLocation?.state || 'Unknown'})</span>
+                  </>
+                )}
               </div>
             </div>
           )}
