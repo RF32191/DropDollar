@@ -92,8 +92,16 @@ BEGIN
 END;
 $$;
 
--- Test it for all configs
-SELECT test_hot_sell_payout('hs-2-sword-parry');
-SELECT test_hot_sell_payout('hs-3-blade-bounce');
-SELECT test_hot_sell_payout('hs-5-laser-dodge');
+-- Test ALL configs dynamically
+DO $$
+DECLARE
+  config_rec RECORD;
+BEGIN
+  FOR config_rec IN 
+    SELECT id, title FROM hot_sell_configs ORDER BY base_price
+  LOOP
+    RAISE NOTICE '%', test_hot_sell_payout(config_rec.id);
+    RAISE NOTICE '---';
+  END LOOP;
+END $$;
 
