@@ -114,11 +114,11 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
           // Double-click to go to dashboard
           window.location.href = '/dashboard';
         }}
-        className={`flex items-center space-x-2 px-4 py-2 ${styles.button} font-medium transition-colors duration-300 hover:bg-white/10 rounded-lg`}
+        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg"
         title="Click to open menu, double-click to go to dashboard"
       >
         <UserIcon className="h-5 w-5" />
-        <span>{getUserDisplayName()}</span>
+        <span className="hidden sm:inline">{getUserDisplayName()}</span>
         <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 

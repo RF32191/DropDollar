@@ -36,52 +36,39 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
     playNavigationClick();
   };
 
-  // Styles based on variant and current page
+  // Styles based on variant and current page - Gold, Silver, Copper theme
   const getHeaderStyles = () => {
-    // Page-specific navigation colors
+    // Page-specific navigation colors - Metallic theme
     if (currentPage) {
       switch (currentPage) {
         case 'hot-sell':
-          return 'bg-gradient-to-r from-orange-800 via-red-800 to-orange-900 shadow-lg';
+          return 'bg-gradient-to-r from-orange-700 via-amber-600 to-yellow-700 shadow-2xl'; // Copper
         case 'winner-takes-all':
-          return 'bg-gradient-to-r from-yellow-600 via-yellow-500 to-yellow-700 shadow-lg';
+          return 'bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-600 shadow-2xl'; // Gold
         case 'games':
-          return 'bg-gradient-to-r from-blue-800 via-indigo-800 to-purple-800 shadow-lg';
+          return 'bg-gradient-to-r from-gray-600 via-gray-500 to-slate-600 shadow-2xl'; // Silver
         case 'buy-tokens':
-          return 'bg-gradient-to-r from-green-700 via-emerald-700 to-green-800 shadow-lg';
+          return 'bg-gradient-to-r from-yellow-700 via-amber-600 to-yellow-700 shadow-2xl'; // Gold
         case 'tournaments':
-          return 'bg-gradient-to-r from-purple-700 via-violet-700 to-purple-800 shadow-lg';
+          return 'bg-gradient-to-r from-amber-700 via-orange-600 to-amber-700 shadow-2xl'; // Copper
+        case 'analytics':
+          return 'bg-gradient-to-r from-slate-600 via-gray-500 to-slate-600 shadow-2xl'; // Silver
         case 'categories':
-          return 'bg-gradient-to-r from-teal-700 via-cyan-700 to-teal-800 shadow-lg';
+          return 'bg-gradient-to-r from-orange-600 via-amber-600 to-orange-600 shadow-2xl'; // Copper
         default:
-          return 'bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 shadow-lg';
+          return 'bg-gradient-to-r from-gray-700 via-slate-600 to-gray-700 shadow-2xl'; // Silver
       }
     }
     
-    // Fallback to variant-based styling
-    switch (variant) {
-      case 'light':
-        return 'bg-white border-b border-gray-200 shadow-sm';
-      case 'dark':
-        return 'bg-gray-900 border-b border-gray-800';
-      case 'gradient':
-      default:
-        return 'bg-gradient-to-r from-slate-800 via-gray-800 to-slate-900 shadow-lg';
-    }
+    // Fallback to metallic silver
+    return 'bg-gradient-to-r from-gray-700 via-slate-600 to-gray-700 shadow-2xl';
   };
 
   const getLinkStyles = (isActive: boolean) => {
-    const baseStyles = 'font-semibold transition-all duration-300 hover:scale-110 px-4 py-2 rounded-xl relative z-10 cursor-pointer group overflow-hidden';
+    const baseStyles = 'font-semibold transition-all duration-300 hover:scale-105 px-3 py-2 rounded-xl relative z-10 cursor-pointer group overflow-hidden text-sm';
     
-    switch (variant) {
-      case 'light':
-        return `${baseStyles} ${isActive ? 'text-blue-600 font-bold bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg' : 'text-gray-700 hover:text-blue-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 hover:shadow-md'}`;
-      case 'dark':
-        return `${baseStyles} ${isActive ? 'text-blue-400 font-bold bg-gradient-to-r from-white/15 to-blue-500/20 shadow-lg' : 'text-gray-300 hover:text-white hover:bg-gradient-to-r hover:from-white/10 hover:to-white/5 hover:shadow-md'}`;
-      case 'gradient':
-      default:
-        return `${baseStyles} ${isActive ? 'text-yellow-300 font-bold bg-gradient-to-r from-white/20 to-yellow-500/20 shadow-lg' : 'text-white hover:text-yellow-200 hover:bg-gradient-to-r hover:from-white/10 hover:to-white/5 hover:shadow-md'}`;
-    }
+    // Metallic theme for all navigation
+    return `${baseStyles} ${isActive ? 'text-yellow-200 font-bold bg-gradient-to-r from-white/25 to-yellow-400/25 shadow-lg border border-yellow-300/30' : 'text-white/90 hover:text-yellow-100 hover:bg-gradient-to-r hover:from-white/15 hover:to-white/10 hover:shadow-md'}`;
   };
 
   const getLogoTextStyles = () => {
