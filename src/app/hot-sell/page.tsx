@@ -276,10 +276,44 @@ export default function HotSellPage() {
   const loadSessions = useCallback(async () => {
     try {
       console.log('🔥 [Hot Sell] Loading sessions...');
+      
+      // Try to use the RPC function
       const { data, error } = await supabase.rpc('get_all_hot_sell_sessions');
       
       if (error) {
-        console.error('❌ [Hot Sell] Error loading sessions:', error);
+        console.error('❌ [Hot Sell] Error loading sessions (RPC not found, will retry):', error);
+        
+        // Fallback: Try direct table query if RPC doesn't exist yet
+        const { data: sessionsData, error: sessionsError } = await supabase
+          .from('hot_sell_sessions')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (sessionsError) {
+          console.error('❌ [Hot Sell] Error loading sessions from table:', sessionsError);
+          setSessions([]);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get participants for each session
+        const sessionsWithParticipants = await Promise.all(
+          (sessionsData || []).map(async (session) => {
+            const { data: participants } = await supabase
+              .from('hot_sell_participants')
+              .select('*')
+              .eq('session_id', session.id);
+            
+            return {
+              ...session,
+              participants: participants || []
+            };
+          })
+        );
+        
+        console.log('📊 [Hot Sell] Sessions data (fallback):', sessionsWithParticipants);
+        setSessions(sessionsWithParticipants);
+        setIsLoading(false);
         return;
       }
       
@@ -288,6 +322,9 @@ export default function HotSellPage() {
       console.log('✅ [Hot Sell] Sessions loaded:', data?.length || 0);
     } catch (error) {
       console.error('❌ [Hot Sell] Error loading sessions:', error);
+      setSessions([]);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -653,6 +690,19 @@ export default function HotSellPage() {
             }`}>
               {message.text}
             </p>
+          </div>
+        )}
+
+        {/* Debug Info */}
+        {sessions.length === 0 && !isLoading && (
+          <div className="mb-6 p-6 bg-yellow-500/20 border border-yellow-500/50 rounded-xl">
+            <p className="text-yellow-300 text-center font-semibold mb-2">⚠️ No Hot Sell sessions found</p>
+            <p className="text-yellow-200 text-center text-sm">Please run the SQL scripts in Supabase:</p>
+            <ol className="text-yellow-200 text-sm mt-2 space-y-1 text-left max-w-2xl mx-auto">
+              <li>1. Run <code className="bg-black/30 px-2 py-1 rounded">COMPLETE_HOT_SELL_SYSTEM.sql</code></li>
+              <li>2. Check Supabase SQL Editor for any errors</li>
+              <li>3. Refresh this page</li>
+            </ol>
           </div>
         )}
 
