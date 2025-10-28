@@ -1,476 +1,680 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { TournamentService, Tournament, TournamentParticipant } from '@/lib/supabase/tournamentService';
-import { UserService } from '@/lib/supabase/userService';
+import { useTokenSync } from '@/hooks/useTokenSync';
+import { supabase } from '@/lib/supabase/client';
+import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
-import { 
-  TrophyIcon, 
+import { ImprovedLocationService } from '@/lib/improvedLocationService';
+import {
+  TrophyIcon,
   UsersIcon,
   BanknotesIcon,
-  StarIcon,
-  ClockIcon,
-  FireIcon,
-  ExclamationTriangleIcon,
   CheckCircleIcon,
-  PlusIcon
+  LockClosedIcon,
+  MapPinIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
 
-export default function OneVOneTournamentsPage() {
+interface OneVOneSession {
+  id: string;
+  config_id: string;
+  current_pot: number;
+  prize_pool: number;
+  participants_count: number;
+  max_participants: number;
+  status: 'waiting' | 'active' | 'completed';
+  winner_user_id: string | null;
+  prize_amount: number | null;
+  platform_fee: number | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  participants: Array<{
+    id: string;
+    user_id: string;
+    score: number | null;
+    accuracy: number | null;
+    joined_at: string;
+    completed_at: string | null;
+  }>;
+}
+
+interface OneVOneConfig {
+  id: string;
+  game_type: string;
+  title: string;
+  description: string;
+  entry_fee: number;
+  prize_pool: number;
+  game_duration: number;
+  rng_seed: number;
+  winner_prize: number;
+  platform_fee: number;
+}
+
+interface Message {
+  type: 'success' | 'error';
+  text: string;
+}
+
+export default function OneVOnePage() {
   const { user, isAuthenticated } = useAuth();
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [participants, setParticipants] = useState<{ [tournamentId: string]: TournamentParticipant[] }>({});
-  const [userTokens, setUserTokens] = useState<number>(0);
+  const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
+  
+  const [configs, setConfigs] = useState<OneVOneConfig[]>([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
+  const [sessions, setSessions] = useState<OneVOneSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [joiningTournament, setJoiningTournament] = useState<string | null>(null);
-  const [creatingTournament, setCreatingTournament] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [newTournamentName, setNewTournamentName] = useState('');
-  const [newTournamentGameType, setNewTournamentGameType] = useState('sword-parry');
-  const [newTournamentEntryFee, setNewTournamentEntryFee] = useState(1);
+  const [message, setMessage] = useState<Message | null>(null);
+  const [currentView, setCurrentView] = useState<'list' | 'game'>('list');
+  const [selectedGameFlow, setSelectedGameFlow] = useState<{
+    gameType: string;
+    sessionId: string;
+    configId: string;
+    entryFee: number;
+    rngSeed: number;
+  } | null>(null);
+  const [joiningSession, setJoiningSession] = useState(false);
+  const [locationVerified, setLocationVerified] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+
+  // Wallet display state (prevent flickering)
+  const [displayTokens, setDisplayTokens] = useState<number>(0);
+  const [hasLoadedTokens, setHasLoadedTokens] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      loadTournamentData();
+    if (!tokensLoading && userTokens !== displayTokens) {
+      setDisplayTokens(userTokens);
+      setHasLoadedTokens(true);
     }
-  }, [isAuthenticated, user]);
+  }, [userTokens, tokensLoading]);
 
-  const loadTournamentData = async () => {
+  // Load configs from database
+  const loadConfigs = async () => {
     try {
-      setIsLoading(true);
+      setLoadingConfigs(true);
+      console.log('📥 [1v1] Loading configs from database...');
       
-      // Load 1v1 tournaments
-      const tournamentList = await TournamentService.getActive1v1Tournaments();
-      setTournaments(tournamentList);
-      
-      // Load participants for each tournament
-      const participantsData: { [tournamentId: string]: TournamentParticipant[] } = {};
-      for (const tournament of tournamentList) {
-        const tournamentParticipants = await TournamentService.getTournamentParticipants(tournament.id);
-        participantsData[tournament.id] = tournamentParticipants;
+      const { data, error } = await supabase
+        .from('one_v_one_configs')
+        .select('*')
+        .order('prize_pool', { ascending: true });
+
+      if (error) {
+        console.error('❌ [1v1] Error loading configs:', error);
+        setConfigs([]);
+      } else if (data && data.length > 0) {
+        console.log(`✅ [1v1] Loaded ${data.length} configs from database`);
+        setConfigs(data as OneVOneConfig[]);
+      } else {
+        console.warn('⚠️ [1v1] No configs found in DB');
+        setConfigs([]);
       }
-      setParticipants(participantsData);
+    } catch (err) {
+      console.error('❌ [1v1] Error loading configs:', err);
+      setConfigs([]);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
+  // Load sessions from database
+  const loadSessions = useCallback(async () => {
+    try {
+      console.log('🔄 [1v1] Loading sessions from database...');
       
-      // Load user tokens
-      if (user) {
-        const profile = await UserService.getUserProfile(user.id);
-        setUserTokens(profile?.tokens || 0);
+      const { data, error } = await supabase.rpc('get_all_1v1_sessions');
+      
+      if (error) {
+        console.error('❌ [1v1] Error loading sessions:', error);
+        setSessions([]);
+        return;
       }
       
+      console.log('📊 [1v1] Sessions data:', data);
+      setSessions(data || []);
+      console.log('✅ [1v1] Sessions loaded:', data?.length || 0);
     } catch (error) {
-      console.error('❌ [1v1Tournaments] Error loading data:', error);
+      console.error('❌ [1v1] Error loading sessions:', error);
+      setSessions([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const createTournament = async () => {
-    if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to create tournaments' });
-      return;
-    }
-
-    if (!newTournamentName.trim()) {
-      setMessage({ type: 'error', text: 'Please enter a tournament name' });
-      return;
-    }
-
-    try {
-      setCreatingTournament(true);
-      
-      const tournament = await TournamentService.create1v1Tournament(
-        newTournamentName,
-        newTournamentGameType,
-        newTournamentEntryFee
-      );
-
-      if (tournament) {
-        setMessage({ type: 'success', text: `Tournament "${newTournamentName}" created successfully!` });
-        setNewTournamentName('');
-        setNewTournamentGameType('sword-parry');
-        setNewTournamentEntryFee(1);
-        loadTournamentData(); // Refresh the list
-      } else {
-        setMessage({ type: 'error', text: 'Failed to create tournament. Please try again.' });
+  // Location verification
+  useEffect(() => {
+    const verifyLocation = async () => {
+      setLocationLoading(true);
+      try {
+        const locationData = await ImprovedLocationService.getLocation();
+        const isAllowed = await ImprovedLocationService.isLocationAllowed(locationData);
+        setLocationVerified(isAllowed);
+        console.log('📍 [1v1] Location verified:', isAllowed);
+      } catch (error) {
+        console.error('❌ [1v1] Location verification error:', error);
+        setLocationVerified(false);
+      } finally {
+        setLocationLoading(false);
       }
-      
-    } catch (error) {
-      console.error('❌ [1v1Tournaments] Error creating tournament:', error);
-      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
-    } finally {
-      setCreatingTournament(false);
-    }
-  };
+    };
 
-  const joinTournament = async (tournament: Tournament) => {
+    if (isAuthenticated) {
+      verifyLocation();
+    }
+  }, [isAuthenticated]);
+
+  // Load configs and sessions on mount
+  useEffect(() => {
+    loadConfigs();
+    loadSessions();
+    
+    // Refresh sessions every 30 seconds
+    const interval = setInterval(loadSessions, 30000);
+    return () => clearInterval(interval);
+  }, [loadSessions]);
+
+  // Handle joining a session
+  const handleJoinSession = async (config: OneVOneConfig) => {
     if (!user || !isAuthenticated) {
-      setMessage({ type: 'error', text: 'Please log in to join tournaments' });
+      setMessage({ type: 'error', text: 'Please sign in to join' });
       return;
     }
 
-    if (userTokens < tournament.entry_fee) {
-      setMessage({ type: 'error', text: `You need ${tournament.entry_fee} tokens to join this tournament` });
+    if (!locationVerified) {
+      setMessage({ type: 'error', text: 'Gaming not allowed in your location' });
       return;
     }
 
-    const tournamentParticipants = participants[tournament.id] || [];
-    if (tournamentParticipants.length >= tournament.max_participants) {
-      setMessage({ type: 'error', text: 'This tournament is full' });
+    if (displayTokens < config.entry_fee) {
+      setMessage({ type: 'error', text: 'Insufficient tokens' });
       return;
     }
 
     try {
-      setJoiningTournament(tournament.id);
+      setJoiningSession(true);
+      console.log('🎮 [1v1] Joining session for config:', config.id);
+
+      // Find active session for this config
+      const session = sessions.find(s => s.config_id === config.id && s.status !== 'completed');
       
-      // Deduct tokens from user
-      const newTokenBalance = userTokens - tournament.entry_fee;
-      const tokenUpdateSuccess = await UserService.updateUserTokens(user.id, newTokenBalance);
-      
-      if (!tokenUpdateSuccess) {
-        setMessage({ type: 'error', text: 'Failed to deduct tokens. Please try again.' });
+      if (!session) {
+        setMessage({ type: 'error', text: 'No active session found' });
         return;
       }
 
-      // Join the tournament
-      const participant = await TournamentService.join1v1Tournament(
-        tournament.id,
-        user.id,
-        tournament.entry_fee
-      );
-
-      if (participant) {
-        setUserTokens(newTokenBalance);
-        setMessage({ type: 'success', text: `Successfully joined ${tournament.name}!` });
-        
-        // Refresh participants
-        const updatedParticipants = await TournamentService.getTournamentParticipants(tournament.id);
-        setParticipants(prev => ({
-          ...prev,
-          [tournament.id]: updatedParticipants
-        }));
-      } else {
-        // Refund tokens if join failed
-        await UserService.updateUserTokens(user.id, userTokens);
-        setMessage({ type: 'error', text: 'Failed to join tournament. Tokens refunded.' });
+      // Check if already joined
+      const hasJoined = session.participants.some(p => p.user_id === user.id);
+      if (hasJoined) {
+        // Already joined, start the game
+        console.log('✅ [1v1] Already joined, starting game...');
+        setSelectedGameFlow({
+          gameType: config.game_type,
+          sessionId: session.id,
+          configId: config.id,
+          entryFee: config.entry_fee,
+          rngSeed: config.rng_seed
+        });
+        setCurrentView('game');
+        return;
       }
+
+      // Call join function
+      const { data, error } = await supabase.rpc('join_1v1_session', {
+        session_id_param: session.id,
+        user_id_param: user.id,
+        entry_fee_param: config.entry_fee
+      });
+
+      console.log('📊 [1v1] Join response:', { data, error });
+
+      if (error) {
+        console.error('❌ [1v1] Join error:', error);
+        setMessage({ type: 'error', text: error.message || 'Failed to join session' });
+        return;
+      }
+
+      if (data && !data.success) {
+        setMessage({ type: 'error', text: data.message || 'Failed to join session' });
+        return;
+      }
+
+      // Success!
+      console.log('✅ [1v1] Joined successfully!');
+      await refreshTokens();
+      await loadSessions();
+      
+      // Start the game
+      setSelectedGameFlow({
+        gameType: config.game_type,
+        sessionId: session.id,
+        configId: config.id,
+        entryFee: config.entry_fee,
+        rngSeed: config.rng_seed
+      });
+      setCurrentView('game');
       
     } catch (error) {
-      console.error('❌ [1v1Tournaments] Error joining tournament:', error);
-      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+      console.error('❌ [1v1] Error joining session:', error);
+      setMessage({ type: 'error', text: 'Failed to join session' });
     } finally {
-      setJoiningTournament(null);
+      setJoiningSession(false);
     }
   };
 
-  const formatGameType = (gameType: string) => {
-    const gameNames: Record<string, string> = {
-      'sword-parry': 'Sword Parry',
-      'quick-click': 'Quick Click',
-      'memory-color': 'Memory Color',
-      'number-tap': 'Multi-Target Reaction',
-      'shape-tap': 'Shape Tap',
-      'reaction-test': 'Reaction Test'
-    };
-    return gameNames[gameType] || gameType;
+  // Handle game completion
+  const handleGameComplete = async (result: { score: number; accuracy: number }) => {
+    console.log('🎮 [1v1] Game completed with result:', result);
+    
+    if (!selectedGameFlow) return;
+
+    try {
+      // Update score
+      const { data, error } = await supabase.rpc('update_1v1_score', {
+        session_id_param: selectedGameFlow.sessionId,
+        user_id_param: user?.id,
+        score_param: result.score,
+        accuracy_param: result.accuracy
+      });
+
+      if (error) {
+        console.error('❌ [1v1] Error saving score:', error);
+        setMessage({ type: 'error', text: 'Error saving score: ' + error.message });
+      } else {
+        console.log('✅ [1v1] Score saved successfully');
+        setMessage({ type: 'success', text: 'Game completed! Score: ' + result.score.toFixed(2) });
+      }
+
+      // Check if both players have completed - trigger payout
+      setTimeout(async () => {
+        console.log('🔍 [1v1] Checking for payout trigger...');
+        const configId = selectedGameFlow.configId;
+        
+        // Re-fetch the session to check if ready
+        const { data: checkSession } = await supabase
+          .from('one_v_one_sessions')
+          .select(`
+            *,
+            participants:one_v_one_participants(user_id, score)
+          `)
+          .eq('config_id', configId)
+          .eq('status', 'active')
+          .single();
+        
+        if (checkSession) {
+          const bothJoined = checkSession.participants.length >= 2;
+          const bothCompleted = checkSession.participants.every((p: any) => p.score !== null && p.score !== undefined);
+          const notPaid = !checkSession.winner_user_id;
+          
+          console.log('📊 [1v1] Payout readiness check:', {
+            configId,
+            bothJoined,
+            bothCompleted,
+            notPaid,
+            participantCount: checkSession.participants.length,
+            scores: checkSession.participants.map((p: any) => p.score)
+          });
+          
+          if (bothJoined && bothCompleted && notPaid) {
+            console.log('✅ [1v1] BOTH PLAYERS DONE! Triggering payout...');
+            
+            const { data: payoutData, error: payoutError } = await supabase.rpc('process_1v1_payout', {
+              config_id_param: configId
+            });
+
+            if (payoutError) {
+              console.error('❌ [1v1] Payout error:', payoutError);
+            } else {
+              console.log('💰 [1v1] Payout successful:', payoutData);
+              if (payoutData && payoutData.success) {
+                setMessage({ 
+                  type: 'success', 
+                  text: `🎉 Winner: ${payoutData.winner} won ${payoutData.prize_amount} tokens! (Score: ${payoutData.winner_score})` 
+                });
+              }
+            }
+          } else {
+            console.log('⏸️ [1v1] Waiting for opponent to finish...');
+          }
+        }
+      }, 3000);
+
+      // Refresh sessions and return to list
+      await refreshTokens();
+      await loadSessions();
+      
+      setTimeout(() => {
+        setCurrentView('list');
+        setSelectedGameFlow(null);
+      }, 5000);
+
+    } catch (error) {
+      console.error('❌ [1v1] Error in game completion:', error);
+      setMessage({ type: 'error', text: 'Failed to save game result' });
+    }
   };
 
-  if (isLoading) {
+  const handleCancelGame = () => {
+    setCurrentView('list');
+    setSelectedGameFlow(null);
+  };
+
+  const formatAmount = (amount: number): string => {
+    return amount.toFixed(2);
+  };
+
+  // Group configs by game type
+  const gameTypes = Array.from(new Set(configs.map(c => c.game_type)));
+
+  const getGameInfo = (type: string) => {
+    switch(type) {
+      case 'sword_parry': return { name: '⚔️ Sword Slash', emoji: '⚔️' };
+      case 'blade_bounce': return { name: '🛡️ Blade Bounce', emoji: '🛡️' };
+      case 'laser_dodge': return { name: '🚀 Laser Dodge', emoji: '🚀' };
+      case 'multi_target_reaction': return { name: '🎯 Multi-Target', emoji: '🎯' };
+      case 'falling_object': return { name: '💰 Coin Catch', emoji: '💰' };
+      case 'color_sequence': return { name: '🎨 Color Memory', emoji: '🎨' };
+      case 'cash_stack': return { name: '💵 Cash Stack', emoji: '💵' };
+      case 'quick_click': return { name: '⚡ Quick Click', emoji: '⚡' };
+      default: return { name: type, emoji: '🎮' };
+    }
+  };
+
+  if (currentView === 'game' && selectedGameFlow) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white">
-        <CleanNavigation />
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <span className="ml-4 text-lg">Loading 1v1 tournaments...</span>
-          </div>
-        </div>
-      </div>
+      <ErrorBoundary>
+        <CompetitionGameFlow
+          gameType={selectedGameFlow.gameType}
+          sessionId={selectedGameFlow.sessionId}
+          configId={selectedGameFlow.configId}
+          rngSeed={selectedGameFlow.rngSeed}
+          onComplete={handleGameComplete}
+          onCancel={handleCancelGame}
+        />
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
-      </div>
-      
-      <CleanNavigation />
-      
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="flex items-center justify-center mb-4">
-            <TrophyIcon className="w-12 h-12 text-yellow-500 mr-4 animate-pulse" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              1v1 TOURNAMENTS
-            </h1>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+        <CleanNavigation />
+        
+        <div className="container mx-auto px-4 py-8 pt-24">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center mb-4">
+              <TrophyIcon className="w-16 h-16 text-blue-400 mr-6 animate-pulse" />
+              <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-pulse">
+                1v1 BATTLES
+              </h1>
+              <div className="ml-6">
+                <span className="text-6xl animate-bounce">⚔️</span>
+              </div>
+            </div>
+            <p className="text-2xl text-blue-200 font-semibold">Face Off • Winner Takes 85%</p>
           </div>
-          <p className="text-xl text-gray-300 mb-2">Head-to-Head Skill Battles</p>
-          <p className="text-lg text-gray-400">Challenge other players in intense 1v1 matches</p>
-          
-          {/* User Token Balance */}
-          {isAuthenticated && (
-            <div className="mt-6 inline-flex items-center bg-white/10 backdrop-blur-xl rounded-2xl px-6 py-3 border border-white/20">
-              <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
-              <span className="text-lg font-semibold">Your Tokens: {userTokens}</span>
+
+          {/* Wallet Display */}
+          <div className="mb-8 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <BanknotesIcon className="w-12 h-12 text-blue-400 mr-4" />
+                <div>
+                  <p className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Your Tokens</p>
+                  <p className="text-3xl font-bold text-white">
+                    {!hasLoadedTokens ? (
+                      <span className="animate-pulse">...</span>
+                    ) : (
+                      displayTokens.toFixed(2)
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Location Banner */}
+          {!locationVerified && (
+            <div className="mb-6 p-6 bg-red-500/20 border border-red-500/50 rounded-xl backdrop-blur-xl">
+              <div className="flex items-center">
+                <MapPinIcon className="w-8 h-8 text-red-400 mr-4" />
+                <div>
+                  <p className="text-red-300 font-semibold text-lg">Location Not Verified</p>
+                  <p className="text-red-200 text-sm">Gaming is only available in legal jurisdictions</p>
+                </div>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Message Display */}
-        {message && (
-          <div className={`mb-6 p-4 rounded-xl border ${
-            message.type === 'success' 
-              ? 'bg-green-500/20 border-green-500/50 text-green-300' 
-              : 'bg-red-500/20 border-red-500/50 text-red-300'
-          }`}>
-            <div className="flex items-center">
-              {message.type === 'success' ? (
-                <CheckCircleIcon className="w-5 h-5 mr-2" />
-              ) : (
-                <ExclamationTriangleIcon className="w-5 h-5 mr-2" />
-              )}
-              {message.text}
+          {/* Message Display */}
+          {message && (
+            <div className="mb-6">
+              <p className={`p-4 rounded-xl text-center font-semibold ${
+                message.type === 'success' 
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/50' 
+                  : 'bg-red-500/20 text-red-300 border border-red-500/50'
+              }`}>
+                {message.text}
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Create Tournament Section */}
-        {isAuthenticated && (
-          <div className="mb-8 bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <PlusIcon className="w-6 h-6 mr-2 text-green-400" />
-              Create New Tournament
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Tournament Name</label>
-                <input
-                  type="text"
-                  value={newTournamentName}
-                  onChange={(e) => setNewTournamentName(e.target.value)}
-                  placeholder="Enter tournament name"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Game Type</label>
-                <select
-                  value={newTournamentGameType}
-                  onChange={(e) => setNewTournamentGameType(e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="sword-parry">Sword Parry</option>
-                  <option value="quick-click">Quick Click</option>
-                  <option value="memory-color">Memory Color</option>
-                  <option value="number-tap">Multi-Target Reaction</option>
-                  <option value="shape-tap">Shape Tap</option>
-                  <option value="reaction-test">Reaction Test</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Entry Fee (Tokens)</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={newTournamentEntryFee}
-                  onChange={(e) => setNewTournamentEntryFee(parseInt(e.target.value) || 1)}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+          {/* Debug Info */}
+          {(!loadingConfigs && configs.length === 0) && (
+            <div className="mb-6 p-6 bg-yellow-500/20 border border-yellow-500/50 rounded-xl">
+              <p className="text-yellow-300 text-center font-semibold mb-2">⚠️ No 1v1 configurations found</p>
+              <p className="text-yellow-200 text-center text-sm">Please run <code className="bg-black/30 px-2 py-1 rounded">COMPLETE_1V1_SYSTEM.sql</code> in Supabase</p>
             </div>
-            
-            <button
-              onClick={createTournament}
-              disabled={creatingTournament || !newTournamentName.trim()}
-              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {creatingTournament ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <PlusIcon className="w-5 h-5 mr-2" />
-                  Create Tournament
-                </div>
-              )}
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Active Tournaments */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {tournaments.map((tournament) => {
-            const tournamentParticipants = participants[tournament.id] || [];
-            const isJoined = tournamentParticipants.some(p => p.user_id === user?.id);
-            const canJoin = userTokens >= tournament.entry_fee && !isJoined && tournamentParticipants.length < tournament.max_participants;
-            const isReady = tournamentParticipants.length === tournament.max_participants;
-            
+          {/* Loading State */}
+          {loadingConfigs && (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-400"></div>
+              <p className="ml-4 text-blue-300 text-xl font-semibold">Loading 1v1 battles...</p>
+            </div>
+          )}
+
+          {/* 1v1 Games - Organized by Game Type */}
+          {!loadingConfigs && configs.length > 0 && gameTypes.map(gameType => {
+            const gameConfigs = configs.filter(c => c.game_type === gameType);
+            if (gameConfigs.length === 0) return null;
+
+            const gameInfo = getGameInfo(gameType);
+
             return (
-              <div key={tournament.id} className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
-                {/* Tournament Header */}
+              <div key={gameType} className="mb-12">
+                {/* Game Type Header */}
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold text-white">{tournament.name}</h2>
-                    <div className={`flex items-center rounded-full px-4 py-2 ${
-                      isReady ? 'bg-green-500/20' : 'bg-blue-500/20'
-                    }`}>
-                      <div className={`w-3 h-3 rounded-full mr-2 ${
-                        isReady ? 'bg-green-400 animate-pulse' : 'bg-blue-400'
-                      }`}></div>
-                      <span className={`font-semibold ${
-                        isReady ? 'text-green-300' : 'text-blue-300'
-                      }`}>
-                        {isReady ? 'READY' : 'WAITING'}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Prize Pool */}
-                  <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl p-6 mb-6">
-                    <div className="text-center">
-                      <p className="text-yellow-100 text-sm font-medium mb-2">PRIZE POOL</p>
-                      <p className="text-3xl font-bold text-white">{tournament.prize_pool} Tokens</p>
-                      <p className="text-yellow-100 text-sm mt-2">Winner takes all!</p>
-                    </div>
-                  </div>
+                  <h2 className="text-3xl font-bold text-blue-300 flex items-center">
+                    <span className="text-4xl mr-3">{gameInfo.emoji}</span>
+                    {gameInfo.name}
+                    <span className="ml-3 text-xl text-purple-300">({gameConfigs.length} Tiers)</span>
+                  </h2>
+                  <div className="mt-2 h-1 w-32 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
                 </div>
 
-                {/* Tournament Info */}
-                <div className="mb-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <BanknotesIcon className="w-5 h-5 text-green-400 mr-2" />
-                      <span className="text-gray-300">Entry Fee</span>
-                    </div>
-                    <span className="text-white font-semibold">{tournament.entry_fee} tokens</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <UsersIcon className="w-5 h-5 text-blue-400 mr-2" />
-                      <span className="text-gray-300">Participants</span>
-                    </div>
-                    <span className="text-white font-semibold">{tournamentParticipants.length}/{tournament.max_participants}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <StarIcon className="w-5 h-5 text-purple-400 mr-2" />
-                      <span className="text-gray-300">Game Type</span>
-                    </div>
-                    <span className="text-white font-semibold">{formatGameType(tournament.game_type)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <ClockIcon className="w-5 h-5 text-orange-400 mr-2" />
-                      <span className="text-gray-300">Created</span>
-                    </div>
-                    <span className="text-white font-semibold">
-                      {new Date(tournament.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
+                {/* Game Listings Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {gameConfigs.map((config) => {
+                    const session = sessions.find(s => s.config_id === config.id);
+                    if (!session) return null;
 
-                {/* Participants List */}
-                {tournamentParticipants.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                      <UsersIcon className="w-5 h-5 mr-2 text-blue-400" />
-                      Participants
-                    </h3>
-                    <div className="space-y-2">
-                      {tournamentParticipants.map((participant, index) => (
-                        <div key={participant.id} className="flex items-center justify-between bg-white/5 rounded-xl p-3">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                              <span className="text-white font-bold text-sm">{index + 1}</span>
+                    const hasJoined = session.participants.some(p => p.user_id === user?.id);
+                    const hasPlayed = session.participants.some(p => p.user_id === user?.id && p.score !== null);
+                    const isCompleted = session.status === 'completed';
+                    const isFull = session.participants_count >= 2;
+                    const progressPercent = (session.participants_count / 2) * 100;
+
+                    // User's score
+                    const userParticipant = session.participants.find(p => p.user_id === user?.id);
+                    const userScore = userParticipant?.score;
+
+                    // Opponent info
+                    const opponent = session.participants.find(p => p.user_id !== user?.id);
+
+                    return (
+                      <div key={config.id} className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/30 shadow-2xl hover:shadow-blue-500/20 transition-all duration-300">
+                        {/* Title */}
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-2xl font-bold text-blue-300">{config.title.replace(' 1v1 - ', ' ')}</h3>
+                          <UsersIcon className="w-8 h-8 text-purple-400" />
+                        </div>
+
+                        {/* Prize Info */}
+                        <div className="mb-4 p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl border border-blue-500/30">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-blue-200 font-semibold">Winner Prize</span>
+                            <span className="text-2xl font-bold text-blue-300">{formatAmount(config.winner_prize)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-purple-400">Platform Fee</span>
+                            <span className="text-purple-300">-{formatAmount(config.platform_fee)}</span>
+                          </div>
+                        </div>
+
+                        {/* Current Pot */}
+                        <div className="mb-4 p-3 bg-black/30 rounded-xl">
+                          <div className="flex justify-between items-center">
+                            <span className="text-blue-200 font-semibold">Current Pot</span>
+                            <span className="text-xl font-bold text-blue-300">{formatAmount(session.current_pot)}</span>
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mb-4">
+                          <div className="flex justify-between text-xs text-blue-300 mb-2">
+                            <span>{session.participants_count} / 2 Players</span>
+                            <span>{progressPercent.toFixed(0)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden border border-blue-500/30">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out shadow-lg shadow-blue-500/50"
+                              style={{ width: `${progressPercent}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Opponent Info */}
+                        {hasJoined && opponent && (
+                          <div className="mb-4 p-3 bg-purple-500/20 rounded-xl border border-purple-500/30">
+                            <p className="text-xs text-purple-300 uppercase font-semibold mb-1">Opponent</p>
+                            <div className="flex justify-between items-center">
+                              <span className="text-white font-semibold">Player 2</span>
+                              {opponent.score !== null && opponent.score !== undefined ? (
+                                <span className="text-green-400 font-bold">✅ Completed</span>
+                              ) : (
+                                <span className="text-yellow-400 font-bold animate-pulse">⏳ Playing...</span>
+                              )}
                             </div>
-                            <span className="text-white font-medium">Player {participant.user_id.slice(0, 8)}...</span>
                           </div>
-                          <div className="text-right">
-                            <span className="text-gray-300 text-sm">Rating: {participant.skill_rating}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        )}
 
-                {/* Join Button */}
-                <div className="text-center">
-                  {!isAuthenticated ? (
-                    <div className="bg-gray-600 rounded-xl p-4">
-                      <p className="text-gray-300 mb-2">Please log in to join tournaments</p>
-                    </div>
-                  ) : isJoined ? (
-                    <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4">
-                      <div className="flex items-center justify-center">
-                        <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                        <span className="text-green-300 font-semibold">You're in this tournament!</span>
+                        {/* User's Score */}
+                        {hasPlayed && userScore !== null && userScore !== undefined && (
+                          <div className="mb-4 p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl border border-green-500/30">
+                            <div className="flex justify-between items-center">
+                              <span className="text-green-200 font-semibold">Your Score</span>
+                              <span className="text-xl font-bold text-green-300">{userScore.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action Button */}
+                        <div className="space-y-2">
+                          {!isAuthenticated ? (
+                            <button
+                              disabled
+                              className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                            >
+                              <LockClosedIcon className="w-5 h-5 mr-2" />
+                              Sign In to Play
+                            </button>
+                          ) : !locationVerified ? (
+                            <button
+                              disabled
+                              className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                            >
+                              <MapPinIcon className="w-5 h-5 mr-2" />
+                              Location Not Verified
+                            </button>
+                          ) : isCompleted ? (
+                            <button
+                              disabled
+                              className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                            >
+                              <CheckCircleIcon className="w-5 h-5 mr-2" />
+                              Completed
+                            </button>
+                          ) : hasPlayed ? (
+                            <button
+                              disabled
+                              className="w-full px-6 py-3 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed flex items-center justify-center"
+                            >
+                              <CheckCircleIcon className="w-5 h-5 mr-2" />
+                              Waiting for Opponent
+                            </button>
+                          ) : hasJoined ? (
+                            <button
+                              onClick={() => handleJoinSession(config)}
+                              disabled={joiningSession}
+                              className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                            >
+                              {joiningSession ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                  Starting...
+                                </>
+                              ) : (
+                                <>
+                                  <FireIcon className="w-5 h-5 mr-2" />
+                                  Play Now!
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleJoinSession(config)}
+                              disabled={joiningSession || displayTokens < config.entry_fee}
+                              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                            >
+                              {joiningSession ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                  Joining...
+                                </>
+                              ) : displayTokens < config.entry_fee ? (
+                                <>
+                                  <LockClosedIcon className="w-5 h-5 mr-2" />
+                                  Need {config.entry_fee} Token{config.entry_fee > 1 ? 's' : ''}
+                                </>
+                              ) : (
+                                <>
+                                  <FireIcon className="w-5 h-5 mr-2" />
+                                  Join Battle ({config.entry_fee} Token{config.entry_fee > 1 ? 's' : ''})
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Game Info */}
+                        <div className="mt-4 pt-4 border-t border-blue-500/30 text-xs text-blue-300">
+                          <p>⚔️ Head-to-head battle • Highest score wins • Winner takes 85%</p>
+                        </div>
                       </div>
-                    </div>
-                  ) : !canJoin ? (
-                    <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
-                      <p className="text-red-300">
-                        {userTokens < tournament.entry_fee 
-                          ? `You need ${tournament.entry_fee} tokens to join`
-                          : 'Tournament is full'
-                        }
-                      </p>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => joinTournament(tournament)}
-                      disabled={joiningTournament === tournament.id}
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {joiningTournament === tournament.id ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                          Joining...
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <TrophyIcon className="w-5 h-5 mr-2" />
-                          JOIN TOURNAMENT - {tournament.entry_fee} TOKENS
-                        </div>
-                      )}
-                    </button>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             );
           })}
         </div>
-
-        {/* No Tournaments Message */}
-        {tournaments.length === 0 && (
-          <div className="text-center py-12">
-            <TrophyIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-300 mb-2">No Active Tournaments</h3>
-            <p className="text-gray-400 mb-6">Be the first to create a 1v1 tournament!</p>
-            {isAuthenticated && (
-              <button
-                onClick={() => setCreatingTournament(true)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-              >
-                <div className="flex items-center">
-                  <PlusIcon className="w-5 h-5 mr-2" />
-                  Create First Tournament
-                </div>
-              </button>
-            )}
-          </div>
-        )}
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
