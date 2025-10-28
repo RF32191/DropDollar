@@ -23,8 +23,26 @@ interface WinnerResult {
   game_type: string;
 }
 
+interface ListingWinner {
+  id: string;
+  category: string;
+  winner_username: string;
+  winner_score: number;
+}
+
+interface HotSellWinner {
+  id: string;
+  config_id: string;
+  winner_username: string;
+  winner_score: number;
+  prize_amount: number;
+}
+
 export default function AnalyticsPage() {
+  const [activeTab, setActiveTab] = useState<'listings' | 'winner-takes-all' | 'hot-sell'>('winner-takes-all');
   const [winners, setWinners] = useState<WinnerResult[]>([]);
+  const [listingWinners, setListingWinners] = useState<ListingWinner[]>([]);
+  const [hotSellWinners, setHotSellWinners] = useState<HotSellWinner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | '2' | '5' | '10' | '25' | '50' | '100' | '250' | '1000' | '2500' | '5000' | '10000' | '25000'>('all');
 
@@ -45,8 +63,14 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    loadWinners();
-  }, []);
+    if (activeTab === 'winner-takes-all') {
+      loadWinners();
+    } else if (activeTab === 'listings') {
+      loadListingWinners();
+    } else if (activeTab === 'hot-sell') {
+      loadHotSellWinners();
+    }
+  }, [activeTab]);
 
   const loadWinners = async () => {
     try {
@@ -114,6 +138,119 @@ export default function AnalyticsPage() {
     }
   };
 
+  const loadListingWinners = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get completed game history from user_game_history (listings/tournaments)
+      const { data: gameHistory, error: historyError } = await supabase
+        .from('user_game_history')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (historyError) {
+        console.error('Error loading listing winners:', historyError);
+        setListingWinners([]);
+        return;
+      }
+
+      if (!gameHistory || gameHistory.length === 0) {
+        setListingWinners([]);
+        return;
+      }
+
+      // Group by category and find winners (highest score per category)
+      const categoryWinners: Record<string, any> = {};
+      
+      for (const game of gameHistory) {
+        const category = game.game_type || 'Unknown';
+        
+        if (!categoryWinners[category] || game.score > categoryWinners[category].score) {
+          // Get user email
+          const { data: userData } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', game.user_id)
+            .single();
+
+          categoryWinners[category] = {
+            id: game.id,
+            category: category,
+            winner_username: userData?.email?.split('@')[0] || 'Unknown',
+            winner_score: game.score || 0
+          };
+        }
+      }
+
+      setListingWinners(Object.values(categoryWinners));
+    } catch (error) {
+      console.error('Error loading listing winners:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadHotSellWinners = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get completed hot sell sessions with winners
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('hot_sell_sessions')
+        .select('*')
+        .eq('status', 'completed')
+        .not('winner_user_id', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(100);
+
+      if (sessionsError) {
+        console.error('Error loading hot sell winners:', sessionsError);
+        setHotSellWinners([]);
+        return;
+      }
+
+      if (!sessions || sessions.length === 0) {
+        setHotSellWinners([]);
+        return;
+      }
+
+      // Get winner details for each session
+      const winnersData = await Promise.all(
+        sessions.map(async (session) => {
+          // Get user email
+          const { data: userData } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', session.winner_user_id)
+            .single();
+
+          // Get winner's score from participants
+          const { data: participantData } = await supabase
+            .from('hot_sell_participants')
+            .select('score')
+            .eq('session_id', session.id)
+            .eq('user_id', session.winner_user_id)
+            .single();
+
+          return {
+            id: session.id,
+            config_id: session.config_id,
+            winner_username: userData?.email?.split('@')[0] || 'Unknown',
+            winner_score: participantData?.score || 0,
+            prize_amount: session.prize_amount || 0
+          };
+        })
+      );
+
+      setHotSellWinners(winnersData);
+    } catch (error) {
+      console.error('Error loading hot sell winners:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredWinners = winners.filter(winner => {
     if (filter === 'all') return true;
     return winner.config_id.includes(`-${filter}-`);
@@ -164,39 +301,75 @@ export default function AnalyticsPage() {
           <div className="flex items-center justify-center mb-4">
             <ChartBarIcon className="w-12 h-12 text-yellow-400 mr-4" />
             <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent">
-              Winner Takes All Analytics
+              Competition Analytics
             </h1>
             <TrophyIcon className="w-12 h-12 text-yellow-400 ml-4" />
           </div>
           <p className="text-xl text-gray-300">All-time winners and results</p>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="mb-8 flex flex-wrap gap-2 justify-center">
+        {/* Tabs */}
+        <div className="mb-8 flex justify-center gap-4">
           <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-              filter === 'all'
-                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
+            onClick={() => setActiveTab('listings')}
+            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all ${
+              activeTab === 'listings'
+                ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg scale-105'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            All Tiers
+            📦 Listings
           </button>
-          {['2', '5', '10', '25', '50', '100', '250', '1000', '2500', '5000', '10000', '25000'].map(tier => (
+          <button
+            onClick={() => setActiveTab('winner-takes-all')}
+            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all ${
+              activeTab === 'winner-takes-all'
+                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white shadow-lg scale-105'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            👑 Winner Takes All
+          </button>
+          <button
+            onClick={() => setActiveTab('hot-sell')}
+            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all ${
+              activeTab === 'hot-sell'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg scale-105'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            🔥 Hot Sell
+          </button>
+        </div>
+
+        {/* Filter Buttons - Only for Winner Takes All */}
+        {activeTab === 'winner-takes-all' && (
+          <div className="mb-8 flex flex-wrap gap-2 justify-center">
             <button
-              key={tier}
-              onClick={() => setFilter(tier as any)}
+              onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                filter === tier
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                filter === 'all'
+                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              ${tier}
+              All Tiers
             </button>
-          ))}
-        </div>
+            {['2', '5', '10', '25', '50', '100', '250', '1000', '2500', '5000', '10000', '25000'].map(tier => (
+              <button
+                key={tier}
+                onClick={() => setFilter(tier as any)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  filter === tier
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                ${tier}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoading && (
@@ -207,7 +380,7 @@ export default function AnalyticsPage() {
         )}
 
         {/* No Results */}
-        {!isLoading && filteredWinners.length === 0 && (
+        {!isLoading && activeTab === 'winner-takes-all' && filteredWinners.length === 0 && (
           <div className="text-center py-12">
             <TrophyIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
             <p className="text-xl text-gray-400">No winners yet for this tier</p>
@@ -215,8 +388,24 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Winners Table - Simple and Clean */}
-        {!isLoading && filteredWinners.length > 0 && (
+        {!isLoading && activeTab === 'listings' && listingWinners.length === 0 && (
+          <div className="text-center py-12">
+            <TrophyIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+            <p className="text-xl text-gray-400">No listing winners yet</p>
+            <p className="text-gray-500 mt-2">Play to become a champion!</p>
+          </div>
+        )}
+
+        {!isLoading && activeTab === 'hot-sell' && hotSellWinners.length === 0 && (
+          <div className="text-center py-12">
+            <TrophyIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+            <p className="text-xl text-gray-400">No Hot Sell winners yet</p>
+            <p className="text-gray-500 mt-2">Be the first to win!</p>
+          </div>
+        )}
+
+        {/* Winner Takes All Table */}
+        {!isLoading && activeTab === 'winner-takes-all' && filteredWinners.length > 0 && (
           <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-yellow-500 to-amber-500">
@@ -272,8 +461,105 @@ export default function AnalyticsPage() {
           </div>
         )}
 
+        {/* Listings Table */}
+        {!isLoading && activeTab === 'listings' && listingWinners.length > 0 && (
+          <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-teal-500 to-cyan-500">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Category</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Winner</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {listingWinners.map((winner, index) => (
+                  <tr
+                    key={winner.id}
+                    className={`hover:bg-gray-700/50 transition-colors ${
+                      index % 2 === 0 ? 'bg-gray-800/30' : 'bg-gray-800/10'
+                    }`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <span className="text-teal-400 font-bold text-lg">📦</span>
+                        <span className="ml-3 text-white font-semibold">{winner.category}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
+                        <span className="text-white font-semibold">{winner.winner_username}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
+                        <span className="text-white font-bold text-lg">{winner.winner_score.toFixed(2)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Hot Sell Table */}
+        {!isLoading && activeTab === 'hot-sell' && hotSellWinners.length > 0 && (
+          <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl border border-gray-700 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-orange-500 to-red-500">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Username</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Score</th>
+                  <th className="px-6 py-4 text-left text-sm font-bold text-black uppercase">Prize</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {hotSellWinners.map((winner, index) => (
+                  <tr
+                    key={winner.id}
+                    className={`hover:bg-gray-700/50 transition-colors ${
+                      index % 2 === 0 ? 'bg-gray-800/30' : 'bg-gray-800/10'
+                    }`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        {index < 3 && (
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                            index === 0 ? 'bg-yellow-500' :
+                            index === 1 ? 'bg-gray-400' :
+                            'bg-orange-600'
+                          }`}>
+                            <span className="text-xs font-bold text-black">{index + 1}</span>
+                          </div>
+                        )}
+                        <UserIcon className="w-5 h-5 text-blue-400 mr-2" />
+                        <span className="text-white font-semibold">{winner.winner_username}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <FireIcon className="w-5 h-5 text-orange-400 mr-2" />
+                        <span className="text-white font-bold text-lg">{winner.winner_score.toFixed(2)}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <CurrencyDollarIcon className="w-5 h-5 text-green-400 mr-2" />
+                        <span className="text-green-400 font-bold">{formatAmount(winner.prize_amount)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Stats Summary */}
-        {!isLoading && winners.length > 0 && (
+        {!isLoading && activeTab === 'winner-takes-all' && winners.length > 0 && (
           <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gradient-to-br from-yellow-500/20 to-amber-500/20 rounded-2xl p-6 border border-yellow-500/30">
               <h3 className="text-yellow-400 font-bold text-lg mb-2">Total Winners</h3>

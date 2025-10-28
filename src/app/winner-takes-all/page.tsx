@@ -747,7 +747,9 @@ export default function WinnerTakesAllPage() {
             <h1 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent animate-pulse">
               WINNER TAKES IT ALL
             </h1>
-            <TrophyIcon className="w-16 h-16 text-yellow-400 ml-6 animate-pulse" />
+            <div className="ml-6 animate-bounce">
+              <span className="text-6xl">🔥</span>
+            </div>
           </div>
           <p className="text-2xl text-yellow-200 mb-2 font-semibold">1 Token Entry - Winner Gets Everything!</p>
           <p className="text-xl text-yellow-300">Unlimited players, base price matching prize amount</p>
