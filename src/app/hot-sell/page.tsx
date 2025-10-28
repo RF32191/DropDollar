@@ -101,10 +101,12 @@ export default function HotSellPage() {
     }
   }, [userTokens, tokensLoading]);
 
-  // Hardcoded Hot Sell configurations (NO 1v1, NO $50,000)
-  // Max participants = base_price (so $3 game = 3 players, $5 = 5 players)
-  // All games have 3-place prizes: 1st: 50%, 2nd: 20%, 3rd: 15%, Platform: 15%
-  const configs: HotSellConfig[] = [
+  // State for dynamically loaded configs
+  const [configs, setConfigs] = useState<HotSellConfig[]>([]);
+  const [loadingConfigs, setLoadingConfigs] = useState(true);
+
+  // Fallback hardcoded configs (will be replaced by DB configs)
+  const fallbackConfigs: HotSellConfig[] = [
     {
       id: 'hs-3-sword-parry',
       game_type: 'sword_parry',
@@ -327,7 +329,7 @@ export default function HotSellPage() {
         
         // Get participants for each session
         const sessionsWithParticipants = await Promise.all(
-          (sessionsData || []).map(async (session) => {
+          (sessionsData || []).map(async (session: any) => {
             const { data: participants } = await supabase
               .from('hot_sell_participants')
               .select('*')
@@ -374,7 +376,37 @@ export default function HotSellPage() {
     }
   }, [isAuthenticated]);
 
+  // Load configs from database
+  const loadConfigs = async () => {
+    try {
+      setLoadingConfigs(true);
+      console.log('📥 [Hot Sell] Loading configs from database...');
+      
+      const { data, error } = await supabase
+        .from('hot_sell_configs')
+        .select('*')
+        .order('base_price', { ascending: true });
+
+      if (error) {
+        console.warn('⚠️ [Hot Sell] Could not load configs from DB, using fallback:', error.message);
+        setConfigs(fallbackConfigs);
+      } else if (data && data.length > 0) {
+        console.log(`✅ [Hot Sell] Loaded ${data.length} configs from database`);
+        setConfigs(data as HotSellConfig[]);
+      } else {
+        console.warn('⚠️ [Hot Sell] No configs found in DB, using fallback');
+        setConfigs(fallbackConfigs);
+      }
+    } catch (err) {
+      console.error('❌ [Hot Sell] Error loading configs:', err);
+      setConfigs(fallbackConfigs);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  };
+
   useEffect(() => {
+    loadConfigs();
     loadSessions();
     checkLocation();
     
@@ -864,9 +896,55 @@ export default function HotSellPage() {
           </div>
         )}
 
-        {/* Hot Sell Games */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {configs.map((config) => {
+        {/* Loading State */}
+        {loadingConfigs && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-400"></div>
+            <p className="ml-4 text-yellow-300 text-xl font-semibold">Loading games...</p>
+          </div>
+        )}
+
+        {/* Hot Sell Games - Organized by Game Type */}
+        {!loadingConfigs && configs.length > 0 && (() => {
+          // Group configs by game type
+          const gameTypes = Array.from(new Set(configs.map(c => c.game_type)));
+          
+          return gameTypes.map(gameType => {
+            const gameConfigs = configs.filter(c => c.game_type === gameType);
+            if (gameConfigs.length === 0) return null;
+
+            // Get game display name and emoji
+            const getGameInfo = (type: string) => {
+              switch(type) {
+                case 'sword_parry': return { name: '⚔️ Sword Slash', emoji: '⚔️' };
+                case 'blade_bounce': return { name: '🛡️ Blade Bounce', emoji: '🛡️' };
+                case 'laser_dodge': return { name: '🚀 Laser Dodge', emoji: '🚀' };
+                case 'multi_target_reaction': return { name: '🎯 Multi-Target', emoji: '🎯' };
+                case 'falling_object': return { name: '💰 Coin Catch', emoji: '💰' };
+                case 'color_sequence': return { name: '🎨 Color Memory', emoji: '🎨' };
+                case 'cash_stack': return { name: '💵 Cash Stack', emoji: '💵' };
+                case 'quick_click': return { name: '⚡ Quick Click', emoji: '⚡' };
+                default: return { name: type, emoji: '🎮' };
+              }
+            };
+
+            const gameInfo = getGameInfo(gameType);
+
+            return (
+              <div key={gameType} className="mb-12">
+                {/* Game Type Header */}
+                <div className="mb-6">
+                  <h2 className="text-3xl font-bold text-yellow-300 flex items-center">
+                    <span className="text-4xl mr-3">{gameInfo.emoji}</span>
+                    {gameInfo.name}
+                    <span className="ml-3 text-xl text-orange-300">({gameConfigs.length} Tiers)</span>
+                  </h2>
+                  <div className="mt-2 h-1 w-32 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full"></div>
+                </div>
+
+                {/* Game Listings Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {gameConfigs.map((config) => {
             const session = sessions.find(s => s.config_id === config.id);
             if (!session) return null;
 
@@ -1073,7 +1151,11 @@ export default function HotSellPage() {
               </div>
             );
           })}
-        </div>
+                </div>
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );
