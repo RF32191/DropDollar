@@ -7,17 +7,20 @@ This creates **individual listings for each game at multiple price tiers**, orga
 
 ## 📋 What's Included
 
-### 8 Game Types
-1. **⚔️ Sword Slash** (5 tiers: $3, $10, $50, $250, $1K)
-2. **🛡️ Blade Bounce** (4 tiers: $5, $25, $100, $500)
-3. **🚀 Laser Dodge** (5 tiers: $3, $10, $100, $1K, $10K)
-4. **🎯 Multi-Target** (4 tiers: $5, $25, $250, $2.5K)
-5. **💰 Coin Catch** (4 tiers: $3, $10, $100, $2.5K)
-6. **🎨 Color Memory** (4 tiers: $5, $50, $500, $5K)
-7. **💵 Cash Stack** (4 tiers: $10, $100, $1K, $10K)
-8. **⚡ Quick Click** (4 tiers: $3, $25, $250, $5K)
+### 8 Game Types - ALL with 7 Tiers Each!
+1. **⚔️ Sword Slash** (7 tiers: $3, $10, $50, $250, $1K, $10K, $25K)
+2. **🛡️ Blade Bounce** (7 tiers: $3, $5, $25, $100, $500, $10K, $25K)
+3. **🚀 Laser Dodge** (7 tiers: $3, $10, $100, $1K, $10K, $25K)
+4. **🎯 Multi-Target** (7 tiers: $3, $5, $25, $250, $2.5K, $10K, $25K)
+5. **💰 Coin Catch** (7 tiers: $3, $10, $100, $2.5K, $10K, $25K)
+6. **🎨 Color Memory** (7 tiers: $3, $5, $50, $500, $5K, $10K, $25K)
+7. **💵 Cash Stack** (7 tiers: $3, $10, $100, $1K, $10K, $25K)
+8. **⚡ Quick Click** (7 tiers: $3, $25, $250, $5K, $10K, $25K)
 
-### Total: 39 Unique Listings
+### Total: 56 Unique Listings! 🎉
+
+**Price Range:** $3 to $25,000
+**Every game** has low ($3), medium, and high-stakes options!
 
 ---
 
@@ -28,7 +31,7 @@ Run `COMPLETE_HOT_SELL_ALL_GAMES.sql` in Supabase SQL Editor
 
 This will:
 - Drop and recreate `hot_sell_configs`, `hot_sell_sessions`, `hot_sell_participants` tables
-- Insert 39 game configurations across 8 game types
+- Insert **56 game configurations** across 8 game types (7 tiers each!)
 - Create initial waiting sessions for all configs
 - Set up RLS policies
 
@@ -36,21 +39,23 @@ You should see:
 ```
 ✅ Hot Sell system created successfully!
 🎮 Total game types: 8
-📊 Total configurations: 39
+📊 Total configurations: 56
 🏆 All games: 3-place prizes (1st: 50%, 2nd: 20%, 3rd: 15%)
 💰 Platform fee: 15% across all games
-💵 Price range: $3 to $10,000
+💵 Price range: $3 to $25,000
 ⏱️ No timers - games complete when max participants reached
 
-🎯 Games included:
-  • Sword Slash (5 tiers)
-  • Blade Bounce (4 tiers)
-  • Laser Dodge (5 tiers)
-  • Multi-Target (4 tiers)
-  • Coin Catch (4 tiers)
-  • Color Memory (4 tiers)
-  • Cash Stack (4 tiers)
-  • Quick Click (4 tiers)
+🎯 All games have 7 tiers each:
+  • ⚔️  Sword Slash (7 tiers)
+  • 🛡️  Blade Bounce (7 tiers)
+  • 🚀 Laser Dodge (7 tiers)
+  • 🎯 Multi-Target (7 tiers)
+  • 💰 Coin Catch (7 tiers)
+  • 🎨 Color Memory (7 tiers)
+  • 💵 Cash Stack (7 tiers)
+  • ⚡ Quick Click (7 tiers)
+
+💎 Each game includes: $3, $5-$25, $50-$250, $500-$2500, $5K, $10K, $25K
 ```
 
 ### Step 2: Deploy Client Changes
