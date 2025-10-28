@@ -169,20 +169,20 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- PART 4: ADD CONNECTION POOLING RECOMMENDATIONS
+-- PART 4: CONNECTION POOLING RECOMMENDATIONS
 -- ============================================================================
 
--- Set optimal connection and work_mem settings for Supabase
-ALTER DATABASE postgres SET max_connections = 100;
-ALTER DATABASE postgres SET shared_buffers = '256MB';
+-- Note: Supabase manages connection settings automatically
+-- max_connections and shared_buffers are controlled by Supabase infrastructure
 
 DO $$
 BEGIN
   RAISE NOTICE '';
   RAISE NOTICE '📊 CONNECTION POOLING RECOMMENDATIONS:';
-  RAISE NOTICE '   - Supabase built-in pooler handles connection management';
-  RAISE NOTICE '   - Use connection pooling on client side (e.g., Prisma, pgBouncer)';
-  RAISE NOTICE '   - Current max_connections: 100 (adjust in Supabase dashboard if needed)';
+  RAISE NOTICE '   ✓ Supabase built-in pooler handles connection management';
+  RAISE NOTICE '   ✓ Use connection pooling on client side (e.g., Prisma, pgBouncer)';
+  RAISE NOTICE '   ✓ Connection limits managed automatically by Supabase';
+  RAISE NOTICE '   ✓ Adjust plan if you need more connections';
 END $$;
 
 -- ============================================================================
