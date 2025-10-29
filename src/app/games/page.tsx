@@ -20,6 +20,7 @@ import useDeviceDetection, { getResponsiveClasses } from '@/hooks/useDeviceDetec
 import { useGlobalLocation } from '@/hooks/useGlobalLocation';
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
+import { useFullscreenGame } from '@/hooks/useFullscreenGame';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
@@ -181,6 +182,9 @@ export default function GamesPage() {
   const [showSponsoredListings, setShowSponsoredListings] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
+  
+  // Enable fullscreen mode when game is active
+  const fullscreenRef = useFullscreenGame(isGameActive);
   
   // Prevent back button navigation during active game
   usePreventBackNavigation(isGameActive, '/games');

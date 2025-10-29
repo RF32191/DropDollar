@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
+import { useFullscreenGame } from '@/hooks/useFullscreenGame';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
@@ -44,6 +45,9 @@ export default function CompetitionGameFlow({
   const [participants, setParticipants] = useState<any[]>([]);
   const [userRanking, setUserRanking] = useState(0);
   const [prizeWon, setPrizeWon] = useState(0);
+  
+  // Enable fullscreen when game is playing
+  const fullscreenRef = useFullscreenGame(gameState === 'playing');
 
   useEffect(() => {
     // Start countdown only when gameState is 'countdown'
