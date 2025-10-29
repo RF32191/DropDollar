@@ -621,11 +621,11 @@ export default function HotSellPage() {
           loadSessions()
         ]);
         
-        // Force a page refresh after 2 seconds to ensure new session shows
+        // Force a page refresh after 1 second to ensure new session shows
         setTimeout(() => {
           console.log('🔄 [Hot Sell] Force refreshing page to show new session...');
           window.location.reload();
-        }, 2000);
+        }, 1000);
       } else if (data && !data.success) {
         console.log('ℹ️ [Hot Sell] Payout info:', data.message);
         if (!data.already_paid) {
@@ -687,8 +687,8 @@ export default function HotSellPage() {
             scores: session.participants.map(p => p.score)
           });
           
-          // Reduced delay to 1 second for faster payout
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Instant payout trigger (no delay)
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           console.log('💰 [Hot Sell] TRIGGERING AUTO-PAYOUT NOW for:', session.config_id);
           await handleManualPayout(session.config_id);
