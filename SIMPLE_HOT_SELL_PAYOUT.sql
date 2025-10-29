@@ -34,17 +34,20 @@ BEGIN
         RETURN json_build_object('success', false, 'message', 'Config not found');
     END IF;
     
-    -- Get active session
+    -- Get active session (any status except 'completed')
     SELECT * INTO session_record 
     FROM public.hot_sell_sessions 
     WHERE config_id = config_id_param 
-    AND status = 'waiting'
+    AND status != 'completed'
     ORDER BY created_at DESC 
     LIMIT 1;
     
     IF NOT FOUND THEN
-        RETURN json_build_object('success', false, 'message', 'No active session');
+        RAISE NOTICE '❌ No active session found for config: %', config_id_param;
+        RETURN json_build_object('success', false, 'message', 'No active session found');
     END IF;
+    
+    RAISE NOTICE '✅ Found session % with status: %', session_record.id, session_record.status;
     
     -- Check if all participants have played
     SELECT COUNT(*) INTO participant_count

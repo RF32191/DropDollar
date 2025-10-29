@@ -682,10 +682,11 @@ export default function HotSellPage() {
           if (updated[configId] > 0) {
             updated[configId]--;
             
-            // When countdown reaches 0, trigger payout
+            // When countdown reaches 0, trigger payout and KEEP at 0 (don't remove)
             if (updated[configId] === 0) {
               console.log('🔔 [Hot Sell] COUNTDOWN COMPLETE! Triggering payout for:', configId);
               shouldPayout = configId;
+              // Keep countdown at 0 to show "Processing..." state
             }
           }
         });
@@ -1002,19 +1003,34 @@ export default function HotSellPage() {
                 </div>
 
                 {/* Payout Countdown Banner */}
-                {payoutCountdown[config.id] && payoutCountdown[config.id] > 0 && (
+                {payoutCountdown[config.id] !== undefined && (
                   <div className="mb-4 bg-gradient-to-r from-red-600 to-orange-600 border-2 border-red-400 rounded-xl p-4 animate-pulse">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <ClockIcon className="w-8 h-8 text-white animate-bounce mr-3" />
                         <div>
-                          <p className="text-white font-black text-lg">⏰ PAYOUT IN:</p>
-                          <p className="text-yellow-300 text-xs">Auto-payout when timer reaches zero</p>
+                          {payoutCountdown[config.id] > 0 ? (
+                            <>
+                              <p className="text-white font-black text-lg">⏰ PAYOUT IN:</p>
+                              <p className="text-yellow-300 text-xs">Auto-payout when timer reaches zero</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-white font-black text-lg">💰 PROCESSING PAYOUT...</p>
+                              <p className="text-yellow-300 text-xs">Please wait while winners are paid</p>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-white font-black text-4xl">{payoutCountdown[config.id]}</p>
-                        <p className="text-yellow-300 text-xs font-bold">SECONDS</p>
+                        {payoutCountdown[config.id] > 0 ? (
+                          <>
+                            <p className="text-white font-black text-4xl">{payoutCountdown[config.id]}</p>
+                            <p className="text-yellow-300 text-xs font-bold">SECONDS</p>
+                          </>
+                        ) : (
+                          <div className="animate-spin text-white text-4xl">⏳</div>
+                        )}
                       </div>
                     </div>
                   </div>
