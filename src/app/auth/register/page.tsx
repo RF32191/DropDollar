@@ -74,7 +74,7 @@ export default function SimpleRegisterPage() {
       return;
     }
 
-    // Check for duplicate email
+    // Check for duplicate email and phone
     try {
       const emailCheckResponse = await fetch('/api/auth/check-email', {
         method: 'POST',
@@ -92,9 +92,29 @@ export default function SimpleRegisterPage() {
           return;
         }
       }
+
+      // Check phone number if provided
+      if (formData.phone) {
+        const phoneCheckResponse = await fetch('/api/auth/check-phone', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone: formData.phone }),
+        });
+
+        if (phoneCheckResponse.ok) {
+          const phoneCheckData = await phoneCheckResponse.json();
+          if (phoneCheckData.exists) {
+            setError('An account with this phone number already exists. Please use a different phone number.');
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
     } catch (error) {
-      console.error('Email check failed:', error);
-      // Continue with registration if email check fails
+      console.error('Validation check failed:', error);
+      // Continue with registration if validation check fails
     }
 
     // Submit registration

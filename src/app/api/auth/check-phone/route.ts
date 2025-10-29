@@ -8,25 +8,25 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const { phone } = await request.json();
 
-    if (!email) {
+    if (!phone) {
       return NextResponse.json(
         { exists: false },
         { status: 200 }
       );
     }
 
-    // Check if email exists in users table
+    // Check if phone exists in users table
     const { data, error } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('phone', phone)
       .single();
 
     if (error && error.code !== 'PGRST116') {
       // PGRST116 is "not found" error, which is expected
-      console.error('Email check error:', error);
+      console.error('Phone check error:', error);
     }
 
     return NextResponse.json(
@@ -35,10 +35,11 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Email check error:', error);
+    console.error('Phone check error:', error);
     return NextResponse.json(
       { exists: false },
       { status: 200 }
     );
   }
 }
+
