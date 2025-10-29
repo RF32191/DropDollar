@@ -472,25 +472,30 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col items-center justify-start z-50 overflow-y-auto">
-      <div className="bg-white rounded-2xl p-6 max-w-5xl w-full mx-4 text-center my-4">
-        {/* Header - Always Visible */}
-        <div className="flex justify-between items-center mb-4 bg-white sticky top-0 z-30 py-2">
-          <div className="text-lg font-bold text-gray-900">
-            🎮 Falling Object Catch
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600 font-semibold">Time: {timer.timeLeft}s</div>
-            <div className="text-sm text-gray-600 font-semibold">Score: {score.toFixed(1)}</div>
-            <div className="text-sm text-gray-600">Caught: {caughtObjects}/{totalObjects}</div>
+    <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-black bg-opacity-95 flex flex-col z-50 overflow-hidden">
+      {/* Header - Always Visible */}
+      <div className="flex justify-between items-center px-6 py-4 bg-black/30 backdrop-blur-sm border-b border-white/10">
+        <div className="text-2xl font-bold text-white">
+          💰 Falling Object Catch
+        </div>
+        <div className="flex items-center space-x-6">
+          <div className="text-lg text-white font-semibold">⏱️ {timer.timeLeft}s</div>
+          <div className="text-lg text-yellow-400 font-bold">💰 {score.toFixed(1)}</div>
+          <div className="text-lg text-green-400">✅ {caughtObjects}/{totalObjects}</div>
+          {onExit && (
             <button 
               onClick={onExit}
-              className="text-gray-500 hover:text-gray-700 text-xl font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center"
+              className="text-white hover:text-red-400 text-2xl font-bold bg-white/10 hover:bg-red-500/20 rounded-full w-10 h-10 flex items-center justify-center transition-all"
             >
               ✕
             </button>
-          </div>
+          )}
         </div>
+      </div>
+
+      {/* Game Content */}
+      <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto px-4 py-6">
+        <div className="w-full max-w-6xl mx-auto">
 
         {gameState === 'countdown' && (
           <GameCountdown
@@ -501,14 +506,13 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         )}
 
         {gameState === 'ready' && (
-          <div className="space-y-8">
-            <div className="text-2xl font-bold text-gray-900">
-              🎮 Falling Object Catch
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="text-4xl font-bold text-white text-center mb-6">
+              💰 Falling Object Catch
             </div>
             
             {/* Epilepsy Warning */}
-            {/* Epilepsy Warning - Enhanced Visibility */}
-            <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-6 mb-8 shadow-2xl">
+            <div className="bg-gradient-to-r from-red-800 to-red-900 border-2 border-red-600 rounded-xl p-6 shadow-2xl">
               <div className="flex items-center space-x-3 mb-3">
                 <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center animate-pulse shadow-lg">
                   <span className="text-white text-lg font-black">⚠️</span>
@@ -530,7 +534,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 <p className="text-white font-black text-xl">How to Play:</p>
               </div>
               
-              <div className="space-y-3 text-white">
+              <div className="space-y-3 text-white text-left">
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
                   <p><span className="text-green-300 font-bold">Catch:</span> Use your cash case to catch falling money!</p>
@@ -705,12 +709,14 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         )}
 
         {/* Instructions */}
-        <div className="mt-8 text-sm text-gray-600 space-y-2">
+        <div className="mt-8 text-sm text-white/60 space-y-2 text-center">
           <div>💰 Catch coins and dollars with your briefcase</div>
           <div>📍 Center catches earn bonus points</div>
           <div>💵 Dollars worth more than coins</div>
           <div>⌨️ Arrow Keys or A/D to move briefcase</div>
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );
