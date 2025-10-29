@@ -37,6 +37,7 @@ interface WinnerTakesAllSession {
   participants: Array<{
     id: string;
     user_id: string;
+    username?: string;
     score: number | null;
     accuracy: number | null;
     joined_at: string;
@@ -827,6 +828,10 @@ export default function WinnerTakesAllPage() {
             const hasJoined = !!userParticipant;
             const hasCompleted = !!userParticipant && userParticipant.score !== null && userParticipant.completed_at !== null;
             
+            // Lock join button if timer has 2 minutes or less remaining
+            const timerTotalSeconds = timeRemaining ? (timeRemaining.hours * 3600 + timeRemaining.minutes * 60 + timeRemaining.seconds) : 0;
+            const isTimerLocked = timeRemaining && timerTotalSeconds <= 120; // 2 minutes = 120 seconds
+            
             return (
               <div key={config.id} className="bg-yellow-500/10 backdrop-blur-xl rounded-3xl p-6 border border-yellow-500/20 hover:bg-yellow-500/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
                 {/* Game Header */}
@@ -988,6 +993,7 @@ export default function WinnerTakesAllPage() {
                                   .sort((a, b) => (b.score || 0) - (a.score || 0))
                                   .map((participant, index) => {
                                     const isCurrentUser = participant.user_id === user?.id;
+                                    const displayName = isCurrentUser ? 'You' : (participant.username || `Player ${index + 1}`);
                                     return (
                                       <div key={participant.id} className={`rounded-lg p-3 ${
                                         isCurrentUser ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' : 'bg-white/5'
@@ -999,7 +1005,7 @@ export default function WinnerTakesAllPage() {
                                             <span className="text-xs font-bold text-white">{index + 1}</span>
                                           </div>
                                           <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
-                                            {isCurrentUser ? 'You' : `Player ${participant.user_id.slice(-4)}`}
+                                            {displayName}
                                           </span>
                                           <span className={`font-semibold ${isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
                                             {participant.score}
@@ -1040,6 +1046,14 @@ export default function WinnerTakesAllPage() {
                             </div>
                         <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score || 0}</p>
                           </div>
+                    ) : isTimerLocked ? (
+                      <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">
+                        <div className="flex items-center justify-center">
+                          <LockClosedIcon className="w-6 h-6 text-red-400 mr-2" />
+                          <span className="text-red-300 text-lg font-semibold">LOCKED</span>
+                        </div>
+                        <p className="text-red-200 text-sm mt-1">Less than 2 minutes remaining - join window closed</p>
+                      </div>
                     ) : (
                         <button
                         onClick={() => handleJoinSession(config.id)}
