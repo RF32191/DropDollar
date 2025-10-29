@@ -93,6 +93,7 @@ export default function HotSellPage() {
   // Stable token display to prevent flickering
   const [displayTokens, setDisplayTokens] = useState<number>(0);
   const [hasLoadedTokens, setHasLoadedTokens] = useState(false);
+  const [payoutCountdown, setPayoutCountdown] = useState<{ [configId: string]: number }>({});
 
   // Update display tokens only when they actually change
   useEffect(() => {
@@ -638,73 +639,68 @@ export default function HotSellPage() {
     }
   };
 
-  // Auto-payout when session is full and all players have scores
+  // Auto-payout with countdown timer
   useEffect(() => {
     if (!sessions.length || !user) return;
 
-    const checkAndAutoPayout = async () => {
-      console.log('🔍 [Hot Sell] Checking for auto-payout...', {
-        sessionCount: sessions.length,
-        userId: user.id
-      });
-
+    const checkAndStartCountdown = async () => {
       for (const session of sessions) {
         const config = configs.find(c => c.id === session.config_id);
-        if (!config) {
-          console.log('⚠️ [Hot Sell] No config found for:', session.config_id);
-          continue;
-        }
-
-        console.log(`📊 [Hot Sell] Checking session ${session.config_id}:`, {
-          participants: session.participants.length,
-          max: config.max_participants,
-          first_place_user_id: session.first_place_user_id,
-          scores: session.participants.map(p => ({ user: p.user_id, score: p.score }))
-        });
+        if (!config) continue;
 
         // Skip if already paid out
-        if (session.first_place_user_id) {
-          console.log('✅ [Hot Sell] Already paid out, skipping');
-          continue;
-        }
+        if (session.first_place_user_id) continue;
 
         // Check if session is full and all players have scores
         const isFull = session.participants.length >= config.max_participants;
         const allHaveScores = session.participants.every(p => p.score !== null && p.score !== undefined);
         
-        console.log(`🎯 [Hot Sell] Payout check for ${session.config_id}:`, {
-          isFull,
-          allHaveScores,
-          participantCount: session.participants.length,
-          maxParticipants: config.max_participants
-        });
-        
         if (isFull && allHaveScores) {
-          console.log('🔔 [Hot Sell] ✅ AUTO-PAYOUT CONDITIONS MET!', {
-            config_id: session.config_id,
-            participants: session.participants.length,
-            max: config.max_participants,
-            scores: session.participants.map(p => p.score)
-          });
-          
-          // Instant payout trigger (no delay)
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          console.log('💰 [Hot Sell] TRIGGERING AUTO-PAYOUT NOW for:', session.config_id);
-          await handleManualPayout(session.config_id);
-          break; // Only process one at a time
-        } else {
-          console.log('⏸️ [Hot Sell] Not ready for payout:', {
-            reason: !isFull ? 'Not full' : 'Missing scores'
-          });
+          // Start 30-second countdown if not already started
+          if (!payoutCountdown[session.config_id]) {
+            console.log('⏰ [Hot Sell] Starting 30-second countdown for:', session.config_id);
+            setPayoutCountdown(prev => ({
+              ...prev,
+              [session.config_id]: 30
+            }));
+          }
         }
       }
     };
 
-    // Debounce to avoid multiple calls
-    const timeoutId = setTimeout(checkAndAutoPayout, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [sessions, user]);
+    checkAndStartCountdown();
+  }, [sessions, user, configs]);
+
+  // Countdown timer that triggers payout at zero
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPayoutCountdown(prev => {
+        const updated = { ...prev };
+        let shouldPayout: string | null = null;
+
+        Object.keys(updated).forEach(configId => {
+          if (updated[configId] > 0) {
+            updated[configId]--;
+            
+            // When countdown reaches 0, trigger payout
+            if (updated[configId] === 0) {
+              console.log('🔔 [Hot Sell] COUNTDOWN COMPLETE! Triggering payout for:', configId);
+              shouldPayout = configId;
+            }
+          }
+        });
+
+        // Trigger payout outside of setState
+        if (shouldPayout) {
+          handleManualPayout(shouldPayout);
+        }
+
+        return updated;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -1004,6 +1000,25 @@ export default function HotSellPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Payout Countdown Banner */}
+                {payoutCountdown[config.id] && payoutCountdown[config.id] > 0 && (
+                  <div className="mb-4 bg-gradient-to-r from-red-600 to-orange-600 border-2 border-red-400 rounded-xl p-4 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <ClockIcon className="w-8 h-8 text-white animate-bounce mr-3" />
+                        <div>
+                          <p className="text-white font-black text-lg">⏰ PAYOUT IN:</p>
+                          <p className="text-yellow-300 text-xs">Auto-payout when timer reaches zero</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-black text-4xl">{payoutCountdown[config.id]}</p>
+                        <p className="text-yellow-300 text-xs font-bold">SECONDS</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Current Pot */}
                 <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
