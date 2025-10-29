@@ -42,6 +42,7 @@ interface HotSellSession {
   participants: Array<{
     id: string;
     user_id: string;
+    username?: string;
     score: number | null;
     accuracy: number | null;
     joined_at: string;
@@ -1021,14 +1022,20 @@ export default function HotSellPage() {
                 {hasJoined && topScores.length > 0 && (
                   <div className="mb-4 p-3 bg-black/30 rounded-xl">
                     <h4 className="text-xs font-semibold text-orange-300 mb-2 uppercase">Current Top 3</h4>
-                    {topScores.map((p, idx) => (
-                      <div key={p.id} className="flex justify-between items-center text-xs mb-1">
-                        <span className="text-gray-300">
-                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} Player {idx + 1}
-                        </span>
-                        <span className="text-yellow-400 font-bold">{p.score?.toFixed(2)}</span>
-                      </div>
-                    ))}
+                    {topScores.map((p, idx) => {
+                      const isCurrentUser = p.user_id === user?.id;
+                      const displayName = isCurrentUser ? 'You' : (p.username || `Player ${idx + 1}`);
+                      return (
+                        <div key={p.id} className="flex justify-between items-center text-xs mb-1">
+                          <span className={isCurrentUser ? "text-blue-300 font-semibold" : "text-gray-300"}>
+                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} {displayName}
+                          </span>
+                          <span className={isCurrentUser ? "text-blue-400 font-bold" : "text-yellow-400 font-bold"}>
+                            {p.score?.toFixed(2)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
