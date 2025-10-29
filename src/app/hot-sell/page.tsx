@@ -687,8 +687,8 @@ export default function HotSellPage() {
             scores: session.participants.map(p => p.score)
           });
           
-          // Wait 3 seconds for smooth UX
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // Reduced delay to 1 second for faster payout
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           console.log('💰 [Hot Sell] TRIGGERING AUTO-PAYOUT NOW for:', session.config_id);
           await handleManualPayout(session.config_id);
@@ -1054,6 +1054,18 @@ export default function HotSellPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-blue-200 font-semibold">Your Score</span>
                       <span className="text-xl font-bold text-blue-300">{userScore.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payout Countdown - Shows when session is full and all have played */}
+                {isFull && session.participants.every(p => p.score !== null) && !session.first_place_user_id && (
+                  <div className="mb-4 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl border border-green-500/50 animate-pulse">
+                    <div className="flex items-center justify-center">
+                      <ClockIcon className="w-5 h-5 text-green-400 mr-2 animate-spin" />
+                      <span className="text-green-300 font-bold text-sm">
+                        💰 Payout processing... Winners will be announced shortly!
+                      </span>
                     </div>
                   </div>
                 )}
