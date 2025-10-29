@@ -609,14 +609,23 @@ export default function HotSellPage() {
         if (data.third_place_winner && data.third_place_winner !== 'N/A') {
           successMsg += `, 3rd: ${data.third_place_winner} ($${data.third_place_amount?.toFixed(2)})`;
         }
+        successMsg += ' - Listing reset!';
         
         setMessage({ type: 'success', text: successMsg });
+        
+        console.log('🔄 [Hot Sell] Refreshing sessions and tokens after payout...');
         
         // Refresh tokens and sessions
         await Promise.all([
           refreshTokens(),
           loadSessions()
         ]);
+        
+        // Force a page refresh after 2 seconds to ensure new session shows
+        setTimeout(() => {
+          console.log('🔄 [Hot Sell] Force refreshing page to show new session...');
+          window.location.reload();
+        }, 2000);
       } else if (data && !data.success) {
         console.log('ℹ️ [Hot Sell] Payout info:', data.message);
         if (!data.already_paid) {
