@@ -4,10 +4,14 @@
 
 -- Step 1: Drop ALL policies that depend on game_history.user_id
 DROP POLICY IF EXISTS "users_view_own_games" ON public.game_history;
+DROP POLICY IF EXISTS "users_insert_own_games" ON public.game_history;
 DROP POLICY IF EXISTS "Users can view their own game history" ON public.game_history;
 DROP POLICY IF EXISTS "Users can view their own games" ON public.game_history;
+DROP POLICY IF EXISTS "Users can insert their own games" ON public.game_history;
 DROP POLICY IF EXISTS "Public can view all games" ON public.game_history;
 DROP POLICY IF EXISTS "Anyone can view game history" ON public.game_history;
+DROP POLICY IF EXISTS "Service role can insert" ON public.game_history;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.game_history;
 
 -- Step 2: Convert game_history.user_id to TEXT
 ALTER TABLE public.game_history 
@@ -20,11 +24,24 @@ FOR SELECT
 TO authenticated
 USING (auth.uid()::text = user_id);
 
+CREATE POLICY "users_insert_own_games"
+ON public.game_history
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid()::text = user_id);
+
 CREATE POLICY "Public can view all games"
 ON public.game_history
 FOR SELECT
 TO anon, authenticated
 USING (true);
+
+-- Allow service role (for SECURITY DEFINER functions) to insert
+CREATE POLICY "Service role can insert"
+ON public.game_history
+FOR INSERT
+TO service_role
+WITH CHECK (true);
 
 -- Step 4: Recreate the payout function (simplified, no game_history inserts for now to test)
 DROP FUNCTION IF EXISTS public.process_hot_sell_payout(text);
