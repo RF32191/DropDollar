@@ -3,11 +3,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 /**
- * CASH STACK - Stack Game with Coins and Explosions
- * Stack moving platforms perfectly to build a tower
- * Coins appear randomly - perfect stack on coin = EXPLOSION bonus!
- * Misaligned parts fall off and reduce platform size
- * Perfect stacks earn bonus points
+ * CASH STACK - Progressive Stacking Game
+ * Green ($) → Bronze → Silver → Gold → Platinum progression
+ * Coins on sweet spots = EXPLOSIONS + bonus points!
+ * Slower, more skill-based gameplay
  */
 
 interface Block {
@@ -16,6 +15,7 @@ interface Block {
   width: number;
   depth: number;
   color: string;
+  type: 'green' | 'bronze' | 'silver' | 'gold' | 'platinum';
   direction: 'x' | 'z';
   hasCoin: boolean;
 }
@@ -42,14 +42,14 @@ interface GameState {
   currentBlock: Block | null;
   score: number;
   perfectCount: number;
-  coinBonus: number;
+  explosionCount: number;
   explosions: Explosion[];
   particles: Particle[];
   gameOver: boolean;
   gameStarted: boolean;
   direction: number;
   speed: number;
-  initialWidth: number;
+  blockLevel: number;
 }
 
 interface CashStackGameProps {
@@ -61,19 +61,26 @@ interface CashStackGameProps {
   gameId?: string;
 }
 
-const INITIAL_WIDTH = 70; // Smaller starting size
-const INITIAL_DEPTH = 70;
+const INITIAL_WIDTH = 80;
+const INITIAL_DEPTH = 80;
 const BLOCK_HEIGHT = 15;
-const INITIAL_SPEED = 1.2; // SLOWER
-const SPEED_INCREMENT = 0.08; // Slower acceleration
-const MAX_SPEED = 4; // Lower max speed
-const PERFECT_THRESHOLD = 2; // STRICTER - only 2 pixels tolerance
-const COIN_CHANCE = 0.25; // 25% chance for coin to appear
+const INITIAL_SPEED = 0.6; // VERY SLOW
+const SPEED_INCREMENT = 0.03; // Minimal acceleration
+const MAX_SPEED = 2; // Much lower max
+const PERFECT_THRESHOLD = 3;
+const COIN_CHANCE = 0.3; // 30% chance for coin
+const GREEN_BAR_CHANCE = 0.25; // 25% chance for green $ bar
 
-const COLORS = [
-  '#FFD700', '#FFA500', '#32CD32', '#00CED1',
-  '#FF69B4', '#9370DB', '#FF6347', '#4169E1',
-];
+// Material colors
+const MATERIALS = {
+  green: { color: '#32CD32', name: 'Cash', value: 50 },
+  bronze: { color: '#CD7F32', name: 'Bronze', value: 25 },
+  silver: { color: '#C0C0C0', name: 'Silver', value: 50 },
+  gold: { color: '#FFD700', name: 'Gold', value: 100 },
+  platinum: { color: '#E5E4E2', name: 'Platinum', value: 200 },
+};
+
+type MaterialType = keyof typeof MATERIALS;
 
 export default function CashStackGame({
   onGameEnd,
@@ -91,15 +98,23 @@ export default function CashStackGame({
     currentBlock: null,
     score: 0,
     perfectCount: 0,
-    coinBonus: 0,
+    explosionCount: 0,
     explosions: [],
     particles: [],
     gameOver: false,
     gameStarted: false,
     direction: 1,
     speed: INITIAL_SPEED,
-    initialWidth: INITIAL_WIDTH,
+    blockLevel: 0,
   });
+
+  const getBlockType = (level: number): MaterialType => {
+    if (level < 5) return 'green';
+    if (level < 10) return 'bronze';
+    if (level < 15) return 'silver';
+    if (level < 20) return 'gold';
+    return 'platinum';
+  };
 
   const initGame = useCallback(() => {
     const baseBlock: Block = {
@@ -107,7 +122,8 @@ export default function CashStackGame({
       y: 0,
       width: INITIAL_WIDTH,
       depth: INITIAL_DEPTH,
-      color: COLORS[0],
+      color: MATERIALS.green.color,
+      type: 'green',
       direction: 'x',
       hasCoin: false,
     };
@@ -117,7 +133,8 @@ export default function CashStackGame({
       y: BLOCK_HEIGHT,
       width: INITIAL_WIDTH,
       depth: INITIAL_DEPTH,
-      color: COLORS[1],
+      color: MATERIALS.green.color,
+      type: 'green',
       direction: 'x',
       hasCoin: Math.random() < COIN_CHANCE,
     };
@@ -127,14 +144,14 @@ export default function CashStackGame({
       currentBlock: firstBlock,
       score: 0,
       perfectCount: 0,
-      coinBonus: 0,
+      explosionCount: 0,
       explosions: [],
       particles: [],
       gameOver: false,
       gameStarted: true,
       direction: 1,
       speed: INITIAL_SPEED,
-      initialWidth: INITIAL_WIDTH,
+      blockLevel: 0,
     });
   }, []);
 
@@ -156,27 +173,31 @@ export default function CashStackGame({
     }, 1000);
   }, [initGame]);
 
-  const createExplosion = (x: number, y: number) => {
+  const createExplosion = (x: number, y: number, type: 'coin' | 'fall') => {
     const explosion: Explosion = {
       x,
       y,
       radius: 0,
-      life: 30,
-      maxLife: 30,
+      life: 40,
+      maxLife: 40,
     };
 
-    // Create particles
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 50; i++) {
-      const angle = (Math.PI * 2 * i) / 50;
-      const speed = 2 + Math.random() * 3;
+    const particleCount = type === 'coin' ? 60 : 30;
+    const colors = type === 'coin' 
+      ? ['#FFD700', '#FFA500', '#FF6347', '#32CD32', '#00CED1']
+      : ['#888', '#666', '#999'];
+
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount;
+      const speed = type === 'coin' ? 3 + Math.random() * 4 : 2 + Math.random() * 2;
       newParticles.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 30 + Math.random() * 20,
-        color: ['#FFD700', '#FFA500', '#FF6347', '#32CD32'][Math.floor(Math.random() * 4)],
+        vy: Math.sin(angle) * speed - 2,
+        life: 40 + Math.random() * 30,
+        color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
 
@@ -184,6 +205,7 @@ export default function CashStackGame({
       ...prev,
       explosions: [...prev.explosions, explosion],
       particles: [...prev.particles, ...newParticles],
+      explosionCount: type === 'coin' ? prev.explosionCount + 1 : prev.explosionCount,
     }));
   };
 
@@ -199,6 +221,7 @@ export default function CashStackGame({
     let newZ = currentBlock.y;
 
     let isPerfect = false;
+    let isGood = false;
     let hitCoin = false;
 
     if (currentBlock.direction === 'x') {
@@ -215,6 +238,7 @@ export default function CashStackGame({
         newX = lastBlock.x;
         newWidth = lastBlock.width;
       } else {
+        isGood = true;
         if (overhangLeft > 0) {
           newX = lastBlock.x;
           newWidth = currentBlock.width - overhangLeft;
@@ -237,6 +261,7 @@ export default function CashStackGame({
         newZ = lastBlock.y;
         newDepth = lastBlock.depth;
       } else {
+        isGood = true;
         if (overhangFront > 0) {
           newZ = lastBlock.y;
           newDepth = currentBlock.depth - overhangFront;
@@ -247,42 +272,59 @@ export default function CashStackGame({
       }
     }
 
-    if (newWidth < 8 || newDepth < 8) {
+    if (newWidth < 10 || newDepth < 10) {
       setGame(prev => ({ ...prev, gameOver: true }));
       return;
     }
 
+    // Calculate score
     let scoreGain = 10;
+    const materialValue = MATERIALS[currentBlock.type].value;
+
     if (isPerfect) {
-      scoreGain = 25;
+      scoreGain = 50 + materialValue;
       if (currentBlock.hasCoin) {
         hitCoin = true;
-        scoreGain = 100; // HUGE bonus for coin perfect stack!
+        scoreGain = 200 + materialValue; // HUGE bonus!
       }
+    } else if (isGood) {
+      scoreGain = 20 + materialValue / 2;
+      // Good stacks make bars fall (create falling particle effect)
+      createExplosion(0, game.blocks.length * BLOCK_HEIGHT, 'fall');
     }
+
+    const newBlockLevel = game.blockLevel + 1;
+    const blockType = getBlockType(newBlockLevel);
 
     const stackedBlock: Block = {
       x: newX,
       y: newZ,
       width: newWidth,
       depth: newDepth,
-      color: COLORS[game.blocks.length % COLORS.length],
+      color: MATERIALS[blockType].color,
+      type: blockType,
       direction: currentBlock.direction,
       hasCoin: false,
     };
 
     const nextDirection = currentBlock.direction === 'x' ? 'z' : 'x';
-    let nextBlock: Block;
+    const nextBlockType = getBlockType(newBlockLevel + 1);
+    
+    // Chance for green $ bar OR coin
+    const hasGreenBar = Math.random() < GREEN_BAR_CHANCE;
+    const hasCoin = !hasGreenBar && Math.random() < COIN_CHANCE;
 
+    let nextBlock: Block;
     if (nextDirection === 'x') {
       nextBlock = {
         x: newX - 150,
         y: newZ,
         width: newWidth,
         depth: newDepth,
-        color: COLORS[(game.blocks.length + 1) % COLORS.length],
+        color: hasGreenBar ? MATERIALS.green.color : MATERIALS[nextBlockType].color,
+        type: hasGreenBar ? 'green' : nextBlockType,
         direction: nextDirection,
-        hasCoin: Math.random() < COIN_CHANCE,
+        hasCoin: hasCoin,
       };
     } else {
       nextBlock = {
@@ -290,9 +332,10 @@ export default function CashStackGame({
         y: newZ - 150,
         width: newWidth,
         depth: newDepth,
-        color: COLORS[(game.blocks.length + 1) % COLORS.length],
+        color: hasGreenBar ? MATERIALS.green.color : MATERIALS[nextBlockType].color,
+        type: hasGreenBar ? 'green' : nextBlockType,
         direction: nextDirection,
-        hasCoin: Math.random() < COIN_CHANCE,
+        hasCoin: hasCoin,
       };
     }
 
@@ -302,13 +345,13 @@ export default function CashStackGame({
       currentBlock: nextBlock,
       score: prev.score + scoreGain,
       perfectCount: isPerfect ? prev.perfectCount + 1 : 0,
-      coinBonus: hitCoin ? prev.coinBonus + 1 : prev.coinBonus,
       direction: prev.direction * -1,
       speed: Math.min(MAX_SPEED, prev.speed + SPEED_INCREMENT),
+      blockLevel: newBlockLevel,
     }));
 
     if (hitCoin) {
-      createExplosion(0, game.blocks.length * BLOCK_HEIGHT);
+      createExplosion(0, game.blocks.length * BLOCK_HEIGHT, 'coin');
     }
   }, [game, gameState]);
 
@@ -341,23 +384,12 @@ export default function CashStackGame({
             }
           }
 
-          // Update explosions and particles
           const updatedExplosions = prev.explosions
-            .map(exp => ({
-              ...exp,
-              radius: exp.radius + 2,
-              life: exp.life - 1,
-            }))
+            .map(exp => ({ ...exp, radius: exp.radius + 3, life: exp.life - 1 }))
             .filter(exp => exp.life > 0);
 
           const updatedParticles = prev.particles
-            .map(p => ({
-              ...p,
-              x: p.x + p.vx,
-              y: p.y + p.vy,
-              vy: p.vy + 0.1,
-              life: p.life - 1,
-            }))
+            .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.15, life: p.life - 1 }))
             .filter(p => p.life > 0);
 
           return {
@@ -391,47 +423,57 @@ export default function CashStackGame({
       if (game.currentBlock) {
         drawBlock(ctx, game.currentBlock, game.blocks.length * BLOCK_HEIGHT, scale, true);
         
-        // Draw coin if present
         if (game.currentBlock.hasCoin) {
           drawCoin(ctx, game.currentBlock, game.blocks.length * BLOCK_HEIGHT, scale);
         }
       }
 
-      // Draw explosions
       game.explosions.forEach(exp => {
         const alpha = exp.life / exp.maxLife;
         ctx.beginPath();
         ctx.arc(exp.x, exp.y - game.blocks.length * BLOCK_HEIGHT * scale, exp.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(exp.x, exp.y - game.blocks.length * BLOCK_HEIGHT * scale, exp.radius * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 140, 0, ${alpha})`;
         ctx.lineWidth = 3;
         ctx.stroke();
       });
 
-      // Draw particles
       game.particles.forEach(p => {
-        const alpha = p.life / 50;
+        const alpha = p.life / 70;
         ctx.fillStyle = p.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
-        ctx.fillRect(p.x, p.y - game.blocks.length * BLOCK_HEIGHT * scale, 3, 3);
+        ctx.fillRect(p.x, p.y - game.blocks.length * BLOCK_HEIGHT * scale, 4, 4);
       });
 
       ctx.restore();
 
       ctx.fillStyle = 'white';
-      ctx.font = 'bold 24px Arial';
+      ctx.font = 'bold 28px Arial';
       ctx.textAlign = 'left';
       ctx.fillText(`Score: ${game.score}`, 20, 40);
-      ctx.fillText(`Height: ${game.blocks.length}`, 20, 70);
+      
+      const currentType = game.currentBlock?.type || 'green';
+      ctx.fillStyle = MATERIALS[currentType].color;
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText(`${MATERIALS[currentType].name} Level`, 20, 70);
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText(`Height: ${game.blocks.length}`, 20, 95);
 
       if (game.perfectCount > 0) {
         ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 20px Arial';
-        ctx.fillText(`Perfect x${game.perfectCount}! 🔥`, 20, 100);
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(`Perfect x${game.perfectCount}! 🔥`, 20, 125);
       }
 
-      if (game.coinBonus > 0) {
-        ctx.fillStyle = '#32CD32';
-        ctx.font = 'bold 18px Arial';
-        ctx.fillText(`💰 Coins: ${game.coinBonus}`, 20, 130);
+      if (game.explosionCount > 0) {
+        ctx.fillStyle = '#FF6347';
+        ctx.font = 'bold 22px Arial';
+        ctx.fillText(`💥 Explosions: ${game.explosionCount}`, 20, 155);
       }
 
       animationRef.current = requestAnimationFrame(animate);
@@ -472,6 +514,15 @@ export default function CashStackGame({
     ctx.lineWidth = 2;
     ctx.stroke();
 
+    // Draw $ sign on green bars
+    if (block.type === 'green' && !isMoving) {
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', isoX + w / 2 + d / 2, isoY - w * 0.25 + d * 0.25);
+    }
+
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX, isoY + h);
@@ -503,22 +554,31 @@ export default function CashStackGame({
     const isoY = (block.x + block.y) * 0.3 * scale - height * scale;
 
     const centerX = isoX + (block.width * 0.6 * scale) / 2;
-    const centerY = isoY - 20;
+    const centerY = isoY - 25;
 
     ctx.save();
-    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
-    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.9)';
+    ctx.shadowBlur = 15;
+    
+    // Outer ring
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
     ctx.fillStyle = '#FFD700';
     ctx.fill();
     ctx.strokeStyle = '#FFA500';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Inner detail
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = '#FF8C00';
     ctx.lineWidth = 2;
     ctx.stroke();
     
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('$', centerX, centerY);
@@ -564,7 +624,7 @@ export default function CashStackGame({
   useEffect(() => {
     if (game.gameOver && gameState === 'playing') {
       setGameState('ended');
-      const accuracy = Math.min(100, (game.score / (game.blocks.length * 25)) * 100);
+      const accuracy = Math.min(100, (game.score / (game.blocks.length * 50)) * 100);
       setTimeout(() => {
         onGameEnd({
           score: game.score,
@@ -622,14 +682,14 @@ export default function CashStackGame({
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
             <div className="text-center p-8 bg-gray-900/90 rounded-2xl border-4 border-yellow-500 max-w-2xl">
               <h1 className="text-5xl font-bold text-yellow-400 mb-4">💰 CASH STACK</h1>
-              <p className="text-white text-xl mb-6">Stack blocks perfectly to build the tallest tower!</p>
-              <div className="text-left text-white mb-6 space-y-2">
-                <p>⭐ <strong>Perfect Stack:</strong> 25 points (within 2 pixels!)</p>
-                <p>💰 <strong>Coin Perfect:</strong> 100 points + EXPLOSION!</p>
-                <p>📏 <strong>Good Stack:</strong> 10 points</p>
-                <p>❌ <strong>Miss:</strong> Block shrinks or Game Over!</p>
-                <p>🎯 <strong>Challenge:</strong> Slower speed, stricter alignment!</p>
-                <p>⏱️ <strong>Time Limit:</strong> 60 seconds</p>
+              <p className="text-white text-xl mb-6">Build the perfect tower through material progression!</p>
+              <div className="text-left text-white mb-6 space-y-2 text-lg">
+                <p>💚 <strong>Green ($) Bars:</strong> Special cash blocks - appear randomly!</p>
+                <p>📊 <strong>Progression:</strong> Green → Bronze → Silver → Gold → Platinum</p>
+                <p>⭐ <strong>Perfect Stack:</strong> 50+ points (bonus for higher materials)</p>
+                <p>💰 <strong>Coin Perfect:</strong> 200+ points + 💥 EXPLOSION!</p>
+                <p>📏 <strong>Good Stack:</strong> Bars fall + bonus points</p>
+                <p>⏱️ <strong>Goal:</strong> Highest score in 60 seconds!</p>
               </div>
               <button
                 onClick={startCountdown}
@@ -637,7 +697,7 @@ export default function CashStackGame({
               >
                 START GAME
               </button>
-              <p className="text-gray-400 mt-4 text-sm">Click or press SPACE to stack</p>
+              <p className="text-gray-400 mt-4 text-sm">Click or press SPACE to stack | MUCH SLOWER for precision!</p>
             </div>
           </div>
         )}
@@ -654,13 +714,13 @@ export default function CashStackGame({
           <div className="absolute inset-0 flex items-center justify-center bg-black/80">
             <div className="text-center p-8 bg-gray-900/95 rounded-2xl border-4 border-yellow-500">
               <h2 className="text-4xl font-bold text-yellow-400 mb-4">
-                {game.score > 300 ? '🏆 AMAZING!' : game.score > 150 ? '🎉 GREAT JOB!' : '💰 NICE TRY!'}
+                {game.score > 500 ? '🏆 LEGENDARY!' : game.score > 300 ? '🎉 AMAZING!' : '💰 NICE TRY!'}
               </h2>
               <div className="text-white text-2xl space-y-2">
                 <p>Final Score: <span className="text-yellow-400 font-bold">{game.score}</span></p>
                 <p>Tower Height: <span className="text-green-400 font-bold">{game.blocks.length}</span></p>
-                {game.coinBonus > 0 && (
-                  <p>💰 Coin Bonuses: <span className="text-orange-400 font-bold">{game.coinBonus}</span></p>
+                {game.explosionCount > 0 && (
+                  <p>💥 Explosions: <span className="text-orange-400 font-bold">{game.explosionCount}</span></p>
                 )}
               </div>
               <p className="text-gray-400 mt-4">Submitting your score...</p>
@@ -671,7 +731,7 @@ export default function CashStackGame({
         {gameState === 'playing' && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 px-6 py-3 rounded-full">
             <p className="text-white font-semibold text-center">
-              Click or Press SPACE to stack | 💰 Hit coins for EXPLOSIONS!
+              Click or SPACE to stack | 💚 Green $ bars! | 💰 Coins explode on perfect stacks!
             </p>
           </div>
         )}
