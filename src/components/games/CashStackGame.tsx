@@ -19,6 +19,11 @@ interface Block {
   direction: 'x' | 'z';
   dollarX: number; // Dollar sign X offset
   dollarZ: number; // Dollar sign Z offset
+  visualX?: number; // Interpolated position for smooth rendering
+  visualY?: number;
+  dropProgress?: number; // 0 to 1 for smooth drop animation
+  targetY?: number; // Target position when dropping
+  isDropping?: boolean;
 }
 
 interface Explosion {
@@ -70,6 +75,11 @@ const DOLLAR_ALIGN_THRESHOLD = 12; // Forgiving alignment
 const STACK_EXPLOSION_BONUS = 300; // HUGE BONUS for explosions!
 const NORMAL_STACK_POINTS = 3; // Small points for normal stacks
 const EXPLOSION_ANIMATION_TIME = 400; // Very fast reset (ms)
+
+// Smooth animation constants
+const INTERPOLATION_FACTOR = 0.25; // Smooth lerp for movement
+const DROP_DURATION = 350; // Drop animation duration in ms
+const DROP_EASING = 0.08; // Easing factor for drop
 
 // All blocks are green (single color)
 const BLOCK_COLOR = '#32CD32'; // Bright green
@@ -296,6 +306,11 @@ export default function CashStackGame({
       direction: currentBlock.direction,
       dollarX: currentBlock.dollarX,
       dollarZ: currentBlock.dollarZ,
+      // Initialize drop animation
+      isDropping: true,
+      dropProgress: 0,
+      visualX: newX,
+      visualY: newZ,
     };
 
     const nextBlock = createBlock(game.blocks.length + 1, stackedBlock);
@@ -326,43 +341,82 @@ export default function CashStackGame({
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
+    const lastFrameTime = useRef<number>(Date.now());
+    
     const animate = () => {
+      const now = Date.now();
+      const deltaTime = (now - lastFrameTime.current) / 16.67; // Normalize to 60fps
+      lastFrameTime.current = now;
+
       if (game.currentBlock && !game.gameOver) {
         setGame(prev => {
           if (!prev.currentBlock) return prev;
 
           // Calculate time-based speed increase
-          const elapsedTime = (Date.now() - gameStartTimeRef.current) / 1000; // seconds
+          const elapsedTime = (now - gameStartTimeRef.current) / 1000;
           const currentSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
 
           let newX = prev.currentBlock.x;
           let newY = prev.currentBlock.y;
 
           if (prev.currentBlock.direction === 'x') {
-            newX += currentSpeed * prev.direction;
-            // Smoother boundaries
+            newX += currentSpeed * prev.direction * deltaTime;
             if (newX < -180 || newX > 180) {
               return { ...prev, direction: prev.direction * -1 };
             }
           } else {
-            newY += currentSpeed * prev.direction;
-            // Smoother boundaries
+            newY += currentSpeed * prev.direction * deltaTime;
             if (newY < -180 || newY > 180) {
               return { ...prev, direction: prev.direction * -1 };
             }
           }
 
+          // Smooth interpolation for visual position
+          const currentVisualX = prev.currentBlock.visualX ?? prev.currentBlock.x;
+          const currentVisualY = prev.currentBlock.visualY ?? prev.currentBlock.y;
+          const visualX = currentVisualX + (newX - currentVisualX) * INTERPOLATION_FACTOR;
+          const visualY = currentVisualY + (newY - currentVisualY) * INTERPOLATION_FACTOR;
+
+          // Update explosion and particle effects
           const updatedExplosions = prev.explosionEffects
-            .map(exp => ({ ...exp, radius: exp.radius + 4, life: exp.life - 1 }))
+            .map(exp => ({ ...exp, radius: exp.radius + 4 * deltaTime, life: exp.life - 1 * deltaTime }))
             .filter(exp => exp.life > 0);
 
           const updatedParticles = prev.particles
-            .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.2, life: p.life - 1 }))
+            .map(p => ({ 
+              ...p, 
+              x: p.x + p.vx * deltaTime, 
+              y: p.y + p.vy * deltaTime, 
+              vy: p.vy + 0.2 * deltaTime, 
+              life: p.life - 1 * deltaTime 
+            }))
             .filter(p => p.life > 0);
+
+          // Update blocks with drop animation
+          const updatedBlocks = prev.blocks.map(block => {
+            if (block.isDropping && block.dropProgress !== undefined) {
+              const newProgress = Math.min(1, block.dropProgress + DROP_EASING * deltaTime);
+              const easeProgress = 1 - Math.pow(1 - newProgress, 3); // Cubic ease-out
+              
+              return {
+                ...block,
+                dropProgress: newProgress,
+                isDropping: newProgress < 1,
+              };
+            }
+            return block;
+          });
 
           return {
             ...prev,
-            currentBlock: { ...prev.currentBlock, x: newX, y: newY },
+            currentBlock: { 
+              ...prev.currentBlock, 
+              x: newX, 
+              y: newY,
+              visualX,
+              visualY,
+            },
+            blocks: updatedBlocks,
             explosionEffects: updatedExplosions,
             particles: updatedParticles,
           };
@@ -494,8 +548,19 @@ export default function CashStackGame({
     scale: number,
     isMoving: boolean
   ) => {
-    const isoX = (block.x - block.y) * 0.6 * scale;
-    const isoY = (block.x + block.y) * 0.3 * scale - height * scale;
+    // Use interpolated visual position for smooth movement
+    const x = isMoving ? (block.visualX ?? block.x) : block.x;
+    const y = isMoving ? (block.visualY ?? block.y) : block.y;
+    
+    // Handle drop animation for stacked blocks
+    let renderHeight = height;
+    if (block.isDropping && block.dropProgress !== undefined) {
+      const easeProgress = 1 - Math.pow(1 - block.dropProgress, 3);
+      renderHeight = height + (50 * (1 - easeProgress)); // Drop from 50px above
+    }
+    
+    const isoX = (x - y) * 0.6 * scale;
+    const isoY = (x + y) * 0.3 * scale - renderHeight * scale;
 
     const w = block.width * 0.6 * scale;
     const d = block.depth * 0.6 * scale;
