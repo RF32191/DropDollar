@@ -484,88 +484,74 @@ export default function CashStackGame({
     const d = block.depth * 0.6 * scale;
     const h = BLOCK_HEIGHT * scale;
 
-    // Top face (stack of bills appearance)
+    // Solid green color for all blocks
+    const blockColor = BLOCK_COLOR;
+
+    // Top face (solid green)
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX + w, isoY - w * 0.5);
     ctx.lineTo(isoX + w + d, isoY - w * 0.5 + d * 0.5);
     ctx.lineTo(isoX + d, isoY + d * 0.5);
     ctx.closePath();
-    ctx.fillStyle = isMoving ? '#FFFFFF' : block.color;
+    ctx.fillStyle = blockColor;
     ctx.fill();
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = '#1a5f1a'; // Dark green border
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Draw horizontal lines to simulate stacked bills
-    if (!isMoving) {
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-      ctx.lineWidth = 1;
-      const lineCount = 5;
-      for (let i = 1; i < lineCount; i++) {
-        const ratio = i / lineCount;
-        ctx.beginPath();
-        ctx.moveTo(isoX + w * ratio, isoY - w * ratio * 0.5);
-        ctx.lineTo(isoX + w * ratio + d, isoY - w * ratio * 0.5 + d * 0.5);
-        ctx.stroke();
-      }
+    // Draw $ sign with yellow circle on ALL blocks (stacked and moving)
+    const dollarIsoX = (block.dollarX - block.dollarZ) * 0.6 * scale;
+    const dollarIsoY = (block.dollarX + block.dollarZ) * 0.3 * scale;
+    const dollarCenterX = isoX + w / 2 + d / 2 + dollarIsoX;
+    const dollarCenterY = isoY - w * 0.25 + d * 0.25 + dollarIsoY;
+    
+    ctx.save();
+    
+    // Draw yellow circle background
+    ctx.beginPath();
+    ctx.arc(dollarCenterX, dollarCenterY, 15, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFD700';
+    ctx.fill();
+    ctx.strokeStyle = '#FFA500';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Draw $ sign
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 2;
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', dollarCenterX, dollarCenterY);
+    
+    ctx.restore();
 
-      // Draw $ sign with yellow circle around it
-      const dollarIsoX = (block.dollarX - block.dollarZ) * 0.6 * scale;
-      const dollarIsoY = (block.dollarX + block.dollarZ) * 0.3 * scale;
-      const dollarCenterX = isoX + w / 2 + d / 2 + dollarIsoX;
-      const dollarCenterY = isoY - w * 0.25 + d * 0.25 + dollarIsoY;
-      
-      ctx.save();
-      
-      // Draw yellow circle background
-      ctx.beginPath();
-      ctx.arc(dollarCenterX, dollarCenterY, 16, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFD700';
-      ctx.fill();
-      ctx.strokeStyle = '#FFA500';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      
-      // Draw inner glow
-      ctx.beginPath();
-      ctx.arc(dollarCenterX, dollarCenterY, 13, 0, Math.PI * 2);
-      ctx.strokeStyle = '#FFED4E';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // Draw $ sign
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-      ctx.shadowBlur = 3;
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 26px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('$', dollarCenterX, dollarCenterY);
-      
-      ctx.restore();
-    }
-
-    // Left face
+    // Left face (darker green for 3D effect)
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX, isoY + h);
     ctx.lineTo(isoX + d, isoY + h + d * 0.5);
     ctx.lineTo(isoX + d, isoY + d * 0.5);
     ctx.closePath();
-    ctx.fillStyle = shadeColor(isMoving ? '#FFFFFF' : block.color, -20);
+    ctx.fillStyle = shadeColor(blockColor, -25);
     ctx.fill();
+    ctx.strokeStyle = '#1a5f1a';
+    ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Right face
+    // Right face (darkest green for 3D depth)
     ctx.beginPath();
     ctx.moveTo(isoX + w, isoY - w * 0.5);
     ctx.lineTo(isoX + w, isoY - w * 0.5 + h);
     ctx.lineTo(isoX + w + d, isoY - w * 0.5 + h + d * 0.5);
     ctx.lineTo(isoX + w + d, isoY - w * 0.5 + d * 0.5);
     ctx.closePath();
-    ctx.fillStyle = shadeColor(isMoving ? '#FFFFFF' : block.color, -40);
+    ctx.fillStyle = shadeColor(blockColor, -45);
     ctx.fill();
+    ctx.strokeStyle = '#1a5f1a';
+    ctx.lineWidth = 1;
     ctx.stroke();
   };
 
