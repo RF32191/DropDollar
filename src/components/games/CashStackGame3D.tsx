@@ -34,6 +34,14 @@ interface Particle3D {
   maxLife: number;
 }
 
+interface BonusCoin {
+  mesh: THREE.Mesh;
+  y: number;
+  velocity: number;
+  rotation: number;
+  active: boolean;
+}
+
 interface CashStackGame3DProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
   onExit: () => void;
@@ -45,12 +53,14 @@ interface CashStackGame3DProps {
 
 const INITIAL_SIZE = 4;
 const BLOCK_HEIGHT = 0.5;
-const INITIAL_SPEED = 0.08; // 4× faster
-const SPEED_INCREMENT = 0.004; // Faster acceleration
-const MAX_SPEED = 0.9; // Much higher top speed
+const INITIAL_SPEED = 0.08;
+const SPEED_INCREMENT = 0.004;
+const MAX_SPEED = 0.9;
 const DOLLAR_THRESHOLD = 0.6;
-const DROP_GRAVITY = 0.008; // Faster drop
-const BOUNCE_DAMPING = 0.6; // More bounce
+const DROP_GRAVITY = 0.025; // Much faster drop
+const BOUNCE_DAMPING = 0.5; // Less bounce for faster settling
+const BONUS_COIN_CHANCE = 0.15; // 15% chance of bonus coin
+const BONUS_COIN_POINTS = 500;
 
 export default function CashStackGame3D({
   onGameEnd,
@@ -67,6 +77,9 @@ export default function CashStackGame3D({
   const clockRef = useRef(new THREE.Clock());
   const gameStartTimeRef = useRef<number>(0);
   const alignmentLineRef = useRef<THREE.Line | null>(null);
+  const bonusCoinRef = useRef<BonusCoin | null>(null);
+  const nextSpeedBoostRef = useRef<number>(5); // Next stack count for speed boost
+  const currentSpeedMultiplierRef = useRef<number>(1);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -298,6 +311,37 @@ export default function CashStackGame3D({
     }
     
     playSound(800, 0.1, 'square');
+  }, [playSound]);
+
+  // Create bonus coin
+  const createBonusCoin = useCallback(() => {
+    if (!sceneRef.current || bonusCoinRef.current?.active) return;
+
+    const geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      emissive: 0xFFD700,
+      emissiveIntensity: 0.5,
+      metalness: 1,
+      roughness: 0.2,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    const topY = stackedBlocksRef.current.length * BLOCK_HEIGHT + 15;
+    mesh.position.set(0, topY, 0);
+    mesh.rotation.x = Math.PI / 2;
+    
+    sceneRef.current.add(mesh);
+
+    bonusCoinRef.current = {
+      mesh,
+      y: topY,
+      velocity: 0,
+      rotation: 0,
+      active: true,
+    };
+
+    playSound(1000, 0.15, 'sine');
   }, [playSound]);
 
   // Update alignment line showing connection between dollar signs
@@ -585,6 +629,18 @@ export default function CashStackGame3D({
     setScore(prev => prev + 3 + Math.floor(stackedBlocksRef.current.length / 2));
     setTowerHeight(stackedBlocksRef.current.length);
     
+    // Random speed boost at intervals
+    if (stackedBlocksRef.current.length >= nextSpeedBoostRef.current) {
+      currentSpeedMultiplierRef.current += 0.15;
+      nextSpeedBoostRef.current += Math.floor(Math.random() * 5) + 3; // Next boost in 3-7 blocks
+      playSound(1500, 0.2, 'square');
+    }
+    
+    // Random bonus coin spawn
+    if (Math.random() < BONUS_COIN_CHANCE && !bonusCoinRef.current?.active) {
+      createBonusCoin();
+    }
+    
     // Create next moving block
     const nextBlock = createBlock(
       newDirection === 'x' ? -10 : newX,
@@ -599,7 +655,7 @@ export default function CashStackGame3D({
     currentBlockRef.current = nextBlock;
     
     setDirection(prev => prev * -1);
-  }, [gameState, createBlock, createParticles, playSound]);
+  }, [gameState, createBlock, createParticles, playSound, createBonusCoin]);
 
   // Animation loop
   useEffect(() => {
@@ -608,7 +664,8 @@ export default function CashStackGame3D({
     const animate = () => {
       const delta = clockRef.current.getDelta();
       const elapsedTime = (Date.now() - gameStartTimeRef.current) / 1000;
-      const currentSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
+      const baseSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
+      const currentSpeed = baseSpeed * currentSpeedMultiplierRef.current; // Apply speed multiplier
       
       // Update current block
       if (currentBlockRef.current && !currentBlockRef.current.isDropping) {
@@ -628,6 +685,44 @@ export default function CashStackGame3D({
         
         block.mesh.position.x = block.x;
         block.mesh.position.z = block.z;
+      }
+      
+      // Update bonus coin
+      if (bonusCoinRef.current?.active) {
+        const coin = bonusCoinRef.current;
+        coin.velocity += DROP_GRAVITY * 0.7; // Slightly slower than blocks
+        coin.y -= coin.velocity;
+        coin.rotation += 0.1;
+        coin.mesh.position.y = coin.y;
+        coin.mesh.rotation.z = coin.rotation;
+        
+        // Check if coin hit the last stacked block's dollar sign
+        const lastBlock = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
+        const dollarWorldX = lastBlock.x + lastBlock.dollarX;
+        const dollarWorldZ = lastBlock.z + lastBlock.dollarZ;
+        const dollarWorldY = lastBlock.currentY + BLOCK_HEIGHT / 2;
+        
+        const distX = Math.abs(coin.mesh.position.x - dollarWorldX);
+        const distZ = Math.abs(coin.mesh.position.z - dollarWorldZ);
+        const distY = Math.abs(coin.y - dollarWorldY);
+        
+        if (distX < 0.5 && distZ < 0.5 && distY < 0.3) {
+          // Coin hit the dollar sign!
+          setScore(prev => prev + BONUS_COIN_POINTS);
+          playSound(2000, 0.3, 'sine');
+          createParticles(coin.mesh.position.x, coin.y, coin.mesh.position.z, 50);
+          
+          if (sceneRef.current) {
+            sceneRef.current.remove(coin.mesh);
+          }
+          bonusCoinRef.current.active = false;
+        } else if (coin.y < -5) {
+          // Coin fell off
+          if (sceneRef.current) {
+            sceneRef.current.remove(coin.mesh);
+          }
+          bonusCoinRef.current.active = false;
+        }
       }
       
       // Update dropping blocks
