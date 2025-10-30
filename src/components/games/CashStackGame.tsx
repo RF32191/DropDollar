@@ -63,13 +63,13 @@ interface CashStackGameProps {
 const INITIAL_WIDTH = 80;
 const INITIAL_DEPTH = 80;
 const BLOCK_HEIGHT = 15;
-const INITIAL_SPEED = 0.08; // SIGNIFICANTLY SLOWER
-const SPEED_INCREMENT = 0.005; // Very minimal acceleration
-const MAX_SPEED = 0.7; // Much lower max
-const DOLLAR_ALIGN_THRESHOLD = 10; // Slightly larger threshold for easier alignment
-const STACK_EXPLOSION_BONUS = 250; // BIG BONUS for explosions!
-const NORMAL_STACK_POINTS = 5; // Small points for normal stacks
-const EXPLOSION_ANIMATION_TIME = 600; // Quick explosion animation (ms)
+const INITIAL_SPEED = 0.05; // EXTREMELY SLOW - like Stack game
+const SPEED_INCREMENT = 0.003; // Very minimal acceleration
+const MAX_SPEED = 0.5; // Very low max
+const DOLLAR_ALIGN_THRESHOLD = 12; // Forgiving alignment
+const STACK_EXPLOSION_BONUS = 300; // HUGE BONUS for explosions!
+const NORMAL_STACK_POINTS = 3; // Small points for normal stacks
+const EXPLOSION_ANIMATION_TIME = 400; // Very fast reset (ms)
 
 // All blocks are green (single color)
 const BLOCK_COLOR = '#32CD32'; // Bright green
@@ -105,9 +105,10 @@ export default function CashStackGame({
     const depth = lastBlock ? lastBlock.depth : INITIAL_DEPTH;
     const direction = lastBlock ? (lastBlock.direction === 'x' ? 'z' : 'x') : 'x';
     
-    // Random dollar sign position anywhere on the block (more spread out)
-    const dollarX = (Math.random() - 0.5) * width * 0.7;
-    const dollarZ = (Math.random() - 0.5) * depth * 0.7;
+    // Random dollar sign position ANYWHERE on the block (full 80% area)
+    // This makes each block unique and creates alignment challenge
+    const dollarX = (Math.random() - 0.5) * width * 0.8;
+    const dollarZ = (Math.random() - 0.5) * depth * 0.8;
 
     return {
       x: direction === 'x' ? -150 : (lastBlock?.x || 0),
@@ -129,8 +130,8 @@ export default function CashStackGame({
       depth: INITIAL_DEPTH,
       color: BLOCK_COLOR,
       direction: 'x',
-      dollarX: 0,
-      dollarZ: 0,
+      dollarX: (Math.random() - 0.5) * INITIAL_WIDTH * 0.8, // Random $ position on base too
+      dollarZ: (Math.random() - 0.5) * INITIAL_DEPTH * 0.8,
     };
 
     setGame({
@@ -214,8 +215,8 @@ export default function CashStackGame({
         depth: INITIAL_DEPTH,
         color: BLOCK_COLOR,
         direction: 'x',
-        dollarX: 0,
-        dollarZ: 0,
+        dollarX: (Math.random() - 0.5) * INITIAL_WIDTH * 0.8, // New random $ position
+        dollarZ: (Math.random() - 0.5) * INITIAL_DEPTH * 0.8,
       };
 
       setGame(prev => ({
