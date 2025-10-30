@@ -1,5 +1,5 @@
-// Stripe Webhook Handler - COMPLETE WITH PAYMENT RETRIEVAL
-// Retrieves full payment data from Stripe API and processes token distribution
+// Stripe Webhook Handler - COMPLETE WITH COMPREHENSIVE BACKUP
+// Logs all events, retrieves payment data from Stripe, backs up to 4+ tables
 
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [Webhook] Received event:', event.type, 'ID:', event.id);
 
+    // Log the webhook event to database
+    await logWebhookEvent(event);
+
     // Handle the event
     switch (event.type) {
       case 'payment_intent.succeeded':
@@ -66,6 +69,14 @@ export async function POST(request: NextRequest) {
       
       case 'payment_intent.payment_failed':
         await handlePaymentFailure(event.data.object as Stripe.PaymentIntent);
+        break;
+      
+      case 'charge.succeeded':
+        console.log('💳 [Webhook] Charge succeeded:', (event.data.object as any).id);
+        break;
+      
+      case 'charge.failed':
+        console.log('❌ [Webhook] Charge failed:', (event.data.object as any).id);
         break;
       
       default:
@@ -83,6 +94,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * Log webhook event to database for audit trail
+ */
+async function logWebhookEvent(event: Stripe.Event) {
+  try {
+    const paymentIntent = event.data.object as any;
+    
+    await supabase!.rpc('log_stripe_webhook', {
+      event_id_param: event.id,
+      event_type_param: event.type,
+      payment_intent_id_param: paymentIntent.id || null,
+      customer_id_param: paymentIntent.customer || null,
+      amount_param: paymentIntent.amount ? paymentIntent.amount / 100 : null,
+      currency_param: paymentIntent.currency || null,
+      status_param: paymentIntent.status || null,
+      user_id_param: paymentIntent.metadata?.userId || paymentIntent.metadata?.user_id || null,
+      raw_data_param: event.data.object as any
+    });
+    
+    console.log('✅ [Webhook] Event logged to database');
+  } catch (err: any) {
+    console.error('⚠️ [Webhook] Could not log event:', err.message);
+  }
+}
+
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   try {
     console.log('💰 [Webhook] Payment succeeded:', paymentIntent.id);
@@ -93,7 +129,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     // Get payment details
     const amountPaid = paymentIntent.amount / 100; // Convert cents to dollars
     
-    // Calculate tokens: 1 dollar = 10 tokens (you can adjust this ratio)
+    // Calculate tokens: $1 = 10 tokens (adjust ratio as needed)
     const tokensToCredit = Math.floor(amountPaid * 10);
     
     console.log(`💵 [Webhook] Calculated: $${amountPaid} = ${tokensToCredit} tokens`);
@@ -147,18 +183,32 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       console.error('❌ [Webhook] Receipt email:', paymentIntent.receipt_email);
       console.error('❌ [Webhook] Customer:', paymentIntent.customer);
       console.error('❌ [Webhook] Metadata:', paymentIntent.metadata);
+      
+      // Log failed attempt
+      await logFailedPayment(paymentIntent, 'Could not determine userId');
       return;
     }
 
     console.log(`💵 [Webhook] Adding ${tokensToCredit} tokens to user ${userId}`);
 
-    // Call Supabase function to add tokens
+    // Get payment method details
+    let paymentMethod = 'card';
+    if (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'string') {
+      try {
+        const pm = await stripe!.paymentMethods.retrieve(paymentIntent.payment_method);
+        paymentMethod = pm.type || 'card';
+      } catch (err) {
+        console.log('⚠️ [Webhook] Could not retrieve payment method');
+      }
+    }
+
+    // Call comprehensive backup function
     const { data, error } = await supabase!.rpc('add_tokens_from_purchase', {
       user_id_param: userId,
       token_amount_param: tokensToCredit,
       payment_amount_param: amountPaid,
       stripe_payment_intent_id_param: paymentIntent.id,
-      payment_method_param: paymentIntent.payment_method as string || null
+      payment_method_param: paymentMethod
     });
 
     if (error) {
@@ -166,18 +216,68 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       
       // Fallback: Add tokens directly
       console.log('🔄 [Webhook] Using fallback method to add tokens');
-      await addTokensDirectly(userId, tokensToCredit, amountPaid, paymentIntent.id);
+      await addTokensDirectly(userId, tokensToCredit, amountPaid, paymentIntent.id, paymentMethod);
     } else {
       console.log('✅ [Webhook] Tokens added successfully:', data);
     }
 
+    // Mark webhook as processed
+    await supabase!
+      .from('stripe_webhook_log')
+      .update({ processed: true, processed_at: new Date().toISOString() })
+      .eq('payment_intent_id', paymentIntent.id);
+
   } catch (error: any) {
     console.error('❌ [Webhook] Error handling payment success:', error.message);
+    await logFailedPayment(paymentIntent, error.message);
   }
 }
 
 async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
   console.log('❌ [Webhook] Payment failed:', paymentIntent.id, paymentIntent.last_payment_error?.message);
+  
+  // Log the failure
+  try {
+    await supabase!.from('payment_audit_log').insert({
+      user_id: paymentIntent.metadata.userId || paymentIntent.metadata.user_id || 'unknown',
+      action: 'payment_failed',
+      payment_intent_id: paymentIntent.id,
+      amount: paymentIntent.amount / 100,
+      status: 'failed',
+      error_message: paymentIntent.last_payment_error?.message || 'Unknown error',
+      metadata: {
+        payment_intent: paymentIntent.id,
+        error: paymentIntent.last_payment_error
+      },
+      created_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('⚠️ [Webhook] Could not log payment failure:', err);
+  }
+}
+
+/**
+ * Log failed payment attempt
+ */
+async function logFailedPayment(paymentIntent: Stripe.PaymentIntent, errorMessage: string) {
+  try {
+    await supabase!.from('payment_audit_log').insert({
+      user_id: paymentIntent.metadata.userId || paymentIntent.metadata.user_id || 'unknown',
+      action: 'payment_processing_error',
+      payment_intent_id: paymentIntent.id,
+      amount: paymentIntent.amount / 100,
+      status: 'error',
+      error_message: errorMessage,
+      metadata: {
+        receipt_email: paymentIntent.receipt_email,
+        customer: paymentIntent.customer,
+        metadata: paymentIntent.metadata
+      },
+      created_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('⚠️ [Webhook] Could not log failed payment:', err);
+  }
 }
 
 /**
@@ -187,7 +287,8 @@ async function addTokensDirectly(
   userId: string,
   tokenAmount: number,
   paymentAmount: number,
-  stripePaymentIntentId: string
+  stripePaymentIntentId: string,
+  paymentMethod: string
 ) {
   try {
     console.log('🔄 [Webhook] Direct token addition for user:', userId);
@@ -195,7 +296,7 @@ async function addTokensDirectly(
     // Get user's current balance
     const { data: userData, error: userError } = await supabase!
       .from('users')
-      .select('tokens')
+      .select('tokens, email')
       .eq('id', userId)
       .single();
 
@@ -225,9 +326,10 @@ async function addTokensDirectly(
 
     console.log('✅ [Webhook] User tokens updated');
 
-    // Record in token_transactions
-    try {
-      await supabase!.from('token_transactions').insert({
+    // Record in all backup tables
+    const backupTasks = [
+      // token_transactions
+      supabase!.from('token_transactions').insert({
         user_id: userId,
         amount: tokenAmount,
         type: 'purchase',
@@ -237,29 +339,49 @@ async function addTokensDirectly(
         description: `Purchased ${tokenAmount} tokens for $${paymentAmount.toFixed(2)}`,
         stripe_payment_intent_id: stripePaymentIntentId,
         created_at: new Date().toISOString()
-      });
-      console.log('✅ [Webhook] Recorded in token_transactions');
-    } catch (err) {
-      console.error('⚠️ [Webhook] Could not record in token_transactions:', err);
-    }
-
-    // Record in purchase_history
-    try {
-      await supabase!.from('purchase_history').insert({
+      }),
+      
+      // purchase_history
+      supabase!.from('purchase_history').insert({
         user_id: userId,
         transaction_type: 'purchase',
         amount: paymentAmount,
         tokens_received: tokenAmount,
-        description: `Purchased ${tokenAmount} tokens`,
         stripe_payment_intent_id: stripePaymentIntentId,
+        payment_method: paymentMethod,
+        status: 'completed',
+        description: `Token purchase - ${tokenAmount} tokens`,
+        metadata: {
+          payment_intent_id: stripePaymentIntentId,
+          amount_paid: paymentAmount,
+          tokens_received: tokenAmount,
+          balance_before: currentBalance,
+          balance_after: newBalance
+        },
         created_at: new Date().toISOString()
-      });
-      console.log('✅ [Webhook] Recorded in purchase_history');
-    } catch (err) {
-      console.error('⚠️ [Webhook] Could not record in purchase_history:', err);
-    }
+      }),
+      
+      // payment_audit_log
+      supabase!.from('payment_audit_log').insert({
+        user_id: userId,
+        action: 'token_purchase',
+        payment_intent_id: stripePaymentIntentId,
+        amount: paymentAmount,
+        tokens_amount: tokenAmount,
+        balance_before: currentBalance,
+        balance_after: newBalance,
+        status: 'completed',
+        metadata: {
+          payment_method: paymentMethod,
+          user_email: userData.email,
+          source: 'stripe_webhook_fallback'
+        },
+        created_at: new Date().toISOString()
+      })
+    ];
 
-    console.log('✅ [Webhook] Token distribution complete');
+    await Promise.all(backupTasks);
+    console.log('✅ [Webhook] All backup records created');
 
   } catch (error: any) {
     console.error('❌ [Webhook] Error in direct token addition:', error.message);
