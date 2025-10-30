@@ -27,6 +27,10 @@ END $$;
 -- Step 3: Drop all views
 DROP VIEW IF EXISTS public.user_activity_stats CASCADE;
 DROP VIEW IF EXISTS public.user_game_stats CASCADE;
+DROP VIEW IF EXISTS public.user_statistics CASCADE;
+DROP VIEW IF EXISTS public.active_sessions_summary CASCADE;
+DROP VIEW IF EXISTS public.session_summary CASCADE;
+DROP VIEW IF EXISTS public.hot_sell_summary CASCADE;
 
 -- Step 4: Drop all foreign keys on hot_sell_participants
 DO $$
