@@ -63,12 +63,13 @@ interface CashStackGameProps {
 const INITIAL_WIDTH = 80;
 const INITIAL_DEPTH = 80;
 const BLOCK_HEIGHT = 15;
-const INITIAL_SPEED = 0.15; // VERY SLOW
-const SPEED_INCREMENT = 0.008; // Very gradual acceleration
-const MAX_SPEED = 1.0; // Lower max
-const DOLLAR_ALIGN_THRESHOLD = 8; // Slightly larger threshold
-const STACK_EXPLOSION_BONUS = 150; // Points per block when stack explodes
-const EXPLOSION_ANIMATION_TIME = 800; // Fast explosion animation (ms)
+const INITIAL_SPEED = 0.08; // SIGNIFICANTLY SLOWER
+const SPEED_INCREMENT = 0.005; // Very minimal acceleration
+const MAX_SPEED = 0.7; // Much lower max
+const DOLLAR_ALIGN_THRESHOLD = 10; // Slightly larger threshold for easier alignment
+const STACK_EXPLOSION_BONUS = 250; // BIG BONUS for explosions!
+const NORMAL_STACK_POINTS = 5; // Small points for normal stacks
+const EXPLOSION_ANIMATION_TIME = 600; // Quick explosion animation (ms)
 
 // All blocks are green (single color)
 const BLOCK_COLOR = '#32CD32'; // Bright green
@@ -282,8 +283,8 @@ export default function CashStackGame({
       return;
     }
 
-    // Score based on stack size (taller = more valuable)
-    const scoreGain = 10 + (game.blocks.length * 2);
+    // Small points for normal stacking (explosion gives much more!)
+    const scoreGain = NORMAL_STACK_POINTS + Math.floor(game.blocks.length / 2);
 
     const stackedBlock: Block = {
       x: newX,
@@ -508,18 +509,39 @@ export default function CashStackGame({
         ctx.stroke();
       }
 
-      // Draw $ sign at specific position
+      // Draw $ sign with yellow circle around it
       const dollarIsoX = (block.dollarX - block.dollarZ) * 0.6 * scale;
       const dollarIsoY = (block.dollarX + block.dollarZ) * 0.3 * scale;
+      const dollarCenterX = isoX + w / 2 + d / 2 + dollarIsoX;
+      const dollarCenterY = isoY - w * 0.25 + d * 0.25 + dollarIsoY;
       
       ctx.save();
-      ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
-      ctx.shadowBlur = 10;
+      
+      // Draw yellow circle background
+      ctx.beginPath();
+      ctx.arc(dollarCenterX, dollarCenterY, 16, 0, Math.PI * 2);
       ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 24px Arial';
+      ctx.fill();
+      ctx.strokeStyle = '#FFA500';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      
+      // Draw inner glow
+      ctx.beginPath();
+      ctx.arc(dollarCenterX, dollarCenterY, 13, 0, Math.PI * 2);
+      ctx.strokeStyle = '#FFED4E';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Draw $ sign
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 3;
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 26px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('$', isoX + w / 2 + d / 2 + dollarIsoX, isoY - w * 0.25 + d * 0.25 + dollarIsoY);
+      ctx.fillText('$', dollarCenterX, dollarCenterY);
+      
       ctx.restore();
     }
 
