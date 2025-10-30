@@ -195,105 +195,53 @@ export default function AnalyticsPage() {
     try {
       setIsLoading(true);
       
-      // Get completed hot sell sessions with winners
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('hot_sell_sessions')
+      // Get Hot Sell winners from game_history (where we now save all results)
+      const { data: gameHistory, error: historyError } = await supabase
+        .from('game_history')
         .select('*')
-        .not('first_place_user_id', 'is', null)
-        .order('updated_at', { ascending: false })
+        .eq('tournament_type', 'hot_sell')
+        .not('tokens_won', 'is', null)
+        .gt('tokens_won', 0)
+        .order('created_at', { ascending: false })
         .limit(100);
 
-      if (sessionsError) {
-        console.error('Error loading hot sell winners:', sessionsError);
+      if (historyError) {
+        console.error('Error loading hot sell winners from game_history:', historyError);
         setHotSellWinners([]);
         return;
       }
 
-      if (!sessions || sessions.length === 0) {
+      if (!gameHistory || gameHistory.length === 0) {
+        console.log('No Hot Sell winners found in game_history');
         setHotSellWinners([]);
         return;
       }
 
-      // Get winner details for each session (top 3)
-      const winnersData: any[] = [];
-      
-      for (const session of sessions) {
-        // Get 1st place winner
-        if (session.first_place_user_id) {
-          const { data: user1 } = await supabase
-            .from('users')
-            .select('email')
-            .eq('id', session.first_place_user_id)
-            .single();
-          
-          const { data: participant1 } = await supabase
-            .from('hot_sell_participants')
-            .select('score')
-            .eq('session_id', session.id)
-            .eq('user_id', session.first_place_user_id)
-            .single();
-          
-          winnersData.push({
-            id: `${session.id}-1st`,
-            config_id: session.config_id,
-            winner_username: user1?.email?.split('@')[0] || 'Unknown',
-            winner_score: participant1?.score || 0,
-            prize_amount: session.first_place_prize || 0,
-            rank: 1
-          });
-        }
+      console.log('📊 [Analytics] Found', gameHistory.length, 'Hot Sell results');
 
-        // Get 2nd place winner
-        if (session.second_place_user_id) {
-          const { data: user2 } = await supabase
+      // Get user details for each game result
+      const winnersData = await Promise.all(
+        gameHistory.map(async (game) => {
+          // Get user info
+          const { data: userData } = await supabase
             .from('users')
-            .select('email')
-            .eq('id', session.second_place_user_id)
+            .select('email, username')
+            .eq('id', game.user_id)
             .single();
           
-          const { data: participant2 } = await supabase
-            .from('hot_sell_participants')
-            .select('score')
-            .eq('session_id', session.id)
-            .eq('user_id', session.second_place_user_id)
-            .single();
-          
-          winnersData.push({
-            id: `${session.id}-2nd`,
-            config_id: session.config_id,
-            winner_username: user2?.email?.split('@')[0] || 'Unknown',
-            winner_score: participant2?.score || 0,
-            prize_amount: session.second_place_prize || 0,
-            rank: 2
-          });
-        }
+          return {
+            id: game.id,
+            config_id: game.game_type,
+            winner_username: userData?.username || userData?.email?.split('@')[0] || 'Unknown',
+            winner_score: game.score || 0,
+            prize_amount: game.tokens_won || 0,
+            rank: 0, // We don't have rank info from game_history
+            created_at: game.created_at
+          };
+        })
+      );
 
-        // Get 3rd place winner
-        if (session.third_place_user_id) {
-          const { data: user3 } = await supabase
-            .from('users')
-            .select('email')
-            .eq('id', session.third_place_user_id)
-            .single();
-          
-          const { data: participant3 } = await supabase
-            .from('hot_sell_participants')
-            .select('score')
-            .eq('session_id', session.id)
-            .eq('user_id', session.third_place_user_id)
-            .single();
-          
-          winnersData.push({
-            id: `${session.id}-3rd`,
-            config_id: session.config_id,
-            winner_username: user3?.email?.split('@')[0] || 'Unknown',
-            winner_score: participant3?.score || 0,
-            prize_amount: session.third_place_prize || 0,
-            rank: 3
-          });
-        }
-      }
-
+      console.log('✅ [Analytics] Loaded', winnersData.length, 'Hot Sell winners');
       setHotSellWinners(winnersData);
     } catch (error) {
       console.error('Error loading hot sell winners:', error);
