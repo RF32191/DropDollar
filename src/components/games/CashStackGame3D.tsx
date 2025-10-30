@@ -42,6 +42,16 @@ interface BonusCoin {
   active: boolean;
 }
 
+interface ChallengeCoin {
+  mesh: THREE.Mesh;
+  x: number;
+  z: number;
+  targetX: number;
+  targetZ: number;
+  active: boolean;
+  alignmentLine: THREE.Line | null;
+}
+
 interface CashStackGame3DProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
   onExit: () => void;
@@ -57,10 +67,38 @@ const INITIAL_SPEED = 0.08;
 const SPEED_INCREMENT = 0.004;
 const MAX_SPEED = 0.9;
 const DOLLAR_THRESHOLD = 0.6;
-const DROP_GRAVITY = 0.025; // Much faster drop
-const BOUNCE_DAMPING = 0.5; // Less bounce for faster settling
-const BONUS_COIN_CHANCE = 0.15; // 15% chance of bonus coin
+const DROP_GRAVITY = 0.025;
+const BOUNCE_DAMPING = 0.5;
+const BONUS_COIN_CHANCE = 0.15;
 const BONUS_COIN_POINTS = 500;
+const CHALLENGE_COIN_CHANCE = 0.08; // 8% chance of challenge coin
+const CHALLENGE_COIN_SPEED = 0.15; // Much faster
+const CHALLENGE_COIN_POINTS = 500;
+const CHALLENGE_HIT_RADIUS = 0.15; // Very precise
+
+// 20 Game Variations with unique RNG properties
+const GAME_VARIATIONS = [
+  { id: 1, name: 'Classic Green', blockColor: 0x32CD32, emissive: 0x32CD32, speedMod: 1.0, coinChance: 0.15 },
+  { id: 2, name: 'Turbo Blue', blockColor: 0x1E90FF, emissive: 0x1E90FF, speedMod: 1.3, coinChance: 0.20 },
+  { id: 3, name: 'Chill Purple', blockColor: 0x9370DB, emissive: 0x9370DB, speedMod: 0.8, coinChance: 0.12 },
+  { id: 4, name: 'Inferno Red', blockColor: 0xFF4500, emissive: 0xFF4500, speedMod: 1.5, coinChance: 0.25 },
+  { id: 5, name: 'Ice Cyan', blockColor: 0x00CED1, emissive: 0x00CED1, speedMod: 0.7, coinChance: 0.10 },
+  { id: 6, name: 'Golden Rush', blockColor: 0xFFD700, emissive: 0xFFD700, speedMod: 1.2, coinChance: 0.30 },
+  { id: 7, name: 'Neon Pink', blockColor: 0xFF1493, emissive: 0xFF1493, speedMod: 1.4, coinChance: 0.18 },
+  { id: 8, name: 'Ocean Teal', blockColor: 0x008080, emissive: 0x008080, speedMod: 0.9, coinChance: 0.15 },
+  { id: 9, name: 'Sunset Orange', blockColor: 0xFF8C00, emissive: 0xFF8C00, speedMod: 1.1, coinChance: 0.16 },
+  { id: 10, name: 'Lime Blast', blockColor: 0x00FF00, emissive: 0x00FF00, speedMod: 1.6, coinChance: 0.22 },
+  { id: 11, name: 'Royal Blue', blockColor: 0x4169E1, emissive: 0x4169E1, speedMod: 1.0, coinChance: 0.14 },
+  { id: 12, name: 'Magenta Magic', blockColor: 0xFF00FF, emissive: 0xFF00FF, speedMod: 1.3, coinChance: 0.19 },
+  { id: 13, name: 'Emerald Dream', blockColor: 0x50C878, emissive: 0x50C878, speedMod: 0.85, coinChance: 0.13 },
+  { id: 14, name: 'Crimson Fury', blockColor: 0xDC143C, emissive: 0xDC143C, speedMod: 1.7, coinChance: 0.28 },
+  { id: 15, name: 'Aqua Breeze', blockColor: 0x7FFFD4, emissive: 0x7FFFD4, speedMod: 0.75, coinChance: 0.11 },
+  { id: 16, name: 'Violet Storm', blockColor: 0x8B00FF, emissive: 0x8B00FF, speedMod: 1.25, coinChance: 0.17 },
+  { id: 17, name: 'Amber Wave', blockColor: 0xFFBF00, emissive: 0xFFBF00, speedMod: 1.15, coinChance: 0.21 },
+  { id: 18, name: 'Mint Fresh', blockColor: 0x98FF98, emissive: 0x98FF98, speedMod: 0.95, coinChance: 0.16 },
+  { id: 19, name: 'Ruby Rage', blockColor: 0xE0115F, emissive: 0xE0115F, speedMod: 1.8, coinChance: 0.35 },
+  { id: 20, name: 'Sapphire Zen', blockColor: 0x0F52BA, emissive: 0x0F52BA, speedMod: 0.6, coinChance: 0.08 },
+];
 
 export default function CashStackGame3D({
   onGameEnd,
@@ -78,8 +116,10 @@ export default function CashStackGame3D({
   const gameStartTimeRef = useRef<number>(0);
   const alignmentLineRef = useRef<THREE.Line | null>(null);
   const bonusCoinRef = useRef<BonusCoin | null>(null);
-  const nextSpeedBoostRef = useRef<number>(5); // Next stack count for speed boost
+  const challengeCoinRef = useRef<ChallengeCoin | null>(null);
+  const nextSpeedBoostRef = useRef<number>(5);
   const currentSpeedMultiplierRef = useRef<number>(1);
+  const coinAlignmentLineRef = useRef<THREE.Line | null>(null);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -88,6 +128,7 @@ export default function CashStackGame3D({
   const [towerHeight, setTowerHeight] = useState(0);
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
+  const [currentVariation, setCurrentVariation] = useState(GAME_VARIATIONS[0]);
 
   // Audio setup
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -216,10 +257,10 @@ export default function CashStackGame3D({
   ): Block3D => {
     const geometry = new THREE.BoxGeometry(width, BLOCK_HEIGHT, depth);
     
-    // Neon green material with glow
+    // Use current variation's color scheme
     const material = new THREE.MeshStandardMaterial({
-      color: 0x32CD32,
-      emissive: 0x32CD32,
+      color: currentVariation.blockColor,
+      emissive: currentVariation.emissive,
       emissiveIntensity: 0.3,
       roughness: 0.3,
       metalness: 0.8,
@@ -278,7 +319,7 @@ export default function CashStackGame3D({
       dollarX,
       dollarZ,
     };
-  }, []);
+  }, [currentVariation]);
 
   // Create particle effect
   const createParticles = useCallback((x: number, y: number, z: number, count: number) => {
@@ -313,7 +354,7 @@ export default function CashStackGame3D({
     playSound(800, 0.1, 'square');
   }, [playSound]);
 
-  // Create bonus coin
+  // Create bonus coin with persistent alignment line to dollar sign
   const createBonusCoin = useCallback(() => {
     if (!sceneRef.current || bonusCoinRef.current?.active) return;
 
@@ -328,7 +369,13 @@ export default function CashStackGame3D({
 
     const mesh = new THREE.Mesh(geometry, material);
     const topY = stackedBlocksRef.current.length * BLOCK_HEIGHT + 15;
-    mesh.position.set(0, topY, 0);
+    
+    // Get last block's dollar sign position as target
+    const lastBlock = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
+    const targetX = lastBlock.x + lastBlock.dollarX;
+    const targetZ = lastBlock.z + lastBlock.dollarZ;
+    
+    mesh.position.set(targetX, topY, targetZ); // Start above target
     mesh.rotation.x = Math.PI / 2;
     
     sceneRef.current.add(mesh);
@@ -342,6 +389,46 @@ export default function CashStackGame3D({
     };
 
     playSound(1000, 0.15, 'sine');
+  }, [playSound]);
+
+  // Create challenge coin that moves horizontally
+  const createChallengeCoin = useCallback(() => {
+    if (!sceneRef.current || challengeCoinRef.current?.active) return;
+
+    const geometry = new THREE.CylinderGeometry(0.2, 0.2, 0.08, 32);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xFF00FF, // Magenta for challenge
+      emissive: 0xFF00FF,
+      emissiveIntensity: 0.7,
+      metalness: 1,
+      roughness: 0.1,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    const y = stackedBlocksRef.current.length * BLOCK_HEIGHT + BLOCK_HEIGHT / 2;
+    const startX = -8;
+    
+    // Target is the last block's position
+    const lastBlock = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
+    const targetX = lastBlock.x;
+    const targetZ = lastBlock.z;
+    
+    mesh.position.set(startX, y, targetZ);
+    mesh.rotation.x = Math.PI / 2;
+    
+    sceneRef.current.add(mesh);
+
+    challengeCoinRef.current = {
+      mesh,
+      x: startX,
+      z: targetZ,
+      targetX,
+      targetZ,
+      active: true,
+      alignmentLine: null,
+    };
+
+    playSound(1500, 0.1, 'square');
   }, [playSound]);
 
   // Update alignment line showing connection between dollar signs
@@ -636,9 +723,14 @@ export default function CashStackGame3D({
       playSound(1500, 0.2, 'square');
     }
     
-    // Random bonus coin spawn
-    if (Math.random() < BONUS_COIN_CHANCE && !bonusCoinRef.current?.active) {
+    // Random bonus coin spawn (use variation's coin chance)
+    if (Math.random() < currentVariation.coinChance && !bonusCoinRef.current?.active) {
       createBonusCoin();
+    }
+    
+    // Random challenge coin spawn
+    if (Math.random() < CHALLENGE_COIN_CHANCE && !challengeCoinRef.current?.active) {
+      createChallengeCoin();
     }
     
     // Create next moving block
@@ -655,7 +747,7 @@ export default function CashStackGame3D({
     currentBlockRef.current = nextBlock;
     
     setDirection(prev => prev * -1);
-  }, [gameState, createBlock, createParticles, playSound, createBonusCoin]);
+  }, [gameState, createBlock, createParticles, playSound, createBonusCoin, createChallengeCoin, currentVariation]);
 
   // Animation loop
   useEffect(() => {
@@ -665,7 +757,7 @@ export default function CashStackGame3D({
       const delta = clockRef.current.getDelta();
       const elapsedTime = (Date.now() - gameStartTimeRef.current) / 1000;
       const baseSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
-      const currentSpeed = baseSpeed * currentSpeedMultiplierRef.current; // Apply speed multiplier
+      const currentSpeed = baseSpeed * currentSpeedMultiplierRef.current * currentVariation.speedMod; // Apply variation speed mod
       
       // Update current block
       if (currentBlockRef.current && !currentBlockRef.current.isDropping) {
@@ -722,6 +814,59 @@ export default function CashStackGame3D({
             sceneRef.current.remove(coin.mesh);
           }
           bonusCoinRef.current.active = false;
+        }
+      }
+      
+      // Update challenge coin (moves horizontally)
+      if (challengeCoinRef.current?.active) {
+        const coin = challengeCoinRef.current;
+        coin.x += CHALLENGE_COIN_SPEED * direction;
+        coin.mesh.position.x = coin.x;
+        coin.rotation += 0.15;
+        coin.mesh.rotation.z = coin.rotation;
+        
+        // Check if user clicked to catch it
+        // (handled in click event, but check if it passed the target)
+        if (Math.abs(coin.x) > 10) {
+          // Coin went off screen - no penalty, just remove
+          if (sceneRef.current) {
+            sceneRef.current.remove(coin.mesh);
+            if (coin.alignmentLine) {
+              sceneRef.current.remove(coin.alignmentLine);
+            }
+          }
+          challengeCoinRef.current.active = false;
+        }
+        
+        // Update alignment line
+        if (sceneRef.current) {
+          const lastBlock = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
+          const targetPos = new THREE.Vector3(
+            lastBlock.x,
+            lastBlock.currentY + BLOCK_HEIGHT / 2,
+            lastBlock.z
+          );
+          const coinPos = new THREE.Vector3(coin.x, coin.mesh.position.y, coin.z);
+          
+          const points = [coinPos, targetPos];
+          const geometry = new THREE.BufferGeometry().setFromPoints(points);
+          const distance = coinPos.distanceTo(targetPos);
+          const isPerfect = distance < CHALLENGE_HIT_RADIUS;
+          
+          const material = new THREE.LineBasicMaterial({
+            color: isPerfect ? 0x00FF00 : 0xFF00FF,
+            linewidth: isPerfect ? 4 : 2,
+            transparent: true,
+            opacity: isPerfect ? 1.0 : 0.6,
+          });
+          
+          if (coin.alignmentLine && sceneRef.current) {
+            sceneRef.current.remove(coin.alignmentLine);
+          }
+          
+          const line = new THREE.Line(geometry, material);
+          sceneRef.current.add(line);
+          coin.alignmentLine = line;
         }
       }
       
@@ -799,6 +944,32 @@ export default function CashStackGame3D({
       if (gameState === 'ready') {
         startGame();
       } else if (gameState === 'playing') {
+        // Check if challenge coin is active and in range
+        if (challengeCoinRef.current?.active) {
+          const coin = challengeCoinRef.current;
+          const lastBlock = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
+          const distance = Math.sqrt(
+            Math.pow(coin.x - lastBlock.x, 2) +
+            Math.pow(coin.z - lastBlock.z, 2)
+          );
+          
+          if (distance < CHALLENGE_HIT_RADIUS) {
+            // Perfect catch!
+            setScore(prev => prev + CHALLENGE_COIN_POINTS);
+            playSound(2500, 0.2, 'sine');
+            createParticles(coin.x, coin.mesh.position.y, coin.z, 80);
+            
+            if (sceneRef.current) {
+              sceneRef.current.remove(coin.mesh);
+              if (coin.alignmentLine) {
+                sceneRef.current.remove(coin.alignmentLine);
+              }
+            }
+            challengeCoinRef.current.active = false;
+            return; // Don't stack, just catch coin
+          }
+        }
+        
         handleStack();
       }
     };
@@ -810,7 +981,7 @@ export default function CashStackGame3D({
       window.removeEventListener('keydown', handleInteraction);
       window.removeEventListener('click', handleInteraction);
     };
-  }, [gameState, startGame, handleStack]);
+  }, [gameState, startGame, handleStack, createParticles, playSound]);
 
   // Game timer
   useEffect(() => {
@@ -880,16 +1051,40 @@ export default function CashStackGame3D({
       
       {/* Ready screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white">
-          <h1 className="text-6xl font-bold mb-8 text-green-400 animate-pulse">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white overflow-y-auto">
+          <h1 className="text-6xl font-bold mb-4 animate-pulse" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
             💰 CASH STACK 3D
           </h1>
-          <p className="text-2xl mb-4">Stack blocks by clicking or pressing SPACE</p>
-          <p className="text-xl mb-4">Align $ signs for 💥 EXPLOSION BONUS!</p>
-          <p className="text-3xl font-bold text-yellow-400 mb-8">60 seconds - Go for high score!</p>
+          <p className="text-3xl font-bold mb-6" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
+            {currentVariation.name}
+          </p>
+          <p className="text-xl mb-2">Stack blocks by clicking or pressing SPACE</p>
+          <p className="text-lg mb-2">Align $ signs for 💥 EXPLOSION BONUS!</p>
+          <p className="text-lg mb-2">🪙 Catch falling bonus coins (+500pts)</p>
+          <p className="text-lg mb-6">⚡ Catch fast challenge coins (+500pts)</p>
+          
+          <div className="grid grid-cols-4 gap-2 mb-6 max-h-64 overflow-y-auto p-4">
+            {GAME_VARIATIONS.map(variation => (
+              <button
+                key={variation.id}
+                onClick={() => setCurrentVariation(variation)}
+                className={`px-3 py-2 rounded-lg font-bold text-sm transition-all pointer-events-auto ${
+                  currentVariation.id === variation.id 
+                    ? 'ring-4 ring-white scale-110' 
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+                style={{ backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}` }}
+              >
+                {variation.name}
+              </button>
+            ))}
+          </div>
+          
+          <p className="text-2xl font-bold text-yellow-400 mb-4">60 seconds - Go for high score!</p>
           <button
             onClick={startGame}
-            className="px-12 py-6 bg-green-500 hover:bg-green-600 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto"
+            className="px-12 py-6 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto mb-4"
+            style={{ backgroundColor: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}
           >
             START GAME
           </button>
