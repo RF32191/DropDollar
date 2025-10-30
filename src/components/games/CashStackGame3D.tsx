@@ -45,12 +45,12 @@ interface CashStackGame3DProps {
 
 const INITIAL_SIZE = 4;
 const BLOCK_HEIGHT = 0.5;
-const INITIAL_SPEED = 0.02;
-const SPEED_INCREMENT = 0.0015;
-const MAX_SPEED = 0.35;
+const INITIAL_SPEED = 0.08; // 4× faster
+const SPEED_INCREMENT = 0.004; // Faster acceleration
+const MAX_SPEED = 0.9; // Much higher top speed
 const DOLLAR_THRESHOLD = 0.6;
-const DROP_GRAVITY = 0.003;
-const BOUNCE_DAMPING = 0.7;
+const DROP_GRAVITY = 0.008; // Faster drop
+const BOUNCE_DAMPING = 0.6; // More bounce
 
 export default function CashStackGame3D({
   onGameEnd,
@@ -66,6 +66,7 @@ export default function CashStackGame3D({
   const animationIdRef = useRef<number>();
   const clockRef = useRef(new THREE.Clock());
   const gameStartTimeRef = useRef<number>(0);
+  const alignmentLineRef = useRef<THREE.Line | null>(null);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -298,6 +299,69 @@ export default function CashStackGame3D({
     
     playSound(800, 0.1, 'square');
   }, [playSound]);
+
+  // Update alignment line showing connection between dollar signs
+  const updateAlignmentLine = useCallback(() => {
+    if (!sceneRef.current || !currentBlockRef.current || stackedBlocksRef.current.length === 0) {
+      if (alignmentLineRef.current && sceneRef.current) {
+        sceneRef.current.remove(alignmentLineRef.current);
+        alignmentLineRef.current = null;
+      }
+      return;
+    }
+
+    const current = currentBlockRef.current;
+    const last = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
+
+    // Calculate world positions of dollar signs
+    const lastDollarWorldPos = new THREE.Vector3(
+      last.x + last.dollarX,
+      last.currentY + BLOCK_HEIGHT / 2 + 0.1,
+      last.z + last.dollarZ
+    );
+
+    const currentDollarWorldPos = new THREE.Vector3(
+      current.x + current.dollarX,
+      current.currentY + BLOCK_HEIGHT / 2 + 0.1,
+      current.z + current.dollarZ
+    );
+
+    // Calculate distance for color
+    const distance = lastDollarWorldPos.distanceTo(currentDollarWorldPos);
+    const isClose = distance < DOLLAR_THRESHOLD * 2;
+    const isPerfect = distance < DOLLAR_THRESHOLD;
+
+    // Create or update line
+    const points = [lastDollarWorldPos, currentDollarWorldPos];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    
+    // Yellow tape color - brighter when closer
+    const color = isPerfect ? 0xFFFF00 : (isClose ? 0xFFD700 : 0xFFA500);
+    const lineWidth = isPerfect ? 6 : (isClose ? 4 : 2);
+    
+    const material = new THREE.LineBasicMaterial({
+      color: color,
+      linewidth: lineWidth,
+      transparent: true,
+      opacity: isClose ? 0.9 : 0.5,
+    });
+
+    // Remove old line
+    if (alignmentLineRef.current && sceneRef.current) {
+      sceneRef.current.remove(alignmentLineRef.current);
+    }
+
+    // Add new line
+    const line = new THREE.Line(geometry, material);
+    sceneRef.current.add(line);
+    alignmentLineRef.current = line;
+
+    // Add pulsing effect when close
+    if (isPerfect) {
+      const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
+      material.opacity = pulse;
+    }
+  }, []);
 
   // Start game
   const startGame = useCallback(() => {
@@ -605,6 +669,9 @@ export default function CashStackGame3D({
         return true;
       });
       
+      // Update alignment line
+      updateAlignmentLine();
+      
       // Update camera
       if (cameraRef.current) {
         const targetY = Math.max(12, stackedBlocksRef.current.length * BLOCK_HEIGHT + 8);
@@ -627,7 +694,7 @@ export default function CashStackGame3D({
         cancelAnimationFrame(animationIdRef.current);
       }
     };
-  }, [gameState, direction]);
+  }, [gameState, direction, updateAlignmentLine]);
 
   // Keyboard/Click control
   useEffect(() => {
