@@ -103,9 +103,7 @@ BEGIN
     END;
 END $$;
 
--- Step 6: Show detailed error if the test failed
-\set VERBOSITY verbose
-
+-- Step 6: Final summary
 DO $$
 BEGIN
     RAISE NOTICE '========================================';
