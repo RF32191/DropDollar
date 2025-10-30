@@ -585,56 +585,100 @@ export default function HotSellPage() {
 
   const handleManualPayout = async (configId: string) => {
     try {
-      console.log('💰 [Hot Sell] Manual payout triggered for:', configId);
+      console.log('💰 [Hot Sell] NEW SIMPLE PAYOUT triggered for:', configId);
       
-      const { data, error } = await supabase.rpc('process_hot_sell_payout', {
-        config_id_param: configId
-      });
-
-      console.log('📊 [Hot Sell] Payout response:', { data, error });
-
-      if (error) {
-        console.error('❌ [Hot Sell] Payout error:', error);
-        setMessage({ type: 'error', text: `Payout failed: ${error.message}` });
+      // Find the session for this config
+      const session = sessions.find(s => s.config_id === configId && s.status !== 'completed');
+      if (!session) {
+        setMessage({ type: 'error', text: 'No active session found' });
         return;
       }
-
-      if (data && data.success) {
-        console.log('✅ [Hot Sell] Payout successful:', data);
+      
+      console.log('📊 [Hot Sell] Session found:', session.id);
+      
+      // Step 1: Get winners
+      const { data: winners, error: winnersError } = await supabase.rpc('get_hot_sell_winners', {
+        session_id_param: session.id
+      });
+      
+      if (winnersError || !winners || winners.length === 0) {
+        console.error('❌ [Hot Sell] Error getting winners:', winnersError);
+        setMessage({ type: 'error', text: `Payout failed: ${winnersError?.message || 'No winners found'}` });
+        return;
+      }
+      
+      console.log('✅ [Hot Sell] Winners:', winners);
+      
+      // Step 2: Pay each winner
+      const config = configs.find(c => c.id === configId);
+      const gameType = config?.game_type || 'unknown';
+      
+      for (const winner of winners) {
+        console.log(`💵 [Hot Sell] Paying ${winner.username}: $${winner.prize.toFixed(2)}`);
         
-        // Build success message based on what we have
-        let successMsg = `🎉 1st: ${data.first_place_winner} ($${data.first_place_amount?.toFixed(2)})`;
-        if (data.second_place_winner && data.second_place_winner !== 'N/A') {
-          successMsg += `, 2nd: ${data.second_place_winner} ($${data.second_place_amount?.toFixed(2)})`;
+        // Pay the winner
+        const { error: payError } = await supabase.rpc('pay_user_tokens', {
+          user_id_param: winner.user_id,
+          amount_param: winner.prize
+        });
+        
+        if (payError) {
+          console.error(`❌ [Hot Sell] Error paying ${winner.username}:`, payError);
+          continue; // Try to pay other winners even if one fails
         }
-        if (data.third_place_winner && data.third_place_winner !== 'N/A') {
-          successMsg += `, 3rd: ${data.third_place_winner} ($${data.third_place_amount?.toFixed(2)})`;
-        }
-        successMsg += ' - Listing reset!';
         
-        setMessage({ type: 'success', text: successMsg });
+        // Save to game history
+        const { error: historyError } = await supabase.rpc('save_game_result', {
+          user_id_param: winner.user_id,
+          game_type_param: gameType,
+          score_param: winner.score,
+          tokens_won_param: winner.prize,
+          tournament_type_param: 'hot_sell'
+        });
         
-        console.log('🔄 [Hot Sell] Refreshing sessions and tokens after payout...');
-        
-        // Refresh tokens and sessions
-        await Promise.all([
-          refreshTokens(),
-          loadSessions()
-        ]);
-        
-        // Force a page refresh after 1 second to ensure new session shows
-        setTimeout(() => {
-          console.log('🔄 [Hot Sell] Force refreshing page to show new session...');
-          window.location.reload();
-        }, 1000);
-      } else if (data && !data.success) {
-        console.log('ℹ️ [Hot Sell] Payout info:', data.message);
-        if (!data.already_paid) {
-          setMessage({ type: 'error', text: `Payout issue: ${data.message}` });
+        if (historyError) {
+          console.error(`❌ [Hot Sell] Error saving history for ${winner.username}:`, historyError);
         }
       }
+      
+      console.log('✅ [Hot Sell] All winners paid!');
+      
+      // Step 3: Reset the session
+      const { error: resetError } = await supabase.rpc('reset_hot_sell_session', {
+        config_id_param: configId
+      });
+      
+      if (resetError) {
+        console.error('❌ [Hot Sell] Error resetting session:', resetError);
+        setMessage({ type: 'error', text: `Payout succeeded but reset failed: ${resetError.message}` });
+        return;
+      }
+      
+      console.log('✅ [Hot Sell] Session reset!');
+      
+      // Build success message
+      let successMsg = `🎉 Winners paid: `;
+      successMsg += winners.map((w: any, i: number) => 
+        `${['🥇', '🥈', '🥉'][i]} ${w.username} ($${w.prize.toFixed(2)})`
+      ).join(', ');
+      successMsg += ' - Listing reset!';
+      
+      setMessage({ type: 'success', text: successMsg });
+      
+      // Refresh tokens and sessions
+      await Promise.all([
+        refreshTokens(),
+        loadSessions()
+      ]);
+      
+      // Force page refresh after 1 second
+      setTimeout(() => {
+        console.log('🔄 [Hot Sell] Refreshing page...');
+        window.location.reload();
+      }, 1000);
+      
     } catch (error) {
-      console.error('❌ [Hot Sell] Payout error:', error);
+      console.error('❌ [Hot Sell] Payout system error:', error);
       setMessage({ type: 'error', text: 'Payout system error occurred.' });
     }
   };

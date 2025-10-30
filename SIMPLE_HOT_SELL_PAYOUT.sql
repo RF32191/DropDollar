@@ -1,211 +1,157 @@
 -- ============================================================================
--- HOT SELL PAYOUT - SIMPLE TEXT-ONLY METHOD
--- No UUID conversions, pure TEXT handling
+-- SIMPLE HOT SELL PAYOUT - Minimal SQL, Maximum Client Control
+-- Break down the payout into simple, independent operations
 -- ============================================================================
 
-DROP FUNCTION IF EXISTS public.process_hot_sell_payout(text);
+-- Function 1: Get winners (read-only, no updates)
+DROP FUNCTION IF EXISTS public.get_hot_sell_winners(uuid);
 
-CREATE OR REPLACE FUNCTION public.process_hot_sell_payout(config_id_param text)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+CREATE OR REPLACE FUNCTION public.get_hot_sell_winners(session_id_param UUID)
+RETURNS TABLE (
+    rank INTEGER,
+    user_id TEXT,
+    username TEXT,
+    score NUMERIC,
+    prize NUMERIC
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
-    session_record RECORD;
-    winner1 RECORD;
-    winner2 RECORD;
-    winner3 RECORD;
-    total_pot NUMERIC;
-    platform_fee_amount NUMERIC;
-    first_prize NUMERIC;
-    second_prize NUMERIC;
-    third_prize NUMERIC;
-    config_record RECORD;
-    participant_count INT;
+    v_session RECORD;
+    v_config RECORD;
+    v_total_pot NUMERIC;
+    v_platform_fee NUMERIC;
+    v_first_prize NUMERIC;
+    v_second_prize NUMERIC;
+    v_third_prize NUMERIC;
 BEGIN
-    RAISE NOTICE '🔍 Starting payout for config: %', config_id_param;
+    -- Get session
+    SELECT * INTO v_session FROM public.hot_sell_sessions WHERE id = session_id_param;
+    IF NOT FOUND THEN RETURN; END IF;
     
     -- Get config
-    SELECT * INTO config_record 
-    FROM public.hot_sell_configs 
-    WHERE id = config_id_param;
-    
-    IF NOT FOUND THEN
-        RETURN json_build_object('success', false, 'message', 'Config not found');
-    END IF;
-    
-    -- Get active session (any status except 'completed')
-    SELECT * INTO session_record 
-    FROM public.hot_sell_sessions 
-    WHERE config_id = config_id_param 
-    AND status != 'completed'
-    ORDER BY created_at DESC 
-    LIMIT 1;
-    
-    IF NOT FOUND THEN
-        RAISE NOTICE '❌ No active session found for config: %', config_id_param;
-        RETURN json_build_object('success', false, 'message', 'No active session found');
-    END IF;
-    
-    RAISE NOTICE '✅ Found session % with status: %', session_record.id, session_record.status;
-    
-    -- Check if all participants have played
-    SELECT COUNT(*) INTO participant_count
-    FROM public.hot_sell_participants
-    WHERE session_id = session_record.id AND score IS NOT NULL;
-    
-    IF participant_count = 0 THEN
-        RETURN json_build_object('success', false, 'message', 'No participants with scores');
-    END IF;
+    SELECT * INTO v_config FROM public.hot_sell_configs WHERE id = v_session.config_id;
+    IF NOT FOUND THEN RETURN; END IF;
     
     -- Calculate prizes
-    total_pot := session_record.current_pot;
-    platform_fee_amount := total_pot * (config_record.platform_fee_percent / 100.0);
+    v_total_pot := COALESCE(v_session.current_pot, 0);
+    v_platform_fee := v_total_pot * (v_config.platform_fee_percent / 100.0);
+    v_first_prize := (v_total_pot - v_platform_fee) * (v_config.first_place_percent / 100.0);
+    v_second_prize := (v_total_pot - v_platform_fee) * (v_config.second_place_percent / 100.0);
+    v_third_prize := (v_total_pot - v_platform_fee) * (v_config.third_place_percent / 100.0);
     
-    first_prize := (total_pot - platform_fee_amount) * (config_record.first_place_percent / 100.0);
-    second_prize := (total_pot - platform_fee_amount) * (config_record.second_place_percent / 100.0);
-    third_prize := (total_pot - platform_fee_amount) * (config_record.third_place_percent / 100.0);
-    
-    RAISE NOTICE '💰 Prizes: 1st=%, 2nd=%, 3rd=%', first_prize, second_prize, third_prize;
-    
-    -- Get 1st place
+    -- Return top 3 with their prizes
+    RETURN QUERY
     SELECT 
-        p.user_id::text as user_id,
+        ROW_NUMBER() OVER (ORDER BY p.score DESC)::INTEGER as rank,
+        p.user_id,
+        COALESCE(u.username, u.email, 'Player') as username,
         p.score,
-        COALESCE(u.username, 'Player') as username
-    INTO winner1
+        CASE 
+            WHEN ROW_NUMBER() OVER (ORDER BY p.score DESC) = 1 THEN v_first_prize
+            WHEN ROW_NUMBER() OVER (ORDER BY p.score DESC) = 2 THEN v_second_prize
+            WHEN ROW_NUMBER() OVER (ORDER BY p.score DESC) = 3 THEN v_third_prize
+            ELSE 0::NUMERIC
+        END as prize
     FROM public.hot_sell_participants p
     LEFT JOIN public.users u ON u.id::text = p.user_id::text
-    WHERE p.session_id = session_record.id 
-    AND p.score IS NOT NULL
-    ORDER BY p.score DESC 
-    LIMIT 1;
-    
-    IF winner1.user_id IS NOT NULL THEN
-        -- Pay 1st place
-        UPDATE public.users 
-        SET tokens = tokens + first_prize 
-        WHERE id::text = winner1.user_id;
-        
-        RAISE NOTICE '🥇 Paid %: % tokens', winner1.username, first_prize;
-        
-        -- Save to game history
-        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
-        VALUES (winner1.user_id, config_record.game_type, winner1.score, first_prize, 'hot_sell', NOW());
-    END IF;
-    
-    -- Get 2nd place
-    SELECT 
-        p.user_id::text as user_id,
-        p.score,
-        COALESCE(u.username, 'Player') as username
-    INTO winner2
-    FROM public.hot_sell_participants p
-    LEFT JOIN public.users u ON u.id::text = p.user_id::text
-    WHERE p.session_id = session_record.id 
-    AND p.score IS NOT NULL
-    AND p.user_id::text != winner1.user_id
-    ORDER BY p.score DESC 
-    LIMIT 1;
-    
-    IF winner2.user_id IS NOT NULL THEN
-        -- Pay 2nd place
-        UPDATE public.users 
-        SET tokens = tokens + second_prize 
-        WHERE id::text = winner2.user_id;
-        
-        RAISE NOTICE '🥈 Paid %: % tokens', winner2.username, second_prize;
-        
-        -- Save to game history
-        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
-        VALUES (winner2.user_id, config_record.game_type, winner2.score, second_prize, 'hot_sell', NOW());
-    END IF;
-    
-    -- Get 3rd place
-    SELECT 
-        p.user_id::text as user_id,
-        p.score,
-        COALESCE(u.username, 'Player') as username
-    INTO winner3
-    FROM public.hot_sell_participants p
-    LEFT JOIN public.users u ON u.id::text = p.user_id::text
-    WHERE p.session_id = session_record.id 
-    AND p.score IS NOT NULL
-    AND p.user_id::text != winner1.user_id
-    AND (winner2.user_id IS NULL OR p.user_id::text != winner2.user_id)
-    ORDER BY p.score DESC 
-    LIMIT 1;
-    
-    IF winner3.user_id IS NOT NULL THEN
-        -- Pay 3rd place
-        UPDATE public.users 
-        SET tokens = tokens + third_prize 
-        WHERE id::text = winner3.user_id;
-        
-        RAISE NOTICE '🥉 Paid %: % tokens', winner3.username, third_prize;
-        
-        -- Save to game history
-        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
-        VALUES (winner3.user_id, config_record.game_type, winner3.score, third_prize, 'hot_sell', NOW());
-    END IF;
-    
-    -- Mark session as completed (don't store user IDs, just status)
-    UPDATE public.hot_sell_sessions
-    SET 
-        status = 'completed',
-        first_place_prize = first_prize,
-        second_place_prize = COALESCE(second_prize, 0),
-        third_place_prize = COALESCE(third_prize, 0),
-        platform_fee = platform_fee_amount,
-        completed_at = NOW(),
-        updated_at = NOW()
-    WHERE id = session_record.id;
-    
-    RAISE NOTICE '✅ Session marked as completed';
-    
-    -- Delete old session and participants (complete cleanup)
-    DELETE FROM public.hot_sell_participants WHERE session_id = session_record.id;
-    DELETE FROM public.hot_sell_sessions WHERE id = session_record.id;
-    
-    RAISE NOTICE '🗑️ Old session deleted';
-    
-    -- Create new fresh session
-    INSERT INTO public.hot_sell_sessions (
-        config_id, current_pot, base_price, max_participants, status, created_at, updated_at
-    )
-    VALUES (
-        config_id_param, 0, config_record.base_price, config_record.max_participants, 'waiting', NOW(), NOW()
-    );
-    
-    RAISE NOTICE '✨ New session created';
-    RAISE NOTICE '🎉 PAYOUT COMPLETE!';
-    
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Payout successful and listing reset',
-        'first_place_winner', winner1.username,
-        'first_place_amount', first_prize,
-        'second_place_winner', COALESCE(winner2.username, 'N/A'),
-        'second_place_amount', COALESCE(second_prize, 0),
-        'third_place_winner', COALESCE(winner3.username, 'N/A'),
-        'third_place_amount', COALESCE(third_prize, 0),
-        'total_pot', total_pot,
-        'platform_fee', platform_fee_amount
-    );
+    WHERE p.session_id = session_id_param AND p.score IS NOT NULL
+    ORDER BY p.score DESC
+    LIMIT 3;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.process_hot_sell_payout(text) TO authenticated, anon;
+-- Function 2: Pay a single user (simple update)
+DROP FUNCTION IF EXISTS public.pay_user_tokens(text, numeric);
+
+CREATE OR REPLACE FUNCTION public.pay_user_tokens(user_id_param TEXT, amount_param NUMERIC)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    UPDATE public.users 
+    SET tokens = COALESCE(tokens, 0) + amount_param,
+        updated_at = NOW()
+    WHERE id::text = user_id_param;
+    
+    RETURN FOUND;
+END;
+$$;
+
+-- Function 3: Save game result (simple insert)
+DROP FUNCTION IF EXISTS public.save_game_result(text, text, numeric, numeric, text);
+
+CREATE OR REPLACE FUNCTION public.save_game_result(
+    user_id_param TEXT,
+    game_type_param TEXT,
+    score_param NUMERIC,
+    tokens_won_param NUMERIC,
+    tournament_type_param TEXT
+)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
+    VALUES (user_id_param, game_type_param, score_param, tokens_won_param, tournament_type_param, NOW());
+    
+    RETURN TRUE;
+END;
+$$;
+
+-- Function 4: Reset session (simple delete and insert)
+DROP FUNCTION IF EXISTS public.reset_hot_sell_session(text);
+
+CREATE OR REPLACE FUNCTION public.reset_hot_sell_session(config_id_param TEXT)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+    v_session RECORD;
+    v_config RECORD;
+BEGIN
+    -- Get active session
+    SELECT * INTO v_session 
+    FROM public.hot_sell_sessions 
+    WHERE config_id = config_id_param AND status != 'completed'
+    ORDER BY created_at DESC LIMIT 1;
+    
+    IF NOT FOUND THEN RETURN FALSE; END IF;
+    
+    -- Get config
+    SELECT * INTO v_config FROM public.hot_sell_configs WHERE id = config_id_param;
+    IF NOT FOUND THEN RETURN FALSE; END IF;
+    
+    -- Delete old data
+    DELETE FROM public.hot_sell_participants WHERE session_id = v_session.id;
+    DELETE FROM public.hot_sell_sessions WHERE id = v_session.id;
+    
+    -- Create new session
+    INSERT INTO public.hot_sell_sessions (
+        config_id, current_pot, base_price, max_participants,
+        participants_count, status, created_at, updated_at
+    ) VALUES (
+        config_id_param, 0, v_config.base_price, v_config.max_participants,
+        0, 'waiting', NOW(), NOW()
+    );
+    
+    RETURN TRUE;
+END;
+$$;
+
+-- Grant permissions
+GRANT EXECUTE ON FUNCTION public.get_hot_sell_winners(uuid) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.pay_user_tokens(text, numeric) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.save_game_result(text, text, numeric, numeric, text) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.reset_hot_sell_session(text) TO authenticated, anon, service_role;
 
 DO $$
 BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE '✅ SIMPLE HOT SELL PAYOUT CREATED!';
     RAISE NOTICE '========================================';
-    RAISE NOTICE '✅ Pure TEXT handling (no UUID issues)';
-    RAISE NOTICE '✅ Pays winners to wallet';
-    RAISE NOTICE '✅ Saves to game history/analytics';
-    RAISE NOTICE '✅ Deletes old session completely';
-    RAISE NOTICE '✅ Creates new fresh session';
+    RAISE NOTICE '✅ 4 simple functions instead of 1 complex one';
+    RAISE NOTICE '✅ Client handles the orchestration';
+    RAISE NOTICE '✅ Each function does ONE simple thing';
+    RAISE NOTICE '✅ No complex type comparisons';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Usage from client:';
+    RAISE NOTICE '1. Call get_hot_sell_winners(session_id)';
+    RAISE NOTICE '2. For each winner: pay_user_tokens(user_id, prize)';
+    RAISE NOTICE '3. For each winner: save_game_result(...)';
+    RAISE NOTICE '4. Call reset_hot_sell_session(config_id)';
+    RAISE NOTICE '5. Refresh page';
     RAISE NOTICE '========================================';
 END $$;
