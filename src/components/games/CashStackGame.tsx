@@ -63,21 +63,15 @@ interface CashStackGameProps {
 const INITIAL_WIDTH = 80;
 const INITIAL_DEPTH = 80;
 const BLOCK_HEIGHT = 15;
-const INITIAL_SPEED = 0.2; // EXTREMELY SLOW
-const SPEED_INCREMENT = 0.01; // Gradual acceleration over time
-const MAX_SPEED = 1.5; // Gradually increases
-const DOLLAR_ALIGN_THRESHOLD = 5; // Pixels to align $ signs
-const STACK_EXPLOSION_BONUS = 100; // Points per block when stack explodes
+const INITIAL_SPEED = 0.15; // VERY SLOW
+const SPEED_INCREMENT = 0.008; // Very gradual acceleration
+const MAX_SPEED = 1.0; // Lower max
+const DOLLAR_ALIGN_THRESHOLD = 8; // Slightly larger threshold
+const STACK_EXPLOSION_BONUS = 150; // Points per block when stack explodes
+const EXPLOSION_ANIMATION_TIME = 800; // Fast explosion animation (ms)
 
-// Visual variety colors (cosmetic only)
-const VISUAL_COLORS = [
-  '#32CD32', // Lime green
-  '#00FF00', // Bright green
-  '#90EE90', // Light green
-  '#00FA9A', // Medium spring green
-  '#3CB371', // Medium sea green
-  '#2E8B57', // Sea green
-];
+// All blocks are green (single color)
+const BLOCK_COLOR = '#32CD32'; // Bright green
 
 export default function CashStackGame({
   onGameEnd,
@@ -110,16 +104,16 @@ export default function CashStackGame({
     const depth = lastBlock ? lastBlock.depth : INITIAL_DEPTH;
     const direction = lastBlock ? (lastBlock.direction === 'x' ? 'z' : 'x') : 'x';
     
-    // Random dollar sign position on block (for alignment challenge)
-    const dollarX = (Math.random() - 0.5) * width * 0.5;
-    const dollarZ = (Math.random() - 0.5) * depth * 0.5;
+    // Random dollar sign position anywhere on the block (more spread out)
+    const dollarX = (Math.random() - 0.5) * width * 0.7;
+    const dollarZ = (Math.random() - 0.5) * depth * 0.7;
 
     return {
       x: direction === 'x' ? -150 : (lastBlock?.x || 0),
       y: direction === 'z' ? -150 : (lastBlock?.y || 0),
       width,
       depth,
-      color: VISUAL_COLORS[index % VISUAL_COLORS.length],
+      color: BLOCK_COLOR, // All blocks are green
       direction,
       dollarX,
       dollarZ,
@@ -132,7 +126,7 @@ export default function CashStackGame({
       y: 0,
       width: INITIAL_WIDTH,
       depth: INITIAL_DEPTH,
-      color: VISUAL_COLORS[0],
+      color: BLOCK_COLOR,
       direction: 'x',
       dollarX: 0,
       dollarZ: 0,
@@ -210,26 +204,28 @@ export default function CashStackGame({
     
     createExplosion(0, 0, blockCount);
 
-    // Reset to base
-    const baseBlock: Block = {
-      x: 0,
-      y: 0,
-      width: INITIAL_WIDTH,
-      depth: INITIAL_DEPTH,
-      color: VISUAL_COLORS[0],
-      direction: 'x',
-      dollarX: 0,
-      dollarZ: 0,
-    };
+    // Quick reset after short animation delay
+    setTimeout(() => {
+      const baseBlock: Block = {
+        x: 0,
+        y: 0,
+        width: INITIAL_WIDTH,
+        depth: INITIAL_DEPTH,
+        color: BLOCK_COLOR,
+        direction: 'x',
+        dollarX: 0,
+        dollarZ: 0,
+      };
 
-    setGame(prev => ({
-      ...prev,
-      blocks: [baseBlock],
-      currentBlock: createBlock(1, baseBlock),
-      score: prev.score + explosionBonus,
-      explosions: prev.explosions + 1,
-      direction: 1,
-    }));
+      setGame(prev => ({
+        ...prev,
+        blocks: [baseBlock],
+        currentBlock: createBlock(1, baseBlock),
+        score: prev.score + explosionBonus,
+        explosions: prev.explosions + 1,
+        direction: 1,
+      }));
+    }, EXPLOSION_ANIMATION_TIME);
   };
 
   const handleStack = useCallback(() => {
@@ -294,7 +290,7 @@ export default function CashStackGame({
       y: newZ,
       width: newWidth,
       depth: newDepth,
-      color: VISUAL_COLORS[game.blocks.length % VISUAL_COLORS.length],
+      color: BLOCK_COLOR, // All blocks are green
       direction: currentBlock.direction,
       dollarX: currentBlock.dollarX,
       dollarZ: currentBlock.dollarZ,
