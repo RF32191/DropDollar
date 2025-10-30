@@ -63,8 +63,9 @@ interface CashStackGameProps {
 const INITIAL_WIDTH = 80;
 const INITIAL_DEPTH = 80;
 const BLOCK_HEIGHT = 15;
-const INITIAL_SPEED = 0.4; // SUPER SLOW
-const MAX_SPEED = 1.2; // Very low max
+const INITIAL_SPEED = 0.2; // EXTREMELY SLOW
+const SPEED_INCREMENT = 0.01; // Gradual acceleration over time
+const MAX_SPEED = 1.5; // Gradually increases
 const DOLLAR_ALIGN_THRESHOLD = 5; // Pixels to align $ signs
 const STACK_EXPLOSION_BONUS = 100; // Points per block when stack explodes
 
@@ -101,6 +102,8 @@ export default function CashStackGame({
     direction: 1,
     speed: INITIAL_SPEED,
   });
+
+  const gameStartTimeRef = useRef<number>(0);
 
   const createBlock = (index: number, lastBlock?: Block): Block => {
     const width = lastBlock ? lastBlock.width : INITIAL_WIDTH;
@@ -160,6 +163,7 @@ export default function CashStackGame({
           setGameState('playing');
           initGame();
           lastTimerUpdateRef.current = Date.now();
+          gameStartTimeRef.current = Date.now(); // Initialize speed timer
           return 0;
         }
         return prev - 1;
@@ -304,7 +308,7 @@ export default function CashStackGame({
       currentBlock: nextBlock,
       score: prev.score + scoreGain,
       direction: prev.direction * -1,
-      speed: Math.min(MAX_SPEED, prev.speed + 0.02),
+      speed: prev.speed, // Speed increases with time, not stacks
     }));
   }, [game, gameState]);
 
@@ -322,17 +326,23 @@ export default function CashStackGame({
         setGame(prev => {
           if (!prev.currentBlock) return prev;
 
+          // Calculate time-based speed increase
+          const elapsedTime = (Date.now() - gameStartTimeRef.current) / 1000; // seconds
+          const currentSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
+
           let newX = prev.currentBlock.x;
           let newY = prev.currentBlock.y;
 
           if (prev.currentBlock.direction === 'x') {
-            newX += prev.speed * prev.direction;
-            if (newX < -200 || newX > 200) {
+            newX += currentSpeed * prev.direction;
+            // Smoother boundaries
+            if (newX < -180 || newX > 180) {
               return { ...prev, direction: prev.direction * -1 };
             }
           } else {
-            newY += prev.speed * prev.direction;
-            if (newY < -200 || newY > 200) {
+            newY += currentSpeed * prev.direction;
+            // Smoother boundaries
+            if (newY < -180 || newY > 180) {
               return { ...prev, direction: prev.direction * -1 };
             }
           }
@@ -476,7 +486,7 @@ export default function CashStackGame({
     const d = block.depth * 0.6 * scale;
     const h = BLOCK_HEIGHT * scale;
 
-    // Top face
+    // Top face (stack of bills appearance)
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX + w, isoY - w * 0.5);
@@ -489,8 +499,20 @@ export default function CashStackGame({
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Draw $ sign at specific position
+    // Draw horizontal lines to simulate stacked bills
     if (!isMoving) {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.lineWidth = 1;
+      const lineCount = 5;
+      for (let i = 1; i < lineCount; i++) {
+        const ratio = i / lineCount;
+        ctx.beginPath();
+        ctx.moveTo(isoX + w * ratio, isoY - w * ratio * 0.5);
+        ctx.lineTo(isoX + w * ratio + d, isoY - w * ratio * 0.5 + d * 0.5);
+        ctx.stroke();
+      }
+
+      // Draw $ sign at specific position
       const dollarIsoX = (block.dollarX - block.dollarZ) * 0.6 * scale;
       const dollarIsoY = (block.dollarX + block.dollarZ) * 0.3 * scale;
       
