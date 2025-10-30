@@ -77,9 +77,9 @@ const NORMAL_STACK_POINTS = 3; // Small points for normal stacks
 const EXPLOSION_ANIMATION_TIME = 400; // Very fast reset (ms)
 
 // Smooth animation constants
-const INTERPOLATION_FACTOR = 0.25; // Smooth lerp for movement
-const DROP_DURATION = 350; // Drop animation duration in ms
-const DROP_EASING = 0.08; // Easing factor for drop
+const INTERPOLATION_FACTOR = 0.35; // Higher = more responsive
+const DROP_SPEED = 0.12; // Speed of drop animation (0.12 per frame at 60fps)
+const BOUNCE_FACTOR = 0.15; // Slight bounce on landing
 
 // All blocks are green (single color)
 const BLOCK_COLOR = '#32CD32'; // Bright green
@@ -325,6 +325,9 @@ export default function CashStackGame({
     }));
   }, [game, gameState]);
 
+  // Separate ref for last frame time (outside useEffect)
+  const lastFrameTimeRef = useRef<number>(Date.now());
+
   useEffect(() => {
     if (gameState !== 'playing' || !game.currentBlock) return;
 
@@ -340,20 +343,17 @@ export default function CashStackGame({
     // Enable smooth rendering
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-
-    const lastFrameTime = useRef<number>(Date.now());
     
-    const animate = () => {
-      const now = Date.now();
-      const deltaTime = (now - lastFrameTime.current) / 16.67; // Normalize to 60fps
-      lastFrameTime.current = now;
+    const animate = (timestamp: number) => {
+      const deltaTime = Math.min((timestamp - lastFrameTimeRef.current) / 16.67, 2); // Cap at 2x speed
+      lastFrameTimeRef.current = timestamp;
 
       if (game.currentBlock && !game.gameOver) {
         setGame(prev => {
           if (!prev.currentBlock) return prev;
 
           // Calculate time-based speed increase
-          const elapsedTime = (now - gameStartTimeRef.current) / 1000;
+          const elapsedTime = (timestamp - gameStartTimeRef.current) / 1000;
           const currentSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
 
           let newX = prev.currentBlock.x;
@@ -395,13 +395,12 @@ export default function CashStackGame({
           // Update blocks with drop animation
           const updatedBlocks = prev.blocks.map(block => {
             if (block.isDropping && block.dropProgress !== undefined) {
-              const newProgress = Math.min(1, block.dropProgress + DROP_EASING * deltaTime);
-              const easeProgress = 1 - Math.pow(1 - newProgress, 3); // Cubic ease-out
+              const newProgress = Math.min(1, block.dropProgress + (DROP_SPEED * deltaTime));
               
               return {
                 ...block,
                 dropProgress: newProgress,
-                isDropping: newProgress < 1,
+                isDropping: newProgress < 0.99, // Stop when nearly complete
               };
             }
             return block;
@@ -532,7 +531,7 @@ export default function CashStackGame({
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    animate();
+    animationRef.current = requestAnimationFrame(animate);
 
     return () => {
       if (animationRef.current) {
@@ -552,11 +551,32 @@ export default function CashStackGame({
     const x = isMoving ? (block.visualX ?? block.x) : block.x;
     const y = isMoving ? (block.visualY ?? block.y) : block.y;
     
-    // Handle drop animation for stacked blocks
+    // Handle drop animation with advanced easing
     let renderHeight = height;
+    let opacity = 1;
+    
     if (block.isDropping && block.dropProgress !== undefined) {
-      const easeProgress = 1 - Math.pow(1 - block.dropProgress, 3);
-      renderHeight = height + (50 * (1 - easeProgress)); // Drop from 50px above
+      const t = block.dropProgress;
+      
+      // Ease-out-back function for natural drop with slight bounce
+      let easeProgress;
+      if (t < 0.8) {
+        // Main drop with cubic ease-out
+        const t1 = t / 0.8;
+        easeProgress = 1 - Math.pow(1 - t1, 3);
+      } else {
+        // Slight bounce at end
+        const t2 = (t - 0.8) / 0.2;
+        const bounceAmount = Math.sin(t2 * Math.PI) * BOUNCE_FACTOR;
+        easeProgress = 1 - bounceAmount;
+      }
+      
+      // Drop from higher for more visible animation
+      const dropDistance = 80;
+      renderHeight = height + (dropDistance * (1 - easeProgress));
+      
+      // Fade in as it drops
+      opacity = 0.3 + (0.7 * Math.min(1, t * 2));
     }
     
     const isoX = (x - y) * 0.6 * scale;
@@ -571,6 +591,9 @@ export default function CashStackGame({
     const glowColor = 'rgba(50, 205, 50, 0.5)';
 
     ctx.save();
+    
+    // Apply opacity for drop animation
+    ctx.globalAlpha = opacity;
 
     // Add neon glow effect
     if (!isMoving) {
