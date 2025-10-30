@@ -4,9 +4,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 /**
  * CASH STACK - Explosive Alignment Game
- * ALL blocks are green with $ signs
- * Align $ signs perfectly = EXPLOSION + RESET + BONUS
- * Colors are just visual variety
+ * ALL blocks are green with $ signs at random positions
+ * Align $ signs perfectly = EXPLOSION + RESET + HUGE BONUS
+ * EXTREMELY SLOW speed (0.05) like classic Stack game
  * Goal: Get highest score in 60 seconds by exploding stacks!
  */
 
