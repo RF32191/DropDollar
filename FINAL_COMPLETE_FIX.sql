@@ -2,7 +2,12 @@
 -- FINAL COMPLETE FIX - Drop policies, fix types, recreate everything
 -- ============================================================================
 
--- Step 1: Drop ALL policies that depend on game_history.user_id
+-- Step 1: Drop views that depend on game_history.user_id
+DROP VIEW IF EXISTS public.user_activity_stats CASCADE;
+DROP VIEW IF EXISTS public.user_game_stats CASCADE;
+DROP VIEW IF EXISTS public.user_statistics CASCADE;
+
+-- Step 2: Drop ALL policies that depend on game_history.user_id
 DROP POLICY IF EXISTS "users_view_own_games" ON public.game_history;
 DROP POLICY IF EXISTS "users_insert_own_games" ON public.game_history;
 DROP POLICY IF EXISTS "Users can view their own game history" ON public.game_history;
@@ -13,11 +18,11 @@ DROP POLICY IF EXISTS "Anyone can view game history" ON public.game_history;
 DROP POLICY IF EXISTS "Service role can insert" ON public.game_history;
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.game_history;
 
--- Step 2: Convert game_history.user_id to TEXT
+-- Step 3: Convert game_history.user_id to TEXT
 ALTER TABLE public.game_history 
 ALTER COLUMN user_id TYPE TEXT;
 
--- Step 3: Recreate policies with TEXT comparison
+-- Step 4: Recreate policies with TEXT comparison
 CREATE POLICY "users_view_own_games"
 ON public.game_history
 FOR SELECT
@@ -43,7 +48,28 @@ FOR INSERT
 TO service_role
 WITH CHECK (true);
 
--- Step 4: Recreate the payout function (simplified, no game_history inserts for now to test)
+-- Step 5: Recreate views with TEXT user_id
+CREATE OR REPLACE VIEW public.user_activity_stats AS
+SELECT 
+    user_id,
+    COUNT(*) as total_games,
+    AVG(score) as avg_score,
+    MAX(score) as best_score,
+    SUM(tokens_won) as total_earnings
+FROM public.game_history
+GROUP BY user_id;
+
+CREATE OR REPLACE VIEW public.user_game_stats AS
+SELECT 
+    user_id,
+    game_type,
+    COUNT(*) as games_played,
+    AVG(score) as avg_score,
+    MAX(score) as best_score
+FROM public.game_history
+GROUP BY user_id, game_type;
+
+-- Step 6: Recreate the payout function
 DROP FUNCTION IF EXISTS public.process_hot_sell_payout(text);
 
 CREATE OR REPLACE FUNCTION public.process_hot_sell_payout(config_id_param text)
