@@ -587,14 +587,23 @@ export default function HotSellPage() {
     try {
       console.log('💰 [Hot Sell] NEW SIMPLE PAYOUT triggered for:', configId);
       
-      // Find the session for this config
-      const session = sessions.find(s => s.config_id === configId && s.status !== 'completed');
+      // Find the session for this config - look for ANY session with participants who have scores
+      let session = sessions.find(s => s.config_id === configId && s.status !== 'completed');
+      
+      // If no waiting/active session, try to find ANY session for this config with participants
       if (!session) {
+        console.log('⚠️ [Hot Sell] No waiting session, checking for ANY session with participants...');
+        session = sessions.find(s => s.config_id === configId && s.participants && s.participants.length > 0);
+      }
+      
+      if (!session) {
+        console.error('❌ [Hot Sell] No session found for config:', configId);
+        console.log('📊 [Hot Sell] Available sessions:', sessions.map(s => ({ id: s.id, config_id: s.config_id, status: s.status, participant_count: s.participants?.length || 0 })));
         setMessage({ type: 'error', text: 'No active session found' });
         return;
       }
       
-      console.log('📊 [Hot Sell] Session found:', session.id);
+      console.log('📊 [Hot Sell] Session found:', session.id, 'Status:', session.status, 'Participants:', session.participants?.length || 0);
       
       // Step 1: Get winners
       const { data: winners, error: winnersError } = await supabase.rpc('get_hot_sell_winners', {
