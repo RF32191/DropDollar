@@ -316,8 +316,15 @@ export default function CashStackGame({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { 
+      alpha: false,
+      desynchronized: true 
+    });
     if (!ctx) return;
+
+    // Enable smooth rendering
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const animate = () => {
       if (game.currentBlock && !game.gameOver) {
@@ -362,13 +369,23 @@ export default function CashStackGame({
         });
       }
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+      // Smooth background with neon glow
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, '#0a0e27');
-      gradient.addColorStop(1, '#1a1f3a');
+      gradient.addColorStop(0, '#0a1628');
+      gradient.addColorStop(0.5, '#1a2845');
+      gradient.addColorStop(1, '#0d1b2a');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Add subtle grid for depth
+      ctx.strokeStyle = 'rgba(50, 205, 50, 0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.height; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(canvas.width, i);
+        ctx.stroke();
+      }
 
       const centerX = canvas.width / 2;
       const centerY = canvas.height * 0.7;
@@ -484,75 +501,118 @@ export default function CashStackGame({
     const d = block.depth * 0.6 * scale;
     const h = BLOCK_HEIGHT * scale;
 
-    // Solid green color for all blocks
-    const blockColor = BLOCK_COLOR;
+    // Neon green with glow
+    const baseColor = '#32CD32';
+    const glowColor = 'rgba(50, 205, 50, 0.5)';
 
-    // Top face (solid green)
+    ctx.save();
+
+    // Add neon glow effect
+    if (!isMoving) {
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 15;
+    }
+
+    // Top face with gradient for depth
+    const topGradient = ctx.createLinearGradient(isoX, isoY, isoX + w + d, isoY - w * 0.5 + d * 0.5);
+    topGradient.addColorStop(0, '#3FE840');
+    topGradient.addColorStop(0.5, baseColor);
+    topGradient.addColorStop(1, '#28B828');
+    
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX + w, isoY - w * 0.5);
     ctx.lineTo(isoX + w + d, isoY - w * 0.5 + d * 0.5);
     ctx.lineTo(isoX + d, isoY + d * 0.5);
     ctx.closePath();
-    ctx.fillStyle = blockColor;
+    ctx.fillStyle = isMoving ? '#40FF40' : topGradient;
     ctx.fill();
-    ctx.strokeStyle = '#1a5f1a'; // Dark green border
-    ctx.lineWidth = 2;
+    
+    // Neon border
+    ctx.strokeStyle = isMoving ? '#00FF00' : '#20B020';
+    ctx.lineWidth = isMoving ? 3 : 2;
     ctx.stroke();
 
-    // Draw $ sign with yellow circle on ALL blocks (stacked and moving)
-    const dollarIsoX = (block.dollarX - block.dollarZ) * 0.6 * scale;
-    const dollarIsoY = (block.dollarX + block.dollarZ) * 0.3 * scale;
-    const dollarCenterX = isoX + w / 2 + d / 2 + dollarIsoX;
-    const dollarCenterY = isoY - w * 0.25 + d * 0.25 + dollarIsoY;
-    
-    ctx.save();
-    
-    // Draw yellow circle background
-    ctx.beginPath();
-    ctx.arc(dollarCenterX, dollarCenterY, 15, 0, Math.PI * 2);
-    ctx.fillStyle = '#FFD700';
-    ctx.fill();
-    ctx.strokeStyle = '#FFA500';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    // Draw $ sign
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 2;
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('$', dollarCenterX, dollarCenterY);
-    
-    ctx.restore();
+    ctx.shadowBlur = 0;
 
-    // Left face (darker green for 3D effect)
+    // Left face with darker shade
     ctx.beginPath();
     ctx.moveTo(isoX, isoY);
     ctx.lineTo(isoX, isoY + h);
     ctx.lineTo(isoX + d, isoY + h + d * 0.5);
     ctx.lineTo(isoX + d, isoY + d * 0.5);
     ctx.closePath();
-    ctx.fillStyle = shadeColor(blockColor, -25);
+    ctx.fillStyle = shadeColor(baseColor, -30);
     ctx.fill();
-    ctx.strokeStyle = '#1a5f1a';
+    ctx.strokeStyle = '#1a8f1a';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Right face (darkest green for 3D depth)
+    // Right face with darkest shade
     ctx.beginPath();
     ctx.moveTo(isoX + w, isoY - w * 0.5);
     ctx.lineTo(isoX + w, isoY - w * 0.5 + h);
     ctx.lineTo(isoX + w + d, isoY - w * 0.5 + h + d * 0.5);
     ctx.lineTo(isoX + w + d, isoY - w * 0.5 + d * 0.5);
     ctx.closePath();
-    ctx.fillStyle = shadeColor(blockColor, -45);
+    ctx.fillStyle = shadeColor(baseColor, -50);
     ctx.fill();
-    ctx.strokeStyle = '#1a5f1a';
+    ctx.strokeStyle = '#1a8f1a';
     ctx.lineWidth = 1;
     ctx.stroke();
+
+    // Draw $ sign along axis of movement with neon yellow
+    // Position $ based on direction of movement (X or Z axis)
+    let dollarCenterX, dollarCenterY;
+    
+    if (block.direction === 'x') {
+      // Moving horizontally - $ along X axis
+      const dollarOffsetX = block.dollarX * 0.6 * scale;
+      dollarCenterX = isoX + w / 2 + dollarOffsetX;
+      dollarCenterY = isoY - w * 0.25;
+    } else {
+      // Moving in depth - $ along Z axis
+      const dollarOffsetZ = block.dollarZ * 0.6 * scale;
+      dollarCenterX = isoX + d / 2;
+      dollarCenterY = isoY + d * 0.25 + dollarOffsetZ * 0.3;
+    }
+    
+    // Neon yellow circle with glow
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+    ctx.shadowBlur = 20;
+    
+    // Outer glow
+    ctx.beginPath();
+    ctx.arc(dollarCenterX, dollarCenterY, 18, 0, Math.PI * 2);
+    const glowGradient = ctx.createRadialGradient(dollarCenterX, dollarCenterY, 0, dollarCenterX, dollarCenterY, 18);
+    glowGradient.addColorStop(0, '#FFED4E');
+    glowGradient.addColorStop(0.7, '#FFD700');
+    glowGradient.addColorStop(1, '#FFA500');
+    ctx.fillStyle = glowGradient;
+    ctx.fill();
+    
+    // Border
+    ctx.strokeStyle = '#FF8C00';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Inner highlight
+    ctx.beginPath();
+    ctx.arc(dollarCenterX, dollarCenterY, 14, 0, Math.PI * 2);
+    ctx.strokeStyle = '#FFFF80';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Draw $ sign with shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', dollarCenterX, dollarCenterY);
+    
+    ctx.restore();
   };
 
   const shadeColor = (color: string, percent: number) => {
