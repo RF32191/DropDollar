@@ -63,9 +63,9 @@ interface CashStackGameProps {
 const INITIAL_WIDTH = 80;
 const INITIAL_DEPTH = 80;
 const BLOCK_HEIGHT = 15;
-const INITIAL_SPEED = 0.05; // EXTREMELY SLOW - like Stack game
-const SPEED_INCREMENT = 0.003; // Very minimal acceleration
-const MAX_SPEED = 0.5; // Very low max
+const INITIAL_SPEED = 0.03; // ULTRA SLOW - crawling start
+const SPEED_INCREMENT = 0.002; // Extremely minimal acceleration
+const MAX_SPEED = 0.4; // Very low max
 const DOLLAR_ALIGN_THRESHOLD = 12; // Forgiving alignment
 const STACK_EXPLOSION_BONUS = 300; // HUGE BONUS for explosions!
 const NORMAL_STACK_POINTS = 3; // Small points for normal stacks
