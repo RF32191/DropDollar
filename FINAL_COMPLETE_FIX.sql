@@ -1,146 +1,195 @@
 -- ============================================================================
--- FINAL COMPLETE FIX - EVERYTHING IN ONE FILE
--- ============================================================================
--- This creates configs, sessions, AND the get functions the pages need
+-- FINAL COMPLETE FIX - Drop policies, fix types, recreate everything
 -- ============================================================================
 
--- STEP 1: Create the GET functions first (these are what the pages call)
-DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions() CASCADE;
+-- Step 1: Drop ALL policies that depend on game_history.user_id
+DROP POLICY IF EXISTS "users_view_own_games" ON public.game_history;
+DROP POLICY IF EXISTS "Users can view their own game history" ON public.game_history;
+DROP POLICY IF EXISTS "Users can view their own games" ON public.game_history;
+DROP POLICY IF EXISTS "Public can view all games" ON public.game_history;
+DROP POLICY IF EXISTS "Anyone can view game history" ON public.game_history;
 
-CREATE OR REPLACE FUNCTION public.get_all_winner_takes_all_sessions()
-RETURNS TABLE (
-    id UUID,
-    config_id TEXT,
-    current_pot NUMERIC,
-    base_price NUMERIC,
-    participants_count INTEGER,
-    status TEXT,
-    timer_started_at TIMESTAMPTZ,
-    timer_duration INTEGER,
-    winner_user_id UUID,
-    prize_amount NUMERIC,
-    platform_fee NUMERIC,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ,
-    participants JSONB
-)
+-- Step 2: Convert game_history.user_id to TEXT
+ALTER TABLE public.game_history 
+ALTER COLUMN user_id TYPE TEXT;
+
+-- Step 3: Recreate policies with TEXT comparison
+CREATE POLICY "users_view_own_games"
+ON public.game_history
+FOR SELECT
+TO authenticated
+USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Public can view all games"
+ON public.game_history
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
+-- Step 4: Recreate the payout function (simplified, no game_history inserts for now to test)
+DROP FUNCTION IF EXISTS public.process_hot_sell_payout(text);
+
+CREATE OR REPLACE FUNCTION public.process_hot_sell_payout(config_id_param text)
+RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        s.id, s.config_id, s.current_pot, s.base_price, s.participants_count, s.status,
-        s.timer_started_at, COALESCE(s.timer_duration, 1800) as timer_duration,
-        s.winner_user_id, s.prize_amount, s.platform_fee, s.created_at, s.updated_at,
-        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', p.id, 'user_id', p.user_id, 'score', p.score, 'accuracy', p.accuracy, 'joined_at', p.joined_at, 'completed_at', p.completed_at))
-            FROM public.winner_takes_all_participants p WHERE p.session_id = s.id), '[]'::jsonb) as participants
-    FROM public.winner_takes_all_sessions s
-    ORDER BY s.created_at DESC;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated, anon;
-
-DROP FUNCTION IF EXISTS public.get_all_hot_sell_sessions() CASCADE;
-
-CREATE OR REPLACE FUNCTION public.get_all_hot_sell_sessions()
-RETURNS TABLE (
-    id UUID, config_id TEXT, current_pot NUMERIC, base_price NUMERIC, max_participants INTEGER, status TEXT,
-    first_place_user_id UUID, second_place_user_id UUID, third_place_user_id UUID,
-    first_place_prize NUMERIC, second_place_prize NUMERIC, third_place_prize NUMERIC,
-    platform_fee NUMERIC, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, completed_at TIMESTAMPTZ, participants JSONB
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        s.id, s.config_id, s.current_pot, s.base_price, s.max_participants, s.status,
-        s.first_place_user_id, s.second_place_user_id, s.third_place_user_id,
-        s.first_place_prize, s.second_place_prize, s.third_place_prize, s.platform_fee,
-        s.created_at, s.updated_at, s.completed_at,
-        COALESCE((SELECT jsonb_agg(jsonb_build_object('id', p.id, 'user_id', p.user_id, 'score', p.score, 'accuracy', p.accuracy, 'joined_at', p.joined_at))
-            FROM public.hot_sell_participants p WHERE p.session_id = s.id), '[]'::jsonb) as participants
-    FROM public.hot_sell_sessions s
-    ORDER BY s.created_at DESC;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_all_hot_sell_sessions() TO authenticated, anon;
-
--- STEP 2: Create configs
-INSERT INTO winner_takes_all_configs (id, game_type, title, description, entry_fee, prize_pool, base_price, game_duration, rng_seed, winner_prize, platform_fee, created_at, updated_at)
-VALUES
-('wta-2-sword-parry', 'sword_parry', '$2 Winner Takes It All - Sword Parry', 'Winner takes the entire $2 prize pool!', 1, 2, 2, 30, 5, 1.70, 0.30, NOW(), NOW()),
-('wta-5-blade-bounce', 'blade_bounce', '$5 Winner Takes It All - Blade Bounce', 'Winner takes the entire $5 prize pool!', 1, 5, 5, 45, 6, 4.25, 0.75, NOW(), NOW()),
-('wta-10-laser-dodge', 'laser_dodge', '$10 Winner Takes It All - Laser Dodge', 'Winner takes the entire $10 prize pool!', 1, 10, 10, 60, 7, 8.50, 1.50, NOW(), NOW()),
-('wta-25-multi-target', 'multi_target_reaction', '$25 Winner Takes It All - Multi Target', 'Winner takes the entire $25 prize pool!', 1, 25, 25, 90, 8, 21.25, 3.75, NOW(), NOW()),
-('wta-50-sword-parry', 'sword_parry', '$50 Winner Takes It All - Sword Parry', 'Winner takes the entire $50 prize pool!', 1, 50, 50, 120, 9, 42.50, 7.50, NOW(), NOW()),
-('wta-100-blade-bounce', 'blade_bounce', '$100 Winner Takes It All - Blade Bounce', 'Winner takes the entire $100 prize pool!', 1, 100, 100, 150, 10, 85.00, 15.00, NOW(), NOW()),
-('wta-250-laser-dodge', 'laser_dodge', '$250 Winner Takes It All - Laser Dodge', 'Winner takes the entire $250 prize pool!', 1, 250, 250, 180, 11, 212.50, 37.50, NOW(), NOW()),
-('wta-500-multi-target', 'multi_target_reaction', '$500 Winner Takes It All - Multi Target', 'Winner takes the entire $500 prize pool!', 1, 500, 500, 240, 12, 425.00, 75.00, NOW(), NOW()),
-('wta-1000-falling-object', 'falling_object', '$1000 Winner Takes It All - Falling Object', 'Winner takes the entire $1000 prize pool!', 1, 1000, 1000, 300, 13, 850.00, 150.00, NOW(), NOW()),
-('wta-2500-color-sequence', 'color_sequence', '$2500 Winner Takes It All - Color Sequence', 'Winner takes the entire $2500 prize pool!', 1, 2500, 2500, 360, 14, 2125.00, 375.00, NOW(), NOW()),
-('wta-10000-laser-dodge', 'laser_dodge', '$10000 Winner Takes It All - Laser Dodge', 'Winner takes the entire $10000 prize pool!', 1, 10000, 10000, 420, 15, 8500.00, 1500.00, NOW(), NOW()),
-('wta-25000-multi-target', 'multi_target_reaction', '$25000 Winner Takes It All - Multi Target', 'Winner takes the entire $25000 prize pool!', 1, 25000, 25000, 480, 16, 21250.00, 3750.00, NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO hot_sell_configs (id, game_type, title, description, entry_fee, base_price, max_participants, game_duration, rng_seed, first_place_percent, second_place_percent, third_place_percent, platform_fee_percent, created_at, updated_at)
-VALUES
-('hs-3-sword-parry', 'sword_parry', '$3 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 3, 3, 30, 5, 50, 20, 15, 15, NOW(), NOW()),
-('hs-3-blade-bounce', 'blade_bounce', '$3 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 3, 3, 30, 6, 50, 20, 15, 15, NOW(), NOW()),
-('hs-5-sword-parry', 'sword_parry', '$5 Hot Sell - Sword Parry', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 5, 30, 7, 50, 20, 15, 15, NOW(), NOW()),
-('hs-5-blade-bounce', 'blade_bounce', '$5 Hot Sell - Blade Bounce', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 5, 5, 30, 8, 50, 20, 15, 15, NOW(), NOW()),
-('hs-10-laser-dodge', 'laser_dodge', '$10 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10, 10, 30, 9, 50, 20, 15, 15, NOW(), NOW()),
-('hs-10-multi-target', 'multi_target_reaction', '$10 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10, 10, 30, 10, 50, 20, 15, 15, NOW(), NOW()),
-('hs-25-falling-object', 'falling_object', '$25 Hot Sell - Falling Object', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25, 25, 30, 11, 50, 20, 15, 15, NOW(), NOW()),
-('hs-25-color-sequence', 'color_sequence', '$25 Hot Sell - Color Sequence', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25, 25, 30, 12, 50, 20, 15, 15, NOW(), NOW()),
-('hs-1000-laser-dodge', 'laser_dodge', '$1000 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 1000, 1000, 30, 21, 50, 20, 15, 15, NOW(), NOW()),
-('hs-1000-multi-target', 'multi_target_reaction', '$1000 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 1000, 1000, 30, 22, 50, 20, 15, 15, NOW(), NOW()),
-('hs-10000-laser-dodge', 'laser_dodge', '$10000 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10000, 10000, 30, 25, 50, 20, 15, 15, NOW(), NOW()),
-('hs-10000-multi-target', 'multi_target_reaction', '$10000 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 10000, 10000, 30, 26, 50, 20, 15, 15, NOW(), NOW()),
-('hs-25000-laser-dodge', 'laser_dodge', '$25000 Hot Sell - Laser Dodge', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25000, 25000, 30, 27, 50, 20, 15, 15, NOW(), NOW()),
-('hs-25000-multi-target', 'multi_target_reaction', '$25000 Hot Sell - Multi Target', '1st: 50%, 2nd: 20%, 3rd: 15%', 1, 25000, 25000, 30, 28, 50, 20, 15, 15, NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
-
--- STEP 3: Create sessions
-INSERT INTO winner_takes_all_sessions (config_id, current_pot, base_price, participants_count, status, created_at, updated_at)
-SELECT id, 0, base_price, 0, 'waiting', NOW(), NOW()
-FROM winner_takes_all_configs
-WHERE NOT EXISTS (SELECT 1 FROM winner_takes_all_sessions WHERE config_id = winner_takes_all_configs.id AND status IN ('waiting', 'active'));
-
-INSERT INTO hot_sell_sessions (config_id, current_pot, base_price, max_participants, status, created_at, updated_at)
-SELECT id, 0, base_price, max_participants, 'waiting', NOW(), NOW()
-FROM hot_sell_configs
-WHERE NOT EXISTS (SELECT 1 FROM hot_sell_sessions WHERE config_id = hot_sell_configs.id AND status IN ('waiting', 'active'));
-
--- STEP 4: Test the functions
-SELECT COUNT(*) as wta_sessions_returned FROM get_all_winner_takes_all_sessions();
-SELECT COUNT(*) as hs_sessions_returned FROM get_all_hot_sell_sessions();
-
--- STEP 5: Verify
-DO $$
 DECLARE
-    wta_c INTEGER; wta_s INTEGER; hs_c INTEGER; hs_s INTEGER;
-    wta_func INTEGER; hs_func INTEGER;
+    v_session_id UUID;
+    v_current_pot NUMERIC;
+    v_config_game_type TEXT;
+    v_config_base_price NUMERIC;
+    v_config_max_participants INTEGER;
+    v_config_platform_fee_percent NUMERIC;
+    v_config_first_place_percent NUMERIC;
+    v_config_second_place_percent NUMERIC;
+    v_config_third_place_percent NUMERIC;
+    v_platform_fee NUMERIC;
+    v_first_prize NUMERIC;
+    v_second_prize NUMERIC;
+    v_third_prize NUMERIC;
+    v_winner1_id UUID;
+    v_winner1_score NUMERIC;
+    v_winner1_name TEXT;
+    v_winner2_id UUID;
+    v_winner2_score NUMERIC;
+    v_winner2_name TEXT;
+    v_winner3_id UUID;
+    v_winner3_score NUMERIC;
+    v_winner3_name TEXT;
 BEGIN
-    SELECT COUNT(*) INTO wta_c FROM winner_takes_all_configs;
-    SELECT COUNT(*) INTO wta_s FROM winner_takes_all_sessions WHERE status IN ('waiting', 'active');
-    SELECT COUNT(*) INTO hs_c FROM hot_sell_configs;
-    SELECT COUNT(*) INTO hs_s FROM hot_sell_sessions WHERE status IN ('waiting', 'active');
-    SELECT COUNT(*) INTO wta_func FROM get_all_winner_takes_all_sessions();
-    SELECT COUNT(*) INTO hs_func FROM get_all_hot_sell_sessions();
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '🎯 PAYOUT START: %', config_id_param;
     
-    RAISE NOTICE '';
-    RAISE NOTICE '════════════════════════════════════════════';
-    RAISE NOTICE '✅ COMPLETE - EVERYTHING IS READY';
-    RAISE NOTICE '════════════════════════════════════════════';
-    RAISE NOTICE 'WTA: % configs, % sessions, % returned by function', wta_c, wta_s, wta_func;
-    RAISE NOTICE 'Hot Sell: % configs, % sessions, % returned by function', hs_c, hs_s, hs_func;
-    RAISE NOTICE '';
-    RAISE NOTICE '🎉 REFRESH YOUR BROWSER NOW!';
-    RAISE NOTICE '════════════════════════════════════════════';
-END $$;
+    SELECT game_type, base_price, max_participants, platform_fee_percent, 
+           first_place_percent, second_place_percent, third_place_percent
+    INTO v_config_game_type, v_config_base_price, v_config_max_participants,
+         v_config_platform_fee_percent, v_config_first_place_percent,
+         v_config_second_place_percent, v_config_third_place_percent
+    FROM public.hot_sell_configs WHERE id = config_id_param;
+    
+    IF v_config_game_type IS NULL THEN
+        RETURN json_build_object('success', false, 'message', 'Config not found');
+    END IF;
+    
+    SELECT id, current_pot INTO v_session_id, v_current_pot
+    FROM public.hot_sell_sessions 
+    WHERE config_id = config_id_param AND status != 'completed'
+    ORDER BY created_at DESC LIMIT 1;
+    
+    IF v_session_id IS NULL THEN
+        RETURN json_build_object('success', false, 'message', 'No active session');
+    END IF;
+    
+    RAISE NOTICE '✅ Session: % | Pot: %', v_session_id, v_current_pot;
+    
+    v_platform_fee := v_current_pot * (v_config_platform_fee_percent / 100.0);
+    v_first_prize := (v_current_pot - v_platform_fee) * (v_config_first_place_percent / 100.0);
+    v_second_prize := (v_current_pot - v_platform_fee) * (v_config_second_place_percent / 100.0);
+    v_third_prize := (v_current_pot - v_platform_fee) * (v_config_third_place_percent / 100.0);
+    
+    RAISE NOTICE '💰 Prizes: 1st=% | 2nd=% | 3rd=%', v_first_prize, v_second_prize, v_third_prize;
+    
+    -- Get winners
+    SELECT user_id, score INTO v_winner1_id, v_winner1_score
+    FROM public.hot_sell_participants
+    WHERE session_id = v_session_id AND score IS NOT NULL
+    ORDER BY score DESC LIMIT 1;
+    
+    IF v_winner1_id IS NOT NULL THEN
+        SELECT COALESCE(username, email, 'Player 1') INTO v_winner1_name FROM public.users WHERE id = v_winner1_id;
+        UPDATE public.users SET tokens = tokens + v_first_prize WHERE id = v_winner1_id;
+        RAISE NOTICE '🥇 Paid %: % tokens', v_winner1_name, v_first_prize;
+        
+        -- Save to game_history with TEXT user_id
+        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
+        VALUES (v_winner1_id::text, v_config_game_type, v_winner1_score, v_first_prize, 'hot_sell', NOW());
+    END IF;
+    
+    SELECT user_id, score INTO v_winner2_id, v_winner2_score
+    FROM public.hot_sell_participants
+    WHERE session_id = v_session_id AND score IS NOT NULL AND user_id != v_winner1_id
+    ORDER BY score DESC LIMIT 1;
+    
+    IF v_winner2_id IS NOT NULL THEN
+        SELECT COALESCE(username, email, 'Player 2') INTO v_winner2_name FROM public.users WHERE id = v_winner2_id;
+        UPDATE public.users SET tokens = tokens + v_second_prize WHERE id = v_winner2_id;
+        RAISE NOTICE '🥈 Paid %: % tokens', v_winner2_name, v_second_prize;
+        
+        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
+        VALUES (v_winner2_id::text, v_config_game_type, v_winner2_score, v_second_prize, 'hot_sell', NOW());
+    END IF;
+    
+    SELECT user_id, score INTO v_winner3_id, v_winner3_score
+    FROM public.hot_sell_participants
+    WHERE session_id = v_session_id AND score IS NOT NULL 
+    AND user_id != v_winner1_id AND (v_winner2_id IS NULL OR user_id != v_winner2_id)
+    ORDER BY score DESC LIMIT 1;
+    
+    IF v_winner3_id IS NOT NULL THEN
+        SELECT COALESCE(username, email, 'Player 3') INTO v_winner3_name FROM public.users WHERE id = v_winner3_id;
+        UPDATE public.users SET tokens = tokens + v_third_prize WHERE id = v_winner3_id;
+        RAISE NOTICE '🥉 Paid %: % tokens', v_winner3_name, v_third_prize;
+        
+        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
+        VALUES (v_winner3_id::text, v_config_game_type, v_winner3_score, v_third_prize, 'hot_sell', NOW());
+    END IF;
+    
+    -- Mark completed
+    UPDATE public.hot_sell_sessions
+    SET status = 'completed', first_place_prize = v_first_prize,
+        second_place_prize = v_second_prize, third_place_prize = v_third_prize,
+        platform_fee = v_platform_fee, completed_at = NOW(), updated_at = NOW()
+    WHERE id = v_session_id;
+    
+    RAISE NOTICE '✅ Session completed';
+    
+    -- Clean up
+    DELETE FROM public.hot_sell_participants WHERE session_id = v_session_id;
+    DELETE FROM public.hot_sell_sessions WHERE id = v_session_id;
+    
+    RAISE NOTICE '🗑️ Deleted old session';
+    
+    -- Create new session
+    INSERT INTO public.hot_sell_sessions (
+        config_id, current_pot, base_price, max_participants, 
+        participants_count, status, created_at, updated_at
+    ) VALUES (
+        config_id_param, 0, v_config_base_price, v_config_max_participants, 
+        0, 'waiting', NOW(), NOW()
+    );
+    
+    RAISE NOTICE '✨ New session created';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '🎉 PAYOUT COMPLETE!';
+    RAISE NOTICE '========================================';
+    
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Payout successful',
+        'first_place_winner', COALESCE(v_winner1_name, 'N/A'),
+        'first_place_amount', v_first_prize,
+        'second_place_winner', COALESCE(v_winner2_name, 'N/A'),
+        'second_place_amount', v_second_prize,
+        'third_place_winner', COALESCE(v_winner3_name, 'N/A'),
+        'third_place_amount', v_third_prize,
+        'total_pot', v_current_pot,
+        'platform_fee', v_platform_fee
+    );
+END;
+$$;
 
+GRANT EXECUTE ON FUNCTION public.process_hot_sell_payout(text) TO authenticated, anon;
+
+DO $$
+BEGIN
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '✅ FINAL COMPLETE FIX DONE!';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '✅ Dropped all game_history policies';
+    RAISE NOTICE '✅ Converted game_history.user_id to TEXT';
+    RAISE NOTICE '✅ Recreated policies with TEXT';
+    RAISE NOTICE '✅ Payout function with ::text casting';
+    RAISE NOTICE '✅ Ready to test!';
+    RAISE NOTICE '========================================';
+END $$;
