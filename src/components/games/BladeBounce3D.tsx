@@ -40,9 +40,12 @@ interface BladeBounce3DProps {
 }
 
 const GAME_DURATION = 60;
-const SWORD_ROTATION_SPEED = 0.04; // Smooth 45° rotation
+const SWORD_ROTATION_SPEED = 0.08; // Faster rotation for click-based
 const ENEMY_SPAWN_RATE = 800; // ms between spawns
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
+const DANGER_ZONE_SIZE = 0.25; // Larger danger zones (was 0.12)
+const SWORD_MOVE_SPEED = 0.15; // Vertical movement speed
+const SWORD_Y_RANGE = 6; // How far up/down sword can move
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -67,6 +70,8 @@ export default function BladeBounce3D({
   const [enemiesDestroyed, setEnemiesDestroyed] = useState(0);
   const [gameTimer, setGameTimer] = useState(GAME_DURATION);
   const [targetAngle, setTargetAngle] = useState(0);
+  const [targetY, setTargetY] = useState(0);
+  const [isRotating, setIsRotating] = useState(false);
   
   // Audio
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -193,14 +198,14 @@ export default function BladeBounce3D({
     pommel.position.y = -1.3;
     swordGroup.add(pommel);
     
-    // Create danger zones ONLY on handle (small red circles)
+    // Create danger zones ONLY on handle (LARGER red circles)
     const dangerZones: THREE.Mesh[] = [];
     for (let i = 0; i < HANDLE_DANGER_ZONES; i++) {
-      const dangerGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const dangerGeometry = new THREE.SphereGeometry(DANGER_ZONE_SIZE, 16, 16);
       const dangerMaterial = new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.6,
       });
       const danger = new THREE.Mesh(dangerGeometry, dangerMaterial);
       
@@ -339,12 +344,25 @@ export default function BladeBounce3D({
     }
   }, [gameState, playSound]);
 
-  // Mouse control
+  // Mouse control - VERTICAL MOVEMENT + CLICK ROTATION
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       
-      // Calculate target angle based on mouse position
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const centerY = rect.height / 2;
+      const mouseY = e.clientY - rect.top;
+      
+      // Calculate target Y position based on mouse Y (vertical movement)
+      const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
+      setTargetY(-normalizedY * SWORD_Y_RANGE); // Invert for intuitive control
+    };
+    
+    const handleClick = (e: MouseEvent) => {
+      if (gameState !== 'playing') return;
+      
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
       
@@ -353,16 +371,23 @@ export default function BladeBounce3D({
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       
+      // Big rotation step on click
       const angle = Math.atan2(mouseY - centerY, mouseX - centerX);
       setTargetAngle(angle + Math.PI / 2); // Adjust for sword orientation
+      setIsRotating(true);
+      
+      // Visual feedback
+      playSound(600, 50, 'square');
     };
     
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('click', handleClick);
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('click', handleClick);
     };
-  }, [gameState]);
+  }, [gameState, playSound]);
 
   // Animation loop
   useEffect(() => {
@@ -372,8 +397,9 @@ export default function BladeBounce3D({
       const delta = clockRef.current.getDelta();
       const now = Date.now();
       
-      // Smooth sword rotation towards target angle
+      // Smooth sword rotation towards target angle + VERTICAL MOVEMENT
       if (swordGroupRef.current) {
+        // Rotation (click-based, smooth interpolation)
         const currentAngle = swordGroupRef.current.rotation.z;
         let angleDiff = targetAngle - currentAngle;
         
@@ -381,10 +407,16 @@ export default function BladeBounce3D({
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
         
-        // Smooth interpolation with max 45° rotation speed
+        // Smooth interpolation with faster rotation speed
         const maxRotation = SWORD_ROTATION_SPEED;
-        const rotationStep = Math.max(-maxRotation, Math.min(maxRotation, angleDiff * 0.15));
+        const rotationStep = Math.max(-maxRotation, Math.min(maxRotation, angleDiff * 0.2));
         swordGroupRef.current.rotation.z += rotationStep;
+        
+        // Vertical movement (mouse Y position)
+        const currentY = swordGroupRef.current.position.y;
+        const yDiff = targetY - currentY;
+        const yStep = yDiff * SWORD_MOVE_SPEED;
+        swordGroupRef.current.position.y += yStep;
         
         // Pulse danger zones
         dangerZonesRef.current.forEach((zone, i) => {
