@@ -43,9 +43,9 @@ const GAME_DURATION = 60;
 const SWORD_ROTATION_SPEED = 0.08; // Faster rotation for click-based
 const ENEMY_SPAWN_RATE = 800; // ms between spawns
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
-const DANGER_ZONE_SIZE = 0.25; // Larger danger zones (was 0.12)
-const SWORD_MOVE_SPEED = 0.15; // Vertical movement speed
-const SWORD_Y_RANGE = 6; // How far up/down sword can move
+const DANGER_ZONE_SIZE = 0.45; // MUCH LARGER danger zones (was 0.12, then 0.25)
+const SWORD_MOVE_SPEED = 0.25; // Faster vertical movement
+const SWORD_Y_RANGE = 8; // Larger vertical range
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -198,25 +198,40 @@ export default function BladeBounce3D({
     pommel.position.y = -1.3;
     swordGroup.add(pommel);
     
-    // Create danger zones ONLY on handle (LARGER red circles)
+    // Create danger zones ONLY on handle (MUCH LARGER red circles with glow)
     const dangerZones: THREE.Mesh[] = [];
     for (let i = 0; i < HANDLE_DANGER_ZONES; i++) {
-      const dangerGeometry = new THREE.SphereGeometry(DANGER_ZONE_SIZE, 16, 16);
+      const dangerGeometry = new THREE.SphereGeometry(DANGER_ZONE_SIZE, 32, 32);
       const dangerMaterial = new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.75,
       });
       const danger = new THREE.Mesh(dangerGeometry, dangerMaterial);
+      
+      // Add outer glow sphere for extra visibility
+      const glowGeometry = new THREE.SphereGeometry(DANGER_ZONE_SIZE * 1.3, 16, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.2,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
       
       // Position along handle length
       const handleStart = -1.2;
       const handleEnd = -0.2;
       const step = (handleEnd - handleStart) / (HANDLE_DANGER_ZONES + 1);
-      danger.position.y = handleStart + step * (i + 1);
+      const yPos = handleStart + step * (i + 1);
+      
+      danger.position.y = yPos;
       danger.position.z = 0.2; // Slightly in front
       
-      swordGroup.add(danger);
+      glow.position.y = yPos;
+      glow.position.z = 0.2;
+      
+      swordGroup.add(glow); // Add glow first (behind)
+      swordGroup.add(danger); // Add main sphere on top
       dangerZones.push(danger);
     }
     dangerZonesRef.current = dangerZones;
@@ -357,7 +372,13 @@ export default function BladeBounce3D({
       
       // Calculate target Y position based on mouse Y (vertical movement)
       const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
-      setTargetY(-normalizedY * SWORD_Y_RANGE); // Invert for intuitive control
+      const newTargetY = -normalizedY * SWORD_Y_RANGE; // Invert for intuitive control
+      setTargetY(newTargetY);
+      
+      // Debug logging (remove after testing)
+      if (Math.random() < 0.01) { // Log 1% of movements to avoid spam
+        console.log('🗡️ Vertical Movement:', { mouseY, normalizedY, targetY: newTargetY });
+      }
     };
     
     const handleClick = (e: MouseEvent) => {
@@ -417,6 +438,11 @@ export default function BladeBounce3D({
         const yDiff = targetY - currentY;
         const yStep = yDiff * SWORD_MOVE_SPEED;
         swordGroupRef.current.position.y += yStep;
+        
+        // Debug logging (remove after testing)
+        if (Math.abs(yStep) > 0.01 && Math.random() < 0.01) {
+          console.log('⬆️⬇️ Sword Y:', { currentY: currentY.toFixed(2), targetY: targetY.toFixed(2), yStep: yStep.toFixed(3) });
+        }
         
         // Pulse danger zones
         dangerZonesRef.current.forEach((zone, i) => {
