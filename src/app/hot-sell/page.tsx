@@ -717,11 +717,15 @@ export default function HotSellPage() {
   };
 
   const calculatePrizes = (config: HotSellConfig, currentPot: number) => {
-    const platformFee = currentPot * (config.platform_fee_percent / 100);
-    const distributablePot = currentPot - platformFee;
-    const firstPlace = distributablePot * (config.first_place_percent / 100);
-    const secondPlace = distributablePot * (config.second_place_percent / 100);
-    const thirdPlace = distributablePot * (config.third_place_percent / 100);
+    // Calculate prizes based on FULL POOL (base_price), not current pot
+    // This shows what prizes WILL BE when pool is full
+    const fullPool = config.base_price;
+    
+    // Prize percentages (50% + 20% + 15% + 15% = 100%)
+    const firstPlace = fullPool * 0.50;   // 50%
+    const secondPlace = fullPool * 0.20;  // 20%
+    const thirdPlace = fullPool * 0.15;   // 15%
+    const platformFee = fullPool * 0.15;  // 15%
     
     return {
       firstPlace,
