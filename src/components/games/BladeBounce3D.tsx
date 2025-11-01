@@ -13,13 +13,13 @@ import * as THREE from 'three';
  */
 
 interface Enemy3D {
-  mesh: THREE.Mesh;
-  glowMesh?: THREE.Mesh; // For fireball glow effect
+  mesh: THREE.Mesh | THREE.Group;
+  glowMesh?: THREE.Mesh; // For fireball glow effect or enemy sword glow
   x: number;
   y: number;
   velocityX: number;
   velocityY: number;
-  type: 'fireball' | 'pillar';
+  type: 'fireball' | 'enemy_sword';
   health: number;
   rotation: number;
   pulsePhase?: number; // For animated pulsing
@@ -45,15 +45,15 @@ interface BladeBounce3DProps {
 const GAME_DURATION = 60;
 const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° clicks
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
-const FIREBALL_SPAWN_RATE = 600; // ms between fireball spawns
-const PILLAR_SPAWN_RATE = 3000; // ms between pillar spawns (like Flappy Bird)
+const FIREBALL_SPAWN_RATE = 1800; // ms between fireball spawns (SLOWER - gradual difficulty)
+const ENEMY_SWORD_SPAWN_RATE = 5000; // ms between enemy sword spawns (RARE)
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
 const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
 const SWORD_MOVE_SPEED = 1.0; // Direct cursor tracking (was 0.35)
 const SWORD_Y_RANGE = 10; // Large vertical range
-const PILLAR_GAP = 6; // Gap between top and bottom pillars
-const PILLAR_MOVE_SPEED = 0.08; // Horizontal movement speed (like Flappy Bird)
+const ENEMY_SWORD_GAP = 7; // Gap between top and bottom enemy swords
+const ENEMY_SWORD_SPEED = 0.06; // Horizontal movement speed (slower for skill)
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -69,7 +69,7 @@ export default function BladeBounce3D({
   const animationIdRef = useRef<number>();
   const clockRef = useRef(new THREE.Clock());
   const lastFireballSpawnRef = useRef<number>(0);
-  const lastPillarSpawnRef = useRef<number>(0);
+  const lastEnemySwordSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
@@ -271,13 +271,13 @@ export default function BladeBounce3D({
     };
   }, []);
 
-  // Create enemy - FIREBALLS and PILLARS
-  const createEnemy = useCallback((type: 'fireball' | 'pillar') => {
+  // Create enemy - FIREBALLS and ENEMY SWORDS
+  const createEnemy = useCallback((type: 'fireball' | 'enemy_sword') => {
     if (!sceneRef.current) return;
 
     if (type === 'fireball') {
-      // REALISTIC FIRE SPRITE - Create multi-layered fire effect
-      const fireballSize = 0.6 + Math.random() * 0.3;
+      // ULTRA-REALISTIC FIRE SPRITE - Multi-layered with distortion
+      const fireballSize = 0.5 + Math.random() * 0.25;
       
       // Create fire sprite group for layering
       const fireGroup = new THREE.Group();
@@ -349,97 +349,153 @@ export default function BladeBounce3D({
         pulsePhase: Math.random() * Math.PI * 2,
         trailParticles: [],
       });
-    } else if (type === 'pillar') {
-      // FLAPPY BIRD STYLE PILLARS - Move horizontally with gap
-      // Create BOTH top and bottom pillars at once
+    } else if (type === 'enemy_sword') {
+      // ENEMY SWORDS - Horizontal scrolling with gap (like Flappy Bird)
+      // Create BOTH top and bottom enemy swords at once
       
-      // Random gap position (where sword can pass through)
-      const gapCenterY = (Math.random() - 0.5) * 4; // Gap can be anywhere from -2 to +2
-      const topPillarHeight = 10 - gapCenterY - (PILLAR_GAP / 2);
-      const bottomPillarHeight = 10 + gapCenterY - (PILLAR_GAP / 2);
+      // Random gap position (where player sword can pass through)
+      const gapCenterY = (Math.random() - 0.5) * 3; // Gap from -1.5 to +1.5
       
-      // TOP PILLAR
-      const topGeometry = new THREE.CylinderGeometry(0.5, 0.5, topPillarHeight, 16);
-      const topMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8b00ff,
-        emissive: 0x4400ff,
-        emissiveIntensity: 0.8,
-        metalness: 0.7,
+      // CREATE TOP ENEMY SWORD (pointing down)
+      const topSwordGroup = new THREE.Group();
+      
+      // Blade (dark red, menacing)
+      const topBladeGeometry = new THREE.BoxGeometry(0.25, 3.5, 0.1);
+      const topBladeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x440000,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.6,
+        metalness: 0.9,
+        roughness: 0.2,
+      });
+      const topBlade = new THREE.Mesh(topBladeGeometry, topBladeMaterial);
+      topBlade.position.y = -1.75;
+      topSwordGroup.add(topBlade);
+      
+      // Guard
+      const topGuardGeometry = new THREE.BoxGeometry(1.2, 0.15, 0.15);
+      const topGuardMaterial = new THREE.MeshStandardMaterial({
+        color: 0x220000,
+        metalness: 0.8,
         roughness: 0.3,
       });
-      const topMesh = new THREE.Mesh(topGeometry, topMaterial);
+      const topGuard = new THREE.Mesh(topGuardGeometry, topGuardMaterial);
+      topGuard.position.y = 0;
+      topSwordGroup.add(topGuard);
       
-      // Top pillar glow
-      const topGlowGeometry = new THREE.CylinderGeometry(0.6, 0.6, topPillarHeight, 16);
+      // Handle
+      const topHandleGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 12);
+      const topHandleMaterial = new THREE.MeshStandardMaterial({
+        color: 0x330000,
+        metalness: 0.5,
+        roughness: 0.6,
+      });
+      const topHandle = new THREE.Mesh(topHandleGeometry, topHandleMaterial);
+      topHandle.position.y = 0.5;
+      topHandle.rotation.z = Math.PI / 2;
+      topSwordGroup.add(topHandle);
+      
+      // CREATE BOTTOM ENEMY SWORD (pointing up)
+      const bottomSwordGroup = new THREE.Group();
+      
+      // Blade
+      const bottomBladeGeometry = new THREE.BoxGeometry(0.25, 3.5, 0.1);
+      const bottomBladeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x440000,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.6,
+        metalness: 0.9,
+        roughness: 0.2,
+      });
+      const bottomBlade = new THREE.Mesh(bottomBladeGeometry, bottomBladeMaterial);
+      bottomBlade.position.y = 1.75;
+      bottomSwordGroup.add(bottomBlade);
+      
+      // Guard
+      const bottomGuardGeometry = new THREE.BoxGeometry(1.2, 0.15, 0.15);
+      const bottomGuardMaterial = new THREE.MeshStandardMaterial({
+        color: 0x220000,
+        metalness: 0.8,
+        roughness: 0.3,
+      });
+      const bottomGuard = new THREE.Mesh(bottomGuardGeometry, bottomGuardMaterial);
+      bottomGuard.position.y = 0;
+      bottomSwordGroup.add(bottomGuard);
+      
+      // Handle
+      const bottomHandleGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 12);
+      const bottomHandleMaterial = new THREE.MeshStandardMaterial({
+        color: 0x330000,
+        metalness: 0.5,
+        roughness: 0.6,
+      });
+      const bottomHandle = new THREE.Mesh(bottomHandleGeometry, bottomHandleMaterial);
+      bottomHandle.position.y = -0.5;
+      bottomHandle.rotation.z = Math.PI / 2;
+      bottomSwordGroup.add(bottomHandle);
+      
+      // Create red glow for top sword
+      const topGlowGeometry = new THREE.BoxGeometry(0.35, 3.7, 0.2);
       const topGlowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xaa44ff,
+        color: 0xff0000,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.3,
       });
       const topGlowMesh = new THREE.Mesh(topGlowGeometry, topGlowMaterial);
+      topGlowMesh.position.y = -1.75;
       
-      // BOTTOM PILLAR
-      const bottomGeometry = new THREE.CylinderGeometry(0.5, 0.5, bottomPillarHeight, 16);
-      const bottomMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8b00ff,
-        emissive: 0x4400ff,
-        emissiveIntensity: 0.8,
-        metalness: 0.7,
-        roughness: 0.3,
-      });
-      const bottomMesh = new THREE.Mesh(bottomGeometry, bottomMaterial);
-      
-      // Bottom pillar glow
-      const bottomGlowGeometry = new THREE.CylinderGeometry(0.6, 0.6, bottomPillarHeight, 16);
+      // Create red glow for bottom sword
+      const bottomGlowGeometry = new THREE.BoxGeometry(0.35, 3.7, 0.2);
       const bottomGlowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xaa44ff,
+        color: 0xff0000,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.3,
       });
       const bottomGlowMesh = new THREE.Mesh(bottomGlowGeometry, bottomGlowMaterial);
+      bottomGlowMesh.position.y = 1.75;
       
-      // Position pillars - spawn from right side
+      // Position swords - spawn from right side
       const x = 15; // Far right
-      const topY = 10 - (topPillarHeight / 2);
-      const bottomY = -10 + (bottomPillarHeight / 2);
+      const topY = 10 - 2 + gapCenterY; // Top of screen
+      const bottomY = -10 + 2 + gapCenterY; // Bottom of screen
       
-      topMesh.position.set(x, topY, 0);
+      topSwordGroup.position.set(x, topY, 0);
       topGlowMesh.position.set(x, topY, 0);
-      bottomMesh.position.set(x, bottomY, 0);
+      bottomSwordGroup.position.set(x, bottomY, 0);
       bottomGlowMesh.position.set(x, bottomY, 0);
       
-      sceneRef.current.add(topMesh);
+      sceneRef.current.add(topSwordGroup);
       sceneRef.current.add(topGlowMesh);
-      sceneRef.current.add(bottomMesh);
+      sceneRef.current.add(bottomSwordGroup);
       sceneRef.current.add(bottomGlowMesh);
       
-      // Move LEFT like Flappy Bird pipes
-      const velocityX = -PILLAR_MOVE_SPEED;
+      // Move LEFT (horizontal scrolling)
+      const velocityX = -ENEMY_SWORD_SPEED;
       
-      // Add TOP pillar
+      // Add TOP enemy sword
       enemiesRef.current.push({
-        mesh: topMesh,
+        mesh: topSwordGroup,
         glowMesh: topGlowMesh,
         x,
         y: topY,
         velocityX,
         velocityY: 0,
-        type: 'pillar',
-        health: 3,
+        type: 'enemy_sword',
+        health: 4,
         rotation: 0,
         pulsePhase: Math.random() * Math.PI * 2,
       });
       
-      // Add BOTTOM pillar
+      // Add BOTTOM enemy sword
       enemiesRef.current.push({
-        mesh: bottomMesh,
+        mesh: bottomSwordGroup,
         glowMesh: bottomGlowMesh,
         x,
         y: bottomY,
         velocityX,
         velocityY: 0,
-        type: 'pillar',
-        health: 3,
+        type: 'enemy_sword',
+        health: 4,
         rotation: 0,
         pulsePhase: Math.random() * Math.PI * 2,
       });
@@ -494,7 +550,7 @@ export default function BladeBounce3D({
           setGameState('playing');
           playSound(800, 0.2);
           lastFireballSpawnRef.current = Date.now();
-          lastPillarSpawnRef.current = Date.now();
+          lastEnemySwordSpawnRef.current = Date.now();
         }
       }, 1000);
     }
@@ -577,16 +633,16 @@ export default function BladeBounce3D({
         });
       }
       
-      // Spawn fireballs frequently
+      // Spawn fireballs gradually (slower for skill-based gameplay)
       if (now - lastFireballSpawnRef.current > FIREBALL_SPAWN_RATE) {
         createEnemy('fireball');
         lastFireballSpawnRef.current = now;
       }
       
-      // Spawn pillar pairs periodically (like Flappy Bird)
-      if (now - lastPillarSpawnRef.current > PILLAR_SPAWN_RATE) {
-        createEnemy('pillar');
-        lastPillarSpawnRef.current = now;
+      // Spawn enemy sword pairs RARELY (high difficulty challenge)
+      if (now - lastEnemySwordSpawnRef.current > ENEMY_SWORD_SPAWN_RATE) {
+        createEnemy('enemy_sword');
+        lastEnemySwordSpawnRef.current = now;
       }
       
       // Update enemies
@@ -674,16 +730,25 @@ export default function BladeBounce3D({
             };
             fadeTrail();
           }
-        } else if (enemy.type === 'pillar' && enemy.pulsePhase !== undefined) {
-          // Pillar pulsing effect
-          enemy.pulsePhase += 0.1;
-          const pulse = Math.sin(enemy.pulsePhase) * 0.5 + 0.5;
-          const emissiveIntensity = 0.6 + pulse * 0.4;
-          (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
+        } else if (enemy.type === 'enemy_sword' && enemy.pulsePhase !== undefined) {
+          // Enemy sword RED FLASHING effect (menacing)
+          enemy.pulsePhase += 0.2; // Fast flash
+          const flash = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
           
-          // Glow flash
+          // Access sword group and flash the blade
+          const swordGroup = enemy.mesh as THREE.Group;
+          if (swordGroup.children && swordGroup.children.length > 0) {
+            // Flash the blade (first child)
+            const blade = swordGroup.children[0] as THREE.Mesh;
+            if (blade && blade.material) {
+              const emissiveIntensity = 0.5 + flash * 0.8; // Bright red flash
+              (blade.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
+            }
+          }
+          
+          // Glow flash (bright red warning)
           if (enemy.glowMesh) {
-            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulse * 0.3;
+            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + flash * 0.5;
           }
         }
         
@@ -748,13 +813,13 @@ export default function BladeBounce3D({
             
             if (enemy.health <= 0) {
               // DESTROYED!
-              const points = enemy.type === 'fireball' ? 15 : 25; // Pillars worth more
+              const points = enemy.type === 'fireball' ? 10 : 35; // Enemy swords worth much more
               setScore(prev => prev + points);
               setEnemiesDestroyed(prev => prev + 1);
               
               playSound(800, 0.15, 'sine');
-              const particleColor = enemy.type === 'fireball' ? 0xff8800 : 0xaa44ff;
-              createParticles(enemy.x, enemy.y, particleColor, 20);
+              const particleColor = enemy.type === 'fireball' ? 0xff8800 : 0xff0000;
+              createParticles(enemy.x, enemy.y, particleColor, 25);
               
               console.log('⚔️ Enemy destroyed:', enemy.type, '+' + points + ' points');
               
@@ -767,8 +832,22 @@ export default function BladeBounce3D({
               }
               return false;
             } else {
-              // Damaged but not destroyed - flash
-              (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.5;
+              // Damaged but not destroyed - flash brightly
+              if (enemy.type === 'fireball') {
+                // Fireball damage flash
+                const fireGroup = enemy.mesh as THREE.Group;
+                if (fireGroup.children && fireGroup.children[0]) {
+                  const core = fireGroup.children[0] as THREE.Mesh;
+                  (core.material as THREE.MeshBasicMaterial).opacity = 1.0;
+                }
+              } else {
+                // Enemy sword damage flash
+                const swordGroup = enemy.mesh as THREE.Group;
+                if (swordGroup.children && swordGroup.children[0]) {
+                  const blade = swordGroup.children[0] as THREE.Mesh;
+                  (blade.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.5;
+                }
+              }
               playSound(700, 0.1, 'square');
             }
           }
@@ -916,14 +995,16 @@ export default function BladeBounce3D({
           <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
             ⚔️ BLADE BOUNCE 3D
           </h1>
-          <p className="text-2xl mb-4">🖱️ Move mouse vertically to move sword up/down</p>
-          <p className="text-2xl mb-4">🖱️ Click anywhere to rotate 45°</p>
-          <p className="text-xl mb-4">🔥 Fireballs (15 pts) - fast and flashing!</p>
-          <p className="text-xl mb-4">⚡ Pillars (25 pts) - from top/bottom</p>
-          <p className="text-xl mb-4">🛡️ Blade destroys enemies</p>
-          <p className="text-xl mb-4 text-red-400">⚠️ Red circles (handle) = LOSE HEART ❤️</p>
-          <p className="text-xl mb-4">❤️ 3 hearts - protect the handle!</p>
-          <p className="text-3xl font-bold text-yellow-400 mb-8">{GAME_DURATION} seconds - Survive!</p>
+          <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
+          <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
+          <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
+            <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs</span> (10 pts) - Multi-layered fire</p>
+            <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts each!) - Rare, deadly, flashing red</p>
+            <p className="text-lg mb-2">🛡️ <span className="text-green-400">Blade</span> destroys enemies</p>
+            <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = LOSE HEART ❤️</span></p>
+          </div>
+          <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
+          <p className="text-3xl font-bold text-yellow-400 mb-8 animate-pulse">{GAME_DURATION} seconds - Survive & Score!</p>
           <button
             onClick={startGame}
             className="px-12 py-6 bg-cyan-500 hover:bg-cyan-600 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto"
