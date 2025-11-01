@@ -24,7 +24,7 @@ import {
 interface HotSellSession {
   id: string;
   config_id: string;
-  current_pot: number;
+  current_pool: number;
   base_price: number;
   max_participants: number;
   participants_count: number;
@@ -475,7 +475,7 @@ export default function HotSellPage() {
         loadSessions()
       ]);
 
-      setMessage({ type: 'success', text: `Joined! Pot: $${result.new_pot?.toFixed(2) || '0.00'}` });
+      setMessage({ type: 'success', text: `Joined! Pool: $${result.new_pot?.toFixed(2) || '0.00'}` });
 
       // Start game
       setSelectedGameFlow({
@@ -614,7 +614,7 @@ export default function HotSellPage() {
       successMsg += winners.map((w: any) => 
         `${['🥇', '🥈', '🥉'][w.rank - 1]} ${w.username} ($${w.prize.toFixed(2)})`
       ).join(', ');
-      successMsg += ` - Total pot: $${data.pot.toFixed(2)} - Listing reset!`;
+      successMsg += ` - Total pool: $${data.pool.toFixed(2)} - Listing reset!`;
       
       setMessage({ type: 'success', text: successMsg });
       
@@ -711,12 +711,12 @@ export default function HotSellPage() {
     }).format(amount);
   };
 
-  const getProgressPercent = (currentPot: number, maxParticipants: number, entryFee: number) => {
+  const getProgressPercent = (currentPool: number, maxParticipants: number, entryFee: number) => {
     const targetPot = maxParticipants * entryFee;
     return Math.min((currentPot / targetPot) * 100, 100);
   };
 
-  const calculatePrizes = (config: HotSellConfig, currentPot: number) => {
+  const calculatePrizes = (config: HotSellConfig, currentPool: number) => {
     const platformFee = currentPot * (config.platform_fee_percent / 100);
     const distributablePot = currentPot - platformFee;
     const firstPlace = distributablePot * (config.first_place_percent / 100);
@@ -958,8 +958,8 @@ export default function HotSellPage() {
             const hasPlayed = session.participants.some(p => p.user_id === user?.id && p.score !== null);
             const isCompleted = session.status === 'completed';
             const isFull = session.participants_count >= config.max_participants;
-            const progressPercent = getProgressPercent(session.current_pot, config.max_participants, config.entry_fee);
-            const prizes = calculatePrizes(config, session.current_pot);
+            const progressPercent = getProgressPercent(session.current_pool, config.max_participants, config.entry_fee);
+            const prizes = calculatePrizes(config, session.current_pool);
 
             // User's score
             const userParticipant = session.participants.find(p => p.user_id === user?.id);
@@ -1038,8 +1038,8 @@ export default function HotSellPage() {
                 {/* Current Pot */}
                 <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
                   <div className="flex justify-between items-center">
-                    <span className="text-yellow-200 font-semibold">Current Pot</span>
-                    <span className="text-2xl font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
+                    <span className="text-yellow-200 font-semibold">Prize Pool</span>
+                    <span className="text-2xl font-bold text-yellow-300">{formatAmount(session.current_pool)}</span>
                   </div>
                 </div>
 

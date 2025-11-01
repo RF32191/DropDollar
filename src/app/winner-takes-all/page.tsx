@@ -23,7 +23,7 @@ import {
 interface WinnerTakesAllSession {
   id: string;
   config_id: string;
-  current_pot: number;
+  current_pool: number;
   base_price: number;
   participants_count: number;
   status: 'waiting' | 'active' | 'completed';
@@ -857,27 +857,27 @@ export default function WinnerTakesAllPage() {
                     </div>
                   </div>
                   
-                  {/* Current Pot */}
+                  {/* Prize Pool */}
                   <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
                     <div className="text-center">
-                      <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POT</p>
-                      <p className="text-2xl font-bold text-white">{session?.current_pot || 0} tokens</p>
-                      <p className="text-purple-200 text-xs mt-1">Base pot: ${config.prize_pool}, grows with each player's token</p>
+                      <p className="text-purple-100 text-sm font-medium mb-1">PRIZE POOL</p>
+                      <p className="text-2xl font-bold text-white">{session?.current_pool || 0} tokens</p>
+                      <p className="text-purple-200 text-xs mt-1">Base pool: ${config.prize_pool}, grows with each player's token</p>
                       
                       {/* Live Calculator Display */}
                       <div className="mt-3 p-3 bg-white/10 rounded-lg">
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="text-center">
                             <div className="text-yellow-300 font-semibold">Winner Gets:</div>
-                            <div className="text-white font-bold">{formatPrizeAmount((session?.current_pot || 0) * 0.85)}</div>
+                            <div className="text-white font-bold">{formatPrizeAmount((session?.current_pool || 0) * 0.85)}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-red-300 font-semibold">Platform Fee (15%):</div>
-                            <div className="text-white font-bold">{formatPrizeAmount((session?.current_pot || 0) * 0.15)}</div>
+                            <div className="text-white font-bold">{formatPrizeAmount((session?.current_pool || 0) * 0.15)}</div>
                           </div>
                         </div>
                         <div className="mt-2 text-xs text-purple-200">
-                          💰 Pot grows by {config.entry_fee} token per player
+                          💰 Pool grows by {config.entry_fee} token per player
                         </div>
                       </div>
                     </div>
@@ -894,7 +894,7 @@ export default function WinnerTakesAllPage() {
                         <p className="text-4xl font-black text-red-100 mb-2 animate-pulse">
                           {formatTimeRemaining(timeRemaining.hours, timeRemaining.minutes, timeRemaining.seconds)}
                         </p>
-                        <p className="text-lg text-red-200 font-semibold animate-pulse">More players can join and add to the pot!</p>
+                        <p className="text-lg text-red-200 font-semibold animate-pulse">More players can join and add to the pool!</p>
                         
                         {/* Auto-payout will trigger when timer expires - no manual button needed */}
                       </div>
@@ -905,7 +905,7 @@ export default function WinnerTakesAllPage() {
                   <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-300 mb-2">
                       <span>Token Progress</span>
-                      <span>{session?.current_pot || 0} / {config.base_price} tokens to base price</span>
+                      <span>{session?.current_pool || 0} / {config.base_price} tokens to base price</span>
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-3">
                       <div 
@@ -913,13 +913,13 @@ export default function WinnerTakesAllPage() {
                           session?.status === 'active' ? 'bg-gradient-to-r from-pink-500 to-purple-500' : 'bg-gradient-to-r from-pink-400 to-purple-400'
                         }`}
                         style={{ 
-                          width: `${Math.min(100, ((session?.current_pot || 0) / config.base_price) * 100)}%` 
+                          width: `${Math.min(100, ((session?.current_pool || 0) / config.base_price) * 100)}%` 
                         }}
                       ></div>
                     </div>
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
                       <span>Base Price: {config.base_price} tokens</span>
-                      <span>Current Pot: {session?.current_pot || 0} tokens</span>
+                      <span>Prize Pool: {session?.current_pool || 0} tokens</span>
                     </div>
                   </div>
                   

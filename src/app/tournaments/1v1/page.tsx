@@ -22,7 +22,7 @@ import {
 interface OneVOneSession {
   id: string;
   config_id: string;
-  current_pot: number;
+  current_pool: number;
   prize_pool: number;
   participants_count: number;
   max_participants: number;
@@ -560,11 +560,11 @@ export default function OneVOnePage() {
                           </div>
                         </div>
 
-                        {/* Current Pot */}
+                        {/* Prize Pool */}
                         <div className="mb-4 p-3 bg-black/30 rounded-xl">
                           <div className="flex justify-between items-center">
-                            <span className="text-blue-200 font-semibold">Current Pot</span>
-                            <span className="text-xl font-bold text-blue-300">{formatAmount(session.current_pot)}</span>
+                            <span className="text-blue-200 font-semibold">Prize Pool</span>
+                            <span className="text-xl font-bold text-blue-300">{formatAmount(session.current_pool)}</span>
                           </div>
                         </div>
 

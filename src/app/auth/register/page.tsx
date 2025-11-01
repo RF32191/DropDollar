@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { validateDateOfBirth, MINIMUM_AGE } from '@/lib/legalConstants';
 
 export default function SimpleRegisterPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +14,7 @@ export default function SimpleRegisterPage() {
     password: '',
     confirmPassword: '',
     phone: '',
+    dateOfBirth: '', // REQUIRED: Age verification
     location: '',
     marketingConsent: false,
     agreeToTerms: false,
@@ -60,6 +62,26 @@ export default function SimpleRegisterPage() {
       setIsSubmitting(false);
       return;
     }
+
+    // AGE VERIFICATION - Required for legal compliance
+    if (!formData.dateOfBirth) {
+      setError('Date of birth is required for age verification.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const ageValidation = validateDateOfBirth(formData.dateOfBirth);
+    if (!ageValidation.isValid) {
+      setError(ageValidation.error || 'Invalid date of birth');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Log age verification for compliance
+    console.log('✅ Age verification passed during registration:', {
+      age: ageValidation.age,
+      timestamp: new Date().toISOString()
+    });
 
     // Check if user agreed to terms and privacy
     if (!formData.agreeToTerms) {
