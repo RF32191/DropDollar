@@ -614,7 +614,7 @@ export default function HotSellPage() {
       successMsg += winners.map((w: any) => 
         `${['🥇', '🥈', '🥉'][w.rank - 1]} ${w.username} ($${w.prize.toFixed(2)})`
       ).join(', ');
-      successMsg += ` - Total pot: $${data.pot.toFixed(2)} - Listing reset!`;
+      successMsg += ` - Prize Pool: $${data.pot.toFixed(2)} - Listing reset!`;
       
       setMessage({ type: 'success', text: successMsg });
       
@@ -1035,11 +1035,21 @@ export default function HotSellPage() {
                   </div>
                 )}
 
-                {/* Current Pot */}
-                <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
-                  <div className="flex justify-between items-center">
-                    <span className="text-yellow-200 font-semibold">Current Pot</span>
-                    <span className="text-2xl font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
+                {/* Prize Pool Display */}
+                <div className="mb-4 p-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
+                  <div className="text-center">
+                    <p className="text-yellow-200 text-xs font-semibold mb-1 uppercase">Prize Pool</p>
+                    <p className="text-3xl font-black text-yellow-300 mb-2">{formatAmount(config.base_price)}</p>
+                    <div className="text-xs text-yellow-200/80">
+                      <div className="flex justify-between items-center mb-1">
+                        <span>Current:</span>
+                        <span className="font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>When Full:</span>
+                        <span className="font-bold text-yellow-300">{formatAmount(config.base_price)}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
