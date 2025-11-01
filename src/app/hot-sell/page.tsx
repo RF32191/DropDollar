@@ -1035,19 +1035,63 @@ export default function HotSellPage() {
                   </div>
                 )}
 
-                {/* Prize Pool Display */}
+                {/* Prize Pool Display with Breakdown */}
                 <div className="mb-4 p-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
                   <div className="text-center">
                     <p className="text-yellow-200 text-xs font-semibold mb-1 uppercase">Prize Pool</p>
-                    <p className="text-3xl font-black text-yellow-300 mb-2">{formatAmount(config.base_price)}</p>
-                    <div className="text-xs text-yellow-200/80">
-                      <div className="flex justify-between items-center mb-1">
-                        <span>Current:</span>
-                        <span className="font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
+                    <p className="text-3xl font-black text-yellow-300 mb-3">{formatAmount(config.base_price)}</p>
+                    
+                    {/* Prize Breakdown */}
+                    <div className="bg-black/30 rounded-lg p-3 mb-2">
+                      <div className="space-y-1.5 text-xs">
+                        {/* 1st Place */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-yellow-400">🥇</span>
+                            <span className="text-yellow-200">1st Place (50%)</span>
+                          </div>
+                          <span className="font-bold text-yellow-300">
+                            {formatAmount(config.base_price * 0.50)}
+                          </span>
+                        </div>
+                        
+                        {/* 2nd Place */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-300">🥈</span>
+                            <span className="text-yellow-200">2nd Place (20%)</span>
+                          </div>
+                          <span className="font-bold text-yellow-300">
+                            {formatAmount(config.base_price * 0.20)}
+                          </span>
+                        </div>
+                        
+                        {/* 3rd Place */}
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-orange-400">🥉</span>
+                            <span className="text-yellow-200">3rd Place (15%)</span>
+                          </div>
+                          <span className="font-bold text-yellow-300">
+                            {formatAmount(config.base_price * 0.15)}
+                          </span>
+                        </div>
+                        
+                        {/* Platform Fee */}
+                        <div className="flex justify-between items-center pt-1.5 border-t border-yellow-500/30">
+                          <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
+                          <span className="font-bold text-red-300">
+                            -{formatAmount(config.base_price * 0.15)}
+                          </span>
+                        </div>
                       </div>
+                    </div>
+                    
+                    {/* Current Progress */}
+                    <div className="text-xs text-yellow-200/80">
                       <div className="flex justify-between items-center">
-                        <span>When Full:</span>
-                        <span className="font-bold text-yellow-300">{formatAmount(config.base_price)}</span>
+                        <span>Current Pool:</span>
+                        <span className="font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
                       </div>
                     </div>
                   </div>
