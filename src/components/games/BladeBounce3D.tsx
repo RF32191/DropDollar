@@ -45,12 +45,15 @@ interface BladeBounce3DProps {
 const GAME_DURATION = 60;
 const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° clicks
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
-const ENEMY_SPAWN_RATE = 800; // ms between spawns
+const FIREBALL_SPAWN_RATE = 600; // ms between fireball spawns
+const PILLAR_SPAWN_RATE = 3000; // ms between pillar spawns (like Flappy Bird)
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
 const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
-const SWORD_MOVE_SPEED = 0.35; // Fast, smooth vertical movement
+const SWORD_MOVE_SPEED = 1.0; // Direct cursor tracking (was 0.35)
 const SWORD_Y_RANGE = 10; // Large vertical range
+const PILLAR_GAP = 6; // Gap between top and bottom pillars
+const PILLAR_MOVE_SPEED = 0.08; // Horizontal movement speed (like Flappy Bird)
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -65,7 +68,8 @@ export default function BladeBounce3D({
   const particlesRef = useRef<Particle3D[]>([]);
   const animationIdRef = useRef<number>();
   const clockRef = useRef(new THREE.Clock());
-  const lastSpawnRef = useRef<number>(0);
+  const lastFireballSpawnRef = useRef<number>(0);
+  const lastPillarSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
@@ -272,26 +276,48 @@ export default function BladeBounce3D({
     if (!sceneRef.current) return;
 
     if (type === 'fireball') {
-      // ANIMATED FIREBALL - realistic fire effect
-      const fireballSize = 0.4 + Math.random() * 0.3;
+      // REALISTIC FIRE SPRITE - Create multi-layered fire effect
+      const fireballSize = 0.6 + Math.random() * 0.3;
       
-      // Core fireball
-      const geometry = new THREE.SphereGeometry(fireballSize, 32, 32);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xff4400,
-        emissive: 0xff6600,
-        emissiveIntensity: 1.5,
-        metalness: 0,
-        roughness: 0.2,
-      });
-      const mesh = new THREE.Mesh(geometry, material);
+      // Create fire sprite group for layering
+      const fireGroup = new THREE.Group();
       
-      // Glowing outer layer
-      const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.4, 32, 32);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff8800,
+      // Inner white-hot core (brightest)
+      const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.3, 16, 16);
+      const coreMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffee,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.9,
+      });
+      const core = new THREE.Mesh(coreGeometry, coreMaterial);
+      fireGroup.add(core);
+      
+      // Middle orange layer (main fire color)
+      const middleGeometry = new THREE.SphereGeometry(fireballSize * 0.6, 20, 20);
+      const middleMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff6600,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const middle = new THREE.Mesh(middleGeometry, middleMaterial);
+      fireGroup.add(middle);
+      
+      // Outer red layer (fire edge)
+      const outerGeometry = new THREE.SphereGeometry(fireballSize, 24, 24);
+      const outerMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff2200,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const outer = new THREE.Mesh(outerGeometry, outerMaterial);
+      fireGroup.add(outer);
+      
+      // Outer glow (yellow aura)
+      const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.5, 32, 32);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.3,
       });
       const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
       
@@ -300,18 +326,18 @@ export default function BladeBounce3D({
       const x = side * (10 + Math.random() * 5);
       const y = (Math.random() - 0.5) * 8;
       
-      mesh.position.set(x, y, 0);
+      fireGroup.position.set(x, y, 0);
       glowMesh.position.set(x, y, 0);
-      sceneRef.current.add(mesh);
+      sceneRef.current.add(fireGroup);
       sceneRef.current.add(glowMesh);
       
       // Fast velocity towards sword
-      const speed = 0.05 + Math.random() * 0.03;
+      const speed = 0.06 + Math.random() * 0.04;
       const velocityX = -side * speed;
-      const velocityY = (Math.random() - 0.5) * 0.02;
+      const velocityY = (Math.random() - 0.5) * 0.03;
       
       enemiesRef.current.push({
-        mesh,
+        mesh: fireGroup as any, // Store the group as mesh
         glowMesh,
         x,
         y,
@@ -324,51 +350,96 @@ export default function BladeBounce3D({
         trailParticles: [],
       });
     } else if (type === 'pillar') {
-      // DEADLY PILLARS - spawn from top or bottom
-      const fromTop = Math.random() < 0.5;
-      const pillarLength = 3 + Math.random() * 2;
+      // FLAPPY BIRD STYLE PILLARS - Move horizontally with gap
+      // Create BOTH top and bottom pillars at once
       
-      // Pillar geometry (cylinder)
-      const geometry = new THREE.CylinderGeometry(0.4, 0.4, pillarLength, 16);
-      const material = new THREE.MeshStandardMaterial({
+      // Random gap position (where sword can pass through)
+      const gapCenterY = (Math.random() - 0.5) * 4; // Gap can be anywhere from -2 to +2
+      const topPillarHeight = 10 - gapCenterY - (PILLAR_GAP / 2);
+      const bottomPillarHeight = 10 + gapCenterY - (PILLAR_GAP / 2);
+      
+      // TOP PILLAR
+      const topGeometry = new THREE.CylinderGeometry(0.5, 0.5, topPillarHeight, 16);
+      const topMaterial = new THREE.MeshStandardMaterial({
         color: 0x8b00ff,
         emissive: 0x4400ff,
         emissiveIntensity: 0.8,
         metalness: 0.7,
         roughness: 0.3,
       });
-      const mesh = new THREE.Mesh(geometry, material);
+      const topMesh = new THREE.Mesh(topGeometry, topMaterial);
       
-      // Glow effect
-      const glowGeometry = new THREE.CylinderGeometry(0.5, 0.5, pillarLength, 16);
-      const glowMaterial = new THREE.MeshBasicMaterial({
+      // Top pillar glow
+      const topGlowGeometry = new THREE.CylinderGeometry(0.6, 0.6, topPillarHeight, 16);
+      const topGlowMaterial = new THREE.MeshBasicMaterial({
         color: 0xaa44ff,
         transparent: true,
         opacity: 0.4,
       });
-      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      const topGlowMesh = new THREE.Mesh(topGlowGeometry, topGlowMaterial);
       
-      // Position at top or bottom
-      const x = (Math.random() - 0.5) * 15;
-      const y = fromTop ? 12 : -12;
+      // BOTTOM PILLAR
+      const bottomGeometry = new THREE.CylinderGeometry(0.5, 0.5, bottomPillarHeight, 16);
+      const bottomMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8b00ff,
+        emissive: 0x4400ff,
+        emissiveIntensity: 0.8,
+        metalness: 0.7,
+        roughness: 0.3,
+      });
+      const bottomMesh = new THREE.Mesh(bottomGeometry, bottomMaterial);
       
-      mesh.position.set(x, y, 0);
-      glowMesh.position.set(x, y, 0);
-      sceneRef.current.add(mesh);
-      sceneRef.current.add(glowMesh);
+      // Bottom pillar glow
+      const bottomGlowGeometry = new THREE.CylinderGeometry(0.6, 0.6, bottomPillarHeight, 16);
+      const bottomGlowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xaa44ff,
+        transparent: true,
+        opacity: 0.4,
+      });
+      const bottomGlowMesh = new THREE.Mesh(bottomGlowGeometry, bottomGlowMaterial);
       
-      // Move towards center (extend inward)
-      const velocityY = fromTop ? -0.06 : 0.06;
+      // Position pillars - spawn from right side
+      const x = 15; // Far right
+      const topY = 10 - (topPillarHeight / 2);
+      const bottomY = -10 + (bottomPillarHeight / 2);
       
+      topMesh.position.set(x, topY, 0);
+      topGlowMesh.position.set(x, topY, 0);
+      bottomMesh.position.set(x, bottomY, 0);
+      bottomGlowMesh.position.set(x, bottomY, 0);
+      
+      sceneRef.current.add(topMesh);
+      sceneRef.current.add(topGlowMesh);
+      sceneRef.current.add(bottomMesh);
+      sceneRef.current.add(bottomGlowMesh);
+      
+      // Move LEFT like Flappy Bird pipes
+      const velocityX = -PILLAR_MOVE_SPEED;
+      
+      // Add TOP pillar
       enemiesRef.current.push({
-        mesh,
-        glowMesh,
+        mesh: topMesh,
+        glowMesh: topGlowMesh,
         x,
-        y,
-        velocityX: 0,
-        velocityY,
+        y: topY,
+        velocityX,
+        velocityY: 0,
         type: 'pillar',
-        health: 2,
+        health: 3,
+        rotation: 0,
+        pulsePhase: Math.random() * Math.PI * 2,
+      });
+      
+      // Add BOTTOM pillar
+      enemiesRef.current.push({
+        mesh: bottomMesh,
+        glowMesh: bottomGlowMesh,
+        x,
+        y: bottomY,
+        velocityX,
+        velocityY: 0,
+        type: 'pillar',
+        health: 3,
         rotation: 0,
         pulsePhase: Math.random() * Math.PI * 2,
       });
@@ -422,7 +493,8 @@ export default function BladeBounce3D({
           clearInterval(interval);
           setGameState('playing');
           playSound(800, 0.2);
-          lastSpawnRef.current = Date.now();
+          lastFireballSpawnRef.current = Date.now();
+          lastPillarSpawnRef.current = Date.now();
         }
       }, 1000);
     }
@@ -439,15 +511,16 @@ export default function BladeBounce3D({
       const centerY = rect.height / 2;
       const mouseY = e.clientY - rect.top;
       
-      // Calculate target Y position based on mouse Y (vertical movement)
+      // Direct cursor tracking - sword Y matches cursor Y exactly
       const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
       const newTargetY = -normalizedY * SWORD_Y_RANGE; // Invert for intuitive control
-      setTargetY(newTargetY);
       
-      // Debug logging (remove after testing)
-      if (Math.random() < 0.01) { // Log 1% of movements to avoid spam
-        console.log('🗡️ Vertical Movement:', { mouseY, normalizedY, targetY: newTargetY });
+      // Update sword position IMMEDIATELY for direct tracking
+      if (swordGroupRef.current) {
+        swordGroupRef.current.position.y = newTargetY;
       }
+      
+      setTargetY(newTargetY);
     };
     
     const handleClick = (e: MouseEvent) => {
@@ -495,16 +568,7 @@ export default function BladeBounce3D({
         const rotationStep = Math.max(-maxRotation, Math.min(maxRotation, angleDiff * 0.2));
         swordGroupRef.current.rotation.z += rotationStep;
         
-        // Vertical movement (mouse Y position)
-        const currentY = swordGroupRef.current.position.y;
-        const yDiff = targetY - currentY;
-        const yStep = yDiff * SWORD_MOVE_SPEED;
-        swordGroupRef.current.position.y += yStep;
-        
-        // Debug logging (remove after testing)
-        if (Math.abs(yStep) > 0.01 && Math.random() < 0.01) {
-          console.log('⬆️⬇️ Sword Y:', { currentY: currentY.toFixed(2), targetY: targetY.toFixed(2), yStep: yStep.toFixed(3) });
-        }
+        // Note: Vertical movement is now handled directly in handleMouseMove for instant tracking
         
         // Pulse danger zones
         dangerZonesRef.current.forEach((zone, i) => {
@@ -513,11 +577,16 @@ export default function BladeBounce3D({
         });
       }
       
-      // Spawn enemies - 70% fireballs, 30% pillars
-      if (now - lastSpawnRef.current > ENEMY_SPAWN_RATE) {
-        const type: 'fireball' | 'pillar' = Math.random() < 0.7 ? 'fireball' : 'pillar';
-        createEnemy(type);
-        lastSpawnRef.current = now;
+      // Spawn fireballs frequently
+      if (now - lastFireballSpawnRef.current > FIREBALL_SPAWN_RATE) {
+        createEnemy('fireball');
+        lastFireballSpawnRef.current = now;
+      }
+      
+      // Spawn pillar pairs periodically (like Flappy Bird)
+      if (now - lastPillarSpawnRef.current > PILLAR_SPAWN_RATE) {
+        createEnemy('pillar');
+        lastPillarSpawnRef.current = now;
       }
       
       // Update enemies
@@ -534,46 +603,76 @@ export default function BladeBounce3D({
           enemy.glowMesh.rotation.z = enemy.rotation;
         }
         
-        // ANIMATED EFFECTS
+        // ANIMATED FIRE EFFECTS
         if (enemy.type === 'fireball' && enemy.pulsePhase !== undefined) {
-          // Pulsing/flashing effect
-          enemy.pulsePhase += 0.15;
-          const pulse = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
-          const scale = 0.8 + pulse * 0.4; // 0.8 to 1.2
-          enemy.mesh.scale.set(scale, scale, scale);
+          // Fast flickering effect (like real fire)
+          enemy.pulsePhase += 0.25;
+          const flicker = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
+          const microFlicker = Math.sin(enemy.pulsePhase * 3.7) * 0.15; // High-frequency flicker
+          const scale = 0.9 + flicker * 0.3 + microFlicker; // 0.75 to 1.35
           
-          // Flash between orange and yellow
-          const emissiveIntensity = 1.0 + pulse * 0.8;
-          (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
+          enemy.mesh.scale.set(scale, scale * 1.1, scale); // Elongate vertically like flame
           
-          // Glow opacity flash
-          if (enemy.glowMesh) {
-            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 + pulse * 0.4;
-            enemy.glowMesh.scale.set(scale * 1.2, scale * 1.2, scale * 1.2);
+          // Access fire layers for individual animation
+          const fireGroup = enemy.mesh as THREE.Group;
+          if (fireGroup.children && fireGroup.children.length === 3) {
+            const [core, middle, outer] = fireGroup.children as THREE.Mesh[];
+            
+            // Animate each layer independently
+            // Core (white-hot center) - brightest flicker
+            (core.material as THREE.MeshBasicMaterial).opacity = 0.8 + flicker * 0.2;
+            core.scale.set(1 + microFlicker, 1 + microFlicker * 1.5, 1);
+            
+            // Middle (orange) - medium flicker
+            (middle.material as THREE.MeshBasicMaterial).opacity = 0.7 + flicker * 0.3;
+            middle.scale.set(1 + microFlicker * 0.5, 1 + microFlicker, 1);
+            
+            // Outer (red) - most volatile
+            (outer.material as THREE.MeshBasicMaterial).opacity = 0.5 + flicker * 0.4;
+            outer.scale.set(1 - microFlicker * 0.3, 1 + microFlicker * 0.7, 1);
           }
           
-          // Create fire trail particles (10% chance per frame)
-          if (Math.random() < 0.1 && sceneRef.current) {
-            const trailGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+          // Glow opacity flash (yellow aura)
+          if (enemy.glowMesh) {
+            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + flicker * 0.5;
+            enemy.glowMesh.scale.set(scale * 1.3, scale * 1.4, scale * 1.3);
+          }
+          
+          // Create fire trail particles (20% chance per frame for denser trail)
+          if (Math.random() < 0.2 && sceneRef.current) {
+            const trailSize = 0.1 + Math.random() * 0.15;
+            const trailGeometry = new THREE.SphereGeometry(trailSize, 6, 6);
+            // Randomize colors: white core, orange, red, yellow
+            const colors = [0xffffee, 0xff6600, 0xff2200, 0xffaa00];
+            const trailColor = colors[Math.floor(Math.random() * colors.length)];
             const trailMaterial = new THREE.MeshBasicMaterial({
-              color: Math.random() < 0.5 ? 0xff4400 : 0xffaa00,
+              color: trailColor,
               transparent: true,
-              opacity: 0.8,
+              opacity: 0.7,
             });
             const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-            trail.position.set(enemy.x, enemy.y, 0);
+            trail.position.set(
+              enemy.x + (Math.random() - 0.5) * 0.3,
+              enemy.y + (Math.random() - 0.5) * 0.3,
+              0
+            );
             sceneRef.current.add(trail);
             
-            // Add to trail array for cleanup
-            if (!enemy.trailParticles) enemy.trailParticles = [];
-            enemy.trailParticles.push(trail);
-            
-            // Remove trail after short time
-            setTimeout(() => {
-              if (sceneRef.current) {
-                sceneRef.current.remove(trail);
+            // Fade out trail
+            let trailLife = 0;
+            const fadeTrail = () => {
+              trailLife += 0.05;
+              if (trailLife < 1) {
+                (trail.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - trailLife);
+                trail.scale.multiplyScalar(0.95);
+                requestAnimationFrame(fadeTrail);
+              } else {
+                if (sceneRef.current) {
+                  sceneRef.current.remove(trail);
+                }
               }
-            }, 300);
+            };
+            fadeTrail();
           }
         } else if (enemy.type === 'pillar' && enemy.pulsePhase !== undefined) {
           // Pillar pulsing effect
