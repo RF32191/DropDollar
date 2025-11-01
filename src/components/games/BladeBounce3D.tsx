@@ -989,28 +989,30 @@ export default function BladeBounce3D({
         </div>
       )}
       
-      {/* Ready screen */}
+      {/* Ready screen - SCROLLABLE */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white">
-          <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
-            ⚔️ BLADE BOUNCE 3D
-          </h1>
-          <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
-          <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
-          <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
-            <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs</span> (10 pts) - Multi-layered fire</p>
-            <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts each!) - Rare, deadly, flashing red</p>
-            <p className="text-lg mb-2">🛡️ <span className="text-green-400">Blade</span> destroys enemies</p>
-            <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = LOSE HEART ❤️</span></p>
+        <div className="absolute inset-0 bg-black/70 text-white overflow-y-auto">
+          <div className="min-h-full flex flex-col items-center justify-start py-12 px-4">
+            <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
+              ⚔️ BLADE BOUNCE 3D
+            </h1>
+            <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
+            <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
+            <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
+              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs</span> (10 pts) - Multi-layered fire</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts each!) - Rare, deadly, flashing red</p>
+              <p className="text-lg mb-2">🛡️ <span className="text-green-400">Blade</span> destroys enemies</p>
+              <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = LOSE HEART ❤️</span></p>
+            </div>
+            <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
+            <p className="text-3xl font-bold text-yellow-400 mb-8 animate-pulse">{GAME_DURATION} seconds - Survive & Score!</p>
+            <button
+              onClick={startGame}
+              className="px-12 py-6 bg-cyan-500 hover:bg-cyan-600 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto mb-8"
+            >
+              START GAME
+            </button>
           </div>
-          <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
-          <p className="text-3xl font-bold text-yellow-400 mb-8 animate-pulse">{GAME_DURATION} seconds - Survive & Score!</p>
-          <button
-            onClick={startGame}
-            className="px-12 py-6 bg-cyan-500 hover:bg-cyan-600 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto"
-          >
-            START GAME
-          </button>
         </div>
       )}
       
