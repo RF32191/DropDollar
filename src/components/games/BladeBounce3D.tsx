@@ -27,6 +27,8 @@ interface Enemy3D {
   width?: number; // For laser width
   height?: number; // For laser height
   laserWarning?: THREE.Mesh; // Warning indicator before laser fires
+  isGreenFireball?: boolean; // Special high-value green fireball
+  basePoints?: number; // Base point value before precision multiplier
 }
 
 interface Particle3D {
@@ -285,11 +287,87 @@ export default function BladeBounce3D({
 
     if (type === 'fireball') {
       // ULTRA-REALISTIC FIRE SPRITE - Multi-layered with smoke and embers
+      // 20% chance for GREEN FIREBALL (high value)
+      const isGreen = Math.random() < 0.2;
       const fireballSize = 0.45 + Math.random() * 0.2;
+      
+      // Spawn from edges (needed for both types)
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const x = side * (10 + Math.random() * 5);
+      const y = (Math.random() - 0.5) * 8;
       
       // Create fire sprite group for layering
       const fireGroup = new THREE.Group();
       
+      if (isGreen) {
+        // GREEN FIREBALL - Special high-value
+        // Inner bright green core
+        const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.3, 16, 16);
+        const coreMaterial = new THREE.MeshBasicMaterial({
+          color: 0xeeffee,
+          transparent: true,
+          opacity: 0.9,
+        });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        fireGroup.add(core);
+        
+        // Middle lime layer
+        const middleGeometry = new THREE.SphereGeometry(fireballSize * 0.6, 20, 20);
+        const middleMaterial = new THREE.MeshBasicMaterial({
+          color: 0x66ff00,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const middle = new THREE.Mesh(middleGeometry, middleMaterial);
+        fireGroup.add(middle);
+        
+        // Outer green layer
+        const outerGeometry = new THREE.SphereGeometry(fireballSize, 24, 24);
+        const outerMaterial = new THREE.MeshBasicMaterial({
+          color: 0x00ff22,
+          transparent: true,
+          opacity: 0.6,
+        });
+        const outer = new THREE.Mesh(outerGeometry, outerMaterial);
+        fireGroup.add(outer);
+        
+        // Outer glow (bright green aura)
+        const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.5, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0x88ff00,
+          transparent: true,
+          opacity: 0.3,
+        });
+        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+        glowMesh.position.set(x, y, 0);
+        sceneRef.current.add(glowMesh);
+        
+        fireGroup.position.set(x, y, 0);
+        sceneRef.current.add(fireGroup);
+        
+        const speed = 0.06 + Math.random() * 0.04;
+        const velocityX = -side * speed;
+        const velocityY = (Math.random() - 0.5) * 0.03;
+        
+        enemiesRef.current.push({
+          mesh: fireGroup as any,
+          glowMesh,
+          x,
+          y,
+          velocityX,
+          velocityY,
+          type: 'fireball',
+          health: 1,
+          rotation: 0,
+          pulsePhase: Math.random() * Math.PI * 2,
+          trailParticles: [],
+          isGreenFireball: true,
+          basePoints: 25, // GREEN = 25 base points
+        });
+        return; // Exit early for green fireball
+      }
+      
+      // REGULAR ORANGE/RED FIREBALL
       // Inner white-hot core (brightest)
       const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.3, 16, 16);
       const coreMaterial = new THREE.MeshBasicMaterial({
@@ -356,6 +434,8 @@ export default function BladeBounce3D({
         rotation: 0,
         pulsePhase: Math.random() * Math.PI * 2,
         trailParticles: [],
+        isGreenFireball: false,
+        basePoints: 10, // ORANGE/RED = 10 base points
       });
     } else if (type === 'enemy_sword') {
       // ENEMY SWORDS - Horizontal scrolling with gap (like Flappy Bird)
@@ -818,9 +898,17 @@ export default function BladeBounce3D({
           if (Math.random() < 0.2 && sceneRef.current) {
             const trailSize = 0.1 + Math.random() * 0.15;
             const trailGeometry = new THREE.SphereGeometry(trailSize, 6, 6);
-            // Randomize colors: white core, orange, red, yellow
-            const colors = [0xffffee, 0xff6600, 0xff2200, 0xffaa00];
-            const trailColor = colors[Math.floor(Math.random() * colors.length)];
+            // Randomize colors based on fireball type
+            let trailColor;
+            if (enemy.isGreenFireball) {
+              // Green fireball trail: bright greens
+              const greenColors = [0xeeffee, 0x66ff00, 0x00ff22, 0x88ff00];
+              trailColor = greenColors[Math.floor(Math.random() * greenColors.length)];
+            } else {
+              // Orange/red fireball trail: fire colors
+              const fireColors = [0xffffee, 0xff6600, 0xff2200, 0xffaa00];
+              trailColor = fireColors[Math.floor(Math.random() * fireColors.length)];
+            }
             const trailMaterial = new THREE.MeshBasicMaterial({
               color: trailColor,
               transparent: true,
@@ -994,16 +1082,47 @@ export default function BladeBounce3D({
             enemy.health--;
             
             if (enemy.health <= 0) {
-              // DESTROYED!
-              const points = enemy.type === 'fireball' ? 10 : 35; // Enemy swords worth much more
-              setScore(prev => prev + points);
+              // DESTROYED! Calculate PRECISION DECIMAL SCORING
+              let points = 0;
+              
+              if (enemy.type === 'fireball') {
+                // PRECISION SCORING: Closer to blade TIP = more points
+                // Get blade tip position (top of blade, ~2 units up from center)
+                const bladeTipY = swordWorldPos.y + 2;
+                const bladeTipX = swordWorldPos.x;
+                
+                // Calculate distance from blade TIP to enemy
+                const tipDistance = Math.sqrt(
+                  Math.pow(enemy.x - bladeTipX, 2) +
+                  Math.pow(enemy.y - bladeTipY, 2)
+                );
+                
+                // Precision multiplier: 1.0x at far, up to 3.0x at perfect tip cut
+                // Max blade length is ~4 units, so distances 0-4
+                const maxDist = 4;
+                const normalizedDist = Math.min(tipDistance / maxDist, 1.0);
+                const precisionMultiplier = 1.0 + (1.0 - normalizedDist) * 2.0; // 1.0 to 3.0x
+                
+                // Base points * precision multiplier = decimal score
+                const basePoints = enemy.basePoints || 10;
+                points = basePoints * precisionMultiplier;
+                
+                // Particle color based on fireball type
+                const particleColor = enemy.isGreenFireball ? 0x00ff88 : 0xff8800;
+                createParticles(enemy.x, enemy.y, particleColor, 25);
+                
+                console.log(`🎯 Fireball destroyed! Base: ${basePoints}, Tip dist: ${tipDistance.toFixed(2)}, Multiplier: ${precisionMultiplier.toFixed(2)}x, Points: ${points.toFixed(2)}`);
+              } else if (enemy.type === 'enemy_sword') {
+                // Enemy swords: flat 35 points (already high value)
+                points = 35;
+                createParticles(enemy.x, enemy.y, 0xff0000, 25);
+                console.log('⚔️ Enemy sword destroyed: +35 points');
+              }
+              
+              setScore(prev => parseFloat((prev + points).toFixed(2)));
               setEnemiesDestroyed(prev => prev + 1);
               
               playSound(800, 0.15, 'sine');
-              const particleColor = enemy.type === 'fireball' ? 0xff8800 : 0xff0000;
-              createParticles(enemy.x, enemy.y, particleColor, 25);
-              
-              console.log('⚔️ Enemy destroyed:', enemy.type, '+' + points + ' points');
               
               // Cleanup
               if (sceneRef.current) {
@@ -1181,10 +1300,11 @@ export default function BladeBounce3D({
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs</span> (10 pts) - Realistic multi-layered fire with trails</p>
-              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts each!) - Rare pairs, flashing red blades</p>
-              <p className="text-lg mb-2">⚡ <span className="text-red-500">Neon Lasers</span> - Indestructible! Warning flash then AVOID!</p>
-              <p className="text-lg mb-2">🛡️ <span className="text-green-400">Your Blade</span> destroys fireballs & swords</p>
+              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-30 pts) - Tip cuts = 3x multiplier!</p>
+              <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-75 pts!) - RARE! Tip cuts = huge points!</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts) - Rare pairs, flashing red</p>
+              <p className="text-lg mb-2">⚡ <span className="text-red-500">Neon Lasers</span> - Warning flash then AVOID!</p>
+              <p className="text-lg mb-2">🎯 <span className="text-yellow-400">PRECISION</span> = Decimal scores for fair competition!</p>
               <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = LOSE HEART ❤️</span></p>
             </div>
             <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
