@@ -63,6 +63,21 @@ export default function SimpleRegisterPage() {
       return;
     }
 
+    // PHONE NUMBER VERIFICATION - Required for identity protection
+    if (!formData.phone || formData.phone.trim() === '') {
+      setError('Phone number is required for account security and identity verification.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate phone number format (basic US format)
+    const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      setError('Please enter a valid phone number (e.g., 555-123-4567 or (555) 123-4567).');
+      setIsSubmitting(false);
+      return;
+    }
+
     // AGE VERIFICATION - Required for legal compliance
     if (!formData.dateOfBirth) {
       setError('Date of birth is required for age verification.');
@@ -115,23 +130,21 @@ export default function SimpleRegisterPage() {
         }
       }
 
-      // Check phone number if provided
-      if (formData.phone) {
-        const phoneCheckResponse = await fetch('/api/auth/check-phone', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ phone: formData.phone }),
-        });
+      // Check phone number (REQUIRED for all new accounts)
+      const phoneCheckResponse = await fetch('/api/auth/check-phone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone: formData.phone }),
+      });
 
-        if (phoneCheckResponse.ok) {
-          const phoneCheckData = await phoneCheckResponse.json();
-          if (phoneCheckData.exists) {
-            setError('An account with this phone number already exists. Please use a different phone number.');
-            setIsSubmitting(false);
-            return;
-          }
+      if (phoneCheckResponse.ok) {
+        const phoneCheckData = await phoneCheckResponse.json();
+        if (phoneCheckData.exists) {
+          setError('❌ This phone number is already registered. Please use a different phone number or try signing in.');
+          setIsSubmitting(false);
+          return;
         }
       }
     } catch (error) {
@@ -346,7 +359,8 @@ export default function SimpleRegisterPage() {
 
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
-                Phone number
+                Phone number <span className="text-red-400">*</span>
+                <span className="text-xs text-gray-400 ml-2">(Required for account security)</span>
               </label>
               <input
                 id="phone"
@@ -354,10 +368,14 @@ export default function SimpleRegisterPage() {
                 type="tel"
                 value={formData.phone}
                 onChange={handleInputChange}
+                required
                 className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
                 placeholder="+1 (555) 123-4567"
                 disabled={isSubmitting}
               />
+              <p className="mt-1 text-xs text-gray-400">
+                🔒 Your phone number is used for identity verification and account security
+              </p>
             </div>
 
             <div>
