@@ -19,11 +19,14 @@ interface Enemy3D {
   y: number;
   velocityX: number;
   velocityY: number;
-  type: 'fireball' | 'enemy_sword';
+  type: 'fireball' | 'enemy_sword' | 'laser';
   health: number;
   rotation: number;
   pulsePhase?: number; // For animated pulsing
   trailParticles?: THREE.Mesh[]; // Particle trail for fireballs
+  width?: number; // For laser width
+  height?: number; // For laser height
+  laserWarning?: THREE.Mesh; // Warning indicator before laser fires
 }
 
 interface Particle3D {
@@ -47,6 +50,7 @@ const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° click
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
 const FIREBALL_SPAWN_RATE = 1800; // ms between fireball spawns (SLOWER - gradual difficulty)
 const ENEMY_SWORD_SPAWN_RATE = 5000; // ms between enemy sword spawns (RARE)
+const LASER_SPAWN_RATE = 3500; // ms between laser spawns (RANDOM)
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
 const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
@@ -54,6 +58,9 @@ const SWORD_MOVE_SPEED = 1.0; // Direct cursor tracking (was 0.35)
 const SWORD_Y_RANGE = 10; // Large vertical range
 const ENEMY_SWORD_GAP = 7; // Gap between top and bottom enemy swords
 const ENEMY_SWORD_SPEED = 0.06; // Horizontal movement speed (slower for skill)
+const LASER_WARNING_TIME = 1000; // ms warning before laser fires
+const LASER_ACTIVE_TIME = 800; // ms laser stays active
+const LASER_WIDTH = 0.4; // Laser beam width
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -70,6 +77,7 @@ export default function BladeBounce3D({
   const clockRef = useRef(new THREE.Clock());
   const lastFireballSpawnRef = useRef<number>(0);
   const lastEnemySwordSpawnRef = useRef<number>(0);
+  const lastLaserSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
@@ -271,13 +279,13 @@ export default function BladeBounce3D({
     };
   }, []);
 
-  // Create enemy - FIREBALLS and ENEMY SWORDS
-  const createEnemy = useCallback((type: 'fireball' | 'enemy_sword') => {
+  // Create enemy - FIREBALLS, ENEMY SWORDS, and LASERS
+  const createEnemy = useCallback((type: 'fireball' | 'enemy_sword' | 'laser') => {
     if (!sceneRef.current) return;
 
     if (type === 'fireball') {
-      // ULTRA-REALISTIC FIRE SPRITE - Multi-layered with distortion
-      const fireballSize = 0.5 + Math.random() * 0.25;
+      // ULTRA-REALISTIC FIRE SPRITE - Multi-layered with smoke and embers
+      const fireballSize = 0.45 + Math.random() * 0.2;
       
       // Create fire sprite group for layering
       const fireGroup = new THREE.Group();
@@ -499,8 +507,113 @@ export default function BladeBounce3D({
         rotation: 0,
         pulsePhase: Math.random() * Math.PI * 2,
       });
+    } else if (type === 'laser') {
+      // ADVANCED NEON RED LASER - Horizontal or Vertical with warning
+      const isHorizontal = Math.random() < 0.5;
+      const position = (Math.random() - 0.5) * 16; // Random position along axis
+      
+      // CREATE WARNING INDICATOR (flashing before laser fires)
+      const warningGeometry = isHorizontal 
+        ? new THREE.PlaneGeometry(25, 0.15) 
+        : new THREE.PlaneGeometry(0.15, 25);
+      const warningMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide,
+      });
+      const warning = new THREE.Mesh(warningGeometry, warningMaterial);
+      
+      if (isHorizontal) {
+        warning.position.set(0, position, 0);
+      } else {
+        warning.position.set(position, 0, 0);
+      }
+      
+      sceneRef.current.add(warning);
+      
+      // CREATE LASER BEAM (will be activated after warning)
+      const laserGeometry = isHorizontal 
+        ? new THREE.PlaneGeometry(25, LASER_WIDTH) 
+        : new THREE.PlaneGeometry(LASER_WIDTH, 25);
+      const laserMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+      });
+      const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+      
+      if (isHorizontal) {
+        laser.position.set(0, position, 0.1);
+      } else {
+        laser.position.set(position, 0, 0.1);
+      }
+      
+      sceneRef.current.add(laser);
+      
+      // CREATE NEON GLOW EFFECT (outer glow)
+      const glowGeometry = isHorizontal 
+        ? new THREE.PlaneGeometry(25, LASER_WIDTH * 3) 
+        : new THREE.PlaneGeometry(LASER_WIDTH * 3, 25);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff4444,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      
+      if (isHorizontal) {
+        glow.position.set(0, position, 0.05);
+      } else {
+        glow.position.set(position, 0, 0.05);
+      }
+      
+      sceneRef.current.add(glow);
+      
+      // Add laser to enemies array
+      enemiesRef.current.push({
+        mesh: laser,
+        glowMesh: glow,
+        laserWarning: warning,
+        x: isHorizontal ? 0 : position,
+        y: isHorizontal ? position : 0,
+        velocityX: 0,
+        velocityY: 0,
+        type: 'laser',
+        health: 999, // Indestructible
+        rotation: 0,
+        pulsePhase: 0, // Used for timing
+        width: isHorizontal ? 25 : LASER_WIDTH,
+        height: isHorizontal ? LASER_WIDTH : 25,
+      });
+      
+      // Schedule laser activation
+      setTimeout(() => {
+        // Activate laser
+        (laser.material as THREE.MeshBasicMaterial).opacity = 0.9;
+        (glow.material as THREE.MeshBasicMaterial).opacity = 0.5;
+        
+        // Remove warning
+        if (sceneRef.current) {
+          sceneRef.current.remove(warning);
+        }
+        
+        playSound(800, 0.2, 'square');
+        
+        // Deactivate and remove laser after duration
+        setTimeout(() => {
+          const enemy = enemiesRef.current.find(e => e.mesh === laser);
+          if (enemy && sceneRef.current) {
+            sceneRef.current.remove(laser);
+            sceneRef.current.remove(glow);
+            enemiesRef.current = enemiesRef.current.filter(e => e.mesh !== laser);
+          }
+        }, LASER_ACTIVE_TIME);
+      }, LASER_WARNING_TIME);
     }
-  }, []);
+  }, [playSound]);
 
   // Create particle effect
   const createParticles = useCallback((x: number, y: number, color: number, count: number) => {
@@ -551,6 +664,7 @@ export default function BladeBounce3D({
           playSound(800, 0.2);
           lastFireballSpawnRef.current = Date.now();
           lastEnemySwordSpawnRef.current = Date.now();
+          lastLaserSpawnRef.current = Date.now();
         }
       }, 1000);
     }
@@ -643,6 +757,12 @@ export default function BladeBounce3D({
       if (now - lastEnemySwordSpawnRef.current > ENEMY_SWORD_SPAWN_RATE) {
         createEnemy('enemy_sword');
         lastEnemySwordSpawnRef.current = now;
+      }
+      
+      // Spawn lasers randomly (mixed timing for unpredictability)
+      if (now - lastLaserSpawnRef.current > LASER_SPAWN_RATE) {
+        createEnemy('laser');
+        lastLaserSpawnRef.current = now;
       }
       
       // Update enemies
@@ -750,10 +870,72 @@ export default function BladeBounce3D({
           if (enemy.glowMesh) {
             (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + flash * 0.5;
           }
+        } else if (enemy.type === 'laser') {
+          // Laser warning animation (flashing before activation)
+          if (enemy.laserWarning && sceneRef.current.children.includes(enemy.laserWarning)) {
+            enemy.pulsePhase += 0.3; // Fast warning flash
+            const warningFlash = Math.sin(enemy.pulsePhase) * 0.5 + 0.5;
+            (enemy.laserWarning.material as THREE.MeshBasicMaterial).opacity = 0.2 + warningFlash * 0.6;
+          }
+          
+          // Active laser pulsing (when active)
+          if ((enemy.mesh.material as THREE.MeshBasicMaterial).opacity > 0) {
+            enemy.pulsePhase += 0.2;
+            const laserPulse = Math.sin(enemy.pulsePhase * 2) * 0.5 + 0.5;
+            (enemy.mesh.material as THREE.MeshBasicMaterial).opacity = 0.85 + laserPulse * 0.15;
+            
+            // Glow intensity pulse
+            if (enemy.glowMesh) {
+              (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.4 + laserPulse * 0.3;
+            }
+          }
+        }
+        
+        // LASER COLLISION - Rectangle hitbox (accurate)
+        if (enemy.type === 'laser' && (enemy.mesh.material as THREE.MeshBasicMaterial).opacity > 0 && swordGroupRef.current) {
+          // Get sword handle position (danger zones)
+          let hitLaser = false;
+          
+          dangerZonesRef.current.forEach(zone => {
+            const zoneWorldPos = new THREE.Vector3();
+            zone.getWorldPosition(zoneWorldPos);
+            
+            // Rectangle collision detection for laser
+            const halfWidth = (enemy.width || 0) / 2;
+            const halfHeight = (enemy.height || 0) / 2;
+            
+            const inXRange = Math.abs(zoneWorldPos.x - enemy.x) < halfWidth + DANGER_ZONE_SIZE;
+            const inYRange = Math.abs(zoneWorldPos.y - enemy.y) < halfHeight + DANGER_ZONE_SIZE;
+            
+            if (inXRange && inYRange) {
+              hitLaser = true;
+            }
+          });
+          
+          if (hitLaser) {
+            // Hit laser - lose heart
+            setHearts(prev => {
+              const newHearts = prev - 1;
+              console.log('⚡ LASER HIT! Hearts remaining:', newHearts);
+              if (newHearts <= 0) {
+                setGameState('ended');
+              }
+              return newHearts;
+            });
+            playSound(150, 0.4, 'sawtooth');
+            
+            // Flash effect
+            if (sceneRef.current && enemy.glowMesh) {
+              (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 1.0;
+            }
+            
+            // Don't remove laser, just register hit
+            return true;
+          }
         }
         
         // Check collision with danger zones (handle only) - BIGGER HIT RADIUS
-        if (swordGroupRef.current) {
+        if (swordGroupRef.current && enemy.type !== 'laser') {
           let hitDangerZone = false;
           
           dangerZonesRef.current.forEach(zone => {
@@ -999,9 +1181,10 @@ export default function BladeBounce3D({
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs</span> (10 pts) - Multi-layered fire</p>
-              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts each!) - Rare, deadly, flashing red</p>
-              <p className="text-lg mb-2">🛡️ <span className="text-green-400">Blade</span> destroys enemies</p>
+              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs</span> (10 pts) - Realistic multi-layered fire with trails</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts each!) - Rare pairs, flashing red blades</p>
+              <p className="text-lg mb-2">⚡ <span className="text-red-500">Neon Lasers</span> - Indestructible! Warning flash then AVOID!</p>
+              <p className="text-lg mb-2">🛡️ <span className="text-green-400">Your Blade</span> destroys fireballs & swords</p>
               <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = LOSE HEART ❤️</span></p>
             </div>
             <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
