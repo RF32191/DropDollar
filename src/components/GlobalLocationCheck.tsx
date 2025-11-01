@@ -54,10 +54,10 @@ export default function GlobalLocationCheck({
         setConfirmationMessage(`✅ Location verified! Gaming allowed in ${globalLocation.data.state}. You can now participate in competitions.`);
         setShowConfirmationBanner(true);
         
-        // Hide banner after 10 seconds
+        // Hide banner after 30 seconds
         setTimeout(() => {
           setShowConfirmationBanner(false);
-        }, 10000);
+        }, 30000);
         
         onLocationVerified?.();
       } else {
@@ -66,10 +66,10 @@ export default function GlobalLocationCheck({
         setConfirmationMessage(`❌ Gaming not allowed in ${globalLocation.data.state}. Skill-based gaming is restricted in your location.`);
         setShowConfirmationBanner(true);
         
-        // Hide banner after 10 seconds
+        // Hide banner after 30 seconds
         setTimeout(() => {
           setShowConfirmationBanner(false);
-        }, 10000);
+        }, 30000);
       }
     } else if (globalLocation.status === 'denied') {
       // Show denied banner for denied permission
@@ -77,10 +77,10 @@ export default function GlobalLocationCheck({
       setConfirmationMessage('❌ Location access denied. Some features may be unavailable.');
       setShowConfirmationBanner(true);
       
-      // Hide banner after 10 seconds
+      // Hide banner after 30 seconds
       setTimeout(() => {
         setShowConfirmationBanner(false);
-      }, 10000);
+      }, 30000);
       
       onLocationDenied?.();
     }
