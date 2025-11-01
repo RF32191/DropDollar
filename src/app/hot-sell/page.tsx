@@ -711,9 +711,9 @@ export default function HotSellPage() {
     }).format(amount);
   };
 
-  const getProgressPercent = (currentPot: number, maxParticipants: number, entryFee: number) => {
-    const targetPot = maxParticipants * entryFee;
-    return Math.min((currentPot / targetPot) * 100, 100);
+  const getProgressPercent = (participantsCount: number, maxParticipants: number) => {
+    // Progress based on number of players joined, not pot amount
+    return Math.min((participantsCount / maxParticipants) * 100, 100);
   };
 
   const calculatePrizes = (config: HotSellConfig, currentPot: number) => {
@@ -962,7 +962,7 @@ export default function HotSellPage() {
             const hasPlayed = session.participants.some(p => p.user_id === user?.id && p.score !== null);
             const isCompleted = session.status === 'completed';
             const isFull = session.participants_count >= config.max_participants;
-            const progressPercent = getProgressPercent(session.current_pot, config.max_participants, config.entry_fee);
+            const progressPercent = getProgressPercent(session.participants_count, config.max_participants);
             const prizes = calculatePrizes(config, session.current_pot);
 
             // User's score
