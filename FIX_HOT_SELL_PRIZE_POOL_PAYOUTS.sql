@@ -299,7 +299,7 @@ BEGIN
   RETURN json_build_object(
     'success', true,
     'message', 'Payout successful',
-    'pot', v_total_pool,
+    'pool', v_total_pool,
     'winners', json_build_array(
       json_build_object(
         'rank', 1,

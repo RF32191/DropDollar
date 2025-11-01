@@ -614,7 +614,7 @@ export default function HotSellPage() {
       successMsg += winners.map((w: any) => 
         `${['🥇', '🥈', '🥉'][w.rank - 1]} ${w.username} ($${w.prize.toFixed(2)})`
       ).join(', ');
-      successMsg += ` - Prize Pool: $${data.pot.toFixed(2)} - Listing reset!`;
+      successMsg += ` - Prize Pool: $${data.pool.toFixed(2)} - Listing reset!`;
       
       setMessage({ type: 'success', text: successMsg });
       
