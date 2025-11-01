@@ -410,11 +410,7 @@ export default function BladeBounce3D({
       });
       const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
       
-      // Spawn from edges
-      const side = Math.random() < 0.5 ? -1 : 1;
-      const x = side * (10 + Math.random() * 5);
-      const y = (Math.random() - 0.5) * 8;
-      
+      // Position using variables already declared at top
       fireGroup.position.set(x, y, 0);
       glowMesh.position.set(x, y, 0);
       sceneRef.current.add(fireGroup);
