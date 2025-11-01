@@ -14,13 +14,16 @@ import * as THREE from 'three';
 
 interface Enemy3D {
   mesh: THREE.Mesh;
+  glowMesh?: THREE.Mesh; // For fireball glow effect
   x: number;
   y: number;
   velocityX: number;
   velocityY: number;
-  type: 'small' | 'medium' | 'large';
+  type: 'fireball' | 'pillar';
   health: number;
   rotation: number;
+  pulsePhase?: number; // For animated pulsing
+  trailParticles?: THREE.Mesh[]; // Particle trail for fireballs
 }
 
 interface Particle3D {
@@ -40,12 +43,14 @@ interface BladeBounce3DProps {
 }
 
 const GAME_DURATION = 60;
-const SWORD_ROTATION_SPEED = 0.08; // Faster rotation for click-based
+const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° clicks
+const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
 const ENEMY_SPAWN_RATE = 800; // ms between spawns
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
-const DANGER_ZONE_SIZE = 0.45; // MUCH LARGER danger zones (was 0.12, then 0.25)
-const SWORD_MOVE_SPEED = 0.25; // Faster vertical movement
-const SWORD_Y_RANGE = 8; // Larger vertical range
+const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
+const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
+const SWORD_MOVE_SPEED = 0.35; // Fast, smooth vertical movement
+const SWORD_Y_RANGE = 10; // Large vertical range
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -262,48 +267,112 @@ export default function BladeBounce3D({
     };
   }, []);
 
-  // Create enemy
-  const createEnemy = useCallback((type: 'small' | 'medium' | 'large') => {
+  // Create enemy - FIREBALLS and PILLARS
+  const createEnemy = useCallback((type: 'fireball' | 'pillar') => {
     if (!sceneRef.current) return;
 
-    const sizes = { small: 0.3, medium: 0.5, large: 0.7 };
-    const colors = { small: 0xff4444, medium: 0xff8844, large: 0xff44ff };
-    const health = { small: 1, medium: 2, large: 3 };
-    
-    const geometry = new THREE.SphereGeometry(sizes[type], 16, 16);
-    const material = new THREE.MeshStandardMaterial({
-      color: colors[type],
-      emissive: colors[type],
-      emissiveIntensity: 0.4,
-      metalness: 0.5,
-      roughness: 0.3,
-    });
-    
-    const mesh = new THREE.Mesh(geometry, material);
-    
-    // Spawn from edges
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const x = side * (10 + Math.random() * 5);
-    const y = (Math.random() - 0.5) * 8;
-    
-    mesh.position.set(x, y, 0);
-    sceneRef.current.add(mesh);
-    
-    // Velocity towards center with some randomness
-    const speed = 0.03 + Math.random() * 0.02;
-    const velocityX = -side * speed;
-    const velocityY = (Math.random() - 0.5) * 0.01;
-    
-    enemiesRef.current.push({
-      mesh,
-      x,
-      y,
-      velocityX,
-      velocityY,
-      type,
-      health: health[type],
-      rotation: 0,
-    });
+    if (type === 'fireball') {
+      // ANIMATED FIREBALL - realistic fire effect
+      const fireballSize = 0.4 + Math.random() * 0.3;
+      
+      // Core fireball
+      const geometry = new THREE.SphereGeometry(fireballSize, 32, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xff4400,
+        emissive: 0xff6600,
+        emissiveIntensity: 1.5,
+        metalness: 0,
+        roughness: 0.2,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      
+      // Glowing outer layer
+      const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.4, 32, 32);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff8800,
+        transparent: true,
+        opacity: 0.5,
+      });
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      
+      // Spawn from edges
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const x = side * (10 + Math.random() * 5);
+      const y = (Math.random() - 0.5) * 8;
+      
+      mesh.position.set(x, y, 0);
+      glowMesh.position.set(x, y, 0);
+      sceneRef.current.add(mesh);
+      sceneRef.current.add(glowMesh);
+      
+      // Fast velocity towards sword
+      const speed = 0.05 + Math.random() * 0.03;
+      const velocityX = -side * speed;
+      const velocityY = (Math.random() - 0.5) * 0.02;
+      
+      enemiesRef.current.push({
+        mesh,
+        glowMesh,
+        x,
+        y,
+        velocityX,
+        velocityY,
+        type: 'fireball',
+        health: 1,
+        rotation: 0,
+        pulsePhase: Math.random() * Math.PI * 2,
+        trailParticles: [],
+      });
+    } else if (type === 'pillar') {
+      // DEADLY PILLARS - spawn from top or bottom
+      const fromTop = Math.random() < 0.5;
+      const pillarLength = 3 + Math.random() * 2;
+      
+      // Pillar geometry (cylinder)
+      const geometry = new THREE.CylinderGeometry(0.4, 0.4, pillarLength, 16);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x8b00ff,
+        emissive: 0x4400ff,
+        emissiveIntensity: 0.8,
+        metalness: 0.7,
+        roughness: 0.3,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      
+      // Glow effect
+      const glowGeometry = new THREE.CylinderGeometry(0.5, 0.5, pillarLength, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xaa44ff,
+        transparent: true,
+        opacity: 0.4,
+      });
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      
+      // Position at top or bottom
+      const x = (Math.random() - 0.5) * 15;
+      const y = fromTop ? 12 : -12;
+      
+      mesh.position.set(x, y, 0);
+      glowMesh.position.set(x, y, 0);
+      sceneRef.current.add(mesh);
+      sceneRef.current.add(glowMesh);
+      
+      // Move towards center (extend inward)
+      const velocityY = fromTop ? -0.06 : 0.06;
+      
+      enemiesRef.current.push({
+        mesh,
+        glowMesh,
+        x,
+        y,
+        velocityX: 0,
+        velocityY,
+        type: 'pillar',
+        health: 2,
+        rotation: 0,
+        pulsePhase: Math.random() * Math.PI * 2,
+      });
+    }
   }, []);
 
   // Create particle effect
@@ -384,21 +453,14 @@ export default function BladeBounce3D({
     const handleClick = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      
-      // Big rotation step on click
-      const angle = Math.atan2(mouseY - centerY, mouseX - centerX);
-      setTargetAngle(angle + Math.PI / 2); // Adjust for sword orientation
+      // Rotate 45 degrees per click
+      setTargetAngle(prev => prev + ROTATION_STEP);
       setIsRotating(true);
       
       // Visual feedback
-      playSound(600, 50, 'square');
+      playSound(700, 0.08, 'square');
+      
+      console.log('🗡️ Click rotation: +45°');
     };
     
     window.addEventListener('mousemove', handleMouseMove);
@@ -451,10 +513,9 @@ export default function BladeBounce3D({
         });
       }
       
-      // Spawn enemies
+      // Spawn enemies - 70% fireballs, 30% pillars
       if (now - lastSpawnRef.current > ENEMY_SPAWN_RATE) {
-        const types: ('small' | 'medium' | 'large')[] = ['small', 'small', 'medium', 'large'];
-        const type = types[Math.floor(Math.random() * types.length)];
+        const type: 'fireball' | 'pillar' = Math.random() < 0.7 ? 'fireball' : 'pillar';
         createEnemy(type);
         lastSpawnRef.current = now;
       }
@@ -467,7 +528,67 @@ export default function BladeBounce3D({
         enemy.mesh.position.set(enemy.x, enemy.y, 0);
         enemy.mesh.rotation.z = enemy.rotation;
         
-        // Check collision with danger zones (handle only)
+        // Update glow mesh position
+        if (enemy.glowMesh) {
+          enemy.glowMesh.position.set(enemy.x, enemy.y, 0);
+          enemy.glowMesh.rotation.z = enemy.rotation;
+        }
+        
+        // ANIMATED EFFECTS
+        if (enemy.type === 'fireball' && enemy.pulsePhase !== undefined) {
+          // Pulsing/flashing effect
+          enemy.pulsePhase += 0.15;
+          const pulse = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
+          const scale = 0.8 + pulse * 0.4; // 0.8 to 1.2
+          enemy.mesh.scale.set(scale, scale, scale);
+          
+          // Flash between orange and yellow
+          const emissiveIntensity = 1.0 + pulse * 0.8;
+          (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
+          
+          // Glow opacity flash
+          if (enemy.glowMesh) {
+            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 + pulse * 0.4;
+            enemy.glowMesh.scale.set(scale * 1.2, scale * 1.2, scale * 1.2);
+          }
+          
+          // Create fire trail particles (10% chance per frame)
+          if (Math.random() < 0.1 && sceneRef.current) {
+            const trailGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const trailMaterial = new THREE.MeshBasicMaterial({
+              color: Math.random() < 0.5 ? 0xff4400 : 0xffaa00,
+              transparent: true,
+              opacity: 0.8,
+            });
+            const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+            trail.position.set(enemy.x, enemy.y, 0);
+            sceneRef.current.add(trail);
+            
+            // Add to trail array for cleanup
+            if (!enemy.trailParticles) enemy.trailParticles = [];
+            enemy.trailParticles.push(trail);
+            
+            // Remove trail after short time
+            setTimeout(() => {
+              if (sceneRef.current) {
+                sceneRef.current.remove(trail);
+              }
+            }, 300);
+          }
+        } else if (enemy.type === 'pillar' && enemy.pulsePhase !== undefined) {
+          // Pillar pulsing effect
+          enemy.pulsePhase += 0.1;
+          const pulse = Math.sin(enemy.pulsePhase) * 0.5 + 0.5;
+          const emissiveIntensity = 0.6 + pulse * 0.4;
+          (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = emissiveIntensity;
+          
+          // Glow flash
+          if (enemy.glowMesh) {
+            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulse * 0.3;
+          }
+        }
+        
+        // Check collision with danger zones (handle only) - BIGGER HIT RADIUS
         if (swordGroupRef.current) {
           let hitDangerZone = false;
           
@@ -480,8 +601,10 @@ export default function BladeBounce3D({
               Math.pow(enemy.y - zoneWorldPos.y, 2)
             );
             
-            if (distance < 0.3) {
+            // Much larger hit detection radius
+            if (distance < DANGER_ZONE_HIT_RADIUS) {
               hitDangerZone = true;
+              console.log('💥 DANGER ZONE HIT! Distance:', distance.toFixed(2), 'Type:', enemy.type);
             }
           });
           
@@ -489,6 +612,7 @@ export default function BladeBounce3D({
             // Hit danger zone - lose heart
             setHearts(prev => {
               const newHearts = prev - 1;
+              console.log('❤️ Heart lost! Remaining:', newHearts);
               if (newHearts <= 0) {
                 setGameState('ended');
               }
@@ -497,13 +621,17 @@ export default function BladeBounce3D({
             playSound(200, 0.3, 'sawtooth');
             createParticles(enemy.x, enemy.y, 0xff0000, 20);
             
+            // Cleanup enemy and glow
             if (sceneRef.current) {
               sceneRef.current.remove(enemy.mesh);
+              if (enemy.glowMesh) {
+                sceneRef.current.remove(enemy.glowMesh);
+              }
             }
             return false;
           }
           
-          // Check collision with blade (rest of sword)
+          // Check collision with blade (rest of sword) - CAN DESTROY ENEMIES
           const swordWorldPos = new THREE.Vector3();
           swordGroupRef.current.getWorldPosition(swordWorldPos);
           
@@ -514,25 +642,35 @@ export default function BladeBounce3D({
           const projection = toEnemy.dot(swordDir);
           const perpDist = Math.abs(toEnemy.x * swordDir.y - toEnemy.y * swordDir.x);
           
-          if (projection > -2 && projection < 2 && perpDist < 0.4) {
-            // Hit blade - destroy enemy
+          // Larger blade hitbox for better gameplay
+          if (projection > -2.5 && projection < 2.5 && perpDist < 0.6) {
+            // Hit blade - damage enemy
             enemy.health--;
             
             if (enemy.health <= 0) {
-              const points = { small: 10, medium: 20, large: 30 }[enemy.type];
+              // DESTROYED!
+              const points = enemy.type === 'fireball' ? 15 : 25; // Pillars worth more
               setScore(prev => prev + points);
               setEnemiesDestroyed(prev => prev + 1);
               
               playSound(800, 0.15, 'sine');
-              createParticles(enemy.x, enemy.y, 0x00ff00, 15);
+              const particleColor = enemy.type === 'fireball' ? 0xff8800 : 0xaa44ff;
+              createParticles(enemy.x, enemy.y, particleColor, 20);
               
+              console.log('⚔️ Enemy destroyed:', enemy.type, '+' + points + ' points');
+              
+              // Cleanup
               if (sceneRef.current) {
                 sceneRef.current.remove(enemy.mesh);
+                if (enemy.glowMesh) {
+                  sceneRef.current.remove(enemy.glowMesh);
+                }
               }
               return false;
             } else {
-              // Damaged but not destroyed - change color
-              (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8;
+              // Damaged but not destroyed - flash
+              (enemy.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.5;
+              playSound(700, 0.1, 'square');
             }
           }
         }
@@ -541,6 +679,9 @@ export default function BladeBounce3D({
         if (Math.abs(enemy.x) > 20 || Math.abs(enemy.y) > 15) {
           if (sceneRef.current) {
             sceneRef.current.remove(enemy.mesh);
+            if (enemy.glowMesh) {
+              sceneRef.current.remove(enemy.glowMesh);
+            }
           }
           return false;
         }
@@ -676,10 +817,13 @@ export default function BladeBounce3D({
           <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
             ⚔️ BLADE BOUNCE 3D
           </h1>
-          <p className="text-2xl mb-4">Move mouse to rotate sword</p>
+          <p className="text-2xl mb-4">🖱️ Move mouse vertically to move sword up/down</p>
+          <p className="text-2xl mb-4">🖱️ Click anywhere to rotate 45°</p>
+          <p className="text-xl mb-4">🔥 Fireballs (15 pts) - fast and flashing!</p>
+          <p className="text-xl mb-4">⚡ Pillars (25 pts) - from top/bottom</p>
           <p className="text-xl mb-4">🛡️ Blade destroys enemies</p>
-          <p className="text-xl mb-4">⚠️ Red zones (handle) = lose heart</p>
-          <p className="text-xl mb-4">❤️ 3 hearts - don't let enemies touch handle!</p>
+          <p className="text-xl mb-4 text-red-400">⚠️ Red circles (handle) = LOSE HEART ❤️</p>
+          <p className="text-xl mb-4">❤️ 3 hearts - protect the handle!</p>
           <p className="text-3xl font-bold text-yellow-400 mb-8">{GAME_DURATION} seconds - Survive!</p>
           <button
             onClick={startGame}
