@@ -11,6 +11,17 @@
 DO $$ 
 BEGIN
   RAISE NOTICE '📱 Setting up Phone Number Security System...';
+  
+  -- Check if public.users table exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'users'
+  ) THEN
+    RAISE EXCEPTION 'ERROR: public.users table does not exist! Please create it first or check your schema.';
+  END IF;
+  
+  RAISE NOTICE '✓ public.users table exists';
 END $$;
 
 -- =========================================================
@@ -19,17 +30,24 @@ END $$;
 
 DO $$ 
 BEGIN
-  -- Add phone column if it doesn't exist
+  -- Check if phone column exists in public.users
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'users' 
+    WHERE table_schema = 'public'
+    AND table_name = 'users' 
     AND column_name = 'phone'
   ) THEN
+    -- Add phone column
     ALTER TABLE public.users ADD COLUMN phone TEXT;
-    RAISE NOTICE '✅ Added phone column to users table';
+    RAISE NOTICE '✅ Added phone column to public.users table';
   ELSE
-    RAISE NOTICE '✓ Phone column already exists';
+    RAISE NOTICE '✓ Phone column already exists in public.users';
   END IF;
+  
+  -- Also ensure it exists in auth.users metadata if using Supabase auth
+  -- Note: Supabase stores additional user data in public.users, not auth.users
+  -- The auth.users table is managed by Supabase and we shouldn't modify it
+  
 END $$;
 
 -- =========================================================
