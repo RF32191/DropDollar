@@ -120,6 +120,7 @@ export default function CashStackGame3D({
   const nextSpeedBoostRef = useRef<number>(5);
   const currentSpeedMultiplierRef = useRef<number>(1);
   const coinAlignmentLineRef = useRef<THREE.Line | null>(null);
+  const lastStackTimeRef = useRef<number>(0);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -564,8 +565,9 @@ export default function CashStackGame3D({
       }
       
       const bonus = stackedBlocksRef.current.length * 300;
-      setScore(prev => prev + bonus);
+      setScore(prev => parseFloat((prev + bonus).toFixed(2)));
       setExplosions(prev => prev + 1);
+      console.log(`💥 EXPLOSION! Blocks: ${stackedBlocksRef.current.length}, Bonus: ${bonus.toFixed(2)}`);
       
       setTimeout(() => {
         const baseBlock = createBlock(0, 0, INITIAL_SIZE, INITIAL_SIZE, 0, 'x');
@@ -712,9 +714,38 @@ export default function CashStackGame3D({
       }, 2000);
     }
     
-    // Update score
-    setScore(prev => prev + 3 + Math.floor(stackedBlocksRef.current.length / 2));
+    // DECIMAL SCORING BASED ON DROP SPEED
+    const now = performance.now();
+    const timeSinceLastStack = lastStackTimeRef.current > 0 ? (now - lastStackTimeRef.current) / 1000 : 0;
+    lastStackTimeRef.current = now;
+    
+    // Base points
+    let basePoints = 3 + Math.floor(stackedBlocksRef.current.length / 2);
+    
+    // Speed multiplier: Faster drops = more points (decimal precision)
+    // Very fast (< 0.5s) = 2.0x, Fast (< 1s) = 1.5x, Normal (< 2s) = 1.2x, Slow (>= 2s) = 1.0x
+    let speedMultiplier = 1.0;
+    if (timeSinceLastStack > 0) {
+      if (timeSinceLastStack < 0.5) {
+        speedMultiplier = 2.0;
+      } else if (timeSinceLastStack < 1.0) {
+        // Linear interpolation between 2.0 and 1.5
+        speedMultiplier = 2.0 - ((timeSinceLastStack - 0.5) / 0.5) * 0.5;
+      } else if (timeSinceLastStack < 2.0) {
+        // Linear interpolation between 1.5 and 1.2
+        speedMultiplier = 1.5 - ((timeSinceLastStack - 1.0) / 1.0) * 0.3;
+      } else {
+        // Linear decay from 1.2 to 1.0
+        speedMultiplier = Math.max(1.0, 1.2 - ((timeSinceLastStack - 2.0) / 3.0) * 0.2);
+      }
+    }
+    
+    const finalPoints = basePoints * speedMultiplier;
+    
+    setScore(prev => parseFloat((prev + finalPoints).toFixed(2)));
     setTowerHeight(stackedBlocksRef.current.length);
+    
+    console.log(`📦 Stack! Time: ${timeSinceLastStack.toFixed(3)}s, Base: ${basePoints}, Speed: ${speedMultiplier.toFixed(2)}x, Points: ${finalPoints.toFixed(2)}`);
     
     // Random speed boost at intervals
     if (stackedBlocksRef.current.length >= nextSpeedBoostRef.current) {
@@ -800,9 +831,10 @@ export default function CashStackGame3D({
         
         if (distX < 0.5 && distZ < 0.5 && distY < 0.3) {
           // Coin hit the dollar sign!
-          setScore(prev => prev + BONUS_COIN_POINTS);
+          setScore(prev => parseFloat((prev + BONUS_COIN_POINTS).toFixed(2)));
           playSound(2000, 0.3, 'sine');
           createParticles(coin.mesh.position.x, coin.y, coin.mesh.position.z, 50);
+          console.log(`🪙 Bonus coin collected! +${BONUS_COIN_POINTS}`);
           
           if (sceneRef.current) {
             sceneRef.current.remove(coin.mesh);
@@ -955,9 +987,10 @@ export default function CashStackGame3D({
           
           if (distance < CHALLENGE_HIT_RADIUS) {
             // Perfect catch!
-            setScore(prev => prev + CHALLENGE_COIN_POINTS);
+            setScore(prev => parseFloat((prev + CHALLENGE_COIN_POINTS).toFixed(2)));
             playSound(2500, 0.2, 'sine');
             createParticles(coin.x, coin.mesh.position.y, coin.z, 80);
+            console.log(`⚡ Challenge coin caught! +${CHALLENGE_COIN_POINTS}`);
             
             if (sceneRef.current) {
               sceneRef.current.remove(coin.mesh);
@@ -1059,9 +1092,11 @@ export default function CashStackGame3D({
             {currentVariation.name}
           </p>
           <p className="text-xl mb-2">Stack blocks by clicking or pressing SPACE</p>
+          <p className="text-lg mb-2">⚡ <span className="text-yellow-400">FAST STACKING = BONUS POINTS!</span></p>
+          <p className="text-lg mb-2">⏱️ &lt;0.5s = 2.0x | &lt;1s = 1.5x | &lt;2s = 1.2x</p>
+          <p className="text-lg mb-2">🎯 <span className="text-green-400">Decimal scores</span> prevent ties!</p>
           <p className="text-lg mb-2">Align $ signs for 💥 EXPLOSION BONUS!</p>
-          <p className="text-lg mb-2">🪙 Catch falling bonus coins (+500pts)</p>
-          <p className="text-lg mb-6">⚡ Catch fast challenge coins (+500pts)</p>
+          <p className="text-lg mb-6">🪙 Catch coins (+500pts)</p>
           
           <div className="grid grid-cols-4 gap-2 mb-6 max-h-64 overflow-y-auto p-4">
             {GAME_VARIATIONS.map(variation => (
