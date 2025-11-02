@@ -89,7 +89,6 @@ export default function BladeBounce3D({
   const [targetX, setTargetX] = useState(0);
   const [targetY, setTargetY] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
-  const [isExtremeMode, setIsExtremeMode] = useState(false);
   
   // Audio
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -665,7 +664,6 @@ export default function BladeBounce3D({
           lastFireballSpawnRef.current = Date.now();
           lastEnemySwordSpawnRef.current = Date.now();
           extremeModeTriggeredRef.current = false; // Reset for new game
-          setIsExtremeMode(false); // Reset state
         }
       }, 1000);
     }
@@ -779,10 +777,9 @@ export default function BladeBounce3D({
         lastEnemySwordSpawnRef.current = now;
       }
       
-      // Update extreme mode state for visual effects (trigger once)
+      // Play sound when extreme mode activates (once)
       if (shouldBeExtreme && !extremeModeTriggeredRef.current) {
         extremeModeTriggeredRef.current = true;
-        setIsExtremeMode(true);
         playSound(1000, 0.3, 'sawtooth');
         console.log('🔥 EXTREME MODE ACTIVATED!');
       }
@@ -1175,7 +1172,7 @@ export default function BladeBounce3D({
         </div>
         
         {/* EXTREME MODE INDICATOR */}
-        {isExtremeMode && gameState === 'playing' && (
+        {gameState === 'playing' && gameTimer <= 10 && (
           <div className="mt-4 text-center animate-pulse">
             <div className="text-red-500 text-5xl font-black drop-shadow-[0_0_20px_rgba(255,0,0,0.8)]">
               🔥 EXTREME MODE 🔥
