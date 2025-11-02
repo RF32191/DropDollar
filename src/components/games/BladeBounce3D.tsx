@@ -64,6 +64,7 @@ const HEART_BONUS_POINTS = 100; // Points per heart remaining at end
 export default function BladeBounce3D({
   onGameEnd,
   onExit,
+  isCompetitionMode = false,
 }: BladeBounce3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -79,7 +80,10 @@ export default function BladeBounce3D({
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   const extremeModeTriggeredRef = useRef<boolean>(false);
   
-  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  // In competition mode, skip ready screen and countdown - start playing immediately
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>(
+    isCompetitionMode ? 'playing' : 'ready'
+  );
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
