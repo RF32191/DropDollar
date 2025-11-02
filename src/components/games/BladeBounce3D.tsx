@@ -60,6 +60,8 @@ const SWORD_Y_RANGE = 10; // Vertical movement range
 const ENEMY_SWORD_GAP = 7; // Gap between top and bottom enemy swords
 const ENEMY_SWORD_SPEED = 0.06; // Horizontal movement speed (slower for skill)
 const HEART_BONUS_POINTS = 100; // Points per heart remaining at end
+const BLADE_TIP_THRESHOLD = 1.5; // Projection distance for "tip" hits
+const BLADE_TIP_MULTIPLIER = 5.0; // Max multiplier for perfect tip hits (was 3.0)
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -812,13 +814,15 @@ export default function BladeBounce3D({
         });
       }
       
-      // PROGRESSIVE DIFFICULTY - Spawn rates increase every 10 seconds
+      // PROGRESSIVE DIFFICULTY - Spawn rates increase every 10 seconds (MORE AGGRESSIVE)
       const difficultyTier = Math.floor(timeElapsed / DIFFICULTY_RAMP_INTERVAL);
       const shouldBeExtreme = timeElapsed >= EXTREME_MODE_START;
       
-      // Calculate current spawn rates (faster as game progresses)
-      const fireballRate = Math.max(600, FIREBALL_SPAWN_RATE_START - (difficultyTier * 200));
-      const swordRate = Math.max(3000, ENEMY_SWORD_SPAWN_RATE_START - (difficultyTier * 800));
+      // Calculate current spawn rates (MUCH faster as game progresses)
+      // Tier 0: 1800ms, Tier 1: 1500ms, Tier 2: 1200ms, Tier 3: 900ms, Tier 4: 600ms (min)
+      const fireballRate = Math.max(600, FIREBALL_SPAWN_RATE_START - (difficultyTier * 300));
+      // Tier 0: 8000ms, Tier 1: 6800ms, Tier 2: 5600ms, Tier 3: 4400ms, Tier 4: 3200ms, Tier 5: 2000ms (min)
+      const swordRate = Math.max(2000, ENEMY_SWORD_SPAWN_RATE_START - (difficultyTier * 1200));
       
       // EXTREME MODE: Last 10 seconds - spawn rate DOUBLES!
       const extremeMultiplier = shouldBeExtreme ? 0.5 : 1.0;
@@ -1015,18 +1019,27 @@ export default function BladeBounce3D({
           const projection = toEnemy.dot(swordDir);
           const perpDist = Math.abs(toEnemy.x * swordDir.y - toEnemy.y * swordDir.x);
           
+          // Check for TIP HIT first (more precise, instant kill)
+          const isTipHit = projection >= BLADE_TIP_THRESHOLD && projection <= 3 && perpDist < 0.6;
+          
           // FULL SWORD HITBOX - from tip to hilt (entire 4+ unit blade length)
           // Projection: -3 (hilt) to +3 (tip), perpDist: 1.0 (wide enough for entire blade)
           if (projection > -3 && projection < 3 && perpDist < 1.0) {
-            // Hit blade - damage enemy
-            enemy.health--;
+            // TIP HITS = Instant kill! Blade hits = normal damage
+            const damageAmount = isTipHit ? 999 : 1;
+            enemy.health -= damageAmount;
+            
+            // Visual feedback for tip hits
+            if (isTipHit && enemy.health > 0) {
+              playSound(1200, 0.1, 'sine'); // High-pitched "ting" sound
+            }
             
             if (enemy.health <= 0) {
               // DESTROYED! Calculate PRECISION DECIMAL SCORING
               let points = 0;
               
               if (enemy.type === 'fireball') {
-                // PRECISION SCORING: Closer to blade TIP = more points
+                // PRECISION SCORING: Closer to blade TIP = MUCH more points
                 // Get blade tip position (top of blade, ~2 units up from center)
                 const bladeTipY = swordWorldPos.y + 2;
                 const bladeTipX = swordWorldPos.x;
@@ -1037,26 +1050,39 @@ export default function BladeBounce3D({
                   Math.pow(enemy.y - bladeTipY, 2)
                 );
                 
-                // Precision multiplier: 1.0x at far, up to 3.0x at perfect tip cut
+                // ENHANCED Precision multiplier: 1.0x at far, up to 5.0x at perfect tip cut!
                 // Max blade length is ~4 units, so distances 0-4
                 const maxDist = 4;
                 const normalizedDist = Math.min(tipDistance / maxDist, 1.0);
-                const precisionMultiplier = 1.0 + (1.0 - normalizedDist) * 2.0; // 1.0 to 3.0x
+                
+                // Exponential scaling for better rewards at tip
+                // Perfect tip (0.0 dist) = 5.0x, Mid blade (0.5 dist) = 2.5x, Base (1.0 dist) = 1.0x
+                const precisionMultiplier = 1.0 + (1.0 - normalizedDist) * (BLADE_TIP_MULTIPLIER - 1.0);
                 
                 // Base points * precision multiplier = decimal score
                 const basePoints = enemy.basePoints || 10;
                 points = basePoints * precisionMultiplier;
                 
-                // Particle color based on fireball type
+                // Particle color and count based on fireball type and precision
                 const particleColor = enemy.isGreenFireball ? 0x00ff88 : 0xff8800;
-                createParticles(enemy.x, enemy.y, particleColor, 25);
+                const particleCount = isTipHit ? 40 : 25; // More particles for tip hits
+                createParticles(enemy.x, enemy.y, particleColor, particleCount);
                 
-                console.log(`🎯 Fireball destroyed! Base: ${basePoints}, Tip dist: ${tipDistance.toFixed(2)}, Multiplier: ${precisionMultiplier.toFixed(2)}x, Points: ${points.toFixed(2)}`);
+                // Special sound for perfect tip hits
+                if (isTipHit) {
+                  playSound(1400, 0.15, 'sine'); // Extra high-pitched success sound
+                }
+                
+                const hitType = isTipHit ? '🎯 TIP HIT!' : 'Blade hit';
+                console.log(`${hitType} Fireball destroyed! Base: ${basePoints}, Tip dist: ${tipDistance.toFixed(2)}, Multiplier: ${precisionMultiplier.toFixed(2)}x, Points: ${points.toFixed(2)}`);
               } else if (enemy.type === 'enemy_sword') {
-                // Enemy swords: flat 35 points (already high value)
-                points = 35;
-                createParticles(enemy.x, enemy.y, 0xff0000, 25);
-                console.log('⚔️ Enemy sword destroyed: +35 points');
+                // Enemy swords: More points for tip hits
+                const basePoints = 35;
+                points = isTipHit ? basePoints * 1.5 : basePoints; // 52.5 pts for tip hits!
+                createParticles(enemy.x, enemy.y, 0xff0000, isTipHit ? 40 : 25);
+                
+                const hitType = isTipHit ? '🎯 TIP HIT!' : '';
+                console.log(`⚔️ ${hitType} Enemy sword destroyed: +${points.toFixed(2)} points`);
               }
               
               setScore(prev => parseFloat((prev + points).toFixed(2)));
@@ -1271,9 +1297,10 @@ export default function BladeBounce3D({
             <p className="text-3xl mb-4 text-cyan-300 font-bold">🖱️ FULL MOUSE CONTROL - Sword follows cursor anywhere!</p>
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-30 pts) - Tip cuts = 3x multiplier!</p>
-              <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-75 pts!) - RARE! Tip cuts = huge points!</p>
-              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts) - VERY RARE pairs, flashing red</p>
+              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-50 pts) - Tip cuts = 5x multiplier!</p>
+              <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-125 pts!) - RARE! Tip cuts = MASSIVE points!</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35-52.5 pts) - VERY RARE pairs, tip bonus!</p>
+              <p className="text-lg mb-2">🎯 <span className="text-cyan-400 font-bold">TIP HITS = INSTANT KILL + MAX POINTS!</span></p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400">PRECISION</span> = Decimal scores for fair competition!</p>
               <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = vulnerable spot</span></p>
               <p className="text-lg mb-2 text-purple-400">💚 <span className="font-bold">HEART BONUS</span> = +{HEART_BONUS_POINTS} pts per heart at end!</p>
