@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
 import { useFullscreenGame } from '@/hooks/useFullscreenGame';
+import { GameSession } from '@/types/gameSession';
 import LaserDodgeGame from '@/components/games/LaserDodgeGame';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
@@ -37,7 +38,7 @@ export default function CompetitionGameFlow({
   onCancel 
 }: CompetitionGameFlowProps) {
   const { user } = useAuth();
-  const [gameState, setGameState] = useState<'countdown' | 'playing' | 'completed' | 'error'>('countdown');
+  const [gameState, setGameState] = useState<'loading' | 'countdown' | 'playing' | 'completed' | 'error'>('loading');
   const [countdown, setCountdown] = useState(3);
   const [gameScore, setGameScore] = useState(0);
   const [gameAccuracy, setGameAccuracy] = useState(0);
@@ -45,9 +46,55 @@ export default function CompetitionGameFlow({
   const [participants, setParticipants] = useState<any[]>([]);
   const [userRanking, setUserRanking] = useState(0);
   const [prizeWon, setPrizeWon] = useState(0);
+  const [gameSession, setGameSession] = useState<GameSession | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Enable fullscreen when game is playing
   const fullscreenRef = useFullscreenGame(gameState === 'playing');
+
+  // Request game session on component mount
+  useEffect(() => {
+    const requestGameSession = async () => {
+      try {
+        console.log('🔐 [CompetitionGameFlow] Requesting game session...', {
+          gameType,
+          sessionId,
+          entryNumber: 1
+        });
+        
+        const response = await fetch('/api/game-session/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameType,
+            listingId: sessionId,
+            entryNumber: 1
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create game session');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success || !data.session) {
+          throw new Error('Invalid session response');
+        }
+        
+        console.log('✅ [CompetitionGameFlow] Game session created:', data.session);
+        setGameSession(data.session);
+        setGameState('countdown'); // Move to countdown after session is created
+        
+      } catch (error) {
+        console.error('❌ [CompetitionGameFlow] Failed to create game session:', error);
+        setErrorMessage('Failed to start game. Please try again.');
+        setGameState('error');
+      }
+    };
+    
+    requestGameSession();
+  }, [gameType, sessionId]);
 
   useEffect(() => {
     // Start countdown only when gameState is 'countdown'
@@ -205,7 +252,10 @@ export default function CompetitionGameFlow({
       onExit: onCancel, // Add onExit prop for games that need it (like BladeBounce)
       isCompetitionMode: true,
       gameDuration: 60, // 60 seconds for competitions
-      rngSeed: rngSeed // Use the assigned RNG seed for this listing
+      rngSeed: rngSeed, // Use the assigned RNG seed for this listing
+      gameSession: gameSession || undefined, // Pass game session for server-side validation
+      listingId: sessionId,
+      entryNumber: 1
     };
 
     switch (gameType) {
@@ -238,6 +288,19 @@ export default function CompetitionGameFlow({
     }
   };
 
+  if (gameState === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-8">{getGameTitle()}</h1>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-400 mx-auto mb-8"></div>
+          <p className="text-xl text-gray-300">🔐 Initializing secure game session...</p>
+          <p className="text-sm text-gray-400 mt-2">Creating cryptographic tokens for anti-cheat validation</p>
+        </div>
+      </div>
+    );
+  }
+
   if (gameState === 'countdown') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
@@ -247,6 +310,7 @@ export default function CompetitionGameFlow({
             {countdown}
           </div>
           <p className="text-xl text-gray-300">Game starting in {countdown} seconds...</p>
+          <p className="text-sm text-gray-400 mt-2">✅ Session secured and validated</p>
         </div>
       </div>
     );
@@ -355,10 +419,12 @@ export default function CompetitionGameFlow({
   if (gameState === 'error') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto px-4">
           <ExclamationTriangleIcon className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-4">Error</h1>
-          <p className="text-gray-300 mb-6">There was an error saving your game result.</p>
+          <p className="text-gray-300 mb-6">
+            {errorMessage || 'There was an error with your game session.'}
+          </p>
           <button
             onClick={onCancel}
             className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300"

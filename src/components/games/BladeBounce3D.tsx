@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
+import { GameInput, GameSession } from '@/types/gameSession';
 
 /**
  * BLADE BOUNCE 3D - Professional WebGL Sword Defense Game
@@ -10,6 +11,7 @@ import * as THREE from 'three';
  * - 3 hearts system with visual feedback
  * - Realistic physics and smooth animations
  * - Multiple enemy types with varied behaviors
+ * - SERVER-SIDE VALIDATION with input recording for anti-cheat
  */
 
 interface Enemy3D {
@@ -45,6 +47,7 @@ interface BladeBounce3DProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   gameId?: string;
+  gameSession?: GameSession; // For server-side validation
 }
 
 const GAME_DURATION = 60;
@@ -79,11 +82,13 @@ export default function BladeBounce3D({
   onGameEnd,
   onExit,
   isCompetitionMode = false,
+  gameSession,
 }: BladeBounce3DProps) {
   console.log('🎯 [BladeBounce3D] Component initialized', {
     isCompetitionMode,
     hasOnGameEnd: !!onGameEnd,
-    hasOnExit: !!onExit
+    hasOnExit: !!onExit,
+    hasGameSession: !!gameSession
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,6 +105,11 @@ export default function BladeBounce3D({
   const lastLaserSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   const extremeModeTriggeredRef = useRef<boolean>(false);
+  
+  // Input recording for server-side validation
+  const inputsRef = useRef<GameInput[]>([]);
+  const gameStartTimeRef = useRef<number>(0);
+  const isValidatingRef = useRef<boolean>(false);
   
   // In competition mode, skip ready screen and countdown - start playing immediately
   const initialGameState = isCompetitionMode ? 'playing' : 'ready';
@@ -850,14 +860,31 @@ export default function BladeBounce3D({
           clearInterval(interval);
           setGameState('playing');
           playSound(800, 0.2);
-          lastFireballSpawnRef.current = Date.now();
-          lastEnemySwordSpawnRef.current = Date.now();
-          lastLaserSpawnRef.current = Date.now();
+          const now = Date.now();
+          lastFireballSpawnRef.current = now;
+          lastEnemySwordSpawnRef.current = now;
+          lastLaserSpawnRef.current = now;
+          gameStartTimeRef.current = now; // Start input recording
+          inputsRef.current = []; // Clear inputs
           extremeModeTriggeredRef.current = false; // Reset for new game
+          console.log('🎯 [BladeBounce3D] Started input recording at', now);
         }
       }, 1000);
     }
   }, [gameState, playSound]);
+
+  // Initialize game start time for competition mode (starts immediately in 'playing' state)
+  useEffect(() => {
+    if (gameState === 'playing' && gameStartTimeRef.current === 0) {
+      const now = Date.now();
+      gameStartTimeRef.current = now;
+      inputsRef.current = [];
+      lastFireballSpawnRef.current = now;
+      lastEnemySwordSpawnRef.current = now;
+      lastLaserSpawnRef.current = now;
+      console.log('🎯 [BladeBounce3D] Competition mode: Started input recording at', now);
+    }
+  }, [gameState]);
 
   // Mouse control - VERTICAL MOVEMENT + CLICK ROTATION
   useEffect(() => {
@@ -883,6 +910,18 @@ export default function BladeBounce3D({
       const newTargetX = normalizedX * SWORD_X_RANGE; // Horizontal movement
       const newTargetY = -normalizedY * SWORD_Y_RANGE; // Invert for intuitive control
       
+      // Record input for server-side validation
+      if (gameSession && gameStartTimeRef.current > 0) {
+        inputsRef.current.push({
+          timestamp: Date.now() - gameStartTimeRef.current,
+          type: 'move',
+          data: {
+            x: normalizedX * 100, // Normalize to 0-100 range
+            y: normalizedY * 100
+          }
+        });
+      }
+      
       // Update sword position IMMEDIATELY for direct tracking
       if (swordGroupRef.current) {
         swordGroupRef.current.position.x = newTargetX;
@@ -896,6 +935,17 @@ export default function BladeBounce3D({
     const handleClick = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       e.preventDefault();
+      
+      // Record input for server-side validation
+      if (gameSession && gameStartTimeRef.current > 0) {
+        inputsRef.current.push({
+          timestamp: Date.now() - gameStartTimeRef.current,
+          type: 'rotate',
+          data: {
+            angle: targetAngle + ROTATION_STEP
+          }
+        });
+      }
       
       // Rotate 45 degrees per click
       setTargetAngle(prev => prev + ROTATION_STEP);
@@ -926,6 +976,18 @@ export default function BladeBounce3D({
       const newTargetX = normalizedX * SWORD_X_RANGE;
       const newTargetY = -normalizedY * SWORD_Y_RANGE;
       
+      // Record input for server-side validation
+      if (gameSession && gameStartTimeRef.current > 0) {
+        inputsRef.current.push({
+          timestamp: Date.now() - gameStartTimeRef.current,
+          type: 'move',
+          data: {
+            x: normalizedX * 100,
+            y: normalizedY * 100
+          }
+        });
+      }
+      
       if (swordGroupRef.current) {
         swordGroupRef.current.position.x = newTargetX;
         swordGroupRef.current.position.y = newTargetY;
@@ -938,6 +1000,17 @@ export default function BladeBounce3D({
     const handleTouchStart = (e: TouchEvent) => {
       if (gameState !== 'playing') return;
       e.preventDefault();
+      
+      // Record input for server-side validation
+      if (gameSession && gameStartTimeRef.current > 0) {
+        inputsRef.current.push({
+          timestamp: Date.now() - gameStartTimeRef.current,
+          type: 'rotate',
+          data: {
+            angle: targetAngle + ROTATION_STEP
+          }
+        });
+      }
       
       // Rotate on tap
       setTargetAngle(prev => prev + ROTATION_STEP);
@@ -1495,14 +1568,16 @@ export default function BladeBounce3D({
     return () => clearInterval(interval);
   }, [gameState]);
 
-  // Handle game end with HEART BONUS
+  // Handle game end with HEART BONUS and server-side validation
   useEffect(() => {
-    if (gameState === 'ended') {
+    if (gameState === 'ended' && !isValidatingRef.current) {
+      isValidatingRef.current = true; // Prevent double submission
       playSound(300, 1, 'triangle');
       
       // Calculate heart bonus
       const heartBonus = hearts * HEART_BONUS_POINTS;
       const finalScore = parseFloat((score + heartBonus).toFixed(2));
+      const finalAccuracy = enemiesDestroyed > 0 ? Math.min(100, (enemiesDestroyed / (enemiesDestroyed + (3 - hearts))) * 100) : 0;
       
       // Update score with heart bonus
       if (heartBonus > 0) {
@@ -1510,14 +1585,67 @@ export default function BladeBounce3D({
         console.log(`💚 HEART BONUS: +${heartBonus} points (${hearts} hearts × ${HEART_BONUS_POINTS})`);
       }
       
-      setTimeout(() => {
-        onGameEnd({
-          score: finalScore,
-          accuracy: enemiesDestroyed > 0 ? Math.min(100, (enemiesDestroyed / (enemiesDestroyed + (3 - hearts))) * 100) : 0,
-        });
+      setTimeout(async () => {
+        // If gameSession is provided, validate server-side
+        if (gameSession) {
+          console.log('🔒 [BladeBounce3D] Submitting game for server-side validation...', {
+            sessionId: gameSession.sessionId,
+            inputCount: inputsRef.current.length,
+            clientScore: finalScore,
+            duration: Date.now() - gameStartTimeRef.current
+          });
+          
+          try {
+            const response = await fetch('/api/game-session/validate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: gameSession.sessionId,
+                token: gameSession.token,
+                inputs: inputsRef.current,
+                clientScore: finalScore,
+                clientAccuracy: finalAccuracy,
+                duration: Date.now() - gameStartTimeRef.current
+              })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok || !result.valid) {
+              console.error('❌ [BladeBounce3D] Validation failed:', result.reason);
+              alert(`Game validation failed: ${result.reason || 'Unknown error'}. Please try again.`);
+              if (onExit) onExit();
+              return;
+            }
+            
+            console.log('✅ [BladeBounce3D] Game validated successfully:', {
+              serverScore: result.serverScore,
+              clientScore: finalScore,
+              scoreDiff: Math.abs(result.serverScore - finalScore),
+              suspicionScore: result.suspicionScore
+            });
+            
+            // Use server-validated score
+            onGameEnd({
+              score: result.serverScore,
+              accuracy: result.accuracy || finalAccuracy,
+            });
+          } catch (error) {
+            console.error('❌ [BladeBounce3D] Validation error:', error);
+            alert('Failed to validate game. Please check your connection and try again.');
+            if (onExit) onExit();
+          }
+        } else {
+          // No validation required (practice mode)
+          console.log('🎮 [BladeBounce3D] Practice mode - no validation required');
+          onGameEnd({
+            score: finalScore,
+            accuracy: finalAccuracy,
+          });
+        }
       }, 2000);
     }
-  }, [gameState, score, enemiesDestroyed, hearts, onGameEnd, playSound]);
+  }, [gameState, score, enemiesDestroyed, hearts, onGameEnd, playSound, gameSession, onExit]);
 
   // Keyboard control
   useEffect(() => {
