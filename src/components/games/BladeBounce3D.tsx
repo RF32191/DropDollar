@@ -619,10 +619,10 @@ export default function BladeBounce3D({
       const isHorizontal = Math.random() < 0.5;
       const position = (Math.random() - 0.5) * 16; // Random position along axis
       
-      // CREATE WARNING INDICATOR (flashing line)
+      // CREATE WARNING INDICATOR (flashing line) - FULL SCREEN
       const warningGeometry = isHorizontal 
-        ? new THREE.PlaneGeometry(25, 0.15) 
-        : new THREE.PlaneGeometry(0.15, 25);
+        ? new THREE.PlaneGeometry(50, 0.15) // Full horizontal span
+        : new THREE.PlaneGeometry(0.15, 50); // Full vertical span
       const warningMaterial = new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
@@ -639,10 +639,10 @@ export default function BladeBounce3D({
       
       sceneRef.current.add(warning);
       
-      // CREATE LASER BEAM (will be activated after warning)
+      // CREATE LASER BEAM (will be activated after warning) - FULL SCREEN
       const laserGeometry = isHorizontal 
-        ? new THREE.PlaneGeometry(25, LASER_WIDTH) 
-        : new THREE.PlaneGeometry(LASER_WIDTH, 25);
+        ? new THREE.PlaneGeometry(50, LASER_WIDTH) // Full horizontal span
+        : new THREE.PlaneGeometry(LASER_WIDTH, 50); // Full vertical span
       const laserMaterial = new THREE.MeshBasicMaterial({
         color: 0xff0000,
         transparent: true,
@@ -659,10 +659,10 @@ export default function BladeBounce3D({
       
       sceneRef.current.add(laser);
       
-      // CREATE NEON GLOW EFFECT (outer glow)
+      // CREATE NEON GLOW EFFECT (outer glow) - FULL SCREEN
       const glowGeometry = isHorizontal 
-        ? new THREE.PlaneGeometry(25, LASER_WIDTH * 3) 
-        : new THREE.PlaneGeometry(LASER_WIDTH * 3, 25);
+        ? new THREE.PlaneGeometry(50, LASER_WIDTH * 3) // Full horizontal span
+        : new THREE.PlaneGeometry(LASER_WIDTH * 3, 50); // Full vertical span
       const glowMaterial = new THREE.MeshBasicMaterial({
         color: 0xff4444,
         transparent: true,
@@ -692,8 +692,8 @@ export default function BladeBounce3D({
         health: 999, // Indestructible
         rotation: 0,
         pulsePhase: 0,
-        width: isHorizontal ? 25 : LASER_WIDTH,
-        height: isHorizontal ? LASER_WIDTH : 25,
+        width: isHorizontal ? 50 : LASER_WIDTH,
+        height: isHorizontal ? LASER_WIDTH : 50,
         laserActive: false,
       });
       
@@ -1099,7 +1099,7 @@ export default function BladeBounce3D({
             return false;
           }
           
-          // Check collision with blade (rest of sword) - CAN DESTROY ENEMIES
+          // Check collision with blade (ENTIRE SWORD - tip to hilt) - CAN DESTROY ENEMIES
           const swordWorldPos = new THREE.Vector3();
           swordGroupRef.current.getWorldPosition(swordWorldPos);
           
@@ -1110,8 +1110,9 @@ export default function BladeBounce3D({
           const projection = toEnemy.dot(swordDir);
           const perpDist = Math.abs(toEnemy.x * swordDir.y - toEnemy.y * swordDir.x);
           
-          // Larger blade hitbox for better gameplay
-          if (projection > -2.5 && projection < 2.5 && perpDist < 0.6) {
+          // FULL SWORD HITBOX - from tip to hilt (entire 4+ unit blade length)
+          // Projection: -3 (hilt) to +3 (tip), perpDist: 1.0 (wide enough for entire blade)
+          if (projection > -3 && projection < 3 && perpDist < 1.0) {
             // Hit blade - damage enemy
             enemy.health--;
             
