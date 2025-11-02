@@ -152,9 +152,52 @@ export default function BladeBounce3D({
 
     console.log('📐 [BladeBounce3D] Container size:', { width, height });
 
-    // Scene
+    // Scene with ANIMATED GRADIENT BACKGROUND
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0e1a);
+    
+    // Create animated gradient background using a large plane
+    const bgGeometry = new THREE.PlaneGeometry(50, 50);
+    const bgMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color1: { value: new THREE.Color(0x0a0520) }, // Deep purple
+        color2: { value: new THREE.Color(0x1a0a30) }, // Dark purple
+        color3: { value: new THREE.Color(0x0a1030) }, // Deep blue
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color1;
+        uniform vec3 color2;
+        uniform vec3 color3;
+        varying vec2 vUv;
+        
+        void main() {
+          vec2 uv = vUv;
+          float wave1 = sin(uv.x * 3.0 + time * 0.5) * 0.5 + 0.5;
+          float wave2 = cos(uv.y * 4.0 - time * 0.3) * 0.5 + 0.5;
+          float wave3 = sin((uv.x + uv.y) * 2.0 + time * 0.7) * 0.5 + 0.5;
+          
+          vec3 color = mix(color1, color2, wave1);
+          color = mix(color, color3, wave2 * wave3);
+          
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+      depthWrite: false,
+    });
+    const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+    bgMesh.position.z = -10;
+    scene.add(bgMesh);
+    
+    // Store background material for animation
+    const bgMaterialRef = bgMaterial;
 
     // Camera - use container dimensions
     const camera = new THREE.PerspectiveCamera(
@@ -305,6 +348,9 @@ export default function BladeBounce3D({
     sceneRef.current = scene;
     cameraRef.current = camera;
     rendererRef.current = renderer;
+    
+    // Store background material reference for animation
+    (scene as any).bgMaterial = bgMaterialRef;
 
     // Handle resize - use container dimensions
     const handleResize = () => {
@@ -347,8 +393,8 @@ export default function BladeBounce3D({
       const fireGroup = new THREE.Group();
       
       if (isGreen) {
-        // REALISTIC GREEN FLAME FIREBALL - Rare, magical appearance
-        // Inner white-green core (brightest)
+        // NEON GREEN FLAME FIREBALL - Ultra bright magical appearance!
+        // Inner BLAZING white core
         const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.25, 12, 12);
         const coreMaterial = new THREE.MeshBasicMaterial({
           color: 0xffffff,
@@ -356,51 +402,51 @@ export default function BladeBounce3D({
           opacity: 1.0,
         });
         const core = new THREE.Mesh(coreGeometry, coreMaterial);
-        core.scale.set(1, 1.2, 1); // Slightly elongated upward
+        core.scale.set(1, 1.2, 1);
         fireGroup.add(core);
         
-        // Bright cyan inner layer (hot green flame core)
+        // NEON CYAN inner layer (electric!)
         const cyanGeometry = new THREE.SphereGeometry(fireballSize * 0.45, 16, 16);
         const cyanMaterial = new THREE.MeshBasicMaterial({
           color: 0x00ffff,
           transparent: true,
-          opacity: 0.9,
+          opacity: 1.0, // FULLY OPAQUE for max brightness
         });
         const cyan = new THREE.Mesh(cyanGeometry, cyanMaterial);
-        cyan.scale.set(1, 1.3, 1); // More elongated
+        cyan.scale.set(1, 1.3, 1);
         fireGroup.add(cyan);
         
-        // Lime middle layer (main green flame color)
+        // NEON LIME layer (super vivid!)
         const limeGeometry = new THREE.SphereGeometry(fireballSize * 0.7, 20, 20);
         const limeMaterial = new THREE.MeshBasicMaterial({
-          color: 0x88ff00,
+          color: 0xaaff00, // Brighter lime
           transparent: true,
-          opacity: 0.85,
+          opacity: 1.0, // FULLY OPAQUE
         });
         const lime = new THREE.Mesh(limeGeometry, limeMaterial);
-        lime.scale.set(1, 1.4, 1); // Even more elongated
+        lime.scale.set(1, 1.4, 1);
         fireGroup.add(lime);
         
-        // Green outer layer (flame edge)
+        // NEON GREEN outer layer (glowing!)
         const greenGeometry = new THREE.SphereGeometry(fireballSize, 24, 24);
         const greenMaterial = new THREE.MeshBasicMaterial({
-          color: 0x00ff33,
+          color: 0x00ff00, // Pure bright green
           transparent: true,
-          opacity: 0.7,
+          opacity: 0.95, // Almost fully opaque
         });
         const green = new THREE.Mesh(greenGeometry, greenMaterial);
-        green.scale.set(1, 1.5, 1); // Maximum elongation for flame tip
+        green.scale.set(1, 1.5, 1);
         fireGroup.add(green);
         
-        // Outer glow (bright green aura)
-        const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.4, 32, 32);
+        // BRIGHT outer glow (neon green aura)
+        const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.6, 32, 32);
         const glowMaterial = new THREE.MeshBasicMaterial({
           color: 0x66ff00,
           transparent: true,
-          opacity: 0.25,
+          opacity: 0.5, // Brighter glow!
         });
         const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-        glowMesh.scale.set(1, 1.6, 1); // Match flame elongation
+        glowMesh.scale.set(1, 1.6, 1);
         glowMesh.position.set(x, y, 0);
         sceneRef.current.add(glowMesh);
         
@@ -429,8 +475,8 @@ export default function BladeBounce3D({
         return; // Exit early for green fireball
       }
       
-      // REALISTIC FLAME FIREBALL - Layered with elongation for flame shape
-      // Inner white-hot core (small, bright)
+      // NEON BRIGHT FLAME FIREBALL - Ultra bright with flashing!
+      // Inner NEON white core (blazing bright!)
       const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.25, 12, 12);
       const coreMaterial = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -438,40 +484,40 @@ export default function BladeBounce3D({
         opacity: 1.0,
       });
       const core = new THREE.Mesh(coreGeometry, coreMaterial);
-      core.scale.set(1, 1.2, 1); // Slightly elongated upward
+      core.scale.set(1, 1.2, 1);
       fireGroup.add(core);
       
-      // Bright yellow inner layer (hot flame core)
+      // NEON BRIGHT yellow layer (intense!)
       const yellowGeometry = new THREE.SphereGeometry(fireballSize * 0.45, 16, 16);
       const yellowMaterial = new THREE.MeshBasicMaterial({
         color: 0xffff00,
         transparent: true,
-        opacity: 0.9,
+        opacity: 1.0, // FULLY OPAQUE for brightness
       });
       const yellow = new THREE.Mesh(yellowGeometry, yellowMaterial);
-      yellow.scale.set(1, 1.3, 1); // More elongated
+      yellow.scale.set(1, 1.3, 1);
       fireGroup.add(yellow);
       
-      // Orange middle layer (main flame color)
+      // NEON BRIGHT orange layer (super vivid!)
       const orangeGeometry = new THREE.SphereGeometry(fireballSize * 0.7, 20, 20);
       const orangeMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff8800,
+        color: 0xff6600, // Brighter orange
         transparent: true,
-        opacity: 0.85,
+        opacity: 1.0, // FULLY OPAQUE
       });
       const orange = new THREE.Mesh(orangeGeometry, orangeMaterial);
-      orange.scale.set(1, 1.4, 1); // Even more elongated
+      orange.scale.set(1, 1.4, 1);
       fireGroup.add(orange);
       
-      // Red outer layer (flame edge)
+      // NEON BRIGHT red outer layer (electric!)
       const redGeometry = new THREE.SphereGeometry(fireballSize, 24, 24);
       const redMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff3300,
+        color: 0xff0000, // Pure bright red
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.95, // Almost fully opaque
       });
       const red = new THREE.Mesh(redGeometry, redMaterial);
-      red.scale.set(1, 1.5, 1); // Maximum elongation for flame tip
+      red.scale.set(1, 1.5, 1);
       fireGroup.add(red);
       
       // Outer glow (orange-yellow aura)
@@ -861,18 +907,63 @@ export default function BladeBounce3D({
       console.log('🗡️ Click rotation: +45°');
     };
     
-    // Attach to canvas instead of window
+    // TOUCH SUPPORT for mobile devices
+    const handleTouchMove = (e: TouchEvent) => {
+      if (gameState !== 'playing') return;
+      e.preventDefault();
+      
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const touchX = touch.clientX - rect.left;
+      const touchY = touch.clientY - rect.top;
+      
+      // Same logic as mouse
+      const normalizedX = (touchX - centerX) / centerX;
+      const normalizedY = (touchY - centerY) / centerY;
+      const newTargetX = normalizedX * SWORD_X_RANGE;
+      const newTargetY = -normalizedY * SWORD_Y_RANGE;
+      
+      if (swordGroupRef.current) {
+        swordGroupRef.current.position.x = newTargetX;
+        swordGroupRef.current.position.y = newTargetY;
+      }
+      
+      setTargetX(newTargetX);
+      setTargetY(newTargetY);
+    };
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      if (gameState !== 'playing') return;
+      e.preventDefault();
+      
+      // Rotate on tap
+      setTargetAngle(prev => prev + ROTATION_STEP);
+      setIsRotating(true);
+      playSound(700, 0.08, 'square');
+      console.log('📱 Touch rotation: +45°');
+    };
+    
+    // Attach mouse AND touch events
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
     // Make canvas focusable for better event handling
     canvas.style.cursor = 'none'; // Hide cursor for immersive experience
     canvas.tabIndex = 0;
     
+    console.log('📱 [BladeBounce3D] Touch controls enabled for mobile!');
+    
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('click', handleClick);
-      console.log('🧹 [BladeBounce3D] Removed mouse events');
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      console.log('🧹 [BladeBounce3D] Removed mouse and touch events');
     };
   }, [gameState, playSound]);
 
@@ -883,6 +974,11 @@ export default function BladeBounce3D({
     const animate = () => {
       const delta = clockRef.current.getDelta();
       const now = Date.now();
+      
+      // ANIMATE BACKGROUND GRADIENT
+      if (sceneRef.current && (sceneRef.current as any).bgMaterial) {
+        (sceneRef.current as any).bgMaterial.uniforms.time.value = now * 0.001;
+      }
       
       // Calculate time elapsed from timer (GAME_DURATION - gameTimer)
       const timeElapsed = GAME_DURATION - gameTimer;
@@ -979,38 +1075,39 @@ export default function BladeBounce3D({
           }
         }
         
-        // ANIMATED FIRE EFFECTS
+        // NEON BRIGHT FLASHING FIRE EFFECTS!
         if (enemy.type === 'fireball' && enemy.pulsePhase !== undefined) {
-          // Fast flickering effect (like real fire)
-          enemy.pulsePhase += 0.25;
+          // INTENSE flashing effect + fast flickering
+          enemy.pulsePhase += 0.35; // Faster animation!
+          const flash = Math.sin(enemy.pulsePhase * 2.0) * 0.3 + 0.7; // BRIGHT flashing 0.7 to 1.0
           const flicker = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
-          const microFlicker = Math.sin(enemy.pulsePhase * 3.7) * 0.15; // High-frequency flicker
-          const scale = 0.9 + flicker * 0.3 + microFlicker; // 0.75 to 1.35
+          const microFlicker = Math.sin(enemy.pulsePhase * 4.0) * 0.2; // Faster micro-flicker
+          const scale = 0.95 + flicker * 0.4 + microFlicker; // Bigger variation
           
-          enemy.mesh.scale.set(scale, scale * 1.1, scale); // Elongate vertically like flame
+          enemy.mesh.scale.set(scale, scale * 1.1, scale);
           
-          // Access fire layers for individual animation
+          // Access fire layers for BRIGHT individual animation
           const fireGroup = enemy.mesh as THREE.Group;
           if (fireGroup.children && fireGroup.children.length === 3) {
             const [core, middle, outer] = fireGroup.children as THREE.Mesh[];
             
-            // Animate each layer independently
-            // Core (white-hot center) - brightest flicker
-            (core.material as THREE.MeshBasicMaterial).opacity = 0.8 + flicker * 0.2;
-            core.scale.set(1 + microFlicker, 1 + microFlicker * 1.5, 1);
+            // BRIGHT flashing on all layers!
+            // Core - BLAZING flashing
+            (core.material as THREE.MeshBasicMaterial).opacity = 0.95 + flash * 0.05; // Always bright!
+            core.scale.set(1 + microFlicker * 1.5, 1 + microFlicker * 2.0, 1);
             
-            // Middle (orange) - medium flicker
-            (middle.material as THREE.MeshBasicMaterial).opacity = 0.7 + flicker * 0.3;
-            middle.scale.set(1 + microFlicker * 0.5, 1 + microFlicker, 1);
+            // Middle layer - BRIGHT flashing!
+            (middle.material as THREE.MeshBasicMaterial).opacity = 0.9 + flash * 0.1; // Brighter!
+            middle.scale.set(1 + microFlicker * 0.8, 1 + microFlicker * 1.2, 1);
             
-            // Outer (red) - most volatile
-            (outer.material as THREE.MeshBasicMaterial).opacity = 0.5 + flicker * 0.4;
-            outer.scale.set(1 - microFlicker * 0.3, 1 + microFlicker * 0.7, 1);
+            // Outer layer - INTENSE flashing!
+            (outer.material as THREE.MeshBasicMaterial).opacity = 0.85 + flash * 0.15; // Much brighter!
+            outer.scale.set(1 + microFlicker * 0.5, 1 + microFlicker * 1.0, 1);
           }
           
-          // Glow opacity flash (yellow aura)
+          // Glow BRIGHT flashing (neon aura)!
           if (enemy.glowMesh) {
-            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + flicker * 0.5;
+            (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.4 + flash * 0.4; // Brighter glow!
             enemy.glowMesh.scale.set(scale * 1.3, scale * 1.4, scale * 1.3);
           }
           
@@ -1121,31 +1218,35 @@ export default function BladeBounce3D({
           }
         }
         
-        // Check if ENEMY SWORD BLADE hits player's handle/pommel (NEW!)
+        // Check if ENEMY SWORD BLADE hits ANYWHERE along player's ENTIRE BLADE!
         if (ENEMY_SWORD_BLADE_DAMAGE && enemy.type === 'enemy_sword' && swordGroupRef.current) {
           const swordWorldPos = new THREE.Vector3();
           swordGroupRef.current.getWorldPosition(swordWorldPos);
           
-          // Check if enemy sword blade intersects with player's handle/pommel area (-1.4 to 0)
-          const isNearHandle = Math.abs(enemy.x - swordWorldPos.x) < 2.0 && 
-                               (enemy.y - swordWorldPos.y) > -1.5 && 
-                               (enemy.y - swordWorldPos.y) < 0.2;
+          // Check if enemy sword blade intersects ENTIRE player blade (-1.5 to +4.0)
+          // This covers: Pommel (-1.3), Handle (-1.2 to -0.2), Guard (0), Blade (+0 to +4)
+          const isNearBlade = Math.abs(enemy.x - swordWorldPos.x) < 2.5 && // Wider hit area
+                              (enemy.y - swordWorldPos.y) > -1.6 && // Bottom (pommel)
+                              (enemy.y - swordWorldPos.y) < 4.2;   // Top (blade tip)
           
-          if (isNearHandle) {
-            // Enemy sword blade hit the handle! Lose heart!
+          if (isNearBlade) {
+            // Enemy sword blade hit player's blade! Lose heart!
+            const hitArea = (enemy.y - swordWorldPos.y) > 1.0 ? 'BLADE' : 
+                          (enemy.y - swordWorldPos.y) > -0.2 ? 'GUARD/HANDLE' : 'POMMEL';
+            
             setHearts(prev => {
               const newHearts = prev - 1;
-              console.log('⚔️ ENEMY SWORD BLADE HIT HANDLE! Heart lost! Remaining:', newHearts);
+              console.log(`⚔️ ENEMY SWORD HIT ${hitArea}! Heart lost! Remaining:`, newHearts);
               if (newHearts <= 0) {
                 setGameState('ended');
               }
               return newHearts;
             });
             playSound(200, 0.3, 'sawtooth');
-            createParticles(enemy.x, enemy.y, 0xff0000, 30);
+            createParticles(enemy.x, enemy.y, 0xff0000, 40); // More particles!
             
             // Don't destroy the enemy sword - it keeps going!
-            console.log('⚔️ Enemy sword continues after hitting handle!');
+            console.log('⚔️ Enemy sword continues slashing through!');
           }
         }
         
@@ -1501,18 +1602,21 @@ export default function BladeBounce3D({
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
               ⚔️ BLADE BOUNCE 3D
             </h1>
-            <p className="text-3xl mb-4 text-cyan-300 font-bold">🖱️ FULL MOUSE CONTROL - Sword follows cursor anywhere!</p>
-            <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
+            <p className="text-3xl mb-4 text-cyan-300 font-bold">🖱️ MOUSE: Sword follows cursor anywhere!</p>
+            <p className="text-2xl mb-4 text-cyan-300">🖱️ Click to rotate 45°</p>
+            <p className="text-3xl mb-4 text-pink-400 font-bold">📱 MOBILE: Touch & drag to move sword!</p>
+            <p className="text-2xl mb-4 text-pink-400">📱 Tap anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-50 pts) - Tip cuts = 5x multiplier!</p>
-              <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-125 pts!) - RARE! Tip cuts = MASSIVE points!</p>
-              <p className="text-lg mb-2">⚔️ <span className="text-red-400 font-bold">Enemy Swords</span> (35-52.5 pts) - MOVE EVERYWHERE! Blades hurt! Spin FASTER!</p>
+              <p className="text-lg mb-2">🔥 <span className="text-orange-400 font-bold animate-pulse">NEON BRIGHT Orange Fireballs</span> (10-50 pts) - FLASHING! Tip cuts = 5x!</p>
+              <p className="text-lg mb-2">💚 <span className="text-green-400 font-bold animate-pulse">NEON BRIGHT Green Fireballs</span> (25-125 pts!) - RARE! GLOWING!</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400 font-bold">Enemy Swords</span> (35-52.5 pts) - MOVE EVERYWHERE! Blades hit ENTIRE sword!</p>
               <p className="text-lg mb-2">⚡ <span className="text-cyan-400 font-bold animate-pulse">BRIGHT CYAN Lasers</span> ({LASER_POINTS} pts) - Harmless! Hit for points!</p>
               <p className="text-lg mb-2">⚡ <span className="text-red-600 font-bold animate-pulse">BRIGHT RED Lasers</span> = AVOID! LOSE HEART!</p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400 font-bold">TIP HITS = INSTANT KILL + MAX POINTS!</span></p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400">PRECISION</span> = Decimal scores for fair competition!</p>
-              <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle + pommel) = vulnerable spot</span></p>
-              <p className="text-lg mb-2 text-purple-400">💚 <span className="font-bold">HEART BONUS</span> = +{HEART_BONUS_POINTS} pts per heart at end!</p>
+              <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle + pommel) = vulnerable!</span></p>
+              <p className="text-lg mb-2 text-purple-400">💚 <span className="font-bold">HEART BONUS</span> = +{HEART_BONUS_POINTS} pts per heart!</p>
+              <p className="text-lg mb-2 text-purple-400">✨ <span className="font-bold">Animated gradient background + particle effects!</span></p>
             </div>
             <div className="mb-6 bg-gradient-to-r from-orange-500/20 to-red-500/20 border-2 border-orange-500 rounded-lg p-4 max-w-2xl mx-auto">
               <p className="text-xl font-bold text-orange-300 mb-2">📈 PROGRESSIVE DIFFICULTY</p>
