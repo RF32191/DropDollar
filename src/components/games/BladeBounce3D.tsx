@@ -19,13 +19,16 @@ interface Enemy3D {
   y: number;
   velocityX: number;
   velocityY: number;
-  type: 'fireball' | 'enemy_sword';
+  type: 'fireball' | 'enemy_sword' | 'laser';
   health: number;
   rotation: number;
   pulsePhase?: number; // For animated pulsing
   trailParticles?: THREE.Mesh[]; // Particle trail for fireballs
   isGreenFireball?: boolean; // Special high-value green fireball
   basePoints?: number; // Base point value before precision multiplier
+  isVertical?: boolean; // For laser orientation
+  spawnTime?: number; // When laser was created
+  isDangerous?: boolean; // True when laser is red (active)
 }
 
 interface Particle3D {
@@ -51,9 +54,11 @@ const FIREBALL_SPAWN_RATE_START = 1800; // ms between fireballs at start
 const ENEMY_SWORD_SPAWN_RATE_START = 8000; // ms between swords at start
 const DIFFICULTY_RAMP_INTERVAL = 10; // Increase difficulty every 10 seconds
 const EXTREME_MODE_START = 50; // Last 10 seconds = EXTREME MODE
-const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
+const HANDLE_DANGER_ZONES = 4; // Number of red circles on handle + pommel
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
 const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
+const ENEMY_SWORD_ROTATION_BASE = 0.05; // Base rotation speed for enemy swords
+const ENEMY_SWORD_ROTATION_INCREASE = 0.02; // Rotation speed increase per difficulty tier
 const SWORD_MOVE_SPEED = 1.0; // Full mouse tracking speed
 const SWORD_X_RANGE = 12; // Horizontal movement range
 const SWORD_Y_RANGE = 10; // Vertical movement range
@@ -62,6 +67,12 @@ const ENEMY_SWORD_SPEED = 0.06; // Horizontal movement speed (slower for skill)
 const HEART_BONUS_POINTS = 100; // Points per heart remaining at end
 const BLADE_TIP_THRESHOLD = 1.5; // Projection distance for "tip" hits
 const BLADE_TIP_MULTIPLIER = 5.0; // Max multiplier for perfect tip hits (was 3.0)
+const LASER_SPAWN_RATE = 4000; // ms between laser spawns
+const LASER_WARNING_TIME = 2000; // ms laser stays blue (warning)
+const LASER_ACTIVE_TIME = 1500; // ms laser stays red (dangerous)
+const LASER_LENGTH = 20; // Length of laser beam
+const LASER_WIDTH = 0.3; // Width of laser beam
+const LASER_POINTS = 15; // Points for destroying a laser
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -85,6 +96,7 @@ export default function BladeBounce3D({
   const clockRef = useRef(new THREE.Clock());
   const lastFireballSpawnRef = useRef<number>(0);
   const lastEnemySwordSpawnRef = useRef<number>(0);
+  const lastLaserSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   const extremeModeTriggeredRef = useRef<boolean>(false);
   
@@ -267,8 +279,8 @@ export default function BladeBounce3D({
       });
       const glow = new THREE.Mesh(glowGeometry, glowMaterial);
       
-      // Position along handle length
-      const handleStart = -1.2;
+      // Position along handle length AND pommel (extend to bottom)
+      const handleStart = -1.4; // Extended to cover pommel at -1.3
       const handleEnd = -0.2;
       const step = (handleEnd - handleStart) / (HANDLE_DANGER_ZONES + 1);
       const yPos = handleStart + step * (i + 1);
@@ -315,8 +327,8 @@ export default function BladeBounce3D({
     };
   }, []);
 
-  // Create enemy - FIREBALLS and ENEMY SWORDS only
-  const createEnemy = useCallback((type: 'fireball' | 'enemy_sword') => {
+  // Create enemy - FIREBALLS, ENEMY SWORDS, and LASERS
+  const createEnemy = useCallback((type: 'fireball' | 'enemy_sword' | 'laser') => {
     if (!sceneRef.current) return;
 
     if (type === 'fireball') {
@@ -647,6 +659,62 @@ export default function BladeBounce3D({
         rotation: 0,
         pulsePhase: Math.random() * Math.PI * 2,
       });
+    } else if (type === 'laser') {
+      // LASER DODGE STYLE LASERS - Blue warning, then red danger
+      const isVertical = Math.random() > 0.5; // 50% chance vertical or horizontal
+      
+      // Random position
+      const x = (Math.random() - 0.5) * (SWORD_X_RANGE * 1.5); // Spread across play area
+      const y = (Math.random() - 0.5) * (SWORD_Y_RANGE * 1.5);
+      
+      // Create laser beam
+      const laserGeometry = isVertical 
+        ? new THREE.BoxGeometry(LASER_WIDTH, LASER_LENGTH, 0.1)
+        : new THREE.BoxGeometry(LASER_LENGTH, LASER_WIDTH, 0.1);
+      
+      const laserMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00aaff, // Start BLUE (warning)
+        transparent: true,
+        opacity: 0.6,
+      });
+      
+      const laser = new THREE.Mesh(laserGeometry, laserMaterial);
+      laser.position.set(x, y, 0);
+      
+      // Create glow effect
+      const glowGeometry = isVertical
+        ? new THREE.BoxGeometry(LASER_WIDTH * 2, LASER_LENGTH, 0.2)
+        : new THREE.BoxGeometry(LASER_LENGTH, LASER_WIDTH * 2, 0.2);
+      
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00aaff,
+        transparent: true,
+        opacity: 0.3,
+      });
+      
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      glowMesh.position.set(x, y, -0.1);
+      
+      sceneRef.current.add(laser);
+      sceneRef.current.add(glowMesh);
+      
+      // Add laser to enemies
+      enemiesRef.current.push({
+        mesh: laser,
+        glowMesh: glowMesh,
+        x,
+        y,
+        velocityX: 0, // Lasers don't move
+        velocityY: 0,
+        type: 'laser',
+        health: 1, // One hit to destroy
+        rotation: 0,
+        isVertical,
+        spawnTime: Date.now(),
+        isDangerous: false, // Starts as blue (safe)
+      });
+      
+      console.log(`⚡ Laser spawned at (${x.toFixed(1)}, ${y.toFixed(1)}) - ${isVertical ? 'Vertical' : 'Horizontal'}`);
     }
   }, [playSound]);
 
@@ -688,6 +756,7 @@ export default function BladeBounce3D({
       // Initialize spawn timers for competition mode auto-start
       lastFireballSpawnRef.current = Date.now();
       lastEnemySwordSpawnRef.current = Date.now();
+      lastLaserSpawnRef.current = Date.now();
       extremeModeTriggeredRef.current = false;
       console.log('🎮 [BladeBounce] Initialized for competition mode');
     }
@@ -710,6 +779,7 @@ export default function BladeBounce3D({
           playSound(800, 0.2);
           lastFireballSpawnRef.current = Date.now();
           lastEnemySwordSpawnRef.current = Date.now();
+          lastLaserSpawnRef.current = Date.now();
           extremeModeTriggeredRef.current = false; // Reset for new game
         }
       }, 1000);
@@ -848,20 +918,38 @@ export default function BladeBounce3D({
         console.log('🔥 EXTREME MODE ACTIVATED!');
       }
       
-      // Lasers removed - only fireballs and enemy swords now
+      // Spawn lasers
+      if (now - lastLaserSpawnRef.current > LASER_SPAWN_RATE) {
+        createEnemy('laser');
+        lastLaserSpawnRef.current = now;
+      }
       
       // Update enemies
       enemiesRef.current = enemiesRef.current.filter(enemy => {
         enemy.x += enemy.velocityX;
         enemy.y += enemy.velocityY;
-        enemy.rotation += 0.05;
+        
+        // Rotate enemy swords faster as difficulty increases
+        if (enemy.type === 'enemy_sword') {
+          const rotationSpeed = ENEMY_SWORD_ROTATION_BASE + (difficultyTier * ENEMY_SWORD_ROTATION_INCREASE);
+          enemy.rotation += rotationSpeed;
+        } else {
+          enemy.rotation += 0.05;
+        }
+        
         enemy.mesh.position.set(enemy.x, enemy.y, 0);
-        enemy.mesh.rotation.z = enemy.rotation;
+        
+        // Lasers don't rotate
+        if (enemy.type !== 'laser') {
+          enemy.mesh.rotation.z = enemy.rotation;
+        }
         
         // Update glow mesh position
         if (enemy.glowMesh) {
           enemy.glowMesh.position.set(enemy.x, enemy.y, 0);
-          enemy.glowMesh.rotation.z = enemy.rotation;
+          if (enemy.type !== 'laser') {
+            enemy.glowMesh.rotation.z = enemy.rotation;
+          }
         }
         
         // ANIMATED FIRE EFFECTS
@@ -962,6 +1050,47 @@ export default function BladeBounce3D({
           // Glow flash (bright red warning)
           if (enemy.glowMesh) {
             (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + flash * 0.5;
+          }
+        } else if (enemy.type === 'laser' && enemy.spawnTime) {
+          // LASER STATE: Blue warning -> Red danger -> Disappear
+          const timeAlive = now - enemy.spawnTime;
+          
+          if (timeAlive < LASER_WARNING_TIME) {
+            // BLUE PHASE (Warning - harmless)
+            enemy.isDangerous = false;
+            const pulse = Math.sin(now * 0.01) * 0.2 + 0.8; // Pulsing effect
+            (enemy.mesh.material as THREE.MeshBasicMaterial).opacity = 0.6 * pulse;
+            if (enemy.glowMesh) {
+              (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.3 * pulse;
+            }
+          } else if (timeAlive < LASER_WARNING_TIME + LASER_ACTIVE_TIME) {
+            // RED PHASE (Dangerous!)
+            if (!enemy.isDangerous) {
+              enemy.isDangerous = true;
+              // Change to RED
+              (enemy.mesh.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+              if (enemy.glowMesh) {
+                (enemy.glowMesh.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+              }
+              playSound(900, 0.1, 'square'); // Warning sound
+              console.log('⚡ Laser turned RED (dangerous!)');
+            }
+            
+            // Flash when red
+            const flash = Math.sin(now * 0.02) * 0.3 + 0.7;
+            (enemy.mesh.material as THREE.MeshBasicMaterial).opacity = 0.8 * flash;
+            if (enemy.glowMesh) {
+              (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.4 * flash;
+            }
+          } else {
+            // EXPIRED - Remove laser
+            if (sceneRef.current) {
+              sceneRef.current.remove(enemy.mesh);
+              if (enemy.glowMesh) {
+                sceneRef.current.remove(enemy.glowMesh);
+              }
+            }
+            return false; // Remove from array
           }
         }
         
@@ -1083,6 +1212,29 @@ export default function BladeBounce3D({
                 
                 const hitType = isTipHit ? '🎯 TIP HIT!' : '';
                 console.log(`⚔️ ${hitType} Enemy sword destroyed: +${points.toFixed(2)} points`);
+              } else if (enemy.type === 'laser') {
+                // Lasers: Give points only if blue (safe), lose heart if red (dangerous)
+                if (!enemy.isDangerous) {
+                  // BLUE laser - give points!
+                  points = LASER_POINTS;
+                  createParticles(enemy.x, enemy.y, 0x00aaff, 30);
+                  playSound(1100, 0.1, 'sine');
+                  console.log(`⚡ Blue laser destroyed: +${LASER_POINTS} points!`);
+                } else {
+                  // RED laser - hitting it hurts you!
+                  setHearts(prev => {
+                    const newHearts = prev - 1;
+                    console.log('💥 Hit RED laser! Heart lost! Remaining:', newHearts);
+                    if (newHearts <= 0) {
+                      console.log('💀 All hearts lost!');
+                    }
+                    return newHearts;
+                  });
+                  playSound(300, 0.3, 'sawtooth');
+                  points = 0; // No points for hitting red laser
+                  createParticles(enemy.x, enemy.y, 0xff0000, 30);
+                  console.log('⚡ RED laser hit - lost a heart!');
+                }
               }
               
               setScore(prev => parseFloat((prev + points).toFixed(2)));
@@ -1299,10 +1451,12 @@ export default function BladeBounce3D({
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
               <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-50 pts) - Tip cuts = 5x multiplier!</p>
               <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-125 pts!) - RARE! Tip cuts = MASSIVE points!</p>
-              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35-52.5 pts) - VERY RARE pairs, tip bonus!</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35-52.5 pts) - VERY RARE pairs, tip bonus! Spin faster as game progresses!</p>
+              <p className="text-lg mb-2">⚡ <span className="text-blue-400">BLUE Lasers</span> ({LASER_POINTS} pts) - Harmless! Hit them for points!</p>
+              <p className="text-lg mb-2">⚡ <span className="text-red-400 font-bold">RED Lasers</span> = AVOID! They HURT!</p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400 font-bold">TIP HITS = INSTANT KILL + MAX POINTS!</span></p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400">PRECISION</span> = Decimal scores for fair competition!</p>
-              <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = vulnerable spot</span></p>
+              <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle + pommel) = vulnerable spot</span></p>
               <p className="text-lg mb-2 text-purple-400">💚 <span className="font-bold">HEART BONUS</span> = +{HEART_BONUS_POINTS} pts per heart at end!</p>
             </div>
             <div className="mb-6 bg-gradient-to-r from-orange-500/20 to-red-500/20 border-2 border-orange-500 rounded-lg p-4 max-w-2xl mx-auto">
