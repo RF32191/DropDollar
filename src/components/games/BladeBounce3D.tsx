@@ -29,9 +29,7 @@ interface Enemy3D {
   laserWarning?: THREE.Mesh; // Warning indicator before laser fires
   isGreenFireball?: boolean; // Special high-value green fireball
   basePoints?: number; // Base point value before precision multiplier
-  laserRotationSpeed?: number; // Rotation speed for laser (radians per frame)
   laserActive?: boolean; // Whether laser is active and can damage
-  laserDirection?: THREE.Vector3; // Direction indicator for laser
 }
 
 interface Particle3D {
