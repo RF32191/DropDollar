@@ -96,24 +96,34 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
     };
   }, []);
 
-  // Play sound for color
+  // Play sound for color (OPTIONAL - game is fully playable without audio)
   const playSound = useCallback((frequency: number, duration: number = 200) => {
-    if (!audioContextRef.current) return;
+    // Audio is optional enhancement - game is visual-first
+    // Players without audio can still play by watching colors
+    if (!audioContextRef.current) {
+      console.log('🔇 Audio unavailable - playing visual-only (still fair!)');
+      return;
+    }
     
-    const oscillator = audioContextRef.current.createOscillator();
-    const gainNode = audioContextRef.current.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContextRef.current.destination);
-    
-    oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
-    oscillator.type = 'sine';
-    
-    gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + duration / 1000);
-    
-    oscillator.start(audioContextRef.current.currentTime);
-    oscillator.stop(audioContextRef.current.currentTime + duration / 1000);
+    try {
+      const oscillator = audioContextRef.current.createOscillator();
+      const gainNode = audioContextRef.current.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContextRef.current.destination);
+      
+      oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + duration / 1000);
+      
+      oscillator.start(audioContextRef.current.currentTime);
+      oscillator.stop(audioContextRef.current.currentTime + duration / 1000);
+    } catch (error) {
+      // Audio failed - no problem, game is still playable visually
+      console.log('🔇 Audio error (game continues visually):', error);
+    }
   }, []);
 
   // Generate sequence for current round

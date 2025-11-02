@@ -213,7 +213,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           return null; // Will be filtered out
         }
 
-        // Gravity and air resistance (much slower)
+        // Gravity and air resistance (FIXED constants for fair competition)
+        // These values are frame-rate independent and deterministic
         newVelocityY += 0.1; // Very reduced gravity for slower acceleration
         newVelocityX *= 0.998; // Minimal air resistance
 
