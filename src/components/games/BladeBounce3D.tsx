@@ -52,10 +52,12 @@ const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° click
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
 const FIREBALL_SPAWN_RATE = 1800; // ms between fireball spawns (SLOWER - gradual difficulty)
 const ENEMY_SWORD_SPAWN_RATE = 8000; // ms between enemy sword spawns (VERY RARE - fewer spawns)
-const LASER_SPAWN_RATE = 7000; // ms between laser spawns (RARE - fair spawn rate)
+const LASER_SPAWN_RATE_START = 9000; // ms between laser spawns at start (SLOW - learning phase)
+const LASER_SPAWN_RATE_END = 3500; // ms between laser spawns at end (FAST - difficulty ramps up)
 const LASER_WARNING_TIME = 1500; // ms warning before laser fires (gives time to react)
 const LASER_ACTIVE_TIME = 1200; // ms laser stays active (must avoid)
-const LASER_WIDTH = 0.5; // Laser beam width
+const LASER_WIDTH = 0.5; // Laser beam width (visual)
+const LASER_DAMAGE_WIDTH = 0.15; // Laser damage width (only center core damages - much smaller)
 const HEART_BONUS_POINTS = 100; // Points per heart remaining at end
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
@@ -292,10 +294,11 @@ export default function BladeBounce3D({
       const isGreen = Math.random() < 0.2;
       const fireballSize = 0.45 + Math.random() * 0.2;
       
-      // Spawn from edges (needed for both types)
-      const side = Math.random() < 0.5 ? -1 : 1;
-      const x = side * (10 + Math.random() * 5);
-      const y = (Math.random() - 0.5) * 8;
+      // Spawn from ALL DIRECTIONS (360 degrees) - from edges
+      const spawnAngle = Math.random() * Math.PI * 2; // 0 to 2π
+      const spawnDistance = 15 + Math.random() * 3; // Distance from center
+      const x = Math.cos(spawnAngle) * spawnDistance;
+      const y = Math.sin(spawnAngle) * spawnDistance;
       
       // Create fire sprite group for layering
       const fireGroup = new THREE.Group();
@@ -361,9 +364,11 @@ export default function BladeBounce3D({
         fireGroup.position.set(x, y, 0);
         sceneRef.current.add(fireGroup);
         
+        // Move toward center (0, 0) from spawn position
         const speed = 0.06 + Math.random() * 0.04;
-        const velocityX = -side * speed;
-        const velocityY = (Math.random() - 0.5) * 0.03;
+        const angleToCenter = Math.atan2(-y, -x); // Angle toward center
+        const velocityX = Math.cos(angleToCenter) * speed;
+        const velocityY = Math.sin(angleToCenter) * speed;
         
         enemiesRef.current.push({
           mesh: fireGroup as any,
@@ -444,10 +449,11 @@ export default function BladeBounce3D({
       sceneRef.current.add(fireGroup);
       sceneRef.current.add(glowMesh);
       
-      // Fast velocity towards sword
+      // Move toward center (0, 0) from spawn position
       const speed = 0.06 + Math.random() * 0.04;
-      const velocityX = -side * speed;
-      const velocityY = (Math.random() - 0.5) * 0.03;
+      const angleToCenter = Math.atan2(-y, -x); // Angle toward center
+      const velocityX = Math.cos(angleToCenter) * speed;
+      const velocityY = Math.sin(angleToCenter) * speed;
       
       enemiesRef.current.push({
         mesh: fireGroup as any, // Store the group as mesh
@@ -915,10 +921,15 @@ export default function BladeBounce3D({
         lastEnemySwordSpawnRef.current = now;
       }
       
-      // Spawn lasers periodically (RARE - skill-based avoidance)
-      if (now - lastLaserSpawnRef.current > LASER_SPAWN_RATE) {
+      // Spawn lasers with PROGRESSIVE FREQUENCY (ramps up over time)
+      const gameProgress = Math.min(1, timeElapsed / GAME_DURATION); // 0 to 1
+      const currentLaserSpawnRate = LASER_SPAWN_RATE_START - 
+        (LASER_SPAWN_RATE_START - LASER_SPAWN_RATE_END) * gameProgress;
+      
+      if (now - lastLaserSpawnRef.current > currentLaserSpawnRate) {
         createEnemy('laser');
         lastLaserSpawnRef.current = now;
+        console.log(`⚡ Laser spawn! Rate: ${(currentLaserSpawnRate / 1000).toFixed(1)}s (Progress: ${(gameProgress * 100).toFixed(0)}%)`);
       }
       
       // Update enemies
@@ -1066,7 +1077,7 @@ export default function BladeBounce3D({
           }
         }
         
-        // LASER COLLISION - Check if sword handle touches active laser
+        // LASER COLLISION - Check if sword handle touches active laser CENTER ONLY
         if (enemy.type === 'laser' && enemy.laserActive && swordGroupRef.current) {
           let hitHandle = false;
           
@@ -1074,17 +1085,17 @@ export default function BladeBounce3D({
             const zoneWorldPos = new THREE.Vector3();
             zone.getWorldPosition(zoneWorldPos);
             
-            // Check collision based on laser orientation
+            // Check collision based on laser orientation - ONLY CENTER CORE DAMAGES
             if (enemy.laserOrientation === 'horizontal') {
-              // Horizontal laser - check Y distance
+              // Horizontal laser - check Y distance to CENTER only
               const yDistance = Math.abs(zoneWorldPos.y - enemy.y);
-              if (yDistance < LASER_WIDTH / 2 + DANGER_ZONE_SIZE) {
+              if (yDistance < LASER_DAMAGE_WIDTH / 2 + DANGER_ZONE_SIZE) {
                 hitHandle = true;
               }
             } else {
-              // Vertical laser - check X distance
+              // Vertical laser - check X distance to CENTER only
               const xDistance = Math.abs(zoneWorldPos.x - enemy.x);
-              if (xDistance < LASER_WIDTH / 2 + DANGER_ZONE_SIZE) {
+              if (xDistance < LASER_DAMAGE_WIDTH / 2 + DANGER_ZONE_SIZE) {
                 hitHandle = true;
               }
             }
@@ -1398,10 +1409,10 @@ export default function BladeBounce3D({
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
-              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-30 pts) - Tip cuts = 3x multiplier!</p>
+              <p className="text-lg mb-2">🔥 <span className="text-orange-400">Fireballs from ALL DIRECTIONS</span> (10-30 pts) - Tip cuts = 3x!</p>
               <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-75 pts!) - RARE! Tip cuts = huge points!</p>
               <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts) - VERY RARE pairs, flashing red</p>
-              <p className="text-lg mb-2">⚡ <span className="text-red-500">Horizontal/Vertical Lasers</span> (RARE) - 1.5s warning! Reposition to avoid!</p>
+              <p className="text-lg mb-2">⚡ <span className="text-red-500">Lasers</span> (RAMP UP!) - 1.5s warning! Only CENTER damages!</p>
               <p className="text-lg mb-2">💚 <span className="text-green-400">HEART BONUS</span> - +{HEART_BONUS_POINTS} pts per heart remaining!</p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400">PRECISION</span> = Decimal scores for fair competition!</p>
               <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = vulnerable spot</span></p>
