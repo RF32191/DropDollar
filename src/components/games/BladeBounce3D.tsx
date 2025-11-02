@@ -47,15 +47,19 @@ interface BladeBounce3DProps {
 const GAME_DURATION = 60;
 const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° clicks
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
-const FIREBALL_SPAWN_RATE = 1800; // ms between fireball spawns (SLOWER - gradual difficulty)
-const ENEMY_SWORD_SPAWN_RATE = 8000; // ms between enemy sword spawns (VERY RARE - fewer spawns)
+const FIREBALL_SPAWN_RATE_START = 1800; // ms between fireballs at start
+const ENEMY_SWORD_SPAWN_RATE_START = 8000; // ms between swords at start
+const DIFFICULTY_RAMP_INTERVAL = 10; // Increase difficulty every 10 seconds
+const EXTREME_MODE_START = 50; // Last 10 seconds = EXTREME MODE
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
 const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
-const SWORD_MOVE_SPEED = 1.0; // Direct cursor tracking (was 0.35)
-const SWORD_Y_RANGE = 10; // Large vertical range
+const SWORD_MOVE_SPEED = 1.0; // Full mouse tracking speed
+const SWORD_X_RANGE = 12; // Horizontal movement range
+const SWORD_Y_RANGE = 10; // Vertical movement range
 const ENEMY_SWORD_GAP = 7; // Gap between top and bottom enemy swords
 const ENEMY_SWORD_SPEED = 0.06; // Horizontal movement speed (slower for skill)
+const HEART_BONUS_POINTS = 100; // Points per heart remaining at end
 
 export default function BladeBounce3D({
   onGameEnd,
@@ -81,8 +85,10 @@ export default function BladeBounce3D({
   const [enemiesDestroyed, setEnemiesDestroyed] = useState(0);
   const [gameTimer, setGameTimer] = useState(GAME_DURATION);
   const [targetAngle, setTargetAngle] = useState(0);
+  const [targetX, setTargetX] = useState(0);
   const [targetY, setTargetY] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
+  const [isExtremeMode, setIsExtremeMode] = useState(false);
   
   // Audio
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -670,18 +676,24 @@ export default function BladeBounce3D({
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
       
+      const centerX = rect.width / 2;
       const centerY = rect.height / 2;
+      const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       
-      // Direct cursor tracking - sword Y matches cursor Y exactly
+      // FULL CURSOR TRACKING - sword follows mouse in X and Y
+      const normalizedX = (mouseX - centerX) / centerX; // -1 to 1
       const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
+      const newTargetX = normalizedX * SWORD_X_RANGE; // Horizontal movement
       const newTargetY = -normalizedY * SWORD_Y_RANGE; // Invert for intuitive control
       
       // Update sword position IMMEDIATELY for direct tracking
       if (swordGroupRef.current) {
+        swordGroupRef.current.position.x = newTargetX;
         swordGroupRef.current.position.y = newTargetY;
       }
       
+      setTargetX(newTargetX);
       setTargetY(newTargetY);
     };
     
@@ -739,16 +751,36 @@ export default function BladeBounce3D({
         });
       }
       
-      // Spawn fireballs gradually (slower for skill-based gameplay)
-      if (now - lastFireballSpawnRef.current > FIREBALL_SPAWN_RATE) {
+      // PROGRESSIVE DIFFICULTY - Spawn rates increase every 10 seconds
+      const difficultyTier = Math.floor(timeElapsed / DIFFICULTY_RAMP_INTERVAL);
+      const isExtremeMode = timeElapsed >= EXTREME_MODE_START;
+      
+      // Calculate current spawn rates (faster as game progresses)
+      const fireballRate = Math.max(600, FIREBALL_SPAWN_RATE_START - (difficultyTier * 200));
+      const swordRate = Math.max(3000, ENEMY_SWORD_SPAWN_RATE_START - (difficultyTier * 800));
+      
+      // EXTREME MODE: Last 10 seconds - spawn rate DOUBLES!
+      const extremeMultiplier = isExtremeMode ? 0.5 : 1.0;
+      const currentFireballRate = fireballRate * extremeMultiplier;
+      const currentSwordRate = swordRate * extremeMultiplier;
+      
+      // Spawn fireballs with progressive difficulty
+      if (now - lastFireballSpawnRef.current > currentFireballRate) {
         createEnemy('fireball');
         lastFireballSpawnRef.current = now;
       }
       
-      // Spawn enemy sword pairs RARELY (high difficulty challenge)
-      if (now - lastEnemySwordSpawnRef.current > ENEMY_SWORD_SPAWN_RATE) {
+      // Spawn enemy swords with progressive difficulty
+      if (now - lastEnemySwordSpawnRef.current > currentSwordRate) {
         createEnemy('enemy_sword');
         lastEnemySwordSpawnRef.current = now;
+      }
+      
+      // Update extreme mode state for visual effects
+      if (isExtremeMode && !isExtremeMode) {
+        setIsExtremeMode(true);
+        playSound(1000, 0.3, 'sawtooth');
+        console.log('🔥 EXTREME MODE ACTIVATED!');
       }
       
       // Lasers removed - only fireballs and enemy swords now
@@ -1068,13 +1100,24 @@ export default function BladeBounce3D({
     return () => clearInterval(interval);
   }, [gameState]);
 
-  // Handle game end
+  // Handle game end with HEART BONUS
   useEffect(() => {
     if (gameState === 'ended') {
       playSound(300, 1, 'triangle');
+      
+      // Calculate heart bonus
+      const heartBonus = hearts * HEART_BONUS_POINTS;
+      const finalScore = parseFloat((score + heartBonus).toFixed(2));
+      
+      // Update score with heart bonus
+      if (heartBonus > 0) {
+        setScore(finalScore);
+        console.log(`💚 HEART BONUS: +${heartBonus} points (${hearts} hearts × ${HEART_BONUS_POINTS})`);
+      }
+      
       setTimeout(() => {
         onGameEnd({
-          score,
+          score: finalScore,
           accuracy: enemiesDestroyed > 0 ? Math.min(100, (enemiesDestroyed / (enemiesDestroyed + (3 - hearts))) * 100) : 0,
         });
       }, 2000);
@@ -1126,6 +1169,18 @@ export default function BladeBounce3D({
             ⏱️ {gameTimer}s
           </div>
         </div>
+        
+        {/* EXTREME MODE INDICATOR */}
+        {isExtremeMode && gameState === 'playing' && (
+          <div className="mt-4 text-center animate-pulse">
+            <div className="text-red-500 text-5xl font-black drop-shadow-[0_0_20px_rgba(255,0,0,0.8)]">
+              🔥 EXTREME MODE 🔥
+            </div>
+            <div className="text-orange-400 text-xl font-bold mt-2">
+              DOUBLE SPAWN RATE!
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Countdown */}
@@ -1144,7 +1199,7 @@ export default function BladeBounce3D({
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
               ⚔️ BLADE BOUNCE 3D
             </h1>
-            <p className="text-2xl mb-4 text-cyan-300">🖱️ Move mouse to control sword position</p>
+            <p className="text-3xl mb-4 text-cyan-300 font-bold">🖱️ FULL MOUSE CONTROL - Sword follows cursor anywhere!</p>
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Click anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
               <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-30 pts) - Tip cuts = 3x multiplier!</p>
@@ -1152,6 +1207,15 @@ export default function BladeBounce3D({
               <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts) - VERY RARE pairs, flashing red</p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400">PRECISION</span> = Decimal scores for fair competition!</p>
               <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = vulnerable spot</span></p>
+              <p className="text-lg mb-2 text-purple-400">💚 <span className="font-bold">HEART BONUS</span> = +{HEART_BONUS_POINTS} pts per heart at end!</p>
+            </div>
+            <div className="mb-6 bg-gradient-to-r from-orange-500/20 to-red-500/20 border-2 border-orange-500 rounded-lg p-4 max-w-2xl mx-auto">
+              <p className="text-xl font-bold text-orange-300 mb-2">📈 PROGRESSIVE DIFFICULTY</p>
+              <p className="text-lg text-orange-200">Spawn rates increase every {DIFFICULTY_RAMP_INTERVAL} seconds!</p>
+            </div>
+            <div className="mb-6 bg-gradient-to-r from-red-600/30 to-orange-600/30 border-2 border-red-600 rounded-lg p-4 max-w-2xl mx-auto animate-pulse">
+              <p className="text-2xl font-black text-red-400 mb-2">🔥 EXTREME MODE 🔥</p>
+              <p className="text-lg text-orange-300">Last 10 seconds = DOUBLE SPAWN RATE!</p>
             </div>
             <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
             <p className="text-3xl font-bold text-yellow-400 mb-8 animate-pulse">{GAME_DURATION} seconds - Survive & Score!</p>
