@@ -77,6 +77,7 @@ export default function BladeBounce3D({
   const lastFireballSpawnRef = useRef<number>(0);
   const lastEnemySwordSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
+  const extremeModeTriggeredRef = useRef<boolean>(false);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -663,6 +664,8 @@ export default function BladeBounce3D({
           playSound(800, 0.2);
           lastFireballSpawnRef.current = Date.now();
           lastEnemySwordSpawnRef.current = Date.now();
+          extremeModeTriggeredRef.current = false; // Reset for new game
+          setIsExtremeMode(false); // Reset state
         }
       }, 1000);
     }
@@ -777,7 +780,8 @@ export default function BladeBounce3D({
       }
       
       // Update extreme mode state for visual effects (trigger once)
-      if (shouldBeExtreme && !isExtremeMode) {
+      if (shouldBeExtreme && !extremeModeTriggeredRef.current) {
+        extremeModeTriggeredRef.current = true;
         setIsExtremeMode(true);
         playSound(1000, 0.3, 'sawtooth');
         console.log('🔥 EXTREME MODE ACTIVATED!');
