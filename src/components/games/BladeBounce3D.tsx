@@ -72,7 +72,6 @@ export default function BladeBounce3D({
   const clockRef = useRef(new THREE.Clock());
   const lastFireballSpawnRef = useRef<number>(0);
   const lastEnemySwordSpawnRef = useRef<number>(0);
-  const lastLaserSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
@@ -607,7 +606,7 @@ export default function BladeBounce3D({
         pulsePhase: Math.random() * Math.PI * 2,
       });
     }
-  }, [createParticle3D, playSound]);
+  }, [playSound]);
 
   // Create particle effect
   const createParticles = useCallback((x: number, y: number, color: number, count: number) => {
@@ -658,7 +657,6 @@ export default function BladeBounce3D({
           playSound(800, 0.2);
           lastFireballSpawnRef.current = Date.now();
           lastEnemySwordSpawnRef.current = Date.now();
-          lastLaserSpawnRef.current = Date.now();
         }
       }, 1000);
     }
