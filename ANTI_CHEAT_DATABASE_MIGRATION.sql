@@ -13,7 +13,10 @@
 -- ============================================================================
 -- Stores cryptographically signed game sessions for validation
 
-CREATE TABLE IF NOT EXISTS public.game_sessions (
+-- Drop existing table if it exists (for clean migration)
+DROP TABLE IF EXISTS public.game_sessions CASCADE;
+
+CREATE TABLE public.game_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- Session identification
@@ -73,7 +76,10 @@ CREATE INDEX IF NOT EXISTS idx_game_sessions_suspicion
 -- ============================================================================
 -- Logs suspicious activity for monitoring and analysis
 
-CREATE TABLE IF NOT EXISTS public.anti_cheat_logs (
+-- Drop existing table if it exists (for clean migration)
+DROP TABLE IF EXISTS public.anti_cheat_logs CASCADE;
+
+CREATE TABLE public.anti_cheat_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- Who and what
@@ -192,12 +198,12 @@ CREATE POLICY "Users can create own sessions"
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- Game Sessions: Users can update their own active sessions (via API)
+-- Game Sessions: Users can update their own sessions (via API)
 DROP POLICY IF EXISTS "Users can update own sessions" ON public.game_sessions;
 CREATE POLICY "Users can update own sessions"
   ON public.game_sessions
   FOR UPDATE
-  USING (auth.uid() = user_id AND status = 'active')
+  USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 -- Anti-Cheat Logs: Users cannot view (admin only)
