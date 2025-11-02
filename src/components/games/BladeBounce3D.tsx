@@ -66,6 +66,12 @@ export default function BladeBounce3D({
   onExit,
   isCompetitionMode = false,
 }: BladeBounce3DProps) {
+  console.log('🎯 [BladeBounce3D] Component initialized', {
+    isCompetitionMode,
+    hasOnGameEnd: !!onGameEnd,
+    hasOnExit: !!onExit
+  });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -81,9 +87,10 @@ export default function BladeBounce3D({
   const extremeModeTriggeredRef = useRef<boolean>(false);
   
   // In competition mode, skip ready screen and countdown - start playing immediately
-  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>(
-    isCompetitionMode ? 'playing' : 'ready'
-  );
+  const initialGameState = isCompetitionMode ? 'playing' : 'ready';
+  console.log('🎯 [BladeBounce3D] Initial game state:', initialGameState);
+  
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>(initialGameState);
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
