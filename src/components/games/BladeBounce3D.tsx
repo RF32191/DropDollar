@@ -922,14 +922,16 @@ export default function BladeBounce3D({
       }
       
       // Spawn lasers with PROGRESSIVE FREQUENCY (ramps up over time)
-      const gameProgress = Math.min(1, timeElapsed / GAME_DURATION); // 0 to 1
-      const currentLaserSpawnRate = LASER_SPAWN_RATE_START - 
-        (LASER_SPAWN_RATE_START - LASER_SPAWN_RATE_END) * gameProgress;
-      
-      if (now - lastLaserSpawnRef.current > currentLaserSpawnRate) {
-        createEnemy('laser');
-        lastLaserSpawnRef.current = now;
-        console.log(`⚡ Laser spawn! Rate: ${(currentLaserSpawnRate / 1000).toFixed(1)}s (Progress: ${(gameProgress * 100).toFixed(0)}%)`);
+      if (timeElapsed !== undefined && !isNaN(timeElapsed)) {
+        const gameProgress = Math.min(1, timeElapsed / GAME_DURATION); // 0 to 1
+        const currentLaserSpawnRate = LASER_SPAWN_RATE_START - 
+          (LASER_SPAWN_RATE_START - LASER_SPAWN_RATE_END) * gameProgress;
+        
+        if (now - lastLaserSpawnRef.current > currentLaserSpawnRate) {
+          createEnemy('laser');
+          lastLaserSpawnRef.current = now;
+          console.log(`⚡ Laser spawn! Rate: ${(currentLaserSpawnRate / 1000).toFixed(1)}s (Progress: ${(gameProgress * 100).toFixed(0)}%)`);
+        }
       }
       
       // Update enemies
