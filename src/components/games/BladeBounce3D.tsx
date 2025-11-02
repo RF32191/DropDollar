@@ -286,7 +286,10 @@ export default function BladeBounce3D({
 
   // Create enemy - FIREBALLS, ENEMY SWORDS, and LASERS
   const createEnemy = useCallback((type: 'fireball' | 'enemy_sword' | 'laser') => {
-    if (!sceneRef.current) return;
+    if (!sceneRef.current) {
+      console.warn('⚠️ Cannot create enemy: scene not initialized');
+      return;
+    }
 
     if (type === 'fireball') {
       // ULTRA-REALISTIC FIRE SPRITE - Multi-layered with smoke and embers
@@ -299,6 +302,12 @@ export default function BladeBounce3D({
       const spawnDistance = 15 + Math.random() * 3; // Distance from center
       const x = Math.cos(spawnAngle) * spawnDistance;
       const y = Math.sin(spawnAngle) * spawnDistance;
+      
+      // Safety check for valid coordinates
+      if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+        console.error('❌ Invalid fireball spawn coordinates:', { x, y, spawnAngle, spawnDistance });
+        return;
+      }
       
       // Create fire sprite group for layering
       const fireGroup = new THREE.Group();
@@ -911,14 +920,22 @@ export default function BladeBounce3D({
       
       // Spawn fireballs gradually (slower for skill-based gameplay)
       if (now - lastFireballSpawnRef.current > FIREBALL_SPAWN_RATE) {
-        createEnemy('fireball');
-        lastFireballSpawnRef.current = now;
+        try {
+          createEnemy('fireball');
+          lastFireballSpawnRef.current = now;
+        } catch (error) {
+          console.error('❌ Error spawning fireball:', error);
+        }
       }
       
       // Spawn enemy sword pairs RARELY (high difficulty challenge)
       if (now - lastEnemySwordSpawnRef.current > ENEMY_SWORD_SPAWN_RATE) {
-        createEnemy('enemy_sword');
-        lastEnemySwordSpawnRef.current = now;
+        try {
+          createEnemy('enemy_sword');
+          lastEnemySwordSpawnRef.current = now;
+        } catch (error) {
+          console.error('❌ Error spawning enemy sword:', error);
+        }
       }
       
       // Spawn lasers with PROGRESSIVE FREQUENCY (ramps up over time)
@@ -928,9 +945,13 @@ export default function BladeBounce3D({
           (LASER_SPAWN_RATE_START - LASER_SPAWN_RATE_END) * gameProgress;
         
         if (now - lastLaserSpawnRef.current > currentLaserSpawnRate) {
-          createEnemy('laser');
-          lastLaserSpawnRef.current = now;
-          console.log(`⚡ Laser spawn! Rate: ${(currentLaserSpawnRate / 1000).toFixed(1)}s (Progress: ${(gameProgress * 100).toFixed(0)}%)`);
+          try {
+            createEnemy('laser');
+            lastLaserSpawnRef.current = now;
+            console.log(`⚡ Laser spawn! Rate: ${(currentLaserSpawnRate / 1000).toFixed(1)}s (Progress: ${(gameProgress * 100).toFixed(0)}%)`);
+          } catch (error) {
+            console.error('❌ Error spawning laser:', error);
+          }
         }
       }
       
