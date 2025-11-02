@@ -54,7 +54,7 @@ const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° click
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
 const FIREBALL_SPAWN_RATE = 1800; // ms between fireball spawns (SLOWER - gradual difficulty)
 const ENEMY_SWORD_SPAWN_RATE = 5000; // ms between enemy sword spawns (RARE)
-const LASER_SPAWN_RATE = 3500; // ms between laser spawns (RANDOM)
+const LASER_SPAWN_RATE = 6000; // ms between laser spawns (SLOWER - only one at a time)
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
 const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
@@ -1009,7 +1009,10 @@ export default function BladeBounce3D({
         } else if (enemy.type === 'laser') {
           // Laser warning animation (flashing + SLOW rotation)
           if (enemy.laserWarning && sceneRef.current.children.includes(enemy.laserWarning)) {
-            enemy.pulsePhase += 0.3; // Fast warning flash
+            // Only animate if not already hit (pulsePhase < 999)
+            if (enemy.pulsePhase < 999) {
+              enemy.pulsePhase += 0.3; // Fast warning flash
+            }
             const warningFlash = Math.sin(enemy.pulsePhase) * 0.5 + 0.5;
             
             // Flash all warning elements
@@ -1030,7 +1033,8 @@ export default function BladeBounce3D({
           }
           
           // Active laser pulsing + SLOW rotation (when active)
-          if (enemy.laserActive) {
+          if (enemy.laserActive && enemy.pulsePhase < 999) {
+            // Only animate if not already hit
             enemy.pulsePhase += 0.2;
             const laserPulse = Math.sin(enemy.pulsePhase * 2) * 0.5 + 0.5;
             
@@ -1058,8 +1062,13 @@ export default function BladeBounce3D({
           }
         }
         
-        // LASER COLLISION - Rotating line collision (accurate)
+        // LASER COLLISION - Rotating line collision (accurate) - ONCE PER LASER
         if (enemy.type === 'laser' && enemy.laserActive && swordGroupRef.current) {
+          // Check if this laser already hit (prevent multiple heart loss)
+          if (enemy.pulsePhase >= 999) {
+            return true; // Already hit, skip collision check
+          }
+          
           // Get sword handle position (danger zones) for damage check
           let hitHandle = false;
           
@@ -1082,7 +1091,10 @@ export default function BladeBounce3D({
           });
           
           if (hitHandle) {
-            // Laser hit handle - LOSE HEART
+            // Mark laser as already hit (prevent multiple heart loss)
+            enemy.pulsePhase = 1000;
+            
+            // Laser hit handle - LOSE 1 HEART ONLY
             setHearts(prev => {
               const newHearts = prev - 1;
               console.log('⚡ LASER HIT HANDLE! Hearts remaining:', newHearts);
