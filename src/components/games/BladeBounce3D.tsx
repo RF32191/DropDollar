@@ -71,6 +71,8 @@ export default function BladeBounce3D({
   onGameEnd,
   onExit,
 }: BladeBounce3DProps) {
+  console.log('🎮 BladeBounce3D component mounting...');
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -84,6 +86,8 @@ export default function BladeBounce3D({
   const lastEnemySwordSpawnRef = useRef<number>(0);
   const lastLaserSpawnRef = useRef<number>(0);
   const dangerZonesRef = useRef<THREE.Mesh[]>([]);
+  
+  console.log('✅ All refs initialized');
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -121,7 +125,12 @@ export default function BladeBounce3D({
 
   // Initialize Three.js scene
   useEffect(() => {
-    if (!containerRef.current || sceneRef.current) return;
+    console.log('🎨 Initializing Three.js scene...');
+    if (!containerRef.current || sceneRef.current) {
+      console.warn('⚠️ Scene init skipped:', { hasContainer: !!containerRef.current, hasScene: !!sceneRef.current });
+      return;
+    }
+    console.log('✅ Starting Three.js initialization...');
 
     // Scene
     const scene = new THREE.Scene();
