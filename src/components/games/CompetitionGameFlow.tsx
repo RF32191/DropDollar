@@ -202,6 +202,7 @@ export default function CompetitionGameFlow({
   const getGameComponent = () => {
     const gameProps = {
       onGameEnd: handleGameEnd,
+      onExit: onCancel, // Add onExit prop for games that need it (like BladeBounce)
       isCompetitionMode: true,
       gameDuration: 60, // 60 seconds for competitions
       rngSeed: rngSeed // Use the assigned RNG seed for this listing

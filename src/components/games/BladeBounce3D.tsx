@@ -37,7 +37,7 @@ interface Particle3D {
 
 interface BladeBounce3DProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
-  onExit: () => void;
+  onExit?: () => void; // Make optional to match other games
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;
