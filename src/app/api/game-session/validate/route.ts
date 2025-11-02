@@ -5,6 +5,10 @@ import { EmailService } from '@/lib/emailService';
 import { createClient } from '@/lib/supabase/server';
 import { GameSubmission } from '@/types/gameSession';
 
+// Configure for Vercel Node.js runtime
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GameTokenService } from '@/lib/crypto/gameTokens';
 import { createClient } from '@/lib/supabase/server';
 
+// Configure for Vercel Node.js runtime
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();
