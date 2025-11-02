@@ -650,6 +650,17 @@ export default function BladeBounce3D({
     playSound(400 + Math.random() * 200, 0.1, 'square');
   }, [playSound]);
 
+  // Initialize spawn timers when starting in 'playing' state (competition mode)
+  useEffect(() => {
+    if (gameState === 'playing' && lastFireballSpawnRef.current === 0) {
+      // Initialize spawn timers for competition mode auto-start
+      lastFireballSpawnRef.current = Date.now();
+      lastEnemySwordSpawnRef.current = Date.now();
+      extremeModeTriggeredRef.current = false;
+      console.log('🎮 [BladeBounce] Initialized for competition mode');
+    }
+  }, [gameState]);
+
   // Start game
   const startGame = useCallback(() => {
     if (gameState === 'ready') {
