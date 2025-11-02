@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { GameInput, GameSession } from '@/types/gameSession';
+import SuspiciousActivityWarning from '@/components/warnings/SuspiciousActivityWarning';
 
 /**
  * BLADE BOUNCE 3D - Professional WebGL Sword Defense Game
@@ -125,6 +126,8 @@ export default function BladeBounce3D({
   const [targetX, setTargetX] = useState(0);
   const [targetY, setTargetY] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
+  const [showSuspicionWarning, setShowSuspicionWarning] = useState(false);
+  const [suspicionScore, setSuspicionScore] = useState(0);
   
   // Audio
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1622,8 +1625,16 @@ export default function BladeBounce3D({
               serverScore: result.serverScore,
               clientScore: finalScore,
               scoreDiff: Math.abs(result.serverScore - finalScore),
-              suspicionScore: result.suspicionScore
+              suspicionScore: result.suspicionScore,
+              showWarning: result.showWarning
             });
+            
+            // Show warning if gameplay was suspicious
+            if (result.showWarning && result.suspicionScore) {
+              setSuspicionScore(result.suspicionScore);
+              setShowSuspicionWarning(true);
+              console.warn('⚠️ [BladeBounce3D] Showing suspicion warning to user');
+            }
             
             // Use server-validated score
             onGameEnd({
@@ -1773,6 +1784,19 @@ export default function BladeBounce3D({
       >
         EXIT
       </button>
+      
+      {/* Suspicious Activity Warning Modal */}
+      {showSuspicionWarning && (
+        <SuspiciousActivityWarning
+          suspicionScore={suspicionScore}
+          onClose={() => setShowSuspicionWarning(false)}
+          onContactSupport={() => {
+            setShowSuspicionWarning(false);
+            // TODO: Open support modal or navigate to support page
+            window.location.href = '/support';
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GameTokenService } from '@/lib/crypto/gameTokens';
 import { GameValidator } from '@/lib/gameValidator';
+import { EmailService } from '@/lib/emailService';
 import { createClient } from '@/lib/supabase/server';
 import { GameSubmission } from '@/types/gameSession';
 
@@ -128,6 +129,23 @@ export async function POST(request: NextRequest) {
           console.error('Failed to log anti-cheat event:', err);
           // Don't fail validation if logging fails
         });
+        
+        // Send email notification to admin
+        EmailService.sendSuspiciousActivityAlert({
+          userId: user.id,
+          userEmail: user.email,
+          sessionId,
+          gameType: payload.gameType,
+          suspicionScore: result.suspicionScore,
+          suspicionReasons: result.suspicionReasons || [result.reason || 'Unknown'],
+          clientScore,
+          serverScore: 0, // Rejected, no server score
+          status: 'rejected',
+          timestamp: new Date().toISOString()
+        }).catch(err => {
+          console.error('Failed to send email notification:', err);
+          // Don't fail validation if email fails
+        });
       }
       
       return NextResponse.json({
@@ -192,6 +210,35 @@ export async function POST(request: NextRequest) {
         suspicionScore: result.suspicionScore,
         reasons: result.suspicionReasons
       });
+      
+      // Log to anti_cheat_logs table
+      await supabase.from('anti_cheat_logs').insert({
+        user_id: user.id,
+        session_id: sessionId,
+        game_type: payload.gameType,
+        suspicion_score: result.suspicionScore,
+        reasons: result.suspicionReasons || ['Suspicious patterns detected'],
+        client_score: clientScore,
+        flagged_at: new Date().toISOString()
+      }).catch(err => {
+        console.error('Failed to log anti-cheat event:', err);
+      });
+      
+      // Send email notification to admin
+      EmailService.sendSuspiciousActivityAlert({
+        userId: user.id,
+        userEmail: user.email,
+        sessionId,
+        gameType: payload.gameType,
+        suspicionScore: result.suspicionScore,
+        suspicionReasons: result.suspicionReasons || ['Suspicious patterns detected'],
+        clientScore,
+        serverScore: result.serverScore,
+        status: 'accepted',
+        timestamp: new Date().toISOString()
+      }).catch(err => {
+        console.error('Failed to send email notification:', err);
+      });
     }
     
     return NextResponse.json({
@@ -199,7 +246,8 @@ export async function POST(request: NextRequest) {
       serverScore: result.serverScore,
       accuracy: result.accuracy || 0,
       avgReactionTime: result.avgReactionTime || 0,
-      suspicionScore: result.suspicionScore || 0
+      suspicionScore: result.suspicionScore || 0,
+      showWarning: result.suspicionScore && result.suspicionScore > 60 // Tell client to show warning
     });
     
   } catch (error) {
