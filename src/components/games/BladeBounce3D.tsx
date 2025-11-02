@@ -129,27 +129,46 @@ export default function BladeBounce3D({
   useEffect(() => {
     if (!containerRef.current || sceneRef.current) return;
 
+    console.log('🎨 [BladeBounce3D] Initializing Three.js scene');
+
+    const container = containerRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    console.log('📐 [BladeBounce3D] Container size:', { width, height });
+
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0e1a);
 
-    // Camera
+    // Camera - use container dimensions
     const camera = new THREE.PerspectiveCamera(
       60,
-      window.innerWidth / window.innerHeight,
+      width / height,
       0.1,
       1000
     );
     camera.position.z = 20;
 
-    // Renderer
+    // Renderer - use container dimensions
     const renderer = new THREE.WebGLRenderer({ 
       antialias: true,
       powerPreference: 'high-performance'
     });
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    containerRef.current.appendChild(renderer.domElement);
+    
+    // Style canvas to prevent overflow and ensure proper fit
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    
+    container.appendChild(renderer.domElement);
+
+    console.log('✅ [BladeBounce3D] Renderer initialized');
 
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -272,21 +291,25 @@ export default function BladeBounce3D({
     cameraRef.current = camera;
     rendererRef.current = renderer;
 
-    // Handle resize
+    // Handle resize - use container dimensions
     const handleResize = () => {
-      if (!camera || !renderer) return;
-      camera.aspect = window.innerWidth / window.innerHeight;
+      if (!camera || !renderer || !container) return;
+      const newWidth = container.clientWidth;
+      const newHeight = container.clientHeight;
+      camera.aspect = newWidth / newHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(newWidth, newHeight);
+      console.log('📐 [BladeBounce3D] Resized to:', { newWidth, newHeight });
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
-      if (containerRef.current?.contains(renderer.domElement)) {
-        containerRef.current.removeChild(renderer.domElement);
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
       }
+      console.log('🧹 [BladeBounce3D] Cleaned up Three.js scene');
     };
   }, []);
 
@@ -693,11 +716,16 @@ export default function BladeBounce3D({
 
   // Mouse control - VERTICAL MOVEMENT + CLICK ROTATION
   useEffect(() => {
+    const container = containerRef.current;
+    const canvas = rendererRef.current?.domElement;
+    if (!container || !canvas) return;
+
+    console.log('🖱️ [BladeBounce3D] Attaching mouse events to canvas');
+    
     const handleMouseMove = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      const rect = canvas.getBoundingClientRect();
       
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
@@ -722,6 +750,7 @@ export default function BladeBounce3D({
     
     const handleClick = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
+      e.preventDefault();
       
       // Rotate 45 degrees per click
       setTargetAngle(prev => prev + ROTATION_STEP);
@@ -733,12 +762,18 @@ export default function BladeBounce3D({
       console.log('🗡️ Click rotation: +45°');
     };
     
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('click', handleClick);
+    // Attach to canvas instead of window
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleClick);
+    
+    // Make canvas focusable for better event handling
+    canvas.style.cursor = 'none'; // Hide cursor for immersive experience
+    canvas.tabIndex = 0;
     
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('click', handleClick);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('click', handleClick);
+      console.log('🧹 [BladeBounce3D] Removed mouse events');
     };
   }, [gameState, playSound]);
 
@@ -749,6 +784,9 @@ export default function BladeBounce3D({
     const animate = () => {
       const delta = clockRef.current.getDelta();
       const now = Date.now();
+      
+      // Calculate time elapsed from timer (GAME_DURATION - gameTimer)
+      const timeElapsed = GAME_DURATION - gameTimer;
       
       // Smooth sword rotation towards target angle + VERTICAL MOVEMENT
       if (swordGroupRef.current) {
@@ -1104,7 +1142,7 @@ export default function BladeBounce3D({
         cancelAnimationFrame(animationIdRef.current);
       }
     };
-  }, [gameState, targetAngle, createEnemy, createParticles, playSound]);
+  }, [gameState, targetAngle, gameTimer, createEnemy, createParticles, playSound]);
 
   // Game timer
   useEffect(() => {
@@ -1164,7 +1202,15 @@ export default function BladeBounce3D({
 
   return (
     <div className="relative w-full h-screen bg-[#0a0e1a] overflow-hidden">
-      <div ref={containerRef} className="w-full h-full" />
+      <div 
+        ref={containerRef} 
+        className="w-full h-full"
+        style={{ 
+          position: 'relative',
+          touchAction: 'none', // Prevent touch scrolling
+          userSelect: 'none' // Prevent text selection
+        }}
+      />
       
       {/* HUD */}
       <div className="absolute top-0 left-0 right-0 p-6 pointer-events-none">
