@@ -753,14 +753,14 @@ export default function BladeBounce3D({
       
       // PROGRESSIVE DIFFICULTY - Spawn rates increase every 10 seconds
       const difficultyTier = Math.floor(timeElapsed / DIFFICULTY_RAMP_INTERVAL);
-      const isExtremeMode = timeElapsed >= EXTREME_MODE_START;
+      const shouldBeExtreme = timeElapsed >= EXTREME_MODE_START;
       
       // Calculate current spawn rates (faster as game progresses)
       const fireballRate = Math.max(600, FIREBALL_SPAWN_RATE_START - (difficultyTier * 200));
       const swordRate = Math.max(3000, ENEMY_SWORD_SPAWN_RATE_START - (difficultyTier * 800));
       
       // EXTREME MODE: Last 10 seconds - spawn rate DOUBLES!
-      const extremeMultiplier = isExtremeMode ? 0.5 : 1.0;
+      const extremeMultiplier = shouldBeExtreme ? 0.5 : 1.0;
       const currentFireballRate = fireballRate * extremeMultiplier;
       const currentSwordRate = swordRate * extremeMultiplier;
       
@@ -776,8 +776,8 @@ export default function BladeBounce3D({
         lastEnemySwordSpawnRef.current = now;
       }
       
-      // Update extreme mode state for visual effects
-      if (isExtremeMode && !isExtremeMode) {
+      // Update extreme mode state for visual effects (trigger once)
+      if (shouldBeExtreme && !isExtremeMode) {
         setIsExtremeMode(true);
         playSound(1000, 0.3, 'sawtooth');
         console.log('🔥 EXTREME MODE ACTIVATED!');
