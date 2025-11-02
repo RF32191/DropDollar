@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd } from '@/lib/gameAudio';
+import { FairRNGService, QuickClickRNGConfig } from '@/lib/fairRNGService';
 
 interface GameResult {
   score: number;
@@ -28,6 +29,11 @@ interface Round {
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: QuickClickGameProps) {
+  // Get fair RNG configuration for deterministic gameplay
+  const rngConfig = (listingId && entryNumber) 
+    ? FairRNGService.getQuickClickConfig(listingId, entryNumber)
+    : null;
+    
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'waiting' | 'flash' | 'clicked' | 'ended'>('ready');
   const [currentRound, setCurrentRound] = useState(1);
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -77,29 +83,48 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     console.log(`QuickClick: Starting round ${currentRound}`);
     const isBonus = currentRound === 4;
     
-    if (isBonus) {
-      // Bonus round - generate random target position
-      const targetX = 20 + Math.random() * 60; // 20% to 80% of screen width
-      const targetY = 20 + Math.random() * 60; // 20% to 80% of screen height
-      setTargetPosition({ x: targetX, y: targetY });
-      console.log(`QuickClick: Bonus round - target at ${targetX}%, ${targetY}%`);
+    // Get wait time and target position - DETERMINISTIC (competition) or RANDOM (practice)
+    let waitTime: number;
+    let targetX: number;
+    let targetY: number;
+    
+    if (rngConfig && isCompetitionMode) {
+      // COMPETITION MODE: Use predetermined values from RNG config
+      const roundConfig = rngConfig.rounds[currentRound - 1];
+      waitTime = roundConfig.waitTime;
+      
+      if (isBonus && roundConfig.bonusTarget) {
+        targetX = roundConfig.bonusTarget.x;
+        targetY = roundConfig.bonusTarget.y;
+        setTargetPosition({ x: targetX, y: targetY });
+        console.log(`⚡ [QuickClick] Round ${currentRound} (BONUS) - Wait: ${waitTime}ms, Target: (${targetX}, ${targetY}) - DETERMINISTIC`);
+      } else {
+        setTargetPosition(null);
+        console.log(`⚡ [QuickClick] Round ${currentRound} - Wait: ${waitTime}ms - DETERMINISTIC`);
+      }
     } else {
-      setTargetPosition(null);
+      // PRACTICE MODE: Random wait times and positions
+      waitTime = 2000 + Math.random() * 4000;
+      
+      if (isBonus) {
+        targetX = 20 + Math.random() * 60;
+        targetY = 20 + Math.random() * 60;
+        setTargetPosition({ x: targetX, y: targetY });
+        console.log(`QuickClick: Bonus round - target at ${targetX}%, ${targetY}%`);
+      } else {
+        setTargetPosition(null);
+      }
     }
     
     setGameState('waiting');
-    
-    // Random wait time between 2-6 seconds
-    const waitTime = 2000 + Math.random() * 4000;
     
     flashTimeoutRef.current = setTimeout(() => {
       console.log('QuickClick: FLASH!');
       setGameState('flash');
       setFlashStartTime(Date.now());
-      // Simple flash sound
       playCountdownBeep();
     }, waitTime);
-  }, [currentRound]);
+  }, [currentRound, rngConfig, isCompetitionMode]);
 
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {

@@ -68,6 +68,20 @@ export interface SwordSlashRNGConfig {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
+export interface QuickClickRNGConfig {
+  id: number;
+  name: string;
+  rounds: {
+    round: number; // Round number (1-4)
+    waitTime: number; // Time to wait before flash (ms)
+    bonusTarget?: { // Only for bonus round (round 4)
+      x: number; // Target X position (percentage 0-100)
+      y: number; // Target Y position (percentage 0-100)
+    };
+  }[];
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
 // 20 Multi-Target RNG Configurations
 export const MULTI_TARGET_RNG_CONFIGS: MultiTargetRNGConfig[] = [
   {
@@ -528,6 +542,42 @@ for (let i = 4; i <= 20; i++) {
   });
 }
 
+// 20 Quick Click RNG Configurations
+export const QUICK_CLICK_RNG_CONFIGS: QuickClickRNGConfig[] = [];
+
+// Generate 20 Quick Click configurations with varied wait times
+for (let i = 1; i <= 20; i++) {
+  const rounds = [];
+  
+  // Generate 4 rounds (3 regular + 1 bonus)
+  for (let round = 1; round <= 4; round++) {
+    // Wait time between 2-6 seconds, deterministic based on config ID and round
+    const baseWait = 2000 + ((i * round * 347) % 4000); // 2000-6000ms
+    
+    const roundConfig: any = {
+      round,
+      waitTime: baseWait
+    };
+    
+    // Bonus round (round 4) gets a target position
+    if (round === 4) {
+      roundConfig.bonusTarget = {
+        x: 20 + ((i * 23) % 60), // 20-80%
+        y: 20 + ((i * 37) % 60)  // 20-80%
+      };
+    }
+    
+    rounds.push(roundConfig);
+  }
+  
+  QUICK_CLICK_RNG_CONFIGS.push({
+    id: i,
+    name: `Pattern ${i}`,
+    rounds,
+    difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard'
+  });
+}
+
 // Fair RNG Assignment System
 export class FairRNGService {
   /**
@@ -593,6 +643,20 @@ export class FairRNGService {
     const configIndex = (baseIndex + attemptOffset) % 20;
     
     return SWORD_SLASH_RNG_CONFIGS[configIndex];
+  }
+  
+  /**
+   * Get Quick Click RNG config based on listing ID and attempt number
+   */
+  static getQuickClickConfig(listingId: string, attemptNumber: number): QuickClickRNGConfig {
+    const listingHash = this.hashString(listingId);
+    const baseIndex = listingHash % 20;
+    
+    // Use different prime offset for quick click to ensure variety
+    const attemptOffset = (attemptNumber - 1) * 19;
+    const configIndex = (baseIndex + attemptOffset) % 20;
+    
+    return QUICK_CLICK_RNG_CONFIGS[configIndex];
   }
   
   /**
