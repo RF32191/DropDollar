@@ -30,7 +30,7 @@ interface Enemy3D {
   isGreenFireball?: boolean; // Special high-value green fireball
   basePoints?: number; // Base point value before precision multiplier
   laserActive?: boolean; // Whether laser is active and can damage
-  laserRotationSpeed?: number; // Slow rotation speed for laser
+  laserDirection?: THREE.Vector2; // Direction the laser is pointing (for destruction check)
 }
 
 interface Particle3D {
@@ -53,7 +53,7 @@ const GAME_DURATION = 60;
 const SWORD_ROTATION_SPEED = 0.15; // Much faster rotation for smooth 45° clicks
 const ROTATION_STEP = Math.PI / 4; // 45 degrees per click
 const FIREBALL_SPAWN_RATE = 1800; // ms between fireball spawns (SLOWER - gradual difficulty)
-const ENEMY_SWORD_SPAWN_RATE = 5000; // ms between enemy sword spawns (RARE)
+const ENEMY_SWORD_SPAWN_RATE = 8000; // ms between enemy sword spawns (VERY RARE - fewer spawns)
 const LASER_SPAWN_RATE = 6000; // ms between laser spawns (SLOWER - only one at a time)
 const HANDLE_DANGER_ZONES = 3; // Number of red circles on handle
 const DANGER_ZONE_SIZE = 0.8; // VERY LARGE danger zones for easy hit detection
@@ -616,10 +616,9 @@ export default function BladeBounce3D({
         pulsePhase: Math.random() * Math.PI * 2,
       });
     } else if (type === 'laser') {
-      // SLOWLY ROTATING LASER - With direction arrows
-      const rotationSpeed = (Math.random() * 0.004 + 0.002) * (Math.random() < 0.5 ? 1 : -1); // Very slow: ±0.002 to ±0.006 rad/frame
+      // STATIC LASER - With direction arrows (destroyable by aligning sword against arrows)
       
-      // CREATE WARNING INDICATOR GROUP (line + direction arrows) - FULL SCREEN
+      // CREATE WARNING INDICATOR GROUP (line + direction arrows) - FULL SCREEN, STATIC
       const warningGroup = new THREE.Group();
       
       // Main warning line (full screen)
@@ -633,7 +632,7 @@ export default function BladeBounce3D({
       const warning = new THREE.Mesh(warningGeometry, warningMaterial);
       warningGroup.add(warning);
       
-      // Direction arrows (show which way laser is rotating)
+      // Direction arrows (show which direction to align sword AGAINST)
       const arrowSize = 0.8;
       const arrowGeometry = new THREE.ConeGeometry(arrowSize * 0.5, arrowSize * 2, 8);
       const arrowMaterial = new THREE.MeshBasicMaterial({
@@ -642,16 +641,19 @@ export default function BladeBounce3D({
         opacity: 0.9,
       });
       
-      // Create 5 arrows along the laser to show rotation direction
+      // Random arrow direction (perpendicular to laser)
+      const arrowDirection = Math.random() < 0.5 ? 1 : -1; // Clockwise or counter-clockwise
+      
+      // Create 5 arrows along the laser
       for (let i = -2; i <= 2; i++) {
         const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial.clone());
         arrow.position.set(i * 10, 0, 0.2);
-        // Point arrows perpendicular to show rotation direction
-        arrow.rotation.z = rotationSpeed > 0 ? Math.PI / 2 : -Math.PI / 2;
+        // Point arrows perpendicular (direction to align sword AGAINST)
+        arrow.rotation.z = arrowDirection > 0 ? Math.PI / 2 : -Math.PI / 2;
         warningGroup.add(arrow);
       }
       
-      // Random starting angle
+      // Random starting angle (STATIC - no rotation)
       const startAngle = Math.random() * Math.PI * 2;
       warningGroup.rotation.z = startAngle;
       
@@ -660,7 +662,7 @@ export default function BladeBounce3D({
       
       sceneRef.current.add(warningGroup);
       
-      // CREATE LASER BEAM GROUP (will be activated after warning) - FULL SCREEN, ROTATING
+      // CREATE LASER BEAM GROUP (will be activated after warning) - FULL SCREEN, STATIC
       const laserGroup = new THREE.Group();
       
       // Main laser beam
@@ -687,11 +689,18 @@ export default function BladeBounce3D({
       glow.position.z = 0.05;
       laserGroup.add(glow);
       
-      // Match warning position and rotation
+      // Match warning position and rotation (STATIC - no rotation)
       laserGroup.position.set(0, 0, 0);
       laserGroup.rotation.z = startAngle;
       
       sceneRef.current.add(laserGroup);
+      
+      // Calculate laser direction vector (along laser line)
+      const laserDir = new THREE.Vector2(Math.cos(startAngle), Math.sin(startAngle));
+      
+      // Calculate destruction direction (perpendicular to laser, in arrow direction)
+      const destructionAngle = startAngle + (arrowDirection > 0 ? Math.PI / 2 : -Math.PI / 2);
+      const destructionDir = new THREE.Vector2(Math.cos(destructionAngle), Math.sin(destructionAngle));
       
       // Add laser to enemies array
       enemiesRef.current.push({
@@ -703,13 +712,13 @@ export default function BladeBounce3D({
         velocityX: 0,
         velocityY: 0,
         type: 'laser',
-        health: 999, // Indestructible
+        health: 3, // Can be destroyed by sword alignment
         rotation: startAngle,
         pulsePhase: 0,
         width: 50,
         height: LASER_WIDTH,
         laserActive: false,
-        laserRotationSpeed: rotationSpeed,
+        laserDirection: destructionDir, // Direction to align sword against
       });
       
       // Schedule laser activation
@@ -1007,7 +1016,7 @@ export default function BladeBounce3D({
             (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.2 + flash * 0.5;
           }
         } else if (enemy.type === 'laser') {
-          // Laser warning animation (flashing + SLOW rotation)
+          // Laser warning animation (flashing - STATIC, no rotation)
           if (enemy.laserWarning && sceneRef.current.children.includes(enemy.laserWarning)) {
             // Only animate if not already hit (pulsePhase < 999)
             if (enemy.pulsePhase < 999) {
@@ -1025,14 +1034,10 @@ export default function BladeBounce3D({
               }
             });
             
-            // SLOW rotation during warning
-            if (enemy.laserRotationSpeed) {
-              enemy.laserWarning.rotation.z += enemy.laserRotationSpeed;
-              enemy.rotation = enemy.laserWarning.rotation.z;
-            }
+            // NO ROTATION - laser is static
           }
           
-          // Active laser pulsing + SLOW rotation (when active)
+          // Active laser pulsing (STATIC - no rotation)
           if (enemy.laserActive && enemy.pulsePhase < 999) {
             // Only animate if not already hit
             enemy.pulsePhase += 0.2;
@@ -1054,29 +1059,53 @@ export default function BladeBounce3D({
               });
             }
             
-            // Continue SLOW rotation when active
-            if (enemy.laserRotationSpeed) {
-              laserGroup.rotation.z += enemy.laserRotationSpeed;
-              enemy.rotation = laserGroup.rotation.z;
-            }
+            // NO ROTATION - laser is static
           }
         }
         
-        // LASER COLLISION - Rotating line collision (accurate) - ONCE PER LASER
+        // LASER COLLISION - Static line collision (accurate) - ONCE PER LASER
         if (enemy.type === 'laser' && enemy.laserActive && swordGroupRef.current) {
           // Check if this laser already hit (prevent multiple heart loss)
           if (enemy.pulsePhase >= 999) {
             return true; // Already hit, skip collision check
           }
           
-          // Get sword handle position (danger zones) for damage check
+          // 1. CHECK IF SWORD IS ALIGNED AGAINST ARROWS (can destroy laser)
+          if (enemy.laserDirection && swordGroupRef.current) {
+            // Get sword blade direction (from handle to tip)
+            const swordAngle = currentRotationRef.current;
+            const swordDir = new THREE.Vector2(Math.cos(swordAngle), Math.sin(swordAngle));
+            
+            // Check if sword is aligned AGAINST arrows (opposite direction)
+            // Dot product: if close to -1, sword is aligned opposite to arrows
+            const alignment = swordDir.x * enemy.laserDirection.x + swordDir.y * enemy.laserDirection.y;
+            
+            // If aligned against arrows (within 30 degrees), destroy laser
+            if (alignment < -0.85) { // cos(30°) ≈ 0.866
+              console.log('⚔️ SWORD ALIGNED AGAINST ARROWS - LASER DESTROYED!');
+              
+              // Award points for destroying laser
+              setScore(prev => parseFloat((prev + 50).toFixed(2)));
+              playSound(800, 0.3, 'sine');
+              
+              // Create explosion particles
+              for (let i = 0; i < 30; i++) {
+                createParticle3D(0, 0, 0xff0000);
+              }
+              
+              // Remove laser immediately
+              return false;
+            }
+          }
+          
+          // 2. CHECK IF LASER HIT HANDLE (takes 1 heart)
           let hitHandle = false;
           
           dangerZonesRef.current.forEach(zone => {
             const zoneWorldPos = new THREE.Vector3();
             zone.getWorldPosition(zoneWorldPos);
             
-            // Line collision for rotating laser
+            // Line collision for static laser
             const laserAngle = enemy.rotation;
             const laserDir = new THREE.Vector2(Math.cos(laserAngle), Math.sin(laserAngle));
             const toZone = new THREE.Vector2(zoneWorldPos.x - enemy.x, zoneWorldPos.y - enemy.y);
@@ -1396,8 +1425,9 @@ export default function BladeBounce3D({
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
               <p className="text-lg mb-2">🔥 <span className="text-orange-400">Orange Fireballs</span> (10-30 pts) - Tip cuts = 3x multiplier!</p>
               <p className="text-lg mb-2">💚 <span className="text-green-400">GREEN Fireballs</span> (25-75 pts!) - RARE! Tip cuts = huge points!</p>
-              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts) - Rare pairs, flashing red</p>
-              <p className="text-lg mb-2">⚡ <span className="text-red-500">Rotating Lasers</span> - Yellow arrows show direction! SLOW rotation</p>
+              <p className="text-lg mb-2">⚔️ <span className="text-red-400">Enemy Swords</span> (35 pts) - VERY RARE pairs, flashing red</p>
+              <p className="text-lg mb-2">⚡ <span className="text-red-500">Static Lasers</span> (50 pts!) - Yellow arrows show laser force!</p>
+              <p className="text-lg mb-2">🛡️ <span className="text-yellow-300">ALIGN SWORD AGAINST ARROWS</span> to destroy laser!</p>
               <p className="text-lg mb-2">💔 <span className="text-red-300">Laser hits handle</span> = LOSE HEART!</p>
               <p className="text-lg mb-2">🎯 <span className="text-cyan-400">PRECISION</span> = Decimal scores for fair competition!</p>
               <p className="text-lg mb-2 text-red-400">⚠️ <span className="font-bold">Red circles (handle) = vulnerable spot</span></p>
