@@ -1,5 +1,9 @@
-import crypto from 'crypto';
 import { GameToken } from '@/types/gameSession';
+
+// Use Node.js crypto or Web Crypto API
+const crypto = typeof window === 'undefined' 
+  ? require('crypto') 
+  : null;
 
 export class GameTokenService {
   private static readonly SECRET = process.env.GAME_TOKEN_SECRET || 'fallback-secret-for-development-only-change-in-production';
@@ -14,6 +18,9 @@ export class GameTokenService {
     listingId?: string,
     entryNumber?: number
   ): { token: string; payload: GameToken } {
+    if (!crypto) {
+      throw new Error('Crypto module not available');
+    }
     const sessionId = crypto.randomUUID();
     const timestamp = Date.now();
     const expiresAt = timestamp + this.SESSION_TIMEOUT;
