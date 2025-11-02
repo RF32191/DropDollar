@@ -76,28 +76,30 @@ const CHALLENGE_COIN_SPEED = 0.15; // Much faster
 const CHALLENGE_COIN_POINTS = 500;
 const CHALLENGE_HIT_RADIUS = 0.15; // Very precise
 
-// 20 Game Variations with unique RNG properties
+// 20 Game Variations - COSMETIC ONLY (Fair Competition)
+// ALL variations now have IDENTICAL difficulty (speedMod: 1.0, coinChance: 0.15)
+// Only visual appearance (color) differs - ensures fair competition
 const GAME_VARIATIONS = [
   { id: 1, name: 'Classic Green', blockColor: 0x32CD32, emissive: 0x32CD32, speedMod: 1.0, coinChance: 0.15 },
-  { id: 2, name: 'Turbo Blue', blockColor: 0x1E90FF, emissive: 0x1E90FF, speedMod: 1.3, coinChance: 0.20 },
-  { id: 3, name: 'Chill Purple', blockColor: 0x9370DB, emissive: 0x9370DB, speedMod: 0.8, coinChance: 0.12 },
-  { id: 4, name: 'Inferno Red', blockColor: 0xFF4500, emissive: 0xFF4500, speedMod: 1.5, coinChance: 0.25 },
-  { id: 5, name: 'Ice Cyan', blockColor: 0x00CED1, emissive: 0x00CED1, speedMod: 0.7, coinChance: 0.10 },
-  { id: 6, name: 'Golden Rush', blockColor: 0xFFD700, emissive: 0xFFD700, speedMod: 1.2, coinChance: 0.30 },
-  { id: 7, name: 'Neon Pink', blockColor: 0xFF1493, emissive: 0xFF1493, speedMod: 1.4, coinChance: 0.18 },
-  { id: 8, name: 'Ocean Teal', blockColor: 0x008080, emissive: 0x008080, speedMod: 0.9, coinChance: 0.15 },
-  { id: 9, name: 'Sunset Orange', blockColor: 0xFF8C00, emissive: 0xFF8C00, speedMod: 1.1, coinChance: 0.16 },
-  { id: 10, name: 'Lime Blast', blockColor: 0x00FF00, emissive: 0x00FF00, speedMod: 1.6, coinChance: 0.22 },
-  { id: 11, name: 'Royal Blue', blockColor: 0x4169E1, emissive: 0x4169E1, speedMod: 1.0, coinChance: 0.14 },
-  { id: 12, name: 'Magenta Magic', blockColor: 0xFF00FF, emissive: 0xFF00FF, speedMod: 1.3, coinChance: 0.19 },
-  { id: 13, name: 'Emerald Dream', blockColor: 0x50C878, emissive: 0x50C878, speedMod: 0.85, coinChance: 0.13 },
-  { id: 14, name: 'Crimson Fury', blockColor: 0xDC143C, emissive: 0xDC143C, speedMod: 1.7, coinChance: 0.28 },
-  { id: 15, name: 'Aqua Breeze', blockColor: 0x7FFFD4, emissive: 0x7FFFD4, speedMod: 0.75, coinChance: 0.11 },
-  { id: 16, name: 'Violet Storm', blockColor: 0x8B00FF, emissive: 0x8B00FF, speedMod: 1.25, coinChance: 0.17 },
-  { id: 17, name: 'Amber Wave', blockColor: 0xFFBF00, emissive: 0xFFBF00, speedMod: 1.15, coinChance: 0.21 },
-  { id: 18, name: 'Mint Fresh', blockColor: 0x98FF98, emissive: 0x98FF98, speedMod: 0.95, coinChance: 0.16 },
-  { id: 19, name: 'Ruby Rage', blockColor: 0xE0115F, emissive: 0xE0115F, speedMod: 1.8, coinChance: 0.35 },
-  { id: 20, name: 'Sapphire Zen', blockColor: 0x0F52BA, emissive: 0x0F52BA, speedMod: 0.6, coinChance: 0.08 },
+  { id: 2, name: 'Turbo Blue', blockColor: 0x1E90FF, emissive: 0x1E90FF, speedMod: 1.0, coinChance: 0.15 },
+  { id: 3, name: 'Chill Purple', blockColor: 0x9370DB, emissive: 0x9370DB, speedMod: 1.0, coinChance: 0.15 },
+  { id: 4, name: 'Inferno Red', blockColor: 0xFF4500, emissive: 0xFF4500, speedMod: 1.0, coinChance: 0.15 },
+  { id: 5, name: 'Ice Cyan', blockColor: 0x00CED1, emissive: 0x00CED1, speedMod: 1.0, coinChance: 0.15 },
+  { id: 6, name: 'Golden Rush', blockColor: 0xFFD700, emissive: 0xFFD700, speedMod: 1.0, coinChance: 0.15 },
+  { id: 7, name: 'Neon Pink', blockColor: 0xFF1493, emissive: 0xFF1493, speedMod: 1.0, coinChance: 0.15 },
+  { id: 8, name: 'Ocean Teal', blockColor: 0x008080, emissive: 0x008080, speedMod: 1.0, coinChance: 0.15 },
+  { id: 9, name: 'Sunset Orange', blockColor: 0xFF8C00, emissive: 0xFF8C00, speedMod: 1.0, coinChance: 0.15 },
+  { id: 10, name: 'Lime Blast', blockColor: 0x00FF00, emissive: 0x00FF00, speedMod: 1.0, coinChance: 0.15 },
+  { id: 11, name: 'Royal Blue', blockColor: 0x4169E1, emissive: 0x4169E1, speedMod: 1.0, coinChance: 0.15 },
+  { id: 12, name: 'Magenta Magic', blockColor: 0xFF00FF, emissive: 0xFF00FF, speedMod: 1.0, coinChance: 0.15 },
+  { id: 13, name: 'Emerald Dream', blockColor: 0x50C878, emissive: 0x50C878, speedMod: 1.0, coinChance: 0.15 },
+  { id: 14, name: 'Crimson Fury', blockColor: 0xDC143C, emissive: 0xDC143C, speedMod: 1.0, coinChance: 0.15 },
+  { id: 15, name: 'Aqua Breeze', blockColor: 0x7FFFD4, emissive: 0x7FFFD4, speedMod: 1.0, coinChance: 0.15 },
+  { id: 16, name: 'Violet Storm', blockColor: 0x8B00FF, emissive: 0x8B00FF, speedMod: 1.0, coinChance: 0.15 },
+  { id: 17, name: 'Amber Wave', blockColor: 0xFFBF00, emissive: 0xFFBF00, speedMod: 1.0, coinChance: 0.15 },
+  { id: 18, name: 'Mint Fresh', blockColor: 0x98FF98, emissive: 0x98FF98, speedMod: 1.0, coinChance: 0.15 },
+  { id: 19, name: 'Ruby Rage', blockColor: 0xE0115F, emissive: 0xE0115F, speedMod: 1.0, coinChance: 0.15 },
+  { id: 20, name: 'Sapphire Zen', blockColor: 0x0F52BA, emissive: 0x0F52BA, speedMod: 1.0, coinChance: 0.15 },
 ];
 
 export default function CashStackGame3D({

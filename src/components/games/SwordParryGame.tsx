@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { FairRNGService, SwordSlashRNGConfig } from '@/lib/fairRNGService';
 
 interface GameResult {
   score: number;
@@ -46,6 +47,11 @@ interface MousePosition {
 }
 
 export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: SwordParryGameProps) {
+  // Get fair RNG configuration for deterministic gameplay
+  const rngConfig = (listingId && entryNumber) 
+    ? FairRNGService.getSwordSlashConfig(listingId, entryNumber)
+    : null;
+    
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [attacks, setAttacks] = useState<Attack[]>([]);
   const [optionalTargets, setOptionalTargets] = useState<OptionalTarget[]>([]);
@@ -69,6 +75,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const isGameRunningRef = useRef(false);
   const lastMouseAngleRef = useRef<number>(0);
   const timeLeftRef = useRef(60); // Add timeLeft ref to avoid dependency issues
+  const attackSpawnIndexRef = useRef<number>(0); // Track which attack to spawn next from RNG config
 
   // Update timeLeft ref when state changes
   useEffect(() => {
@@ -189,72 +196,113 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     // Update score from ref (no need to set state in game loop)
     // Score updates happen in collision detection
 
-    // Spawn attacks with much more forgiving difficulty
-    const difficultyLevel = Math.max(1, Math.floor((61 - timeLeftRef.current) / 10)); // Level 1-6 based on time (every 10 seconds)
-    const baseSpawnRate = Math.max(1500, 3500 - (difficultyLevel * 300)); // Much slower spawning
-    const attackSpawnRate = baseSpawnRate;
-    
-    if (now - lastAttackSpawnRef.current > attackSpawnRate) {
-      const attackTypes = ['slash', 'thrust', 'overhead'];
-      const attackType = attackTypes[Math.floor(Math.random() * attackTypes.length)] as Attack['type'];
+    // Spawn attacks - DETERMINISTIC (competition) or RANDOM (practice)
+    if (rngConfig && isCompetitionMode) {
+      // COMPETITION MODE: Use predetermined attack spawns from RNG config
+      const timeElapsed = now - gameStartTimeRef.current;
+      const nextAttackIndex = attackSpawnIndexRef.current;
       
-      // Random spawn position from edges
-      const side = Math.floor(Math.random() * 4);
-      let startX, startY, targetX = 50, targetY = 50;
-      
-      switch (side) {
-        case 0: // Top
-          startX = Math.random() * 100;
-          startY = 0;
-          break;
-        case 1: // Right
-          startX = 100;
-          startY = Math.random() * 100;
-          break;
-        case 2: // Bottom
-          startX = Math.random() * 100;
-          startY = 100;
-          break;
-        default: // Left
-          startX = 0;
-          startY = Math.random() * 100;
+      if (nextAttackIndex < rngConfig.attackSpawns.length) {
+        const nextAttack = rngConfig.attackSpawns[nextAttackIndex];
+        
+        // Check if it's time to spawn this attack
+        if (timeElapsed >= nextAttack.time) {
+          const attackTypes = ['slash', 'thrust', 'overhead'];
+          const attackType = attackTypes[nextAttackIndex % 3] as Attack['type'];
+          const targetX = 50, targetY = 50;
+          const angle = Math.atan2(targetY - nextAttack.y, targetX - nextAttack.x) * (180 / Math.PI);
+          
+          const newAttack: Attack = {
+            id: now + nextAttackIndex,
+            type: attackType,
+            angle: angle,
+            x: nextAttack.x,
+            y: nextAttack.y,
+            speed: 0.3 + (nextAttack.size * 0.2), // Speed based on size config
+            createdAt: now,
+            destroyed: false,
+            perfectTiming: false,
+            health: 1
+          };
+          
+          setAttacks(prev => [...prev, newAttack]);
+          setTotalAttacks(prev => prev + 1);
+          attackSpawnIndexRef.current = nextAttackIndex + 1;
+          
+          console.log(`⚔️ [SwordSlash] Spawned attack #${nextAttackIndex} at (${nextAttack.x}, ${nextAttack.y}) - DETERMINISTIC`);
+        }
       }
+    } else {
+      // PRACTICE MODE: Random spawning for variety
+      const difficultyLevel = Math.max(1, Math.floor((61 - timeLeftRef.current) / 10));
+      const baseSpawnRate = Math.max(1500, 3500 - (difficultyLevel * 300));
+      const attackSpawnRate = baseSpawnRate;
       
-      const angle = Math.atan2(targetY - startY, targetX - startX) * (180 / Math.PI);
-      
-      const newAttack: Attack = {
-        id: now + Math.random(),
-        type: attackType,
-        angle: angle, // Visual direction only
-        x: startX,
-        y: startY,
-        speed: Math.min(0.8, 0.2 + (difficultyLevel * 0.1)), // Much slower attacks
-        createdAt: now,
-        destroyed: false,
-        perfectTiming: false,
-        health: 1 // Attacks start with 1 health, destroyed when slashed
-      };
-      
-      setAttacks(prev => [...prev, newAttack]);
-      setTotalAttacks(prev => prev + 1);
-      lastAttackSpawnRef.current = now;
+      if (now - lastAttackSpawnRef.current > attackSpawnRate) {
+        const attackTypes = ['slash', 'thrust', 'overhead'];
+        const attackType = attackTypes[Math.floor(Math.random() * attackTypes.length)] as Attack['type'];
+        
+        // Random spawn position from edges
+        const side = Math.floor(Math.random() * 4);
+        let startX, startY, targetX = 50, targetY = 50;
+        
+        switch (side) {
+          case 0: // Top
+            startX = Math.random() * 100;
+            startY = 0;
+            break;
+          case 1: // Right
+            startX = 100;
+            startY = Math.random() * 100;
+            break;
+          case 2: // Bottom
+            startX = Math.random() * 100;
+            startY = 100;
+            break;
+          default: // Left
+            startX = 0;
+            startY = Math.random() * 100;
+        }
+        
+        const angle = Math.atan2(targetY - startY, targetX - startX) * (180 / Math.PI);
+        
+        const newAttack: Attack = {
+          id: now + Math.random(),
+          type: attackType,
+          angle: angle,
+          x: startX,
+          y: startY,
+          speed: Math.min(0.8, 0.2 + (difficultyLevel * 0.1)),
+          createdAt: now,
+          destroyed: false,
+          perfectTiming: false,
+          health: 1
+        };
+        
+        setAttacks(prev => [...prev, newAttack]);
+        setTotalAttacks(prev => prev + 1);
+        lastAttackSpawnRef.current = now;
+      }
     }
 
-    // Spawn optional targets
-    const targetSpawnRate = 3000;
-    if (now - lastTargetSpawnRef.current > targetSpawnRate) {
-      const newTarget: OptionalTarget = {
-        id: now + Math.random(),
-        x: 20 + Math.random() * 60,
-        y: 20 + Math.random() * 60,
-        size: 15 + Math.random() * 10,
-        createdAt: now,
-        cut: false,
-        points: 50 + Math.floor(Math.random() * 100)
-      };
-      
-      setOptionalTargets(prev => [...prev, newTarget]);
-      lastTargetSpawnRef.current = now;
+    // Spawn optional targets - ONLY in practice mode
+    // In competition mode, optional targets are disabled to ensure fair scoring
+    if (!isCompetitionMode) {
+      const targetSpawnRate = 3000;
+      if (now - lastTargetSpawnRef.current > targetSpawnRate) {
+        const newTarget: OptionalTarget = {
+          id: now + Math.random(),
+          x: 20 + Math.random() * 60,
+          y: 20 + Math.random() * 60,
+          size: 15 + Math.random() * 10,
+          createdAt: now,
+          cut: false,
+          points: 50 + Math.floor(Math.random() * 100)
+        };
+        
+        setOptionalTargets(prev => [...prev, newTarget]);
+        lastTargetSpawnRef.current = now;
+      }
     }
 
     // Update attacks
