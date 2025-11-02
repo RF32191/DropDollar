@@ -50,13 +50,7 @@ CREATE TABLE IF NOT EXISTS public.game_sessions (
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
-  completed_at TIMESTAMPTZ,
-  
-  -- Indexes for performance
-  CONSTRAINT check_scores CHECK (
-    (status = 'completed' AND server_score IS NOT NULL) OR 
-    (status != 'completed')
-  )
+  completed_at TIMESTAMPTZ
 );
 
 -- Create indexes for efficient queries
