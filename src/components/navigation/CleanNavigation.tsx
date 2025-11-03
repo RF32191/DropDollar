@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import UserMenu from './UserMenu';
-import ProminentDualWallet from '@/components/wallet/ProminentDualWallet';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { playNavigationClick, playButtonHover } from '@/lib/gameAudio';
 
@@ -133,14 +132,8 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
             })}
           </nav>
 
-          {/* Desktop Wallet Display - Right side */}
-          <div className="hidden xl:flex items-center gap-4 ml-auto pr-2">
-            <ProminentDualWallet />
-            <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
-          </div>
-          
-          {/* Tablet - Only User Menu */}
-          <div className="hidden lg:flex xl:hidden items-center ml-auto pr-2">
+          {/* Desktop User Menu - Right side */}
+          <div className="hidden lg:flex items-center ml-auto pr-2">
             <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
           </div>
 

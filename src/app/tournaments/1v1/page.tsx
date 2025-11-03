@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import {
   TrophyIcon,
@@ -408,6 +409,9 @@ export default function OneVOnePage() {
         <CleanNavigation />
         
         <div className="container mx-auto px-4 py-8 pt-24">
+          {/* Wallet Display */}
+          <PageWalletDisplay />
+          
           {/* Header */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-4">

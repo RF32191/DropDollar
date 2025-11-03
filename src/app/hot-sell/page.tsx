@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import {
   FireIcon,
@@ -810,6 +811,9 @@ export default function HotSellPage() {
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Wallet Display */}
+        <PageWalletDisplay />
+        
         {/* Location Verification Banner */}
         {isAuthenticated && (
           <div className={`mb-6 p-4 rounded-xl border ${
