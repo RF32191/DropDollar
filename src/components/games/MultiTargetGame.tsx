@@ -414,10 +414,10 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       `animate-pulse ring-1 ring-white ring-opacity-30 shadow-lg` : 
       'hover:shadow-md';
     
-    // Disable interaction for already hit targets
+    // Disable interaction for already hit targets - let clicks pass through
     const interactionClass = isHit && target.isCorrect ? 
-      'cursor-not-allowed opacity-75' : 
-      'cursor-pointer transform hover:scale-110';
+      'cursor-not-allowed opacity-50 pointer-events-none' : 
+      'cursor-pointer transform hover:scale-110 active:scale-95';
     
     return {
       className: `${baseClass} ${pulseClass} ${interactionClass} absolute rounded-full transition-all duration-200`,

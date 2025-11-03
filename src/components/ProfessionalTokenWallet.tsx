@@ -25,6 +25,7 @@ import MinimalCheckout from '@/components/MinimalCheckout';
 import CelebrationEffect from '@/components/CelebrationEffect';
 import CoinDropAnimation from '@/components/CoinDropAnimation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import TokenTerms from '@/components/legal/TokenTerms';
 import { playCoinsFalling, playButtonHover } from '@/lib/gameAudio';
 
 // Initialize Stripe
@@ -99,6 +100,7 @@ export default function ProfessionalTokenWallet() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [showCoinDrop, setShowCoinDrop] = useState(false);
   const [purchasedTokens, setPurchasedTokens] = useState(0);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Enhanced user detection
   // Helper function to attempt token credit recovery
@@ -850,7 +852,30 @@ export default function ProfessionalTokenWallet() {
 
             {/* Checkout Section */}
             {showCheckout ? (
-              <div className="max-w-2xl mx-auto">
+              <div className="max-w-4xl mx-auto space-y-6">
+                {/* Token Terms - Always Visible */}
+                <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700">
+                  <TokenTerms />
+                  
+                  {/* Terms Acceptance Checkbox */}
+                  <div className="mt-6 pt-6 border-t border-slate-700">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="mt-1 w-5 h-5 rounded border-gray-600 text-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                      />
+                      <span className="text-sm text-gray-300">
+                        I have read and agree to the Token Terms & Conditions. I understand that{' '}
+                        <strong className="text-red-400">purchased tokens are non-refundable and cannot be exchanged for cash</strong>, 
+                        and that <strong className="text-green-400">only won tokens can be cashed out</strong>.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Payment Section */}
                 <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700">
                   <div className="text-center mb-8">
                     <h2 className="text-3xl font-bold text-white mb-4">Complete Your Purchase</h2>
@@ -861,20 +886,39 @@ export default function ProfessionalTokenWallet() {
                       <div className="text-xl text-white">
                         ${(getCurrentPackage().price / 100).toFixed(2)}
                       </div>
+                      <div className="text-sm text-gray-400 mt-2">
+                        🛒 These will be <strong>Purchased Tokens</strong> (non-cashable)
+                      </div>
                     </div>
                   </div>
 
-                  <Elements stripe={stripePromise}>
-                    <MinimalCheckout
-                      selectedPackage={getCurrentPackage()}
-                      userProfile={userProfile}
-                      onSuccess={handlePaymentSuccess}
-                      onError={handlePaymentError}
-                    />
-                  </Elements>
+                  {acceptedTerms ? (
+                    <>
+                      <Elements stripe={stripePromise}>
+                        <MinimalCheckout
+                          selectedPackage={getCurrentPackage()}
+                          userProfile={userProfile}
+                          onSuccess={handlePaymentSuccess}
+                          onError={handlePaymentError}
+                        />
+                      </Elements>
+                    </>
+                  ) : (
+                    <div className="text-center p-8 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+                      <p className="text-yellow-300 font-semibold mb-2">
+                        ⚠️ Please Accept Terms to Continue
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        You must read and accept the Token Terms & Conditions above before purchasing.
+                      </p>
+                    </div>
+                  )}
 
                   <button
-                    onClick={() => setShowCheckout(false)}
+                    onClick={() => {
+                      setShowCheckout(false);
+                      setAcceptedTerms(false); // Reset for next time
+                    }}
                     className="w-full mt-4 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
                   >
                     Cancel
