@@ -29,7 +29,7 @@ DELETE FROM public.one_v_one_configs;
 
 DO $$
 DECLARE
-  v_config_id TEXT;
+  v_config_id UUID;
   v_game_type TEXT;
   v_game_name TEXT;
   v_entry_fee DECIMAL(10,2);
@@ -72,7 +72,7 @@ BEGIN
       v_rng_seed := floor(random() * 1000000)::INTEGER;
       
       -- Create unique config ID
-      v_config_id := gen_random_uuid()::TEXT;
+      v_config_id := gen_random_uuid();
       
       -- Insert config
       INSERT INTO public.one_v_one_configs (
@@ -111,7 +111,7 @@ BEGIN
         created_at,
         updated_at
       ) VALUES (
-        gen_random_uuid()::TEXT,
+        gen_random_uuid(),
         v_config_id,
         0, -- Starts at 0, increases as players join
         v_total_pool,
