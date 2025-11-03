@@ -11,14 +11,14 @@ DROP FUNCTION IF EXISTS get_all_1v1_sessions();
 -- Create the function
 CREATE OR REPLACE FUNCTION get_all_1v1_sessions()
 RETURNS TABLE (
-  id UUID,
-  config_id UUID,
+  id TEXT,
+  config_id TEXT,
   current_pool DECIMAL(10,2),
   prize_pool DECIMAL(10,2),
   participants_count INTEGER,
   max_participants INTEGER,
   status TEXT,
-  winner_user_id UUID,
+  winner_user_id TEXT,
   prize_amount DECIMAL(10,2),
   platform_fee DECIMAL(10,2),
   created_at TIMESTAMPTZ,
