@@ -54,19 +54,19 @@ WHERE
   AND NOT EXISTS (
     -- Check if they've actually won in Hot Sell
     SELECT 1 FROM public.hot_sell_participants hp
-    WHERE hp.user_id = u.id 
+    WHERE hp.user_id::TEXT = u.id::TEXT
     AND hp.entry_fee IS NOT NULL 
     AND hp.score IS NOT NULL
     UNION
     -- Check if they've actually won in Winner Takes All
     SELECT 1 FROM public.winner_takes_all_participants wp
-    WHERE wp.user_id = u.id 
+    WHERE wp.user_id::TEXT = u.id::TEXT
     AND wp.entry_fee IS NOT NULL 
     AND wp.score IS NOT NULL
     UNION
     -- Check if they've actually won in 1v1
     SELECT 1 FROM public.one_v_one_participants op
-    WHERE op.user_id = u.id 
+    WHERE op.user_id::TEXT = u.id::TEXT
     AND op.score IS NOT NULL
   );
 
