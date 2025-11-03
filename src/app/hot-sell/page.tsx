@@ -829,25 +829,6 @@ export default function HotSellPage() {
           </div>
           <p className="text-2xl text-orange-200 mb-2 font-semibold">1 Token Entry - Top 3 Win Prizes!</p>
           <p className="text-xl text-orange-300">1st: 50% | 2nd: 20% | 3rd: 15%</p>
-          
-          {/* User Status */}
-          {isAuthenticated && (
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 items-center justify-center">
-              <div className="inline-flex items-center bg-orange-500/20 backdrop-blur-xl rounded-2xl px-8 py-4 border border-orange-500/30">
-                <BanknotesIcon className="w-8 h-8 text-orange-300 mr-4" />
-                <div className="text-left">
-                  <p className="text-sm text-orange-300 font-medium">Your Tokens</p>
-                  <p className="text-3xl font-bold text-white">
-                    {!hasLoadedTokens ? (
-                      <span className="animate-pulse">...</span>
-                    ) : (
-                      displayTokens.toFixed(2)
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Message Display */}

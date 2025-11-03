@@ -761,16 +761,6 @@ export default function WinnerTakesAllPage() {
           </div>
           <p className="text-2xl text-yellow-200 mb-2 font-semibold">1 Token Entry - Winner Gets Everything!</p>
           <p className="text-xl text-yellow-300">Unlimited players, base price matching prize amount</p>
-          
-          {/* User Status */}
-          {isAuthenticated && (
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 items-center justify-center">
-              <div className="inline-flex items-center bg-yellow-500/20 backdrop-blur-xl rounded-2xl px-8 py-4 border border-yellow-500/30">
-                <BanknotesIcon className="w-8 h-8 text-yellow-300 mr-4" />
-                <span className="text-2xl font-bold text-yellow-200">Your Tokens: {userTokens}</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Message Display */}

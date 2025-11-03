@@ -426,27 +426,8 @@ export default function OneVOnePage() {
             <p className="text-2xl text-blue-200 font-semibold">Face Off • Winner Takes 85%</p>
           </div>
 
-          {/* Wallet Display */}
-          <div className="mb-8 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <BanknotesIcon className="w-12 h-12 text-blue-400 mr-4" />
-                <div>
-                  <p className="text-blue-200 text-sm font-semibold uppercase tracking-wide">Your Tokens</p>
-                  <p className="text-3xl font-bold text-white">
-                    {!hasLoadedTokens ? (
-                      <span className="animate-pulse">...</span>
-                    ) : (
-                      displayTokens.toFixed(2)
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Location Banner */}
-          {isAuthenticated && (
+          {/* Location Banner (removed - using background geo-location) */}
+          {isAuthenticated && false && (
             <div className={`mb-6 p-6 rounded-xl backdrop-blur-xl ${
               locationLoading
                 ? 'bg-blue-500/20 border border-blue-500/50'
