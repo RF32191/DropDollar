@@ -9,6 +9,7 @@ import { UserService } from '@/lib/supabase/userService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 // Dashboard with comprehensive icon imports
 import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
 
@@ -350,6 +351,9 @@ export default function TriumphStyleDashboard() {
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Wallet Display */}
+        <PageWalletDisplay />
+        
         {/* Header with Enhanced Token Balance */}
         <div className="mb-8 animate-fade-in">
           <div className="flex items-center justify-between">
