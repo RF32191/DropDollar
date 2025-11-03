@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GameTokenService } from '@/lib/crypto/gameTokens';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 // Configure for Vercel Node.js runtime
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
