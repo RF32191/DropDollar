@@ -8,17 +8,17 @@
 -- Drop existing function first (if it exists)
 DROP FUNCTION IF EXISTS get_all_1v1_sessions();
 
--- Create the function
+-- Create the function (Mixed types: id=UUID, config_id=TEXT, winner_user_id=UUID)
 CREATE OR REPLACE FUNCTION get_all_1v1_sessions()
 RETURNS TABLE (
-  id TEXT,
+  id UUID,
   config_id TEXT,
   current_pool DECIMAL(10,2),
   prize_pool DECIMAL(10,2),
   participants_count INTEGER,
   max_participants INTEGER,
   status TEXT,
-  winner_user_id TEXT,
+  winner_user_id UUID,
   prize_amount DECIMAL(10,2),
   platform_fee DECIMAL(10,2),
   created_at TIMESTAMPTZ,
@@ -33,7 +33,7 @@ BEGIN
   RETURN QUERY
   SELECT 
     s.id,
-    s.config_id,
+    s.config_id::TEXT,
     s.current_pool,
     s.prize_pool,
     s.participants_count,
