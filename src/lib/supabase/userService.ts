@@ -11,7 +11,9 @@ export interface UserProfile {
   firstName: string;
   lastName: string;
   email: string;
-  tokens: number;
+  tokens: number; // Legacy - kept for backward compatibility
+  purchased_tokens: number; // Non-cashable tokens (purchased or admin-granted)
+  won_tokens: number; // Cashable tokens (won from games)
   balance: number;
   totalSpent: number;
   totalEarned: number;
