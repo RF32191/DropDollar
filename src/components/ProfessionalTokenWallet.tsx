@@ -632,7 +632,7 @@ export default function ProfessionalTokenWallet() {
                   <BanknotesIcon className="h-8 w-8 text-yellow-300" />
                   <div className="text-center sm:text-right">
                     <div className="text-sm text-green-200">Token Balance</div>
-                    <div className="text-2xl font-bold text-white">{userProfile.tokens} Tokens</div>
+                    <div className="text-2xl font-bold text-white">{((userProfile.purchased_tokens || 0) + (userProfile.won_tokens || 0)).toFixed(2)} Tokens</div>
                   </div>
                 </div>
               </div>
@@ -698,7 +698,7 @@ export default function ProfessionalTokenWallet() {
               <h2 className="text-4xl font-bold text-white mb-4">Your DropToken Balance</h2>
               <div className="flex items-center justify-center space-x-4">
                 <span className="text-6xl font-extrabold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                  {showBalance ? userProfile.tokens : '••••'}
+                  {showBalance ? ((userProfile.purchased_tokens || 0) + (userProfile.won_tokens || 0)).toFixed(2) : '••••'}
                 </span>
                 <span className="text-4xl font-bold text-gray-400">Tokens</span>
                 <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-white transition-colors">
