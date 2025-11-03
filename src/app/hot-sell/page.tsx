@@ -813,38 +813,6 @@ export default function HotSellPage() {
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Wallet Display */}
         <PageWalletDisplay />
-        
-        {/* Location Verification Banner */}
-        {isAuthenticated && (
-          <div className={`mb-6 p-4 rounded-xl border ${
-            locationLoading 
-              ? 'bg-blue-500/20 border-blue-500/50' 
-              : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
-              ? 'bg-green-500/20 border-green-500/50' 
-              : 'bg-red-500/20 border-red-500/50'
-          }`}>
-            <div className="flex items-center justify-center">
-              {locationLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-3"></div>
-                  <span className="text-blue-300 text-lg font-semibold">Verifying Location...</span>
-                </>
-              ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
-                <>
-                  <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
-                  <span className="text-green-300 text-lg font-semibold">Location Verified - Gaming Allowed</span>
-                  <span className="text-green-200 text-sm ml-2">({improvedLocation.city}, {improvedLocation.state})</span>
-                </>
-              ) : (
-                <>
-                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
-                  <span className="text-red-300 text-lg font-semibold">Gaming Not Allowed in Your Location</span>
-                  <span className="text-red-200 text-sm ml-2">({improvedLocation?.city || 'Unknown'}, {improvedLocation?.state || 'Unknown'})</span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Header */}
         <div className="text-center mb-12">
