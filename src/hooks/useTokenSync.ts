@@ -28,7 +28,10 @@ export function useTokenSync() {
         console.log('💰 [useTokenSync] Initialized token balance:', balance);
       } catch (error) {
         console.error('❌ [useTokenSync] Failed to initialize tokens:', error);
-        setTokenBalance(user.tokens || 0);
+        // Fallback: calculate from DUAL WALLET (purchased + won)
+        const purchased = user.purchased_tokens || 0;
+        const won = user.won_tokens || 0;
+        setTokenBalance(purchased + won);
       } finally {
         setIsLoading(false);
       }
@@ -56,9 +59,13 @@ export function useTokenSync() {
       if (e.key === 'user' && e.newValue) {
         try {
           const userData = JSON.parse(e.newValue);
-          if (userData.id === user.id && userData.tokens !== undefined) {
-            console.log('💰 [useTokenSync] Tokens updated from localStorage:', userData.tokens);
-            setTokenBalance(userData.tokens);
+          if (userData.id === user.id) {
+            // Calculate total from DUAL WALLET (purchased + won)
+            const purchased = userData.purchased_tokens || 0;
+            const won = userData.won_tokens || 0;
+            const total = purchased + won;
+            console.log('💰 [useTokenSync] Tokens updated from localStorage:', { purchased, won, total });
+            setTokenBalance(total);
           }
         } catch (error) {
           console.error('❌ [useTokenSync] Failed to parse localStorage user data:', error);
@@ -95,8 +102,12 @@ export function useTokenSync() {
     // Listen for login events to ensure seamless loading
     const handleUserLoggedIn = (event: CustomEvent) => {
       if (event.detail?.seamless && event.detail?.userId === user.id) {
-        console.log('💰 [useTokenSync] User logged in seamlessly, updating tokens:', event.detail.tokens);
-        setTokenBalance(event.detail.tokens || 0);
+        // Calculate from DUAL WALLET (purchased + won)
+        const purchased = event.detail.purchased_tokens || 0;
+        const won = event.detail.won_tokens || 0;
+        const total = purchased + won;
+        console.log('💰 [useTokenSync] User logged in seamlessly, updating tokens:', { purchased, won, total });
+        setTokenBalance(total);
         setIsLoading(false);
       }
     };

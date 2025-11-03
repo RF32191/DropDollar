@@ -351,23 +351,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔄 Refreshing token balance...');
       const profile = await UserService.getUserProfile(user.id);
-      if (profile && profile.tokens !== undefined) {
-        const updatedUser = { ...user, tokens: profile.tokens };
+      if (profile) {
+        // Calculate total from DUAL WALLET (purchased + won)
+        const purchased = profile.purchased_tokens || 0;
+        const won = profile.won_tokens || 0;
+        const totalBalance = purchased + won;
+        
+        const updatedUser = { 
+          ...user, 
+          tokens: totalBalance, // Legacy field for backward compatibility
+          purchased_tokens: purchased,
+          won_tokens: won
+        };
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
         
         // Dispatch custom event for other components to listen
         window.dispatchEvent(new CustomEvent('tokensRefreshed', { 
-          detail: { newBalance: profile.tokens, userId: user.id } 
+          detail: { newBalance: totalBalance, userId: user.id } 
         }));
         
-        console.log('✅ Token balance refreshed:', profile.tokens);
-        return profile.tokens;
+        console.log('✅ Token balance refreshed:', { purchased, won, total: totalBalance });
+        return totalBalance;
       }
-      return user.tokens || 0;
+      return (user.purchased_tokens || 0) + (user.won_tokens || 0);
     } catch (error) {
       console.error('❌ Failed to refresh tokens:', error);
-      return user.tokens || 0;
+      return (user.purchased_tokens || 0) + (user.won_tokens || 0);
     }
   };
 
