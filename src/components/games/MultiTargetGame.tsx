@@ -414,9 +414,9 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       `animate-pulse ring-1 ring-white ring-opacity-30 shadow-lg` : 
       'hover:shadow-md';
     
-    // Disable interaction for already hit targets - let clicks pass through completely
+    // Disable interaction for already hit targets - let clicks pass through
     const interactionClass = isHit && target.isCorrect ? 
-      'pointer-events-none opacity-30 scale-90' : 
+      'pointer-events-none opacity-50' : 
       'cursor-pointer transform hover:scale-110 active:scale-95';
     
     return {
@@ -631,9 +631,9 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
                 );
               })}
               
-              {/* Feedback */}
+              {/* Feedback - allow clicks to pass through */}
               {feedback && (
-                <div className={`absolute inset-0 flex items-center justify-center text-4xl font-bold ${
+                <div className={`absolute inset-0 flex items-center justify-center text-4xl font-bold pointer-events-none ${
                   feedback === 'correct' ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {feedback === 'correct' ? '✓ HIT!' : '✗ MISS!'}
