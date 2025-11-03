@@ -85,8 +85,7 @@ BEGIN
         game_duration,
         rng_seed,
         winner_prize,
-        platform_fee,
-        is_active
+        platform_fee
       ) VALUES (
         v_config_id,
         v_game_type,
@@ -97,8 +96,7 @@ BEGIN
         60, -- 60 seconds game duration
         v_rng_seed,
         v_winner_prize,
-        v_platform_fee,
-        true
+        v_platform_fee
       );
       
       -- Create initial session for this config
