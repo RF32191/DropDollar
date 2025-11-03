@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { ChevronDownIcon, UserIcon, CogIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, UserIcon, CogIcon, ArrowRightOnRectangleIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 
 interface UserMenuProps {
   className?: string;
@@ -124,12 +124,64 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-48 ${styles.dropdown} rounded-lg shadow-lg border z-[9999]`}>
+        <div className={`absolute right-0 mt-2 w-72 ${styles.dropdown} rounded-lg shadow-lg border z-[9999]`}>
           <div className="py-1">
             {/* User Info */}
             <div className="px-4 py-2 border-b border-gray-200">
               <p className="text-sm font-semibold text-gray-900">{getUserDisplayName()}</p>
               <p className="text-xs text-gray-500">{user.email}</p>
+            </div>
+
+            {/* Dual Wallet Display */}
+            <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-br from-blue-50 to-purple-50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">💎 Token Balance</span>
+                <BanknotesIcon className="w-4 h-4 text-blue-600" />
+              </div>
+              
+              {/* Total Balance */}
+              <div className="mb-2">
+                <div className="text-2xl font-bold text-gray-900">
+                  {((user.purchased_tokens || 0) + (user.won_tokens || 0)).toFixed(2)}
+                </div>
+                <div className="text-xs text-gray-500">Total Tokens</div>
+              </div>
+
+              {/* Breakdown */}
+              <div className="space-y-1.5">
+                {/* Purchased Tokens */}
+                <div className="flex items-center justify-between p-2 bg-blue-100/60 rounded-lg border border-blue-200/50">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">🛒</span>
+                    <div>
+                      <div className="text-xs font-semibold text-blue-800">Purchased</div>
+                      <div className="text-[10px] text-blue-600">Non-cashable</div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-blue-900">{(user.purchased_tokens || 0).toFixed(2)}</div>
+                </div>
+
+                {/* Won Tokens */}
+                <div className="flex items-center justify-between p-2 bg-green-100/60 rounded-lg border border-green-200/50">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">🏆</span>
+                    <div>
+                      <div className="text-xs font-semibold text-green-800">Won</div>
+                      <div className="text-[10px] text-green-600">Cashable</div>
+                    </div>
+                  </div>
+                  <div className="text-sm font-bold text-green-900">{(user.won_tokens || 0).toFixed(2)}</div>
+                </div>
+              </div>
+
+              {/* Buy Tokens Link */}
+              <Link
+                href="/buy-tokens"
+                onClick={() => setIsOpen(false)}
+                className="mt-2 block text-center text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+              >
+                💰 Buy More Tokens →
+              </Link>
             </div>
 
             {/* Menu Items */}
