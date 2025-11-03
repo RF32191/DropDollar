@@ -5,6 +5,10 @@
 -- Required by the 1v1 tournaments page
 -- ============================================================================
 
+-- Drop existing function first (if it exists)
+DROP FUNCTION IF EXISTS get_all_1v1_sessions();
+
+-- Create the function
 CREATE OR REPLACE FUNCTION get_all_1v1_sessions()
 RETURNS TABLE (
   id UUID,
