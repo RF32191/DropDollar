@@ -525,7 +525,32 @@ export default function OneVOnePage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {gameConfigs.map((config) => {
                     const session = sessions.find(s => s.config_id === config.id);
-                    if (!session) return null;
+                    
+                    // If no session exists, show config but with "No Active Session" message
+                    if (!session) {
+                      return (
+                        <div key={config.id} className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/30 shadow-2xl">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-2xl font-bold text-blue-300">{config.title.replace(' 1v1 - ', ' ')}</h3>
+                            <UsersIcon className="w-8 h-8 text-purple-400" />
+                          </div>
+                          <div className="mb-4 p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl border border-blue-500/30">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-blue-200 font-semibold">Winner Prize</span>
+                              <span className="text-2xl font-bold text-blue-300">{formatAmount(config.winner_prize)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-purple-400">Entry Fee</span>
+                              <span className="text-purple-300">{config.entry_fee} tokens</span>
+                            </div>
+                          </div>
+                          <div className="text-center p-4 bg-yellow-500/20 rounded-xl border border-yellow-500/50">
+                            <p className="text-yellow-300 font-semibold">⚠️ No Active Session</p>
+                            <p className="text-yellow-200 text-xs mt-1">Please refresh or contact support</p>
+                          </div>
+                        </div>
+                      );
+                    }
 
                     const hasJoined = session.participants.some(p => p.user_id === user?.id);
                     const hasPlayed = session.participants.some(p => p.user_id === user?.id && p.score !== null);
