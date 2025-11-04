@@ -170,7 +170,8 @@ END $$;
 -- Join Hot Sell Session - INLINE TOKEN DEDUCTION
 CREATE OR REPLACE FUNCTION public.join_hot_sell_session(
   session_id_param TEXT,
-  user_id_param UUID
+  user_id_param UUID,
+  entry_fee_param NUMERIC
 )
 RETURNS TABLE (
   success BOOLEAN,
@@ -197,11 +198,14 @@ BEGIN
     RETURN;
   END;
 
-  RAISE NOTICE '🔍 Joining session % for user %', v_session_id, user_id_param;
+  RAISE NOTICE '🔍 Joining session % for user % with entry fee %', v_session_id, user_id_param, entry_fee_param;
 
-  -- Get session entry fee
-  SELECT base_price, participants_count
-  INTO v_entry_fee, v_participants_count
+  -- Use the entry fee passed from frontend (it comes from config)
+  v_entry_fee := entry_fee_param;
+
+  -- Get session info
+  SELECT participants_count
+  INTO v_participants_count
   FROM public.hot_sell_sessions
   WHERE id = v_session_id AND status = 'active';
 
@@ -290,7 +294,8 @@ $$;
 -- Join Winner Takes All Session - INLINE TOKEN DEDUCTION
 CREATE OR REPLACE FUNCTION public.join_winner_takes_all_session(
   session_id_param TEXT,
-  user_id_param UUID
+  user_id_param UUID,
+  entry_fee_param NUMERIC
 )
 RETURNS TABLE (
   success BOOLEAN,
@@ -317,11 +322,14 @@ BEGIN
     RETURN;
   END;
 
-  RAISE NOTICE '🔍 Joining WTA session % for user %', v_session_id, user_id_param;
+  RAISE NOTICE '🔍 Joining WTA session % for user % with entry fee %', v_session_id, user_id_param, entry_fee_param;
 
-  -- Get session entry fee
-  SELECT base_price, participants_count
-  INTO v_entry_fee, v_participants_count
+  -- Use the entry fee passed from frontend (it comes from config)
+  v_entry_fee := entry_fee_param;
+
+  -- Get session info
+  SELECT participants_count
+  INTO v_participants_count
   FROM public.winner_takes_all_sessions
   WHERE id = v_session_id AND status = 'active';
 
@@ -443,8 +451,8 @@ END $$;
 -- STEP 5: GRANT PERMISSIONS
 -- ============================================================================
 
-GRANT EXECUTE ON FUNCTION public.join_hot_sell_session(TEXT, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.join_winner_takes_all_session(TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_hot_sell_session(TEXT, UUID, NUMERIC) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_winner_takes_all_session(TEXT, UUID, NUMERIC) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_all_hot_sell_sessions() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated;
 
