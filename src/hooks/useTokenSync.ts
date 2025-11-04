@@ -9,8 +9,11 @@ import { useAuth } from '@/contexts/AuthContext';
  */
 export function useTokenSync() {
   const { user, isAuthenticated, refreshTokens } = useAuth();
-  const [tokenBalance, setTokenBalance] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // INSTANT DISPLAY: Initialize from user object immediately (no loading state)
+  const initialBalance = user ? (user.purchased_tokens || 0) + (user.won_tokens || 0) : 0;
+  const [tokenBalance, setTokenBalance] = useState<number>(initialBalance);
+  const [isLoading, setIsLoading] = useState(false); // Changed to false for instant display
 
   useEffect(() => {
     if (!user || !isAuthenticated) {
@@ -19,25 +22,30 @@ export function useTokenSync() {
       return;
     }
 
-    // Initialize token balance
-    const initializeTokens = async () => {
+    // INSTANT DISPLAY: Set balance from user object immediately
+    const purchased = user.purchased_tokens || 0;
+    const won = user.won_tokens || 0;
+    const cachedBalance = purchased + won;
+    setTokenBalance(cachedBalance);
+    setIsLoading(false); // Wallet shows instantly!
+    console.log('⚡ [useTokenSync] INSTANT display from cache:', cachedBalance);
+
+    // BACKGROUND REFRESH: Update in background without blocking UI
+    const refreshInBackground = async () => {
       try {
-        setIsLoading(true);
         const balance = await refreshTokens();
-        setTokenBalance(balance);
-        console.log('💰 [useTokenSync] Initialized token balance:', balance);
+        if (balance !== cachedBalance) {
+          setTokenBalance(balance);
+          console.log('🔄 [useTokenSync] Background refresh updated balance:', balance);
+        }
       } catch (error) {
-        console.error('❌ [useTokenSync] Failed to initialize tokens:', error);
-        // Fallback: calculate from DUAL WALLET (purchased + won)
-        const purchased = user.purchased_tokens || 0;
-        const won = user.won_tokens || 0;
-        setTokenBalance(purchased + won);
-      } finally {
-        setIsLoading(false);
+        console.error('❌ [useTokenSync] Background refresh failed (using cached):', error);
+        // Already showing cached value, so no problem
       }
     };
 
-    initializeTokens();
+    // Refresh in background without blocking display
+    refreshInBackground();
 
     // Listen for token update events from AuthContext
     const handleTokensUpdated = (event: CustomEvent) => {

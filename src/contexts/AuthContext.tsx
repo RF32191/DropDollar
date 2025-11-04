@@ -76,8 +76,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Check for remember me preference
       const rememberMe = localStorage.getItem('rememberMe') === 'true';
       console.log('Remember me:', rememberMe);
+
+      // INSTANT DISPLAY: Load from localStorage FIRST for immediate UI
+      const storedUser = localStorage.getItem('user');
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      const lastActivityStr = localStorage.getItem('lastActivity');
       
-      // Check for existing Supabase session
+      if (storedUser && isLoggedIn) {
+        const userData = JSON.parse(storedUser);
+        
+        // Check if session has expired due to inactivity
+        if (lastActivityStr) {
+          const lastActivityTime = parseInt(lastActivityStr);
+          const timeSinceLastActivity = Date.now() - lastActivityTime;
+          
+          if (!rememberMe || timeSinceLastActivity > INACTIVITY_TIMEOUT) {
+            console.log('⏰ Session expired');
+            await logout();
+            setIsLoading(false);
+            return;
+          }
+        }
+        
+        // INSTANT DISPLAY: Show user immediately from cache
+        setUser(userData);
+        setIsAuthenticated(true);
+        setIsLoading(false); // UI shows instantly!
+        console.log('⚡ INSTANT user display from localStorage:', userData.email);
+        
+        // BACKGROUND REFRESH: Update from database without blocking UI
+        const refreshUserInBackground = async () => {
+          try {
+            // Check for existing Supabase session
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (error) {
+              console.error('Session error:', error);
+              return;
+            }
+
+            if (session?.user) {
+              console.log('🔄 Background: Found Supabase session:', session.user.email);
+              await loadUserProfile(session.user.id);
+            } else {
+              // Try to load profile by user ID
+              const profile = await UserService.getUserProfile(userData.id);
+              if (profile) {
+                setUser(profile);
+                console.log('🔄 Background: Updated user profile from Supabase');
+              }
+            }
+          } catch (error) {
+            console.error('❌ Background refresh error:', error);
+            // User already displayed from cache, so no problem
+          }
+        };
+        
+        // Refresh in background without blocking display
+        refreshUserInBackground();
+        return; // Return early, user is already displayed
+      }
+      
+      // No cached user, check Supabase session
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -89,42 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         console.log('✅ Found Supabase session:', session.user.email);
         await loadUserProfile(session.user.id);
-      } else {
-        // Check for localStorage session (fallback)
-        const storedUser = localStorage.getItem('user');
-        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-        const lastActivityStr = localStorage.getItem('lastActivity');
-        
-        if (storedUser && isLoggedIn) {
-          const userData = JSON.parse(storedUser);
-          
-          // Check if session has expired due to inactivity
-          if (lastActivityStr) {
-            const lastActivityTime = parseInt(lastActivityStr);
-            const timeSinceLastActivity = Date.now() - lastActivityTime;
-            
-            if (!rememberMe || timeSinceLastActivity > INACTIVITY_TIMEOUT) {
-              console.log('⏰ Session expired');
-              await logout();
-              setIsLoading(false);
-              return;
-            }
-          }
-          
-          console.log('✅ Found localStorage session:', userData.email);
-          // Try to load full profile from Supabase
-          const profile = await UserService.getUserProfile(userData.id);
-          if (profile) {
-            setUser(profile);
-            setIsAuthenticated(true);
-            console.log('✅ Loaded user profile from Supabase');
-          } else {
-            // Use localStorage data as fallback
-            setUser(userData);
-            setIsAuthenticated(true);
-            console.log('⚠️ Using localStorage data (Supabase profile not found)');
-          }
-        }
       }
     } catch (error) {
       console.error('❌ Auth initialization error:', error);

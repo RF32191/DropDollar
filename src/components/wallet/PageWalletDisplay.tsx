@@ -6,7 +6,18 @@ import { ShoppingCartIcon, TrophyIcon, BanknotesIcon } from '@heroicons/react/24
 import Link from 'next/link';
 
 export default function PageWalletDisplay() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  // Show skeleton during initial load (very brief)
+  if (isLoading && !user) {
+    return (
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
+        <div className="bg-gray-800/50 rounded-2xl p-6 h-32"></div>
+        <div className="bg-gray-800/50 rounded-2xl p-6 h-32"></div>
+        <div className="bg-gray-800/50 rounded-2xl p-6 h-32"></div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
