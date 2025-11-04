@@ -212,8 +212,10 @@ AS $$
 DECLARE
   result JSON;
 BEGIN
-  SELECT json_agg(
-    json_build_object(
+  SELECT json_agg(session_data ORDER BY (session_data->>'created_at')::TIMESTAMPTZ DESC)
+  INTO result
+  FROM (
+    SELECT json_build_object(
       'id', s.id::TEXT,
       'config_id', s.config_id::TEXT,
       'current_pool', s.current_pool,
@@ -237,12 +239,10 @@ BEGIN
         ),
         '[]'::json
       )
-    )
-  )
-  INTO result
-  FROM public.hot_sell_sessions s
-  WHERE s.status = 'active'
-  ORDER BY s.created_at DESC;
+    ) as session_data
+    FROM public.hot_sell_sessions s
+    WHERE s.status = 'active'
+  ) sessions;
   
   RETURN COALESCE(result, '[]'::json);
 END;
@@ -258,8 +258,10 @@ AS $$
 DECLARE
   result JSON;
 BEGIN
-  SELECT json_agg(
-    json_build_object(
+  SELECT json_agg(session_data ORDER BY (session_data->>'created_at')::TIMESTAMPTZ DESC)
+  INTO result
+  FROM (
+    SELECT json_build_object(
       'id', s.id::TEXT,
       'config_id', s.config_id::TEXT,
       'current_pool', s.current_pool,
@@ -285,12 +287,10 @@ BEGIN
         ),
         '[]'::json
       )
-    )
-  )
-  INTO result
-  FROM public.winner_takes_all_sessions s
-  WHERE s.status = 'active'
-  ORDER BY s.created_at DESC;
+    ) as session_data
+    FROM public.winner_takes_all_sessions s
+    WHERE s.status = 'active'
+  ) sessions;
   
   RETURN COALESCE(result, '[]'::json);
 END;
@@ -306,8 +306,10 @@ AS $$
 DECLARE
   result JSON;
 BEGIN
-  SELECT json_agg(
-    json_build_object(
+  SELECT json_agg(session_data ORDER BY (session_data->>'created_at')::TIMESTAMPTZ DESC)
+  INTO result
+  FROM (
+    SELECT json_build_object(
       'id', s.id::TEXT,
       'config_id', s.config_id::TEXT,
       'current_pool', s.current_pool,
@@ -332,12 +334,10 @@ BEGIN
         ),
         '[]'::json
       )
-    )
-  )
-  INTO result
-  FROM public.one_v_one_sessions s
-  WHERE s.status IN ('waiting', 'active')
-  ORDER BY s.created_at DESC;
+    ) as session_data
+    FROM public.one_v_one_sessions s
+    WHERE s.status IN ('waiting', 'active')
+  ) sessions;
   
   RETURN COALESCE(result, '[]'::json);
 END;
