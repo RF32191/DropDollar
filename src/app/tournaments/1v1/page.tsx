@@ -93,9 +93,6 @@ export default function OneVOnePage() {
     rngSeed: number;
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
-  const [locationVerified, setLocationVerified] = useState(false);
-  const [improvedLocation, setImprovedLocation] = useState<any>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
 
   // Wallet display state (prevent flickering)
   const [displayTokens, setDisplayTokens] = useState<number>(0);
