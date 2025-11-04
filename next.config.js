@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Optimized for Vercel deployment
-  trailingSlash: true,
+  reactStrictMode: true,
+  swcMinify: true,
   images: {
     unoptimized: true,
-    domains: ['localhost', 'drop-dollar.com'],
+    domains: ['localhost', 'drop-dollar.com', 'www.drop-dollar.com'],
   },
   typescript: {
     // Skip type checking during build for now
@@ -14,8 +15,28 @@ const nextConfig = {
     // Skip ESLint during build for now
     ignoreDuringBuilds: true,
   },
-  // Force all pages to be dynamic to prevent build timeouts
-  output: 'standalone',
+  // Optimize for production
+  compiler: {
+    removeConsole: false, // Keep console.logs for debugging
+  },
+  // Headers for better CORS and caching
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+        ],
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

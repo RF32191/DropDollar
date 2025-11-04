@@ -9,9 +9,16 @@ import { initializeDataValidation } from '@/lib/utils/clearCorruptedData';
  */
 export default function DataValidationInitializer() {
   useEffect(() => {
-    // Run validation once on mount
-    initializeDataValidation();
-  }, []);
+    // Only run in browser (not during SSR)
+    if (typeof window !== 'undefined') {
+      try {
+        initializeDataValidation();
+      } catch (error) {
+        console.error('❌ [DataValidationInitializer] Error:', error);
+        // Don't let this break the app
+      }
+    }
+  }, []); // Empty deps - run once on mount
 
   return null; // This component doesn't render anything
 }
