@@ -159,7 +159,9 @@ BEGIN
 END;
 $$;
 
-RAISE NOTICE '✅ get_all functions created';
+DO $$ BEGIN
+  RAISE NOTICE '✅ get_all functions created';
+END $$;
 
 -- ============================================================================
 -- STEP 3: CREATE ULTRA-SIMPLE join FUNCTIONS (NO EXTERNAL CALLS)
@@ -403,7 +405,9 @@ BEGIN
 END;
 $$;
 
-RAISE NOTICE '✅ join functions created';
+DO $$ BEGIN
+  RAISE NOTICE '✅ join functions created';
+END $$;
 
 -- ============================================================================
 -- STEP 4: VERIFY FUNCTIONS EXIST
@@ -444,8 +448,10 @@ GRANT EXECUTE ON FUNCTION public.join_winner_takes_all_session(TEXT, UUID) TO au
 GRANT EXECUTE ON FUNCTION public.get_all_hot_sell_sessions() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated;
 
-RAISE NOTICE '✅ Permissions granted';
-RAISE NOTICE '========================================';
-RAISE NOTICE '🎯 RUN COMPLETE - Try joining a session now!';
-RAISE NOTICE '========================================';
+DO $$ BEGIN
+  RAISE NOTICE '✅ Permissions granted';
+  RAISE NOTICE '========================================';
+  RAISE NOTICE '🎯 RUN COMPLETE - Try joining a session now!';
+  RAISE NOTICE '========================================';
+END $$;
 
