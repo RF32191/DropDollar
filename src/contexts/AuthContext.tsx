@@ -237,38 +237,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setIsAuthenticated(false);
       
-      // Clear all localStorage items that might contain user-specific data
-      localStorage.removeItem('user');
-      localStorage.removeItem('isLoggedIn');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('sessionId');
-      localStorage.removeItem('loginTime');
-      localStorage.removeItem('lastActivity');
+      // CRITICAL: Only clear OUR app data, NOT Supabase auth tokens!
+      // Supabase needs its tokens to authenticate the login request
+      const appKeys = [
+        'user',
+        'isLoggedIn',
+        'userId',
+        'userEmail',
+        'sessionId',
+        'loginTime',
+        'lastActivity'
+      ];
       
-      // Clear ALL localStorage data to prevent any cross-contamination
-      console.log('🧹 Clearing ALL localStorage data to prevent cross-contamination...');
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => {
+      appKeys.forEach(key => {
         localStorage.removeItem(key);
-        console.log('🧹 Removed localStorage key:', key);
+        console.log('🧹 Removed app key:', key);
       });
       
       // Also clear sessionStorage
       sessionStorage.clear();
       console.log('🧹 Cleared sessionStorage');
       
-      // Clear cookies
+      // Clear our app cookies only
       document.cookie = 'dropdollar_session=; path=/; max-age=0';
       document.cookie = 'dropdollar_user=; path=/; max-age=0';
       document.cookie = 'dropdollar_remember=; path=/; max-age=0';
       
-      console.log('✅ Previous user data cleared');
+      console.log('✅ Previous user data cleared (Supabase auth preserved)');
       
       // Try Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({

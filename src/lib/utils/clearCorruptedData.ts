@@ -22,29 +22,41 @@ export function clearCorruptedLocalStorage(): boolean {
     
     if (!isValidUUID(userData.id)) {
       console.warn('🧹 [ClearCorruptedData] Detected corrupted user ID:', userData.id);
-      console.log('🧹 [ClearCorruptedData] Clearing all localStorage to fix...');
+      console.log('🧹 [ClearCorruptedData] Clearing corrupted user data (preserving Supabase auth)...');
       
-      // Clear everything
-      localStorage.clear();
+      // CRITICAL: Only clear OUR app data, NOT Supabase auth tokens!
+      // Supabase uses keys like 'sb-<project>-auth-token' which we must preserve
+      const keysToRemove = [
+        'user',
+        'isLoggedIn',
+        'userId',
+        'userEmail',
+        'sessionId',
+        'loginTime',
+        'lastActivity',
+        'rememberMe'
+      ];
       
-      // Also clear sessionStorage
+      keysToRemove.forEach(key => {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+          console.log('🧹 Removed corrupted key:', key);
+        }
+      });
+      
+      // Clear sessionStorage (doesn't affect auth)
       sessionStorage.clear();
       
-      // Clear Supabase auth storage
-      const supabaseKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith('sb-') || key.includes('supabase')
-      );
-      supabaseKeys.forEach(key => localStorage.removeItem(key));
-      
-      console.log('✅ [ClearCorruptedData] Corrupted data cleared. User should log in again.');
+      console.log('✅ [ClearCorruptedData] Corrupted user data cleared. Supabase auth preserved.');
       return true; // Data was corrupted and cleared
     }
     
     return false; // Data is valid
   } catch (error) {
     console.error('❌ [ClearCorruptedData] Error checking localStorage:', error);
-    // If there's an error parsing, clear everything to be safe
-    localStorage.clear();
+    // If there's an error parsing, only clear OUR app data (preserve Supabase auth)
+    const keysToRemove = ['user', 'isLoggedIn', 'userId', 'userEmail', 'sessionId', 'loginTime', 'lastActivity', 'rememberMe'];
+    keysToRemove.forEach(key => localStorage.removeItem(key));
     return true;
   }
 }
