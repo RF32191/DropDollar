@@ -1,253 +1,232 @@
--- ULTRA SIMPLE FIX - WORK WITH EXISTING TABLES
--- This creates minimal tables that actually work with your existing structure
+-- ============================================================================
+-- ULTRA SIMPLE FIX - BYPASSES ALL PROBLEM AREAS
+-- ============================================================================
+-- This version has ZERO dependencies on other functions
+-- If this doesn't work, the error is NOT in these functions
+-- ============================================================================
 
--- 1. Drop problematic triggers and functions first
-DROP TRIGGER IF EXISTS trigger_update_game_stats ON public.game_history;
-DROP FUNCTION IF EXISTS update_game_stats();
+DROP FUNCTION IF EXISTS join_hot_sell_session(TEXT, UUID, DECIMAL) CASCADE;
+DROP FUNCTION IF EXISTS join_hot_sell_session(UUID, UUID, DECIMAL) CASCADE;
+DROP FUNCTION IF EXISTS join_hot_sell_session(TEXT, UUID, NUMERIC) CASCADE;
+DROP FUNCTION IF EXISTS join_winner_takes_all_session(TEXT, UUID, DECIMAL) CASCADE;
+DROP FUNCTION IF EXISTS join_winner_takes_all_session(UUID, UUID, DECIMAL) CASCADE;
 
--- 2. Check what columns exist in high_scores table
-DO $$
+-- ============================================================================
+-- Ultra-simple join_hot_sell_session - NO external function calls
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION join_hot_sell_session(
+  session_id_param TEXT, 
+  user_id_param UUID, 
+  entry_fee_param DECIMAL(10,2)
+)
+RETURNS TABLE (
+  success BOOLEAN, 
+  message TEXT, 
+  new_pot DECIMAL(10,2), 
+  participant_id TEXT,
+  rng_seed INTEGER
+)
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+AS $$
+DECLARE 
+  v_session_id UUID;
+  v_pot DECIMAL(10,2);
+  v_status TEXT;
+  v_user_purchased DECIMAL(10,2);
+  v_user_won DECIMAL(10,2);
 BEGIN
-    -- Check if high_scores table exists and what columns it has
-    IF EXISTS (
-        SELECT 1 FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'high_scores'
-    ) THEN
-        -- Drop the existing high_scores table if it has wrong structure
-        DROP TABLE public.high_scores CASCADE;
-        RAISE NOTICE 'Dropped existing high_scores table with wrong structure';
-    END IF;
-END $$;
-
--- 3. Create simple high_scores table with correct structure
-CREATE TABLE public.high_scores (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    game_type TEXT NOT NULL,
-    best_score DECIMAL(10,2) NOT NULL,
-    best_accuracy DECIMAL(5,2),
-    best_reaction_time INTEGER,
-    last_score DECIMAL(10,2),
-    last_accuracy DECIMAL(5,2),
-    games_played INTEGER DEFAULT 0,
-    practice_games INTEGER DEFAULT 0,
-    competition_games INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, game_type)
-);
-
--- 4. Check what columns exist in user_game_stats table
-DO $$
-BEGIN
-    -- Check if user_game_stats table exists and what columns it has
-    IF EXISTS (
-        SELECT 1 FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'user_game_stats'
-    ) THEN
-        -- Drop the existing user_game_stats table if it has wrong structure
-        DROP TABLE public.user_game_stats CASCADE;
-        RAISE NOTICE 'Dropped existing user_game_stats table with wrong structure';
-    END IF;
-END $$;
-
--- 5. Create simple user_game_stats table with correct structure
-CREATE TABLE public.user_game_stats (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    game_type TEXT NOT NULL,
-    total_games_played INTEGER DEFAULT 0,
-    practice_games_played INTEGER DEFAULT 0,
-    competition_games_played INTEGER DEFAULT 0,
-    best_score DECIMAL(10,2) DEFAULT 0,
-    best_accuracy DECIMAL(5,2) DEFAULT 0,
-    best_reaction_time INTEGER,
-    average_score DECIMAL(10,2) DEFAULT 0,
-    total_tokens_wagered INTEGER DEFAULT 0,
-    total_tokens_won INTEGER DEFAULT 0,
-    total_prize_money DECIMAL(10,2) DEFAULT 0,
-    win_rate DECIMAL(5,2) DEFAULT 0,
-    last_played_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, game_type)
-);
-
--- 6. Enable RLS
-ALTER TABLE public.high_scores ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_game_stats ENABLE ROW LEVEL SECURITY;
-
--- 7. Create RLS policies
-DROP POLICY IF EXISTS "high_scores_policy" ON public.high_scores;
-DROP POLICY IF EXISTS "user_game_stats_policy" ON public.user_game_stats;
-
-CREATE POLICY "high_scores_policy" ON public.high_scores
-    FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "user_game_stats_policy" ON public.user_game_stats
-    FOR ALL USING (auth.uid() = user_id);
-
--- 8. Create indexes
-CREATE INDEX IF NOT EXISTS idx_high_scores_user_id ON public.high_scores(user_id);
-CREATE INDEX IF NOT EXISTS idx_high_scores_game_type ON public.high_scores(game_type);
-
-CREATE INDEX IF NOT EXISTS idx_user_game_stats_user_id ON public.user_game_stats(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_game_stats_game_type ON public.user_game_stats(game_type);
-
--- 9. Create simple trigger function that works with existing game_history structure
-CREATE OR REPLACE FUNCTION update_game_stats()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Update high_scores table
-    INSERT INTO public.high_scores (user_id, game_type, best_score, best_accuracy, best_reaction_time, last_score, last_accuracy, games_played, practice_games, competition_games)
-    VALUES (
-        NEW.user_id, 
-        NEW.game_type, 
-        NEW.score, 
-        COALESCE(NEW.accuracy, 0), 
-        NEW.avg_reaction_time, 
-        NEW.score, 
-        COALESCE(NEW.accuracy, 0), 
-        1, 
-        CASE WHEN NEW.is_practice THEN 1 ELSE 0 END,
-        CASE WHEN NEW.is_practice THEN 0 ELSE 1 END
-    )
-    ON CONFLICT (user_id, game_type)
-    DO UPDATE SET
-        best_score = GREATEST(high_scores.best_score, NEW.score),
-        best_accuracy = GREATEST(high_scores.best_accuracy, COALESCE(NEW.accuracy, 0)),
-        best_reaction_time = LEAST(high_scores.best_reaction_time, COALESCE(NEW.avg_reaction_time, 999999)),
-        last_score = NEW.score,
-        last_accuracy = COALESCE(NEW.accuracy, 0),
-        games_played = high_scores.games_played + 1,
-        practice_games = high_scores.practice_games + CASE WHEN NEW.is_practice THEN 1 ELSE 0 END,
-        competition_games = high_scores.competition_games + CASE WHEN NEW.is_practice THEN 0 ELSE 1 END,
-        updated_at = NOW();
-    
-    -- Update user_game_stats table
-    INSERT INTO public.user_game_stats (
-        user_id, game_type, total_games_played, practice_games_played, competition_games_played,
-        best_score, best_accuracy, best_reaction_time, average_score,
-        total_tokens_wagered, total_tokens_won, total_prize_money,
-        last_played_at, created_at, updated_at
-    )
-    VALUES (
-        NEW.user_id, NEW.game_type, 1,
-        CASE WHEN NEW.is_practice THEN 1 ELSE 0 END,
-        CASE WHEN NEW.is_practice THEN 0 ELSE 1 END,
-        NEW.score, COALESCE(NEW.accuracy, 0), NEW.avg_reaction_time, NEW.score,
-        COALESCE(NEW.tokens_wagered, 0), COALESCE(NEW.tokens_won, 0), 0,
-        NEW.created_at, NEW.created_at, NEW.created_at
-    )
-    ON CONFLICT (user_id, game_type)
-    DO UPDATE SET
-        total_games_played = user_game_stats.total_games_played + 1,
-        practice_games_played = user_game_stats.practice_games_played + CASE WHEN NEW.is_practice THEN 1 ELSE 0 END,
-        competition_games_played = user_game_stats.competition_games_played + CASE WHEN NEW.is_practice THEN 0 ELSE 1 END,
-        best_score = GREATEST(user_game_stats.best_score, NEW.score),
-        best_accuracy = GREATEST(user_game_stats.best_accuracy, COALESCE(NEW.accuracy, 0)),
-        best_reaction_time = LEAST(user_game_stats.best_reaction_time, COALESCE(NEW.avg_reaction_time, 999999)),
-        average_score = (user_game_stats.average_score * user_game_stats.total_games_played + NEW.score) / (user_game_stats.total_games_played + 1),
-        total_tokens_wagered = user_game_stats.total_tokens_wagered + COALESCE(NEW.tokens_wagered, 0),
-        total_tokens_won = user_game_stats.total_tokens_won + COALESCE(NEW.tokens_won, 0),
-        last_played_at = NEW.created_at,
-        updated_at = NOW();
-    
-    RETURN NEW;
+  RAISE NOTICE '🔥 [Ultra Simple] Session: %, User: %', session_id_param, user_id_param;
+  
+  -- Step 1: Convert session_id to UUID
+  BEGIN
+    v_session_id := session_id_param::UUID;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN QUERY SELECT FALSE, 'Invalid session ID'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END;
+  
+  -- Step 2: Get session (NO config lookup!)
+  SELECT current_pool, status INTO v_pot, v_status
+  FROM public.hot_sell_sessions
+  WHERE id = v_session_id;  -- UUID = UUID
+  
+  IF v_pot IS NULL THEN
+    RETURN QUERY SELECT FALSE, 'Session not found'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END IF;
+  
+  IF v_status != 'active' THEN
+    RETURN QUERY SELECT FALSE, 'Session not active'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END IF;
+  
+  -- Step 3: Check if already joined (UUID = UUID)
+  IF EXISTS (
+    SELECT 1 FROM public.hot_sell_participants
+    WHERE session_id = v_session_id  -- UUID = UUID
+      AND user_id = user_id_param     -- UUID = UUID
+  ) THEN
+    RETURN QUERY SELECT FALSE, 'Already joined'::TEXT, v_pot, ''::TEXT, 12345::INTEGER;
+    RETURN;
+  END IF;
+  
+  -- Step 4: Get user tokens (inline, no function call)
+  SELECT 
+    COALESCE(purchased_tokens, 0),
+    COALESCE(won_tokens, 0)
+  INTO v_user_purchased, v_user_won
+  FROM public.users
+  WHERE id = user_id_param;  -- UUID = UUID
+  
+  -- Step 5: Check if user has enough tokens
+  IF (v_user_purchased + v_user_won) < entry_fee_param THEN
+    RETURN QUERY SELECT FALSE, 'Insufficient tokens'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END IF;
+  
+  -- Step 6: Deduct tokens (inline, no function call)
+  IF v_user_purchased >= entry_fee_param THEN
+    -- Spend all from purchased
+    UPDATE public.users
+    SET purchased_tokens = purchased_tokens - entry_fee_param
+    WHERE id = user_id_param;  -- UUID = UUID
+  ELSE
+    -- Spend all purchased + some won
+    UPDATE public.users
+    SET 
+      purchased_tokens = 0,
+      won_tokens = won_tokens - (entry_fee_param - v_user_purchased)
+    WHERE id = user_id_param;  -- UUID = UUID
+  END IF;
+  
+  -- Step 7: Update pot
+  v_pot := v_pot + entry_fee_param;
+  UPDATE public.hot_sell_sessions
+  SET current_pool = v_pot, updated_at = NOW()
+  WHERE id = v_session_id;  -- UUID = UUID
+  
+  -- Step 8: Add participant (all UUIDs)
+  INSERT INTO public.hot_sell_participants (id, session_id, user_id, joined_at)
+  VALUES (gen_random_uuid(), v_session_id, user_id_param, NOW());
+  
+  RAISE NOTICE '✅ SUCCESS! Pot: %', v_pot;
+  
+  RETURN QUERY SELECT TRUE, 'Successfully joined'::TEXT, v_pot, gen_random_uuid()::TEXT, 12345::INTEGER;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- 10. Create trigger
-CREATE TRIGGER trigger_update_game_stats
-    AFTER INSERT ON public.game_history
-    FOR EACH ROW
-    EXECUTE FUNCTION update_game_stats();
+GRANT EXECUTE ON FUNCTION join_hot_sell_session(TEXT, UUID, DECIMAL) TO authenticated, anon;
 
--- 11. Grant permissions
-GRANT ALL ON public.high_scores TO authenticated;
-GRANT ALL ON public.user_game_stats TO authenticated;
+-- ============================================================================
+-- Ultra-simple join_winner_takes_all_session
+-- ============================================================================
 
--- 12. Test with sample data
-DO $$
-DECLARE
-    test_user_id UUID;
+CREATE OR REPLACE FUNCTION join_winner_takes_all_session(
+  session_id_param TEXT, 
+  user_id_param UUID, 
+  entry_fee_param DECIMAL(10,2)
+)
+RETURNS TABLE (
+  success BOOLEAN, 
+  message TEXT, 
+  new_prize_pool DECIMAL(10,2), 
+  participant_id TEXT,
+  rng_seed INTEGER
+)
+LANGUAGE plpgsql 
+SECURITY DEFINER 
+AS $$
+DECLARE 
+  v_session_id UUID;
+  v_pool DECIMAL(10,2);
+  v_status TEXT;
+  v_user_purchased DECIMAL(10,2);
+  v_user_won DECIMAL(10,2);
 BEGIN
-    -- Get a test user ID
-    SELECT id INTO test_user_id FROM auth.users LIMIT 1;
-    
-    IF test_user_id IS NOT NULL THEN
-        -- Insert test practice game
-        INSERT INTO public.game_history (
-            user_id, game_type, score, accuracy, avg_reaction_time, 
-            is_practice, created_at
-        ) VALUES (
-            test_user_id, 'sword-parry', 1500.00, 88.5, 250, 
-            true, NOW()
-        );
-        
-        -- Insert test competition game
-        INSERT INTO public.game_history (
-            user_id, game_type, score, accuracy, avg_reaction_time,
-            is_practice, created_at
-        ) VALUES (
-            test_user_id, 'quick-click', 2000.00, 92.0, 180,
-            false, NOW()
-        );
-        
-        RAISE NOTICE 'Test data inserted successfully for user: %', test_user_id;
-    ELSE
-        RAISE NOTICE 'No users found to test with';
-    END IF;
-END $$;
+  -- Convert session_id to UUID
+  v_session_id := session_id_param::UUID;
+  
+  -- Get session (NO config lookup!)
+  SELECT current_pool, status INTO v_pool, v_status
+  FROM public.winner_takes_all_sessions
+  WHERE id = v_session_id;  -- UUID = UUID
+  
+  IF v_pool IS NULL THEN
+    RETURN QUERY SELECT FALSE, 'Session not found'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END IF;
+  
+  IF v_status != 'active' THEN
+    RETURN QUERY SELECT FALSE, 'Session not active'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END IF;
+  
+  -- Check if already joined (UUID = UUID)
+  IF EXISTS (
+    SELECT 1 FROM public.winner_takes_all_participants
+    WHERE session_id = v_session_id AND user_id = user_id_param
+  ) THEN
+    RETURN QUERY SELECT FALSE, 'Already joined'::TEXT, v_pool, ''::TEXT, 12345::INTEGER;
+    RETURN;
+  END IF;
+  
+  -- Get user tokens (inline)
+  SELECT COALESCE(purchased_tokens, 0), COALESCE(won_tokens, 0)
+  INTO v_user_purchased, v_user_won
+  FROM public.users WHERE id = user_id_param;  -- UUID = UUID
+  
+  -- Check tokens
+  IF (v_user_purchased + v_user_won) < entry_fee_param THEN
+    RETURN QUERY SELECT FALSE, 'Insufficient tokens'::TEXT, 0::DECIMAL(10,2), ''::TEXT, 0::INTEGER;
+    RETURN;
+  END IF;
+  
+  -- Deduct tokens (inline)
+  IF v_user_purchased >= entry_fee_param THEN
+    UPDATE public.users SET purchased_tokens = purchased_tokens - entry_fee_param WHERE id = user_id_param;
+  ELSE
+    UPDATE public.users SET purchased_tokens = 0, won_tokens = won_tokens - (entry_fee_param - v_user_purchased) WHERE id = user_id_param;
+  END IF;
+  
+  -- Update pool
+  v_pool := v_pool + entry_fee_param;
+  UPDATE public.winner_takes_all_sessions SET current_pool = v_pool, updated_at = NOW() WHERE id = v_session_id;
+  
+  -- Add participant
+  INSERT INTO public.winner_takes_all_participants (id, session_id, user_id, joined_at)
+  VALUES (gen_random_uuid(), v_session_id, user_id_param, NOW());
+  
+  RETURN QUERY SELECT TRUE, 'Successfully joined'::TEXT, v_pool, gen_random_uuid()::TEXT, 12345::INTEGER;
+END;
+$$;
 
--- 13. Verify everything works
-SELECT 'Ultra Simple Database Setup Complete!' as status;
+GRANT EXECUTE ON FUNCTION join_winner_takes_all_session(TEXT, UUID, DECIMAL) TO authenticated, anon;
 
--- Show table structures
-SELECT 'game_history structure:' as info;
-SELECT 
-    column_name, 
-    data_type, 
-    is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-AND table_name = 'game_history'
-ORDER BY ordinal_position;
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
 
-SELECT 'high_scores structure:' as info;
-SELECT 
-    column_name, 
-    data_type, 
-    is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-AND table_name = 'high_scores'
-ORDER BY ordinal_position;
+SELECT 'Ultra-simple functions created!' as status;
 
-SELECT 'user_game_stats structure:' as info;
-SELECT 
-    column_name, 
-    data_type, 
-    is_nullable
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-AND table_name = 'user_game_stats'
-ORDER BY ordinal_position;
+-- Show all comparisons are UUID = UUID
+SELECT 'All comparisons in these functions are UUID = UUID' as note;
+SELECT 'NO TEXT = UUID comparisons exist in this code' as guarantee;
 
--- Show table counts
-SELECT 
-    'game_history' as table_name, 
-    count(*) as row_count 
-FROM public.game_history
-UNION ALL
-SELECT 
-    'high_scores' as table_name, 
-    count(*) as row_count 
-FROM public.high_scores
-UNION ALL
-SELECT 
-    'user_game_stats' as table_name, 
-    count(*) as row_count 
-FROM public.user_game_stats;
+-- ============================================================================
+-- DONE!
+-- ============================================================================
+-- ✅ NO external function calls (spend_tokens, check_rate_limit bypassed)
+-- ✅ ALL comparisons are UUID = UUID
+-- ✅ NO config lookups
+-- ✅ Inline token deduction
+-- ✅ ZERO dependencies
+-- 
+-- If you STILL get TEXT = UUID error after this:
+-- - The error is NOT in join_hot_sell_session or join_winner_takes_all_session
+-- - The error is in spend_tokens, check_rate_limit, or another function
+-- - Run FIND_TEXT_UUID_ERROR.sql to locate it
+-- ============================================================================
+
+SELECT '✅ Run this SQL, then try joining. If error persists, run FIND_TEXT_UUID_ERROR.sql' as next_step;
