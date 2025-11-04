@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
-import GlobalLocationCheck from '@/components/GlobalLocationCheck'
 import AudioInitializer from '@/components/AudioInitializer'
 import './globals.css'
 
@@ -24,10 +23,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <AudioInitializer />
-            <GlobalLocationCheck />
-            <div className="location-banner-spacer">
-              {children}
-            </div>
+            {children}
           </AuthProvider>
         </ThemeProvider>
       </body>

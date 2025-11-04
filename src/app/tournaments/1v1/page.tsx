@@ -197,8 +197,8 @@ export default function OneVOnePage() {
       return;
     }
 
-    console.log('🌍 [1v1] Location check:', { improvedLocation, isGamingAllowed: improvedLocation ? ImprovedLocationService.isGamingAllowed(improvedLocation) : false });
-    if (!improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)) {
+    console.log('🌍 [1v1] Location check:', { locationVerified });
+    if (!locationVerified) {
       console.log('❌ [1v1] Location not allowed');
       setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
       return;
@@ -648,13 +648,18 @@ export default function OneVOnePage() {
                           ) : hasJoined ? (
                             <button
                               onClick={() => handleJoinSession(config)}
-                              disabled={joiningSession}
+                              disabled={joiningSession || !locationVerified}
                               className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             >
                               {joiningSession ? (
                                 <>
                                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                                   Starting...
+                                </>
+                              ) : !locationVerified ? (
+                                <>
+                                  <LockClosedIcon className="w-5 h-5 mr-2" />
+                                  Location Not Verified
                                 </>
                               ) : (
                                 <>
@@ -666,13 +671,18 @@ export default function OneVOnePage() {
                           ) : (
                             <button
                               onClick={() => handleJoinSession(config)}
-                              disabled={joiningSession || displayTokens < config.entry_fee}
+                              disabled={joiningSession || displayTokens < config.entry_fee || !locationVerified}
                               className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                             >
                               {joiningSession ? (
                                 <>
                                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                                   Joining...
+                                </>
+                              ) : !locationVerified ? (
+                                <>
+                                  <LockClosedIcon className="w-5 h-5 mr-2" />
+                                  Location Not Verified
                                 </>
                               ) : displayTokens < config.entry_fee ? (
                                 <>

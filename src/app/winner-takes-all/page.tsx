@@ -438,8 +438,8 @@ export default function WinnerTakesAllPage() {
     }
 
     // Location verification
-    console.log('🌍 [Winner Takes All] Location check:', { improvedLocation, isGamingAllowed: improvedLocation ? ImprovedLocationService.isGamingAllowed(improvedLocation) : false });
-    if (!improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)) {
+    console.log('🌍 [Winner Takes All] Location check:', { locationVerified });
+    if (!locationVerified) {
       console.log('❌ [Winner Takes All] Location not allowed');
       setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
       return;
@@ -1026,11 +1026,11 @@ export default function WinnerTakesAllPage() {
                     ) : (
                         <button
                         onClick={() => handleJoinSession(config.id)}
-                        disabled={joiningSession || !improvedLocation || !ImprovedLocationService.isGamingAllowed(improvedLocation)}
+                        disabled={joiningSession || !locationVerified}
                           className={`w-full py-4 px-6 rounded-2xl font-bold text-white text-lg transition-all duration-300 ${
                           joiningSession
                               ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                            : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
+                            : locationVerified
                             ? 'bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 hover:scale-105 shadow-lg hover:shadow-xl'
                             : 'bg-gradient-to-r from-red-600 to-red-700 cursor-not-allowed opacity-50'
                         }`}
@@ -1040,7 +1040,7 @@ export default function WinnerTakesAllPage() {
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
                               <span className="text-lg">Joining Game...</span>
                             </div>
-                        ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
+                        ) : locationVerified ? (
                             <div className="flex items-center justify-center">
                               <span className="text-xl mr-2">🔓</span>
                               <span>JOIN GAME - ${config.entry_fee}.00</span>
