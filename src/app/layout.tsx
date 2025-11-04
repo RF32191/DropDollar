@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import AudioInitializer from '@/components/AudioInitializer'
+import DataValidationInitializer from '@/components/DataValidationInitializer'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <AuthProvider>
+            <DataValidationInitializer />
             <AudioInitializer />
             {children}
           </AuthProvider>

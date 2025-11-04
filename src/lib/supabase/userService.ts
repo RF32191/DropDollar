@@ -293,6 +293,18 @@ export class UserService {
    */
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
+      // CRITICAL: Validate UUID format before database query
+      const isValidUUID = (id: string) => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(id);
+      };
+      
+      if (!userId || !isValidUUID(userId)) {
+        console.error('❌ [UserService] Invalid user ID format (not a UUID):', userId);
+        console.log('🧹 This appears to be old corrupted data. User should log out and log in again.');
+        return null;
+      }
+      
       console.log('🔍 [UserService] Fetching user profile for ID:', userId);
       const { data, error } = await supabase
         .from('users')

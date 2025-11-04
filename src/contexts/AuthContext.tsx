@@ -85,6 +85,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedUser && isLoggedIn) {
         const userData = JSON.parse(storedUser);
         
+        // CRITICAL: Validate that user ID is a proper UUID, not old format
+        const isValidUUID = (id: string) => {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          return uuidRegex.test(id);
+        };
+        
+        if (!userData.id || !isValidUUID(userData.id)) {
+          console.error('❌ [AuthContext] Invalid user ID format (not a UUID):', userData.id);
+          console.log('🧹 Clearing corrupted localStorage data...');
+          localStorage.clear();
+          setIsLoading(false);
+          return;
+        }
+        
         // Check if session has expired due to inactivity
         if (lastActivityStr) {
           const lastActivityTime = parseInt(lastActivityStr);
