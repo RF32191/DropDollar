@@ -29,6 +29,7 @@ interface HotSellSession {
   id: string;
   config_id: string;
   current_pot: number;
+  prize_pool: number;  // Actual token pool from all entries
   base_price: number;
   max_participants: number;
   participants_count: number;
@@ -1005,10 +1006,15 @@ export default function HotSellPage() {
                 {/* Prize Pool Display with Breakdown */}
                 <div className="mb-4 p-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl border border-yellow-500/30">
                   <div className="text-center">
-                    <p className="text-yellow-200 text-xs font-semibold mb-1 uppercase">Prize Pool</p>
-                    <p className="text-3xl font-black text-yellow-300 mb-3">{formatAmount(config.base_price)}</p>
+                    <p className="text-yellow-200 text-xs font-semibold mb-1 uppercase">Current Prize Pool</p>
+                    <p className="text-3xl font-black text-yellow-300 mb-1">
+                      {session?.prize_pool ? formatAmount(session.prize_pool) : formatAmount(config.base_price)}
+                    </p>
+                    <p className="text-yellow-200/70 text-xs mb-3">
+                      {session ? `${session.participants_count} player${session.participants_count !== 1 ? 's' : ''} joined` : 'Waiting for players'}
+                    </p>
                     
-                    {/* Prize Breakdown */}
+                    {/* Prize Breakdown - Based on actual current pool */}
                     <div className="bg-black/30 rounded-lg p-3 mb-2">
                       <div className="space-y-1.5 text-xs">
                         {/* 1st Place */}
@@ -1018,7 +1024,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">1st Place (50%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount(config.base_price * 0.50)}
+                            {session?.prize_pool ? formatAmount(session.prize_pool * 0.50) : formatAmount(config.base_price * 0.50)}
                           </span>
                         </div>
                         
@@ -1029,7 +1035,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">2nd Place (20%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount(config.base_price * 0.20)}
+                            {session?.prize_pool ? formatAmount(session.prize_pool * 0.20) : formatAmount(config.base_price * 0.20)}
                           </span>
                         </div>
                         
@@ -1040,7 +1046,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">3rd Place (15%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {formatAmount(config.base_price * 0.15)}
+                            {session?.prize_pool ? formatAmount(session.prize_pool * 0.15) : formatAmount(config.base_price * 0.15)}
                           </span>
                         </div>
                         
