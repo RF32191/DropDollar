@@ -296,7 +296,7 @@ WHERE s.id IS NULL ON CONFLICT DO NOTHING;
 
 -- Winner Takes All sessions
 INSERT INTO public.winner_takes_all_sessions (id, config_id, current_pool, base_price, participants_count, status, timer_duration, created_at, updated_at)
-SELECT gen_random_uuid(), c.id, 0, COALESCE(c.base_price, c.entry_fee, 1.00), 0, 'active', COALESCE(c.timer_duration, 1800), NOW(), NOW()
+SELECT gen_random_uuid(), c.id, 0, COALESCE(c.base_price, c.entry_fee, 1.00), 0, 'active', 1800, NOW(), NOW()
 FROM public.winner_takes_all_configs c LEFT JOIN public.winner_takes_all_sessions s ON s.config_id = c.id AND s.status = 'active'
 WHERE s.id IS NULL ON CONFLICT DO NOTHING;
 

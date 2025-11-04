@@ -71,7 +71,7 @@ SELECT
   COALESCE(c.base_price, c.entry_fee, 1.00),
   0,
   'active',
-  COALESCE(c.timer_duration, 1800),
+  1800,
   NOW(),
   NOW()
 FROM public.winner_takes_all_configs c
