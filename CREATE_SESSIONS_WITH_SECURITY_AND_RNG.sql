@@ -100,7 +100,7 @@ ORDER BY s.created_at DESC;
 INSERT INTO public.one_v_one_sessions (
   id,
   config_id,
-  current_pot,
+  current_pool,
   prize_pool,
   participants_count,
   max_participants,

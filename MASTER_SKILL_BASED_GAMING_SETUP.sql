@@ -265,23 +265,23 @@ END; $$;
 -- join_1v1_session
 DROP FUNCTION IF EXISTS join_1v1_session(UUID, UUID, NUMERIC) CASCADE;
 CREATE OR REPLACE FUNCTION join_1v1_session(session_id_param UUID, user_id_param UUID, entry_fee_param NUMERIC) RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER AS $$
-DECLARE v_rate_check JSON; v_spend_result RECORD; v_rng_seed INTEGER; v_pot NUMERIC; v_count INTEGER;
+DECLARE v_rate_check JSON; v_spend_result RECORD; v_rng_seed INTEGER; v_pool NUMERIC; v_count INTEGER;
 BEGIN
   SELECT * INTO v_rate_check FROM check_rate_limit(user_id_param);
   IF NOT (v_rate_check->>'allowed')::BOOLEAN THEN RETURN json_build_object('success', false, 'message', v_rate_check->>'reason'); END IF;
   IF EXISTS(SELECT 1 FROM one_v_one_participants WHERE session_id = session_id_param AND user_id = user_id_param) THEN
     RETURN json_build_object('success', false, 'message', 'You have already joined this game');
   END IF;
-  SELECT s.current_pot, s.participants_count, COALESCE(c.rng_seed, 0) INTO v_pot, v_count, v_rng_seed FROM one_v_one_sessions s JOIN one_v_one_configs c ON c.id = s.config_id WHERE s.id = session_id_param;
+  SELECT s.current_pool, s.participants_count, COALESCE(c.rng_seed, 0) INTO v_pool, v_count, v_rng_seed FROM one_v_one_sessions s JOIN one_v_one_configs c ON c.id = s.config_id WHERE s.id = session_id_param;
   IF v_rng_seed IS NULL THEN RETURN json_build_object('success', false, 'message', 'Session not found'); END IF;
   IF v_count >= 2 THEN RETURN json_build_object('success', false, 'message', 'Session is full'); END IF;
   SELECT * INTO v_spend_result FROM spend_tokens(user_id_param, entry_fee_param);
   IF NOT v_spend_result.success THEN RETURN json_build_object('success', false, 'message', v_spend_result.message); END IF;
   INSERT INTO one_v_one_participants (session_id, user_id, joined_at) VALUES (session_id_param, user_id_param, NOW());
-  v_pot := v_pot + entry_fee_param; v_count := v_count + 1;
-  UPDATE one_v_one_sessions SET current_pot = v_pot, participants_count = v_count, status = CASE WHEN v_count >= 2 THEN 'active' ELSE 'waiting' END, updated_at = NOW() WHERE id = session_id_param;
+  v_pool := v_pool + entry_fee_param; v_count := v_count + 1;
+  UPDATE one_v_one_sessions SET current_pool = v_pool, participants_count = v_count, status = CASE WHEN v_count >= 2 THEN 'active' ELSE 'waiting' END, updated_at = NOW() WHERE id = session_id_param;
   PERFORM update_rate_limits(user_id_param);
-  RETURN json_build_object('success', true, 'message', 'Successfully joined session', 'newPot', v_pot, 'participantsCount', v_count, 'rngSeed', v_rng_seed, 'status', CASE WHEN v_count >= 2 THEN 'active' ELSE 'waiting' END);
+  RETURN json_build_object('success', true, 'message', 'Successfully joined session', 'newPool', v_pool, 'participantsCount', v_count, 'rngSeed', v_rng_seed, 'status', CASE WHEN v_count >= 2 THEN 'active' ELSE 'waiting' END);
 END; $$;
 
 -- ============================================================================
@@ -301,7 +301,7 @@ FROM public.winner_takes_all_configs c LEFT JOIN public.winner_takes_all_session
 WHERE s.id IS NULL ON CONFLICT DO NOTHING;
 
 -- 1v1 sessions
-INSERT INTO public.one_v_one_sessions (id, config_id, current_pot, prize_pool, participants_count, max_participants, status, created_at, updated_at)
+INSERT INTO public.one_v_one_sessions (id, config_id, current_pool, prize_pool, participants_count, max_participants, status, created_at, updated_at)
 SELECT gen_random_uuid(), c.id, 0, c.prize_pool, 0, 2, 'waiting', NOW(), NOW()
 FROM public.one_v_one_configs c LEFT JOIN public.one_v_one_sessions s ON s.config_id = c.id AND s.status IN ('waiting', 'active')
 WHERE s.id IS NULL ON CONFLICT DO NOTHING;

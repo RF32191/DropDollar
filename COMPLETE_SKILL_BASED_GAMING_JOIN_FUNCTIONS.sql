@@ -267,7 +267,7 @@ SECURITY DEFINER
 AS $$
 DECLARE
   session_record RECORD;
-  new_pot NUMERIC;
+  new_pool NUMERIC;
   new_participants_count INTEGER;
   already_joined BOOLEAN;
   v_spend_result RECORD;
@@ -328,12 +328,12 @@ BEGIN
   VALUES (session_id_param, user_id_param, NOW());
 
   -- Step 6: Update session
-  new_pot := session_record.current_pot + entry_fee_param;
+  new_pool := session_record.current_pool + entry_fee_param;
   new_participants_count := session_record.participants_count + 1;
 
   UPDATE one_v_one_sessions
   SET 
-    current_pot = new_pot,
+    current_pool = new_pool,
     participants_count = new_participants_count,
     status = CASE WHEN new_participants_count >= 2 THEN 'active' ELSE 'waiting' END,
     updated_at = NOW()
@@ -347,7 +347,7 @@ BEGIN
   RETURN json_build_object(
     'success', true,
     'message', 'Successfully joined session',
-    'newPot', new_pot,
+    'newPool', new_pool,
     'participantsCount', new_participants_count,
     'rngSeed', v_config_rng_seed,
     'status', CASE WHEN new_participants_count >= 2 THEN 'active' ELSE 'waiting' END
