@@ -6,10 +6,24 @@ export interface LocationData {
   countryCode: string;
   latitude: number;
   longitude: number;
+  accuracy?: number;
+  timestamp?: number;
 }
 
 export class ImprovedLocationService {
-  private static readonly ALLOWED_STATES = [
+  // States where skill-based gaming is PROHIBITED
+  private static readonly EXCLUDED_STATES = [
+    'Arizona', 'Arkansas', 'Connecticut', 'Delaware', 'Louisiana', 
+    'Montana', 'South Carolina', 'South Dakota', 'Tennessee', 'Washington'
+  ];
+
+  // States that REQUIRE special registration or have additional restrictions
+  private static readonly RESTRICTED_STATES = [
+    'Iowa', 'Illinois', 'Michigan', 'Nevada'
+  ];
+
+  // All US states for validation
+  private static readonly US_STATES = [
     'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
     'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
     'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
@@ -32,21 +46,26 @@ export class ImprovedLocationService {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            const { latitude, longitude } = position.coords;
+            const { latitude, longitude, accuracy } = position.coords;
             
             // Use reverse geocoding to get location details
             const locationData = await this.reverseGeocode(latitude, longitude);
+            locationData.accuracy = accuracy;
+            locationData.timestamp = Date.now();
+            
+            console.log('📍 Location obtained:', locationData);
             resolve(locationData);
           } catch (error) {
             reject(error);
           }
         },
         (error) => {
+          console.error('❌ Geolocation error:', error);
           reject(new Error(`Geolocation error: ${error.message}`));
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000,
           maximumAge: 0
         }
       );
@@ -90,39 +109,75 @@ export class ImprovedLocationService {
   }
 
   static isGamingAllowed(location: LocationData): boolean {
-    // Check if country is allowed
+    // Check if country is allowed (must be US)
     if (!this.ALLOWED_COUNTRIES.includes(location.countryCode)) {
+      console.log('❌ Country not allowed:', location.country);
       return false;
     }
 
-    // Check if state is allowed
-    if (!this.ALLOWED_STATES.includes(location.state)) {
+    // Check if state is excluded (prohibited states)
+    if (this.EXCLUDED_STATES.includes(location.state)) {
+      console.log('❌ State excluded:', location.state);
       return false;
     }
 
+    // Check if state is valid US state
+    if (!this.US_STATES.includes(location.state)) {
+      console.log('❌ Invalid US state:', location.state);
+      return false;
+    }
+
+    console.log('✅ Gaming allowed in:', location.state);
     return true;
   }
 
   static getLocationStatus(location: LocationData): {
     allowed: boolean;
     reason?: string;
+    warning?: string;
   } {
+    // Check country
     if (!this.ALLOWED_COUNTRIES.includes(location.countryCode)) {
       return {
         allowed: false,
-        reason: `Gaming not allowed in ${location.country}`
+        reason: `Skill-based gaming is only available in the United States. Your location: ${location.country}`
       };
     }
 
-    if (!this.ALLOWED_STATES.includes(location.state)) {
+    // Check excluded states
+    if (this.EXCLUDED_STATES.includes(location.state)) {
       return {
         allowed: false,
-        reason: `Gaming not allowed in ${location.state}`
+        reason: `Skill-based gaming with entry fees is prohibited in ${location.state} under state law.`
+      };
+    }
+
+    // Check if valid US state
+    if (!this.US_STATES.includes(location.state)) {
+      return {
+        allowed: false,
+        reason: `Unable to verify location: ${location.state}. Please ensure location services are enabled and accurate.`
+      };
+    }
+
+    // Check restricted states (allowed but with warning)
+    if (this.RESTRICTED_STATES.includes(location.state)) {
+      return {
+        allowed: true,
+        warning: `${location.state} has specific regulations for skill-based gaming. Please ensure you comply with local laws.`
       };
     }
 
     return {
       allowed: true
     };
+  }
+
+  static getExcludedStates(): string[] {
+    return [...this.EXCLUDED_STATES];
+  }
+
+  static getRestrictedStates(): string[] {
+    return [...this.RESTRICTED_STATES];
   }
 }

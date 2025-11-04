@@ -8,6 +8,7 @@ import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
+import LocationPermissionModal from '@/components/modals/LocationPermissionModal';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import {
   FireIcon,
@@ -90,6 +91,7 @@ export default function HotSellPage() {
   const [locationVerified, setLocationVerified] = useState(false);
   const [improvedLocation, setImprovedLocation] = useState<any>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   
   // Stable token display to prevent flickering
   const [displayTokens, setDisplayTokens] = useState<number>(0);
@@ -362,22 +364,57 @@ export default function HotSellPage() {
     }
   }, []);
 
+  // Handle location granted from modal
+  const handleLocationGranted = (location: any) => {
+    setImprovedLocation(location);
+    setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
+    setShowLocationModal(false);
+    console.log('✅ [Hot Sell] Location granted:', location);
+  };
+
+  // Handle location denied from modal
+  const handleLocationDenied = () => {
+    setLocationVerified(false);
+    setShowLocationModal(true); // Keep modal open until approved
+    console.log('❌ [Hot Sell] Location denied');
+  };
+
   const checkLocation = useCallback(async () => {
     if (!isAuthenticated) return;
     
-    try {
-      setLocationLoading(true);
-      const location = await ImprovedLocationService.getCurrentLocation();
-      setImprovedLocation(location);
-      setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
-      console.log('🎮 [Hot Sell] Location verified:', location);
-    } catch (error) {
-      console.error('❌ [Hot Sell] Location verification failed:', error);
-      setLocationVerified(false);
-    } finally {
-      setLocationLoading(false);
+    if (!locationVerified && !improvedLocation) {
+      // Check if permission is already granted
+      if ('permissions' in navigator) {
+        navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((result) => {
+          if (result.state === 'granted') {
+            // Auto-verify if already granted
+            setLocationLoading(true);
+            ImprovedLocationService.getCurrentLocation()
+              .then((location) => {
+                setImprovedLocation(location);
+                setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
+                setShowLocationModal(false);
+                console.log('✅ Auto-verified location:', location);
+              })
+              .catch((error) => {
+                console.error('❌ Auto-verification failed:', error);
+                setShowLocationModal(true);
+              })
+              .finally(() => setLocationLoading(false));
+          } else {
+            // Show modal to request permission
+            setShowLocationModal(true);
+          }
+        }).catch(() => {
+          // Permissions API not supported, show modal
+          setShowLocationModal(true);
+        });
+      } else {
+        // Permissions API not supported, show modal
+        setShowLocationModal(true);
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, locationVerified, improvedLocation]);
 
   // Load configs from database
   const loadConfigs = async () => {
@@ -800,8 +837,16 @@ export default function HotSellPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
-      {/* Animated Background Elements */}
+    <>
+      {/* Location Permission Modal */}
+      <LocationPermissionModal
+        isOpen={showLocationModal}
+        onLocationGranted={handleLocationGranted}
+        onLocationDenied={handleLocationDenied}
+      />
+
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
+        {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-red-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
@@ -1255,9 +1300,10 @@ export default function HotSellPage() {
                 </div>
               </div>
             );
-          });
-        })()}
+        });
+      })()}
       </div>
     </div>
+    </>
   );
 }
