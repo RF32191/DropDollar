@@ -8,8 +8,17 @@ import Link from 'next/link';
 export default function PageWalletDisplay() {
   const { user, isLoading } = useAuth();
 
+  // Debug logging
+  console.log('💳 [PageWalletDisplay] Render:', {
+    hasUser: !!user,
+    isLoading,
+    purchased: user?.purchased_tokens,
+    won: user?.won_tokens
+  });
+
   // Show skeleton during initial load (very brief)
   if (isLoading && !user) {
+    console.log('💳 [PageWalletDisplay] Showing skeleton (loading...)');
     return (
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
         <div className="bg-gray-800/50 rounded-2xl p-6 h-32"></div>
@@ -19,11 +28,16 @@ export default function PageWalletDisplay() {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    console.log('💳 [PageWalletDisplay] No user, hiding wallet');
+    return null;
+  }
 
   const purchasedTokens = user.purchased_tokens || 0;
   const wonTokens = user.won_tokens || 0;
   const totalTokens = purchasedTokens + wonTokens;
+
+  console.log('💳 [PageWalletDisplay] Displaying wallet:', { purchasedTokens, wonTokens, totalTokens });
 
   return (
     <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">

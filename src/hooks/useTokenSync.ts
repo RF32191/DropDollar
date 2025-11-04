@@ -127,9 +127,20 @@ export function useTokenSync() {
       setIsLoading(false);
     };
 
+    // Listen for user profile loaded (instant after login)
+    const handleUserProfileLoaded = (event: CustomEvent) => {
+      const purchased = event.detail.purchased_tokens || 0;
+      const won = event.detail.won_tokens || 0;
+      const total = purchased + won;
+      console.log('⚡ [useTokenSync] User profile loaded! Instant wallet display:', { purchased, won, total });
+      setTokenBalance(total);
+      setIsLoading(false);
+    };
+
     // Add event listeners
     window.addEventListener('userLoggedIn', handleUserLoggedIn as EventListener);
     window.addEventListener('userLoggedOut', handleUserLoggedOut);
+    window.addEventListener('userProfileLoaded', handleUserProfileLoaded as EventListener);
     window.addEventListener('tokensUpdated', handleTokensUpdated as EventListener);
     window.addEventListener('tokensRefreshed', handleTokensRefreshed as EventListener);
     window.addEventListener('storage', handleStorageChange);
@@ -140,6 +151,7 @@ export function useTokenSync() {
     return () => {
       window.removeEventListener('userLoggedIn', handleUserLoggedIn as EventListener);
       window.removeEventListener('userLoggedOut', handleUserLoggedOut);
+      window.removeEventListener('userProfileLoaded', handleUserProfileLoaded as EventListener);
       window.removeEventListener('tokensUpdated', handleTokensUpdated as EventListener);
       window.removeEventListener('tokensRefreshed', handleTokensRefreshed as EventListener);
       window.removeEventListener('storage', handleStorageChange);

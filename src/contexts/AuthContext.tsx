@@ -181,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setUser(profile);
       setIsAuthenticated(true);
+      setIsLoading(false); // Stop loading immediately!
       
       // Store in localStorage for faster access
       localStorage.setItem('user', JSON.stringify(profile));
@@ -189,11 +190,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('userEmail', profile.email);
       localStorage.setItem('lastActivity', Date.now().toString());
       
+      // Dispatch event for instant wallet display
+      window.dispatchEvent(new CustomEvent('userProfileLoaded', {
+        detail: {
+          user: profile,
+          purchased_tokens: profile.purchased_tokens || 0,
+          won_tokens: profile.won_tokens || 0,
+          totalBalance: (profile.purchased_tokens || 0) + (profile.won_tokens || 0)
+        }
+      }));
+      
       console.log('✅ [AuthContext] User profile loaded successfully:', {
         id: profile.id,
         email: profile.email,
         username: profile.username,
-        tokens: profile.tokens
+        purchased: profile.purchased_tokens,
+        won: profile.won_tokens,
+        total: (profile.purchased_tokens || 0) + (profile.won_tokens || 0)
       });
       
     } catch (error) {
@@ -257,31 +270,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.user) {
         console.log('✅ Supabase login successful');
         
-        // Store remember me preference
+        // Store remember me preference BEFORE loading profile
         localStorage.setItem('rememberMe', rememberMe.toString());
         localStorage.setItem('lastActivity', Date.now().toString());
         
-        // Load full user profile
+        // Load full user profile (this will set user, tokens, and dispatch events)
         await loadUserProfile(data.user.id);
         
-        // Refresh token balance after login
-        try {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('tokens')
-            .eq('id', data.user.id)
-            .single();
-          
-          if (userData) {
-            // Trigger token sync event
-            window.dispatchEvent(new CustomEvent('tokenUpdate', { 
-              detail: { tokens: userData.tokens || 0 } 
-            }));
-            console.log('✅ Token balance refreshed on login:', userData.tokens);
-          }
-        } catch (error) {
-          console.error('❌ Error refreshing tokens on login:', error);
-        }
+        console.log('✅ Login complete, user profile loaded with wallet data');
       }
     } catch (error: any) {
       console.error('❌ Login failed:', error);
