@@ -9,6 +9,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import LocationPermissionModal from '@/components/modals/LocationPermissionModal';
+import LocationBanner from '@/components/location/LocationBanner';
+import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import {
   FireIcon,
@@ -88,10 +90,16 @@ export default function HotSellPage() {
     entryFee: number;
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
-  const [locationVerified, setLocationVerified] = useState(false);
-  const [improvedLocation, setImprovedLocation] = useState<any>(null);
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [showLocationModal, setShowLocationModal] = useState(false);
+  
+  // Location verification hook
+  const {
+    locationVerified,
+    improvedLocation,
+    locationLoading,
+    showLocationModal,
+    handleLocationGranted,
+    handleLocationDenied
+  } = useLocationVerification(isAuthenticated);
   
   // Stable token display to prevent flickering
   const [displayTokens, setDisplayTokens] = useState<number>(0);
@@ -364,57 +372,6 @@ export default function HotSellPage() {
     }
   }, []);
 
-  // Handle location granted from modal
-  const handleLocationGranted = (location: any) => {
-    setImprovedLocation(location);
-    setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
-    setShowLocationModal(false);
-    console.log('✅ [Hot Sell] Location granted:', location);
-  };
-
-  // Handle location denied from modal
-  const handleLocationDenied = () => {
-    setLocationVerified(false);
-    setShowLocationModal(true); // Keep modal open until approved
-    console.log('❌ [Hot Sell] Location denied');
-  };
-
-  const checkLocation = useCallback(async () => {
-    if (!isAuthenticated) return;
-    
-    if (!locationVerified && !improvedLocation) {
-      // Check if permission is already granted
-      if ('permissions' in navigator) {
-        navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((result) => {
-          if (result.state === 'granted') {
-            // Auto-verify if already granted
-            setLocationLoading(true);
-            ImprovedLocationService.getCurrentLocation()
-              .then((location) => {
-                setImprovedLocation(location);
-                setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
-                setShowLocationModal(false);
-                console.log('✅ Auto-verified location:', location);
-              })
-              .catch((error) => {
-                console.error('❌ Auto-verification failed:', error);
-                setShowLocationModal(true);
-              })
-              .finally(() => setLocationLoading(false));
-          } else {
-            // Show modal to request permission
-            setShowLocationModal(true);
-          }
-        }).catch(() => {
-          // Permissions API not supported, show modal
-          setShowLocationModal(true);
-        });
-      } else {
-        // Permissions API not supported, show modal
-        setShowLocationModal(true);
-      }
-    }
-  }, [isAuthenticated, locationVerified, improvedLocation]);
 
   // Load configs from database
   const loadConfigs = async () => {
@@ -448,12 +405,11 @@ export default function HotSellPage() {
   useEffect(() => {
     loadConfigs();
     loadSessions();
-    checkLocation();
     
     // Refresh sessions every 30 seconds
     const interval = setInterval(loadSessions, 30000);
     return () => clearInterval(interval);
-  }, [loadSessions, checkLocation]);
+  }, [loadSessions]);
 
   const handleJoinSession = async (config: HotSellConfig) => {
     if (!user || !isAuthenticated) {
@@ -861,34 +817,11 @@ export default function HotSellPage() {
 
         {/* Location Verification Banner */}
         {isAuthenticated && (
-          <div className={`mb-6 p-6 rounded-xl backdrop-blur-xl ${
-            locationLoading
-              ? 'bg-blue-500/20 border border-blue-500/50'
-              : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation)
-                ? 'bg-green-500/20 border border-green-500/50' 
-                : 'bg-red-500/20 border border-red-500/50'
-            }`}>
-            <div className="flex items-center justify-center">
-              {locationLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-3"></div>
-                  <span className="text-blue-300 text-lg font-semibold">Verifying Location...</span>
-                </>
-              ) : improvedLocation && ImprovedLocationService.isGamingAllowed(improvedLocation) ? (
-                <>
-                  <CheckCircleIcon className="w-6 h-6 text-green-400 mr-3" />
-                  <span className="text-green-300 text-lg font-semibold">Location Verified - Gaming Allowed</span>
-                  <span className="text-green-200 text-sm ml-2">({improvedLocation.city}, {improvedLocation.state})</span>
-                </>
-              ) : (
-                <>
-                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
-                  <span className="text-red-300 text-lg font-semibold">Gaming Not Allowed in Your Location</span>
-                  <span className="text-red-200 text-sm ml-2">({improvedLocation?.city || 'Unknown'}, {improvedLocation?.state || 'Unknown'})</span>
-                </>
-              )}
-            </div>
-          </div>
+          <LocationBanner
+            isLoading={locationLoading}
+            location={improvedLocation}
+            isVerified={locationVerified}
+          />
         )}
 
         {/* Header */}

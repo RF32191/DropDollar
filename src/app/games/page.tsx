@@ -22,6 +22,9 @@ import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { usePreventBackNavigation } from '@/hooks/usePreventBackNavigation';
 import { useFullscreenGame } from '@/hooks/useFullscreenGame';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import LocationPermissionModal from '@/components/modals/LocationPermissionModal';
+import LocationBanner from '@/components/location/LocationBanner';
+import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { LocationService, type LocationData } from '@/lib/locationService';
@@ -149,7 +152,17 @@ interface GamePopularity {
 export default function GamesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth(); // Use useAuth context instead of localStorage
+  const { user, isAuthenticated } = useAuth(); // Use useAuth context instead of localStorage
+  
+  // Location verification hook
+  const {
+    locationVerified,
+    improvedLocation,
+    locationLoading,
+    showLocationModal,
+    handleLocationGranted,
+    handleLocationDenied
+  } = useLocationVerification(isAuthenticated);
   const listingId = searchParams.get('listingId');
   const tournamentId = searchParams.get('tournament');
   const entryId = searchParams.get('entry');
@@ -727,6 +740,13 @@ export default function GamesPage() {
 
   return (
     <>
+      {/* Location Permission Modal */}
+      <LocationPermissionModal
+        isOpen={showLocationModal}
+        onLocationGranted={handleLocationGranted}
+        onLocationDenied={handleLocationDenied}
+      />
+
       {/* Audio Initializer - Enables audio on first user interaction */}
       <AudioInitializer />
       
@@ -828,6 +848,14 @@ export default function GamesPage() {
       <CleanNavigation variant="gradient" currentPage="games" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Location Verification Banner */}
+        {isAuthenticated && (
+          <LocationBanner
+            isLoading={locationLoading}
+            location={improvedLocation}
+            isVerified={locationVerified}
+          />
+        )}
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-6xl font-extrabold mb-6">
