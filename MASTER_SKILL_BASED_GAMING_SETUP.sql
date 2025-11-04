@@ -41,7 +41,7 @@ UPDATE public.one_v_one_configs SET rng_seed = floor(random() * 2147483647)::INT
 CREATE TABLE IF NOT EXISTS public.game_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id TEXT UNIQUE NOT NULL,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   game_type TEXT NOT NULL,
   listing_id TEXT,
   entry_number INTEGER,
@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_game_sessions_suspicion ON public.game_sessions(s
 -- Create anti_cheat_logs table
 CREATE TABLE IF NOT EXISTS public.anti_cheat_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   session_id TEXT REFERENCES public.game_sessions(session_id) ON DELETE CASCADE,
   game_type TEXT NOT NULL,
   suspicion_score INTEGER NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.anti_cheat_logs (
   user_agent TEXT,
   flagged_at TIMESTAMPTZ DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ,
-  reviewed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  reviewed_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
   action_taken TEXT CHECK (action_taken IN ('none', 'warning', 'banned', 'cleared', 'prize_withheld')),
   admin_notes TEXT
 );
@@ -97,7 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_anti_cheat_pending ON public.anti_cheat_logs(flag
 
 -- Create user_rate_limits table
 CREATE TABLE IF NOT EXISTS public.user_rate_limits (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
   games_played_last_hour INTEGER DEFAULT 0,
   last_game_at TIMESTAMPTZ,
   games_played_today INTEGER DEFAULT 0,
@@ -115,7 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_banned ON public.user_rate_limits(is_
 -- Create payout_audit_trail table
 CREATE TABLE IF NOT EXISTS public.payout_audit_trail (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   session_id TEXT,
   competition_type TEXT NOT NULL,
   prize_amount DECIMAL(10,2) NOT NULL,
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS public.payout_audit_trail (
   total_participants INTEGER,
   is_validated BOOLEAN DEFAULT FALSE,
   validation_status TEXT CHECK (validation_status IN ('pending', 'approved', 'rejected', 'under_review')),
-  validator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  validator_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
   awarded_at TIMESTAMPTZ DEFAULT NOW(),
   validated_at TIMESTAMPTZ,
   ip_address TEXT,
