@@ -7,12 +7,13 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function SimpleLoginPage() {
+  const { login } = useAuth(); // USE REAL AUTH!
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rememberMe, setRememberMe] = useState(true); // Default to true for better UX
+  const [rememberMe, setRememberMe] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,49 +33,20 @@ export default function SimpleLoginPage() {
       return;
     }
 
-    // Simple login simulation
+    // REAL AUTHENTICATION using AuthContext
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔐 Attempting login with Supabase...');
+      await login(email.trim(), password, rememberMe);
       
-      // Set user data in localStorage for the username dropdown
-      const userData = {
-        id: Date.now().toString(), // Generate unique user ID
-        username: email.split('@')[0], // Use email prefix as username
-        firstName: email.split('@')[0],
-        lastName: '',
-        email: email,
-        loginTime: new Date().toISOString(),
-        sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      };
+      console.log('✅ Login successful! Redirecting to dashboard...');
       
-      // Store user data and login state
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('loginTime', new Date().toISOString());
-      localStorage.setItem('sessionId', userData.sessionId);
-      localStorage.setItem('rememberMe', rememberMe.toString());
-      
-      // Set session cookie for additional persistence
-      // If remember me is checked, use 30 days. Otherwise, use session-only cookies
-      const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 0; // 30 days or session-only
-      const cookieExpiry = rememberMe ? `; max-age=${maxAge}` : ''; // Session cookie if not remembering
-      
-      document.cookie = `dropdollar_session=${userData.sessionId}; path=/${cookieExpiry}`;
-      document.cookie = `dropdollar_user=${encodeURIComponent(JSON.stringify(userData))}; path=/${cookieExpiry}`;
-      document.cookie = `dropdollar_remember=${rememberMe}; path=/${cookieExpiry}`;
-      
-      console.log(`✅ Login successful, remember me: ${rememberMe ? 'enabled (30 days)' : 'disabled (session only)'}`);
-      
-      console.log('✅ Login successful, user data stored:', userData);
-      
-      // For now, just redirect to dashboard
+      // Redirect to dashboard
       window.location.href = '/dashboard';
-    } catch (error) {
-      setError('Login failed. Please try again.');
+    } catch (error: any) {
+      console.error('❌ Login failed:', error);
+      setError(error.message || 'Login failed. Please check your credentials.');
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
 
   return (
