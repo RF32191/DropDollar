@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   MoonIcon, 
   SunIcon, 
@@ -13,11 +14,16 @@ import {
   CogIcon,
   PaintBrushIcon,
   EyeIcon,
-  DevicePhoneMobileIcon
+  EyeSlashIcon,
+  DevicePhoneMobileIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { user, changePassword } = useAuth();
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -25,11 +31,72 @@ export default function SettingsPage() {
     marketing: false
   });
 
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordChangeStatus, setPasswordChangeStatus] = useState<{
+    type: 'success' | 'error' | null;
+    message: string;
+  }>({ type: null, message: '' });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const handleNotificationChange = (key: keyof typeof notifications) => {
     setNotifications(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeStatus({ type: null, message: '' });
+
+    // Validation
+    if (passwordData.newPassword.length < 6) {
+      setPasswordChangeStatus({
+        type: 'error',
+        message: 'Password must be at least 6 characters long'
+      });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordChangeStatus({
+        type: 'error',
+        message: 'Passwords do not match'
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const result = await changePassword(passwordData.newPassword);
+      
+      if (result.success) {
+        setPasswordChangeStatus({
+          type: 'success',
+          message: '✅ Password changed successfully! You can now use your new password to login.'
+        });
+        setPasswordData({ newPassword: '', confirmPassword: '' });
+      } else {
+        setPasswordChangeStatus({
+          type: 'error',
+          message: result.error || 'Failed to change password'
+        });
+      }
+    } catch (error: any) {
+      setPasswordChangeStatus({
+        type: 'error',
+        message: error.message || 'An unexpected error occurred'
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -257,6 +324,156 @@ export default function SettingsPage() {
 
             </div>
           </div>
+
+          {/* Change Password */}
+          {user && (
+            <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl p-8 transition-colors border-2 border-gray-200 dark:border-gray-600">
+              <div className="flex items-center mb-6">
+                <div className="bg-gradient-to-br from-blue-400 to-blue-600 p-3 rounded-2xl shadow-lg mr-4">
+                  <KeyIcon className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Change Password</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Update your password to keep your account secure</p>
+                </div>
+              </div>
+
+              {/* Status Message */}
+              {passwordChangeStatus.type && (
+                <div className={`mb-6 p-4 rounded-lg flex items-start ${
+                  passwordChangeStatus.type === 'success' 
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                }`}>
+                  {passwordChangeStatus.type === 'success' ? (
+                    <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400 mr-3 mt-0.5" />
+                  ) : (
+                    <ExclamationCircleIcon className="h-5 w-5 text-red-600 dark:text-red-400 mr-3 mt-0.5" />
+                  )}
+                  <p className={`text-sm ${
+                    passwordChangeStatus.type === 'success'
+                      ? 'text-green-800 dark:text-green-200'
+                      : 'text-red-800 dark:text-red-200'
+                  }`}>
+                    {passwordChangeStatus.message}
+                  </p>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange} className="space-y-6">
+                {/* New Password */}
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="newPassword"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      required
+                      disabled={isChangingPassword}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Enter your new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      disabled={isChangingPassword}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-50"
+                    >
+                      {showNewPassword ? (
+                        <EyeSlashIcon className="h-5 w-5" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Must be at least 6 characters long
+                  </p>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Confirm New Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      required
+                      disabled={isChangingPassword}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Confirm your new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={isChangingPassword}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-50"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeSlashIcon className="h-5 w-5" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex items-center justify-between pt-4">
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                  >
+                    Forgot your current password?
+                  </Link>
+                  <button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium shadow-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    {isChangingPassword ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Changing...
+                      </span>
+                    ) : (
+                      'Change Password'
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Security Tips */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Security Tips:</h4>
+                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                  <li className="flex items-start">
+                    <span className="mr-2">🔒</span>
+                    <span>Use a strong, unique password that you don't use anywhere else</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">📝</span>
+                    <span>Include a mix of uppercase, lowercase, numbers, and symbols</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">🚫</span>
+                    <span>Never share your password with anyone</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* Gaming Preferences */}
           <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-2xl p-8 transition-colors border-2 border-gray-200 dark:border-gray-600 hover:shadow-3xl hover:scale-105 transition-all duration-300">

@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   refreshUser: () => Promise<void>;
   updateTokens: (newBalance: number) => Promise<void>;
   refreshTokens: () => Promise<number>;
@@ -362,6 +363,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log('🔐 Changing password for logged-in user...');
+      
+      if (!user) {
+        return { success: false, error: 'You must be logged in to change your password' };
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('❌ Password change error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Password changed successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('❌ Unexpected error during password change:', error);
+      return { success: false, error: error.message || 'Failed to change password' };
+    }
+  };
+
   const refreshUser = async () => {
     if (!user) return;
     
@@ -445,6 +471,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     resetPassword,
+    changePassword,
     refreshUser,
     updateTokens,
     refreshTokens,
