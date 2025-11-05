@@ -93,8 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (!userData.id || !isValidUUID(userData.id)) {
           console.error('❌ [AuthContext] Invalid user ID format (not a UUID):', userData.id);
-          console.log('🧹 Clearing corrupted localStorage data...');
-          localStorage.clear();
+          console.log('🧹 Clearing corrupted user data (preserving Supabase auth)...');
+          // CRITICAL: Only clear OUR data, NOT Supabase auth tokens!
+          const appKeys = ['user', 'isLoggedIn', 'userId', 'userEmail', 'sessionId', 'loginTime', 'lastActivity', 'rememberMe'];
+          appKeys.forEach(key => localStorage.removeItem(key));
           setIsLoading(false);
           return;
         }
