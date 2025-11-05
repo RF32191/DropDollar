@@ -234,12 +234,12 @@ BEGIN
 
   -- Get session info with explicit casting
   SELECT 
-    COALESCE(participants_count, 0),
-    COALESCE(max_participants, 10)
+    COALESCE(s.participants_count, 0),
+    COALESCE(s.max_participants, 10)
   INTO v_participants_count, v_max_participants
-  FROM public.hot_sell_sessions
-  WHERE id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
-  AND status = 'active';
+  FROM public.hot_sell_sessions s
+  WHERE s.id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
+  AND s.status = 'active';
 
   IF NOT FOUND THEN
     RAISE NOTICE '❌ Session not found or inactive: %', v_session_id;
@@ -256,11 +256,11 @@ BEGIN
 
   -- Get user's token balances
   SELECT 
-    COALESCE(purchased_tokens, 0), 
-    COALESCE(won_tokens, 0)
+    COALESCE(u.purchased_tokens, 0), 
+    COALESCE(u.won_tokens, 0)
   INTO v_user_purchased_tokens, v_user_won_tokens
-  FROM public.users
-  WHERE id = user_id_param;
+  FROM public.users u
+  WHERE u.id = user_id_param;
 
   IF NOT FOUND THEN
     RAISE NOTICE '❌ User not found: %', user_id_param;
@@ -280,29 +280,29 @@ BEGIN
   -- Deduct tokens (purchased first, then won)
   IF v_user_purchased_tokens >= v_entry_fee THEN
     -- Deduct all from purchased
-    UPDATE public.users
-    SET purchased_tokens = purchased_tokens - v_entry_fee
-    WHERE id = user_id_param;
+    UPDATE public.users u
+    SET purchased_tokens = u.purchased_tokens - v_entry_fee
+    WHERE u.id = user_id_param;
     RAISE NOTICE '✅ Deducted % tokens from purchased', v_entry_fee;
   ELSE
     -- Deduct all purchased, then remainder from won
     DECLARE
       v_remaining NUMERIC := v_entry_fee - v_user_purchased_tokens;
     BEGIN
-      UPDATE public.users
+      UPDATE public.users u
       SET 
         purchased_tokens = 0,
-        won_tokens = won_tokens - v_remaining
-      WHERE id = user_id_param;
+        won_tokens = u.won_tokens - v_remaining
+      WHERE u.id = user_id_param;
       RAISE NOTICE '✅ Deducted % from purchased and % from won', v_user_purchased_tokens, v_remaining;
     END;
   END IF;
 
   -- Check if already joined (explicit text comparison)
   IF EXISTS (
-    SELECT 1 FROM public.hot_sell_participants
-    WHERE session_id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
-    AND user_id = user_id_param
+    SELECT 1 FROM public.hot_sell_participants p
+    WHERE p.session_id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
+    AND p.user_id = user_id_param
   ) THEN
     RAISE NOTICE '⚠️ User already joined this session';
     RETURN QUERY SELECT FALSE, 'Already joined this session'::TEXT, session_id_param, NULL::TEXT;
@@ -319,11 +319,11 @@ BEGIN
   );
 
   -- Update session
-  UPDATE public.hot_sell_sessions
+  UPDATE public.hot_sell_sessions s
   SET 
     participants_count = participants_count + 1,
     prize_pool = COALESCE(prize_pool, 0) + v_entry_fee
-  WHERE id::TEXT = v_session_id::TEXT;  -- EXPLICIT TEXT COMPARISON
+  WHERE s.id::TEXT = v_session_id::TEXT;  -- EXPLICIT TEXT COMPARISON
 
   RAISE NOTICE '✅ Successfully joined session';
 
@@ -372,11 +372,11 @@ BEGIN
   v_entry_fee := entry_fee_param;
 
   -- Get session info with explicit casting
-  SELECT COALESCE(participants_count, 0)
+  SELECT COALESCE(s.participants_count, 0)
   INTO v_participants_count
-  FROM public.winner_takes_all_sessions
-  WHERE id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
-  AND status = 'active';
+  FROM public.winner_takes_all_sessions s
+  WHERE s.id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
+  AND s.status = 'active';
 
   IF NOT FOUND THEN
     RAISE NOTICE '❌ Session not found or inactive: %', v_session_id;
@@ -386,11 +386,11 @@ BEGIN
 
   -- Get user's token balances
   SELECT 
-    COALESCE(purchased_tokens, 0), 
-    COALESCE(won_tokens, 0)
+    COALESCE(u.purchased_tokens, 0), 
+    COALESCE(u.won_tokens, 0)
   INTO v_user_purchased_tokens, v_user_won_tokens
-  FROM public.users
-  WHERE id = user_id_param;
+  FROM public.users u
+  WHERE u.id = user_id_param;
 
   IF NOT FOUND THEN
     RAISE NOTICE '❌ User not found: %', user_id_param;
@@ -428,9 +428,9 @@ BEGIN
 
   -- Check if already joined (explicit text comparison)
   IF EXISTS (
-    SELECT 1 FROM public.winner_takes_all_participants
-    WHERE session_id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
-    AND user_id = user_id_param
+    SELECT 1 FROM public.winner_takes_all_participants p
+    WHERE p.session_id::TEXT = v_session_id::TEXT  -- EXPLICIT TEXT COMPARISON
+    AND p.user_id = user_id_param
   ) THEN
     RAISE NOTICE '⚠️ Already joined';
     RETURN QUERY SELECT FALSE, 'Already joined this session'::TEXT, session_id_param, NULL::TEXT;
@@ -447,11 +447,11 @@ BEGIN
   );
 
   -- Update session
-  UPDATE public.winner_takes_all_sessions
+  UPDATE public.winner_takes_all_sessions s
   SET 
     participants_count = participants_count + 1,
     current_pool = COALESCE(current_pool, 0) + v_entry_fee
-  WHERE id::TEXT = v_session_id::TEXT;  -- EXPLICIT TEXT COMPARISON
+  WHERE s.id::TEXT = v_session_id::TEXT;  -- EXPLICIT TEXT COMPARISON
 
   RAISE NOTICE '✅ Successfully joined session';
 
