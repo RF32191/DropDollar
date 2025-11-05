@@ -379,6 +379,27 @@ export default function SimpleRegisterPage() {
             </div>
 
             <div>
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-300">
+                Date of Birth <span className="text-red-400">*</span>
+                <span className="text-xs text-gray-400 ml-2">(Must be 18+ to participate)</span>
+              </label>
+              <input
+                id="dateOfBirth"
+                name="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={handleInputChange}
+                required
+                max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                disabled={isSubmitting}
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                🔞 Age verification required for legal compliance with skill-based gaming laws
+              </p>
+            </div>
+
+            <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-300">
                 Location
               </label>
