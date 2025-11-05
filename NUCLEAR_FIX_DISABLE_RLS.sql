@@ -72,20 +72,20 @@ BEGIN
   RETURN (
     SELECT COALESCE(json_agg(
       json_build_object(
-        'id', id::TEXT,
-        'config_id', config_id::TEXT,
-        'prize_pool', COALESCE(prize_pool, 0),
-        'base_price', COALESCE(base_price, 0),
-        'participants_count', COALESCE(participants_count, 0),
-        'max_participants', COALESCE(max_participants, 10),
-        'status', status::TEXT,
-        'created_at', created_at::TEXT,
+        'id', hss.id::TEXT,
+        'config_id', hss.config_id::TEXT,
+        'prize_pool', COALESCE(hss.prize_pool, 0),
+        'base_price', COALESCE(hss.base_price, 0),
+        'participants_count', COALESCE(hss.participants_count, 0),
+        'max_participants', COALESCE(hss.max_participants, 10),
+        'status', hss.status::TEXT,
+        'created_at', hss.created_at::TEXT,
         'participants', '[]'::json
       )
     ), '[]'::json)
-    FROM hot_sell_sessions
-    WHERE status = 'active'
-    ORDER BY created_at DESC
+    FROM hot_sell_sessions hss
+    WHERE hss.status = 'active'
+    ORDER BY hss.created_at DESC
   );
 END;
 $$;
@@ -101,21 +101,21 @@ BEGIN
   RETURN (
     SELECT COALESCE(json_agg(
       json_build_object(
-        'id', id::TEXT,
-        'config_id', config_id::TEXT,
-        'current_pool', COALESCE(current_pool, 0),
-        'base_price', COALESCE(base_price, 0),
-        'participants_count', COALESCE(participants_count, 0),
-        'status', status::TEXT,
-        'timer_started_at', timer_started_at::TEXT,
-        'timer_duration', COALESCE(timer_duration, 1800),
-        'created_at', created_at::TEXT,
+        'id', wtas.id::TEXT,
+        'config_id', wtas.config_id::TEXT,
+        'current_pool', COALESCE(wtas.current_pool, 0),
+        'base_price', COALESCE(wtas.base_price, 0),
+        'participants_count', COALESCE(wtas.participants_count, 0),
+        'status', wtas.status::TEXT,
+        'timer_started_at', wtas.timer_started_at::TEXT,
+        'timer_duration', COALESCE(wtas.timer_duration, 1800),
+        'created_at', wtas.created_at::TEXT,
         'participants', '[]'::json
       )
     ), '[]'::json)
-    FROM winner_takes_all_sessions
-    WHERE status = 'active'
-    ORDER BY created_at DESC
+    FROM winner_takes_all_sessions wtas
+    WHERE wtas.status = 'active'
+    ORDER BY wtas.created_at DESC
   );
 END;
 $$;
@@ -145,11 +145,11 @@ BEGIN
   -- Convert session ID
   v_session_uuid := session_id_param::UUID;
 
-  -- Get user tokens
-  SELECT purchased_tokens, won_tokens
+  -- Get user tokens (EXPLICIT table alias)
+  SELECT u.purchased_tokens, u.won_tokens
   INTO v_purchased, v_won
-  FROM users
-  WHERE id = user_id_param;
+  FROM users u
+  WHERE u.id = user_id_param;
 
   -- Check balance
   IF COALESCE(v_purchased, 0) + COALESCE(v_won, 0) < entry_fee_param THEN
@@ -157,39 +157,39 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Deduct tokens
+  -- Deduct tokens (EXPLICIT table alias and column references)
   IF COALESCE(v_purchased, 0) >= entry_fee_param THEN
-    UPDATE users 
-    SET purchased_tokens = purchased_tokens - entry_fee_param
-    WHERE id = user_id_param;
+    UPDATE users u
+    SET purchased_tokens = u.purchased_tokens - entry_fee_param
+    WHERE u.id = user_id_param;
   ELSE
-    UPDATE users 
+    UPDATE users u
     SET 
       purchased_tokens = 0,
-      won_tokens = won_tokens - (entry_fee_param - COALESCE(v_purchased, 0))
-    WHERE id = user_id_param;
+      won_tokens = u.won_tokens - (entry_fee_param - COALESCE(v_purchased, 0))
+    WHERE u.id = user_id_param;
   END IF;
 
-  -- Check if already joined
+  -- Check if already joined (EXPLICIT table prefix)
   IF EXISTS (
-    SELECT 1 FROM hot_sell_participants
-    WHERE session_id = v_session_uuid AND user_id = user_id_param
+    SELECT 1 FROM hot_sell_participants hsp
+    WHERE hsp.session_id = v_session_uuid AND hsp.user_id = user_id_param
   ) THEN
     RETURN QUERY SELECT FALSE, 'Already joined'::TEXT, session_id_param, NULL::TEXT;
     RETURN;
   END IF;
 
-  -- Create participant
+  -- Create participant (EXPLICIT column names)
   v_new_id := gen_random_uuid();
   INSERT INTO hot_sell_participants (id, session_id, user_id, joined_at)
   VALUES (v_new_id, v_session_uuid, user_id_param, NOW());
 
-  -- Update session
-  UPDATE hot_sell_sessions
+  -- Update session (EXPLICIT table alias and column references)
+  UPDATE hot_sell_sessions hss
   SET 
-    participants_count = participants_count + 1,
-    prize_pool = prize_pool + entry_fee_param
-  WHERE id = v_session_uuid;
+    participants_count = hss.participants_count + 1,
+    prize_pool = hss.prize_pool + entry_fee_param
+  WHERE hss.id = v_session_uuid;
 
   RETURN QUERY SELECT TRUE, 'Success'::TEXT, v_session_uuid::TEXT, v_new_id::TEXT;
 END;
@@ -241,23 +241,26 @@ BEGIN
     WHERE id = user_id_param;
   END IF;
 
+  -- Check if already joined (EXPLICIT table prefix)
   IF EXISTS (
-    SELECT 1 FROM winner_takes_all_participants
-    WHERE session_id = v_session_uuid AND user_id = user_id_param
+    SELECT 1 FROM winner_takes_all_participants wtap
+    WHERE wtap.session_id = v_session_uuid AND wtap.user_id = user_id_param
   ) THEN
     RETURN QUERY SELECT FALSE, 'Already joined'::TEXT, session_id_param, NULL::TEXT;
     RETURN;
   END IF;
 
+  -- Create participant
   v_new_id := gen_random_uuid();
   INSERT INTO winner_takes_all_participants (id, session_id, user_id, joined_at)
   VALUES (v_new_id, v_session_uuid, user_id_param, NOW());
 
-  UPDATE winner_takes_all_sessions
+  -- Update session (EXPLICIT table alias and column references)
+  UPDATE winner_takes_all_sessions wtas
   SET 
-    participants_count = participants_count + 1,
-    current_pool = current_pool + entry_fee_param
-  WHERE id = v_session_uuid;
+    participants_count = wtas.participants_count + 1,
+    current_pool = wtas.current_pool + entry_fee_param
+  WHERE wtas.id = v_session_uuid;
 
   RETURN QUERY SELECT TRUE, 'Success'::TEXT, v_session_uuid::TEXT, v_new_id::TEXT;
 END;
