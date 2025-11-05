@@ -181,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: authUser, error: authError } = await supabase.auth.getUser();
       if (authError || !authUser.user) {
         console.error('❌ [AuthContext] Error getting auth user:', authError);
+        setIsLoading(false); // CRITICAL: Stop loading even on error
         return;
       }
       
@@ -192,6 +193,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (!profile) {
         console.error('❌ [AuthContext] No user profile found for email:', userEmail);
+        console.log('🔄 [AuthContext] This user may not exist in database yet');
+        setIsLoading(false); // CRITICAL: Stop loading even if no profile
         return;
       }
       
@@ -227,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
     } catch (error) {
       console.error('❌ [AuthContext] Failed to load user profile:', error);
+      setIsLoading(false); // CRITICAL: Always stop loading on error
     }
   };
 
