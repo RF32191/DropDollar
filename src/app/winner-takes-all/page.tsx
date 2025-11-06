@@ -449,11 +449,11 @@ export default function WinnerTakesAllPage() {
 
     try {
       console.log('🔄 [Winner Takes All] Calling SQL function to join session...');
-      // Call the SQL function to join session
-      const { data, error } = await supabase.rpc('join_winner_takes_all_session', {
-        session_id_param: session.id,
-        user_id_param: user.id,
-        entry_fee_param: config.entry_fee
+      // Call the SQL function to join session (V2 - new approach)
+      const { data, error } = await supabase.rpc('wta_join_v2', {
+        p_session: session.id,
+        p_user: user.id,
+        p_fee: config.entry_fee
       });
 
       console.log('📊 [Winner Takes All] SQL response:', { data, error });

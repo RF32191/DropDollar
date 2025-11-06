@@ -440,11 +440,11 @@ export default function HotSellPage() {
         return;
       }
 
-      // Call join function
-      const { data, error } = await supabase.rpc('join_hot_sell_session', {
-        session_id_param: session.id,
-        user_id_param: user.id,
-        entry_fee_param: config.entry_fee
+      // Call join function (V2 - new approach)
+      const { data, error } = await supabase.rpc('hs_join_v2', {
+        p_session: session.id,
+        p_user: user.id,
+        p_fee: config.entry_fee
       });
 
       console.log('📊 [Hot Sell] SQL response:', { data, error });
