@@ -1,46 +1,51 @@
 -- ============================================================================
--- COMPLETE HOT SELL & WINNER TAKES ALL SYSTEM FIX
--- Fixes all UUID errors, adds all security, makes everything work
+-- COMPLETE HOT SELL & WINNER TAKES ALL SYSTEM - TRULY FIXED
+-- Handles all UUID/TEXT conversions properly
 -- ============================================================================
 
 -- ============================================================================
 -- STEP 1: Ensure all required columns exist
 -- ============================================================================
 
--- Add any missing columns to hot_sell_sessions
 DO $$
 BEGIN
+  -- Hot Sell Sessions columns
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hot_sell_sessions' AND column_name = 'rng_seed') THEN
     ALTER TABLE hot_sell_sessions ADD COLUMN rng_seed INTEGER DEFAULT floor(random() * 1000000);
+    RAISE NOTICE '✅ Added rng_seed to hot_sell_sessions';
   END IF;
   
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hot_sell_sessions' AND column_name = 'prize_pool') THEN
     ALTER TABLE hot_sell_sessions ADD COLUMN prize_pool NUMERIC DEFAULT 0;
+    RAISE NOTICE '✅ Added prize_pool to hot_sell_sessions';
   END IF;
   
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hot_sell_sessions' AND column_name = 'base_price') THEN
     ALTER TABLE hot_sell_sessions ADD COLUMN base_price NUMERIC DEFAULT 0;
+    RAISE NOTICE '✅ Added base_price to hot_sell_sessions';
   END IF;
-END $$;
-
--- Add any missing columns to winner_takes_all_sessions
-DO $$
-BEGIN
+  
+  -- Winner Takes All Sessions columns
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'winner_takes_all_sessions' AND column_name = 'rng_seed') THEN
     ALTER TABLE winner_takes_all_sessions ADD COLUMN rng_seed INTEGER DEFAULT floor(random() * 1000000);
+    RAISE NOTICE '✅ Added rng_seed to winner_takes_all_sessions';
   END IF;
   
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'winner_takes_all_sessions' AND column_name = 'current_pool') THEN
     ALTER TABLE winner_takes_all_sessions ADD COLUMN current_pool NUMERIC DEFAULT 0;
+    RAISE NOTICE '✅ Added current_pool to winner_takes_all_sessions';
   END IF;
   
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'winner_takes_all_sessions' AND column_name = 'base_price') THEN
     ALTER TABLE winner_takes_all_sessions ADD COLUMN base_price NUMERIC DEFAULT 0;
+    RAISE NOTICE '✅ Added base_price to winner_takes_all_sessions';
   END IF;
+  
+  RAISE NOTICE '✅ All required columns verified';
 END $$;
 
 -- ============================================================================
--- STEP 2: Drop old functions completely
+-- STEP 2: Drop ALL old versions of functions
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS public.get_all_hot_sell_sessions() CASCADE;
@@ -123,7 +128,7 @@ END;
 $$;
 
 -- ============================================================================
--- STEP 4: Create join functions WITH ALL SECURITY
+-- STEP 4: Create HOT SELL join function - PROPERLY HANDLES UUID/TEXT
 -- ============================================================================
 
 CREATE FUNCTION public.hs_join_v2(
@@ -137,14 +142,21 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_session_uuid UUID;
   v_purchased NUMERIC;
   v_won NUMERIC;
   v_participant_id UUID;
   v_hour_count INT;
   v_day_count INT;
   v_rng_seed INT;
-  v_already_joined BOOLEAN;
 BEGIN
+  -- Convert session TEXT to UUID
+  BEGIN
+    v_session_uuid := p_session::UUID;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Invalid session ID format');
+  END;
+  
   RAISE NOTICE '🎮 HS_JOIN_V2: session=%, user=%', p_session, p_user;
   
   -- ✅ SECURITY 1: Rate limit check
@@ -163,7 +175,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'message', 'Rate limit: 200 games per day');
   END IF;
   
-  -- ✅ SECURITY 2: Get user tokens (dual wallet)
+  -- ✅ SECURITY 2: Get user tokens
   SELECT 
     COALESCE(purchased_tokens, 0),
     COALESCE(won_tokens, 0)
@@ -179,23 +191,25 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens');
   END IF;
   
-  -- ✅ Check session exists
-  IF NOT EXISTS(SELECT 1 FROM hot_sell_sessions WHERE id::TEXT = p_session AND status = 'active') THEN
+  -- ✅ Check session exists (cast both to TEXT for comparison)
+  IF NOT EXISTS(
+    SELECT 1 FROM hot_sell_sessions 
+    WHERE id::TEXT = v_session_uuid::TEXT 
+    AND status = 'active'
+  ) THEN
     RETURN jsonb_build_object('success', false, 'message', 'Session not found or inactive');
   END IF;
   
-  -- ✅ Check not already joined (PURE TEXT comparison to avoid UUID error)
-  SELECT EXISTS(
+  -- ✅ Check not already joined (cast session_id to TEXT, compare with UUID as TEXT)
+  IF EXISTS(
     SELECT 1 FROM hot_sell_participants 
-    WHERE session_id::TEXT = p_session
+    WHERE session_id::TEXT = v_session_uuid::TEXT
     AND user_id = p_user
-  ) INTO v_already_joined;
-  
-  IF v_already_joined THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Already joined');
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Already joined this session');
   END IF;
   
-  -- ✅ SECURITY 3: Deduct tokens (purchased first) + audit trail
+  -- ✅ SECURITY 3: Deduct tokens (purchased first)
   IF v_purchased >= p_fee THEN
     UPDATE users
     SET purchased_tokens = purchased_tokens - p_fee
@@ -214,23 +228,35 @@ BEGIN
     VALUES (p_user, 'debit', 'game_entry', p_fee, 'Hot Sell entry (mixed wallets)');
   END IF;
   
-  -- ✅ SECURITY 4: Get RNG seed (fair gameplay)
+  -- ✅ SECURITY 4: Get RNG seed (cast to TEXT for comparison)
   SELECT rng_seed INTO v_rng_seed
   FROM hot_sell_sessions
-  WHERE id::TEXT = p_session;
+  WHERE id::TEXT = v_session_uuid::TEXT;
   
-  -- ✅ Add participant
+  -- ✅ Add participant (insert as proper type - handle both UUID and TEXT columns)
   v_participant_id := gen_random_uuid();
   
-  INSERT INTO hot_sell_participants (id, session_id, user_id, joined_at)
-  VALUES (v_participant_id, p_session, p_user, NOW());
+  -- Try to determine column type and insert accordingly
+  BEGIN
+    -- First try: assume session_id is UUID type
+    INSERT INTO hot_sell_participants (id, session_id, user_id, joined_at)
+    VALUES (v_participant_id, v_session_uuid, p_user, NOW());
+  EXCEPTION WHEN OTHERS THEN
+    -- If that fails, try with TEXT
+    BEGIN
+      INSERT INTO hot_sell_participants (id, session_id, user_id, joined_at)
+      VALUES (v_participant_id, v_session_uuid::TEXT, p_user, NOW());
+    EXCEPTION WHEN OTHERS THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Failed to add participant: ' || SQLERRM);
+    END;
+  END;
   
-  -- ✅ Update session
+  -- ✅ Update session (cast to TEXT for WHERE clause)
   UPDATE hot_sell_sessions
   SET 
     participants_count = COALESCE(participants_count, 0) + 1,
     prize_pool = COALESCE(prize_pool, 0) + p_fee
-  WHERE id::TEXT = p_session;
+  WHERE id::TEXT = v_session_uuid::TEXT;
   
   -- ✅ SECURITY 5: Update rate limits
   INSERT INTO user_rate_limits (user_id, games_last_hour, games_last_day, last_game_at)
@@ -245,16 +271,20 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'message', 'Successfully joined',
-    'session_id', p_session,
+    'session_id', v_session_uuid::TEXT,
     'participant_id', v_participant_id::TEXT,
     'rng_seed', v_rng_seed
   );
   
 EXCEPTION WHEN OTHERS THEN
   RAISE WARNING 'hs_join_v2 error: %', SQLERRM;
-  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
+  RETURN jsonb_build_object('success', false, 'message', 'System error: ' || SQLERRM);
 END;
 $$;
+
+-- ============================================================================
+-- STEP 5: Create WINNER TAKES ALL join function - PROPERLY HANDLES UUID/TEXT
+-- ============================================================================
 
 CREATE FUNCTION public.wta_join_v2(
   p_session TEXT,
@@ -267,14 +297,20 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_session_uuid UUID;
   v_purchased NUMERIC;
   v_won NUMERIC;
   v_participant_id UUID;
   v_hour_count INT;
   v_day_count INT;
   v_rng_seed INT;
-  v_already_joined BOOLEAN;
 BEGIN
+  BEGIN
+    v_session_uuid := p_session::UUID;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Invalid session ID format');
+  END;
+  
   RAISE NOTICE '🎮 WTA_JOIN_V2: session=%, user=%', p_session, p_user;
   
   -- Rate limit check
@@ -309,20 +345,22 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens');
   END IF;
   
-  -- Check session exists
-  IF NOT EXISTS(SELECT 1 FROM winner_takes_all_sessions WHERE id::TEXT = p_session AND status = 'active') THEN
+  -- Check session exists (cast both to TEXT)
+  IF NOT EXISTS(
+    SELECT 1 FROM winner_takes_all_sessions 
+    WHERE id::TEXT = v_session_uuid::TEXT 
+    AND status = 'active'
+  ) THEN
     RETURN jsonb_build_object('success', false, 'message', 'Session not found or inactive');
   END IF;
   
-  -- Check not already joined (PURE TEXT)
-  SELECT EXISTS(
+  -- Check not already joined (cast to TEXT)
+  IF EXISTS(
     SELECT 1 FROM winner_takes_all_participants 
-    WHERE session_id::TEXT = p_session
+    WHERE session_id::TEXT = v_session_uuid::TEXT
     AND user_id = p_user
-  ) INTO v_already_joined;
-  
-  IF v_already_joined THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Already joined');
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Already joined this session');
   END IF;
   
   -- Deduct tokens (purchased first)
@@ -344,23 +382,34 @@ BEGIN
     VALUES (p_user, 'debit', 'game_entry', p_fee, 'WTA entry (mixed wallets)');
   END IF;
   
-  -- Get RNG seed
+  -- Get RNG seed (cast to TEXT)
   SELECT rng_seed INTO v_rng_seed
   FROM winner_takes_all_sessions
-  WHERE id::TEXT = p_session;
+  WHERE id::TEXT = v_session_uuid::TEXT;
   
-  -- Add participant
+  -- Add participant (handle both UUID and TEXT column types)
   v_participant_id := gen_random_uuid();
   
-  INSERT INTO winner_takes_all_participants (id, session_id, user_id, joined_at)
-  VALUES (v_participant_id, p_session, p_user, NOW());
+  BEGIN
+    -- First try: assume session_id is UUID type
+    INSERT INTO winner_takes_all_participants (id, session_id, user_id, joined_at)
+    VALUES (v_participant_id, v_session_uuid, p_user, NOW());
+  EXCEPTION WHEN OTHERS THEN
+    -- If that fails, try with TEXT
+    BEGIN
+      INSERT INTO winner_takes_all_participants (id, session_id, user_id, joined_at)
+      VALUES (v_participant_id, v_session_uuid::TEXT, p_user, NOW());
+    EXCEPTION WHEN OTHERS THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Failed to add participant: ' || SQLERRM);
+    END;
+  END;
   
-  -- Update session
+  -- Update session (cast to TEXT)
   UPDATE winner_takes_all_sessions
   SET 
     participants_count = COALESCE(participants_count, 0) + 1,
     current_pool = COALESCE(current_pool, 0) + p_fee
-  WHERE id::TEXT = p_session;
+  WHERE id::TEXT = v_session_uuid::TEXT;
   
   -- Update rate limits
   INSERT INTO user_rate_limits (user_id, games_last_hour, games_last_day, last_game_at)
@@ -375,19 +424,19 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'message', 'Successfully joined',
-    'session_id', p_session,
+    'session_id', v_session_uuid::TEXT,
     'participant_id', v_participant_id::TEXT,
     'rng_seed', v_rng_seed
   );
   
 EXCEPTION WHEN OTHERS THEN
   RAISE WARNING 'wta_join_v2 error: %', SQLERRM;
-  RETURN jsonb_build_object('success', false, 'message', SQLERRM);
+  RETURN jsonb_build_object('success', false, 'message', 'System error: ' || SQLERRM);
 END;
 $$;
 
 -- ============================================================================
--- STEP 5: Grant permissions
+-- STEP 6: Grant permissions
 -- ============================================================================
 
 GRANT EXECUTE ON FUNCTION public.get_all_hot_sell_sessions() TO authenticated, anon;
@@ -396,14 +445,14 @@ GRANT EXECUTE ON FUNCTION public.hs_join_v2(TEXT, UUID, NUMERIC) TO authenticate
 GRANT EXECUTE ON FUNCTION public.wta_join_v2(TEXT, UUID, NUMERIC) TO authenticated, anon;
 
 -- ============================================================================
--- STEP 6: Success message
+-- STEP 7: Success message
 -- ============================================================================
 
 DO $$
 BEGIN
     RAISE NOTICE '';
     RAISE NOTICE '========================================';
-    RAISE NOTICE '🎉 COMPLETE SYSTEM READY!';
+    RAISE NOTICE '🎉 COMPLETE SYSTEM FIXED & READY!';
     RAISE NOTICE '========================================';
     RAISE NOTICE '';
     RAISE NOTICE '✅ Functions created:';
@@ -416,10 +465,14 @@ BEGIN
     RAISE NOTICE '   • Rate Limiting (30/hr, 200/day)';
     RAISE NOTICE '   • Dual Wallet (purchased first)';
     RAISE NOTICE '   • RNG Seeding (fair gameplay)';
-    RAISE NOTICE '   • Audit Trail (all transactions logged)';
+    RAISE NOTICE '   • Audit Trail (all logged)';
     RAISE NOTICE '';
-    RAISE NOTICE '🎯 All UUID comparisons use ::TEXT casting';
+    RAISE NOTICE '🛡️  UUID handling:';
+    RAISE NOTICE '   • All comparisons use ::TEXT casting';
+    RAISE NOTICE '   • Inserts auto-detect column type';
+    RAISE NOTICE '   • Full error handling';
     RAISE NOTICE '';
-    RAISE NOTICE '🧪 REFRESH YOUR PAGE AND TEST!';
+    RAISE NOTICE '🧪 REFRESH YOUR PAGE AND TEST NOW!';
     RAISE NOTICE '';
 END $$;
+

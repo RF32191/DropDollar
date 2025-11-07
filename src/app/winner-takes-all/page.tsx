@@ -9,7 +9,6 @@ import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
-import LocationPermissionModal from '@/components/modals/LocationPermissionModal';
 import LocationBanner from '@/components/location/LocationBanner';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
@@ -713,13 +712,6 @@ export default function WinnerTakesAllPage() {
 
   return (
     <>
-      {/* Location Permission Modal */}
-      <LocationPermissionModal
-        isOpen={showLocationModal}
-        onLocationGranted={handleLocationGranted}
-        onLocationDenied={handleLocationDenied}
-      />
-
       <div className="min-h-screen bg-gradient-to-br from-yellow-800 via-amber-800 to-orange-800 text-white relative overflow-hidden">
         {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
