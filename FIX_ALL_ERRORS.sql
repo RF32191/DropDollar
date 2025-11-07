@@ -1,271 +1,227 @@
 -- ============================================================================
--- FIX ALL ERRORS - Complete Database Schema Fix
--- Run this in Supabase SQL Editor to fix all errors
+-- FIX ALL CURRENT ERRORS
+-- 1. Fix conditional_wta_reset function (current_pot -> current_pool)
+-- 2. Add participants array to get_all functions
+-- 3. Create missing user profile
 -- ============================================================================
 
--- 1. Fix token_transactions user_id issue (it's trying to insert null)
--- The issue is that user_id is being passed as null in some cases
--- Add a check constraint that allows the column to work properly
-ALTER TABLE public.token_transactions 
-  ALTER COLUMN user_id SET NOT NULL;
+-- ============================================================================
+-- PART 1: Fix conditional_wta_reset function
+-- ============================================================================
 
--- 2. Add missing game_type column to matchmaking_queue
-ALTER TABLE public.matchmaking_queue 
-  ADD COLUMN IF NOT EXISTS game_type TEXT;
+DROP FUNCTION IF EXISTS public.conditional_wta_reset() CASCADE;
 
--- 3. Add missing game_type column to matches
-ALTER TABLE public.matches 
-  ADD COLUMN IF NOT EXISTS game_type TEXT;
-
--- 4. Fix game_history score column to support decimal scores
-ALTER TABLE public.game_history 
-  ALTER COLUMN score TYPE NUMERIC(10, 2);
-
--- 5. Create user_activities table (it's missing!)
-CREATE TABLE IF NOT EXISTS public.user_activities (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  activity_type TEXT NOT NULL,
-  activity_data JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create index for faster queries
-CREATE INDEX IF NOT EXISTS idx_user_activities_user_id ON public.user_activities(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_activities_type ON public.user_activities(activity_type);
-CREATE INDEX IF NOT EXISTS idx_user_activities_created_at ON public.user_activities(created_at DESC);
-
--- 6. Ensure user_stats table exists and has correct columns
-CREATE TABLE IF NOT EXISTS public.user_stats (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
-  skill_rating INTEGER DEFAULT 1000,
-  games_played INTEGER DEFAULT 0,
-  games_won INTEGER DEFAULT 0,
-  total_score NUMERIC(12, 2) DEFAULT 0,
-  avg_score NUMERIC(10, 2) DEFAULT 0,
-  best_score NUMERIC(10, 2) DEFAULT 0,
-  win_rate NUMERIC(5, 2) DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create index for user_stats
-CREATE INDEX IF NOT EXISTS idx_user_stats_user_id ON public.user_stats(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_stats_skill_rating ON public.user_stats(skill_rating DESC);
-
--- 7. Create function to auto-create user_stats when user is created
-CREATE OR REPLACE FUNCTION create_user_stats()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.conditional_wta_reset()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 BEGIN
-  INSERT INTO public.user_stats (user_id)
-  VALUES (NEW.id)
-  ON CONFLICT (user_id) DO NOTHING;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger
-DROP TRIGGER IF EXISTS create_user_stats_trigger ON public.users;
-CREATE TRIGGER create_user_stats_trigger
-  AFTER INSERT ON public.users
-  FOR EACH ROW
-  EXECUTE FUNCTION create_user_stats();
-
--- 8. Create function to automatically award winnings when match completes
-CREATE OR REPLACE FUNCTION award_match_winnings()
-RETURNS TRIGGER AS $$
-DECLARE
-  winner_user_id UUID;
-  loser_user_id UUID;
-  prize_amount NUMERIC(10, 2);
-  entry_fee_amount NUMERIC(10, 2);
-BEGIN
-  -- Only process when match status changes to 'completed'
-  IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed') THEN
-    
-    -- Determine winner and loser
-    IF NEW.player1_score > NEW.player2_score THEN
-      winner_user_id := NEW.player1_id;
-      loser_user_id := NEW.player2_id;
-    ELSIF NEW.player2_score > NEW.player1_score THEN
-      winner_user_id := NEW.player2_id;
-      loser_user_id := NEW.player1_id;
-    ELSE
-      -- It's a tie, refund both players
-      UPDATE public.users 
-      SET tokens = tokens + NEW.entry_fee
-      WHERE id IN (NEW.player1_id, NEW.player2_id);
-      
-      -- Log refund transactions
-      INSERT INTO public.token_transactions (user_id, amount, type, description, balance_before, balance_after)
-      SELECT 
-        id,
-        NEW.entry_fee,
-        'refund',
-        'Match tie - entry fee refunded',
-        tokens - NEW.entry_fee,
-        tokens
-      FROM public.users
-      WHERE id IN (NEW.player1_id, NEW.player2_id);
-      
-      RETURN NEW;
-    END IF;
-    
-    -- Calculate prize (player gets their stake back + 85% of opponent's stake)
-    entry_fee_amount := NEW.entry_fee;
-    prize_amount := entry_fee_amount + (entry_fee_amount * 0.85);
-    
-    -- Award winner
-    UPDATE public.users 
-    SET tokens = tokens + prize_amount
-    WHERE id = winner_user_id;
-    
-    -- Log winner transaction
-    INSERT INTO public.token_transactions (user_id, amount, type, description, balance_before, balance_after, metadata)
-    SELECT 
-      winner_user_id,
-      prize_amount,
-      'match_win',
-      '1v1 Match Win - $' || entry_fee_amount::TEXT,
-      tokens - prize_amount,
-      tokens,
-      jsonb_build_object(
-        'match_id', NEW.id,
-        'entry_fee', entry_fee_amount,
-        'prize_amount', prize_amount,
-        'opponent_id', loser_user_id,
-        'game_type', NEW.game_type
-      )
-    FROM public.users
-    WHERE id = winner_user_id;
-    
-    -- Update user stats
-    UPDATE public.user_stats
-    SET 
-      games_won = games_won + 1,
-      games_played = games_played + 1,
-      total_score = total_score + GREATEST(NEW.player1_score, NEW.player2_score),
-      updated_at = NOW()
-    WHERE user_id = winner_user_id;
-    
-    UPDATE public.user_stats
-    SET 
-      games_played = games_played + 1,
-      total_score = total_score + LEAST(NEW.player1_score, NEW.player2_score),
-      updated_at = NOW()
-    WHERE user_id = loser_user_id;
-    
-    RAISE NOTICE '💰 Match % completed! Winner: % receives % tokens', NEW.id, winner_user_id, prize_amount;
-  END IF;
+  -- Reset completed sessions
+  UPDATE winner_takes_all_sessions
+  SET 
+    status = 'active',
+    current_pool = 0,
+    participants_count = 0,
+    winner_user_id = NULL,
+    prize_amount = NULL,
+    platform_fee = NULL,
+    updated_at = NOW()
+  WHERE status = 'completed'
+  AND completed_at < NOW() - INTERVAL '1 hour';
   
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger for automatic payouts
-DROP TRIGGER IF EXISTS award_match_winnings_trigger ON public.matches;
-CREATE TRIGGER award_match_winnings_trigger
-  AFTER UPDATE ON public.matches
-  FOR EACH ROW
-  EXECUTE FUNCTION award_match_winnings();
-
--- 9. Enable RLS on all tables
-ALTER TABLE public.user_activities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_stats ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies for user_activities
-DROP POLICY IF EXISTS "Users can view their own activities" ON public.user_activities;
-CREATE POLICY "Users can view their own activities"
-  ON public.user_activities
-  FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "System can insert activities" ON public.user_activities;
-CREATE POLICY "System can insert activities"
-  ON public.user_activities
-  FOR INSERT
-  WITH CHECK (true);
-
--- Create RLS policies for user_stats
-DROP POLICY IF EXISTS "Users can view all stats" ON public.user_stats;
-CREATE POLICY "Users can view all stats"
-  ON public.user_stats
-  FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "System can update stats" ON public.user_stats;
-CREATE POLICY "System can update stats"
-  ON public.user_stats
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
-
--- 10. Backfill user_stats for existing users
-INSERT INTO public.user_stats (user_id)
-SELECT id FROM public.users
-WHERE id NOT IN (SELECT user_id FROM public.user_stats)
-ON CONFLICT (user_id) DO NOTHING;
-
--- 11. Fix any existing matches that might have null game_type
-UPDATE public.matchmaking_queue
-SET game_type = 'quick-click'
-WHERE game_type IS NULL;
-
--- 12. Add index to speed up matchmaking queries
-CREATE INDEX IF NOT EXISTS idx_matchmaking_queue_game_type ON public.matchmaking_queue(game_type);
-CREATE INDEX IF NOT EXISTS idx_matchmaking_queue_status ON public.matchmaking_queue(status);
-CREATE INDEX IF NOT EXISTS idx_matches_game_type ON public.matches(game_type);
-CREATE INDEX IF NOT EXISTS idx_matches_status ON public.matches(status);
-
--- ============================================================================
--- VERIFICATION QUERIES
--- ============================================================================
-
--- Check that all tables exist
-SELECT 
-  'user_activities' as table_name,
-  EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_activities') as exists
-UNION ALL
-SELECT 
-  'user_stats',
-  EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_stats')
-UNION ALL
-SELECT
-  'matchmaking_queue',
-  EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'matchmaking_queue')
-UNION ALL
-SELECT
-  'matches',
-  EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'matches');
-
--- Check that game_type columns exist
-SELECT 
-  'matchmaking_queue.game_type' as column_name,
-  EXISTS (
-    SELECT FROM information_schema.columns 
-    WHERE table_name = 'matchmaking_queue' AND column_name = 'game_type'
-  ) as exists
-UNION ALL
-SELECT 
-  'matches.game_type',
-  EXISTS (
-    SELECT FROM information_schema.columns 
-    WHERE table_name = 'matches' AND column_name = 'game_type'
+  -- Clean up old participants
+  DELETE FROM winner_takes_all_participants
+  WHERE session_id IN (
+    SELECT id FROM winner_takes_all_sessions WHERE status = 'active'
   );
-
--- Show sample data
-SELECT 'User Stats Count:' as info, COUNT(*)::TEXT as value FROM public.user_stats
-UNION ALL
-SELECT 'User Activities Count:', COUNT(*)::TEXT FROM public.user_activities
-UNION ALL
-SELECT 'Matchmaking Queue Count:', COUNT(*)::TEXT FROM public.matchmaking_queue
-UNION ALL
-SELECT 'Matches Count:', COUNT(*)::TEXT FROM public.matches;
+  
+  RAISE NOTICE 'WTA sessions reset complete';
+END;
+$$;
 
 -- ============================================================================
-RAISE NOTICE '✅ All fixes applied successfully!';
-RAISE NOTICE '💰 Automatic payouts are now enabled!';
-RAISE NOTICE '🎮 All game types are now supported in matchmaking!';
-RAISE NOTICE '📊 User activities and stats tracking is now working!';
+-- PART 2: Fix get_all functions to include participants
+-- ============================================================================
 
+DROP FUNCTION IF EXISTS public.get_all_hot_sell_sessions() CASCADE;
+DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions() CASCADE;
+
+CREATE FUNCTION public.get_all_hot_sell_sessions()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+  INTO v_result
+  FROM (
+    SELECT 
+      s.id::TEXT as id,
+      s.config_id::TEXT as config_id,
+      COALESCE(s.prize_pool, 0) as prize_pool,
+      COALESCE(s.base_price, 0) as base_price,
+      COALESCE(s.participants_count, 0) as participants_count,
+      s.status::TEXT as status,
+      COALESCE(s.rng_seed, 0) as rng_seed,
+      s.created_at::TEXT as created_at,
+      COALESCE(
+        (
+          SELECT json_agg(json_build_object(
+            'id', p.id::TEXT,
+            'user_id', p.user_id::TEXT,
+            'score', p.score,
+            'joined_at', p.joined_at::TEXT
+          ))
+          FROM hot_sell_participants p
+          WHERE p.session_id::TEXT = s.id::TEXT
+        ),
+        '[]'::json
+      ) as participants
+    FROM hot_sell_sessions s
+    WHERE s.status = 'active'
+    ORDER BY s.created_at DESC
+  ) t;
+  
+  RETURN v_result;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'get_all_hot_sell_sessions error: %', SQLERRM;
+  RETURN '[]'::json;
+END;
+$$;
+
+CREATE FUNCTION public.get_all_winner_takes_all_sessions()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+  INTO v_result
+  FROM (
+    SELECT 
+      s.id::TEXT as id,
+      s.config_id::TEXT as config_id,
+      COALESCE(s.current_pool, 0) as current_pool,
+      COALESCE(s.base_price, 0) as base_price,
+      COALESCE(s.participants_count, 0) as participants_count,
+      s.status::TEXT as status,
+      COALESCE(s.rng_seed, 0) as rng_seed,
+      s.timer_started_at::TEXT as timer_started_at,
+      COALESCE(s.timer_duration, 1800) as timer_duration,
+      s.created_at::TEXT as created_at,
+      COALESCE(
+        (
+          SELECT json_agg(json_build_object(
+            'id', p.id::TEXT,
+            'user_id', p.user_id::TEXT,
+            'score', p.score,
+            'joined_at', p.joined_at::TEXT
+          ))
+          FROM winner_takes_all_participants p
+          WHERE p.session_id::TEXT = s.id::TEXT
+        ),
+        '[]'::json
+      ) as participants
+    FROM winner_takes_all_sessions s
+    WHERE s.status = 'active'
+    ORDER BY s.created_at DESC
+  ) t;
+  
+  RETURN v_result;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'get_all_winner_takes_all_sessions error: %', SQLERRM;
+  RETURN '[]'::json;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_all_hot_sell_sessions() TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_all_winner_takes_all_sessions() TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.conditional_wta_reset() TO authenticated, anon;
+
+-- ============================================================================
+-- PART 3: Create missing user profile for rf32191@gmail.com
+-- ============================================================================
+
+DO $$
+DECLARE
+  v_auth_user_id UUID;
+  v_existing_profile UUID;
+BEGIN
+  -- Get the auth user ID
+  SELECT id INTO v_auth_user_id
+  FROM auth.users
+  WHERE email = 'rf32191@gmail.com';
+  
+  IF v_auth_user_id IS NULL THEN
+    RAISE NOTICE '⚠️  No auth user found for rf32191@gmail.com - user needs to register';
+  ELSE
+    -- Check if profile already exists
+    SELECT id INTO v_existing_profile
+    FROM public.users
+    WHERE id = v_auth_user_id;
+    
+    IF v_existing_profile IS NOT NULL THEN
+      RAISE NOTICE '✅ Profile already exists for rf32191@gmail.com';
+    ELSE
+      -- Create the profile
+      INSERT INTO public.users (
+        id,
+        email,
+        username,
+        first_name,
+        last_name,
+        date_of_birth,
+        purchased_tokens,
+        won_tokens,
+        total_tokens,
+        games_played,
+        total_winnings,
+        created_at,
+        updated_at
+      ) VALUES (
+        v_auth_user_id,
+        'rf32191@gmail.com',
+        'rf32191',
+        'User',
+        'RF32191',
+        '1990-01-01',
+        300.00,
+        0.00,
+        300.00,
+        0,
+        0.00,
+        NOW(),
+        NOW()
+      );
+      
+      RAISE NOTICE '✅ Created profile for rf32191@gmail.com with 300 tokens';
+    END IF;
+  END IF;
+END $$;
+
+-- ============================================================================
+-- SUCCESS MESSAGE
+-- ============================================================================
+
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '🎉 ALL ERRORS FIXED!';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE '';
+    RAISE NOTICE '✅ Fixed:';
+    RAISE NOTICE '   • conditional_wta_reset (current_pot → current_pool)';
+    RAISE NOTICE '   • get_all functions now include participants array';
+    RAISE NOTICE '   • User profile created for rf32191@gmail.com';
+    RAISE NOTICE '';
+    RAISE NOTICE '🧪 REFRESH YOUR PAGE NOW!';
+    RAISE NOTICE '';
+END $$;

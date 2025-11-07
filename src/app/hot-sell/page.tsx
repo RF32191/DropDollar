@@ -27,7 +27,6 @@ import {
 interface HotSellSession {
   id: string;
   config_id: string;
-  current_pot: number;
   prize_pool: number;  // Actual token pool from all entries
   base_price: number;
   max_participants: number;
@@ -919,7 +918,7 @@ export default function HotSellPage() {
             const isCompleted = session.status === 'completed';
             const isFull = session.participants_count >= config.max_participants;
             const progressPercent = getProgressPercent(session.participants_count, config.max_participants);
-            const prizes = calculatePrizes(config, session.current_pot);
+            const prizes = calculatePrizes(config, session.prize_pool);
 
             // User's score
             const userParticipant = session.participants.find(p => p.user_id === user?.id);
@@ -1056,7 +1055,7 @@ export default function HotSellPage() {
                     <div className="text-xs text-yellow-200/80">
                       <div className="flex justify-between items-center">
                         <span>Current Pool:</span>
-                        <span className="font-bold text-yellow-300">{formatAmount(session.current_pot)}</span>
+                        <span className="font-bold text-yellow-300">{formatAmount(session.prize_pool)}</span>
                       </div>
                     </div>
                   </div>
