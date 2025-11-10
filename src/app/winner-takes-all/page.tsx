@@ -70,7 +70,7 @@ interface Message {
 }
 
 export default function WinnerTakesAllPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
   
   const [sessions, setSessions] = useState<WinnerTakesAllSession[]>([]);
@@ -268,7 +268,7 @@ export default function WinnerTakesAllPage() {
       console.log('🔄 [Winner Takes All] Loading sessions from database...');
       
       // CRITICAL: Check auth before making RPC calls
-      const authCheck = await ensureAuthReady(isAuthenticated, false);
+      const authCheck = await ensureAuthReady(isAuthenticated, authLoading);
       
       if (!authCheck.ready) {
         console.warn('⚠️ [Winner Takes All] Auth not ready:', authCheck.message);
@@ -316,7 +316,7 @@ export default function WinnerTakesAllPage() {
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading sessions:', error);
     }
-  }, [isAuthenticated]); // Add isAuthenticated dependency
+  }, [isAuthenticated, authLoading]); // Add auth dependencies
 
   // Load configs from database
   const loadConfigs = async () => {
@@ -349,9 +349,15 @@ export default function WinnerTakesAllPage() {
 
   // Load configs and sessions on mount
   useEffect(() => {
-    // CRITICAL: Wait for authentication before loading data
+    // CRITICAL: Wait for auth to finish loading
+    if (authLoading) {
+      console.log('⏳ [Winner Takes All] Auth is loading...');
+      return;
+    }
+    
+    // Wait for authentication before loading data
     if (!isAuthenticated) {
-      console.log('⏳ [Winner Takes All] Waiting for authentication...');
+      console.log('⚠️ [Winner Takes All] Not authenticated');
       setIsLoading(false);
       return;
     }
@@ -360,7 +366,7 @@ export default function WinnerTakesAllPage() {
     loadConfigs();
     loadSessions();
     setIsLoading(false);
-  }, [isAuthenticated, loadSessions]);
+  }, [isAuthenticated, authLoading, loadSessions]);
 
 
   // CONDITIONAL AUTO-PAYOUT: If payout button not clicked within 3 seconds, auto-activate
@@ -846,7 +852,7 @@ export default function WinnerTakesAllPage() {
             const session = sessions.find(s => s.config_id === config.id);
             const timeRemaining = session ? calculateTimeRemaining(session) : null;
             const canJoin = userTokens >= config.entry_fee;
-            const userParticipant = session?.participants.find(p => p.user_id === user?.id);
+            const userParticipant = session?.participants.find((p: any) => p.user_id === user?.id);
             const hasJoined = !!userParticipant;
             const hasCompleted = !!userParticipant && userParticipant.score !== null && userParticipant.completed_at !== null;
             
@@ -1066,7 +1072,7 @@ export default function WinnerTakesAllPage() {
                               <CheckCircleIcon className="w-6 h-6 text-green-400 mr-2" />
                               <span className="text-green-300 text-lg font-semibold">COMPLETED</span>
                             </div>
-                        <p className="text-green-200 text-sm mt-1">Your score: {userParticipant?.score || 0}</p>
+                        <p className="text-green-200 text-sm mt-1">Your score: {(userParticipant as any)?.score || 0}</p>
                           </div>
                     ) : isTimerLocked ? (
                       <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center">

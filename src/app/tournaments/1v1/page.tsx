@@ -67,7 +67,7 @@ interface Message {
 }
 
 export default function OneVOnePage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
   
   // Location verification hook
@@ -141,7 +141,7 @@ export default function OneVOnePage() {
       console.log('🔄 [1v1] Loading sessions from database...');
       
       // CRITICAL: Check auth before making RPC calls
-      const authCheck = await ensureAuthReady(isAuthenticated, false);
+      const authCheck = await ensureAuthReady(isAuthenticated, authLoading);
       
       if (!authCheck.ready) {
         console.warn('⚠️ [1v1] Auth not ready:', authCheck.message);
@@ -176,35 +176,19 @@ export default function OneVOnePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]); // Add isAuthenticated dependency
-
-  // Location verification - using same method as Winner Takes All
-  useEffect(() => {
-    const verifyLocation = async () => {
-      setLocationLoading(true);
-      try {
-        const location = await ImprovedLocationService.getCurrentLocation();
-        setImprovedLocation(location);
-        setLocationVerified(ImprovedLocationService.isGamingAllowed(location));
-        console.log('🎮 [1v1] Location verified:', location);
-      } catch (error) {
-        console.error('❌ [1v1] Location verification failed:', error);
-        setLocationVerified(false);
-      } finally {
-        setLocationLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      verifyLocation();
-    }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading]); // Add auth dependencies
 
   // Load configs and sessions on mount
   useEffect(() => {
-    // CRITICAL: Wait for authentication before loading data
+    // CRITICAL: Wait for auth to finish loading
+    if (authLoading) {
+      console.log('⏳ [1v1] Auth is loading...');
+      return;
+    }
+    
+    // Wait for authentication before loading data
     if (!isAuthenticated) {
-      console.log('⏳ [1v1] Waiting for authentication...');
+      console.log('⚠️ [1v1] Not authenticated');
       setIsLoading(false);
       return;
     }
@@ -216,7 +200,7 @@ export default function OneVOnePage() {
     // Refresh sessions every 30 seconds (only when authenticated)
     const interval = setInterval(loadSessions, 30000);
     return () => clearInterval(interval);
-  }, [loadSessions]);
+  }, [isAuthenticated, authLoading, loadSessions]);
 
   // Handle joining a session
   const handleJoinSession = async (config: OneVOneConfig) => {
@@ -314,8 +298,8 @@ export default function OneVOnePage() {
   };
 
   // Handle game completion
-  const handleGameComplete = async (result: { score: number; accuracy: number }) => {
-    console.log('🎮 [1v1] Game completed with result:', result);
+  const handleGameComplete = async (score: number, accuracy: number) => {
+    console.log('🎮 [1v1] Game completed with score:', score, 'accuracy:', accuracy);
     
     if (!selectedGameFlow) return;
 
@@ -324,8 +308,8 @@ export default function OneVOnePage() {
       const { data, error, isSessionValid } = await executeRpcWithSession('update_1v1_score', {
         session_id_param: selectedGameFlow.sessionId,
         user_id_param: user?.id,
-        score_param: result.score,
-        accuracy_param: result.accuracy
+        score_param: score,
+        accuracy_param: accuracy
       });
 
       if (!isSessionValid) {
@@ -338,7 +322,7 @@ export default function OneVOnePage() {
         setMessage({ type: 'error', text: 'Error saving score: ' + error.message });
       } else {
         console.log('✅ [1v1] Score saved successfully');
-        setMessage({ type: 'success', text: 'Game completed! Score: ' + result.score.toFixed(2) });
+        setMessage({ type: 'success', text: 'Game completed! Score: ' + score.toFixed(2) });
       }
 
       // Check if both players have completed - trigger payout

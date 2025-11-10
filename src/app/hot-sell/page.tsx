@@ -77,7 +77,7 @@ interface Message {
 }
 
 export default function HotSellPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
   
   const [sessions, setSessions] = useState<HotSellSession[]>([]);
@@ -323,7 +323,7 @@ export default function HotSellPage() {
       console.log('🔥 [Hot Sell] Loading sessions...');
       
       // CRITICAL: Check auth before making RPC calls
-      const authCheck = await ensureAuthReady(isAuthenticated, false);
+      const authCheck = await ensureAuthReady(isAuthenticated, authLoading);
       
       if (!authCheck.ready) {
         console.warn('⚠️ [Hot Sell] Auth not ready:', authCheck.message);
@@ -389,7 +389,7 @@ export default function HotSellPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]); // Add isAuthenticated dependency
+  }, [isAuthenticated, authLoading]); // Add auth dependencies
 
 
   // Load configs from database
@@ -422,9 +422,15 @@ export default function HotSellPage() {
   };
 
   useEffect(() => {
-    // CRITICAL: Wait for authentication before loading data
+    // CRITICAL: Wait for auth to finish loading
+    if (authLoading) {
+      console.log('⏳ [Hot Sell] Auth is loading...');
+      return;
+    }
+    
+    // Wait for authentication before loading data
     if (!isAuthenticated) {
-      console.log('⏳ [Hot Sell] Waiting for authentication...');
+      console.log('⚠️ [Hot Sell] Not authenticated');
       setIsLoading(false);
       return;
     }
@@ -436,7 +442,7 @@ export default function HotSellPage() {
     // Refresh sessions every 30 seconds (only when authenticated)
     const interval = setInterval(loadSessions, 30000);
     return () => clearInterval(interval);
-  }, [isAuthenticated, loadSessions]);
+  }, [isAuthenticated, authLoading, loadSessions]);
 
   const handleJoinSession = async (config: HotSellConfig) => {
     if (!user || !isAuthenticated) {
