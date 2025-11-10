@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
+import { executeRpcWithSession, ensureAuthReady } from '@/lib/supabase/sessionGuard';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
@@ -139,7 +140,26 @@ export default function OneVOnePage() {
     try {
       console.log('🔄 [1v1] Loading sessions from database...');
       
-      const { data, error } = await supabase.rpc('get_all_1v1_sessions');
+      // CRITICAL: Check auth before making RPC calls
+      const authCheck = await ensureAuthReady(isAuthenticated, false);
+      
+      if (!authCheck.ready) {
+        console.warn('⚠️ [1v1] Auth not ready:', authCheck.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Use session-guarded RPC call
+      const { data, error, isSessionValid } = await executeRpcWithSession('get_all_1v1_sessions');
+      
+      // If session is invalid, show error and stop
+      if (!isSessionValid) {
+        console.error('❌ [1v1] Session is not active');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        setSessions([]);
+        setIsLoading(false);
+        return;
+      }
       
       if (error) {
         console.error('❌ [1v1] Error loading sessions:', error);
@@ -156,7 +176,7 @@ export default function OneVOnePage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]); // Add isAuthenticated dependency
 
   // Location verification - using same method as Winner Takes All
   useEffect(() => {
@@ -182,10 +202,18 @@ export default function OneVOnePage() {
 
   // Load configs and sessions on mount
   useEffect(() => {
+    // CRITICAL: Wait for authentication before loading data
+    if (!isAuthenticated) {
+      console.log('⏳ [1v1] Waiting for authentication...');
+      setIsLoading(false);
+      return;
+    }
+    
+    console.log('✅ [1v1] Authenticated, loading data...');
     loadConfigs();
     loadSessions();
     
-    // Refresh sessions every 30 seconds
+    // Refresh sessions every 30 seconds (only when authenticated)
     const interval = setInterval(loadSessions, 30000);
     return () => clearInterval(interval);
   }, [loadSessions]);
@@ -237,14 +265,19 @@ export default function OneVOnePage() {
         return;
       }
 
-      // Call join function
-      const { data, error } = await supabase.rpc('join_1v1_session', {
+      // Call join function with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('join_1v1_session', {
         session_id_param: session.id,
         user_id_param: user.id,
         entry_fee_param: config.entry_fee
       });
 
-      console.log('📊 [1v1] Join response:', { data, error });
+      console.log('📊 [1v1] Join response:', { data, error, isSessionValid });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
 
       if (error) {
         console.error('❌ [1v1] Join error:', error);
@@ -287,13 +320,18 @@ export default function OneVOnePage() {
     if (!selectedGameFlow) return;
 
     try {
-      // Update score
-      const { data, error } = await supabase.rpc('update_1v1_score', {
+      // Update score with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('update_1v1_score', {
         session_id_param: selectedGameFlow.sessionId,
         user_id_param: user?.id,
         score_param: result.score,
         accuracy_param: result.accuracy
       });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Score not saved.' });
+        return;
+      }
 
       if (error) {
         console.error('❌ [1v1] Error saving score:', error);
@@ -336,9 +374,15 @@ export default function OneVOnePage() {
           if (bothJoined && bothCompleted && notPaid) {
             console.log('✅ [1v1] BOTH PLAYERS DONE! Triggering payout...');
             
-            const { data: payoutData, error: payoutError } = await supabase.rpc('process_1v1_payout', {
+            const { data: payoutData, error: payoutError, isSessionValid } = await executeRpcWithSession('process_1v1_payout', {
               config_id_param: configId
             });
+
+            if (!isSessionValid) {
+              console.error('❌ [1v1] Session invalid during payout');
+              setMessage({ type: 'error', text: 'Your session has expired.' });
+              return;
+            }
 
             if (payoutError) {
               console.error('❌ [1v1] Payout error:', payoutError);

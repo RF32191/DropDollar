@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
+import { executeRpcWithSession, ensureAuthReady } from '@/lib/supabase/sessionGuard';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
@@ -321,8 +322,26 @@ export default function HotSellPage() {
     try {
       console.log('🔥 [Hot Sell] Loading sessions...');
       
-      // Try to use the RPC function
-      const { data, error } = await supabase.rpc('get_all_hot_sell_sessions');
+      // CRITICAL: Check auth before making RPC calls
+      const authCheck = await ensureAuthReady(isAuthenticated, false);
+      
+      if (!authCheck.ready) {
+        console.warn('⚠️ [Hot Sell] Auth not ready:', authCheck.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Use session-guarded RPC call
+      const { data, error, isSessionValid } = await executeRpcWithSession('get_all_hot_sell_sessions');
+      
+      // If session is invalid, show error and stop
+      if (!isSessionValid) {
+        console.error('❌ [Hot Sell] Session is not active');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        setSessions([]);
+        setIsLoading(false);
+        return;
+      }
       
       if (error) {
         console.error('❌ [Hot Sell] Error loading sessions (RPC not found, will retry):', error);
@@ -370,7 +389,7 @@ export default function HotSellPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]); // Add isAuthenticated dependency
 
 
   // Load configs from database
@@ -403,13 +422,21 @@ export default function HotSellPage() {
   };
 
   useEffect(() => {
+    // CRITICAL: Wait for authentication before loading data
+    if (!isAuthenticated) {
+      console.log('⏳ [Hot Sell] Waiting for authentication...');
+      setIsLoading(false);
+      return;
+    }
+    
+    console.log('✅ [Hot Sell] Authenticated, loading data...');
     loadConfigs();
     loadSessions();
     
-    // Refresh sessions every 30 seconds
+    // Refresh sessions every 30 seconds (only when authenticated)
     const interval = setInterval(loadSessions, 30000);
     return () => clearInterval(interval);
-  }, [loadSessions]);
+  }, [isAuthenticated, loadSessions]);
 
   const handleJoinSession = async (config: HotSellConfig) => {
     if (!user || !isAuthenticated) {
@@ -439,14 +466,19 @@ export default function HotSellPage() {
         return;
       }
 
-      // Call join function (V2 - new approach)
-      const { data, error } = await supabase.rpc('hs_join_v2', {
+      // Call join function (V2 - new approach) with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('hs_join_v2', {
         p_session: session.id,
         p_user: user.id,
         p_fee: config.entry_fee
       });
 
-      console.log('📊 [Hot Sell] SQL response:', { data, error });
+      console.log('📊 [Hot Sell] SQL response:', { data, error, isSessionValid });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
 
       if (error) {
         console.error('❌ [Hot Sell] Error joining session:', error);
@@ -501,15 +533,20 @@ export default function HotSellPage() {
     try {
       console.log('💾 [Hot Sell] Recording score:', { sessionId: selectedGameFlow.sessionId, userId: user.id, score, accuracy });
 
-      // Update score
-      const { data, error } = await supabase.rpc('update_hot_sell_score', {
+      // Update score with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('update_hot_sell_score', {
         session_id_param: selectedGameFlow.sessionId,
         user_id_param: user.id,
         score_param: score,
         accuracy_param: accuracy
       });
 
-      console.log('📊 [Hot Sell] Score save response:', { data, error });
+      console.log('📊 [Hot Sell] Score save response:', { data, error, isSessionValid });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Score not saved.' });
+        return;
+      }
 
       if (error) {
         console.error('❌ [Hot Sell] Error updating score:', error);
@@ -581,12 +618,18 @@ export default function HotSellPage() {
     try {
       console.log('💰 [Hot Sell] COMPLETE PAYOUT triggered for:', configId);
       
-      // Call the all-in-one payout function
-      const { data, error } = await supabase.rpc('process_hot_sell_payout_complete', {
+      // Call the all-in-one payout function with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('process_hot_sell_payout_complete', {
         config_id_param: configId
       });
       
-      console.log('📊 [Hot Sell] Payout response:', { data, error });
+      console.log('📊 [Hot Sell] Payout response:', { data, error, isSessionValid });
+      
+      if (!isSessionValid) {
+        console.error('❌ [Hot Sell] Session invalid');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
       
       if (error) {
         console.error('❌ [Hot Sell] Payout error:', error);

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
+import { executeRpcWithSession, ensureAuthReady } from '@/lib/supabase/sessionGuard';
 import { UserService } from '@/lib/supabase/userService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -266,15 +267,43 @@ export default function WinnerTakesAllPage() {
     try {
       console.log('🔄 [Winner Takes All] Loading sessions from database...');
       
-      // Call the conditional reset function first
-      const { data: resetData, error: resetError } = await supabase.rpc('conditional_wta_reset');
+      // CRITICAL: Check auth before making RPC calls
+      const authCheck = await ensureAuthReady(isAuthenticated, false);
+      
+      if (!authCheck.ready) {
+        console.warn('⚠️ [Winner Takes All] Auth not ready:', authCheck.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Call the conditional reset function first with session guard
+      const { data: resetData, error: resetError, isSessionValid: resetSessionValid } = 
+        await executeRpcWithSession('conditional_wta_reset');
+      
+      if (!resetSessionValid) {
+        console.error('❌ [Winner Takes All] Session is not active');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        setSessions([]);
+        setIsLoading(false);
+        return;
+      }
+      
       if (resetError) {
         console.error('❌ [Winner Takes All] Conditional reset error:', resetError);
       } else {
         console.log('✅ [Winner Takes All] Conditional reset result:', resetData);
       }
 
-      const { data, error } = await supabase.rpc('get_all_winner_takes_all_sessions');
+      // Load sessions with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('get_all_winner_takes_all_sessions');
+      
+      if (!isSessionValid) {
+        console.error('❌ [Winner Takes All] Session is not active');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        setSessions([]);
+        setIsLoading(false);
+        return;
+      }
       
       if (error) {
         console.error('❌ [Winner Takes It All] Error loading sessions:', error);
@@ -287,7 +316,7 @@ export default function WinnerTakesAllPage() {
     } catch (error) {
       console.error('❌ [Winner Takes It All] Error loading sessions:', error);
     }
-  }, []);
+  }, [isAuthenticated]); // Add isAuthenticated dependency
 
   // Load configs from database
   const loadConfigs = async () => {
@@ -320,10 +349,18 @@ export default function WinnerTakesAllPage() {
 
   // Load configs and sessions on mount
   useEffect(() => {
+    // CRITICAL: Wait for authentication before loading data
+    if (!isAuthenticated) {
+      console.log('⏳ [Winner Takes All] Waiting for authentication...');
+      setIsLoading(false);
+      return;
+    }
+    
+    console.log('✅ [Winner Takes All] Authenticated, loading data...');
     loadConfigs();
     loadSessions();
     setIsLoading(false);
-  }, [loadSessions]);
+  }, [isAuthenticated, loadSessions]);
 
 
   // CONDITIONAL AUTO-PAYOUT: If payout button not clicked within 3 seconds, auto-activate
@@ -449,14 +486,19 @@ export default function WinnerTakesAllPage() {
 
     try {
       console.log('🔄 [Winner Takes All] Calling SQL function to join session...');
-      // Call the SQL function to join session (V2 - new approach)
-      const { data, error } = await supabase.rpc('wta_join_v2', {
+      // Call the SQL function to join session (V2 - new approach) with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('wta_join_v2', {
         p_session: session.id,
         p_user: user.id,
         p_fee: config.entry_fee
       });
 
-      console.log('📊 [Winner Takes All] SQL response:', { data, error });
+      console.log('📊 [Winner Takes All] SQL response:', { data, error, isSessionValid });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
 
       if (error) {
         console.error('❌ [Winner Takes It All] Error joining session:', error);
@@ -523,17 +565,22 @@ export default function WinnerTakesAllPage() {
         accuracy_param: 95.0
       });
 
-      // Update score in database
-      const { data, error } = await supabase.rpc('update_winner_takes_all_score', {
+      // Update score in database with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('update_winner_takes_all_score', {
         session_id_param: selectedGameFlow.sessionId,
         user_id_param: user.id,
         score_param: score,
         accuracy_param: 95.0 // Default accuracy
       });
 
-      console.log('📊 [Winner Takes All] Score save response:', { data, error });
+      console.log('📊 [Winner Takes All] Score save response:', { data, error, isSessionValid });
 
-                if (error) {
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Score not saved.' });
+        return;
+      }
+
+      if (error) {
         console.error('❌ [Winner Takes It All] Error updating score:', error);
         setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
       } else if (data && !data.success) {
@@ -569,9 +616,15 @@ export default function WinnerTakesAllPage() {
         return newSet;
       });
       
-      const { data, error } = await supabase.rpc('process_payout_by_config', {
+      const { data, error, isSessionValid } = await executeRpcWithSession('process_payout_by_config', {
         config_id_param: configId
       });
+      
+      if (!isSessionValid) {
+        console.error('❌ [Winner Takes All] Session invalid');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
       
       if (error) {
         console.error('❌ [Winner Takes All] Payout error:', error);
