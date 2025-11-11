@@ -137,12 +137,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Shooting function
   const shoot = () => {
     const now = Date.now();
-    if (now - lastShotRef.current < 200) return; // Rate limit shooting (5 shots per second)
+    if (now - lastShotRef.current < 200) {
+      console.log('LaserDodge: Shot rate limited');
+      return; // Rate limit shooting (5 shots per second)
+    }
     
     lastShotRef.current = now;
     
+    console.log('LaserDodge: SHOOTING bullet at', ship.x, ship.y);
+    
     // Play shooting sound
-    playShootSound();
+    try {
+      playShootSound();
+    } catch (e) {
+      console.error('LaserDodge: Shoot sound error (non-critical):', e);
+    }
     
     const newBullet: Bullet = {
       id: now + Math.random(),
@@ -151,19 +160,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       createdAt: now
     };
     
+    console.log('LaserDodge: Created bullet:', newBullet.id);
+    
     setBullets(prev => {
       const updated = [...prev, newBullet];
       bulletsRef.current = updated;
+      console.log(`LaserDodge: Total bullets now: ${updated.length}`);
       return updated;
     });
   };
 
   // Game loop - simplified without useCallback
   const gameLoop = () => {
-    if (!isGameRunningRef.current) return;
+    if (!isGameRunningRef.current) {
+      console.log('LaserDodge: Game loop stopped - isGameRunningRef is false');
+      return;
+    }
 
     const now = Date.now();
     const timeSinceStart = now - gameStartTimeRef.current;
+    
+    console.log(`LaserDodge: Game loop running - time: ${timeSinceStart}ms`);
 
     // Update score with bonus for staying on blue lasers - decimal scoring
     const baseScore = Number((timeSinceStart / 50).toFixed(2));
@@ -224,6 +241,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
       
       if (now - lastLaserSpawnRef.current > spawnRate) {
+        console.log(`LaserDodge: Spawning ${laserCount} lasers (competition mode)`);
         lastLaserSpawnRef.current = now;
         
         for (let i = 0; i < laserCount; i++) {
@@ -236,14 +254,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             createdAt: now
           };
           
+          console.log(`LaserDodge: Created laser #${i}:`, newLaser.type, 'at', newLaser.position);
+          
           setLasers(prev => {
             const updated = [...prev, newLaser];
             lasersRef.current = updated;
+            console.log(`LaserDodge: Total lasers now: ${updated.length}`);
             return updated;
           });
         }
         
-        playLaserWarn();
+        try {
+          playLaserWarn();
+        } catch (e) {
+          console.error('LaserDodge: Audio error (non-critical):', e);
+        }
+      } else {
+        // Debug: Show time until next spawn
+        const timeUntilSpawn = spawnRate - (now - lastLaserSpawnRef.current);
+        if (timeSinceStart < 5000 && timeSinceStart % 1000 < 20) { // Log every second for first 5 seconds
+          console.log(`LaserDodge: Next laser in ${timeUntilSpawn}ms (spawnRate: ${spawnRate}ms)`);
+        }
       }
     } else {
       // PRACTICE MODE: Original progressive difficulty system
@@ -285,6 +316,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
       
       if (now - lastLaserSpawnRef.current > spawnRate) {
+        console.log(`LaserDodge: Spawning ${laserCount} lasers (practice mode, spawnRate: ${spawnRate}ms)`);
         const isHorizontal = Math.random() < 0.5;
         
         for (let i = 0; i < laserCount; i++) {
@@ -301,15 +333,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             createdAt: now
           };
           
-          console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
+          console.log(`LaserDodge: Created laser #${i}:`, newLaser.type, 'at position', newLaser.position);
           setLasers(prev => {
             const updated = [...prev, newLaser];
             lasersRef.current = updated;
+            console.log(`LaserDodge: Total lasers now: ${updated.length}`);
             return updated;
           });
         }
         
         lastLaserSpawnRef.current = now;
+      } else {
+        // Debug: Show time until next spawn
+        const timeUntilSpawn = spawnRate - (now - lastLaserSpawnRef.current);
+        if (timeSinceStart < 5000 && timeSinceStart % 1000 < 20) { // Log every second for first 5 seconds
+          console.log(`LaserDodge: Next laser in ${timeUntilSpawn}ms (spawnRate: ${spawnRate}ms)`);
+        }
       }
     }
 
@@ -414,10 +453,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
 
     // Update existing lasers
+    if (lasersRef.current.length > 0 && timeSinceStart % 1000 < 20) {
+      console.log(`LaserDodge: Updating ${lasersRef.current.length} lasers`);
+    }
+    
     setLasers(prevLasers => {
       const currentTime = Date.now();
       const currentTimeSinceStart = currentTime - gameStartTimeRef.current;
       const currentIsExtremeMode = currentTimeSinceStart > 30000;
+      
+      let transitionCount = 0;
       
       const updated = prevLasers.map(laser => {
         const updatedLaser = { ...laser };
@@ -426,8 +471,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           const age = currentTime - laser.createdAt;
           if (age > laser.timeToHarmful) {
             updatedLaser.isHarmful = true;
+            transitionCount++;
             // Play laser warning sound
-            playLaserWarning();
+            try {
+              playLaserWarning();
+            } catch (e) {
+              console.error('LaserDodge: Laser warning sound error (non-critical):', e);
+            }
           }
         }
         
@@ -439,6 +489,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           : laser.timeToHarmful + 3000; // Red lasers disappear after 3s in normal mode
         return age < totalLifetime;
       });
+      
+      if (transitionCount > 0) {
+        console.log(`LaserDodge: ${transitionCount} lasers turned red!`);
+      }
+      
+      if (updated.length !== prevLasers.length) {
+        console.log(`LaserDodge: Lasers changed from ${prevLasers.length} to ${updated.length}`);
+      }
       
       lasersRef.current = updated;
       return updated;
@@ -466,6 +524,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     });
 
     // Update bullets
+    if (bulletsRef.current.length > 0 && timeSinceStart % 1000 < 20) {
+      console.log(`LaserDodge: Updating ${bulletsRef.current.length} bullets`);
+    }
+    
     setBullets(prevBullets => {
       const updated = prevBullets.map(bullet => {
         const updatedBullet = { ...bullet };
@@ -475,6 +537,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         // Remove bullets that are off-screen
         return bullet.y > -5;
       });
+      
+      if (updated.length !== prevBullets.length) {
+        console.log(`LaserDodge: Bullets changed from ${prevBullets.length} to ${updated.length}`);
+      }
       
       bulletsRef.current = updated;
       return updated;
@@ -599,9 +665,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       return; // Don't continue loop after game over
     }
 
-    // Continue loop
+    // Continue loop - MUST happen even if errors occur above
     if (isGameRunningRef.current) {
       animationRef.current = requestAnimationFrame(gameLoop);
+    } else {
+      console.log('LaserDodge: Game loop ending - isGameRunningRef is false');
     }
   };
 
