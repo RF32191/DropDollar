@@ -29,7 +29,6 @@ AS $$
 DECLARE
   v_session RECORD;
   v_config RECORD;
-  v_participants RECORD[];
   v_first_place_user UUID;
   v_second_place_user UUID;
   v_third_place_user UUID;
@@ -66,19 +65,29 @@ BEGIN
     );
   END IF;
   
-  -- Get top 3 participants by score
-  SELECT 
-    ARRAY_AGG(user_id ORDER BY score DESC) as user_ids
-  INTO v_participants
+  -- Get 1st place user
+  SELECT user_id INTO v_first_place_user
   FROM public.hot_sell_participants
   WHERE session_id = v_session.id
     AND score IS NOT NULL
-  LIMIT 3;
+  ORDER BY score DESC
+  LIMIT 1;
   
-  -- Extract top 3 users
-  v_first_place_user := v_participants[1];
-  v_second_place_user := v_participants[2];
-  v_third_place_user := v_participants[3];
+  -- Get 2nd place user
+  SELECT user_id INTO v_second_place_user
+  FROM public.hot_sell_participants
+  WHERE session_id = v_session.id
+    AND score IS NOT NULL
+  ORDER BY score DESC
+  LIMIT 1 OFFSET 1;
+  
+  -- Get 3rd place user
+  SELECT user_id INTO v_third_place_user
+  FROM public.hot_sell_participants
+  WHERE session_id = v_session.id
+    AND score IS NOT NULL
+  ORDER BY score DESC
+  LIMIT 1 OFFSET 2;
   
   -- Calculate prizes
   v_first_place_prize := v_session.prize_pool * (v_config.first_place_percent / 100.0);
