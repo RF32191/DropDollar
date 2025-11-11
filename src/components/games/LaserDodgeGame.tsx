@@ -446,76 +446,57 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       });
     });
 
-    // Check bullet-enemy collisions
-    setBullets(prevBullets => {
-      setEnemyShips(prevEnemies => {
-        const remainingBullets: Bullet[] = [];
-        const remainingEnemies: EnemyShip[] = [];
-        
-        for (const bullet of prevBullets) {
-          let hit = false;
+    // Check bullet-enemy collisions - Fixed to avoid nested state updates
+    const bulletsHitEnemies: Set<string> = new Set();
+    const enemiesToRemove: Set<string> = new Set();
+    const newExplosions: Explosion[] = [];
+    let collisionPoints = 0;
+    
+    // Detect all bullet-enemy collisions
+    bullets.forEach(bullet => {
+      enemyShips.forEach(enemy => {
+        if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
+          bulletsHitEnemies.add(bullet.id.toString());
+          enemiesToRemove.add(enemy.id.toString());
           
-          for (const enemy of prevEnemies) {
-            // Check collision (within 8% distance)
-            if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
-              hit = true;
-              
-              // Create explosion animation
-              const explosion: Explosion = {
-                id: Date.now() + Math.random(),
-                x: enemy.x,
-                y: enemy.y,
-                createdAt: Date.now(),
-                type: 'enemy'
-              };
-              setExplosions(prev => [...prev, explosion]);
-              
-              // Play explosion sound
-              playExplosionSound();
-              playEnemyHitSound();
-              
-              // Add points for destroying enemy
-              currentScoreRef.current += 10;
-              setScore(prev => Number((prev + 10).toFixed(2)));
-              console.log('LaserDodge: Enemy destroyed! +10 points');
-              break;
-            }
-          }
-          
-          if (!hit) {
-            remainingBullets.push(bullet);
+          // Create explosion for this enemy (only once)
+          if (!newExplosions.some(e => e.x === enemy.x && e.y === enemy.y)) {
+            newExplosions.push({
+              id: Date.now() + Math.random(),
+              x: enemy.x,
+              y: enemy.y,
+              createdAt: Date.now(),
+              type: 'enemy'
+            });
+            
+            // Play explosion sound
+            playExplosionSound();
+            playEnemyHitSound();
+            
+            collisionPoints += 10;
+            console.log('LaserDodge: Enemy destroyed! +10 points');
           }
         }
-        
-        // Keep enemies that weren't hit
-        for (const enemy of prevEnemies) {
-          let destroyed = false;
-          
-          for (const bullet of prevBullets) {
-            if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
-              destroyed = true;
-              break;
-            }
-          }
-          
-          if (!destroyed) {
-            remainingEnemies.push(enemy);
-          }
-        }
-        
-        return remainingEnemies;
-      });
-      
-      return prevBullets.filter(bullet => {
-        // Keep bullets that didn't hit anything
-        for (const enemy of enemyShips) {
-          if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
-            return false; // Remove this bullet
-          }
-        }
-        return true; // Keep this bullet
       });
     });
+    
+    // Apply all updates at once (React will batch these)
+    if (bulletsHitEnemies.size > 0) {
+      setBullets(prev => prev.filter(b => !bulletsHitEnemies.has(b.id.toString())));
+    }
+    
+    if (enemiesToRemove.size > 0) {
+      setEnemyShips(prev => prev.filter(e => !enemiesToRemove.has(e.id.toString())));
+    }
+    
+    if (newExplosions.length > 0) {
+      setExplosions(prev => [...prev, ...newExplosions]);
+    }
+    
+    if (collisionPoints > 0) {
+      currentScoreRef.current += collisionPoints;
+      setScore(prev => Number((prev + collisionPoints).toFixed(2)));
+    }
 
     // Update explosions - remove old ones
     setExplosions(prev => prev.filter(explosion => {
