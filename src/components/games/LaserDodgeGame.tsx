@@ -170,7 +170,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Calculate blue laser bonus with decimal precision
     let blueBonus = 0;
-    const blueLasers = lasers.filter(l => !l.isHarmful);
+    const blueLasers = lasersRef.current.filter(l => !l.isHarmful);
     for (const laser of blueLasers) {
       if (laser.type === 'horizontal') {
         // Ship is on blue horizontal laser
@@ -546,37 +546,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       return age < 1000; // Explosions last 1 second
     }));
 
-    // Continue loop
-    if (isGameRunningRef.current) {
-      animationRef.current = requestAnimationFrame(gameLoop);
-    }
-  };
-
-  // Check collisions - separate from game loop to avoid dependency issues
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    const harmfulLasers = lasers.filter(l => l.isHarmful);
+    // Check collisions (using refs for current values)
+    const harmfulLasers = lasersRef.current.filter(l => l.isHarmful);
     let collision = false;
     
     // Check laser collisions
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
-        // More precise collision: ship must be directly on the laser beam (height 4)
-        // Laser is at laser.position%, ship is at ship.y%
-        // Allow for 2% tolerance (half the laser height)
         if (Math.abs(laser.position - ship.y) < 2) {
           collision = true;
-          console.log('LaserDodge: Hit by horizontal red laser at Y:', laser.position, 'Ship Y:', ship.y);
+          console.log('LaserDodge: Hit by horizontal red laser');
           break;
         }
       } else {
-        // More precise collision: ship must be directly on the laser beam (width 4)
-        // Laser is at laser.position%, ship is at ship.x%
-        // Allow for 2% tolerance (half the laser width)
         if (Math.abs(laser.position - ship.x) < 2) {
           collision = true;
-          console.log('LaserDodge: Hit by vertical red laser at X:', laser.position, 'Ship X:', ship.x);
+          console.log('LaserDodge: Hit by vertical red laser');
           break;
         }
       }
@@ -584,7 +569,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
     // Check enemy ship collisions
     if (!collision) {
-      for (const enemy of enemyShips) {
+      for (const enemy of enemyShipsRef.current) {
         if (Math.abs(enemy.x - ship.x) < 6 && Math.abs(enemy.y - ship.y) < 6) {
           collision = true;
           console.log('LaserDodge: Collision with enemy ship!');
@@ -611,8 +596,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       playExplosionSound();
       
       endGame();
+      return; // Don't continue loop after game over
     }
-  }, [lasers, ship, enemyShips, gameState]);
+
+    // Continue loop
+    if (isGameRunningRef.current) {
+      animationRef.current = requestAnimationFrame(gameLoop);
+    }
+  };
+
+  // Check collisions - integrated into game loop state (removed separate useEffect to avoid stale closures)
 
   // End game
   const endGame = () => {
