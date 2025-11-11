@@ -91,6 +91,7 @@ export default function HotSellPage() {
     entryFee: number;
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
+  const [expandedScoreboards, setExpandedScoreboards] = useState<Record<string, boolean>>({});
   
   // Location verification hook
   const {
@@ -1079,10 +1080,12 @@ export default function HotSellPage() {
                   <div className="text-center">
                     <p className="text-yellow-200 text-xs font-semibold mb-1 uppercase">Current Prize Pool</p>
                     <p className="text-3xl font-black text-yellow-300 mb-1">
-                      {session?.prize_pool ? formatAmount(session.prize_pool) : formatAmount(config.base_price)}
+                      {formatAmount(session?.prize_pool || 0)}
                     </p>
                     <p className="text-yellow-200/70 text-xs mb-3">
-                      {session ? `${session.participants_count} player${session.participants_count !== 1 ? 's' : ''} joined` : 'Waiting for players'}
+                      {session.participants_count > 0 
+                        ? `${session.participants_count} player${session.participants_count !== 1 ? 's' : ''} joined` 
+                        : 'Waiting for first player'}
                     </p>
                     
                     {/* Prize Breakdown - Based on actual current pool */}
@@ -1095,7 +1098,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">1st Place (50%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {session?.prize_pool ? formatAmount(session.prize_pool * 0.50) : formatAmount(config.base_price * 0.50)}
+                            {formatAmount((session?.prize_pool || 0) * 0.50)}
                           </span>
                         </div>
                         
@@ -1106,7 +1109,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">2nd Place (20%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {session?.prize_pool ? formatAmount(session.prize_pool * 0.20) : formatAmount(config.base_price * 0.20)}
+                            {formatAmount((session?.prize_pool || 0) * 0.20)}
                           </span>
                         </div>
                         
@@ -1117,7 +1120,7 @@ export default function HotSellPage() {
                             <span className="text-yellow-200">3rd Place (15%)</span>
                           </div>
                           <span className="font-bold text-yellow-300">
-                            {session?.prize_pool ? formatAmount(session.prize_pool * 0.15) : formatAmount(config.base_price * 0.15)}
+                            {formatAmount((session?.prize_pool || 0) * 0.15)}
                           </span>
                         </div>
                         
@@ -1125,17 +1128,17 @@ export default function HotSellPage() {
                         <div className="flex justify-between items-center pt-1.5 border-t border-yellow-500/30">
                           <span className="text-red-300 text-[10px]">Platform Fee (-15%)</span>
                           <span className="font-bold text-red-300">
-                            -{formatAmount(config.base_price * 0.15)}
+                            -{formatAmount((session?.prize_pool || 0) * 0.15)}
                           </span>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Current Progress */}
+                    {/* Entry Fee Info */}
                     <div className="text-xs text-yellow-200/80">
                       <div className="flex justify-between items-center">
-                        <span>Current Pool:</span>
-                        <span className="font-bold text-yellow-300">{formatAmount(session.prize_pool)}</span>
+                        <span>Entry Fee:</span>
+                        <span className="font-bold text-green-300">+{formatAmount(config.entry_fee)} per player</span>
                       </div>
                     </div>
                   </div>
@@ -1155,24 +1158,79 @@ export default function HotSellPage() {
                   </div>
                 </div>
 
-                {/* Top Scores (only show if user has PLAYED - submitted a score) */}
-                {hasPlayed && topScores.length > 0 && (
-                  <div className="mb-4 p-3 bg-black/30 rounded-xl">
-                    <h4 className="text-xs font-semibold text-orange-300 mb-2 uppercase">🏆 Scoreboard - All Players</h4>
-                    {topScores.map((p, idx) => {
-                      const isCurrentUser = p.user_id === user?.id;
-                      const displayName = isCurrentUser ? 'You' : (p.username || `Player ${idx + 1}`);
-                      return (
-                        <div key={p.id} className="flex justify-between items-center text-xs mb-1">
-                          <span className={isCurrentUser ? "text-blue-300 font-semibold" : "text-gray-300"}>
-                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} {displayName}
-                          </span>
-                          <span className={isCurrentUser ? "text-blue-400 font-bold" : "text-yellow-400 font-bold"}>
-                            {p.score?.toFixed(2)}
-                          </span>
-                        </div>
-                      );
-                    })}
+                {/* Dropdown Scoreboard (only show if user has PLAYED - submitted a score) */}
+                {hasPlayed && session.participants.filter(p => p.score !== null).length > 0 && (
+                  <div className="mb-4">
+                    {/* Dropdown Toggle Button */}
+                    <button
+                      onClick={() => setExpandedScoreboards(prev => ({
+                        ...prev,
+                        [config.id]: !prev[config.id]
+                      }))}
+                      className="w-full p-3 bg-gradient-to-r from-purple-600/30 to-blue-600/30 hover:from-purple-600/50 hover:to-blue-600/50 rounded-xl border border-purple-500/50 transition-all duration-200 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🏆</span>
+                        <span className="text-sm font-semibold text-purple-200">View Scoreboard</span>
+                        <span className="text-xs text-purple-300">
+                          ({session.participants.filter(p => p.score !== null).length} players)
+                        </span>
+                      </div>
+                      <span className="text-lg text-purple-300">
+                        {expandedScoreboards[config.id] ? '▲' : '▼'}
+                      </span>
+                    </button>
+                    
+                    {/* Expanded Scoreboard */}
+                    {expandedScoreboards[config.id] && (
+                      <div className="mt-2 p-4 bg-black/40 rounded-xl border border-purple-500/30 space-y-2">
+                        <h4 className="text-xs font-bold text-purple-300 mb-3 uppercase flex items-center gap-2">
+                          <span>🏆</span>
+                          <span>All Competitors</span>
+                        </h4>
+                        {session.participants
+                          .filter(p => p.score !== null)
+                          .sort((a, b) => (b.score || 0) - (a.score || 0))
+                          .map((p, idx) => {
+                            const isCurrentUser = p.user_id === user?.id;
+                            const displayName = isCurrentUser ? 'You' : (p.username || `Anonymous Player`);
+                            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+                            
+                            return (
+                              <div 
+                                key={p.id} 
+                                className={`flex justify-between items-center p-2 rounded-lg ${
+                                  isCurrentUser 
+                                    ? 'bg-blue-500/20 border border-blue-500/50' 
+                                    : 'bg-gray-800/50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-400 text-xs font-mono w-6">
+                                    #{idx + 1}
+                                  </span>
+                                  {medal && <span className="text-lg">{medal}</span>}
+                                  <span className={`text-sm ${
+                                    isCurrentUser ? "text-blue-300 font-bold" : "text-gray-300"
+                                  }`}>
+                                    {displayName}
+                                  </span>
+                                  {isCurrentUser && (
+                                    <span className="text-xs bg-blue-500/30 text-blue-200 px-2 py-0.5 rounded">
+                                      You
+                                    </span>
+                                  )}
+                                </div>
+                                <span className={`text-sm font-bold ${
+                                  isCurrentUser ? "text-blue-400" : "text-yellow-400"
+                                }`}>
+                                  {p.score?.toFixed(2)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
                   </div>
                 )}
 
