@@ -111,45 +111,51 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       
       // Use seeded RNG if available (competition mode)
       if (seededRng) {
-        // COMPETITION MODE: Use seeded RNG for deterministic but varied gameplay
-        const level = Math.floor(timeSinceStart / 10000) + 1; // Level up every 10 seconds
-        const spawnInterval = Math.max(600, 1200 - (level * 100)); // Get faster over time
+        // COMPETITION MODE: Match practice mode behavior but with seeded RNG
+        const gameTime = Math.floor(timeSinceStart / 10000) + 1; // Level 1-6 based on 10-second intervals
         
-        if (now - lastSpawn.current > spawnInterval) {
-          lastSpawn.current = now;
+        const attacksPerSpawn = Math.min(gameTime, 5); // Max 5 attacks at once (SAME as practice)
+        const spawnRate = Math.max(1500, 2500 - (gameTime * 200)); // Faster spawning (SAME as practice)
+        
+        // Spawn multiple attacks based on difficulty level (SAME as practice)
+        if (now - lastSpawn.current > spawnRate) {
+          const newAttacks: Attack[] = [];
           
-          // Check for stacking - prevent attacks from spawning too close to existing ones
-          const minDistance = 15; // Minimum distance between attacks
-          let attempts = 0;
-          const maxAttempts = 50;
-          let validPosition = false;
-          let x = 0, y = 0;
-          
-          while (!validPosition && attempts < maxAttempts) {
-            x = seededRng.nextFloat(10, 90);
-            y = seededRng.nextFloat(10, 90);
+          for (let i = 0; i < attacksPerSpawn; i++) {
+            // Generate position with seeded RNG
+            let x = seededRng.nextFloat(10, 90);
+            let y = seededRng.nextFloat(10, 90);
             
-            // Check distance from all existing attacks
-            validPosition = attacks.every(attack => {
-              const dx = attack.x - x;
-              const dy = attack.y - y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-              return distance >= minDistance || attack.destroyed;
-            });
+            // Simple anti-stacking: check against attacks spawned THIS frame only
+            let attempts = 0;
+            while (attempts < 10) {
+              const tooClose = newAttacks.some(a => {
+                const dx = a.x - x;
+                const dy = a.y - y;
+                return Math.sqrt(dx * dx + dy * dy) < 20; // Min 20% apart
+              });
+              
+              if (!tooClose) break;
+              
+              x = seededRng.nextFloat(10, 90);
+              y = seededRng.nextFloat(10, 90);
+              attempts++;
+            }
             
-            attempts++;
+            const newAttack: Attack = {
+              id: now + i + seededRng.next() * 1000,
+              x,
+              y,
+              destroyed: false
+            };
+            
+            newAttacks.push(newAttack);
           }
           
-          const newAttack: Attack = {
-            id: now + seededRng.next(),
-            x,
-            y,
-            destroyed: false
-          };
-          
-          console.log(`✅ Spawned SEEDED attack at ${timeSinceStart}ms: (${x.toFixed(1)}, ${y.toFixed(1)})`);
-          setAttacks(prev => [...prev, newAttack]);
-          setTotalCount(prev => prev + 1);
+          // Add all attacks at once
+          setAttacks(prev => [...prev, ...newAttacks]);
+          setTotalCount(prev => prev + newAttacks.length);
+          lastSpawn.current = now;
         }
       } else {
         // PRACTICE MODE: Progressive difficulty
