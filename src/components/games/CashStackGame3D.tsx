@@ -52,6 +52,14 @@ interface ChallengeCoin {
   alignmentLine: THREE.Line | null;
 }
 
+interface GameSession {
+  id: string;
+  game_type: string;
+  rng_seed?: number;
+  game_config?: any;
+  created_at: string;
+}
+
 interface CashStackGame3DProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
   onExit?: () => void; // Made optional to match other games
@@ -59,6 +67,7 @@ interface CashStackGame3DProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   gameId?: string;
+  gameSession?: GameSession; // For server-side RNG patterns
 }
 
 const INITIAL_SIZE = 4;
@@ -105,6 +114,7 @@ const GAME_VARIATIONS = [
 export default function CashStackGame3D({
   onGameEnd,
   onExit,
+  gameSession,
 }: CashStackGame3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -131,7 +141,16 @@ export default function CashStackGame3D({
   const [towerHeight, setTowerHeight] = useState(0);
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
-  const [currentVariation, setCurrentVariation] = useState(GAME_VARIATIONS[0]);
+  
+  // Use RNG seed to select one of 20 patterns if in competition mode
+  const [currentVariation, setCurrentVariation] = useState(() => {
+    if (gameSession?.rng_seed) {
+      // Use seed to deterministically select a variation (1-20)
+      const variationIndex = (gameSession.rng_seed % 20);
+      return GAME_VARIATIONS[variationIndex];
+    }
+    return GAME_VARIATIONS[0];
+  });
 
   // Audio setup
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1100,22 +1119,25 @@ export default function CashStackGame3D({
           <p className="text-lg mb-2">Align $ signs for 💥 EXPLOSION BONUS!</p>
           <p className="text-lg mb-6">🪙 Catch coins (+500pts)</p>
           
-          <div className="grid grid-cols-4 gap-2 mb-6 max-h-64 overflow-y-auto p-4">
-            {GAME_VARIATIONS.map(variation => (
-              <button
-                key={variation.id}
-                onClick={() => setCurrentVariation(variation)}
-                className={`px-3 py-2 rounded-lg font-bold text-sm transition-all pointer-events-auto ${
-                  currentVariation.id === variation.id 
-                    ? 'ring-4 ring-white scale-110' 
-                    : 'opacity-70 hover:opacity-100'
-                }`}
-                style={{ backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}` }}
-              >
-                {variation.name}
-              </button>
-            ))}
-          </div>
+          {/* Color selector - only show in practice mode */}
+          {!gameSession && (
+            <div className="grid grid-cols-4 gap-2 mb-6 max-h-64 overflow-y-auto p-4">
+              {GAME_VARIATIONS.map(variation => (
+                <button
+                  key={variation.id}
+                  onClick={() => setCurrentVariation(variation)}
+                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all pointer-events-auto ${
+                    currentVariation.id === variation.id 
+                      ? 'ring-4 ring-white scale-110' 
+                      : 'opacity-70 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}` }}
+                >
+                  {variation.name}
+                </button>
+              ))}
+            </div>
+          )}
           
           <p className="text-2xl font-bold text-yellow-400 mb-4">60 seconds - Go for high score!</p>
           <button
@@ -1128,13 +1150,15 @@ export default function CashStackGame3D({
         </div>
       )}
       
-      {/* Exit button */}
-      <button
-        onClick={onExit}
-        className="absolute top-6 right-6 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all pointer-events-auto"
-      >
-        EXIT
-      </button>
+      {/* Exit button - only show if onExit provided (practice mode) */}
+      {onExit && (
+        <button
+          onClick={onExit}
+          className="absolute top-6 right-6 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all pointer-events-auto"
+        >
+          EXIT
+        </button>
+      )}
     </div>
   );
 }

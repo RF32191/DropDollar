@@ -85,6 +85,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
   const lastShotRef = useRef<number>(0);
   
+  // Refs for game entities (needed for collision detection in game loop)
+  const bulletsRef = useRef<Bullet[]>([]);
+  const enemyShipsRef = useRef<EnemyShip[]>([]);
+  const lasersRef = useRef<Laser[]>([]);
+  
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
     if (!rngSeed) return null;
@@ -146,7 +151,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       createdAt: now
     };
     
-    setBullets(prev => [...prev, newBullet]);
+    setBullets(prev => {
+      const updated = [...prev, newBullet];
+      bulletsRef.current = updated;
+      return updated;
+    });
   };
 
   // Game loop - simplified without useCallback
@@ -227,7 +236,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             createdAt: now
           };
           
-          setLasers(prev => [...prev, newLaser]);
+          setLasers(prev => {
+            const updated = [...prev, newLaser];
+            lasersRef.current = updated;
+            return updated;
+          });
         }
         
         playLaserWarn();
@@ -289,7 +302,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           };
           
           console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} laser:`, newLaser.type, 'at position', newLaser.position);
-          setLasers(prev => [...prev, newLaser]);
+          setLasers(prev => {
+            const updated = [...prev, newLaser];
+            lasersRef.current = updated;
+            return updated;
+          });
         }
         
         lastLaserSpawnRef.current = now;
@@ -352,7 +369,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           type: 'enemy'
         };
         
-        setEnemyShips(prev => [...prev, newEnemy]);
+        setEnemyShips(prev => {
+          const updated = [...prev, newEnemy];
+          enemyShipsRef.current = updated;
+          return updated;
+        });
       }
     } else {
       // PRACTICE MODE: Progressive enemy spawning
@@ -383,7 +404,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         };
         
         console.log(`LaserDodge: Spawning ${isCrazyMode ? 'CRAZY' : isExtremeMode ? 'EXTREME' : 'normal'} enemy:`, newEnemy.direction);
-        setEnemyShips(prev => [...prev, newEnemy]);
+        setEnemyShips(prev => {
+          const updated = [...prev, newEnemy];
+          enemyShipsRef.current = updated;
+          return updated;
+        });
         lastEnemySpawnRef.current = now;
       }
     }
@@ -394,7 +419,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       const currentTimeSinceStart = currentTime - gameStartTimeRef.current;
       const currentIsExtremeMode = currentTimeSinceStart > 30000;
       
-      return prevLasers.map(laser => {
+      const updated = prevLasers.map(laser => {
         const updatedLaser = { ...laser };
         
         if (!updatedLaser.isHarmful) {
@@ -414,11 +439,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           : laser.timeToHarmful + 3000; // Red lasers disappear after 3s in normal mode
         return age < totalLifetime;
       });
+      
+      lasersRef.current = updated;
+      return updated;
     });
 
     // Update enemy ships
     setEnemyShips(prevEnemies => {
-      return prevEnemies.map(enemy => {
+      const updated = prevEnemies.map(enemy => {
         const updatedEnemy = { ...enemy };
         
         if (enemy.direction === 'left') {
@@ -432,11 +460,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         // Remove enemies that are off-screen
         return enemy.x > -10 && enemy.x < 110;
       });
+      
+      enemyShipsRef.current = updated;
+      return updated;
     });
 
     // Update bullets
     setBullets(prevBullets => {
-      return prevBullets.map(bullet => {
+      const updated = prevBullets.map(bullet => {
         const updatedBullet = { ...bullet };
         updatedBullet.y -= 0.5; // Bullets move upward
         return updatedBullet;
@@ -444,17 +475,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         // Remove bullets that are off-screen
         return bullet.y > -5;
       });
+      
+      bulletsRef.current = updated;
+      return updated;
     });
 
-    // Check bullet-enemy collisions - Fixed to avoid nested state updates
+    // Check bullet-enemy collisions - Use refs for current values
     const bulletsHitEnemies: Set<string> = new Set();
     const enemiesToRemove: Set<string> = new Set();
     const newExplosions: Explosion[] = [];
     let collisionPoints = 0;
     
-    // Detect all bullet-enemy collisions
-    bullets.forEach(bullet => {
-      enemyShips.forEach(enemy => {
+    // Detect all bullet-enemy collisions using current ref values
+    bulletsRef.current.forEach(bullet => {
+      enemyShipsRef.current.forEach(enemy => {
         if (Math.abs(bullet.x - enemy.x) < 4 && Math.abs(bullet.y - enemy.y) < 4) {
           bulletsHitEnemies.add(bullet.id.toString());
           enemiesToRemove.add(enemy.id.toString());
@@ -482,11 +516,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Apply all updates at once (React will batch these)
     if (bulletsHitEnemies.size > 0) {
-      setBullets(prev => prev.filter(b => !bulletsHitEnemies.has(b.id.toString())));
+      setBullets(prev => {
+        const updated = prev.filter(b => !bulletsHitEnemies.has(b.id.toString()));
+        bulletsRef.current = updated; // Update ref
+        return updated;
+      });
     }
     
     if (enemiesToRemove.size > 0) {
-      setEnemyShips(prev => prev.filter(e => !enemiesToRemove.has(e.id.toString())));
+      setEnemyShips(prev => {
+        const updated = prev.filter(e => !enemiesToRemove.has(e.id.toString()));
+        enemyShipsRef.current = updated; // Update ref
+        return updated;
+      });
     }
     
     if (newExplosions.length > 0) {
@@ -682,6 +724,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setEnemyShips([]);
     setBullets([]);
     setExplosions([]);
+    lasersRef.current = [];
+    enemyShipsRef.current = [];
+    bulletsRef.current = [];
     setShip({ x: 50, y: 50 });
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
