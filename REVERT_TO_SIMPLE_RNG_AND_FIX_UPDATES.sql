@@ -369,6 +369,7 @@ BEGIN
         participants_count,
         prize_pool,
         base_price,
+        max_participants,
         rng_seed,
         created_at,
         updated_at
@@ -379,6 +380,7 @@ BEGIN
         0,
         0,
         v_config.base_price,
+        v_config.max_participants,
         floor(random() * 20) + 1,
         now(),
         now()
