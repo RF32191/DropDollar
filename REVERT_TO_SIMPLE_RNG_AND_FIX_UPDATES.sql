@@ -355,7 +355,6 @@ BEGIN
   FOR v_config IN 
     SELECT id, title, base_price, max_participants, game_type
     FROM hot_sell_configs
-    WHERE status = 'active'
   LOOP
     -- Check if active session exists
     IF NOT EXISTS (
@@ -393,7 +392,6 @@ BEGIN
   FOR v_config IN 
     SELECT id, title, entry_fee, max_participants, game_type
     FROM winner_takes_all_configs
-    WHERE status = 'active'
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM winner_takes_all_sessions
@@ -429,7 +427,6 @@ BEGIN
   FOR v_config IN 
     SELECT id, title, entry_fee, game_type
     FROM one_v_one_configs
-    WHERE status = 'active'
   LOOP
     IF NOT EXISTS (
       SELECT 1 FROM one_v_one_sessions
@@ -479,7 +476,6 @@ SELECT
   ROUND((s.participants_count::numeric / c.max_participants) * 100, 2) as progress_percent
 FROM hot_sell_configs c
 LEFT JOIN hot_sell_sessions s ON c.id = s.config_id AND s.status = 'active'
-WHERE c.status = 'active'
 ORDER BY c.base_price;
 
 -- Check Winner Takes All sessions
@@ -495,7 +491,6 @@ SELECT
   ROUND((s.participants_count::numeric / c.max_participants) * 100, 2) as progress_percent
 FROM winner_takes_all_configs c
 LEFT JOIN winner_takes_all_sessions s ON c.id = s.config_id AND s.status = 'active'
-WHERE c.status = 'active'
 ORDER BY c.entry_fee;
 
 -- Check 1v1 sessions
@@ -511,7 +506,6 @@ SELECT
   ROUND((s.participants_count::numeric / 2) * 100, 2) as progress_percent
 FROM one_v_one_configs c
 LEFT JOIN one_v_one_sessions s ON c.id = s.config_id AND s.status = 'active'
-WHERE c.status = 'active'
 ORDER BY c.entry_fee;
 
 /*
