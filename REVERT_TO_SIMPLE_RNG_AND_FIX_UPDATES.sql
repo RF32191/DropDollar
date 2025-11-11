@@ -207,6 +207,11 @@ $$;
 -- PART 2: UPDATE EXISTING SCORE FUNCTIONS TO CALL STATS UPDATES
 -- =================================================================
 
+-- Drop existing functions first (they have different return types)
+DROP FUNCTION IF EXISTS update_hot_sell_score(uuid, uuid, numeric, numeric);
+DROP FUNCTION IF EXISTS update_winner_takes_all_score(uuid, uuid, numeric, numeric);
+DROP FUNCTION IF EXISTS update_1v1_score(uuid, uuid, numeric, numeric);
+
 -- Update Hot Sell score function to refresh stats
 CREATE OR REPLACE FUNCTION update_hot_sell_score(
   session_id_param uuid,
