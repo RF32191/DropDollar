@@ -43,9 +43,14 @@ export class GameEngine {
     if (config.rng.isPractice) {
       // Practice mode: truly random
       this.rng = () => Math.random();
+    } else if (config.rng.seed) {
+      // Competition mode with direct seed (1-20 from session)
+      console.log(`🎲 [GameEngine] Using direct seed: ${config.rng.seed}`);
+      this.rng = this.seededRandom(config.rng.seed);
     } else {
-      // Competition mode: deterministic based on listing
+      // Competition mode: deterministic based on listing (fallback)
       const seed = this.generateSeed(config.rng.listingId!, config.rng.entryNumber || 1);
+      console.log(`🎲 [GameEngine] Generated seed from listing: ${seed}`);
       this.rng = this.seededRandom(seed);
     }
   }
