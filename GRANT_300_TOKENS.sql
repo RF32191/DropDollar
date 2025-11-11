@@ -51,7 +51,7 @@ BEGIN
     created_at
   ) VALUES (
     v_user_id,
-    'purchased',
+    'credit',
     'admin_grant',
     300,
     v_old_balance,
