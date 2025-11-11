@@ -281,6 +281,7 @@ export default function HotSellGame({ listing, onGameComplete, onLocationVerifie
               />
             );
           case 'cash_stack':
+          case 'falling_object': // Database uses falling_object
             return (
               <CashStackGame
                 onGameEnd={(result) => {

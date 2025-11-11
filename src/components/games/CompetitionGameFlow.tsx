@@ -295,6 +295,7 @@ export default function CompetitionGameFlow({
       case 'blade_bounce':
         return <BladeBounceGame {...sessionProps} />;
       case 'cash_stack':
+      case 'falling_object': // Database uses falling_object for Cash Stack game
         return <CashStackGame {...sessionProps} />;
       default:
         return <div className="text-white text-center">Unknown game type: {gameType}</div>;
@@ -310,7 +311,8 @@ export default function CompetitionGameFlow({
       case 'quick_click': return '⚡ Quick Click';
       case 'memory_color': return '🧠 Memory Color';
       case 'blade_bounce': return '⚔️ Blade Bounce';
-      case 'cash_stack': return '💰 Cash Stack';
+      case 'cash_stack':
+      case 'falling_object': return '💰 Cash Stack';
       default: return '🎮 Game';
     }
   };
