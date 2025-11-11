@@ -368,6 +368,7 @@ BEGIN
         status,
         participants_count,
         prize_pool,
+        base_price,
         rng_seed,
         created_at,
         updated_at
@@ -377,6 +378,7 @@ BEGIN
         'active',
         0,
         0,
+        v_config.base_price,
         floor(random() * 20) + 1,
         now(),
         now()
