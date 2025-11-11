@@ -124,14 +124,14 @@ BEGIN
   UPDATE winner_takes_all_sessions
   SET 
     participants_count = v_participants_count,
-    current_pot = v_new_pool,
+    current_pool = v_new_pool,
     updated_at = now()
   WHERE id = p_session_id;
   
   -- Return updated stats
   RETURN jsonb_build_object(
     'participants_count', v_participants_count,
-    'current_pot', v_new_pool,
+    'current_pool', v_new_pool,
     'all_played', v_all_played,
     'max_participants', v_config.max_participants,
     'progress_percent', ROUND((v_participants_count::numeric / v_config.max_participants) * 100, 2)
@@ -404,7 +404,7 @@ BEGIN
         config_id,
         status,
         participants_count,
-        current_pot,
+        current_pool,
         rng_seed,
         created_at,
         updated_at
@@ -484,7 +484,7 @@ SELECT
   s.id as session_id,
   s.status,
   s.participants_count,
-  s.current_pot,
+  s.current_pool,
   c.max_participants,
   ROUND((s.participants_count::numeric / c.max_participants) * 100, 2) as progress_percent
 FROM winner_takes_all_configs c
