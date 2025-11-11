@@ -638,7 +638,12 @@ export default function HotSellPage() {
       setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
       // Even on error, refresh to show current state
       await loadSessions();
+      await refreshTokens();
     }
+
+    // ALWAYS return to list view after game completes (even if there's an error)
+    setCurrentView('list');
+    setSelectedGameFlow(null);
 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });

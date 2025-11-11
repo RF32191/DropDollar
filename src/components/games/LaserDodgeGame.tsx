@@ -613,32 +613,36 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }));
 
     // Check collisions (using refs for current values)
+    // ONLY RED LASERS (isHarmful === true) and ENEMY SHIPS cause death
     const harmfulLasers = lasersRef.current.filter(l => l.isHarmful);
     let collision = false;
     
-    // Check laser collisions
+    // Check RED laser collisions - SMALLER HITBOX for more forgiving gameplay
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
-        if (Math.abs(laser.position - ship.y) < 2) {
+        // Reduced hitbox from 2 to 1 for more forgiving collision
+        if (Math.abs(laser.position - ship.y) < 1) {
           collision = true;
-          console.log('LaserDodge: Hit by horizontal red laser');
+          console.log('LaserDodge: Hit by horizontal RED laser at', laser.position);
           break;
         }
       } else {
-        if (Math.abs(laser.position - ship.x) < 2) {
+        // Reduced hitbox from 2 to 1 for more forgiving collision
+        if (Math.abs(laser.position - ship.x) < 1) {
           collision = true;
-          console.log('LaserDodge: Hit by vertical red laser');
+          console.log('LaserDodge: Hit by vertical RED laser at', laser.position);
           break;
         }
       }
     }
 
-    // Check enemy ship collisions
+    // Check enemy ship collisions - slightly smaller hitbox
     if (!collision) {
       for (const enemy of enemyShipsRef.current) {
-        if (Math.abs(enemy.x - ship.x) < 6 && Math.abs(enemy.y - ship.y) < 6) {
+        // Reduced hitbox from 6 to 4 for more precise collision
+        if (Math.abs(enemy.x - ship.x) < 4 && Math.abs(enemy.y - ship.y) < 4) {
           collision = true;
-          console.log('LaserDodge: Collision with enemy ship!');
+          console.log('LaserDodge: Collision with enemy ship at', enemy.x, enemy.y);
           break;
         }
       }
