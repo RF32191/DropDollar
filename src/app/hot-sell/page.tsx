@@ -843,7 +843,7 @@ export default function HotSellPage() {
                 setCurrentView('list');
                 setSelectedGameFlow(null);
               }}
-              rngSeed={rngSeed}
+              rngSeed={rngSeed || Math.floor(Math.random() * 20) + 1}
             />
           </div>
         </div>

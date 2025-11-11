@@ -19,6 +19,7 @@ interface MultiTargetGameProps {
   entryNumber?: number; // For competition mode
   isCompetitionMode?: boolean;
   gameId?: string; // For deterministic gameplay
+  rngSeed?: number; // RNG seed (1-20) for deterministic spawns
 }
 
 interface Target {
@@ -33,11 +34,10 @@ interface Target {
 
 const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 
-export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: MultiTargetGameProps) {
-  // Get fair RNG configuration based on listing and attempt number
-  const rngConfig = listingId && entryNumber 
-    ? FairRNGService.getMultiTargetConfig(listingId, entryNumber)
-    : null;
+export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId, rngSeed }: MultiTargetGameProps) {
+  // DON'T use pre-generated configs - causes gameplay issues
+  // Instead, use rngSeed to initialize engine for runtime generation
+  const rngConfig = null; // Disabled - using runtime RNG instead
     
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [targets, setTargets] = useState<Target[]>([]);
@@ -53,13 +53,13 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
   
 
   // Game engine with proper timer and RNG
+  // Use rngSeed for deterministic gameplay, or undefined for random
   const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
     gameType: 'multi-target',
     totalTime: 60,
     rng: {
-      isPractice: !isCompetitionMode, // Practice mode if not competition
-      listingId,
-      entryNumber
+      isPractice: !rngSeed, // If no seed, it's practice mode
+      seed: rngSeed // Use the seed from session (1-20)
     },
     onGameEnd: () => {
       console.log('MultiTarget: Game engine onGameEnd callback triggered');
