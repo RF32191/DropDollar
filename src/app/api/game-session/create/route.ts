@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     });
     
     // Generate secure token with cryptographic signature
-    const { token, payload } = GameTokenService.generateToken(
+    const { token: gameToken, payload } = GameTokenService.generateToken(
       user.id,
       gameType,
       listingId,
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     );
     
     // Generate token hash for database storage
-    const tokenHash = GameTokenService.generateTokenHash(token);
+    const tokenHash = GameTokenService.generateTokenHash(gameToken);
     
     // Store session in database
     const { error: dbError } = await supabase
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       success: true,
       session: {
         sessionId: payload.sessionId,
-        token,
+        token: gameToken,
         rngSeed: payload.rngSeed,
         expiresAt: payload.expiresAt,
         gameType: payload.gameType
