@@ -97,9 +97,9 @@ SELECT '🎉 ================================' as message;
 -- Verification
 SELECT 
   '📊 Trigger Status on hot_sell_participants' as info,
-  trigger_name,
+  t.tgname as trigger_name,
   CASE 
-    WHEN tgname LIKE 'RI_%' THEN '🔒 System (Active)'
+    WHEN t.tgname LIKE 'RI_%' THEN '🔒 System (Active)'
     ELSE '❌ User (Disabled)'
   END as status
 FROM pg_trigger t
