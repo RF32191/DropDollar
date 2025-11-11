@@ -392,7 +392,7 @@ BEGIN
   
   -- Winner Takes All configs
   FOR v_config IN 
-    SELECT id, title, entry_fee, max_participants, game_type
+    SELECT id, title, entry_fee, game_type
     FROM winner_takes_all_configs
   LOOP
     IF NOT EXISTS (
