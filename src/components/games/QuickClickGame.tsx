@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd } from '@/lib/gameAudio';
 import { FairRNGService, QuickClickRNGConfig } from '@/lib/fairRNGService';
 

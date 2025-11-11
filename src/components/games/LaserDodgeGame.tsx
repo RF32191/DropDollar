@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
 import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd, playShootSound, playExplosionSound, playEnemyHitSound } from '@/lib/gameAudio';
 
