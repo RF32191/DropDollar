@@ -195,83 +195,74 @@ export const MULTI_TARGET_RNG_CONFIGS: MultiTargetRNGConfig[] = [
 
 // Generate remaining 17 configurations programmatically
 for (let i = 4; i <= 20; i++) {
+  // IMPROVED RNG - Use better distribution to prevent stacking/repetition
+  const baseSeed = i * 12345;
+  
+  // Helper to generate non-stacking positions
+  const generatePositions = (count: number, roundSeed: number) => {
+    const positions = [];
+    const minDistance = 15;
+    
+    for (let j = 0; j < count; j++) {
+      let attempts = 0;
+      let valid = false;
+      let x = 0, y = 0;
+      
+      while (!valid && attempts < 100) {
+        // Use larger primes for better distribution
+        x = 15 + ((roundSeed * 73 + j * 127) % 70);
+        y = 15 + ((roundSeed * 97 + j * 151) % 70);
+        
+        valid = positions.every(pos => {
+          const dx = pos.x - x;
+          const dy = pos.y - y;
+          return Math.sqrt(dx * dx + dy * dy) >= minDistance;
+        });
+        
+        roundSeed += 31;
+        attempts++;
+      }
+      
+      positions.push({ x, y });
+    }
+    return positions;
+  };
+  
   const config: MultiTargetRNGConfig = {
     id: i,
     name: `Pattern ${i}`,
     rounds: [
       {
         round: 1,
-        targets: [
-          { 
-            x: 15 + (i * 3) % 70, 
-            y: 20 + (i * 5) % 60, 
+        targets: generatePositions(2, baseSeed + 1).map((pos, idx) => ({ 
+            x: pos.x, 
+            y: pos.y, 
             size: 1.0, 
-            timing: 2000 + (i * 50) % 400 
-          },
-          { 
-            x: 25 + (i * 7) % 60, 
-            y: 30 + (i * 4) % 50, 
-            size: 1.0, 
-            timing: 2000 + (i * 50) % 400 
-          }
-        ],
-        timeLimit: 5000 + (i * 100) % 500,
+            timing: 1800 + ((i * 79 + idx * 113) % 600)
+          })),
+        timeLimit: 5000 + (i * 137) % 1000,
         difficulty: 'easy'
       },
       {
         round: 2,
-        targets: [
-          { 
-            x: 20 + (i * 4) % 60, 
-            y: 25 + (i * 6) % 50, 
+        targets: generatePositions(3, baseSeed + 2).map((pos, idx) => ({ 
+            x: pos.x, 
+            y: pos.y, 
             size: 0.9, 
-            timing: 1800 + (i * 40) % 300 
-          },
-          { 
-            x: 40 + (i * 8) % 40, 
-            y: 45 + (i * 3) % 40, 
-            size: 0.9, 
-            timing: 1800 + (i * 40) % 300 
-          },
-          { 
-            x: 60 + (i * 5) % 30, 
-            y: 35 + (i * 7) % 50, 
-            size: 0.9, 
-            timing: 1800 + (i * 40) % 300 
-          }
-        ],
-        timeLimit: 6000 + (i * 80) % 400,
+            timing: 1600 + ((i * 83 + idx * 131) % 500)
+          })),
+        timeLimit: 6000 + (i * 149) % 1000,
         difficulty: 'medium'
       },
       {
         round: 3,
-        targets: [
-          { 
-            x: 10 + (i * 6) % 80, 
-            y: 15 + (i * 4) % 70, 
+        targets: generatePositions(4, baseSeed + 3).map((pos, idx) => ({ 
+            x: pos.x, 
+            y: pos.y, 
             size: 0.8, 
-            timing: 1500 + (i * 30) % 200 
-          },
-          { 
-            x: 30 + (i * 9) % 50, 
-            y: 35 + (i * 5) % 50, 
-            size: 0.8, 
-            timing: 1500 + (i * 30) % 200 
-          },
-          { 
-            x: 50 + (i * 7) % 40, 
-            y: 55 + (i * 8) % 30, 
-            size: 0.8, 
-            timing: 1500 + (i * 30) % 200 
-          },
-          { 
-            x: 70 + (i * 4) % 25, 
-            y: 75 + (i * 6) % 20, 
-            size: 0.8, 
-            timing: 1500 + (i * 30) % 200 
-          }
-        ],
-        timeLimit: 7000 + (i * 60) % 300,
+            timing: 1400 + ((i * 89 + idx * 139) % 400)
+          })),
+        timeLimit: 7000 + (i * 157) % 1000,
         difficulty: 'hard'
       }
     ]
@@ -518,20 +509,50 @@ export const SWORD_SLASH_RNG_CONFIGS: SwordSlashRNGConfig[] = [
   }
 ];
 
-// Generate remaining 17 sword slash configurations
+// Generate remaining 17 sword slash configurations with IMPROVED RNG
 for (let i = 4; i <= 20; i++) {
   const attackSpawns = [];
   const numAttacks = 7 + (i % 3); // 7-9 attacks per game
+  const baseSeed = i * 54321;
+  
+  // Track recent positions to prevent stacking
+  const recentPositions: Array<{x: number, y: number}> = [];
   
   for (let j = 0; j < numAttacks; j++) {
-    const time = 1000 + (j * 2500) + ((i * j * 200) % 1000);
-    const x = 20 + ((i * 7 + j * 11) % 60);
-    const y = 25 + ((i * 13 + j * 17) % 50);
-    const lifetime = 3000 + ((i + j) % 10) * 200;
-    const size = 0.8 + ((i + j) % 5) * 0.1;
+    // Better time distribution using larger intervals
+    const time = 1000 + (j * 2500) + ((baseSeed * 67 + j * 181) % 1200);
+    
+    // Generate non-stacking position
+    let x = 0, y = 0;
+    let attempts = 0;
+    let validPos = false;
+    
+    while (!validPos && attempts < 100) {
+      // Use larger primes for better distribution
+      x = 20 + ((baseSeed * 71 + j * 157 + attempts * 31) % 60);
+      y = 25 + ((baseSeed * 103 + j * 173 + attempts * 37) % 50);
+      
+      // Check distance from last 3 spawns (prevent stacking)
+      const minDistance = 15;
+      validPos = recentPositions.slice(-3).every(pos => {
+        const dx = pos.x - x;
+        const dy = pos.y - y;
+        return Math.sqrt(dx * dx + dy * dy) >= minDistance;
+      });
+      
+      attempts++;
+    }
+    
+    recentPositions.push({ x, y });
+    
+    const lifetime = 2500 + ((baseSeed + j * 107) % 1000); // 2500-3500ms
+    const size = 0.8 + ((baseSeed + j * 113) % 5) * 0.1; // 0.8-1.2
     
     attackSpawns.push({ time, x, y, lifetime, size });
   }
+  
+  // Sort by time to ensure proper spawn order
+  attackSpawns.sort((a, b) => a.time - b.time);
   
   SWORD_SLASH_RNG_CONFIGS.push({
     id: i,
@@ -545,25 +566,31 @@ for (let i = 4; i <= 20; i++) {
 // 20 Quick Click RNG Configurations
 export const QUICK_CLICK_RNG_CONFIGS: QuickClickRNGConfig[] = [];
 
-// Generate 20 Quick Click configurations with varied wait times
+// Generate 20 Quick Click configurations with IMPROVED varied wait times
 for (let i = 1; i <= 20; i++) {
   const rounds = [];
+  const baseSeed = i * 98765;
   
   // Generate 4 rounds (3 regular + 1 bonus)
   for (let round = 1; round <= 4; round++) {
-    // Wait time between 2-6 seconds, deterministic based on config ID and round
-    const baseWait = 2000 + ((i * round * 347) % 4000); // 2000-6000ms
+    // IMPROVED: Better wait time distribution (2-6 seconds) with more variation
+    // Use larger primes to ensure no repetition
+    const baseWait = 2000 + ((baseSeed * 199 + round * 509) % 4000); // 2000-6000ms
+    
+    // Add round-based scaling for difficulty
+    const difficultyScale = 1 - (round * 0.05); // Slightly faster in later rounds
+    const waitTime = Math.max(1500, Math.floor(baseWait * difficultyScale));
     
     const roundConfig: any = {
       round,
-      waitTime: baseWait
+      waitTime
     };
     
-    // Bonus round (round 4) gets a target position
+    // Bonus round (round 4) gets a target position with better distribution
     if (round === 4) {
       roundConfig.bonusTarget = {
-        x: 20 + ((i * 23) % 60), // 20-80%
-        y: 20 + ((i * 37) % 60)  // 20-80%
+        x: 20 + ((baseSeed * 211 + 233) % 60), // 20-80%
+        y: 20 + ((baseSeed * 241 + 251) % 60)  // 20-80%
       };
     }
     

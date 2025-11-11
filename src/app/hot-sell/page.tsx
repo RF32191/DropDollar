@@ -1142,10 +1142,10 @@ export default function HotSellPage() {
                   </div>
                 </div>
 
-                {/* Top Scores (only show if user has joined) */}
-                {hasJoined && topScores.length > 0 && (
+                {/* Top Scores (only show if user has PLAYED - submitted a score) */}
+                {hasPlayed && topScores.length > 0 && (
                   <div className="mb-4 p-3 bg-black/30 rounded-xl">
-                    <h4 className="text-xs font-semibold text-orange-300 mb-2 uppercase">Current Top 3</h4>
+                    <h4 className="text-xs font-semibold text-orange-300 mb-2 uppercase">🏆 Scoreboard - All Players</h4>
                     {topScores.map((p, idx) => {
                       const isCurrentUser = p.user_id === user?.id;
                       const displayName = isCurrentUser ? 'You' : (p.username || `Player ${idx + 1}`);

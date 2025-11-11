@@ -30,9 +30,13 @@ interface Round {
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: QuickClickGameProps) {
   // Get fair RNG configuration for deterministic gameplay
+  // Fallback to random config if listingId/entryNumber not provided
   const rngConfig = (listingId && entryNumber) 
     ? FairRNGService.getQuickClickConfig(listingId, entryNumber)
     : null;
+  
+  // Fallback wait times if no RNG config (practice mode)
+  const fallbackWaitTimes = [3000, 2500, 3500, 2000];
     
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'waiting' | 'flash' | 'clicked' | 'ended'>('ready');
   const [currentRound, setCurrentRound] = useState(1);
@@ -88,7 +92,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     let targetX: number;
     let targetY: number;
     
-    if (rngConfig && isCompetitionMode) {
+    if (rngConfig && isCompetitionMode && rngConfig.rounds && rngConfig.rounds[currentRound - 1]) {
       // COMPETITION MODE: Use predetermined values from RNG config
       const roundConfig = rngConfig.rounds[currentRound - 1];
       waitTime = roundConfig.waitTime;
@@ -103,8 +107,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         console.log(`⚡ [QuickClick] Round ${currentRound} - Wait: ${waitTime}ms - DETERMINISTIC`);
       }
     } else {
-      // PRACTICE MODE: Random wait times and positions
-      waitTime = 2000 + Math.random() * 4000;
+      // PRACTICE MODE or FALLBACK: Use fallback wait times or random
+      waitTime = fallbackWaitTimes[currentRound - 1] || (2000 + Math.random() * 4000);
       
       if (isBonus) {
         targetX = 20 + Math.random() * 60;
