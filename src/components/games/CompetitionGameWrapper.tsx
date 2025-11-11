@@ -89,7 +89,7 @@ export default function CompetitionGameWrapper({
       onExit,
       listingId,
       entryNumber: currentEntry,
-      isCompetition: true
+      isCompetitionMode: true // Fixed: was isCompetition, should be isCompetitionMode
     };
 
     switch (gameType) {

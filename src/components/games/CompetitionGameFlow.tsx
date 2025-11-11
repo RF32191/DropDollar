@@ -13,6 +13,7 @@ import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
 import QuickClickGame from '@/components/games/QuickClickGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
 import BladeBounceGame from '@/components/games/BladeBounceGame';
+import CashStackGame from '@/components/games/CashStackGame';
 import { 
   TrophyIcon, 
   ClockIcon, 
@@ -124,7 +125,7 @@ export default function CompetitionGameFlow({
     }
   }, [gameState]);
 
-  const handleGameEnd = async (result: { score: number; accuracy: number; avgReactionTime: number } | number, accuracy?: number, duration?: number) => {
+  const handleGameEnd = async (result: { score: number; accuracy: number; avgReactionTime?: number } | number, accuracy?: number, duration?: number) => {
     try {
       // Handle both object and individual parameter formats
       let score: number;
@@ -132,7 +133,7 @@ export default function CompetitionGameFlow({
       let gameDuration: number;
 
       if (typeof result === 'object' && result !== null) {
-        // Game passed an object (new format)
+        // Game passed an object (new format) - avgReactionTime is optional for games like BladeBounce
         score = result.score;
         gameAccuracy = result.accuracy;
         gameDuration = 60; // Default duration for competition games
@@ -257,32 +258,44 @@ export default function CompetitionGameFlow({
   };
 
   const getGameComponent = () => {
-    const gameProps = {
+    // Base props that all games accept
+    const baseProps = {
       onGameEnd: handleGameEnd,
-      onExit: onCancel, // Add onExit prop for games that need it (like BladeBounce)
+      onExit: onCancel,
       isCompetitionMode: true,
-      gameDuration: 60, // 60 seconds for competitions
-      rngSeed: rngSeed, // Use the assigned RNG seed for this listing
-      gameSession: gameSession || undefined, // Pass game session for server-side validation
       listingId: sessionId,
       entryNumber: 1
     };
 
+    // Additional props for games that support them
+    const rngProps = {
+      ...baseProps,
+      rngSeed: rngSeed // Games with deterministic RNG
+    };
+
+    // Props for games that need gameSession (like BladeBounce)
+    const sessionProps = {
+      ...baseProps,
+      gameSession: gameSession || undefined
+    };
+
     switch (gameType) {
       case 'laser_dodge':
-        return <LaserDodgeGame {...gameProps} />;
+        return <LaserDodgeGame {...rngProps} />;
       case 'multi_target_reaction':
-        return <MultiTargetGame {...gameProps} />;
+        return <MultiTargetGame {...rngProps} />;
       case 'sword_parry':
-        return <SwordParryGameSimple {...gameProps} />;
+        return <SwordParryGameSimple {...rngProps} />;
       case 'number_tap':
       case 'quick_click':  // Support both names
-        return <QuickClickGame {...gameProps} />;
+        return <QuickClickGame {...rngProps} />;
       case 'memory_color':
       case 'color_sequence':  // Support both names
-        return <ColorSequenceGame {...gameProps} />;
+        return <ColorSequenceGame {...baseProps} />;
       case 'blade_bounce':
-        return <BladeBounceGame {...gameProps} />;
+        return <BladeBounceGame {...sessionProps} />;
+      case 'cash_stack':
+        return <CashStackGame {...sessionProps} />;
       default:
         return <div className="text-white text-center">Unknown game type: {gameType}</div>;
     }
@@ -297,6 +310,7 @@ export default function CompetitionGameFlow({
       case 'quick_click': return '⚡ Quick Click';
       case 'memory_color': return '🧠 Memory Color';
       case 'blade_bounce': return '⚔️ Blade Bounce';
+      case 'cash_stack': return '💰 Cash Stack';
       default: return '🎮 Game';
     }
   };

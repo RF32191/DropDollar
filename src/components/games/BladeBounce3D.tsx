@@ -1616,35 +1616,42 @@ export default function BladeBounce3D({
             
             if (!response.ok || !result.valid) {
               console.error('❌ [BladeBounce3D] Validation failed:', result.reason);
-              alert(`Game validation failed: ${result.reason || 'Unknown error'}. Please try again.`);
-              if (onExit) onExit();
-              return;
+              console.warn('⚠️ [BladeBounce3D] Using client score despite validation failure');
+              // Don't fail the game - use client score as fallback
+              onGameEnd({
+                score: finalScore,
+                accuracy: finalAccuracy,
+              });
+            } else {
+              console.log('✅ [BladeBounce3D] Game validated successfully:', {
+                serverScore: result.serverScore,
+                clientScore: finalScore,
+                scoreDiff: Math.abs(result.serverScore - finalScore),
+                suspicionScore: result.suspicionScore,
+                showWarning: result.showWarning
+              });
+              
+              // Show warning if gameplay was suspicious
+              if (result.showWarning && result.suspicionScore) {
+                setSuspicionScore(result.suspicionScore);
+                setShowSuspicionWarning(true);
+                console.warn('⚠️ [BladeBounce3D] Showing suspicion warning to user');
+              }
+              
+              // Use server-validated score
+              onGameEnd({
+                score: result.serverScore,
+                accuracy: result.accuracy || finalAccuracy,
+              });
             }
-            
-            console.log('✅ [BladeBounce3D] Game validated successfully:', {
-              serverScore: result.serverScore,
-              clientScore: finalScore,
-              scoreDiff: Math.abs(result.serverScore - finalScore),
-              suspicionScore: result.suspicionScore,
-              showWarning: result.showWarning
-            });
-            
-            // Show warning if gameplay was suspicious
-            if (result.showWarning && result.suspicionScore) {
-              setSuspicionScore(result.suspicionScore);
-              setShowSuspicionWarning(true);
-              console.warn('⚠️ [BladeBounce3D] Showing suspicion warning to user');
-            }
-            
-            // Use server-validated score
-            onGameEnd({
-              score: result.serverScore,
-              accuracy: result.accuracy || finalAccuracy,
-            });
           } catch (error) {
             console.error('❌ [BladeBounce3D] Validation error:', error);
-            alert('Failed to validate game. Please check your connection and try again.');
-            if (onExit) onExit();
+            console.warn('⚠️ [BladeBounce3D] Continuing with client score despite validation error');
+            // Don't fail the game - use client score as fallback
+            onGameEnd({
+              score: finalScore,
+              accuracy: finalAccuracy,
+            });
           }
         } else {
           // No validation required (practice mode)

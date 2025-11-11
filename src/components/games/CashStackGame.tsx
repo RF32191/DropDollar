@@ -14,7 +14,7 @@ import dynamic from 'next/dynamic';
 
 interface CashStackGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
-  onExit: () => void;
+  onExit?: () => void; // Made optional to match other games
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;

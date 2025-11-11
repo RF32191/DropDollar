@@ -83,7 +83,7 @@ export default function SuddenDeathGame({
       onExit,
       listingId: `${listingId}-SUDDEN-DEATH`,
       entryNumber: 999, // Special entry number for sudden death
-      isCompetition: true
+      isCompetitionMode: true // Fixed: was isCompetition, should be isCompetitionMode
     };
 
     switch (gameType) {

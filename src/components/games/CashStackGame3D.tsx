@@ -54,7 +54,7 @@ interface ChallengeCoin {
 
 interface CashStackGame3DProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
-  onExit: () => void;
+  onExit?: () => void; // Made optional to match other games
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;

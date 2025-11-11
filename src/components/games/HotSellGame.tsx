@@ -10,6 +10,10 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import LaserDodgeGame from './LaserDodgeGame';
 import MultiTargetGame from './MultiTargetGame';
 import SwordParryGameSimple from './SwordParryGameSimple';
+import BladeBounceGame from './BladeBounceGame';
+import CashStackGame from './CashStackGame';
+import QuickClickGame from './QuickClickGame';
+import ColorSequenceGame from './ColorSequenceGame';
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -190,11 +194,12 @@ export default function HotSellGame({ listing, onGameComplete, onLocationVerifie
           case 'laser_dodge':
             return (
               <LaserDodgeGame
-                onGameEnd={(finalScore, accuracy, avgReactionTime, gameDuration) => {
-                  setScore(finalScore);
-                  setAccuracy(accuracy);
+                onGameEnd={(result) => {
+                  // Games return { score, accuracy, avgReactionTime } object
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
                   setGameState('completed');
-                  onGameComplete(finalScore, accuracy);
+                  onGameComplete(result.score, result.accuracy);
                 }}
                 listingId={listing.id}
                 entryNumber={1}
@@ -204,11 +209,12 @@ export default function HotSellGame({ listing, onGameComplete, onLocationVerifie
           case 'multi_target_reaction':
             return (
               <MultiTargetGame
-                onGameEnd={(finalScore, accuracy, avgReactionTime, gameDuration) => {
-                  setScore(finalScore);
-                  setAccuracy(accuracy);
+                onGameEnd={(result) => {
+                  // Games return { score, accuracy, avgReactionTime } object
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
                   setGameState('completed');
-                  onGameComplete(finalScore, accuracy);
+                  onGameComplete(result.score, result.accuracy);
                 }}
                 listingId={listing.id}
                 entryNumber={1}
@@ -218,11 +224,70 @@ export default function HotSellGame({ listing, onGameComplete, onLocationVerifie
           case 'sword_parry':
             return (
               <SwordParryGameSimple
-                onGameEnd={(finalScore, accuracy, avgReactionTime, gameDuration) => {
-                  setScore(finalScore);
-                  setAccuracy(accuracy);
+                onGameEnd={(result) => {
+                  // Games return { score, accuracy, avgReactionTime } object
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
                   setGameState('completed');
-                  onGameComplete(finalScore, accuracy);
+                  onGameComplete(result.score, result.accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          case 'quick_click':
+          case 'number_tap':
+            return (
+              <QuickClickGame
+                onGameEnd={(result) => {
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
+                  setGameState('completed');
+                  onGameComplete(result.score, result.accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          case 'color_sequence':
+          case 'memory_color':
+            return (
+              <ColorSequenceGame
+                onGameEnd={(result) => {
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
+                  setGameState('completed');
+                  onGameComplete(result.score, result.accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          case 'blade_bounce':
+            return (
+              <BladeBounceGame
+                onGameEnd={(result) => {
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
+                  setGameState('completed');
+                  onGameComplete(result.score, result.accuracy);
+                }}
+                listingId={listing.id}
+                entryNumber={1}
+                isCompetitionMode={true}
+              />
+            );
+          case 'cash_stack':
+            return (
+              <CashStackGame
+                onGameEnd={(result) => {
+                  setScore(result.score);
+                  setAccuracy(result.accuracy);
+                  setGameState('completed');
+                  onGameComplete(result.score, result.accuracy);
                 }}
                 listingId={listing.id}
                 entryNumber={1}
