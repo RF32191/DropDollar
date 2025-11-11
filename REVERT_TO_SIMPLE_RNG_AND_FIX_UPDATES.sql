@@ -485,8 +485,8 @@ SELECT
   s.status,
   s.participants_count,
   s.current_pool,
-  c.max_participants,
-  ROUND((s.participants_count::numeric / c.max_participants) * 100, 2) as progress_percent
+  s.max_participants,
+  ROUND((s.participants_count::numeric / COALESCE(s.max_participants, 10)) * 100, 2) as progress_percent
 FROM winner_takes_all_configs c
 LEFT JOIN winner_takes_all_sessions s ON c.id = s.config_id AND s.status = 'active'
 ORDER BY c.entry_fee;
