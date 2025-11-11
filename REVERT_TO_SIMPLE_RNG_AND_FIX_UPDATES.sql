@@ -369,7 +369,6 @@ BEGIN
         participants_count,
         prize_pool,
         rng_seed,
-        starts_at,
         created_at,
         updated_at
       )
@@ -379,7 +378,6 @@ BEGIN
         0,
         0,
         floor(random() * 20) + 1,
-        now(),
         now(),
         now()
       );
@@ -404,7 +402,6 @@ BEGIN
         participants_count,
         current_pot,
         rng_seed,
-        starts_at,
         created_at,
         updated_at
       )
@@ -414,7 +411,6 @@ BEGIN
         0,
         0,
         floor(random() * 20) + 1,
-        now(),
         now(),
         now()
       );
@@ -439,7 +435,6 @@ BEGIN
         participants_count,
         prize_pool,
         rng_seed,
-        starts_at,
         created_at,
         updated_at
       )
@@ -449,7 +444,6 @@ BEGIN
         0,
         0,
         floor(random() * 20) + 1,
-        now(),
         now(),
         now()
       );
