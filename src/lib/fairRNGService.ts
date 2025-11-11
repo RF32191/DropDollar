@@ -193,33 +193,53 @@ export const MULTI_TARGET_RNG_CONFIGS: MultiTargetRNGConfig[] = [
   }
 ];
 
-// Generate remaining 17 configurations programmatically
+// Generate remaining 17 configurations using PROPER Mulberry32 RNG
+// Import the Mulberry32RNG class inline to avoid circular dependencies
+class TempRNG {
+  private seed: number;
+  constructor(seed: number) { this.seed = seed >>> 0; }
+  next(): number {
+    let t = (this.seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min)) + min;
+  }
+  nextFloat(min: number, max: number): number {
+    return this.next() * (max - min) + min;
+  }
+}
+
 for (let i = 4; i <= 20; i++) {
-  // IMPROVED RNG - Use better distribution to prevent stacking/repetition
-  const baseSeed = i * 12345;
+  // PROPER SEED GENERATION - Each config gets vastly different seed
+  const baseSeed = (i * 2654435761 + 2147483647) >>> 0;
   
-  // Helper to generate non-stacking positions
+  // Helper to generate non-stacking positions using proper RNG
   const generatePositions = (count: number, roundSeed: number) => {
+    const rng = new TempRNG(roundSeed);
     const positions = [];
     const minDistance = 15;
+    const maxAttempts = 200;
     
     for (let j = 0; j < count; j++) {
       let attempts = 0;
       let valid = false;
       let x = 0, y = 0;
       
-      while (!valid && attempts < 100) {
-        // Use larger primes for better distribution
-        x = 15 + ((roundSeed * 73 + j * 127) % 70);
-        y = 15 + ((roundSeed * 97 + j * 151) % 70);
+      while (!valid && attempts < maxAttempts) {
+        // TRUE RANDOM distribution between 15-85
+        x = rng.nextFloat(15, 85);
+        y = rng.nextFloat(15, 85);
         
+        // Check distance from ALL existing positions
         valid = positions.every(pos => {
           const dx = pos.x - x;
           const dy = pos.y - y;
           return Math.sqrt(dx * dx + dy * dy) >= minDistance;
         });
         
-        roundSeed += 31;
         attempts++;
       }
       
@@ -227,6 +247,10 @@ for (let i = 4; i <= 20; i++) {
     }
     return positions;
   };
+  
+  const rng1 = new TempRNG(baseSeed + 1);
+  const rng2 = new TempRNG(baseSeed + 2);
+  const rng3 = new TempRNG(baseSeed + 3);
   
   const config: MultiTargetRNGConfig = {
     id: i,
@@ -238,9 +262,9 @@ for (let i = 4; i <= 20; i++) {
             x: pos.x, 
             y: pos.y, 
             size: 1.0, 
-            timing: 1800 + ((i * 79 + idx * 113) % 600)
+            timing: rng1.nextInt(1800, 2400)
           })),
-        timeLimit: 5000 + (i * 137) % 1000,
+        timeLimit: rng1.nextInt(5000, 6000),
         difficulty: 'easy'
       },
       {
@@ -249,9 +273,9 @@ for (let i = 4; i <= 20; i++) {
             x: pos.x, 
             y: pos.y, 
             size: 0.9, 
-            timing: 1600 + ((i * 83 + idx * 131) % 500)
+            timing: rng2.nextInt(1600, 2100)
           })),
-        timeLimit: 6000 + (i * 149) % 1000,
+        timeLimit: rng2.nextInt(6000, 7000),
         difficulty: 'medium'
       },
       {
@@ -260,9 +284,9 @@ for (let i = 4; i <= 20; i++) {
             x: pos.x, 
             y: pos.y, 
             size: 0.8, 
-            timing: 1400 + ((i * 89 + idx * 139) % 400)
+            timing: rng3.nextInt(1400, 1800)
           })),
-        timeLimit: 7000 + (i * 157) % 1000,
+        timeLimit: rng3.nextInt(7000, 8000),
         difficulty: 'hard'
       }
     ]
@@ -420,32 +444,55 @@ export const LASER_DODGE_RNG_CONFIGS: LaserDodgeRNGConfig[] = [
   }
 ];
 
-// Generate remaining 17 laser dodge configurations
+// Generate remaining 17 laser dodge configurations using PROPER Mulberry32 RNG
 for (let i = 4; i <= 20; i++) {
-  const laserSpawns = [];
-  const enemySpawns = [];
-  const numLasers = 6 + (i % 4); // 6-9 lasers per game
+  // PROPER SEED GENERATION
+  const baseSeed = (i * 2654435761 + 1543503809) >>> 0;
+  const rng = new TempRNG(baseSeed);
+  
+  const numLasers = 6 + (i % 4); // 6-9 lasers per game  
   const numEnemies = 3 + (i % 3); // 3-5 enemies per game
   
+  // Generate laser spawn times with even distribution throughout 60 seconds
+  const laserSpawns = [];
+  const laserInterval = 58000 / (numLasers + 1);
+  
   for (let j = 0; j < numLasers; j++) {
-    const time = 1000 + (j * 2000) + ((i * j * 150) % 800);
-    const type: 'horizontal' | 'vertical' = (i + j) % 2 === 0 ? 'horizontal' : 'vertical';
-    const position = 15 + ((i * 11 + j * 13) % 70);
-    const timeToHarmful = 1200 + ((i + j) % 8) * 200;
-    const duration = 3000 + ((i * j) % 1500);
+    const baseTime = 1000 + (j + 1) * laserInterval;
+    const jitter = rng.nextFloat(-laserInterval * 0.3, laserInterval * 0.3);
+    const time = Math.max(1000, Math.floor(baseTime + jitter));
+    
+    const type: 'horizontal' | 'vertical' = rng.next() > 0.5 ? 'horizontal' : 'vertical';
+    const position = rng.nextFloat(15, 85);
+    const timeToHarmful = rng.nextInt(1200, 2500);
+    const duration = rng.nextInt(3000, 5000);
     
     laserSpawns.push({ time, type, position, timeToHarmful, duration });
   }
   
+  // Sort lasers by time
+  laserSpawns.sort((a, b) => a.time - b.time);
+  
+  // Generate enemy spawn times with even distribution throughout 60 seconds
+  const enemySpawns = [];
+  const enemyInterval = 58000 / (numEnemies + 1);
+  
   for (let k = 0; k < numEnemies; k++) {
-    const time = 2000 + (k * 8000) + ((i * k * 200) % 2000);
-    const direction: 'left' | 'right' = (i + k) % 2 === 0 ? 'left' : 'right';
-    const x = direction === 'left' ? 105 : -5;
-    const y = 20 + ((i * 7 + k * 11) % 60);
-    const speed = 0.15 + ((i + k) % 5) * 0.02; // 0.15-0.23
+    const baseTime = 2000 + (k + 1) * enemyInterval;
+    const jitter = rng.nextFloat(-enemyInterval * 0.3, enemyInterval * 0.3);
+    const time = Math.max(2000, Math.floor(baseTime + jitter));
+    
+    const fromLeft = rng.next() > 0.5;
+    const direction: 'left' | 'right' = fromLeft ? 'right' : 'left';
+    const x = fromLeft ? -5 : 105;
+    const y = rng.nextFloat(20, 80);
+    const speed = rng.nextFloat(0.15, 0.35);
     
     enemySpawns.push({ time, x, y, direction, speed });
   }
+  
+  // Sort enemies by time
+  enemySpawns.sort((a, b) => a.time - b.time);
   
   LASER_DODGE_RNG_CONFIGS.push({
     id: i,
@@ -509,32 +556,44 @@ export const SWORD_SLASH_RNG_CONFIGS: SwordSlashRNGConfig[] = [
   }
 ];
 
-// Generate remaining 17 sword slash configurations with IMPROVED RNG
+// Generate remaining 17 sword slash configurations using PROPER Mulberry32 RNG
 for (let i = 4; i <= 20; i++) {
-  const attackSpawns = [];
   const numAttacks = 7 + (i % 3); // 7-9 attacks per game
-  const baseSeed = i * 54321;
+  // PROPER SEED GENERATION
+  const baseSeed = (i * 2654435761 + 1640531527) >>> 0;
+  const rng = new TempRNG(baseSeed);
   
-  // Track recent positions to prevent stacking
-  const recentPositions: Array<{x: number, y: number}> = [];
+  // Generate spawn times with minimum spacing
+  const duration = 60000;
+  const startTime = 1000;
+  const endTime = duration - 1000;
+  const availableTime = endTime - startTime;
+  const baseInterval = availableTime / (numAttacks + 1);
+  
+  const attackSpawns = [];
+  const positions: Array<{x: number, y: number}> = [];
   
   for (let j = 0; j < numAttacks; j++) {
-    // Better time distribution using larger intervals
-    const time = 1000 + (j * 2500) + ((baseSeed * 67 + j * 181) % 1200);
+    // Evenly distributed time with jitter
+    const baseTime = startTime + (j + 1) * baseInterval;
+    const jitter = rng.nextFloat(-baseInterval * 0.3, baseInterval * 0.3);
+    const time = Math.max(startTime, Math.min(endTime, baseTime + jitter));
     
     // Generate non-stacking position
     let x = 0, y = 0;
     let attempts = 0;
+    const minDistance = 15;
+    const maxAttempts = 200;
     let validPos = false;
     
-    while (!validPos && attempts < 100) {
-      // Use larger primes for better distribution
-      x = 20 + ((baseSeed * 71 + j * 157 + attempts * 31) % 60);
-      y = 25 + ((baseSeed * 103 + j * 173 + attempts * 37) % 50);
+    while (!validPos && attempts < maxAttempts) {
+      // TRUE RANDOM distribution
+      x = rng.nextFloat(20, 80);
+      y = rng.nextFloat(25, 75);
       
       // Check distance from last 3 spawns (prevent stacking)
-      const minDistance = 15;
-      validPos = recentPositions.slice(-3).every(pos => {
+      const recentPositions = positions.slice(-3);
+      validPos = recentPositions.every(pos => {
         const dx = pos.x - x;
         const dy = pos.y - y;
         return Math.sqrt(dx * dx + dy * dy) >= minDistance;
@@ -543,12 +602,12 @@ for (let i = 4; i <= 20; i++) {
       attempts++;
     }
     
-    recentPositions.push({ x, y });
+    positions.push({ x, y });
     
-    const lifetime = 2500 + ((baseSeed + j * 107) % 1000); // 2500-3500ms
-    const size = 0.8 + ((baseSeed + j * 113) % 5) * 0.1; // 0.8-1.2
+    const lifetime = rng.nextInt(2500, 3500);
+    const size = rng.nextFloat(0.8, 1.2);
     
-    attackSpawns.push({ time, x, y, lifetime, size });
+    attackSpawns.push({ time: Math.floor(time), x, y, lifetime, size });
   }
   
   // Sort by time to ensure proper spawn order
@@ -566,16 +625,17 @@ for (let i = 4; i <= 20; i++) {
 // 20 Quick Click RNG Configurations
 export const QUICK_CLICK_RNG_CONFIGS: QuickClickRNGConfig[] = [];
 
-// Generate 20 Quick Click configurations with IMPROVED varied wait times
+// Generate 20 Quick Click configurations using PROPER Mulberry32 RNG
 for (let i = 1; i <= 20; i++) {
+  // PROPER SEED GENERATION
+  const baseSeed = (i * 2654435761 + 1013904223) >>> 0;
+  const rng = new TempRNG(baseSeed);
   const rounds = [];
-  const baseSeed = i * 98765;
   
   // Generate 4 rounds (3 regular + 1 bonus)
   for (let round = 1; round <= 4; round++) {
-    // IMPROVED: Better wait time distribution (2-6 seconds) with more variation
-    // Use larger primes to ensure no repetition
-    const baseWait = 2000 + ((baseSeed * 199 + round * 509) % 4000); // 2000-6000ms
+    // TRUE RANDOM wait time between 2-6 seconds
+    const baseWait = rng.nextFloat(2000, 6000);
     
     // Add round-based scaling for difficulty
     const difficultyScale = 1 - (round * 0.05); // Slightly faster in later rounds
@@ -586,11 +646,11 @@ for (let i = 1; i <= 20; i++) {
       waitTime
     };
     
-    // Bonus round (round 4) gets a target position with better distribution
+    // Bonus round (round 4) gets a target position
     if (round === 4) {
       roundConfig.bonusTarget = {
-        x: 20 + ((baseSeed * 211 + 233) % 60), // 20-80%
-        y: 20 + ((baseSeed * 241 + 251) % 60)  // 20-80%
+        x: rng.nextFloat(20, 80),
+        y: rng.nextFloat(20, 80)
       };
     }
     
