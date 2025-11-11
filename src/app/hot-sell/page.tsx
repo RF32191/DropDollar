@@ -561,6 +561,11 @@ export default function HotSellPage() {
         console.log('✅ [Hot Sell] Score recorded successfully:', data);
         setMessage({ type: 'success', text: `Game completed! Your score: ${score.toFixed(2)}` });
         
+        // IMMEDIATELY refresh sessions to show updated state
+        console.log('🔄 [Hot Sell] Refreshing sessions immediately...');
+        await loadSessions();
+        await refreshTokens(); // Also refresh token balance
+        
         // Check if we should trigger payout
         setTimeout(async () => {
           console.log('🔍 [Hot Sell] Checking for payout trigger...');
@@ -609,11 +614,16 @@ export default function HotSellPage() {
       // Return to list view
       setCurrentView('list');
       setSelectedGameFlow(null);
+      
+      // Final refresh to ensure UI is in sync
+      console.log('🔄 [Hot Sell] Final session refresh...');
       await loadSessions();
 
     } catch (error) {
       console.error('❌ [Hot Sell] Error recording score:', error);
       setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
+      // Even on error, refresh to show current state
+      await loadSessions();
     }
 
     // Scroll to top

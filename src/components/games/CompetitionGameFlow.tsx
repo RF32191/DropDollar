@@ -276,8 +276,10 @@ export default function CompetitionGameFlow({
       case 'sword_parry':
         return <SwordParryGameSimple {...gameProps} />;
       case 'number_tap':
+      case 'quick_click':  // Support both names
         return <QuickClickGame {...gameProps} />;
       case 'memory_color':
+      case 'color_sequence':  // Support both names
         return <ColorSequenceGame {...gameProps} />;
       case 'blade_bounce':
         return <BladeBounceGame {...gameProps} />;
@@ -291,7 +293,8 @@ export default function CompetitionGameFlow({
       case 'laser_dodge': return '🚀 Laser Dodge';
       case 'multi_target_reaction': return '🎯 Multi-Target Reaction';
       case 'sword_parry': return '⚔️ Sword Parry';
-      case 'number_tap': return '⚡ Quick Click';
+      case 'number_tap':
+      case 'quick_click': return '⚡ Quick Click';
       case 'memory_color': return '🧠 Memory Color';
       case 'blade_bounce': return '⚔️ Blade Bounce';
       default: return '🎮 Game';
