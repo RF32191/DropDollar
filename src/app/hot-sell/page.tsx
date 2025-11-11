@@ -557,11 +557,24 @@ export default function HotSellPage() {
       if (error) {
         console.error('❌ [Hot Sell] Error updating score:', error);
         setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
+        // Still refresh to keep UI in sync
+        await loadSessions();
+        await refreshTokens();
       } else {
         console.log('✅ [Hot Sell] Score recorded successfully:', data);
-        setMessage({ type: 'success', text: `Game completed! Your score: ${score.toFixed(2)}` });
         
-        // IMMEDIATELY refresh sessions to show updated state
+        // Show stats from returned data if available
+        if (data?.stats) {
+          console.log('📊 [Hot Sell] Updated stats from server:', data.stats);
+          setMessage({ 
+            type: 'success', 
+            text: `Game completed! Your score: ${score.toFixed(2)} | Progress: ${data.stats.progress_percent}%` 
+          });
+        } else {
+          setMessage({ type: 'success', text: `Game completed! Your score: ${score.toFixed(2)}` });
+        }
+        
+        // IMMEDIATELY refresh sessions to show updated state (scoreboard, progress bar, lockout)
         console.log('🔄 [Hot Sell] Refreshing sessions immediately...');
         await loadSessions();
         await refreshTokens(); // Also refresh token balance
