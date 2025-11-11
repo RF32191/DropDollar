@@ -54,47 +54,34 @@ export default function CompetitionGameFlow({
   // Enable fullscreen when game is playing
   const fullscreenRef = useFullscreenGame(gameState === 'playing');
 
-  // Request game session on component mount
+  // Create game session directly with RNG seed from Hot Sell session
   useEffect(() => {
-    const requestGameSession = async () => {
+    const createGameSession = async () => {
       try {
-        console.log('🔐 [CompetitionGameFlow] Requesting game session...', {
+        console.log('🔐 [CompetitionGameFlow] Creating game session directly...', {
           gameType,
           sessionId,
+          rngSeed
+        });
+        
+        if (!user) {
+          throw new Error('No user logged in');
+        }
+        
+        // Create a simple game session object for the game to use
+        // This includes the RNG seed from the Hot Sell session
+        const newGameSession: GameSession = {
+          sessionId: `game-${sessionId}-${Date.now()}`,
+          token: `token-${Date.now()}`,
+          rngSeed: rngSeed,
+          expiresAt: Date.now() + (60 * 60 * 1000), // 1 hour from now
+          gameType: gameType,
+          listingId: sessionId,
           entryNumber: 1
-        });
+        };
         
-        // Get current session token for authentication
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('No active session');
-        }
-        
-        const response = await fetch('/api/game-session/create', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            gameType,
-            listingId: sessionId,
-            entryNumber: 1
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to create game session');
-        }
-        
-        const data = await response.json();
-        
-        if (!data.success || !data.session) {
-          throw new Error('Invalid session response');
-        }
-        
-        console.log('✅ [CompetitionGameFlow] Game session created:', data.session);
-        setGameSession(data.session);
+        console.log('✅ [CompetitionGameFlow] Game session created with RNG seed:', newGameSession);
+        setGameSession(newGameSession);
         setGameState('countdown'); // Move to countdown after session is created
         
       } catch (error) {
@@ -104,8 +91,8 @@ export default function CompetitionGameFlow({
       }
     };
     
-    requestGameSession();
-  }, [gameType, sessionId]);
+    createGameSession();
+  }, [gameType, sessionId, rngSeed, user]);
 
   useEffect(() => {
     // Start countdown only when gameState is 'countdown'

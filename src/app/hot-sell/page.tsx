@@ -667,6 +667,13 @@ export default function HotSellPage() {
         loadSessions()
       ]);
       
+      // Clear the payout countdown timer for this config to hide the timer box
+      setPayoutCountdown(prev => {
+        const updated = { ...prev };
+        delete updated[configId];
+        return updated;
+      });
+      
       if (!isSessionValid) {
         console.warn('⚠️ [Hot Sell] Session invalid (but refreshing anyway)');
         // Don't show error - just refresh

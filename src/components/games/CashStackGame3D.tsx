@@ -144,9 +144,9 @@ export default function CashStackGame3D({
   
   // Use RNG seed to select one of 20 patterns if in competition mode
   const [currentVariation, setCurrentVariation] = useState(() => {
-    if (gameSession?.rng_seed) {
+    if (gameSession?.rngSeed) {
       // Use seed to deterministically select a variation (1-20)
-      const variationIndex = (gameSession.rng_seed % 20);
+      const variationIndex = (gameSession.rngSeed % 20);
       return GAME_VARIATIONS[variationIndex];
     }
     return GAME_VARIATIONS[0];
