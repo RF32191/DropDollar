@@ -16,6 +16,7 @@ interface SwordParryGameProps {
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;
+  rngSeed?: number; // RNG seed (1-20) for deterministic spawns
 }
 
 interface Attack {
@@ -26,7 +27,11 @@ interface Attack {
   hitType?: string; // Track the type of hit for visual feedback
 }
 
-export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: SwordParryGameProps) {
+export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: SwordParryGameProps) {
+  // DON'T use pre-generated configs - causes gameplay issues (stacking swords)
+  // Instead, use rngSeed to initialize engine for runtime generation
+  const rngConfig = null; // Disabled - using runtime RNG instead
+  
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [attacks, setAttacks] = useState<Attack[]>([]);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
@@ -44,10 +49,29 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const gameStartTimeRef = useRef(0); // Track game start time for speed scoring
   const gameEndedRef = useRef(false); // Prevent multiple endGame calls
   
-  // Get fair RNG configuration based on listing and attempt number
-  const rngConfig = (listingId && entryNumber) 
-    ? FairRNGService.getSwordSlashConfig(listingId, entryNumber)
-    : null;
+  // Seeded RNG for deterministic gameplay
+  const seededRng = useMemo(() => {
+    if (!rngSeed) return null;
+    
+    class Mulberry32 {
+      private seed: number;
+      constructor(seed: number) { this.seed = seed >>> 0; }
+      next(): number {
+        let t = (this.seed += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+      nextInt(min: number, max: number): number {
+        return Math.floor(this.next() * (max - min)) + min;
+      }
+      nextFloat(min: number, max: number): number {
+        return this.next() * (max - min) + min;
+      }
+    }
+    
+    return new Mulberry32(rngSeed);
+  }, [rngSeed]);
 
   // Simple countdown
   useEffect(() => {
@@ -85,27 +109,50 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       const now = Date.now();
       const timeSinceStart = now - gameStartTimeRef.current;
       
-      // Use RNG configuration if available (competition mode)
-      if (rngConfig && isCompetitionMode) {
-        // Spawn attacks based on RNG configuration
-        const upcomingAttacks = rngConfig.attackSpawns.filter(spawn => 
-          spawn.time <= timeSinceStart && spawn.time > timeSinceStart - 100
-        );
+      // Use seeded RNG if available (competition mode)
+      if (seededRng) {
+        // COMPETITION MODE: Use seeded RNG for deterministic but varied gameplay
+        const level = Math.floor(timeSinceStart / 10000) + 1; // Level up every 10 seconds
+        const spawnInterval = Math.max(600, 1200 - (level * 100)); // Get faster over time
         
-        for (const spawnConfig of upcomingAttacks) {
+        if (now - lastSpawn.current > spawnInterval) {
+          lastSpawn.current = now;
+          
+          // Check for stacking - prevent attacks from spawning too close to existing ones
+          const minDistance = 15; // Minimum distance between attacks
+          let attempts = 0;
+          const maxAttempts = 50;
+          let validPosition = false;
+          let x = 0, y = 0;
+          
+          while (!validPosition && attempts < maxAttempts) {
+            x = seededRng.nextFloat(10, 90);
+            y = seededRng.nextFloat(10, 90);
+            
+            // Check distance from all existing attacks
+            validPosition = attacks.every(attack => {
+              const dx = attack.x - x;
+              const dy = attack.y - y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              return distance >= minDistance || attack.destroyed;
+            });
+            
+            attempts++;
+          }
+          
           const newAttack: Attack = {
-            id: now + Math.random(), // Unique ID
-            x: spawnConfig.x,
-            y: spawnConfig.y,
+            id: now + seededRng.next(),
+            x,
+            y,
             destroyed: false
           };
           
-          console.log(`Spawned RNG attack at ${timeSinceStart}ms:`, spawnConfig);
+          console.log(`✅ Spawned SEEDED attack at ${timeSinceStart}ms: (${x.toFixed(1)}, ${y.toFixed(1)})`);
           setAttacks(prev => [...prev, newAttack]);
           setTotalCount(prev => prev + 1);
         }
       } else {
-        // Practice mode: Progressive difficulty
+        // PRACTICE MODE: Progressive difficulty
         const gameTime = Math.floor((60 - timeLeft) / 10) + 1; // Level 1-6 based on 10-second intervals
         
         const attacksPerSpawn = Math.min(gameTime, 5); // Max 5 attacks at once

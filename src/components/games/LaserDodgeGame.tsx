@@ -16,6 +16,7 @@ interface LaserDodgeGameProps {
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;
+  rngSeed?: number; // RNG seed (1-20) for deterministic spawns
 }
 
 interface Laser {
@@ -56,7 +57,11 @@ interface Explosion {
   type: 'enemy' | 'ship';
 }
 
-export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: LaserDodgeGameProps) {
+export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: LaserDodgeGameProps) {
+  // DON'T use pre-generated configs - causes gameplay issues (stacking, repetition)
+  // Instead, use rngSeed to initialize engine for runtime generation
+  const rngConfig = null; // Disabled - using runtime RNG instead
+  
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
@@ -80,10 +85,29 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
   const lastShotRef = useRef<number>(0);
   
-  // Get fair RNG configuration based on listing and attempt number
-  const rngConfig = (listingId && entryNumber) 
-    ? FairRNGService.getLaserDodgeConfig(listingId, entryNumber)
-    : null;
+  // Seeded RNG for deterministic gameplay
+  const seededRng = useMemo(() => {
+    if (!rngSeed) return null;
+    
+    class Mulberry32 {
+      private seed: number;
+      constructor(seed: number) { this.seed = seed >>> 0; }
+      next(): number {
+        let t = (this.seed += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+      nextInt(min: number, max: number): number {
+        return Math.floor(this.next() * (max - min)) + min;
+      }
+      nextFloat(min: number, max: number): number {
+        return this.next() * (max - min) + min;
+      }
+    }
+    
+    return new Mulberry32(rngSeed);
+  }, [rngSeed]);
 
   // Simple countdown without GameCountdown component
   useEffect(() => {
@@ -160,28 +184,56 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     currentScoreRef.current = newScore;
     setScore(newScore);
 
-    // Spawn lasers - use RNG config if available (competition mode)
-    if (rngConfig && isCompetitionMode) {
-      // Spawn lasers based on RNG configuration
-      const upcomingLasers = rngConfig.laserSpawns.filter(spawn => 
-        spawn.time <= timeSinceStart && spawn.time > timeSinceStart - 100
-      );
+    // Spawn lasers - use seeded RNG if available (competition mode) or Math.random() (practice mode)
+    if (seededRng) {
+      // COMPETITION MODE: Use seeded RNG for deterministic but varied gameplay
+      // Progressive difficulty similar to practice mode
+      const level = Math.floor(timeSinceStart / 5000) + 1;
+      const isExtremeMode = timeSinceStart > 30000;
+      const isCrazyMode = timeSinceStart > 52000;
       
-      for (const spawnConfig of upcomingLasers) {
-        const newLaser: Laser = {
-          id: now + Math.random(),
-          type: spawnConfig.type,
-          position: spawnConfig.position,
-          isHarmful: false,
-          timeToHarmful: spawnConfig.timeToHarmful,
-          createdAt: now
-        };
+      // Play mode transition audio
+      if (isCrazyMode && !crazyModeTriggeredRef.current) {
+        crazyModeTriggeredRef.current = true;
+        playCrazyModeActivation();
+      } else if (isExtremeMode && !extremeModeTriggeredRef.current) {
+        extremeModeTriggeredRef.current = true;
+        playExtremeModeActivation();
+      }
+      
+      let spawnRate;
+      let laserCount = 1;
+      
+      if (isCrazyMode) {
+        spawnRate = seededRng.nextInt(25, 75);
+        laserCount = seededRng.nextInt(2, 4);
+      } else if (isExtremeMode) {
+        spawnRate = seededRng.nextInt(100, 200);
+        laserCount = seededRng.nextInt(1, 3);
+      } else {
+        spawnRate = seededRng.nextInt(400, 800);
+      }
+      
+      if (now - lastLaserSpawnRef.current > spawnRate) {
+        lastLaserSpawnRef.current = now;
         
-        console.log(`LaserDodge: Spawned RNG laser at ${timeSinceStart}ms:`, spawnConfig);
-        setLasers(prev => [...prev, newLaser]);
+        for (let i = 0; i < laserCount; i++) {
+          const newLaser: Laser = {
+            id: now + seededRng.next(),
+            type: seededRng.next() > 0.5 ? 'horizontal' : 'vertical',
+            position: seededRng.nextFloat(10, 90),
+            isHarmful: false,
+            timeToHarmful: seededRng.nextInt(800, 1500),
+            createdAt: now
+          };
+          
+          setLasers(prev => [...prev, newLaser]);
+        }
+        
+        playLaserWarn();
       }
     } else {
-      // Practice mode: Original progressive difficulty system
+      // PRACTICE MODE: Original progressive difficulty system
       const level = Math.floor(timeSinceStart / 5000) + 1;
       const isExtremeMode = timeSinceStart > 30000; // Extreme mode after 30 seconds
       const isCrazyMode = timeSinceStart > 52000; // CRAZY mode after 52 seconds
@@ -244,28 +296,66 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     }
 
-    // Spawn enemy ships - use RNG config if available (competition mode)
-    if (rngConfig && isCompetitionMode) {
-      // Spawn enemies based on RNG configuration
-      const upcomingEnemies = rngConfig.enemySpawns?.filter(spawn => 
-        spawn.time <= timeSinceStart && spawn.time > timeSinceStart - 100
-      ) || [];
+    // Spawn enemy ships - use seeded RNG if available (competition mode)
+    if (seededRng) {
+      // COMPETITION MODE: Use seeded RNG for deterministic enemy spawning
+      const level = Math.floor(timeSinceStart / 5000) + 1;
+      const isExtremeMode = timeSinceStart > 30000;
+      const isCrazyMode = timeSinceStart > 52000;
       
-      for (const spawnConfig of upcomingEnemies) {
+      let enemySpawnRate;
+      if (isCrazyMode) {
+        enemySpawnRate = seededRng.nextInt(800, 2000);
+      } else if (isExtremeMode) {
+        enemySpawnRate = seededRng.nextInt(1200, 3000);
+      } else {
+        enemySpawnRate = seededRng.nextInt(2000, 4000);
+      }
+      
+      if (now - lastEnemySpawnRef.current > enemySpawnRate) {
+        lastEnemySpawnRef.current = now;
+        
+        const spawnSide = seededRng.next();
+        let x, y, direction;
+        
+        if (spawnSide < 0.25) {
+          // Top
+          x = seededRng.nextFloat(5, 95);
+          y = 0;
+          direction = seededRng.next() > 0.5 ? 'down' : (seededRng.next() > 0.5 ? 'left' : 'right');
+        } else if (spawnSide < 0.5) {
+          // Right
+          x = 100;
+          y = seededRng.nextFloat(5, 95);
+          direction = seededRng.next() > 0.5 ? 'left' : (seededRng.next() > 0.5 ? 'up' : 'down');
+        } else if (spawnSide < 0.75) {
+          // Bottom
+          x = seededRng.nextFloat(5, 95);
+          y = 100;
+          direction = seededRng.next() > 0.5 ? 'up' : (seededRng.next() > 0.5 ? 'left' : 'right');
+        } else {
+          // Left
+          x = 0;
+          y = seededRng.nextFloat(5, 95);
+          direction = seededRng.next() > 0.5 ? 'right' : (seededRng.next() > 0.5 ? 'up' : 'down');
+        }
+        
+        const speedMultiplier = isCrazyMode ? 1.8 : isExtremeMode ? 1.4 : 1.0;
+        
         const newEnemy: EnemyShip = {
-          id: now + Math.random(),
-          x: spawnConfig.x,
-          y: spawnConfig.y,
-          direction: spawnConfig.direction,
-          speed: spawnConfig.speed,
-          createdAt: now
+          id: now + seededRng.next(),
+          x,
+          y,
+          direction: direction as any,
+          speed: seededRng.nextFloat(0.08, 0.15) * speedMultiplier,
+          createdAt: now,
+          type: 'enemy'
         };
         
-        console.log(`LaserDodge: Spawned RNG enemy at ${timeSinceStart}ms:`, spawnConfig);
         setEnemyShips(prev => [...prev, newEnemy]);
       }
     } else {
-      // Practice mode: Progressive enemy spawning
+      // PRACTICE MODE: Progressive enemy spawning
       const level = Math.floor(timeSinceStart / 5000) + 1;
       const isExtremeMode = timeSinceStart > 30000;
       const isCrazyMode = timeSinceStart > 52000;

@@ -16,6 +16,7 @@ interface QuickClickGameProps {
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;
+  rngSeed?: number; // RNG seed (1-20) for deterministic spawns
 }
 
 interface Round {
@@ -28,14 +29,36 @@ interface Round {
   accuracy?: number;
 }
 
-export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode }: QuickClickGameProps) {
-  // Get fair RNG configuration for deterministic gameplay
-  // Fallback to random config if listingId/entryNumber not provided
-  const rngConfig = (listingId && entryNumber) 
-    ? FairRNGService.getQuickClickConfig(listingId, entryNumber)
-    : null;
+export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
+  // DON'T use pre-generated configs - causes gameplay issues
+  // Instead, use rngSeed to initialize engine for runtime generation
+  const rngConfig = null; // Disabled - using runtime RNG instead
   
-  // Fallback wait times if no RNG config (practice mode)
+  // Seeded RNG for deterministic gameplay
+  const seededRng = useMemo(() => {
+    if (!rngSeed) return null;
+    
+    class Mulberry32 {
+      private seed: number;
+      constructor(seed: number) { this.seed = seed >>> 0; }
+      next(): number {
+        let t = (this.seed += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+      nextInt(min: number, max: number): number {
+        return Math.floor(this.next() * (max - min)) + min;
+      }
+      nextFloat(min: number, max: number): number {
+        return this.next() * (max - min) + min;
+      }
+    }
+    
+    return new Mulberry32(rngSeed);
+  }, [rngSeed]);
+  
+  // Fallback wait times if no RNG seed (practice mode)
   const fallbackWaitTimes = [3000, 2500, 3500, 2000];
     
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'waiting' | 'flash' | 'clicked' | 'ended'>('ready');
@@ -87,28 +110,27 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     console.log(`QuickClick: Starting round ${currentRound}`);
     const isBonus = currentRound === 4;
     
-    // Get wait time and target position - DETERMINISTIC (competition) or RANDOM (practice)
+    // Get wait time and target position - DETERMINISTIC (competition with seed) or RANDOM (practice)
     let waitTime: number;
     let targetX: number;
     let targetY: number;
     
-    if (rngConfig && isCompetitionMode && rngConfig.rounds && rngConfig.rounds[currentRound - 1]) {
-      // COMPETITION MODE: Use predetermined values from RNG config
-      const roundConfig = rngConfig.rounds[currentRound - 1];
-      waitTime = roundConfig.waitTime;
+    if (seededRng) {
+      // COMPETITION MODE: Use seeded RNG for deterministic but varied gameplay
+      waitTime = seededRng.nextInt(2000, 4000); // 2-4 seconds
       
-      if (isBonus && roundConfig.bonusTarget) {
-        targetX = roundConfig.bonusTarget.x;
-        targetY = roundConfig.bonusTarget.y;
+      if (isBonus) {
+        targetX = seededRng.nextFloat(20, 80);
+        targetY = seededRng.nextFloat(20, 80);
         setTargetPosition({ x: targetX, y: targetY });
-        console.log(`⚡ [QuickClick] Round ${currentRound} (BONUS) - Wait: ${waitTime}ms, Target: (${targetX}, ${targetY}) - DETERMINISTIC`);
+        console.log(`⚡ [QuickClick] Round ${currentRound} (BONUS) - Wait: ${waitTime}ms, Target: (${targetX.toFixed(1)}, ${targetY.toFixed(1)}) - SEEDED`);
       } else {
         setTargetPosition(null);
-        console.log(`⚡ [QuickClick] Round ${currentRound} - Wait: ${waitTime}ms - DETERMINISTIC`);
+        console.log(`⚡ [QuickClick] Round ${currentRound} - Wait: ${waitTime}ms - SEEDED`);
       }
     } else {
-      // PRACTICE MODE or FALLBACK: Use fallback wait times or random
-      waitTime = fallbackWaitTimes[currentRound - 1] || (2000 + Math.random() * 4000);
+      // PRACTICE MODE: Use Math.random()
+      waitTime = 2000 + Math.random() * 2000;
       
       if (isBonus) {
         targetX = 20 + Math.random() * 60;
@@ -128,7 +150,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       setFlashStartTime(Date.now());
       playCountdownBeep();
     }, waitTime);
-  }, [currentRound, rngConfig, isCompetitionMode]);
+  }, [currentRound, seededRng]);
 
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
