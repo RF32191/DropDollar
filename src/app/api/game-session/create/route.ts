@@ -11,14 +11,33 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Get JWT token from Authorization header
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
     
-    // Get current user
+    if (!token) {
+      console.error('❌ No authorization token provided');
+      return NextResponse.json(
+        { error: 'Unauthorized - No token' },
+        { status: 401 }
+      );
+    }
+    
+    // Create Supabase client with the user's token
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+    
+    // Get current user from the token
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       console.error('❌ Authentication error:', authError);
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Invalid token' },
         { status: 401 }
       );
     }

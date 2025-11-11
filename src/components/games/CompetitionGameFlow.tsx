@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { FixedGamesService } from '@/lib/supabase/fixedGamesService';
 import { useFullscreenGame } from '@/hooks/useFullscreenGame';
@@ -62,9 +63,18 @@ export default function CompetitionGameFlow({
           entryNumber: 1
         });
         
+        // Get current session token for authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error('No active session');
+        }
+        
         const response = await fetch('/api/game-session/create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
           body: JSON.stringify({
             gameType,
             listingId: sessionId,
