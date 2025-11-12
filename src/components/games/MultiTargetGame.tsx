@@ -551,25 +551,25 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 text-center">
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-0">
+      <div className="bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-none p-3 sm:p-6 w-full h-full overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-lg font-bold text-gray-900">
+        <div className="flex justify-between items-center mb-2 flex-shrink-0">
+          <div className="text-xl sm:text-2xl font-bold text-white">
             🎯 Multi-Target Reaction
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">Time: {timer.timeLeft}s</div>
-            <div className="text-sm text-gray-600">Score: {score.toFixed(2)}</div>
+          <div className="flex items-center gap-3 sm:gap-4 text-base sm:text-lg">
+            <div className="text-yellow-300 font-bold">⏱️ {timer.timeLeft}s</div>
+            <div className="text-green-300 font-bold">🎯 {score.toFixed(0)}</div>
             {correctTargets.length > 0 && (
-              <div className="text-sm text-blue-600 font-semibold">
-                Targets: {hitTargets.length}/{correctTargets.length}
+              <div className="text-blue-300 font-bold">
+                {hitTargets.length}/{correctTargets.length}
               </div>
             )}
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="text-white hover:text-red-500 text-2xl"
               >
                 ✕
               </button>
@@ -578,23 +578,10 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
         </div>
 
         {gameState === 'playing' && (
-          <div className="space-y-6">
-            <div className="text-xl font-bold text-gray-900 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
-              Click ALL the glowing targets! ✨
-            </div>
-            
-            {/* Game Info */}
-            <div className="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span>Round {round + 1}</span>
-                <span>{correctTargets.length} correct target{correctTargets.length > 1 ? 's' : ''}</span>
-                <span>{targets.length} total targets</span>
-              </div>
-            </div>
-            
+          <>
             {/* Game Area */}
             <div 
-              className="relative rounded-xl h-96 border-4 border-gray-300 select-none" 
+              className="flex-1 relative select-none" 
               style={{ 
                 userSelect: 'none', 
                 WebkitUserSelect: 'none', 
@@ -639,20 +626,9 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
                   {feedback === 'correct' ? '✓ HIT!' : '✗ MISS!'}
                 </div>
               )}
-            </div>
-
-            <div className="text-sm text-gray-600">
-              Round {round + 1} • Click ALL glowing targets! • Difficulty increases each round
-            </div>
-          </div>
+              </div>
+          </>
         )}
-
-        {/* Instructions */}
-        <div className="mt-8 text-sm text-gray-600 space-y-2">
-          <div>🎯 Click the highlighted/glowing target</div>
-          <div>⚡ Speed and accuracy both matter</div>
-          <div>🔄 Positions shuffle each round</div>
-        </div>
       </div>
     </div>
   );
