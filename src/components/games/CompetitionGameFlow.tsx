@@ -121,20 +121,38 @@ export default function CompetitionGameFlow({
   useEffect(() => {
     // Start countdown only when gameState is 'countdown'
     if (gameState === 'countdown') {
+      console.log('⏰ [CompetitionGameFlow] Starting countdown timer...');
+      let countdownValue = 3;
+      
       const countdownTimer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            setGameState('playing');
-            clearInterval(countdownTimer);
-            return 0;
+        countdownValue--;
+        console.log(`⏰ [CompetitionGameFlow] Countdown: ${countdownValue}`);
+        
+        setCountdown(countdownValue);
+        
+        if (countdownValue <= 0) {
+          console.log('🎬 [CompetitionGameFlow] Countdown complete! Transitioning to playing state...');
+          clearInterval(countdownTimer);
+          
+          // Ensure gameSession exists before transitioning
+          if (!gameSession) {
+            console.error('❌ [CompetitionGameFlow] gameSession is null at countdown end!');
+            setErrorMessage('Game session lost. Please try again.');
+            setGameState('error');
+            return;
           }
-          return prev - 1;
-        });
+          
+          setGameState('playing');
+          console.log('✅ [CompetitionGameFlow] Now in playing state');
+        }
       }, 1000);
 
-      return () => clearInterval(countdownTimer);
+      return () => {
+        console.log('🧹 [CompetitionGameFlow] Cleaning up countdown timer');
+        clearInterval(countdownTimer);
+      };
     }
-  }, [gameState]);
+  }, [gameState, gameSession]);
 
   const handleGameEnd = async (result: { score: number; accuracy: number; avgReactionTime?: number } | number, accuracy?: number, duration?: number) => {
     try {
@@ -269,6 +287,13 @@ export default function CompetitionGameFlow({
   };
 
   const getGameComponent = () => {
+    console.log('🎮 [CompetitionGameFlow] getGameComponent called:', {
+      gameType,
+      hasGameSession: !!gameSession,
+      rngSeed,
+      sessionId
+    });
+
     // Base props that all games accept
     const baseProps = {
       onGameEnd: handleGameEnd,
@@ -284,32 +309,56 @@ export default function CompetitionGameFlow({
       rngSeed: rngSeed // Games with deterministic RNG
     };
 
-    // Props for games that need gameSession (like BladeBounce)
+    // Props for games that need gameSession (like BladeBounce and CashStack)
     const sessionProps = {
       ...baseProps,
       gameSession: gameSession || undefined
     };
 
-    switch (gameType) {
-      case 'laser_dodge':
-        return <LaserDodgeGame {...rngProps} />;
-      case 'multi_target_reaction':
-        return <MultiTargetGame {...rngProps} />;
-      case 'sword_parry':
-        return <SwordParryGameSimple {...rngProps} />;
-      case 'number_tap':
-      case 'quick_click':  // Support both names
-        return <QuickClickGame {...rngProps} />;
-      case 'memory_color':
-      case 'color_sequence':  // Support both names
-        return <ColorSequenceGame {...baseProps} />;
-      case 'blade_bounce':
-        return <BladeBounceGame {...sessionProps} />;
-      case 'cash_stack':
-      case 'falling_object': // Database uses falling_object for Cash Stack game
-        return <CashStackGame {...sessionProps} />;
-      default:
-        return <div className="text-white text-center">Unknown game type: {gameType}</div>;
+    try {
+      switch (gameType) {
+        case 'laser_dodge':
+          console.log('🚀 Rendering LaserDodgeGame with rngSeed:', rngSeed);
+          return <LaserDodgeGame {...rngProps} />;
+        case 'multi_target_reaction':
+          console.log('🎯 Rendering MultiTargetGame with rngSeed:', rngSeed);
+          return <MultiTargetGame {...rngProps} />;
+        case 'sword_parry':
+          console.log('⚔️ Rendering SwordParryGameSimple with rngSeed:', rngSeed);
+          return <SwordParryGameSimple {...rngProps} />;
+        case 'number_tap':
+        case 'quick_click':
+          console.log('⚡ Rendering QuickClickGame with rngSeed:', rngSeed);
+          return <QuickClickGame {...rngProps} />;
+        case 'memory_color':
+        case 'color_sequence':
+          console.log('🧠 Rendering ColorSequenceGame (no RNG seed)');
+          return <ColorSequenceGame {...baseProps} />;
+        case 'blade_bounce':
+          console.log('⚔️ Rendering BladeBounceGame with gameSession:', !!gameSession);
+          return <BladeBounceGame {...sessionProps} />;
+        case 'cash_stack':
+        case 'falling_object':
+          console.log('💰 Rendering CashStackGame with gameSession:', !!gameSession);
+          return <CashStackGame {...sessionProps} />;
+        default:
+          console.error('❌ Unknown game type:', gameType);
+          return <div className="text-white text-center p-8">
+            <p className="text-2xl mb-4">❌ Unknown game type: {gameType}</p>
+            <button onClick={onCancel} className="bg-red-600 px-6 py-3 rounded-lg">
+              Back to Listings
+            </button>
+          </div>;
+      }
+    } catch (error) {
+      console.error('❌ Error rendering game component:', error);
+      return <div className="text-white text-center p-8">
+        <p className="text-2xl mb-4">❌ Error loading game</p>
+        <p className="mb-4">{error instanceof Error ? error.message : 'Unknown error'}</p>
+        <button onClick={onCancel} className="bg-red-600 px-6 py-3 rounded-lg">
+          Back to Listings
+        </button>
+      </div>;
     }
   };
 
@@ -360,8 +409,24 @@ export default function CompetitionGameFlow({
     console.log('🎮 [CompetitionGameFlow] Rendering game component...', {
       gameType,
       hasGameSession: !!gameSession,
-      rngSeed: gameSession?.rngSeed
+      rngSeed: gameSession?.rngSeed,
+      sessionId
     });
+    
+    if (!gameSession) {
+      console.error('❌ [CompetitionGameFlow] gameSession is null when trying to play!');
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+          <div className="text-center text-white p-8">
+            <p className="text-2xl mb-4">⚠️ Game session not ready</p>
+            <p className="mb-4">Please try again</p>
+            <button onClick={onCancel} className="bg-blue-600 px-6 py-3 rounded-lg">
+              Back to Listings
+            </button>
+          </div>
+        </div>
+      );
+    }
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
@@ -370,13 +435,7 @@ export default function CompetitionGameFlow({
             <h1 className="text-3xl font-bold text-white mb-2">{getGameTitle()}</h1>
             <p className="text-gray-300">Competition Mode - Good luck!</p>
           </div>
-          {gameSession ? (
-            getGameComponent()
-          ) : (
-            <div className="text-center text-white">
-              <p>Loading game session...</p>
-            </div>
-          )}
+          {getGameComponent()}
         </div>
       </div>
     );
