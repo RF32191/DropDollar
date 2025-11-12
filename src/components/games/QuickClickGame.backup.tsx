@@ -493,14 +493,14 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-0">
-      <div className="bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-none p-3 sm:p-6 w-full h-full overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 flex flex-col p-0">
+      <div className="bg-black/80 backdrop-blur-sm p-3 sm:p-4">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="text-xl sm:text-2xl font-bold text-white">
             ⚡ QuickClick - {currentRound === 4 ? 'BONUS ROUND' : `Round ${currentRound}/3`}
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-base sm:text-lg">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm sm:text-base">
             <div className="text-yellow-300 font-bold">
               Completed: {rounds.length}/{currentRound === 4 ? '3+Bonus' : '3'}
             </div>
@@ -514,11 +514,12 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
             )}
           </div>
         </div>
+      </div>
 
-        {/* Game Area */}
-        <div 
-          ref={gameAreaRef}
-          className={`flex-1 cursor-pointer transition-all duration-100 select-none ${
+      {/* Game Area - Fullscreen */}
+      <div 
+        ref={gameAreaRef}
+        className={`flex-1 cursor-pointer transition-all duration-100 select-none ${
             gameState === 'waiting' ? 'bg-red-500 border-red-600' :
             gameState === 'flash' ? 'bg-green-500 border-green-600 animate-pulse' :
             gameState === 'clicked' ? 'bg-blue-500 border-blue-600' :

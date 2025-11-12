@@ -497,29 +497,22 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-0">
+      <div className="bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-none p-3 sm:p-6 w-full h-full overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
-          <div className="text-lg font-bold text-gray-900">
-            ⚔️ Sword Slash
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2 flex-shrink-0">
+          <div className="text-xl sm:text-2xl font-bold text-white">
+            ⚔️ Sword Slash {timeLeft <= 10 && <span className="text-red-400 animate-pulse">FINAL!</span>}
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-            <div className="text-gray-600">Time: {timeLeft}s</div>
-            <div className="text-gray-600">Score: {score.toFixed(2)}</div>
-            <div className="text-gray-600">
-              Hits: {destroyedCount}/{totalCount}
-            </div>
-            <div className="text-gray-600">
-              Level: {Math.floor((60 - timeLeft) / 10) + 1}/6
-              {timeLeft <= 10 && (
-                <span className="text-red-500 font-bold animate-pulse ml-1">FINAL!</span>
-              )}
-            </div>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-base sm:text-lg">
+            <div className="text-yellow-300 font-bold">⏱️ {timeLeft}s</div>
+            <div className="text-green-300 font-bold">🎯 {score.toFixed(0)}</div>
+            <div className="text-blue-300 font-bold">{destroyedCount}/{totalCount}</div>
+            <div className="text-purple-300 font-bold">Lv {Math.floor((60 - timeLeft) / 10) + 1}/6</div>
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="text-white hover:text-red-500 text-2xl"
               >
                 ✕
               </button>
@@ -527,21 +520,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           </div>
         </div>
 
-        {/* Game Area */}
-        <div className="mb-4">
-          <div className="text-base sm:text-xl font-bold text-gray-900 text-center">
-            🗡️ Slash the red attacks! Level {Math.floor((60 - timeLeft) / 10) + 1} - {Math.min(Math.floor((60 - timeLeft) / 10) + 1, 5)} attacks per wave!
-            {timeLeft <= 10 && (
-              <div className="text-sm sm:text-lg text-red-600 font-bold animate-pulse mt-2">
-                🔥 FINAL LEVEL - MAXIMUM CHAOS! 🔥
-              </div>
-            )}
-          </div>
-        </div>
-
         <div 
           ref={gameAreaRef}
-          className="relative bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden touch-none select-none"
+          className="flex-1 relative bg-gradient-to-br from-gray-800 via-gray-900 to-black overflow-hidden touch-none select-none"
           style={{
             cursor: 'url("/SWORD.png") 32 32, crosshair', // Bigger cursor with larger hotspot
             touchAction: 'none', // Prevent default touch behaviors
@@ -640,18 +621,6 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               }}
             />
           )}
-        </div>
-
-        <div className="mt-4 text-xs sm:text-sm text-gray-600 text-center">
-          <div className="hidden sm:block">
-            <strong>Desktop:</strong> Move mouse to position sword • Click to slash red attacks • Aim for center for bonus points!
-          </div>
-          <div className="block sm:hidden">
-            <strong>Mobile:</strong> Touch and drag to move sword • Tap to slash red attacks • Aim for center for bonus points!
-          </div>
-          <div className="mt-1">
-            More attacks every 10 seconds! • Perfect hits give maximum bonus!
-          </div>
         </div>
       </div>
     </div>
