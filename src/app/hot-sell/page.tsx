@@ -34,6 +34,7 @@ interface HotSellSession {
   max_participants: number;
   participants_count: number;
   status: 'waiting' | 'active' | 'completed';
+  rng_seed: number;  // RNG seed for deterministic gameplay
   first_place_user_id: string | null;
   second_place_user_id: string | null;
   third_place_user_id: string | null;
@@ -844,7 +845,27 @@ export default function HotSellPage() {
   // Render game flow view
   if (currentView === 'game' && selectedGameFlow) {
     const gameConfig = configs.find(c => c.id === selectedGameFlow.configId);
-    const rngSeed = gameConfig?.rng_seed || 1;
+    
+    // Get RNG seed from session first (most current), fallback to config, then generate random
+    const session = sessions.find(s => s.id === selectedGameFlow.sessionId);
+    const rngSeed = session?.rng_seed || gameConfig?.rng_seed || Math.floor(Math.random() * 1000000) + 1;
+    
+    console.log('🎮 [Hot Sell] Starting game with RNG seed:', {
+      sessionId: selectedGameFlow.sessionId,
+      configId: selectedGameFlow.configId,
+      gameType: selectedGameFlow.gameType,
+      sessionSeed: session?.rng_seed,
+      configSeed: gameConfig?.rng_seed,
+      finalSeed: rngSeed
+    });
+    
+    if (!rngSeed || rngSeed <= 0) {
+      console.error('❌ [Hot Sell] Invalid RNG seed!', { session, gameConfig, rngSeed });
+      setMessage({ type: 'error', text: 'Invalid game configuration. Please try again.' });
+      setCurrentView('list');
+      setSelectedGameFlow(null);
+      return null;
+    }
     
     return (
       <ErrorBoundary>
@@ -865,7 +886,7 @@ export default function HotSellPage() {
                 setCurrentView('list');
                 setSelectedGameFlow(null);
               }}
-              rngSeed={rngSeed || Math.floor(Math.random() * 20) + 1}
+              rngSeed={rngSeed}
             />
           </div>
         </div>

@@ -61,11 +61,22 @@ export default function CompetitionGameFlow({
         console.log('🔐 [CompetitionGameFlow] Creating game session directly...', {
           gameType,
           sessionId,
-          rngSeed
+          rngSeed,
+          hasUser: !!user
         });
         
         if (!user) {
-          throw new Error('No user logged in');
+          console.error('❌ [CompetitionGameFlow] No user found, waiting...');
+          // Don't set error state, just wait for user to load
+          return;
+        }
+        
+        // Validate RNG seed
+        if (!rngSeed || rngSeed <= 0) {
+          console.error('❌ [CompetitionGameFlow] Invalid RNG seed:', rngSeed);
+          setErrorMessage('Invalid game configuration. Please try again.');
+          setGameState('error');
+          return;
         }
         
         // Create a simple game session object for the game to use
@@ -80,18 +91,31 @@ export default function CompetitionGameFlow({
           entryNumber: 1
         };
         
-        console.log('✅ [CompetitionGameFlow] Game session created with RNG seed:', newGameSession);
+        console.log('✅ [CompetitionGameFlow] Game session created:', {
+          sessionId: newGameSession.sessionId,
+          rngSeed: newGameSession.rngSeed,
+          gameType: newGameSession.gameType
+        });
+        
         setGameSession(newGameSession);
-        setGameState('countdown'); // Move to countdown after session is created
+        
+        // Small delay to ensure state is set before transitioning
+        setTimeout(() => {
+          console.log('🎬 [CompetitionGameFlow] Starting countdown...');
+          setGameState('countdown');
+        }, 100);
         
       } catch (error) {
         console.error('❌ [CompetitionGameFlow] Failed to create game session:', error);
-        setErrorMessage('Failed to start game. Please try again.');
+        setErrorMessage(`Failed to start game: ${error instanceof Error ? error.message : 'Unknown error'}`);
         setGameState('error');
       }
     };
     
-    createGameSession();
+    // Only run if we have a user
+    if (user) {
+      createGameSession();
+    }
   }, [gameType, sessionId, rngSeed, user]);
 
   useEffect(() => {
@@ -333,6 +357,12 @@ export default function CompetitionGameFlow({
   }
 
   if (gameState === 'playing') {
+    console.log('🎮 [CompetitionGameFlow] Rendering game component...', {
+      gameType,
+      hasGameSession: !!gameSession,
+      rngSeed: gameSession?.rngSeed
+    });
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
         <div className="container mx-auto px-4 py-8">
@@ -340,7 +370,13 @@ export default function CompetitionGameFlow({
             <h1 className="text-3xl font-bold text-white mb-2">{getGameTitle()}</h1>
             <p className="text-gray-300">Competition Mode - Good luck!</p>
           </div>
-          {getGameComponent()}
+          {gameSession ? (
+            getGameComponent()
+          ) : (
+            <div className="text-center text-white">
+              <p>Loading game session...</p>
+            </div>
+          )}
         </div>
       </div>
     );
