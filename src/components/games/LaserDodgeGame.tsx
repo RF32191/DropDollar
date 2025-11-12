@@ -617,24 +617,24 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const harmfulLasers = lasersRef.current.filter(l => l.isHarmful);
     let collision = false;
     
-    // Check RED laser collisions - INCREASED HITBOX to make red lasers actually deadly
-    for (const laser of harmfulLasers) {
-      if (laser.type === 'horizontal') {
-        // Increased hitbox to 3 for proper collision detection with red lasers
-        if (Math.abs(laser.position - ship.y) < 3) {
-          collision = true;
-          console.log('LaserDodge: Hit by horizontal RED laser at', laser.position);
-          break;
-        }
-      } else {
-        // Increased hitbox to 3 for proper collision detection with red lasers
-        if (Math.abs(laser.position - ship.x) < 3) {
-          collision = true;
-          console.log('LaserDodge: Hit by vertical RED laser at', laser.position);
-          break;
+      // Check RED laser collisions - Strict hitbox for fair gameplay
+      for (const laser of harmfulLasers) {
+        if (laser.type === 'horizontal') {
+          // Tight hitbox of 1 for precise collision detection with red lasers
+          if (Math.abs(laser.position - ship.y) < 1) {
+            collision = true;
+            console.log('LaserDodge: Hit by horizontal RED laser at', laser.position);
+            break;
+          }
+        } else {
+          // Tight hitbox of 1 for precise collision detection with red lasers
+          if (Math.abs(laser.position - ship.x) < 1) {
+            collision = true;
+            console.log('LaserDodge: Hit by vertical RED laser at', laser.position);
+            break;
+          }
         }
       }
-    }
 
     // Check enemy ship collisions - slightly smaller hitbox
     if (!collision) {
@@ -979,20 +979,31 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
-          <div className="text-lg font-bold text-gray-900">
+    <div 
+      ref={gameAreaRef}
+      className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 overflow-hidden"
+      style={{ 
+        touchAction: 'none',
+        cursor: 'crosshair'
+      }}
+      onMouseMove={handleMouseMove}
+      onClick={handleMouseClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+    >
+      {/* HUD Overlay - Always visible at top */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
+        <div className="flex justify-between items-center">
+          <div className="text-xl sm:text-2xl font-bold text-white">
             🔥 Laser Dodge EXTREME
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-            <div className="text-gray-600">Time: {timeLeft}s</div>
-            <div className="text-gray-600">Score: {score.toFixed(2)}</div>
+          <div className="flex items-center gap-4 text-base sm:text-xl">
+            <div className="text-yellow-300 font-bold">⏱️ {timeLeft}s</div>
+            <div className="text-green-300 font-bold">🎯 {score.toFixed(0)}</div>
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
-                className="text-gray-500 hover:text-gray-700 text-xl"
+                className="text-white hover:text-red-500 text-2xl"
               >
                 ✕
               </button>
@@ -1000,55 +1011,46 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           </div>
         </div>
 
+        {/* Status Messages */}
         {gameState === 'playing' && (
-          <div className="space-y-6">
-            <div className="text-xl font-bold text-gray-900">
-              🔥 Avoid the full-screen laser beams! 🚀
-              {timeLeft <= 30 && timeLeft > 8 && (
-                <div className="text-lg text-red-600 font-bold animate-pulse mt-2">
-                  ⚡ EXTREME MODE ACTIVATED! ⚡
-                </div>
-              )}
-              {timeLeft <= 8 && (
-                <div className="text-xl text-red-800 font-bold animate-bounce mt-2 bg-red-200 px-4 py-2 rounded-lg">
-                  🔥 CRAZY MODE! LASER APOCALYPSE! 🔥
-                </div>
-              )}
-              {/* Show bonus indicator */}
-              {(() => {
-                const blueLasers = lasers.filter(l => !l.isHarmful);
-                let onBlue = false;
-                for (const laser of blueLasers) {
-                  if (laser.type === 'horizontal' && Math.abs(laser.position - ship.y) < 2) {
-                    onBlue = true;
-                    break;
-                  }
-                  if (laser.type === 'vertical' && Math.abs(laser.position - ship.x) < 2) {
-                    onBlue = true;
-                    break;
-                  }
+          <div className="text-center mt-2">
+            {timeLeft <= 30 && timeLeft > 8 && (
+              <div className="text-lg sm:text-2xl text-red-400 font-bold animate-pulse">
+                ⚡ EXTREME MODE ACTIVATED! ⚡
+              </div>
+            )}
+            {timeLeft <= 8 && (
+              <div className="text-xl sm:text-3xl text-red-500 font-bold animate-bounce bg-red-900/50 px-4 py-2 rounded-lg inline-block">
+                🔥 CRAZY MODE! LASER APOCALYPSE! 🔥
+              </div>
+            )}
+            {(() => {
+              const blueLasers = lasers.filter(l => !l.isHarmful);
+              let onBlue = false;
+              for (const laser of blueLasers) {
+                if (laser.type === 'horizontal' && Math.abs(laser.position - ship.y) < 2) {
+                  onBlue = true;
+                  break;
                 }
-                return onBlue ? (
-                  <div className="text-lg text-blue-500 font-bold animate-bounce mt-2">
-                    💎 BONUS POINTS! 💎
-                  </div>
-                ) : null;
-              })()}
-            </div>
-            
-            {/* Game Area */}
-            <div 
-              ref={gameAreaRef}
-              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden"
-              style={{ 
-                touchAction: 'none',
-                cursor: 'crosshair'
-              }}
-              onMouseMove={handleMouseMove}
-              onClick={handleMouseClick}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-            >
+                if (laser.type === 'vertical' && Math.abs(laser.position - ship.x) < 2) {
+                  onBlue = true;
+                  break;
+                }
+              }
+              return onBlue ? (
+                <div className="text-lg sm:text-2xl text-blue-400 font-bold animate-bounce">
+                  💎 BONUS POINTS! 💎
+                </div>
+              ) : null;
+            })()}
+          </div>
+        )}
+      </div>
+
+      {gameState === 'playing' && (
+        <div className="absolute inset-0">
+          {/* Game Area - Full Screen */}
+          <div className="w-full h-full relative">
               {/* Stars background */}
               <div className="absolute inset-0">
                 {Array.from({ length: 100 }, (_, i) => (
@@ -1216,29 +1218,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))' // Green glow effect
                 }}
               />
-            </div>
-
-            <div className="text-xs sm:text-sm text-gray-600 text-center">
-              <div className="hidden sm:block">
-                <strong>Desktop:</strong> Move mouse to control ship | <strong>Shoot:</strong> Click anywhere or Spacebar/X key
-              </div>
-              <div className="block sm:hidden">
-                <strong>Mobile:</strong> Touch and drag to move ship | <strong>Shoot:</strong> Tap anywhere
-              </div>
-            </div>
           </div>
-        )}
-
-        <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-600 space-y-2">
-          <div>🔥 <strong>EXTREME MODE:</strong> Full-screen horizontal and vertical laser beams!</div>
-          <div>🔵 Blue lasers are safe but turn red when deadly</div>
-          <div>🚀 Find safe spots between the laser grids to survive</div>
-          <div>🔫 <strong>SHOOTING:</strong> Click/tap anywhere to shoot bullets from your ship!</div>
-          <div>🎯 <strong>ENEMY SHIPS:</strong> Shoot red ships for +10 points each!</div>
-          <div>⚡ <strong>ENEMIES START:</strong> They spawn immediately when game begins!</div>
-          <div>⚠️ Avoid collision with enemy ships!</div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
