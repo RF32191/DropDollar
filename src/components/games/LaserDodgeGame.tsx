@@ -617,18 +617,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const harmfulLasers = lasersRef.current.filter(l => l.isHarmful);
     let collision = false;
     
-    // Check RED laser collisions - SMALLER HITBOX for more forgiving gameplay
+    // Check RED laser collisions - INCREASED HITBOX to make red lasers actually deadly
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
-        // Reduced hitbox from 2 to 1 for more forgiving collision
-        if (Math.abs(laser.position - ship.y) < 1) {
+        // Increased hitbox to 3 for proper collision detection with red lasers
+        if (Math.abs(laser.position - ship.y) < 3) {
           collision = true;
           console.log('LaserDodge: Hit by horizontal RED laser at', laser.position);
           break;
         }
       } else {
-        // Reduced hitbox from 2 to 1 for more forgiving collision
-        if (Math.abs(laser.position - ship.x) < 1) {
+        // Increased hitbox to 3 for proper collision detection with red lasers
+        if (Math.abs(laser.position - ship.x) < 3) {
           collision = true;
           console.log('LaserDodge: Hit by vertical RED laser at', laser.position);
           break;
