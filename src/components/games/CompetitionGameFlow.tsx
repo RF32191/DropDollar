@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
@@ -51,11 +51,21 @@ export default function CompetitionGameFlow({
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
+  // Use refs to prevent effects from running multiple times
+  const hasCreatedSession = useRef(false);
+  const hasStartedCountdown = useRef(false);
+  
   // Enable fullscreen when game is playing
   const fullscreenRef = useFullscreenGame(gameState === 'playing');
 
-  // Create game session directly with RNG seed from Hot Sell session
+  // Create game session directly with RNG seed from Hot Sell session - ONLY ONCE
   useEffect(() => {
+    // Prevent from running multiple times
+    if (hasCreatedSession.current) {
+      console.log('⏭️ [CompetitionGameFlow] Session already created, skipping...');
+      return;
+    }
+    
     const createGameSession = async () => {
       try {
         console.log('🔐 [CompetitionGameFlow] Creating game session directly...', {
@@ -76,8 +86,12 @@ export default function CompetitionGameFlow({
           console.error('❌ [CompetitionGameFlow] Invalid RNG seed:', rngSeed);
           setErrorMessage('Invalid game configuration. Please try again.');
           setGameState('error');
+          hasCreatedSession.current = true;
           return;
         }
+        
+        // Mark as created BEFORE async operations
+        hasCreatedSession.current = true;
         
         // Create a simple game session object for the game to use
         // This includes the RNG seed from the Hot Sell session
@@ -121,6 +135,14 @@ export default function CompetitionGameFlow({
   useEffect(() => {
     // Start countdown only when gameState FIRST becomes 'countdown'
     if (gameState !== 'countdown') return;
+    
+    // Prevent countdown from running multiple times
+    if (hasStartedCountdown.current) {
+      console.log('⏭️ [CompetitionGameFlow] Countdown already started, skipping...');
+      return;
+    }
+    
+    hasStartedCountdown.current = true;
     
     console.log('⏰ [CompetitionGameFlow] Starting countdown timer ONCE...', {
       hasGameSession: !!gameSession,
