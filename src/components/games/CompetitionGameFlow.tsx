@@ -119,59 +119,59 @@ export default function CompetitionGameFlow({
   }, [gameType, sessionId, rngSeed, user]);
 
   useEffect(() => {
-    // Start countdown only when gameState is 'countdown'
-    if (gameState === 'countdown') {
-      console.log('⏰ [CompetitionGameFlow] Starting countdown timer...', {
-        hasGameSession: !!gameSession,
-        gameType,
-        rngSeed
-      });
+    // Start countdown only when gameState FIRST becomes 'countdown'
+    if (gameState !== 'countdown') return;
+    
+    console.log('⏰ [CompetitionGameFlow] Starting countdown timer ONCE...', {
+      hasGameSession: !!gameSession,
+      gameType,
+      rngSeed
+    });
+    
+    // Store timeout IDs so we can clean them up
+    const timeouts: NodeJS.Timeout[] = [];
+    
+    // Countdown sequence
+    console.log('⏰ [CompetitionGameFlow] Countdown: 3');
+    setCountdown(3);
+    
+    timeouts.push(setTimeout(() => {
+      console.log('⏰ [CompetitionGameFlow] Countdown: 2');
+      setCountdown(2);
+    }, 1000));
+    
+    timeouts.push(setTimeout(() => {
+      console.log('⏰ [CompetitionGameFlow] Countdown: 1');
+      setCountdown(1);
+    }, 2000));
+    
+    timeouts.push(setTimeout(() => {
+      console.log('⏰ [CompetitionGameFlow] Countdown: 0');
+      setCountdown(0);
+    }, 3000));
+    
+    timeouts.push(setTimeout(() => {
+      console.log('🎬 [CompetitionGameFlow] Countdown complete! Transitioning to playing state...');
       
-      // Use setTimeout chain instead of setInterval for more reliable transitions
-      const startCountdown = () => {
-        console.log('⏰ [CompetitionGameFlow] Countdown: 3');
-        setCountdown(3);
-        
-        setTimeout(() => {
-          console.log('⏰ [CompetitionGameFlow] Countdown: 2');
-          setCountdown(2);
-          
-          setTimeout(() => {
-            console.log('⏰ [CompetitionGameFlow] Countdown: 1');
-            setCountdown(1);
-            
-            setTimeout(() => {
-              console.log('⏰ [CompetitionGameFlow] Countdown: 0');
-              setCountdown(0);
-              
-              // Small delay before transition to ensure countdown renders
-              setTimeout(() => {
-                console.log('🎬 [CompetitionGameFlow] Countdown complete! Transitioning to playing state...');
-                
-                // Ensure gameSession exists before transitioning
-                if (!gameSession) {
-                  console.error('❌ [CompetitionGameFlow] gameSession is null at countdown end!', {
-                    gameType,
-                    sessionId,
-                    rngSeed
-                  });
-                  setErrorMessage('Game session lost. Please try again.');
-                  setGameState('error');
-                  return;
-                }
-                
-                console.log('✅ [CompetitionGameFlow] Transitioning to playing state NOW');
-                setGameState('playing');
-                console.log('✅ [CompetitionGameFlow] State set to playing');
-              }, 300); // 300ms delay before transition
-            }, 1000);
-          }, 1000);
-        }, 1000);
-      };
+      // Ensure gameSession exists before transitioning
+      if (!gameSession) {
+        console.error('❌ [CompetitionGameFlow] gameSession is null at countdown end!');
+        setErrorMessage('Game session lost. Please try again.');
+        setGameState('error');
+        return;
+      }
       
-      startCountdown();
-    }
-  }, [gameState, gameSession, gameType, sessionId, rngSeed]);
+      console.log('✅ [CompetitionGameFlow] Transitioning to playing state NOW');
+      setGameState('playing');
+      console.log('✅ [CompetitionGameFlow] State set to playing');
+    }, 3300));
+    
+    // Cleanup function - cancel all timeouts if component unmounts or state changes
+    return () => {
+      console.log('🧹 [CompetitionGameFlow] Cleaning up countdown timeouts');
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [gameState]); // ONLY depend on gameState, nothing else!
 
   const handleGameEnd = async (result: { score: number; accuracy: number; avgReactionTime?: number } | number, accuracy?: number, duration?: number) => {
     try {
