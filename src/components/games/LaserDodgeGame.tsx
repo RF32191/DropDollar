@@ -617,18 +617,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const harmfulLasers = lasersRef.current.filter(l => l.isHarmful);
     let collision = false;
     
-    // Check RED laser collisions - INCREASED HITBOX to make red lasers actually deadly
+    // Check RED laser collisions - VERY SENSITIVE HITBOX to make red lasers deadly
     for (const laser of harmfulLasers) {
       if (laser.type === 'horizontal') {
-        // Increased hitbox to 3 for proper collision detection with red lasers
-        if (Math.abs(laser.position - ship.y) < 3) {
+        // Increased hitbox to 5 for very sensitive collision detection with red lasers
+        if (Math.abs(laser.position - ship.y) < 5) {
           collision = true;
           console.log('LaserDodge: Hit by horizontal RED laser at', laser.position);
           break;
         }
       } else {
-        // Increased hitbox to 3 for proper collision detection with red lasers
-        if (Math.abs(laser.position - ship.x) < 3) {
+        // Increased hitbox to 5 for very sensitive collision detection with red lasers
+        if (Math.abs(laser.position - ship.x) < 5) {
           collision = true;
           console.log('LaserDodge: Hit by vertical RED laser at', laser.position);
           break;
@@ -979,76 +979,75 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-2xl p-3 sm:p-6 max-w-6xl w-full max-h-full overflow-y-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 sm:mb-6 gap-2">
-          <div className="text-lg font-bold text-gray-900">
-            🔥 Laser Dodge EXTREME
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-            <div className="text-gray-600">Time: {timeLeft}s</div>
-            <div className="text-gray-600">Score: {score.toFixed(2)}</div>
-            {!isCompetitionMode && onExit && (
-              <button 
-                onClick={onExit}
-                className="text-gray-500 hover:text-gray-700 text-xl"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
-        {gameState === 'playing' && (
-          <div className="space-y-6">
-            <div className="text-xl font-bold text-gray-900">
-              🔥 Avoid the full-screen laser beams! 🚀
-              {timeLeft <= 30 && timeLeft > 8 && (
-                <div className="text-lg text-red-600 font-bold animate-pulse mt-2">
-                  ⚡ EXTREME MODE ACTIVATED! ⚡
+    <>
+      {gameState === 'playing' && (
+        <>
+          {/* Game Area - FULLSCREEN */}
+          <div 
+            ref={gameAreaRef}
+            className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 overflow-hidden z-50"
+            style={{ 
+              touchAction: 'none',
+              cursor: 'crosshair'
+            }}
+            onMouseMove={handleMouseMove}
+            onClick={handleMouseClick}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+          >
+            {/* HUD Overlay - Top of screen */}
+            <div className="absolute top-0 left-0 right-0 z-[100] pointer-events-none">
+              <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent">
+                <div className="text-2xl font-bold text-white">
+                  🔥 Laser Dodge EXTREME
                 </div>
-              )}
-              {timeLeft <= 8 && (
-                <div className="text-xl text-red-800 font-bold animate-bounce mt-2 bg-red-200 px-4 py-2 rounded-lg">
-                  🔥 CRAZY MODE! LASER APOCALYPSE! 🔥
+                <div className="flex items-center gap-6 text-xl">
+                  <div className="text-yellow-300 font-bold">⏱️ {timeLeft}s</div>
+                  <div className="text-green-300 font-bold">🎯 {score.toFixed(0)}</div>
+                  {!isCompetitionMode && onExit && (
+                    <button 
+                      onClick={onExit}
+                      className="text-white hover:text-red-500 text-3xl pointer-events-auto"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-              )}
-              {/* Show bonus indicator */}
-              {(() => {
-                const blueLasers = lasers.filter(l => !l.isHarmful);
-                let onBlue = false;
-                for (const laser of blueLasers) {
-                  if (laser.type === 'horizontal' && Math.abs(laser.position - ship.y) < 2) {
-                    onBlue = true;
-                    break;
-                  }
-                  if (laser.type === 'vertical' && Math.abs(laser.position - ship.x) < 2) {
-                    onBlue = true;
-                    break;
-                  }
-                }
-                return onBlue ? (
-                  <div className="text-lg text-blue-500 font-bold animate-bounce mt-2">
-                    💎 BONUS POINTS! 💎
+              </div>
+              
+              {/* Status Messages */}
+              <div className="text-center mt-2">
+                {timeLeft <= 30 && timeLeft > 8 && (
+                  <div className="text-2xl text-red-400 font-bold animate-pulse">
+                    ⚡ EXTREME MODE ACTIVATED! ⚡
                   </div>
-                ) : null;
-              })()}
+                )}
+                {timeLeft <= 8 && (
+                  <div className="text-3xl text-red-500 font-bold animate-bounce bg-red-900/50 px-6 py-3 rounded-lg inline-block">
+                    🔥 CRAZY MODE! LASER APOCALYPSE! 🔥
+                  </div>
+                )}
+                {(() => {
+                  const blueLasers = lasers.filter(l => !l.isHarmful);
+                  let onBlue = false;
+                  for (const laser of blueLasers) {
+                    if (laser.type === 'horizontal' && Math.abs(laser.position - ship.y) < 2) {
+                      onBlue = true;
+                      break;
+                    }
+                    if (laser.type === 'vertical' && Math.abs(laser.position - ship.x) < 2) {
+                      onBlue = true;
+                      break;
+                    }
+                  }
+                  return onBlue ? (
+                    <div className="text-2xl text-blue-400 font-bold animate-bounce mt-2">
+                      💎 BONUS POINTS! 💎
+                    </div>
+                  ) : null;
+                })()}
+              </div>
             </div>
-            
-            {/* Game Area */}
-            <div 
-              ref={gameAreaRef}
-              className="relative bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-xl h-64 sm:h-96 border-4 border-gray-300 overflow-hidden"
-              style={{ 
-                touchAction: 'none',
-                cursor: 'crosshair'
-              }}
-              onMouseMove={handleMouseMove}
-              onClick={handleMouseClick}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-            >
               {/* Stars background */}
               <div className="absolute inset-0">
                 {Array.from({ length: 100 }, (_, i) => (
@@ -1238,7 +1237,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           <div>⚡ <strong>ENEMIES START:</strong> They spawn immediately when game begins!</div>
           <div>⚠️ Avoid collision with enemy ships!</div>
         </div>
-      </div>
-    </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
