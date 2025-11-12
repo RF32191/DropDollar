@@ -121,38 +121,57 @@ export default function CompetitionGameFlow({
   useEffect(() => {
     // Start countdown only when gameState is 'countdown'
     if (gameState === 'countdown') {
-      console.log('⏰ [CompetitionGameFlow] Starting countdown timer...');
-      let countdownValue = 3;
+      console.log('⏰ [CompetitionGameFlow] Starting countdown timer...', {
+        hasGameSession: !!gameSession,
+        gameType,
+        rngSeed
+      });
       
-      const countdownTimer = setInterval(() => {
-        countdownValue--;
-        console.log(`⏰ [CompetitionGameFlow] Countdown: ${countdownValue}`);
+      // Use setTimeout chain instead of setInterval for more reliable transitions
+      const startCountdown = () => {
+        console.log('⏰ [CompetitionGameFlow] Countdown: 3');
+        setCountdown(3);
         
-        setCountdown(countdownValue);
-        
-        if (countdownValue <= 0) {
-          console.log('🎬 [CompetitionGameFlow] Countdown complete! Transitioning to playing state...');
-          clearInterval(countdownTimer);
+        setTimeout(() => {
+          console.log('⏰ [CompetitionGameFlow] Countdown: 2');
+          setCountdown(2);
           
-          // Ensure gameSession exists before transitioning
-          if (!gameSession) {
-            console.error('❌ [CompetitionGameFlow] gameSession is null at countdown end!');
-            setErrorMessage('Game session lost. Please try again.');
-            setGameState('error');
-            return;
-          }
-          
-          setGameState('playing');
-          console.log('✅ [CompetitionGameFlow] Now in playing state');
-        }
-      }, 1000);
-
-      return () => {
-        console.log('🧹 [CompetitionGameFlow] Cleaning up countdown timer');
-        clearInterval(countdownTimer);
+          setTimeout(() => {
+            console.log('⏰ [CompetitionGameFlow] Countdown: 1');
+            setCountdown(1);
+            
+            setTimeout(() => {
+              console.log('⏰ [CompetitionGameFlow] Countdown: 0');
+              setCountdown(0);
+              
+              // Small delay before transition to ensure countdown renders
+              setTimeout(() => {
+                console.log('🎬 [CompetitionGameFlow] Countdown complete! Transitioning to playing state...');
+                
+                // Ensure gameSession exists before transitioning
+                if (!gameSession) {
+                  console.error('❌ [CompetitionGameFlow] gameSession is null at countdown end!', {
+                    gameType,
+                    sessionId,
+                    rngSeed
+                  });
+                  setErrorMessage('Game session lost. Please try again.');
+                  setGameState('error');
+                  return;
+                }
+                
+                console.log('✅ [CompetitionGameFlow] Transitioning to playing state NOW');
+                setGameState('playing');
+                console.log('✅ [CompetitionGameFlow] State set to playing');
+              }, 300); // 300ms delay before transition
+            }, 1000);
+          }, 1000);
+        }, 1000);
       };
+      
+      startCountdown();
     }
-  }, [gameState, gameSession]);
+  }, [gameState, gameSession, gameType, sessionId, rngSeed]);
 
   const handleGameEnd = async (result: { score: number; accuracy: number; avgReactionTime?: number } | number, accuracy?: number, duration?: number) => {
     try {
