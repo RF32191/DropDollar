@@ -118,16 +118,18 @@ export default function UsernameDropdown() {
   const handleLogout = async () => {
     console.log('🚪 Logging out user...');
     setIsOpen(false);
+    setUser(null); // Clear immediately
     
     try {
       // Use AuthContext logout for proper cleanup
       await logout();
-      // Redirect to home page after logout
-      window.location.href = '/';
     } catch (error) {
       console.error('❌ Logout error:', error);
-      // Force redirect even on error
-      window.location.href = '/';
+    } finally {
+      // Always redirect after logout completes
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
     }
   };
 

@@ -1023,24 +1023,24 @@ export default function HotSellPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {gameConfigs.map((config) => {
             const session = sessions.find(s => s.config_id === config.id);
-            if (!session) return null;
-
-            const hasJoined = session.participants.some(p => p.user_id === user?.id);
-            const hasPlayed = session.participants.some(p => p.user_id === user?.id && p.score !== null);
-            const isCompleted = session.status === 'completed';
-            const isFull = session.participants_count >= config.max_participants;
-            const progressPercent = getProgressPercent(session.participants_count, config.max_participants);
-            const prizes = calculatePrizes(config, session.prize_pool);
+            
+            // When signed out, session will be null - show card anyway with "Sign In to Play"
+            const hasJoined = session?.participants.some(p => p.user_id === user?.id) || false;
+            const hasPlayed = session?.participants.some(p => p.user_id === user?.id && p.score !== null) || false;
+            const isCompleted = session?.status === 'completed';
+            const isFull = session ? session.participants_count >= config.max_participants : false;
+            const progressPercent = session ? getProgressPercent(session.participants_count, config.max_participants) : 0;
+            const prizes = calculatePrizes(config, session?.prize_pool || 0);
 
             // User's score
-            const userParticipant = session.participants.find(p => p.user_id === user?.id);
+            const userParticipant = session?.participants.find(p => p.user_id === user?.id);
             const userScore = userParticipant?.score;
 
             // Top scores (hide if user hasn't joined)
-            const topScores = session.participants
+            const topScores = session?.participants
               .filter(p => p.score !== null)
               .sort((a, b) => (b.score || 0) - (a.score || 0))
-              .slice(0, 3);
+              .slice(0, 3) || [];
 
             return (
               <div key={config.id} className="bg-gradient-to-br from-orange-900/50 to-red-900/50 backdrop-blur-xl rounded-2xl p-6 border border-orange-500/30 shadow-2xl hover:shadow-orange-500/20 transition-all duration-300">
@@ -1114,7 +1114,7 @@ export default function HotSellPage() {
                       {formatAmount(session?.prize_pool || 0)}
                     </p>
                     <p className="text-yellow-200/70 text-xs mb-3">
-                      {session.participants_count > 0 
+                      {session?.participants_count && session.participants_count > 0 
                         ? `${session.participants_count} player${session.participants_count !== 1 ? 's' : ''} joined` 
                         : 'Waiting for first player'}
                     </p>
@@ -1178,7 +1178,7 @@ export default function HotSellPage() {
                 {/* Progress Bar - YELLOW THEME */}
                 <div className="mb-4">
                   <div className="flex justify-between text-xs text-orange-300 mb-2">
-                    <span>{session.participants_count} / {config.max_participants} Players</span>
+                    <span>{session?.participants_count || 0} / {config.max_participants} Players</span>
                     <span>{progressPercent.toFixed(0)}%</span>
                   </div>
                   <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden border border-yellow-500/30">
@@ -1190,7 +1190,7 @@ export default function HotSellPage() {
                 </div>
 
                 {/* Dropdown Scoreboard (only show if user has PLAYED - submitted a score) */}
-                {hasPlayed && session.participants.filter(p => p.score !== null).length > 0 && (
+                {hasPlayed && session && session.participants.filter(p => p.score !== null).length > 0 && (
                   <div className="mb-4">
                     {/* Dropdown Toggle Button */}
                     <button
@@ -1276,7 +1276,7 @@ export default function HotSellPage() {
                 )}
 
                 {/* Payout Countdown - Shows when session is full and all have played */}
-                {isFull && session.participants.every(p => p.score !== null) && !session.first_place_user_id && (
+                {isFull && session && session.participants.every(p => p.score !== null) && !session.first_place_user_id && (
                   <div className="mb-4 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl border border-green-500/50 animate-pulse">
                     <div className="flex items-center justify-center">
                       <ClockIcon className="w-5 h-5 text-green-400 mr-2 animate-spin" />
