@@ -16,7 +16,7 @@ DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions();
 
 CREATE OR REPLACE FUNCTION public.get_all_winner_takes_all_sessions()
 RETURNS TABLE (
-    id UUID,
+    id TEXT,
     config_id TEXT,
     current_pool NUMERIC,
     base_price NUMERIC,
@@ -24,7 +24,7 @@ RETURNS TABLE (
     status TEXT,
     timer_started_at TIMESTAMPTZ,
     timer_duration INTEGER,
-    winner_user_id UUID,
+    winner_user_id TEXT,
     winner_prize NUMERIC,
     platform_fee_amount NUMERIC,
     completed_at TIMESTAMPTZ,
@@ -39,7 +39,7 @@ AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        s.id,
+        s.id::TEXT,
         s.config_id,
         s.prize_pool as current_pool,
         s.base_price,
@@ -47,7 +47,7 @@ BEGIN
         s.status,
         s.timer_started_at,
         s.timer_duration,
-        s.winner_user_id,
+        s.winner_user_id::TEXT,
         s.winner_prize,
         s.platform_fee_amount,
         s.completed_at,
@@ -57,8 +57,8 @@ BEGIN
         COALESCE(
             jsonb_agg(
                 jsonb_build_object(
-                    'id', p.id,
-                    'user_id', p.user_id,
+                    'id', p.id::TEXT,
+                    'user_id', p.user_id::TEXT,
                     'username', COALESCE(p.username, 'Anonymous'),
                     'score', p.score,
                     'accuracy', p.accuracy,
