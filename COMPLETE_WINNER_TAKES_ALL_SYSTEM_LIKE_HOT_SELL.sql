@@ -21,12 +21,30 @@ CREATE TABLE IF NOT EXISTS public.winner_takes_all_configs (
     entry_fee NUMERIC(10,2) NOT NULL,
     base_price NUMERIC(10,2) NOT NULL,
     game_duration INTEGER NOT NULL,
-    rng_seed INTEGER NOT NULL,
+    rng_seed INTEGER NOT NULL DEFAULT 1,
     platform_fee_percent NUMERIC(5,2) NOT NULL DEFAULT 15.0,
-    timer_duration INTEGER NOT NULL DEFAULT 60, -- 1 minute for testing
+    timer_duration INTEGER NOT NULL DEFAULT 60,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add timer_duration to configs if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'winner_takes_all_configs' 
+                   AND column_name = 'timer_duration') THEN
+        ALTER TABLE public.winner_takes_all_configs ADD COLUMN timer_duration INTEGER NOT NULL DEFAULT 60;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'winner_takes_all_configs' 
+                   AND column_name = 'platform_fee_percent') THEN
+        ALTER TABLE public.winner_takes_all_configs ADD COLUMN platform_fee_percent NUMERIC(5,2) NOT NULL DEFAULT 15.0;
+    END IF;
+END $$;
+
+SELECT '✅ winner_takes_all_configs table schema updated' as result;
 
 -- Create or update winner_takes_all_sessions table
 CREATE TABLE IF NOT EXISTS public.winner_takes_all_sessions (
