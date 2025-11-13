@@ -430,20 +430,22 @@ export default function HotSellPage() {
       return;
     }
     
-    // Wait for authentication before loading data
-    if (!isAuthenticated) {
-      console.log('⚠️ [Hot Sell] Not authenticated');
-      setIsLoading(false);
-      return;
-    }
-    
-    console.log('✅ [Hot Sell] Authenticated, loading data...');
+    console.log('✅ [Hot Sell] Loading public data...');
+    // Always load configs (public data)
     loadConfigs();
-    loadSessions();
     
-    // Refresh sessions every 30 seconds (only when authenticated)
-    const interval = setInterval(loadSessions, 30000);
-    return () => clearInterval(interval);
+    // Only load sessions if authenticated
+    if (isAuthenticated) {
+      console.log('✅ [Hot Sell] Authenticated, loading sessions...');
+      loadSessions();
+      
+      // Refresh sessions every 30 seconds (only when authenticated)
+      const interval = setInterval(loadSessions, 30000);
+      return () => clearInterval(interval);
+    } else {
+      console.log('⚠️ [Hot Sell] Not authenticated, showing public view');
+      setIsLoading(false);
+    }
   }, [isAuthenticated, authLoading, loadSessions]);
 
   const handleJoinSession = async (config: HotSellConfig) => {

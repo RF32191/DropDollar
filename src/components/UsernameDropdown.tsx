@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   UserIcon, 
   Cog6ToothIcon, 
@@ -14,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function UsernameDropdown() {
+  const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<{username: string, firstName: string, lastName: string} | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -105,39 +107,20 @@ export default function UsernameDropdown() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('🚪 Logging out user...');
-    
-    // Clear all user data from localStorage
-    localStorage.removeItem('user');
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('loginTime');
-    localStorage.removeItem('sessionId');
-    localStorage.removeItem('sb-access-token');
-    localStorage.removeItem('sb-refresh-token');
-    localStorage.removeItem('userTokens');
-    localStorage.removeItem('userBalance');
-    localStorage.removeItem('userBankAccounts');
-    localStorage.removeItem('userWithdrawals');
-    
-    // Clear DropDollar specific cookies
-    document.cookie = 'dropdollar_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-    document.cookie = 'dropdollar_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-    
-    // Clear all other cookies
-    document.cookie.split(";").forEach((c) => {
-      const eqPos = c.indexOf("=");
-      const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim();
-      if (name) {
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-      }
-    });
-    
-    console.log('✅ Logout complete, all data cleared');
     setIsOpen(false);
     
-    // Redirect to home page
-    window.location.href = '/';
+    try {
+      // Use AuthContext logout for proper cleanup
+      await logout();
+      // Redirect to home page after logout
+      window.location.href = '/';
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Force redirect even on error
+      window.location.href = '/';
+    }
   };
 
   // Don't render if user is not logged in
