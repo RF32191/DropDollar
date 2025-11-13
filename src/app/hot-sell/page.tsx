@@ -960,8 +960,8 @@ export default function HotSellPage() {
           </div>
         )}
 
-        {/* Debug Info */}
-        {sessions.length === 0 && !isLoading && (
+        {/* Debug Info - Only show if authenticated */}
+        {isAuthenticated && sessions.length === 0 && !isLoading && configs.length > 0 && (
           <div className="mb-6 p-6 bg-yellow-500/20 border border-yellow-500/50 rounded-xl">
             <p className="text-yellow-300 text-center font-semibold mb-2">⚠️ No Hot Sell sessions found</p>
             <p className="text-yellow-200 text-center text-sm">Please run the SQL scripts in Supabase:</p>

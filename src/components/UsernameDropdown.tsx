@@ -78,7 +78,7 @@ export default function UsernameDropdown() {
 
     getUserInfo();
     
-    // Also listen for storage changes (in case user logs in on another tab)
+    // Listen for storage changes (in case user logs in/out on another tab)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'user' || e.key === 'isLoggedIn') {
         console.log('🔍 UsernameDropdown: Storage changed, rechecking user data');
@@ -86,10 +86,18 @@ export default function UsernameDropdown() {
       }
     };
 
+    // Listen for logout event from AuthContext
+    const handleLogoutEvent = () => {
+      console.log('🔍 UsernameDropdown: Logout event received, clearing user');
+      setUser(null);
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('userLoggedOut', handleLogoutEvent);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userLoggedOut', handleLogoutEvent);
     };
   }, []);
 
