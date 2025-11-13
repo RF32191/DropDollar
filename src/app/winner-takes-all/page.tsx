@@ -355,16 +355,18 @@ export default function WinnerTakesAllPage() {
       return;
     }
     
-    // Wait for authentication before loading data
-    if (!isAuthenticated) {
-      console.log('⚠️ [Winner Takes All] Not authenticated');
-      setIsLoading(false);
-      return;
+    // Always load configs (public data) - no auth required
+    console.log('📥 [Winner Takes All] Loading configs (public data)...');
+    loadConfigs();
+    
+    // Only load sessions if authenticated (user-specific data)
+    if (isAuthenticated) {
+      console.log('✅ [Winner Takes All] Authenticated, loading sessions...');
+      loadSessions();
+    } else {
+      console.log('ℹ️ [Winner Takes All] Not authenticated - showing configs only');
     }
     
-    console.log('✅ [Winner Takes All] Authenticated, loading data...');
-    loadConfigs();
-    loadSessions();
     setIsLoading(false);
   }, [isAuthenticated, authLoading, loadSessions]);
 
