@@ -21,11 +21,11 @@ ALTER TABLE public.winner_takes_all_participants ENABLE TRIGGER USER;
 ALTER TABLE public.winner_takes_all_sessions ENABLE TRIGGER USER;
 
 -- Create new waiting winner_takes_all_sessions for each config
+-- (Deleted all sessions above, so this is a fresh insert)
 INSERT INTO public.winner_takes_all_sessions (
-    id, config_id, prize_pool, participants_count, status, rng_seed, base_price, timer_duration
+    config_id, prize_pool, participants_count, status, rng_seed, base_price, timer_duration
 )
 SELECT
-    uuid_generate_v4(),
     c.id,
     0, -- New session starts with 0 prize pool
     0, -- New session starts with 0 participants
@@ -33,18 +33,7 @@ SELECT
     floor(random() * 1000000) + 1, -- Generate new RNG seed for new session
     c.base_price,
     60 -- 1 minute timer for testing
-FROM public.winner_takes_all_configs c
-ON CONFLICT (config_id, status) WHERE status = 'waiting' DO UPDATE SET
-    prize_pool = 0,
-    participants_count = 0,
-    winner_user_id = NULL,
-    winner_prize = 0,
-    platform_fee_amount = 0,
-    completed_at = NULL,
-    timer_started_at = NULL,
-    rng_seed = floor(random() * 1000000) + 1,
-    created_at = NOW(),
-    updated_at = NOW();
+FROM public.winner_takes_all_configs c;
 
 SELECT '➕ New waiting winner_takes_all_sessions created for all configs.' as result;
 

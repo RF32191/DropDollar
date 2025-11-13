@@ -44,9 +44,14 @@ CREATE TABLE IF NOT EXISTS public.winner_takes_all_sessions (
     rng_seed INTEGER NOT NULL,
     base_price NUMERIC(10,2) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(config_id, status) WHERE status = 'active' -- Only one active session per config
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create partial unique index for active sessions (only one active session per config)
+DROP INDEX IF EXISTS idx_wta_sessions_config_active;
+CREATE UNIQUE INDEX idx_wta_sessions_config_active 
+ON public.winner_takes_all_sessions(config_id, status) 
+WHERE status = 'waiting';
 
 -- Create or update winner_takes_all_participants table
 CREATE TABLE IF NOT EXISTS public.winner_takes_all_participants (
@@ -501,31 +506,32 @@ SELECT '🗑️ All existing winner_takes_all_sessions deleted' as result;
 ALTER TABLE public.winner_takes_all_participants ENABLE TRIGGER USER;
 ALTER TABLE public.winner_takes_all_sessions ENABLE TRIGGER USER;
 
--- Create new active sessions for each config
-INSERT INTO public.winner_takes_all_sessions (
-    id, config_id, prize_pool, participants_count, status, rng_seed, base_price, timer_duration
-)
-SELECT
-    uuid_generate_v4(),
-    c.id,
-    0, -- New session starts with 0 prize pool
-    0, -- New session starts with 0 participants
-    'waiting',
-    floor(random() * 1000000) + 1, -- Generate new RNG seed
-    c.base_price,
-    60 -- 1 minute timer for testing
-FROM public.winner_takes_all_configs c
-ON CONFLICT (config_id, status) WHERE status = 'waiting' DO UPDATE SET
-    prize_pool = 0,
-    participants_count = 0,
-    winner_user_id = NULL,
-    winner_prize = 0,
-    platform_fee_amount = 0,
-    completed_at = NULL,
-    timer_started_at = NULL,
-    rng_seed = floor(random() * 1000000) + 1,
-    created_at = NOW(),
-    updated_at = NOW();
+-- Create new waiting sessions for each config
+-- Use a loop to handle conflicts since partial indexes can't be used directly in ON CONFLICT
+DO $$
+DECLARE
+    config_record RECORD;
+BEGIN
+    FOR config_record IN SELECT * FROM public.winner_takes_all_configs
+    LOOP
+        -- Delete any existing waiting session for this config
+        DELETE FROM public.winner_takes_all_sessions 
+        WHERE config_id = config_record.id AND status = 'waiting';
+        
+        -- Insert new waiting session
+        INSERT INTO public.winner_takes_all_sessions (
+            config_id, prize_pool, participants_count, status, rng_seed, base_price, timer_duration
+        ) VALUES (
+            config_record.id,
+            0,
+            0,
+            'waiting',
+            floor(random() * 1000000) + 1,
+            config_record.base_price,
+            60
+        );
+    END LOOP;
+END $$;
 
 SELECT '➕ New active winner_takes_all_sessions created for all configs' as result;
 
