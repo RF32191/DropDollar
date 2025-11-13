@@ -105,8 +105,8 @@ BEGIN
         ) as participants
     FROM public.winner_takes_all_sessions s
     LEFT JOIN public.winner_takes_all_participants p ON s.id = p.session_id
-    WHERE s.status::TEXT IN ('waiting', 'active')
-    GROUP BY s.id, s.config_id, s.prize_pool, s.base_price, s.participants_count, s.status, s.timer_started_at, s.timer_duration, s.winner_user_id, s.winner_prize, s.platform_fee_amount, s.completed_at, s.rng_seed, s.created_at, s.updated_at
+    WHERE s.status IN ('waiting', 'active')
+    GROUP BY s.id
     ORDER BY s.created_at DESC;
 END;
 $$;
