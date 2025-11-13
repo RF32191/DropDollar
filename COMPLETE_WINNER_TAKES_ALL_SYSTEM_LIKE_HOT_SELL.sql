@@ -137,6 +137,14 @@ SELECT '🔐 RLS enabled with security policies' as result;
 -- PART 3: CREATE RPC FUNCTIONS
 -- ============================================================================
 
+-- Drop existing functions first to avoid conflicts
+DROP FUNCTION IF EXISTS public.wta_join_v2(TEXT, UUID);
+DROP FUNCTION IF EXISTS public.update_winner_takes_all_score(UUID, UUID, NUMERIC, NUMERIC);
+DROP FUNCTION IF EXISTS public.process_winner_takes_all_payout_complete(TEXT);
+DROP FUNCTION IF EXISTS public.get_all_winner_takes_all_sessions();
+
+SELECT '🗑️ Dropped existing functions' as result;
+
 -- Function to join a Winner Takes All session
 CREATE OR REPLACE FUNCTION public.wta_join_v2(
     config_id_param TEXT,
