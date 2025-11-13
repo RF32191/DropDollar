@@ -31,21 +31,60 @@ CREATE TABLE IF NOT EXISTS public.winner_takes_all_configs (
 -- Create or update winner_takes_all_sessions table
 CREATE TABLE IF NOT EXISTS public.winner_takes_all_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    config_id TEXT NOT NULL REFERENCES public.winner_takes_all_configs(id) ON DELETE CASCADE,
-    prize_pool NUMERIC(10,2) DEFAULT 0,
+    config_id TEXT NOT NULL,
+    current_pool NUMERIC(10,2) DEFAULT 0,
     participants_count INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'completed')),
+    status TEXT DEFAULT 'waiting',
     timer_started_at TIMESTAMPTZ,
-    timer_duration INTEGER NOT NULL DEFAULT 60, -- 1 minute for testing
+    timer_duration INTEGER NOT NULL DEFAULT 60,
     winner_user_id UUID,
     winner_prize NUMERIC(10,2) DEFAULT 0,
     platform_fee_amount NUMERIC(10,2) DEFAULT 0,
     completed_at TIMESTAMPTZ,
-    rng_seed INTEGER NOT NULL,
-    base_price NUMERIC(10,2) NOT NULL,
+    rng_seed INTEGER NOT NULL DEFAULT 1,
+    base_price NUMERIC(10,2) NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add/rename columns to match expected schema (handles existing tables)
+DO $$ 
+BEGIN
+    -- Rename current_pool to prize_pool if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name = 'winner_takes_all_sessions' 
+               AND column_name = 'current_pool') THEN
+        ALTER TABLE public.winner_takes_all_sessions RENAME COLUMN current_pool TO prize_pool;
+    END IF;
+    
+    -- Add prize_pool if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'winner_takes_all_sessions' 
+                   AND column_name = 'prize_pool') THEN
+        ALTER TABLE public.winner_takes_all_sessions ADD COLUMN prize_pool NUMERIC(10,2) DEFAULT 0;
+    END IF;
+    
+    -- Add missing columns if they don't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'winner_takes_all_sessions' 
+                   AND column_name = 'timer_duration') THEN
+        ALTER TABLE public.winner_takes_all_sessions ADD COLUMN timer_duration INTEGER NOT NULL DEFAULT 60;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'winner_takes_all_sessions' 
+                   AND column_name = 'winner_prize') THEN
+        ALTER TABLE public.winner_takes_all_sessions ADD COLUMN winner_prize NUMERIC(10,2) DEFAULT 0;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'winner_takes_all_sessions' 
+                   AND column_name = 'platform_fee_amount') THEN
+        ALTER TABLE public.winner_takes_all_sessions ADD COLUMN platform_fee_amount NUMERIC(10,2) DEFAULT 0;
+    END IF;
+END $$;
+
+SELECT '✅ winner_takes_all_sessions table schema updated' as result;
 
 -- Create partial unique index for active sessions (only one active session per config)
 DROP INDEX IF EXISTS idx_wta_sessions_config_active;
