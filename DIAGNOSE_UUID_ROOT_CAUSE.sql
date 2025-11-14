@@ -96,3 +96,4 @@ SELECT
 FROM hot_sell_participants
 LIMIT 1;
 
+

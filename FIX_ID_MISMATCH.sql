@@ -118,3 +118,4 @@ SELECT id, email, username, purchased_tokens, won_tokens, created_at
 FROM public.users
 WHERE email = 'ryanrfermoselle@yahoo.com';
 
+

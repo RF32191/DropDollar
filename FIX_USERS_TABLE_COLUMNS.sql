@@ -30,3 +30,4 @@ BEGIN
   RAISE NOTICE 'Columns: id, email, username, first_name, last_name, purchased_tokens, won_tokens, tokens, balance, total_spent, total_earned, games_played, games_won';
 END $$;
 
+
