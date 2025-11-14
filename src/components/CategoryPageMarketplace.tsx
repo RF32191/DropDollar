@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
-import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
@@ -380,37 +379,6 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
           </div>
         )}
 
-        {/* Location Status Info */}
-        {!locationVerified && !locationLoading && (
-          <div className="max-w-2xl mx-auto mb-8 bg-yellow-900/20 border border-yellow-700 rounded-lg p-6">
-            <div className="flex items-start">
-              <MapPinIcon className="h-6 w-6 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold text-yellow-300 mb-2">Location Verification Required</h3>
-                <p className="text-yellow-200 text-sm mb-4">
-                  To participate in skill-based gaming competitions, we need to verify your location to ensure compliance with local regulations.
-                </p>
-                <p className="text-xs text-yellow-300">
-                  Location verification will be requested automatically when needed.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {improvedLocation?.data?.restricted && (
-          <div className="max-w-2xl mx-auto mb-8 bg-red-900/20 border border-red-700 rounded-lg p-6">
-            <div className="flex items-start">
-              <ShieldCheckIcon className="h-6 w-6 text-red-400 mr-3 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold text-red-300 mb-2">Gaming Not Available in Your State</h3>
-                <p className="text-red-200 text-sm">
-                  Skill-based gaming competitions are not available in {improvedLocation.data.state} due to local regulations.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Listings */}
         {isLoading ? (

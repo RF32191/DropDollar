@@ -39,10 +39,12 @@ interface MarketplaceListing {
 
 export default function SellPage() {
   const { user, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'manage' | 'register'>('register');
   const [myListings, setMyListings] = useState<MarketplaceListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isSeller, setIsSeller] = useState(false);
+  const [sellerStatus, setSellerStatus] = useState<string>('checking');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -53,6 +55,13 @@ export default function SellPage() {
     game_type: 'crypto_match',
     shipping_included: true,
     seller_contact: ''
+  });
+
+  // Seller registration form
+  const [sellerRegistrationForm, setSellerRegistrationForm] = useState({
+    business_name: '',
+    contact_email: '',
+    contact_phone: ''
   });
 
   const categories = [
@@ -77,6 +86,35 @@ export default function SellPage() {
     { id: 'brain_freeze', name: 'Brain Freeze', description: 'Memory challenge game' }
   ];
 
+  // Check seller status
+  const checkSellerStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('check_seller_status');
+      
+      if (error) throw error;
+      
+      if (data?.is_seller) {
+        setIsSeller(true);
+        setSellerStatus(data.status);
+        setActiveTab('create');
+        
+        // Pre-fill seller contact
+        if (data.contact_email) {
+          setFormData(prev => ({ ...prev, seller_contact: data.contact_email }));
+        }
+      } else {
+        setIsSeller(false);
+        setSellerStatus('not_registered');
+        setActiveTab('register');
+      }
+    } catch (error) {
+      console.error('Error checking seller status:', error);
+      setSellerStatus('error');
+    }
+  };
+
   // Load seller's listings
   const loadMyListings = async () => {
     if (!user) return;
@@ -99,8 +137,42 @@ export default function SellPage() {
     }
   };
 
+  // Register as seller
+  const handleSellerRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      const { data, error } = await supabase.rpc('register_as_seller', {
+        business_name_param: sellerRegistrationForm.business_name || null,
+        contact_email_param: sellerRegistrationForm.contact_email,
+        contact_phone_param: sellerRegistrationForm.contact_phone || null
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setMessage({ type: 'success', text: 'Successfully registered as seller!' });
+        setIsSeller(true);
+        setSellerStatus('approved');
+        setActiveTab('create');
+      } else {
+        throw new Error(data?.message || 'Registration failed');
+      }
+    } catch (error: any) {
+      console.error('Error registering as seller:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to register as seller' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated && user) {
+      checkSellerStatus();
       loadMyListings();
     }
   }, [isAuthenticated, user]);
@@ -209,30 +281,32 @@ export default function SellPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-4 mb-6">
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`flex-1 py-3 px-6 rounded-lg font-bold transition-colors ${
-              activeTab === 'create'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <PlusIcon className="inline h-5 w-5 mr-2" />
-            Create Listing
-          </button>
-          <button
-            onClick={() => setActiveTab('manage')}
-            className={`flex-1 py-3 px-6 rounded-lg font-bold transition-colors ${
-              activeTab === 'manage'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-            }`}
-          >
-            <ShoppingBagIcon className="inline h-5 w-5 mr-2" />
-            My Listings ({myListings.length})
-          </button>
-        </div>
+        {isSeller ? (
+          <div className="flex space-x-4 mb-6">
+            <button
+              onClick={() => setActiveTab('create')}
+              className={`flex-1 py-3 px-6 rounded-lg font-bold transition-colors ${
+                activeTab === 'create'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <PlusIcon className="inline h-5 w-5 mr-2" />
+              Create Listing
+            </button>
+            <button
+              onClick={() => setActiveTab('manage')}
+              className={`flex-1 py-3 px-6 rounded-lg font-bold transition-colors ${
+                activeTab === 'manage'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <ShoppingBagIcon className="inline h-5 w-5 mr-2" />
+              My Listings ({myListings.length})
+            </button>
+          </div>
+        ) : null}
 
         {/* Message Display */}
         {message && (
@@ -245,8 +319,86 @@ export default function SellPage() {
           </div>
         )}
 
+        {/* Seller Registration Form */}
+        {!isSeller && activeTab === 'register' && (
+          <div className="bg-gray-800 rounded-xl p-6 max-w-2xl mx-auto">
+            <div className="text-center mb-6">
+              <ShoppingBagIcon className="h-16 w-16 mx-auto mb-4 text-blue-400" />
+              <h2 className="text-3xl font-bold text-white mb-2">Become a Seller</h2>
+              <p className="text-gray-300">
+                Register as a seller to start creating marketplace listings and reach players worldwide!
+              </p>
+            </div>
+
+            <form onSubmit={handleSellerRegistration} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Business Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={sellerRegistrationForm.business_name}
+                  onChange={(e) => setSellerRegistrationForm({ ...sellerRegistrationForm, business_name: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="e.g., My Gaming Store"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Contact Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={sellerRegistrationForm.contact_email}
+                  onChange={(e) => setSellerRegistrationForm({ ...sellerRegistrationForm, contact_email: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="your@email.com"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Winners will use this to contact you for shipping
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Contact Phone (Optional)
+                </label>
+                <input
+                  type="tel"
+                  value={sellerRegistrationForm.contact_phone}
+                  onChange={(e) => setSellerRegistrationForm({ ...sellerRegistrationForm, contact_phone: e.target.value })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                <h3 className="font-bold text-blue-300 mb-2">✅ Seller Benefits:</h3>
+                <ul className="text-sm text-blue-200 space-y-1">
+                  <li>• Create unlimited marketplace listings</li>
+                  <li>• Choose which game players compete in</li>
+                  <li>• Set your own base prices</li>
+                  <li>• Reach skill-based gaming community</li>
+                  <li>• Automated winner selection</li>
+                  <li>• Direct contact with winners</li>
+                </ul>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-4 rounded-lg transition-colors"
+              >
+                {isLoading ? '⏳ Registering...' : '🚀 Register as Seller'}
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* Create Tab */}
-        {activeTab === 'create' && (
+        {isSeller && activeTab === 'create' && (
           <div className="bg-gray-800 rounded-xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6">Create New Listing</h2>
             
@@ -388,7 +540,7 @@ export default function SellPage() {
         )}
 
         {/* Manage Tab */}
-        {activeTab === 'manage' && (
+        {isSeller && activeTab === 'manage' && (
           <div>
             {isLoading ? (
               <div className="text-center text-white py-12">
