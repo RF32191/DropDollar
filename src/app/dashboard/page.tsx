@@ -304,8 +304,8 @@ export default function TriumphStyleDashboard() {
       console.log('📝 [Dashboard] Registering as seller...');
       
       const { data, error } = await supabase.rpc('register_as_seller', {
-        business_name_param: sellerFormData.businessName.trim() || null,
         contact_email_param: sellerFormData.contactEmail.trim(),
+        business_name_param: sellerFormData.businessName.trim() || null,
         contact_phone_param: sellerFormData.contactPhone.trim() || null
       });
       

@@ -58,8 +58,8 @@ CREATE POLICY "Users can update their own seller profile"
 -- Users register to become sellers
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.register_as_seller(
-    business_name_param TEXT DEFAULT NULL,
     contact_email_param TEXT,
+    business_name_param TEXT DEFAULT NULL,
     contact_phone_param TEXT DEFAULT NULL
 )
 RETURNS JSONB
@@ -109,6 +109,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+-- Grant permissions (parameter order: contact_email, business_name, contact_phone)
 GRANT EXECUTE ON FUNCTION public.register_as_seller(TEXT, TEXT, TEXT) TO authenticated, anon;
 
 -- ============================================================================
@@ -243,14 +244,16 @@ BEGIN
         participants_count,
         status,
         rng_seed,
-        timer_duration
+        timer_duration,
+        base_price
     ) VALUES (
         v_listing_id,
         0,
         0,
         'waiting',
         v_rng_seed,
-        7200 -- 2 hours
+        7200, -- 2 hours
+        base_price_param
     ) RETURNING id INTO v_session_id;
     
     RETURN jsonb_build_object(
