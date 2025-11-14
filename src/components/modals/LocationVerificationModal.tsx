@@ -11,19 +11,28 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface LocationVerificationModalProps {
-  isOpen: boolean;
-  onLocationGranted: (location: any) => void;
-  onLocationDenied: () => void;
+  isOpen?: boolean; // Optional now
+  onLocationGranted?: (location: any) => void;
+  onLocationDenied?: () => void;
+  // New prop names (backwards compatible)
+  onGrant?: (location: any) => void;
+  onDeny?: () => void;
 }
 
 export default function LocationVerificationModal({
-  isOpen,
+  isOpen = true, // Default to true if not provided
   onLocationGranted,
-  onLocationDenied
+  onLocationDenied,
+  onGrant,
+  onDeny
 }: LocationVerificationModalProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationResult, setLocationResult] = useState<any>(null);
+
+  // Use new prop names if provided, fall back to old names
+  const handleGranted = onGrant || onLocationGranted;
+  const handleDenied = onDeny || onLocationDenied;
 
   if (!isOpen) return null;
 
@@ -42,14 +51,14 @@ export default function LocationVerificationModal({
       const isAllowed = ImprovedLocationService.isGamingAllowed(location);
       
       if (isAllowed) {
-        onLocationGranted(location);
+        handleGranted?.(location);
       } else {
-        onLocationDenied();
+        handleDenied?.();
       }
     } catch (err: any) {
       console.error('❌ Location error:', err);
       setError(err.message || 'Failed to get location');
-      onLocationDenied();
+      handleDenied?.();
     } finally {
       setIsVerifying(false);
     }
