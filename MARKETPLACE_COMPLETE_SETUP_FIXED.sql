@@ -55,7 +55,12 @@ CREATE TABLE public.marketplace_listings (
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Constraints
-    CONSTRAINT valid_category CHECK (category IN ('electronics', 'dropafund', 'fun', 'tools', 'music', 'books', 'art', 'cars', 'photos', 'sports', 'home', 'fashion', 'collectibles', 'automotive', 'all'))
+    CONSTRAINT valid_category CHECK (category IN (
+        'electronics', 'dropafund', 'fun', 'tools', 'music', 'books', 'art', 'cars', 
+        'photos', 'sports', 'home', 'fashion', 'collectibles', 'automotive',
+        'tools-equipment', 'photography', 'art-crafts', 'music-instruments', 'books-media',
+        'all'
+    ))
 );
 
 -- ============================================================================
