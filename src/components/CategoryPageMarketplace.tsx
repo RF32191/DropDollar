@@ -294,78 +294,47 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navigation and Wallet */}
+      {/* Navigation */}
       <CleanNavigation />
-      <PageWalletDisplay />
       
-      {/* Location Banner (same as WTA, Hot Sell, Games) */}
-      <LocationBanner 
-        locationVerified={locationVerified}
-        improvedLocation={improvedLocation}
-        locationLoading={locationLoading}
-      />
-      
-      {/* Location Verification Modal (same as WTA, Hot Sell, Games) */}
-      {showLocationModal && (
-        <LocationVerificationModal
-          onGrant={handleLocationGranted}
-          onDeny={handleLocationDenied}
-        />
-      )}
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Wallet Display */}
+        <PageWalletDisplay />
 
-      {/* Header */}
-      <header className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-2xl border-b-4 border-blue-400/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <Link href="/" className="flex items-center space-x-4 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-xl group-hover:shadow-2xl transition-all duration-300 group-hover:scale-105">
-                <img 
-                  src="/DropCoin.png" 
-                  alt="DropDollar Logo"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-white drop-shadow-lg">DropDollar</span>
-                <span className="text-xs text-gray-300 font-medium tracking-wide">
-                  {categoryIcon} {category.name.toUpperCase()}
-                </span>
-              </div>
-            </Link>
+        {/* Location Verification Banner (same as WTA) */}
+        {isAuthenticated && (
+          <LocationBanner
+            isLoading={locationLoading}
+            location={improvedLocation}
+            isVerified={locationVerified}
+          />
+        )}
+        
+        {/* Location Verification Modal (same as WTA) */}
+        {showLocationModal && (
+          <LocationVerificationModal
+            onGrant={handleLocationGranted}
+            onDeny={handleLocationDenied}
+          />
+        )}
 
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="/categories" className="text-purple-200 hover:text-white font-medium transition-colors">Categories</Link>
-              <Link href="/games" className="text-pink-200 hover:text-white font-bold transition-colors">🎮 Games</Link>
-              <Link href="/tournaments" className="text-yellow-200 hover:text-white font-bold transition-colors">🏆 Tournaments</Link>
-              <Link href="/sell" className="text-green-200 hover:text-white font-bold transition-colors">💰 Sell</Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Breadcrumb */}
-        <div className="flex items-center space-x-2 text-sm text-gray-400 mb-8">
-          <Link href="/categories" className="hover:text-blue-400 flex items-center transition-colors">
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            Categories
-          </Link>
-          <span>/</span>
-          <span className="text-white font-medium">{categoryIcon} {category.name}</span>
-        </div>
-
-        {/* Page Title */}
+        {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-6xl font-extrabold mb-6">
-            <span className="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-pulse">
-              {categoryIcon} {category.name.toUpperCase()}
-            </span>
-          </h1>
-          <div className="w-32 h-1 bg-gradient-to-r from-blue-400 to-pink-500 mx-auto rounded-full animate-pulse mb-6"></div>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+          <div className="flex items-center justify-center mb-4">
+            <span className="text-6xl mr-4">{categoryIcon}</span>
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-pulse">
+              {category.name.toUpperCase()}
+            </h1>
+          </div>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-4">
             Compete in skill-based games to win amazing {category.name.toLowerCase()} items!
           </p>
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-400">
+            <Link href="/categories" className="hover:text-blue-400 flex items-center transition-colors">
+              <ArrowLeftIcon className="h-4 w-4 mr-1" />
+              Back to Categories
+            </Link>
+          </div>
         </div>
 
         {/* Message */}
@@ -607,45 +576,45 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
             })}
           </div>
         )}
-      </main>
 
-      {/* Contact Modal */}
-      {showContactModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-green-500">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              <TrophyIcon className="inline h-6 w-6 mr-2 text-green-400" />
-              Congratulations!
-            </h2>
-            <p className="text-gray-300 mb-4">
-              You won <span className="font-bold text-green-400">{showContactModal.title}</span>!
-            </p>
-            <div className="bg-gray-700 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-400 mb-2">Seller Contact:</p>
-              <p className="text-white font-bold break-all">
-                {sellerContact.includes('@') ? (
-                  <EnvelopeIcon className="inline h-5 w-5 mr-2" />
-                ) : (
-                  <PhoneIcon className="inline h-5 w-5 mr-2" />
-                )}
-                {sellerContact}
+        {/* Contact Modal */}
+        {showContactModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border border-green-500">
+              <h2 className="text-2xl font-bold text-white mb-4">
+                <TrophyIcon className="inline h-6 w-6 mr-2 text-green-400" />
+                Congratulations!
+              </h2>
+              <p className="text-gray-300 mb-4">
+                You won <span className="font-bold text-green-400">{showContactModal.title}</span>!
               </p>
+              <div className="bg-gray-700 rounded-lg p-4 mb-6">
+                <p className="text-sm text-gray-400 mb-2">Seller Contact:</p>
+                <p className="text-white font-bold break-all">
+                  {sellerContact.includes('@') ? (
+                    <EnvelopeIcon className="inline h-5 w-5 mr-2" />
+                  ) : (
+                    <PhoneIcon className="inline h-5 w-5 mr-2" />
+                  )}
+                  {sellerContact}
+                </p>
+              </div>
+              <p className="text-sm text-gray-400 mb-6">
+                Contact the seller to arrange shipping and receive your prize!
+              </p>
+              <button
+                onClick={() => {
+                  setShowContactModal(null);
+                  setSellerContact('');
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
+              >
+                Close
+              </button>
             </div>
-            <p className="text-sm text-gray-400 mb-6">
-              Contact the seller to arrange shipping and receive your prize!
-            </p>
-            <button
-              onClick={() => {
-                setShowContactModal(null);
-                setSellerContact('');
-              }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
-            >
-              Close
-            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
