@@ -362,6 +362,10 @@ BEGIN
         updated_at = NOW()
     WHERE id::TEXT = session_record.id::TEXT;
 
+    -- Auto-reset the session for the next game (after a 2 second delay via pg_sleep)
+    PERFORM pg_sleep(2);
+    PERFORM reset_1v1_session(config_id_param);
+
     RETURN jsonb_build_object(
         'success', true,
         'message', 'Payout successful',
@@ -379,6 +383,123 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.process_1v1_payout(TEXT) TO authenticated, anon;
+
+-- Create reset function
+DROP FUNCTION IF EXISTS public.reset_1v1_session(TEXT);
+
+CREATE OR REPLACE FUNCTION public.reset_1v1_session(config_id_param TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    session_id_to_reset TEXT;
+    v_config_id TEXT;
+    v_entry_fee NUMERIC;
+    v_rng_seed INTEGER;
+BEGIN
+    -- Get the completed session
+    SELECT id::TEXT, config_id::TEXT 
+    INTO session_id_to_reset, v_config_id
+    FROM public.one_v_one_sessions
+    WHERE config_id::TEXT = config_id_param::TEXT
+    AND status = 'completed'
+    ORDER BY completed_at DESC
+    LIMIT 1;
+    
+    IF NOT FOUND THEN
+        RAISE NOTICE 'No completed session found for config: %', config_id_param;
+        -- Try to find any session for this config
+        SELECT id::TEXT, config_id::TEXT 
+        INTO session_id_to_reset, v_config_id
+        FROM public.one_v_one_sessions
+        WHERE config_id::TEXT = config_id_param::TEXT
+        ORDER BY created_at DESC
+        LIMIT 1;
+    END IF;
+    
+    -- Get config details
+    SELECT entry_fee, floor(random() * 99999 + 1)::integer
+    INTO v_entry_fee, v_rng_seed
+    FROM one_v_one_configs
+    WHERE id::TEXT = config_id_param::TEXT;
+    
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Config not found');
+    END IF;
+    
+    -- Clear all participants for this session
+    IF session_id_to_reset IS NOT NULL THEN
+        DELETE FROM public.one_v_one_participants 
+        WHERE session_id::TEXT = session_id_to_reset;
+        
+        RAISE NOTICE 'Cleared participants for session: %', session_id_to_reset;
+    END IF;
+    
+    -- Reset the session
+    IF session_id_to_reset IS NOT NULL THEN
+        UPDATE public.one_v_one_sessions
+        SET 
+            status = 'waiting',
+            participants_count = 0,
+            current_pot = 0,
+            timer_started_at = NULL,
+            winner_user_id = NULL,
+            loser_user_id = NULL,
+            winner_prize = 0,
+            loser_prize = 0,
+            platform_fee = 0,
+            completed_at = NULL,
+            prize_pool = v_entry_fee,
+            rng_seed = v_rng_seed,
+            timer_duration = 7200,
+            updated_at = NOW()
+        WHERE id::TEXT = session_id_to_reset;
+        
+        RAISE NOTICE 'Reset session: % to waiting status', session_id_to_reset;
+    ELSE
+        -- Create a new session if none exists
+        session_id_to_reset := gen_random_uuid()::TEXT;
+        
+        INSERT INTO public.one_v_one_sessions (
+            id,
+            config_id,
+            prize_pool,
+            participants_count,
+            status,
+            rng_seed,
+            current_pot,
+            timer_duration,
+            created_at,
+            updated_at
+        ) VALUES (
+            session_id_to_reset::UUID,
+            config_id_param::UUID,
+            v_entry_fee,
+            0,
+            'waiting',
+            v_rng_seed,
+            0,
+            7200,
+            NOW(),
+            NOW()
+        );
+        
+        RAISE NOTICE 'Created new session: %', session_id_to_reset;
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'Session reset successfully',
+        'session_id', session_id_to_reset
+    );
+    
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Error resetting: ' || SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.reset_1v1_session(TEXT) TO authenticated, anon;
 
 -- Recreate timer trigger
 DROP TRIGGER IF EXISTS auto_start_1v1_timer ON one_v_one_sessions;
