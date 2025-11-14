@@ -209,6 +209,86 @@ export default function OneVOnePage() {
     };
   }, [isAuthenticated, authLoading, loadSessions]);
 
+  // Poll for completed games and start countdown timer
+  useEffect(() => {
+    if (!sessions || sessions.length === 0 || !user) return;
+
+    const checkForCompletedGames = () => {
+      sessions.forEach(session => {
+        // Skip if timer already running or payout already triggered
+        if (payoutTimers[session.config_id] !== undefined || session.winner_user_id) {
+          return;
+        }
+
+        const userParticipant = session.participants.find(p => p.user_id === user.id);
+        if (!userParticipant) return; // Only check sessions user is in
+
+        const bothJoined = session.participants.length >= 2;
+        const bothCompleted = session.participants.every(p => 
+          p.score !== null && p.score !== undefined && p.completed_at !== null
+        );
+
+        console.log(`🔍 [1v1] Polling session ${session.config_id}:`, {
+          bothJoined,
+          bothCompleted,
+          participants: session.participants.length,
+          scores: session.participants.map(p => ({ score: p.score, completed: p.completed_at }))
+        });
+
+        if (bothJoined && bothCompleted) {
+          console.log('🚨 [1v1] BOTH PLAYERS COMPLETED! Starting countdown...');
+          
+          // Auto-expand scoreboard
+          setTimeout(() => {
+            const scoreboard = document.getElementById(`scoreboard-${session.config_id}`);
+            if (scoreboard) {
+              scoreboard.classList.remove('hidden');
+              console.log('✅ Scoreboard auto-expanded');
+            }
+          }, 100);
+
+          // Clear any existing countdown
+          if (countdownIntervals[session.config_id]) {
+            clearInterval(countdownIntervals[session.config_id]);
+          }
+
+          // Start 10 second countdown
+          setPayoutTimers(prev => ({ ...prev, [session.config_id]: 10 }));
+          console.log('⏱️ Starting 10-second countdown...');
+
+          let countdownValue = 10;
+          const countdown = setInterval(() => {
+            countdownValue--;
+            console.log(`⏱️ Countdown: ${countdownValue}`);
+            setPayoutTimers(prev => ({ ...prev, [session.config_id]: countdownValue }));
+
+            if (countdownValue <= 0) {
+              clearInterval(countdown);
+              console.log('💰 Countdown complete! Triggering payout...');
+              setCountdownIntervals(prev => {
+                const newIntervals = { ...prev };
+                delete newIntervals[session.config_id];
+                return newIntervals;
+              });
+              triggerPayout(session.config_id);
+            }
+          }, 1000);
+
+          // Store interval
+          setCountdownIntervals(prev => ({ ...prev, [session.config_id]: countdown }));
+        }
+      });
+    };
+
+    // Check immediately
+    checkForCompletedGames();
+
+    // Then check every 2 seconds
+    const pollInterval = setInterval(checkForCompletedGames, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [sessions, user, payoutTimers, countdownIntervals]);
+
   // Handle joining a session
   const handleJoinSession = async (config: OneVOneConfig) => {
     if (!user || !isAuthenticated) {
