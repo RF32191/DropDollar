@@ -89,6 +89,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const bulletsRef = useRef<Bullet[]>([]);
   const enemyShipsRef = useRef<EnemyShip[]>([]);
   const lasersRef = useRef<Laser[]>([]);
+  const shipRef = useRef<Ship>({ x: 50, y: 50 }); // Ref for real-time ship position
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -144,7 +145,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     lastShotRef.current = now;
     
-    console.log('LaserDodge: SHOOTING bullet at', ship.x, ship.y);
+    const currentShip = shipRef.current; // Use ref for accurate position
+    console.log('LaserDodge: SHOOTING bullet at', currentShip.x, currentShip.y);
     
     // Play shooting sound
     try {
@@ -155,8 +157,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     const newBullet: Bullet = {
       id: now + Math.random(),
-      x: ship.x,
-      y: ship.y - 2, // Start slightly above the ship
+      x: currentShip.x,
+      y: currentShip.y - 2, // Start slightly above the ship
       createdAt: now
     };
     
@@ -185,18 +187,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     // Update score with bonus for staying on blue lasers - decimal scoring
     const baseScore = Number((timeSinceStart / 50).toFixed(2));
     
-    // Calculate blue laser bonus with decimal precision
+    // Calculate blue laser bonus with decimal precision (using shipRef for real-time position)
     let blueBonus = 0;
     const blueLasers = lasersRef.current.filter(l => !l.isHarmful);
+    const currentShip = shipRef.current; // Use ref for accurate position
     for (const laser of blueLasers) {
       if (laser.type === 'horizontal') {
         // Ship is on blue horizontal laser
-        if (Math.abs(laser.position - ship.y) < 2) {
+        if (Math.abs(laser.position - currentShip.y) < 2) {
           blueBonus += 0.01; // 0.01 points per frame on blue laser (decimal precision)
         }
       } else {
         // Ship is on blue vertical laser
-        if (Math.abs(laser.position - ship.x) < 2) {
+        if (Math.abs(laser.position - currentShip.x) < 2) {
           blueBonus += 0.01; // 0.01 points per frame on blue laser (decimal precision)
         }
       }
@@ -612,50 +615,51 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       return age < 1000; // Explosions last 1 second
     }));
 
-    // Check collisions (using refs for current values)
+    // Check collisions (using refs for current values - shipRef is critical for real-time detection)
     // ONLY RED LASERS (isHarmful === true) and ENEMY SHIPS cause death
     const harmfulLasers = lasersRef.current.filter(l => l.isHarmful);
+    const currentShipPos = shipRef.current; // Use ref for accurate real-time position
     let collision = false;
     
-      // Check RED laser collisions - Aggressive hitbox for center beam detection
+      // Check RED laser collisions - Precise hitbox for center beam detection
       for (const laser of harmfulLasers) {
         if (laser.type === 'horizontal') {
-          // Aggressive hitbox of 2.5 - ship dies when touching red laser beam
-          if (Math.abs(laser.position - ship.y) < 2.5) {
+          // Precise hitbox of 3.0 - ship dies when touching red laser beam
+          if (Math.abs(laser.position - currentShipPos.y) < 3.0) {
             collision = true;
-            console.log('LaserDodge: Hit by horizontal RED laser at', laser.position);
+            console.log('LaserDodge: 💀 Hit by horizontal RED laser at', laser.position, 'ship at', currentShipPos.y);
             break;
           }
         } else {
-          // Aggressive hitbox of 2.5 - ship dies when touching red laser beam
-          if (Math.abs(laser.position - ship.x) < 2.5) {
+          // Precise hitbox of 3.0 - ship dies when touching red laser beam
+          if (Math.abs(laser.position - currentShipPos.x) < 3.0) {
             collision = true;
-            console.log('LaserDodge: Hit by vertical RED laser at', laser.position);
+            console.log('LaserDodge: 💀 Hit by vertical RED laser at', laser.position, 'ship at', currentShipPos.x);
             break;
           }
         }
       }
 
-    // Check enemy ship collisions - slightly smaller hitbox
+    // Check enemy ship collisions - precise hitbox
     if (!collision) {
       for (const enemy of enemyShipsRef.current) {
-        // Reduced hitbox from 6 to 4 for more precise collision
-        if (Math.abs(enemy.x - ship.x) < 4 && Math.abs(enemy.y - ship.y) < 4) {
+        // Precise hitbox of 5 units for enemy collision (ship and enemy are both 8px = ~2.5 units)
+        if (Math.abs(enemy.x - currentShipPos.x) < 5 && Math.abs(enemy.y - currentShipPos.y) < 5) {
           collision = true;
-          console.log('LaserDodge: Collision with enemy ship at', enemy.x, enemy.y);
+          console.log('LaserDodge: 💥 Collision with enemy ship at', enemy.x, enemy.y, 'ship at', currentShipPos.x, currentShipPos.y);
           break;
         }
       }
     }
 
     if (collision) {
-      console.log('LaserDodge: Collision detected! Game Over!');
+      console.log('LaserDodge: ☠️ Collision detected! Game Over!');
       
-      // Create ship explosion animation
+      // Create ship explosion animation at exact collision point (using shipRef)
       const shipExplosion: Explosion = {
         id: Date.now() + Math.random(),
-        x: ship.x,
-        y: ship.y,
+        x: currentShipPos.x,
+        y: currentShipPos.y,
         createdAt: Date.now(),
         type: 'ship'
       };
@@ -720,7 +724,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedX = Math.max(5, Math.min(95, x));
     const boundedY = Math.max(5, Math.min(95, y));
     
-    setShip({ x: boundedX, y: boundedY });
+    const newShipPos = { x: boundedX, y: boundedY };
+    shipRef.current = newShipPos; // Update ref immediately for collision detection
+    setShip(newShipPos);
   };
 
   // Handle mouse click for shooting
@@ -746,7 +752,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedX = Math.max(5, Math.min(95, x));
     const boundedY = Math.max(5, Math.min(95, y));
     
-    setShip({ x: boundedX, y: boundedY });
+    const newShipPos = { x: boundedX, y: boundedY };
+    shipRef.current = newShipPos; // Update ref immediately for collision detection
+    setShip(newShipPos);
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -792,7 +800,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     lasersRef.current = [];
     enemyShipsRef.current = [];
     bulletsRef.current = [];
-    setShip({ x: 50, y: 50 });
+    const initialShip = { x: 50, y: 50 };
+    setShip(initialShip);
+    shipRef.current = initialShip; // Reset ship ref for collision detection
     setTimeLeft(60);
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
