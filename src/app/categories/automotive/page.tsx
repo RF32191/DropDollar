@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPage from '@/components/CategoryPageMarketplace';
 
 export default function AutomotivePage() {
-  return <CategoryPage categoryId="automotive" categoryIcon="🚗" />;
+  return <CategoryPageMarketplace categoryId="automotive" categoryIcon="🚗" />;
 }

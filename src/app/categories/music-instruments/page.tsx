@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPage from '@/components/CategoryPageMarketplace';
 
 export default function MusicInstrumentsPage() {
-  return <CategoryPage categoryId="music-instruments" categoryIcon="🎵" />;
+  return <CategoryPageMarketplace categoryId="music-instruments" categoryIcon="🎵" />;
 }

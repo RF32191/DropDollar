@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPageMarketplace from '@/components/CategoryPageMarketplace';
 import { ElectronicsAnimationWrapper } from '@/lib/AnimationEffects';
 import SoundEffects from '@/lib/SoundEffects';
 
@@ -13,7 +13,7 @@ export default function ElectronicsPage() {
 
   return (
     <ElectronicsAnimationWrapper>
-      <CategoryPage categoryId="electronics" categoryIcon="📱" />
+      <CategoryPageMarketplace categoryId="electronics" categoryIcon="📱" />
     </ElectronicsAnimationWrapper>
   );
 }

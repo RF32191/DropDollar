@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPage from '@/components/CategoryPageMarketplace';
 
 export default function ToolsEquipmentPage() {
-  return <CategoryPage categoryId="tools-equipment" categoryIcon="🔧" />;
+  return <CategoryPageMarketplace categoryId="tools-equipment" categoryIcon="🔧" />;
 }

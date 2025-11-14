@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPageMarketplace from '@/components/CategoryPageMarketplace';
 
 export default function DropAFundPage() {
-  return <CategoryPage categoryId="dropafund" categoryIcon="💰" />;
+  return <CategoryPageMarketplace categoryId="dropafund" categoryIcon="💰" />;
 }

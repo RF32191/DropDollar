@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPage from '@/components/CategoryPageMarketplace';
 import { BooksAnimationWrapper } from '@/lib/AnimationEffects';
 import SoundEffects from '@/lib/SoundEffects';
 
@@ -13,7 +13,7 @@ export default function BooksPage() {
 
   return (
     <BooksAnimationWrapper>
-      <CategoryPage categoryId="books-media" categoryIcon="📚" />
+      <CategoryPageMarketplace categoryId="books-media" categoryIcon="📚" />
     </BooksAnimationWrapper>
   );
 }

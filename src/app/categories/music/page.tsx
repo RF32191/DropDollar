@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPageMarketplace from '@/components/CategoryPageMarketplace';
 import { MusicAnimationWrapper } from '@/lib/AnimationEffects';
 import SoundEffects from '@/lib/SoundEffects';
 
@@ -13,7 +13,7 @@ export default function MusicPage() {
 
   return (
     <MusicAnimationWrapper>
-      <CategoryPage categoryId="music-instruments" categoryIcon="🎵" />
+      <CategoryPageMarketplace categoryId="music-instruments" categoryIcon="🎵" />
     </MusicAnimationWrapper>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPage from '@/components/CategoryPageMarketplace';
 
 export default function ArtCraftsPage() {
-  return <CategoryPage categoryId="art-crafts" categoryIcon="🎨" />;
+  return <CategoryPageMarketplace categoryId="art-crafts" categoryIcon="🎨" />;
 }

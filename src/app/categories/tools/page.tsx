@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import CategoryPage from '@/components/CategoryPage';
+import CategoryPageMarketplace from '@/components/CategoryPageMarketplace';
 import { ToolsAnimationWrapper } from '@/lib/AnimationEffects';
 import SoundEffects from '@/lib/SoundEffects';
 
@@ -13,7 +13,7 @@ export default function ToolsPage() {
 
   return (
     <ToolsAnimationWrapper>
-      <CategoryPage categoryId="tools-equipment" categoryIcon="🔧" />
+      <CategoryPageMarketplace categoryId="tools-equipment" categoryIcon="🔧" />
     </ToolsAnimationWrapper>
   );
 }
