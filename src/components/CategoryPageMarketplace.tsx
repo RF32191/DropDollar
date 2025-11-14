@@ -5,8 +5,13 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
-import { useGlobalLocation } from '@/hooks/useGlobalLocation';
+import { useLocationVerification } from '@/hooks/useLocationVerification';
+import { ImprovedLocationService } from '@/lib/improvedLocationService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
+import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
+import LocationBanner from '@/components/location/LocationBanner';
+import LocationVerificationModal from '@/components/modals/LocationVerificationModal';
 import { 
   ClockIcon, 
   FireIcon, 
@@ -16,7 +21,8 @@ import {
   ShieldCheckIcon,
   TrophyIcon,
   PhoneIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 
 interface CategoryPageProps {
@@ -85,7 +91,16 @@ const categories: { [key: string]: { name: string } } = {
 export default function CategoryPageMarketplace({ categoryId, categoryIcon }: CategoryPageProps) {
   const { user, isAuthenticated, authLoading } = useAuth();
   const { refreshUserTokens } = useTokenSync();
-  const globalLocation = useGlobalLocation();
+  
+  // Location verification hook (same as WTA, Hot Sell, Games)
+  const {
+    locationVerified,
+    improvedLocation,
+    locationLoading,
+    showLocationModal,
+    handleLocationGranted,
+    handleLocationDenied
+  } = useLocationVerification(isAuthenticated);
   
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,9 +163,14 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
       return;
     }
 
-    // Check location
-    if (globalLocation.status !== 'granted' || !globalLocation.isGamingAllowed) {
-      setMessage({ type: 'error', text: 'Location verification required for gaming' });
+    // Check location verification (same as WTA, Hot Sell, Games)
+    if (!locationVerified || !improvedLocation?.isGamingAllowed) {
+      setMessage({ 
+        type: 'error', 
+        text: improvedLocation?.data?.restricted 
+          ? `Gaming is not allowed in ${improvedLocation.data.state}` 
+          : 'Location verification required. Please enable location to participate.' 
+      });
       return;
     }
 
@@ -275,6 +295,25 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {/* Navigation and Wallet */}
+      <CleanNavigation />
+      <PageWalletDisplay />
+      
+      {/* Location Banner (same as WTA, Hot Sell, Games) */}
+      <LocationBanner 
+        locationVerified={locationVerified}
+        improvedLocation={improvedLocation}
+        locationLoading={locationLoading}
+      />
+      
+      {/* Location Verification Modal (same as WTA, Hot Sell, Games) */}
+      {showLocationModal && (
+        <LocationVerificationModal
+          onGrant={handleLocationGranted}
+          onDeny={handleLocationDenied}
+        />
+      )}
+
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 shadow-2xl border-b-4 border-blue-400/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -341,22 +380,33 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
           </div>
         )}
 
-        {/* Location Warning */}
-        {globalLocation.status !== 'granted' && (
+        {/* Location Status Info */}
+        {!locationVerified && !locationLoading && (
           <div className="max-w-2xl mx-auto mb-8 bg-yellow-900/20 border border-yellow-700 rounded-lg p-6">
             <div className="flex items-start">
-              <ShieldCheckIcon className="h-6 w-6 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
+              <MapPinIcon className="h-6 w-6 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-bold text-yellow-300 mb-2">Location Verification Required</h3>
                 <p className="text-yellow-200 text-sm mb-4">
                   To participate in skill-based gaming competitions, we need to verify your location to ensure compliance with local regulations.
                 </p>
-                <button 
-                  onClick={() => globalLocation.requestLocation()}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold transition-colors"
-                >
-                  Enable Location
-                </button>
+                <p className="text-xs text-yellow-300">
+                  Location verification will be requested automatically when needed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {improvedLocation?.data?.restricted && (
+          <div className="max-w-2xl mx-auto mb-8 bg-red-900/20 border border-red-700 rounded-lg p-6">
+            <div className="flex items-start">
+              <ShieldCheckIcon className="h-6 w-6 text-red-400 mr-3 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-red-300 mb-2">Gaming Not Available in Your State</h3>
+                <p className="text-red-200 text-sm">
+                  Skill-based gaming competitions are not available in {improvedLocation.data.state} due to local regulations.
+                </p>
               </div>
             </div>
           </div>
@@ -547,7 +597,12 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                       ✅ Seller Contacted
                     </div>
                   ) : canJoin ? (
-                    globalLocation.isGamingAllowed ? (
+                    improvedLocation?.data?.restricted ? (
+                      <div className="w-full bg-red-900/30 border border-red-700 text-red-300 text-sm py-3 rounded-lg text-center">
+                        <ShieldCheckIcon className="inline h-4 w-4 mr-1" />
+                        Gaming Not Available in {improvedLocation.data.state}
+                      </div>
+                    ) : locationVerified && improvedLocation?.isGamingAllowed ? (
                       <button
                         onClick={() => handleJoinListing(listing)}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
@@ -556,8 +611,8 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                       </button>
                     ) : (
                       <div className="w-full bg-yellow-900/30 border border-yellow-700 text-yellow-300 text-sm py-3 rounded-lg text-center">
-                        <ShieldCheckIcon className="inline h-4 w-4 mr-1" />
-                        Enable Location to Join
+                        <MapPinIcon className="inline h-4 w-4 mr-1" />
+                        Location Verification Required
                       </div>
                     )
                   ) : userParticipant && !userParticipant.score ? (
