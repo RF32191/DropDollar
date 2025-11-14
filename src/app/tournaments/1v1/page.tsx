@@ -341,57 +341,76 @@ export default function OneVOnePage() {
       setSelectedGameFlow(null);
 
       // Check if both players have completed - start 10 second timer
-      setTimeout(async () => {
-        console.log('🔍 [1v1] Checking for payout trigger...');
+      const checkAndStartTimer = async () => {
         const configId = selectedGameFlow.configId;
+        console.log('🔍 [1v1] Checking for payout trigger...', configId);
         
-        // Re-fetch the session to check if ready
-        const { data: checkSession } = await supabase
-          .from('one_v_one_sessions')
-          .select(`
-            *,
-            participants:one_v_one_participants(user_id, score)
-          `)
-          .eq('config_id', configId)
-          .eq('status', 'active')
-          .single();
-        
-        if (checkSession) {
-          const bothJoined = checkSession.participants.length >= 2;
-          const bothCompleted = checkSession.participants.every((p: any) => p.score !== null && p.score !== undefined);
-          const notPaid = !checkSession.winner_user_id;
+        try {
+          // Re-fetch the session to check if ready
+          const { data: checkSession, error: sessionError } = await supabase
+            .from('one_v_one_sessions')
+            .select(`
+              *,
+              participants:one_v_one_participants(user_id, score, completed_at)
+            `)
+            .eq('config_id', configId)
+            .single();
           
-          console.log('📊 [1v1] Payout readiness check:', {
-            configId,
-            bothJoined,
-            bothCompleted,
-            notPaid,
-            participantCount: checkSession.participants.length,
-            scores: checkSession.participants.map((p: any) => p.score)
-          });
+          if (sessionError) {
+            console.error('❌ [1v1] Error fetching session:', sessionError);
+            return;
+          }
           
-          if (bothJoined && bothCompleted && notPaid) {
-            console.log('✅ [1v1] BOTH PLAYERS DONE! Starting 10-second payout timer...');
+          if (checkSession) {
+            const bothJoined = checkSession.participants.length >= 2;
+            const bothCompleted = checkSession.participants.every((p: any) => 
+              p.score !== null && p.score !== undefined && p.completed_at !== null
+            );
+            const notPaid = !checkSession.winner_user_id;
             
-            // Auto-expand scoreboard
-            const scoreboard = document.getElementById(`scoreboard-${configId}`);
-            if (scoreboard) {
-              scoreboard.classList.remove('hidden');
-            }
+            console.log('📊 [1v1] Payout readiness check:', {
+              configId,
+              bothJoined,
+              bothCompleted,
+              notPaid,
+              participantCount: checkSession.participants.length,
+              participants: checkSession.participants,
+              status: checkSession.status
+            });
             
-            // Clear any existing countdown for this config
-            if (countdownIntervals[configId]) {
-              clearInterval(countdownIntervals[configId]);
-            }
-            
-            // Start 10 second countdown
-            setPayoutTimers(prev => ({ ...prev, [configId]: 10 }));
-            
-            const countdown = setInterval(() => {
-              setPayoutTimers(prev => {
-                const current = prev[configId];
-                if (current <= 1) {
+            if (bothJoined && bothCompleted && notPaid) {
+              console.log('✅ [1v1] BOTH PLAYERS DONE! Starting 10-second payout timer...');
+              
+              // Auto-expand scoreboard
+              setTimeout(() => {
+                const scoreboard = document.getElementById(`scoreboard-${configId}`);
+                console.log('🔍 Looking for scoreboard:', `scoreboard-${configId}`, scoreboard);
+                if (scoreboard) {
+                  scoreboard.classList.remove('hidden');
+                  console.log('✅ Scoreboard expanded!');
+                } else {
+                  console.warn('⚠️ Scoreboard element not found');
+                }
+              }, 100);
+              
+              // Clear any existing countdown for this config
+              if (countdownIntervals[configId]) {
+                clearInterval(countdownIntervals[configId]);
+              }
+              
+              // Start 10 second countdown
+              setPayoutTimers(prev => ({ ...prev, [configId]: 10 }));
+              console.log('⏱️ Starting countdown from 10...');
+              
+              let countdownValue = 10;
+              const countdown = setInterval(() => {
+                countdownValue--;
+                console.log(`⏱️ Countdown: ${countdownValue}`);
+                setPayoutTimers(prev => ({ ...prev, [configId]: countdownValue }));
+                
+                if (countdownValue <= 0) {
                   clearInterval(countdown);
+                  console.log('💰 Countdown finished! Triggering payout...');
                   setCountdownIntervals(prev => {
                     const newIntervals = { ...prev };
                     delete newIntervals[configId];
@@ -399,19 +418,25 @@ export default function OneVOnePage() {
                   });
                   // Trigger payout
                   triggerPayout(configId);
-                  return { ...prev, [configId]: 0 };
                 }
-                return { ...prev, [configId]: current - 1 };
+              }, 1000);
+              
+              // Store the interval
+              setCountdownIntervals(prev => ({ ...prev, [configId]: countdown }));
+            } else {
+              console.log('⏸️ [1v1] Waiting for opponent to finish...', {
+                bothJoined,
+                bothCompleted,
+                notPaid
               });
-            }, 1000);
-            
-            // Store the interval
-            setCountdownIntervals(prev => ({ ...prev, [configId]: countdown }));
-          } else {
-            console.log('⏸️ [1v1] Waiting for opponent to finish...');
+            }
           }
+        } catch (error) {
+          console.error('❌ [1v1] Error in checkAndStartTimer:', error);
         }
-      }, 2000);
+      };
+      
+      setTimeout(checkAndStartTimer, 2000);
 
     } catch (error) {
       console.error('❌ [1v1] Error in game completion:', error);
