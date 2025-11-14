@@ -39,12 +39,12 @@ interface MarketplaceListing {
 
 export default function SellPage() {
   const { user, isAuthenticated } = useAuth();
-  const [activeTab, setActiveTab] = useState<'create' | 'manage' | 'register'>('register');
+  const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
   const [myListings, setMyListings] = useState<MarketplaceListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isSeller, setIsSeller] = useState(false);
-  const [sellerStatus, setSellerStatus] = useState<string>('checking');
+  const [isCheckingSeller, setIsCheckingSeller] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -55,13 +55,6 @@ export default function SellPage() {
     game_type: 'crypto_match',
     shipping_included: true,
     seller_contact: ''
-  });
-
-  // Seller registration form
-  const [sellerRegistrationForm, setSellerRegistrationForm] = useState({
-    business_name: '',
-    contact_email: '',
-    contact_phone: ''
   });
 
   const categories = [
@@ -91,14 +84,13 @@ export default function SellPage() {
     if (!user) return;
     
     try {
+      setIsCheckingSeller(true);
       const { data, error } = await supabase.rpc('check_seller_status');
       
       if (error) throw error;
       
       if (data?.is_seller) {
         setIsSeller(true);
-        setSellerStatus(data.status);
-        setActiveTab('create');
         
         // Pre-fill seller contact
         if (data.contact_email) {
@@ -106,12 +98,12 @@ export default function SellPage() {
         }
       } else {
         setIsSeller(false);
-        setSellerStatus('not_registered');
-        setActiveTab('register');
       }
     } catch (error) {
       console.error('Error checking seller status:', error);
-      setSellerStatus('error');
+      setIsSeller(false);
+    } finally {
+      setIsCheckingSeller(false);
     }
   };
 
@@ -132,39 +124,6 @@ export default function SellPage() {
     } catch (error) {
       console.error('Error loading listings:', error);
       setMessage({ type: 'error', text: 'Failed to load listings' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Register as seller
-  const handleSellerRegistration = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setIsLoading(true);
-    setMessage(null);
-
-    try {
-      const { data, error } = await supabase.rpc('register_as_seller', {
-        business_name_param: sellerRegistrationForm.business_name || null,
-        contact_email_param: sellerRegistrationForm.contact_email,
-        contact_phone_param: sellerRegistrationForm.contact_phone || null
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        setMessage({ type: 'success', text: 'Successfully registered as seller!' });
-        setIsSeller(true);
-        setSellerStatus('approved');
-        setActiveTab('create');
-      } else {
-        throw new Error(data?.message || 'Registration failed');
-      }
-    } catch (error: any) {
-      console.error('Error registering as seller:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to register as seller' });
     } finally {
       setIsLoading(false);
     }
@@ -319,81 +278,37 @@ export default function SellPage() {
           </div>
         )}
 
-        {/* Seller Registration Form */}
-        {!isSeller && activeTab === 'register' && (
-          <div className="bg-gray-800 rounded-xl p-6 max-w-2xl mx-auto">
-            <div className="text-center mb-6">
-              <ShoppingBagIcon className="h-16 w-16 mx-auto mb-4 text-blue-400" />
-              <h2 className="text-3xl font-bold text-white mb-2">Become a Seller</h2>
-              <p className="text-gray-300">
-                Register as a seller to start creating marketplace listings and reach players worldwide!
-              </p>
+        {/* Not a Seller - Redirect to Dashboard */}
+        {!isSeller && !isCheckingSeller && (
+          <div className="bg-gray-800 rounded-xl p-8 max-w-2xl mx-auto text-center">
+            <XCircleIcon className="h-16 w-16 mx-auto mb-4 text-red-400" />
+            <h2 className="text-3xl font-bold text-white mb-4">Seller Registration Required</h2>
+            <p className="text-gray-300 mb-6">
+              You need to be a registered seller to create marketplace listings.
+            </p>
+            <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-6 mb-6">
+              <h3 className="font-bold text-blue-300 mb-3">How to become a seller:</h3>
+              <ol className="text-left text-blue-200 space-y-2">
+                <li>1️⃣ Go to your Dashboard</li>
+                <li>2️⃣ Find the "Seller Status" section</li>
+                <li>3️⃣ Click "Register as Seller"</li>
+                <li>4️⃣ Fill in your contact information</li>
+                <li>5️⃣ Start creating listings!</li>
+              </ol>
             </div>
+            <Link
+              href="/dashboard"
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-colors"
+            >
+              🚀 Go to Dashboard to Register
+            </Link>
+          </div>
+        )}
 
-            <form onSubmit={handleSellerRegistration} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Business Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={sellerRegistrationForm.business_name}
-                  onChange={(e) => setSellerRegistrationForm({ ...sellerRegistrationForm, business_name: e.target.value })}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="e.g., My Gaming Store"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Contact Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={sellerRegistrationForm.contact_email}
-                  onChange={(e) => setSellerRegistrationForm({ ...sellerRegistrationForm, contact_email: e.target.value })}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="your@email.com"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Winners will use this to contact you for shipping
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Contact Phone (Optional)
-                </label>
-                <input
-                  type="tel"
-                  value={sellerRegistrationForm.contact_phone}
-                  onChange={(e) => setSellerRegistrationForm({ ...sellerRegistrationForm, contact_phone: e.target.value })}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-
-              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-                <h3 className="font-bold text-blue-300 mb-2">✅ Seller Benefits:</h3>
-                <ul className="text-sm text-blue-200 space-y-1">
-                  <li>• Create unlimited marketplace listings</li>
-                  <li>• Choose which game players compete in</li>
-                  <li>• Set your own base prices</li>
-                  <li>• Reach skill-based gaming community</li>
-                  <li>• Automated winner selection</li>
-                  <li>• Direct contact with winners</li>
-                </ul>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-4 rounded-lg transition-colors"
-              >
-                {isLoading ? '⏳ Registering...' : '🚀 Register as Seller'}
-              </button>
-            </form>
+        {isCheckingSeller && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-white">Checking seller status...</p>
           </div>
         )}
 

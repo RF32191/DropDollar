@@ -74,6 +74,18 @@ export default function TriumphStyleDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats'>('recent');
+  
+  // Seller registration state
+  const [isSeller, setIsSeller] = useState(false);
+  const [isCheckingSeller, setIsCheckingSeller] = useState(true);
+  const [sellerStatus, setSellerStatus] = useState<any>(null);
+  const [showSellerForm, setShowSellerForm] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [sellerFormData, setSellerFormData] = useState({
+    businessName: '',
+    contactEmail: '',
+    contactPhone: ''
+  });
 
   useEffect(() => {
     // Check URL parameters for tab selection
@@ -106,6 +118,7 @@ export default function TriumphStyleDashboard() {
     if (user && isAuthenticated && !authLoading) {
       console.log('🎮 [Dashboard] User authenticated, loading data immediately...');
       loadDashboardData();
+      checkSellerStatus();
     }
   }, [searchParams, user?.id, isAuthenticated, authLoading]);
 
@@ -177,7 +190,6 @@ export default function TriumphStyleDashboard() {
     } catch (error) {
       console.error('❌ [Dashboard] Error loading dashboard:', error);
       // Set default values to prevent UI crashes
-      setTokenBalance(0);
       setGameHistory([]);
       setHighScores([]);
       setUserStats({
@@ -209,16 +221,16 @@ export default function TriumphStyleDashboard() {
     }
   };
 
-  const loadHighScores = async (userId: string) => {
+  const loadHighScores = async (userId: string): Promise<HighScoreRecord[]> => {
     try {
       console.log('🏆 [Dashboard] Loading high scores...');
       
       const highScores = await SimpleGameService.getUserHighScores(userId);
       console.log('✅ [Dashboard] High scores loaded:', Object.keys(highScores).length, 'games');
-      return Object.values(highScores); // Return instead of setting state
+      return Object.values(highScores) as unknown as HighScoreRecord[]; // Return instead of setting state
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadHighScores:', error);
-      return []; // Return empty array on error
+      return [] as HighScoreRecord[]; // Return empty array on error
     }
   };
 
@@ -240,6 +252,80 @@ export default function TriumphStyleDashboard() {
         totalPrizeMoney: 0,
         averageScore: 0
       };
+    }
+  };
+
+  const checkSellerStatus = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsCheckingSeller(true);
+      console.log('🔍 [Dashboard] Checking seller status...');
+      
+      const { data, error } = await supabase.rpc('check_seller_status');
+      
+      if (error) {
+        console.error('❌ [Dashboard] Error checking seller status:', error);
+        setIsSeller(false);
+        return;
+      }
+      
+      console.log('✅ [Dashboard] Seller status:', data);
+      setSellerStatus(data);
+      setIsSeller(data?.is_seller || false);
+      
+      // Pre-fill email if user is already a seller
+      if (data?.is_seller && data?.contact_email) {
+        setSellerFormData(prev => ({
+          ...prev,
+          contactEmail: data.contact_email,
+          businessName: data.business_name || '',
+          contactPhone: data.contact_phone || ''
+        }));
+      }
+    } catch (error) {
+      console.error('❌ [Dashboard] Error checking seller status:', error);
+      setIsSeller(false);
+    } finally {
+      setIsCheckingSeller(false);
+    }
+  };
+
+  const handleSellerRegistration = async () => {
+    if (!user?.id) return;
+    
+    if (!sellerFormData.contactEmail.trim()) {
+      alert('Please provide a contact email');
+      return;
+    }
+    
+    try {
+      setIsRegistering(true);
+      console.log('📝 [Dashboard] Registering as seller...');
+      
+      const { data, error } = await supabase.rpc('register_as_seller', {
+        business_name_param: sellerFormData.businessName.trim() || null,
+        contact_email_param: sellerFormData.contactEmail.trim(),
+        contact_phone_param: sellerFormData.contactPhone.trim() || null
+      });
+      
+      if (error) {
+        console.error('❌ [Dashboard] Error registering as seller:', error);
+        alert('Failed to register as seller: ' + error.message);
+        return;
+      }
+      
+      console.log('✅ [Dashboard] Registered as seller:', data);
+      alert('🎉 Seller registration successful! You can now create listings.');
+      
+      // Refresh seller status
+      await checkSellerStatus();
+      setShowSellerForm(false);
+    } catch (error: any) {
+      console.error('❌ [Dashboard] Error registering as seller:', error);
+      alert('Failed to register: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -720,6 +806,113 @@ export default function TriumphStyleDashboard() {
             </div>
           )}
             </div>
+          </div>
+        </div>
+
+        {/* Seller Registration Section */}
+        <div className="mt-8">
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <BanknotesIcon className="w-6 h-6 text-yellow-400 mr-3" />
+                <h2 className="text-xl font-bold text-white">Seller Status</h2>
+              </div>
+              {isSeller && (
+                <Link 
+                  href="/sell"
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
+                >
+                  Manage Listings →
+                </Link>
+              )}
+            </div>
+
+            {isCheckingSeller ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p className="text-gray-400 mt-2">Checking seller status...</p>
+              </div>
+            ) : isSeller ? (
+              <div className="bg-green-500/10 backdrop-blur-sm rounded-xl p-4 border border-green-500/20">
+                <div className="flex items-center">
+                  <CheckIcon className="w-6 h-6 text-green-400 mr-3" />
+                  <div>
+                    <p className="text-white font-medium">✅ You're a registered seller!</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      {sellerStatus?.business_name && `Business: ${sellerStatus.business_name} • `}
+                      Contact: {sellerStatus?.contact_email}
+                    </p>
+                    <p className="text-gray-400 text-sm">You can create listings and sell products on the marketplace.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {!showSellerForm ? (
+                  <div className="bg-blue-500/10 backdrop-blur-sm rounded-xl p-4 border border-blue-500/20">
+                    <p className="text-white mb-3">Want to sell products on the marketplace?</p>
+                    <button
+                      onClick={() => setShowSellerForm(true)}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300"
+                    >
+                      Register as Seller
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <h3 className="text-white font-medium mb-4">Seller Registration</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-1">Business Name (Optional)</label>
+                        <input
+                          type="text"
+                          value={sellerFormData.businessName}
+                          onChange={(e) => setSellerFormData(prev => ({ ...prev, businessName: e.target.value }))}
+                          className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500"
+                          placeholder="Your business name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-1">Contact Email *</label>
+                        <input
+                          type="email"
+                          value={sellerFormData.contactEmail}
+                          onChange={(e) => setSellerFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
+                          className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500"
+                          placeholder="seller@example.com"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-1">Contact Phone (Optional)</label>
+                        <input
+                          type="tel"
+                          value={sellerFormData.contactPhone}
+                          onChange={(e) => setSellerFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
+                          className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500"
+                          placeholder="+1 (555) 123-4567"
+                        />
+                      </div>
+                      <div className="flex gap-3 mt-4">
+                        <button
+                          onClick={handleSellerRegistration}
+                          disabled={isRegistering}
+                          className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 disabled:opacity-50"
+                        >
+                          {isRegistering ? 'Registering...' : 'Complete Registration'}
+                        </button>
+                        <button
+                          onClick={() => setShowSellerForm(false)}
+                          className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-all duration-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
