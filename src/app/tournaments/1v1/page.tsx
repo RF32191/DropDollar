@@ -41,6 +41,7 @@ interface OneVOneSession {
   participants: Array<{
     id: string;
     user_id: string;
+    username?: string;
     score: number | null;
     accuracy: number | null;
     joined_at: string;
@@ -94,6 +95,8 @@ export default function OneVOnePage() {
     rngSeed: number;
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
+  const [payoutTimers, setPayoutTimers] = useState<Record<string, number>>({});
+  const [countdownIntervals, setCountdownIntervals] = useState<Record<string, NodeJS.Timeout>>({});
 
   // Wallet display state (prevent flickering)
   const [displayTokens, setDisplayTokens] = useState<number>(0);
@@ -199,7 +202,11 @@ export default function OneVOnePage() {
     
     // Refresh sessions every 30 seconds (only when authenticated)
     const interval = setInterval(loadSessions, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Clear all countdown intervals on unmount
+      Object.values(countdownIntervals).forEach(interval => clearInterval(interval));
+    };
   }, [isAuthenticated, authLoading, loadSessions]);
 
   // Handle joining a session
@@ -325,7 +332,15 @@ export default function OneVOnePage() {
         setMessage({ type: 'success', text: 'Game completed! Score: ' + score.toFixed(2) });
       }
 
-      // Check if both players have completed - trigger payout
+      // Refresh sessions to show scoreboard
+      await refreshTokens();
+      await loadSessions();
+      
+      // Return to list to show scoreboard
+      setCurrentView('list');
+      setSelectedGameFlow(null);
+
+      // Check if both players have completed - start 10 second timer
       setTimeout(async () => {
         console.log('🔍 [1v1] Checking for payout trigger...');
         const configId = selectedGameFlow.configId;
@@ -356,47 +371,91 @@ export default function OneVOnePage() {
           });
           
           if (bothJoined && bothCompleted && notPaid) {
-            console.log('✅ [1v1] BOTH PLAYERS DONE! Triggering payout...');
+            console.log('✅ [1v1] BOTH PLAYERS DONE! Starting 10-second payout timer...');
             
-            const { data: payoutData, error: payoutError, isSessionValid } = await executeRpcWithSession('process_1v1_payout', {
-              config_id_param: configId
-            });
-
-            if (!isSessionValid) {
-              console.error('❌ [1v1] Session invalid during payout');
-              setMessage({ type: 'error', text: 'Your session has expired.' });
-              return;
+            // Auto-expand scoreboard
+            const scoreboard = document.getElementById(`scoreboard-${configId}`);
+            if (scoreboard) {
+              scoreboard.classList.remove('hidden');
             }
-
-            if (payoutError) {
-              console.error('❌ [1v1] Payout error:', payoutError);
-            } else {
-              console.log('💰 [1v1] Payout successful:', payoutData);
-              if (payoutData && payoutData.success) {
-                setMessage({ 
-                  type: 'success', 
-                  text: `🎉 Winner: ${payoutData.winner} won ${payoutData.prize_amount} tokens! (Score: ${payoutData.winner_score})` 
-                });
-              }
+            
+            // Clear any existing countdown for this config
+            if (countdownIntervals[configId]) {
+              clearInterval(countdownIntervals[configId]);
             }
+            
+            // Start 10 second countdown
+            setPayoutTimers(prev => ({ ...prev, [configId]: 10 }));
+            
+            const countdown = setInterval(() => {
+              setPayoutTimers(prev => {
+                const current = prev[configId];
+                if (current <= 1) {
+                  clearInterval(countdown);
+                  setCountdownIntervals(prev => {
+                    const newIntervals = { ...prev };
+                    delete newIntervals[configId];
+                    return newIntervals;
+                  });
+                  // Trigger payout
+                  triggerPayout(configId);
+                  return { ...prev, [configId]: 0 };
+                }
+                return { ...prev, [configId]: current - 1 };
+              });
+            }, 1000);
+            
+            // Store the interval
+            setCountdownIntervals(prev => ({ ...prev, [configId]: countdown }));
           } else {
             console.log('⏸️ [1v1] Waiting for opponent to finish...');
           }
         }
-      }, 3000);
-
-      // Refresh sessions and return to list
-      await refreshTokens();
-      await loadSessions();
-      
-      setTimeout(() => {
-        setCurrentView('list');
-        setSelectedGameFlow(null);
-      }, 5000);
+      }, 2000);
 
     } catch (error) {
       console.error('❌ [1v1] Error in game completion:', error);
       setMessage({ type: 'error', text: 'Failed to save game result' });
+    }
+  };
+
+  // Trigger payout and reset
+  const triggerPayout = async (configId: string) => {
+    try {
+      console.log('💰 [1v1] Triggering payout for:', configId);
+      
+      const { data: payoutData, error: payoutError, isSessionValid } = await executeRpcWithSession('process_1v1_payout', {
+        config_id_param: configId
+      });
+
+      if (!isSessionValid) {
+        console.error('❌ [1v1] Session invalid during payout');
+        setMessage({ type: 'error', text: 'Your session has expired.' });
+        return;
+      }
+
+      if (payoutError) {
+        console.error('❌ [1v1] Payout error:', payoutError);
+        setMessage({ type: 'error', text: 'Payout failed: ' + payoutError.message });
+      } else {
+        console.log('💰 [1v1] Payout successful:', payoutData);
+        if (payoutData && payoutData.success) {
+          setMessage({ 
+            type: 'success', 
+            text: `🎉 Winner Takes All! ${payoutData.winner_username} won $${payoutData.winner_payout?.toFixed(2)}!` 
+          });
+          
+          // Refresh tokens and sessions after payout
+          await refreshTokens();
+          await loadSessions();
+          
+          // Clear payout timer
+          setPayoutTimers(prev => ({ ...prev, [configId]: 0 }));
+        }
+      }
+    } catch (error) {
+      console.error('❌ [1v1] Error triggering payout:', error);
+      setMessage({ type: 'error', text: 'Failed to process payout' });
     }
   };
 
@@ -468,7 +527,7 @@ export default function OneVOnePage() {
                 <span className="text-6xl animate-bounce">⚔️</span>
               </div>
             </div>
-            <p className="text-2xl text-blue-200 font-semibold">Face Off • Winner Takes 85%</p>
+            <p className="text-2xl text-blue-200 font-semibold">Face Off • Winner Takes All (85%)</p>
           </div>
 
           {/* Location Verification Banner */}
@@ -639,6 +698,93 @@ export default function OneVOnePage() {
                           </div>
                         )}
 
+                        {/* Live Scoreboard - Only show to users who have joined and if there are participants with scores */}
+                        {session && session.participants.filter(p => p.score !== null && p.completed_at !== null).length > 0 && userParticipant && (
+                          <div className="mb-6">
+                            <button
+                              onClick={() => {
+                                const scoreboard = document.getElementById(`scoreboard-${config.id}`);
+                                if (scoreboard) {
+                                  scoreboard.classList.toggle('hidden');
+                                }
+                              }}
+                              className="w-full flex items-center justify-between text-left bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all"
+                            >
+                              <h4 className="text-sm font-semibold text-white flex items-center">
+                                <TrophyIcon className="w-4 h-4 mr-2 text-yellow-400" />
+                                Live Scoreboard ({session.participants.filter(p => p.score !== null && p.completed_at !== null).length}/2 completed)
+                              </h4>
+                              <span className="text-gray-400 text-xs">Click to expand</span>
+                            </button>
+                            
+                            <div id={`scoreboard-${config.id}`} className="hidden mt-3">
+                              <div className="bg-white/5 rounded-xl p-4">
+                                {/* Payout Timer (shows when both players done) */}
+                                {payoutTimers[config.id] > 0 && (
+                                  <div className="mb-4 p-3 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg border border-yellow-500/50 animate-pulse">
+                                    <div className="text-center">
+                                      <div className="text-yellow-300 font-bold text-3xl mb-1">
+                                        {payoutTimers[config.id]}
+                                      </div>
+                                      <div className="text-yellow-200 text-sm font-semibold">
+                                        💰 Processing payout...
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                <div className="flex justify-between text-sm text-gray-400 mb-2">
+                                  <span>Player</span>
+                                  <span>Score</span>
+                                </div>
+                                <div className="space-y-2">
+                                  {session.participants
+                                    .filter(p => p.score !== null && p.completed_at !== null)
+                                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                                    .map((participant, index) => {
+                                      const isCurrentUser = participant.user_id === user?.id;
+                                      const displayName = isCurrentUser ? 'You' : (participant.username || `Player ${index + 1}`);
+                                      const isWinner = index === 0;
+                                      
+                                      return (
+                                        <div key={participant.id} className={`rounded-lg p-3 ${
+                                          isWinner 
+                                            ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/50'
+                                            : isCurrentUser 
+                                            ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50' 
+                                            : 'bg-white/5'
+                                        }`}>
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                              <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+                                                index === 0 ? 'bg-yellow-500' : 'bg-gray-400'
+                                              }`}>
+                                                <span className="text-xs font-bold text-white">{index + 1}</span>
+                                              </div>
+                                              <span className={`text-sm ${isCurrentUser ? 'text-purple-300 font-semibold' : 'text-white'}`}>
+                                                {displayName}
+                                              </span>
+                                            </div>
+                                            <span className={`font-semibold ${isWinner ? 'text-yellow-300' : isCurrentUser ? 'text-purple-300' : 'text-white'}`}>
+                                              {participant.score?.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                                
+                                {/* Waiting message */}
+                                {session.participants.filter(p => p.score !== null && p.completed_at !== null).length < 2 && (
+                                  <div className="mt-3 text-center text-sm text-gray-400">
+                                    ⏳ Waiting for opponent to complete...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Action Button */}
                         <div className="space-y-2">
                           {!isAuthenticated ? (
@@ -729,7 +875,7 @@ export default function OneVOnePage() {
 
                         {/* Game Info */}
                         <div className="mt-4 pt-4 border-t border-blue-500/30 text-xs text-blue-300">
-                          <p>⚔️ Head-to-head battle • Highest score wins • Winner takes 85%</p>
+                          <p>⚔️ Head-to-head battle • Highest score wins • Winner Takes All (85%)</p>
                         </div>
                       </div>
                     );
