@@ -54,8 +54,15 @@ export default function SellPage() {
     base_price: '',
     game_type: 'crypto_match',
     shipping_included: true,
-    seller_contact: ''
+    seller_contact: '',
+    condition: 'new',
+    brand: '',
+    dimensions: '',
+    weight: '',
+    images: [] as string[]
   });
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   const categories = [
     { id: 'electronics', name: 'Electronics', icon: '📱' },
@@ -144,6 +151,57 @@ export default function SellPage() {
     }
   }, [isAuthenticated, user]);
 
+  // Handle image file selection
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + imageFiles.length > 5) {
+      setMessage({ type: 'error', text: 'Maximum 5 images allowed' });
+      return;
+    }
+    setImageFiles(prev => [...prev, ...files]);
+  };
+
+  // Remove image from selection
+  const removeImage = (index: number) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Upload images to Supabase Storage
+  const uploadImages = async (): Promise<string[]> => {
+    if (imageFiles.length === 0) return [];
+    
+    setIsUploadingImages(true);
+    const uploadedUrls: string[] = [];
+    
+    try {
+      for (const file of imageFiles) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user?.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `listings/${fileName}`;
+
+        const { data, error } = await supabase.storage
+          .from('marketplace-images')
+          .upload(filePath, file);
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('marketplace-images')
+          .getPublicUrl(filePath);
+
+        uploadedUrls.push(publicUrl);
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      throw error;
+    } finally {
+      setIsUploadingImages(false);
+    }
+    
+    return uploadedUrls;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -155,6 +213,9 @@ export default function SellPage() {
     setMessage(null);
 
     try {
+      // Upload images first
+      const imageUrls = await uploadImages();
+
       const { data, error } = await supabase.rpc('create_marketplace_listing', {
         title_param: formData.title,
         description_param: formData.description,
@@ -168,6 +229,20 @@ export default function SellPage() {
       if (error) throw error;
 
       if (data?.success) {
+        // If images were uploaded, update the listing with image URLs
+        if (imageUrls.length > 0 && data.session_id) {
+          await supabase
+            .from('marketplace_listings')
+            .update({ 
+              images: imageUrls,
+              condition: formData.condition,
+              brand: formData.brand,
+              dimensions: formData.dimensions,
+              weight: formData.weight
+            })
+            .eq('id', data.session_id);
+        }
+
         setMessage({ type: 'success', text: 'Listing created successfully!' });
         
         // Reset form
@@ -178,8 +253,14 @@ export default function SellPage() {
           base_price: '',
           game_type: 'crypto_match',
           shipping_included: true,
-          seller_contact: ''
+          seller_contact: '',
+          condition: 'new',
+          brand: '',
+          dimensions: '',
+          weight: '',
+          images: []
         });
+        setImageFiles([]);
 
         // Refresh listings
         await loadMyListings();
@@ -356,6 +437,114 @@ export default function SellPage() {
                 />
               </div>
 
+              {/* Product Images */}
+              <div className="bg-gray-700/50 rounded-lg p-6">
+                <label className="block text-sm font-medium text-gray-300 mb-3">
+                  Product Images {imageFiles.length > 0 && `(${imageFiles.length}/5)`}
+                </label>
+                <div className="space-y-4">
+                  {/* Image Preview Grid */}
+                  {imageFiles.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                      {imageFiles.map((file, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border-2 border-gray-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <XCircleIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Upload Button */}
+                  {imageFiles.length < 5 && (
+                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg p-8 cursor-pointer hover:border-blue-500 transition-colors">
+                      <PlusIcon className="h-12 w-12 text-gray-400 mb-2" />
+                      <span className="text-gray-300 mb-1">Click to upload images</span>
+                      <span className="text-xs text-gray-500">PNG, JPG up to 5MB each</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Condition & Brand */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Condition *
+                  </label>
+                  <select
+                    value={formData.condition}
+                    onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="new">New</option>
+                    <option value="like-new">Like New</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="used">Used</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Brand
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="e.g., Apple, Samsung, etc."
+                  />
+                </div>
+              </div>
+
+              {/* Dimensions & Weight */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Dimensions (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.dimensions}
+                    onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="e.g., 6 x 3 x 0.3 inches"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Weight (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="e.g., 6.2 oz"
+                  />
+                </div>
+              </div>
+
               {/* Category & Base Price */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -463,10 +652,10 @@ export default function SellPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isUploadingImages}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-4 rounded-lg transition-colors"
               >
-                {isLoading ? '⏳ Creating...' : '🎯 Create Listing'}
+                {isUploadingImages ? '📤 Uploading Images...' : isLoading ? '⏳ Creating...' : '🎯 Create Listing'}
               </button>
             </form>
           </div>

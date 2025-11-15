@@ -259,7 +259,10 @@ export default function TriumphStyleDashboard() {
   };
 
   const checkSellerStatus = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setHasCheckedSeller(true);
+      return;
+    }
     
     try {
       setIsCheckingSeller(true);
@@ -270,6 +273,7 @@ export default function TriumphStyleDashboard() {
       if (error) {
         console.error('❌ [Dashboard] Error checking seller status:', error);
         setIsSeller(false);
+        setHasCheckedSeller(true);
         return;
       }
       
