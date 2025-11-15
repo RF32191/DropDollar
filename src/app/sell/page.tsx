@@ -89,12 +89,16 @@ export default function SellPage() {
       
       if (error) throw error;
       
-      if (data?.is_seller) {
+      // RPC returns an array, get first item
+      const sellerData = Array.isArray(data) ? data[0] : data;
+      console.log('✅ [Sell Page] Seller status:', sellerData);
+      
+      if (sellerData?.is_seller === true && sellerData?.status === 'approved') {
         setIsSeller(true);
         
         // Pre-fill seller contact
-        if (data.contact_email) {
-          setFormData(prev => ({ ...prev, seller_contact: data.contact_email }));
+        if (sellerData.contact_email) {
+          setFormData(prev => ({ ...prev, seller_contact: sellerData.contact_email }));
         }
       } else {
         setIsSeller(false);

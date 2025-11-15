@@ -272,18 +272,26 @@ export default function TriumphStyleDashboard() {
         return;
       }
       
-      console.log('✅ [Dashboard] Seller status:', data);
-      setSellerStatus(data);
+      console.log('✅ [Dashboard] Seller status raw data:', data);
+      
+      // RPC returns an array, get first item
+      const sellerData = Array.isArray(data) ? data[0] : data;
+      
+      console.log('✅ [Dashboard] Seller status parsed:', sellerData);
+      setSellerStatus(sellerData);
+      
       // Only set as seller if approved
-      setIsSeller(data?.is_seller && data?.status === 'approved');
+      const isApprovedSeller = sellerData?.is_seller === true && sellerData?.status === 'approved';
+      console.log('✅ [Dashboard] Is approved seller:', isApprovedSeller);
+      setIsSeller(isApprovedSeller);
       
       // Pre-fill email if user is already a seller
-      if (data?.is_seller && data?.contact_email) {
+      if (sellerData?.is_seller && sellerData?.contact_email) {
         setSellerFormData(prev => ({
           ...prev,
-          contactEmail: data.contact_email,
-          businessName: data.business_name || '',
-          contactPhone: data.contact_phone || ''
+          contactEmail: sellerData.contact_email,
+          businessName: sellerData.business_name || '',
+          contactPhone: sellerData.contact_phone || ''
         }));
       }
     } catch (error) {
