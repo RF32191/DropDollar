@@ -167,29 +167,35 @@ ALTER TABLE public.seller_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_reviews ENABLE ROW LEVEL SECURITY;
 
 -- Sellers can view/update their own profile
+DROP POLICY IF EXISTS "Sellers can view their own profile" ON public.seller_profiles;
 CREATE POLICY "Sellers can view their own profile"
     ON public.seller_profiles FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Sellers can update their own profile" ON public.seller_profiles;
 CREATE POLICY "Sellers can update their own profile"
     ON public.seller_profiles FOR UPDATE
     USING (auth.uid() = user_id);
 
 -- Users can view approved sellers
+DROP POLICY IF EXISTS "Users can view approved sellers" ON public.seller_profiles;
 CREATE POLICY "Users can view approved sellers"
     ON public.seller_profiles FOR SELECT
     USING (status = 'approved' AND verified = true);
 
 -- Sellers can manage their documents
+DROP POLICY IF EXISTS "Sellers can view their own documents" ON public.seller_documents;
 CREATE POLICY "Sellers can view their own documents"
     ON public.seller_documents FOR SELECT
     USING (seller_id IN (SELECT id FROM public.seller_profiles WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Sellers can upload documents" ON public.seller_documents;
 CREATE POLICY "Sellers can upload documents"
     ON public.seller_documents FOR INSERT
     WITH CHECK (seller_id IN (SELECT id FROM public.seller_profiles WHERE user_id = auth.uid()));
 
 -- Anyone can view seller reviews
+DROP POLICY IF EXISTS "Anyone can view seller reviews" ON public.seller_reviews;
 CREATE POLICY "Anyone can view seller reviews"
     ON public.seller_reviews FOR SELECT
     USING (true);
