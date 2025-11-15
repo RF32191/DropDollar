@@ -73,10 +73,14 @@ export default function SellPage() {
   ];
 
   const gameTypes = [
-    { id: 'crypto_match', name: 'Crypto Match', description: 'Match cryptocurrency logos' },
-    { id: 'laser_dodge', name: 'Laser Dodge', description: 'Dodge lasers and enemy ships' },
-    { id: 'alien_shooter', name: 'Alien Shooter', description: 'Shoot invading aliens' },
-    { id: 'brain_freeze', name: 'Brain Freeze', description: 'Memory challenge game' }
+    { id: 'multi-target', name: 'Multi-Target Reaction', description: 'Click targets quickly - Speed & accuracy', difficulty: 'Medium' },
+    { id: 'falling-objects', name: 'Falling Object Catch', description: 'Catch coins and dollars', difficulty: 'Medium' },
+    { id: 'color-sequence', name: 'Color Sequence Memory', description: 'Remember and repeat colors', difficulty: 'Hard' },
+    { id: 'laser-dodge', name: 'Laser Dodge EXTREME', description: 'Pilot through laser grids', difficulty: 'Extreme' },
+    { id: 'quick-click', name: 'QuickClick Challenge', description: 'Lightning-fast reactions', difficulty: 'Easy' },
+    { id: 'sword-parry', name: 'Sword Slash', description: 'Destroy red attacks with sword', difficulty: 'Medium' },
+    { id: 'blade-bounce', name: 'Blade Bounce: Mouseblade', description: 'Control sword with mouse', difficulty: 'Extreme' },
+    { id: 'cash-stack', name: 'Cash Stack Challenge', description: 'Stack coins on falling cash', difficulty: 'Hard' }
   ];
 
   // Check seller status
@@ -402,13 +406,23 @@ export default function SellPage() {
                       key={game.id}
                       type="button"
                       onClick={() => setFormData({ ...formData, game_type: game.id })}
-                      className={`p-4 rounded-lg border-2 transition-colors text-left ${
+                      className={`p-4 rounded-lg border-2 transition-all text-left ${
                         formData.game_type === game.id
-                          ? 'border-blue-500 bg-blue-900/20'
-                          : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                          ? 'border-blue-500 bg-blue-900/30 shadow-lg'
+                          : 'border-gray-600 bg-gray-700 hover:border-gray-500 hover:shadow-md'
                       }`}
                     >
-                      <div className="font-bold text-white mb-1">{game.name}</div>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="font-bold text-white">{game.name}</div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          game.difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
+                          game.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                          game.difficulty === 'Hard' ? 'bg-orange-500/20 text-orange-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {game.difficulty}
+                        </span>
+                      </div>
                       <div className="text-sm text-gray-400">{game.description}</div>
                     </button>
                   ))}

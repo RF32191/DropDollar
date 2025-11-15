@@ -647,17 +647,19 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Preferred Payout Method
+                  Payout Method
                 </label>
-                <select
-                  value={payoutMethod}
-                  onChange={(e) => setPayoutMethod(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="paypal">PayPal</option>
-                  <option value="crypto">Cryptocurrency</option>
-                </select>
+                <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4 mb-4">
+                  <p className="text-blue-300 text-sm">
+                    ✅ We use Stripe Connect for secure bank transfers. You'll connect your bank account after approval.
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  value="Bank Transfer (via Stripe)"
+                  disabled
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                />
               </div>
               
               {payoutMethod === 'bank_transfer' && (
@@ -734,36 +736,11 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
                 </>
               )}
               
-              {payoutMethod === 'paypal' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    PayPal Email
-                  </label>
-                  <input
-                    type="email"
-                    value={paypalEmail}
-                    onChange={(e) => setPaypalEmail(e.target.value)}
-                    placeholder="your-paypal@email.com"
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-              
-              {payoutMethod === 'crypto' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Cryptocurrency Wallet Address
-                  </label>
-                  <input
-                    type="text"
-                    value={cryptoWallet}
-                    onChange={(e) => setCryptoWallet(e.target.value)}
-                    placeholder="0x... (ETH/USDC address)"
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">We support ETH, USDC, and other ERC-20 tokens</p>
-                </div>
-              )}
+              <div className="bg-gray-700/30 border border-gray-600 rounded-lg p-4">
+                <p className="text-gray-300 text-sm">
+                  <strong>Note:</strong> After your seller application is approved, you'll be able to connect your bank account through Stripe Connect in your dashboard. This ensures secure and compliant payment processing.
+                </p>
+              </div>
             </div>
             
             <div className="flex gap-4 mt-6">

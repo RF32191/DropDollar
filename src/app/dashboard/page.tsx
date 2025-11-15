@@ -81,6 +81,7 @@ export default function TriumphStyleDashboard() {
   const [isSeller, setIsSeller] = useState(false);
   const [isCheckingSeller, setIsCheckingSeller] = useState(true);
   const [sellerStatus, setSellerStatus] = useState<any>(null);
+  const [hasCheckedSeller, setHasCheckedSeller] = useState(false);
   const [showSellerForm, setShowSellerForm] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [sellerFormData, setSellerFormData] = useState({
@@ -299,6 +300,7 @@ export default function TriumphStyleDashboard() {
       setIsSeller(false);
     } finally {
       setIsCheckingSeller(false);
+      setHasCheckedSeller(true);
     }
   };
 
@@ -850,10 +852,10 @@ export default function TriumphStyleDashboard() {
               )}
             </div>
 
-            {isCheckingSeller ? (
+            {!hasCheckedSeller ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-400 mt-2">Checking seller status...</p>
+                <p className="text-gray-400 mt-2">Loading...</p>
               </div>
             ) : sellerStatus?.status === 'pending' ? (
               <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/20">
