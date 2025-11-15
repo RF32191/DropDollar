@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.admin_notifications (
     -- Related Entities
     related_user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
     related_seller_id UUID REFERENCES public.seller_profiles(id) ON DELETE CASCADE,
-    related_audit_id UUID REFERENCES public.game_audit_logs(id) ON DELETE CASCADE,
+    related_audit_id UUID, -- References game_audit_logs(id) if exists
     
     -- Status
     is_read BOOLEAN DEFAULT false,
