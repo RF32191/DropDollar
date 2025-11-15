@@ -4,10 +4,20 @@
 -- ============================================================================
 
 -- ============================================================================
--- DROP EXISTING TABLES (If running multiple times)
+-- DROP EXISTING TABLES AND FUNCTIONS (If running multiple times)
 -- ============================================================================
 DROP TABLE IF EXISTS public.admin_notifications CASCADE;
 DROP TABLE IF EXISTS public.admin_profiles CASCADE;
+
+-- Drop all functions
+DROP FUNCTION IF EXISTS public.create_master_admin(TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.check_admin_status() CASCADE;
+DROP FUNCTION IF EXISTS public.get_pending_sellers() CASCADE;
+DROP FUNCTION IF EXISTS public.approve_seller(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.reject_seller(UUID, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.get_unreviewed_audit_logs() CASCADE;
+DROP FUNCTION IF EXISTS notify_admin_new_seller() CASCADE;
+DROP FUNCTION IF EXISTS public.register_as_seller(TEXT, TEXT, TEXT, TEXT) CASCADE;
 
 -- ============================================================================
 -- TABLE: admin_profiles
