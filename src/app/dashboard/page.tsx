@@ -11,6 +11,7 @@ import { useTokenSync } from '@/hooks/useTokenSync';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
+import StripeConnect from '@/components/seller/StripeConnect';
 // Dashboard with comprehensive icon imports
 import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
@@ -860,18 +861,23 @@ export default function TriumphStyleDashboard() {
                 </div>
               </div>
             ) : isSeller ? (
-              <div className="bg-green-500/10 backdrop-blur-sm rounded-xl p-4 border border-green-500/20">
-                <div className="flex items-center">
-                  <CheckIcon className="w-6 h-6 text-green-400 mr-3" />
-                  <div>
-                    <p className="text-white font-medium">✅ You're a registered seller!</p>
-                    <p className="text-gray-400 text-sm mt-1">
-                      {sellerStatus?.business_name && `Business: ${sellerStatus.business_name} • `}
-                      Contact: {sellerStatus?.contact_email}
-                    </p>
-                    <p className="text-gray-400 text-sm">You can create listings and sell products on the marketplace.</p>
+              <div className="space-y-6">
+                <div className="bg-green-500/10 backdrop-blur-sm rounded-xl p-4 border border-green-500/20">
+                  <div className="flex items-center">
+                    <CheckIcon className="w-6 h-6 text-green-400 mr-3" />
+                    <div>
+                      <p className="text-white font-medium">✅ You're a registered seller!</p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        {sellerStatus?.business_name && `Business: ${sellerStatus.business_name} • `}
+                        Contact: {sellerStatus?.contact_email}
+                      </p>
+                      <p className="text-gray-400 text-sm">You can create listings and sell products on the marketplace.</p>
+                    </div>
                   </div>
                 </div>
+                
+                {/* Stripe Connect Section */}
+                <StripeConnect />
               </div>
             ) : (
               <div>
