@@ -4,10 +4,16 @@
 -- ============================================================================
 
 -- ============================================================================
+-- DROP EXISTING TABLES (If running multiple times)
+-- ============================================================================
+DROP TABLE IF EXISTS public.admin_notifications CASCADE;
+DROP TABLE IF EXISTS public.admin_profiles CASCADE;
+
+-- ============================================================================
 -- TABLE: admin_profiles
 -- Stores admin accounts with different permission levels
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS public.admin_profiles (
+CREATE TABLE public.admin_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL UNIQUE,
@@ -38,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_profiles_role ON public.admin_profiles(role
 -- TABLE: admin_notifications
 -- Notifications for admin actions (seller approvals, audit alerts)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS public.admin_notifications (
+CREATE TABLE public.admin_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     admin_id UUID REFERENCES public.admin_profiles(id) ON DELETE SET NULL,
     
