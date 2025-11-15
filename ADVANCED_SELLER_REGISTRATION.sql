@@ -24,20 +24,20 @@ CREATE TABLE public.seller_profiles (
     shop_banner_url TEXT,
     
     -- STEP 2: Business Details
-    business_type TEXT NOT NULL CHECK (business_type IN ('individual', 'sole_proprietorship', 'partnership', 'llc', 'corporation', 'non_profit')),
+    business_type TEXT CHECK (business_type IN ('individual', 'sole_proprietorship', 'partnership', 'llc', 'corporation', 'non_profit')),
     business_name TEXT,
     business_registration_number TEXT,
     tax_id TEXT, -- EIN or SSN (encrypted in production)
     
     -- STEP 3: Contact Information
-    contact_email TEXT NOT NULL,
-    contact_phone TEXT NOT NULL,
-    business_address_line1 TEXT NOT NULL,
+    contact_email TEXT,
+    contact_phone TEXT,
+    business_address_line1 TEXT,
     business_address_line2 TEXT,
-    business_city TEXT NOT NULL,
-    business_state TEXT NOT NULL,
-    business_postal_code TEXT NOT NULL,
-    business_country TEXT NOT NULL DEFAULT 'US',
+    business_city TEXT,
+    business_state TEXT,
+    business_postal_code TEXT,
+    business_country TEXT DEFAULT 'US',
     
     -- STEP 4: Banking & Payment
     bank_account_holder_name TEXT,
