@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
+import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
 // Dashboard with comprehensive icon imports
 import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
 
@@ -873,56 +874,22 @@ export default function TriumphStyleDashboard() {
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <h3 className="text-white font-medium mb-4">Seller Registration</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-1">Business Name (Optional)</label>
-                        <input
-                          type="text"
-                          value={sellerFormData.businessName}
-                          onChange={(e) => setSellerFormData(prev => ({ ...prev, businessName: e.target.value }))}
-                          className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500"
-                          placeholder="Your business name"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-1">Contact Email *</label>
-                        <input
-                          type="email"
-                          value={sellerFormData.contactEmail}
-                          onChange={(e) => setSellerFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                          className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500"
-                          placeholder="seller@example.com"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-400 text-sm mb-1">Contact Phone (Optional)</label>
-                        <input
-                          type="tel"
-                          value={sellerFormData.contactPhone}
-                          onChange={(e) => setSellerFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
-                          className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-gray-500"
-                          placeholder="+1 (555) 123-4567"
-                        />
-                      </div>
-                      <div className="flex gap-3 mt-4">
-                        <button
-                          onClick={handleSellerRegistration}
-                          disabled={isRegistering}
-                          className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 disabled:opacity-50"
-                        >
-                          {isRegistering ? 'Registering...' : 'Complete Registration'}
-                        </button>
-                        <button
-                          onClick={() => setShowSellerForm(false)}
-                          className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-all duration-300"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-white font-bold text-xl">Seller Registration</h3>
+                      <button
+                        onClick={() => setShowSellerForm(false)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        ✕ Close
+                      </button>
                     </div>
+                    <AdvancedSellerRegistration 
+                      onComplete={() => {
+                        setShowSellerForm(false);
+                        checkSellerStatus();
+                      }}
+                    />
                   </div>
                 )}
               </div>
