@@ -96,9 +96,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } catch (error) {
       console.error('Error loading progress:', error);
     }
-  };
+  }
 
-  const handleStep1Submit = async () => {
+  async function handleStep1Submit() {
     if (!shopName.trim()) {
       setMessage({ type: 'error', text: 'Shop name is required' });
       return;
@@ -127,9 +127,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const handleStep2Submit = async () => {
+  async function handleStep2Submit() {
     if (!businessType) {
       setMessage({ type: 'error', text: 'Business type is required' });
       return;
@@ -158,9 +158,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const handleStep3Submit = async () {
+  async function handleStep3Submit() {
     if (!contactEmail || !contactPhone || !addressLine1 || !city || !state || !postalCode) {
       setMessage({ type: 'error', text: 'All contact fields are required' });
       return;
@@ -194,9 +194,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const handleStep4Submit = async () => {
+  async function handleStep4Submit() {
     setIsLoading(true);
     setMessage(null);
     
@@ -228,9 +228,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const handleStep5Submit = async () => {
+  async function handleStep5Submit() {
     if (!shipsFrom) {
       setMessage({ type: 'error', text: 'Shipping location is required' });
       return;
@@ -262,9 +262,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const handleStep6Submit = async () => {
+  async function handleStep6Submit() {
     if (!termsAccepted || !privacyAccepted || !sellerAgreementAccepted) {
       setMessage({ type: 'error', text: 'You must accept all agreements to continue' });
       return;
@@ -293,7 +293,7 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
