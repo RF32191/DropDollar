@@ -297,10 +297,10 @@ CREATE OR REPLACE FUNCTION public.update_seller_registration_step3(
     contact_email_param TEXT,
     contact_phone_param TEXT,
     address_line1_param TEXT,
-    address_line2_param TEXT DEFAULT NULL,
     city_param TEXT,
     state_param TEXT,
     postal_code_param TEXT,
+    address_line2_param TEXT DEFAULT NULL,
     country_param TEXT DEFAULT 'US'
 )
 RETURNS JSONB
