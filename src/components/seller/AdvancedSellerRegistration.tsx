@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import LegalModal from '@/components/legal/LegalModal';
 import {
   CheckCircleIcon,
   ChevronRightIcon,
@@ -79,6 +80,10 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [sellerAgreementAccepted, setSellerAgreementAccepted] = useState(false);
+  
+  // Legal modal state
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalType, setLegalModalType] = useState<'terms' | 'privacy' | 'seller'>('terms');
 
   useEffect(() => {
     loadProgress();
@@ -886,15 +891,28 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
             
             <div className="space-y-4 mb-6">
               <div className="bg-gray-700 rounded-lg p-4">
-                <label className="flex items-start cursor-pointer">
+                <label className="flex items-start">
                   <input
                     type="checkbox"
                     checked={termsAccepted}
                     onChange={(e) => setTermsAccepted(e.target.checked)}
-                    className="mt-1 mr-3 w-5 h-5"
+                    className="mt-1 mr-3 w-5 h-5 cursor-pointer"
                   />
-                  <div>
-                    <span className="text-white font-medium">I accept the Terms of Service</span>
+                  <div className="flex-1">
+                    <span className="text-white font-medium">
+                      I accept the{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setLegalModalType('terms');
+                          setLegalModalOpen(true);
+                        }}
+                        className="text-blue-400 hover:text-blue-300 underline"
+                      >
+                        Terms of Service
+                      </button>
+                    </span>
                     <p className="text-sm text-gray-400 mt-1">
                       By checking this box, you agree to our terms and conditions for using the platform.
                     </p>
@@ -903,15 +921,28 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
               </div>
               
               <div className="bg-gray-700 rounded-lg p-4">
-                <label className="flex items-start cursor-pointer">
+                <label className="flex items-start">
                   <input
                     type="checkbox"
                     checked={privacyAccepted}
                     onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                    className="mt-1 mr-3 w-5 h-5"
+                    className="mt-1 mr-3 w-5 h-5 cursor-pointer"
                   />
-                  <div>
-                    <span className="text-white font-medium">I accept the Privacy Policy</span>
+                  <div className="flex-1">
+                    <span className="text-white font-medium">
+                      I accept the{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setLegalModalType('privacy');
+                          setLegalModalOpen(true);
+                        }}
+                        className="text-blue-400 hover:text-blue-300 underline"
+                      >
+                        Privacy Policy
+                      </button>
+                    </span>
                     <p className="text-sm text-gray-400 mt-1">
                       You understand how we collect, use, and protect your personal information.
                     </p>
@@ -920,17 +951,30 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
               </div>
               
               <div className="bg-gray-700 rounded-lg p-4">
-                <label className="flex items-start cursor-pointer">
+                <label className="flex items-start">
                   <input
                     type="checkbox"
                     checked={sellerAgreementAccepted}
                     onChange={(e) => setSellerAgreementAccepted(e.target.checked)}
-                    className="mt-1 mr-3 w-5 h-5"
+                    className="mt-1 mr-3 w-5 h-5 cursor-pointer"
                   />
-                  <div>
-                    <span className="text-white font-medium">I accept the Seller Agreement</span>
+                  <div className="flex-1">
+                    <span className="text-white font-medium">
+                      I accept the{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setLegalModalType('seller');
+                          setLegalModalOpen(true);
+                        }}
+                        className="text-blue-400 hover:text-blue-300 underline"
+                      >
+                        Seller Agreement
+                      </button>
+                    </span>
                     <p className="text-sm text-gray-400 mt-1">
-                      You agree to our seller policies, fees, and responsibilities as a marketplace seller.
+                      You agree to our seller policies, fees (15%), and responsibilities as a marketplace seller.
                     </p>
                   </div>
                 </label>
@@ -964,6 +1008,13 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
           </div>
         )}
       </div>
+      
+      {/* Legal Documents Modal */}
+      <LegalModal
+        isOpen={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        type={legalModalType}
+      />
     </div>
   );
 }
