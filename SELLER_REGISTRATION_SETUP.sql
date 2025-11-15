@@ -143,7 +143,8 @@ BEGIN
         'status', v_seller.status,
         'verified', v_seller.verified,
         'business_name', v_seller.business_name,
-        'contact_email', v_seller.contact_email
+        'contact_email', v_seller.contact_email,
+        'contact_phone', v_seller.contact_phone
     );
     
 EXCEPTION WHEN OTHERS THEN

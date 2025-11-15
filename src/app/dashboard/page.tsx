@@ -272,7 +272,8 @@ export default function TriumphStyleDashboard() {
       
       console.log('✅ [Dashboard] Seller status:', data);
       setSellerStatus(data);
-      setIsSeller(data?.is_seller || false);
+      // Only set as seller if approved
+      setIsSeller(data?.is_seller && data?.status === 'approved');
       
       // Pre-fill email if user is already a seller
       if (data?.is_seller && data?.contact_email) {
@@ -316,7 +317,7 @@ export default function TriumphStyleDashboard() {
       }
       
       console.log('✅ [Dashboard] Registered as seller:', data);
-      alert('🎉 Seller registration successful! You can now create listings.');
+      alert('📝 Seller registration submitted!\n\nYour application is pending admin approval. You will be notified once an admin reviews your application.\n\nThank you for your patience!');
       
       // Refresh seller status
       await checkSellerStatus();
@@ -831,6 +832,19 @@ export default function TriumphStyleDashboard() {
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
                 <p className="text-gray-400 mt-2">Checking seller status...</p>
+              </div>
+            ) : sellerStatus?.status === 'pending' ? (
+              <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/20">
+                <div className="flex items-center">
+                  <ClockIcon className="w-6 h-6 text-yellow-400 mr-3" />
+                  <div>
+                    <p className="text-white font-medium">⏳ Seller application pending</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Your application is awaiting admin approval
+                    </p>
+                    <p className="text-gray-400 text-sm">You will be notified once your application is reviewed.</p>
+                  </div>
+                </div>
               </div>
             ) : isSeller ? (
               <div className="bg-green-500/10 backdrop-blur-sm rounded-xl p-4 border border-green-500/20">
