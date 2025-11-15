@@ -56,6 +56,12 @@ export default function AdminDashboard() {
   const [permissions, setPermissions] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Password protection
+  const [isPasswordVerified, setIsPasswordVerified] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const ADMIN_PASSWORD = '321SnoopDog1994321!';
+  
   const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -68,27 +74,59 @@ export default function AdminDashboard() {
     }
   }, [isAuthenticated]);
 
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === ADMIN_PASSWORD) {
+      setIsPasswordVerified(true);
+      setPasswordError('');
+    } else {
+      setPasswordError('Incorrect password');
+      setPasswordInput('');
+    }
+  };
+
   const checkAdminStatus = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.rpc('check_admin_status');
       
-      if (error) throw error;
+      // Check if user email is rf32191@gmail.com
+      const isMasterAdmin = user?.email === 'rf32191@gmail.com';
       
-      if (data?.is_admin) {
+      if (isMasterAdmin) {
+        // Master admin - set permissions manually
         setIsAdmin(true);
-        setAdminRole(data.role);
-        setPermissions(data);
+        setAdminRole('master_admin');
+        setPermissions({
+          is_admin: true,
+          role: 'master_admin',
+          can_approve_sellers: true,
+          can_review_audits: true,
+          can_ban_users: true,
+          can_manage_admins: true
+        });
         
-        // Load data based on permissions
-        if (data.can_approve_sellers) {
-          await loadPendingSellers();
-        }
-        if (data.can_review_audits) {
-          await loadAuditLogs();
-        }
+        await loadPendingSellers();
+        await loadAuditLogs();
       } else {
-        setIsAdmin(false);
+        // Try RPC for other potential admins
+        const { data, error } = await supabase.rpc('check_admin_status');
+        
+        if (error) throw error;
+        
+        if (data?.is_admin) {
+          setIsAdmin(true);
+          setAdminRole(data.role);
+          setPermissions(data);
+          
+          if (data.can_approve_sellers) {
+            await loadPendingSellers();
+          }
+          if (data.can_review_audits) {
+            await loadAuditLogs();
+          }
+        } else {
+          setIsAdmin(false);
+        }
       }
     } catch (error) {
       console.error('Error checking admin status:', error);
@@ -192,6 +230,52 @@ export default function AdminDashboard() {
               <a href="/" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold">
                 Go Home
               </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Password verification screen for admin
+  if (isAdmin && !isPasswordVerified) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <CleanNavigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[70vh]">
+            <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 w-full max-w-md">
+              <div className="text-center mb-6">
+                <ShieldCheckIcon className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+                <h1 className="text-3xl font-bold mb-2">Admin Access</h1>
+                <p className="text-gray-300">Enter admin password to continue</p>
+              </div>
+              
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Enter admin password"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  {passwordError && (
+                    <p className="text-red-400 text-sm mt-2">{passwordError}</p>
+                  )}
+                </div>
+                
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition-colors"
+                >
+                  Enter Admin Dashboard
+                </button>
+              </form>
             </div>
           </div>
         </div>

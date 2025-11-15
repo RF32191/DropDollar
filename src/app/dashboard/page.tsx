@@ -12,7 +12,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -452,6 +452,18 @@ export default function TriumphStyleDashboard() {
               <p className="text-gray-300 text-lg animate-slide-up delay-100">Your gaming dashboard and statistics</p>
           </div>
             <div className="flex items-center gap-4">
+              {/* Hidden Admin Link - Only for rf32191@gmail.com */}
+              {user?.email === 'rf32191@gmail.com' && (
+                <Link
+                  href="/admin/dashboard"
+                  className="bg-gradient-to-r from-red-600 to-purple-600 backdrop-blur-xl rounded-xl px-4 py-3 border border-red-500/30 hover:from-red-700 hover:to-purple-700 transition-all duration-300 flex items-center gap-2 shadow-lg"
+                  title="Admin Dashboard"
+                >
+                  <ShieldCheckIcon className="w-5 h-5 text-white" />
+                  <span className="text-white font-bold text-sm">ADMIN</span>
+                </Link>
+              )}
+              
               {/* Refresh Button */}
               <button
                 onClick={refreshAllData}
