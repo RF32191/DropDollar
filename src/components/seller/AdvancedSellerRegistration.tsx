@@ -135,6 +135,13 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
       return;
     }
     
+    // Check if EIN is required for this business type
+    const requiresEIN = ['llc', 'corporation', 'partnership', 'non_profit'].includes(businessType);
+    if (requiresEIN && !taxId.trim()) {
+      setMessage({ type: 'error', text: 'Tax ID (EIN) is required for this business type' });
+      return;
+    }
+    
     setIsLoading(true);
     setMessage(null);
     
@@ -452,19 +459,33 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
                 <p className="text-xs text-gray-400 mt-1">If different from your shop name</p>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Tax ID (EIN/SSN)
-                </label>
-                <input
-                  type="text"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  placeholder="XX-XXXXXXX or XXX-XX-XXXX"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-gray-400 mt-1">For tax reporting (encrypted and secure)</p>
-              </div>
+              {(businessType === 'llc' || businessType === 'corporation' || businessType === 'partnership' || businessType === 'non_profit') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tax ID (EIN) {(businessType === 'llc' || businessType === 'corporation' || businessType === 'partnership' || businessType === 'non_profit') ? '*' : ''}
+                  </label>
+                  <input
+                    type="text"
+                    value={taxId}
+                    onChange={(e) => setTaxId(e.target.value)}
+                    placeholder="XX-XXXXXXX"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {businessType === 'llc' || businessType === 'corporation' || businessType === 'partnership' || businessType === 'non_profit'
+                      ? '🔒 EIN required for this business type (encrypted and secure)'
+                      : '🔒 Optional for sole proprietors and individuals (encrypted and secure)'}
+                  </p>
+                </div>
+              )}
+              
+              {(businessType === 'individual' || businessType === 'sole_proprietorship') && (
+                <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                  <p className="text-blue-300 text-sm">
+                    ℹ️ <strong>Tax ID Optional:</strong> As a {businessType === 'individual' ? 'individual' : 'sole proprietor'}, you can use your Social Security Number for tax purposes. You don't need to provide an EIN unless you prefer to keep your SSN private.
+                  </p>
+                </div>
+              )}
             </div>
             
             <div className="flex gap-4 mt-6">
