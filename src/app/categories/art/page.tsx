@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import CategoryPage from '@/components/CategoryPageMarketplace';
+import CategoryPageMarketplace from '@/components/CategoryPageMarketplace';
 import { ArtAnimationWrapper } from '@/lib/AnimationEffects';
 import SoundEffects from '@/lib/SoundEffects';
 
