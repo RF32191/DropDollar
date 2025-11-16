@@ -125,11 +125,32 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
         category_filter: categoryId
       });
 
-      if (error) throw error;
-      setListings(data || []);
+      if (error) {
+        console.error('❌ RPC Error:', error);
+        throw error;
+      }
+
+      console.log('✅ Listings loaded:', data);
+      
+      // Ensure data is an array and has safe defaults
+      const safeListings = (Array.isArray(data) ? data : []).map(listing => ({
+        ...listing,
+        participants: listing.participants || [],
+        condition: listing.condition || 'new',
+        brand: listing.brand || null,
+        dimensions: listing.dimensions || null,
+        weight: listing.weight || null,
+        image_urls: listing.image_urls || [],
+        session_id: listing.session_id || '',
+        prize_pool: listing.prize_pool || 0,
+        participants_count: listing.participants_count || 0
+      }));
+      
+      setListings(safeListings);
     } catch (error) {
-      console.error('Error loading listings:', error);
-      setMessage({ type: 'error', text: 'Failed to load listings' });
+      console.error('❌ Error loading listings:', error);
+      setMessage({ type: 'error', text: 'Failed to load listings: ' + (error as Error).message });
+      setListings([]);
     } finally {
       setIsLoading(false);
     }
