@@ -61,7 +61,7 @@ BEGIN
         l.weight,
         l.status,
         l.created_at,
-        COALESCE(s.id::TEXT, '')::TEXT as session_id,
+        COALESCE(s.id::TEXT, 'no-session')::TEXT as session_id,
         COALESCE(s.prize_pool, 0)::NUMERIC,
         COALESCE(s.participants_count, 0)::INTEGER,
         COALESCE(s.status, 'waiting')::TEXT as session_status,
