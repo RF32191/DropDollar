@@ -653,8 +653,11 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const userParticipant = participants.find(p => p.user_id === user?.id);
               const isWinner = listing.winner_user_id === user?.id;
               const canJoin = listing.session_status !== 'completed' && !userParticipant;
-              const playersWithScores = participants.filter(p => p.score !== null);
+              const playersWithScores = participants.filter(p => p.score !== null && p.completed_at !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
+              
+              // Show scoreboard to participants or if session is completed with scores
+              const canSeeScoreboard = userParticipant || (listing.session_status === 'completed' && playersWithScores.length > 0);
 
               // Check if user is the seller
               const isSeller = user && (listing.seller_id === user.id || listing.seller_id === user.id.toString());
@@ -805,14 +808,15 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
                   {/* Fixed 1 Token Entry - No selector needed */}
 
-                  {/* Scoreboard (hidden dropdown for participants) */}
-                  {userParticipant && playersWithScores.length > 0 && (
+                  {/* Scoreboard (visible to participants and after completion) */}
+                  {canSeeScoreboard && playersWithScores.length > 0 && (
                     <div className="mb-4">
                       <button
                         onClick={() => setExpandedScoreboards(prev => ({ ...prev, [listing.id]: !prev[listing.id] }))}
-                        className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-lg transition-colors mb-2"
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3 rounded-lg transition-all mb-2 shadow-lg"
                       >
-                        {isScoreboardVisible ? '▼' : '▶'} Scoreboard ({playersWithScores.length} players)
+                        {isScoreboardVisible ? '▼' : '▶'} 🏆 Scoreboard ({playersWithScores.length} player{playersWithScores.length !== 1 ? 's' : ''})
+                        {listing.session_status === 'completed' && <span className="ml-2 text-xs bg-green-500 px-2 py-1 rounded">FINAL</span>}
                       </button>
                       
                       {isScoreboardVisible && (

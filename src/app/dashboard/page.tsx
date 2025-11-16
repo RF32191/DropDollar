@@ -12,8 +12,9 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
 import SellerDashboard from '@/components/seller/SellerDashboard';
+import MessagesTab from '@/components/dashboard/MessagesTab';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -75,7 +76,7 @@ export default function TriumphStyleDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages'>('recent');
   
   // Seller registration state
   const [isSeller, setIsSeller] = useState(false);
@@ -92,7 +93,7 @@ export default function TriumphStyleDashboard() {
   useEffect(() => {
     // Check URL parameters for tab selection
     const tab = searchParams.get('tab');
-    if (tab && ['recent', 'practice', 'competition', 'stats'].includes(tab)) {
+    if (tab && ['recent', 'practice', 'competition', 'stats', 'messages'].includes(tab)) {
       setActiveTab(tab as any);
     }
     
@@ -579,12 +580,13 @@ export default function TriumphStyleDashboard() {
         {/* Tab Navigation */}
         <div className="mb-6">
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20">
-            <div className="flex border-b border-white/20">
+            <div className="flex border-b border-white/20 overflow-x-auto">
               {[
                 { id: 'recent', label: 'Recent Games', icon: ClockIcon },
                 { id: 'practice', label: 'Practice History', icon: StarIcon },
                 { id: 'competition', label: 'Competition History', icon: TrophyIcon },
-                { id: 'stats', label: 'Statistics', icon: ChartBarIcon }
+                { id: 'stats', label: 'Statistics', icon: ChartBarIcon },
+                { id: 'messages', label: 'Messages', icon: EnvelopeIcon }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -838,6 +840,10 @@ export default function TriumphStyleDashboard() {
                   )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'messages' && (
+            <MessagesTab />
           )}
             </div>
           </div>
