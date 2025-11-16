@@ -132,6 +132,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   });
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deletingListing, setDeletingListing] = useState<string | null>(null);
 
   const category = categories[categoryId];
 
@@ -316,6 +317,48 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
       weight: listing.weight || ''
     });
     setEditImageFiles([]);
+  };
+
+  const handleDeleteListing = async (listing: MarketplaceListing) => {
+    if (!user || listing.seller_id !== user.id) {
+      setMessage({ type: 'error', text: 'You can only delete your own listings' });
+      return;
+    }
+
+    const participantsCount = listing.participants_count || 0;
+    let confirmMessage = `Are you sure you want to delete "${listing.title}"?`;
+    
+    if (participantsCount > 0) {
+      confirmMessage += `\n\n${participantsCount} player(s) have joined and will be automatically refunded ${participantsCount} token(s).`;
+    }
+    
+    confirmMessage += '\n\nThis action cannot be undone.';
+
+    const confirmDelete = window.confirm(confirmMessage);
+    if (!confirmDelete) return;
+
+    setDeletingListing(listing.id);
+
+    try {
+      const { data, error } = await supabase.rpc('delete_marketplace_listing_with_refunds', {
+        listing_id_param: listing.id
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setMessage({ type: 'success', text: data.message || 'Listing deleted successfully!' });
+        await loadListings(); // Reload to show updated list
+        await refreshUserTokens(); // Refresh in case user was a participant
+      } else {
+        throw new Error(data?.message || 'Failed to delete listing');
+      }
+    } catch (error: any) {
+      console.error('❌ Error deleting listing:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to delete listing' });
+    } finally {
+      setDeletingListing(null);
+    }
   };
 
   const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -795,14 +838,28 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                   )}
 
                   {/* Action Buttons */}
-                  {/* Edit Button (seller only, no participants) */}
-                  {canEdit && (
-                    <button
-                      onClick={() => handleEditListing(listing)}
-                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg transition-colors mb-3"
-                    >
-                      ✏️ Edit Listing
-                    </button>
+                  {/* Edit & Delete Buttons (seller only) */}
+                  {isSeller && (
+                    <div className="space-y-2 mb-3">
+                      {/* Edit button - only when no participants */}
+                      {canEdit && (
+                        <button
+                          onClick={() => handleEditListing(listing)}
+                          className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg transition-colors"
+                        >
+                          ✏️ Edit Listing
+                        </button>
+                      )}
+                      
+                      {/* Delete button - always available to seller */}
+                      <button
+                        onClick={() => handleDeleteListing(listing)}
+                        disabled={deletingListing === listing.id}
+                        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors"
+                      >
+                        {deletingListing === listing.id ? '⏳ Deleting & Refunding...' : '🗑️ Delete Listing'}
+                      </button>
+                    </div>
                   )}
                   
                   {isWinner && !listing.winner_contacted ? (
