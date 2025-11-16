@@ -491,7 +491,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                   )}
 
                   {/* Entry Amount Selector */}
-                  {canJoin && globalLocation.isGamingAllowed && (
+                  {canJoin && improvedLocation?.isGamingAllowed && (
                     <div className="mb-4">
                       <label className="block text-xs font-medium text-gray-400 mb-2">Entry Amount:</label>
                       <div className="flex space-x-2">
