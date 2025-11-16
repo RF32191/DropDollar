@@ -114,6 +114,18 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   const [expandedScoreboards, setExpandedScoreboards] = useState<{ [key: string]: boolean }>({});
   const [showContactModal, setShowContactModal] = useState<MarketplaceListing | null>(null);
   const [sellerContact, setSellerContact] = useState<string>('');
+  const [editingListing, setEditingListing] = useState<MarketplaceListing | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    base_price: '',
+    condition: 'new',
+    brand: '',
+    dimensions: '',
+    weight: ''
+  });
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const category = categories[categoryId];
 
@@ -280,6 +292,101 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
     } catch (error: any) {
       console.error('Error contacting seller:', error);
       setMessage({ type: 'error', text: error.message || 'Failed to contact seller' });
+    }
+  };
+
+  const handleEditListing = (listing: MarketplaceListing) => {
+    setEditingListing(listing);
+    setEditFormData({
+      title: listing.title,
+      description: listing.description,
+      base_price: listing.base_price.toString(),
+      condition: listing.condition || 'new',
+      brand: listing.brand || '',
+      dimensions: listing.dimensions || '',
+      weight: listing.weight || ''
+    });
+    setEditImageFiles([]);
+  };
+
+  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + editImageFiles.length > 5) {
+      setMessage({ type: 'error', text: 'Maximum 5 images allowed' });
+      return;
+    }
+    setEditImageFiles(prev => [...prev, ...files]);
+  };
+
+  const removeEditImage = (index: number) => {
+    setEditImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateListing = async () => {
+    if (!editingListing || !user) return;
+
+    setIsUpdating(true);
+    setMessage(null);
+
+    try {
+      // Upload new images if any
+      let imageUrls: string[] = [];
+      if (editImageFiles.length > 0) {
+        for (const file of editImageFiles) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const filePath = `listings/${fileName}`;
+
+          const { data, error } = await supabase.storage
+            .from('marketplace-images')
+            .upload(filePath, file);
+
+          if (error) throw error;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('marketplace-images')
+            .getPublicUrl(filePath);
+
+          imageUrls.push(publicUrl);
+        }
+      }
+
+      // Update listing
+      const updateData: any = {
+        title: editFormData.title,
+        description: editFormData.description,
+        base_price: parseFloat(editFormData.base_price),
+        condition: editFormData.condition,
+        brand: editFormData.brand || null,
+        dimensions: editFormData.dimensions || null,
+        weight: editFormData.weight || null
+      };
+
+      if (imageUrls.length > 0) {
+        updateData.image_urls = imageUrls;
+      }
+
+      const { error } = await supabase
+        .from('marketplace_listings')
+        .update(updateData)
+        .eq('id', editingListing.id);
+
+      if (error) throw error;
+
+      // Also update the base_price in the session
+      await supabase
+        .from('marketplace_sessions')
+        .update({ base_price: parseFloat(editFormData.base_price) })
+        .eq('listing_id', editingListing.id);
+
+      setMessage({ type: 'success', text: 'Listing updated successfully!' });
+      setEditingListing(null);
+      await loadListings();
+    } catch (error: any) {
+      console.error('Error updating listing:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to update listing' });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -601,6 +708,16 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                   )}
 
                   {/* Action Buttons */}
+                  {/* Edit Button (seller only, no participants) */}
+                  {user && listing.seller_id === user.id && listing.participants_count === 0 && listing.session_status !== 'completed' ? (
+                    <button
+                      onClick={() => handleEditListing(listing)}
+                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg transition-colors mb-3"
+                    >
+                      ✏️ Edit Listing
+                    </button>
+                  ) : null}
+                  
                   {isWinner && !listing.winner_contacted ? (
                     <button
                       onClick={() => handleContactSeller(listing)}
@@ -691,6 +808,139 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               >
                 Close
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Listing Modal */}
+        {editingListing && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full border border-yellow-500 my-8">
+              <h2 className="text-2xl font-bold text-white mb-4">
+                ✏️ Edit Listing
+              </h2>
+              
+              <div className="space-y-4 mb-6">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Title *</label>
+                  <input
+                    type="text"
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 outline-none"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    rows={4}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 outline-none"
+                  />
+                </div>
+
+                {/* Base Price */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Base Price (Tokens) *</label>
+                  <input
+                    type="number"
+                    value={editFormData.base_price}
+                    onChange={(e) => setEditFormData({ ...editFormData, base_price: e.target.value })}
+                    className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 outline-none"
+                  />
+                </div>
+
+                {/* Condition & Brand */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Condition</label>
+                    <select
+                      value={editFormData.condition}
+                      onChange={(e) => setEditFormData({ ...editFormData, condition: e.target.value })}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 outline-none"
+                    >
+                      <option value="new">New</option>
+                      <option value="like-new">Like New</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="used">Used</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Brand</label>
+                    <input
+                      type="text"
+                      value={editFormData.brand}
+                      onChange={(e) => setEditFormData({ ...editFormData, brand: e.target.value })}
+                      className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-yellow-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Add/Replace Images ({editImageFiles.length}/5)
+                  </label>
+                  {editImageFiles.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {editImageFiles.map((file, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeEditImage(index)}
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {editImageFiles.length < 5 && (
+                    <label className="block border-2 border-dashed border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-yellow-500">
+                      <span className="text-gray-400">Click to upload images</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleEditImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setEditingListing(null);
+                    setEditImageFiles([]);
+                  }}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-lg transition-colors"
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateListing}
+                  disabled={isUpdating}
+                  className="flex-1 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors"
+                >
+                  {isUpdating ? '⏳ Updating...' : '✓ Save Changes'}
+                </button>
+              </div>
             </div>
           </div>
         )}
