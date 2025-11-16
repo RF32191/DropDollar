@@ -229,6 +229,9 @@ export default function SellPage() {
       if (error) throw error;
 
       if (data?.success) {
+        console.log('✅ Listing created:', data);
+        console.log('📸 Images uploaded:', imageUrls.length, 'URLs:', imageUrls);
+        
         // If images were uploaded or additional data, update the listing
         if (imageUrls.length > 0 || formData.condition || formData.brand || formData.dimensions || formData.weight) {
           const updateData: any = {
@@ -241,12 +244,21 @@ export default function SellPage() {
           // Add image_urls as JSONB array if images were uploaded
           if (imageUrls.length > 0) {
             updateData.image_urls = imageUrls;
+            console.log('💾 Saving image URLs to listing:', updateData.image_urls);
           }
           
-          await supabase
+          // FIX: Use listing_id not session_id to update the listing!
+          const { error: updateError } = await supabase
             .from('marketplace_listings')
             .update(updateData)
-            .eq('id', data.session_id);
+            .eq('id', data.listing_id); // Changed from data.session_id to data.listing_id
+          
+          if (updateError) {
+            console.error('❌ Error updating listing with images:', updateError);
+            throw updateError;
+          }
+          
+          console.log('✅ Listing updated with images and details');
         }
 
         setMessage({ type: 'success', text: 'Listing created successfully!' });
