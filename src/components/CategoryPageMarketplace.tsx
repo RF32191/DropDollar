@@ -511,6 +511,22 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const playersWithScores = participants.filter(p => p.score !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
 
+              // Debug info
+              const isSeller = user && (listing.seller_id === user.id || listing.seller_id === user.id.toString());
+              const canEdit = isSeller && listing.participants_count === 0 && listing.session_status !== 'completed';
+              
+              if (user && listing.participants_count === 0) {
+                console.log('🔍 Edit Check:', {
+                  listingId: listing.id,
+                  listingSellerId: listing.seller_id,
+                  userId: user.id,
+                  match: listing.seller_id === user.id,
+                  participantsCount: listing.participants_count,
+                  sessionStatus: listing.session_status,
+                  canEdit
+                });
+              }
+
               return (
                 <div key={listing.id} className={`backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
                   listing.session_status === 'active' 
@@ -709,14 +725,14 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
                   {/* Action Buttons */}
                   {/* Edit Button (seller only, no participants) */}
-                  {user && listing.seller_id === user.id && listing.participants_count === 0 && listing.session_status !== 'completed' ? (
+                  {canEdit && (
                     <button
                       onClick={() => handleEditListing(listing)}
                       className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg transition-colors mb-3"
                     >
                       ✏️ Edit Listing
                     </button>
-                  ) : null}
+                  )}
                   
                   {isWinner && !listing.winner_contacted ? (
                     <button
