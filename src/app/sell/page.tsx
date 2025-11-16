@@ -80,6 +80,7 @@ export default function SellPage() {
   ];
 
   const gameTypes = [
+    { id: 'crypto_match', name: 'Crypto Match', description: 'Match cryptocurrency symbols', difficulty: 'Easy' },
     { id: 'multi-target', name: 'Multi-Target Reaction', description: 'Click targets quickly - Speed & accuracy', difficulty: 'Medium' },
     { id: 'falling-objects', name: 'Falling Object Catch', description: 'Catch coins and dollars', difficulty: 'Medium' },
     { id: 'color-sequence', name: 'Color Sequence Memory', description: 'Remember and repeat colors', difficulty: 'Hard' },
