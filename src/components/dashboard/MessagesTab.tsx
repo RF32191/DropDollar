@@ -47,16 +47,24 @@ export default function MessagesTab() {
   const [messagesByListing, setMessagesByListing] = useState<MessagesByListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedListings, setExpandedListings] = useState<{ [key: string]: boolean }>({});
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasLoadedOnce) {
       loadMessages();
     }
-  }, [user]);
+  }, [user, hasLoadedOnce]);
 
   const loadMessages = async () => {
+    if (!user?.id) {
+      console.log('No user ID, skipping message load');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
+      console.log('🔍 Loading messages for user:', user.id);
 
       // Get all listings where user is seller or winner
       const { data: listings, error: listingsError } = await supabase
@@ -69,15 +77,23 @@ export default function MessagesTab() {
             winner_user_id
           )
         `)
-        .or(`seller_id.eq.${user?.id},marketplace_sessions.winner_user_id.eq.${user?.id}`);
+        .or(`seller_id.eq.${user.id},marketplace_sessions.winner_user_id.eq.${user.id}`);
 
       if (listingsError) {
-        console.error('Error loading listings:', listingsError);
+        console.error('❌ Error loading listings:', listingsError);
+        setMessagesByListing([]);
+        setIsLoading(false);
+        setHasLoadedOnce(true);
         return;
       }
 
+      console.log('📋 Found listings:', listings?.length || 0);
+
       if (!listings || listings.length === 0) {
+        console.log('ℹ️ No listings found for user');
         setMessagesByListing([]);
+        setIsLoading(false);
+        setHasLoadedOnce(true);
         return;
       }
 
@@ -87,9 +103,11 @@ export default function MessagesTab() {
           .rpc('get_listing_messages', { listing_id_param: listing.id });
 
         if (messagesError) {
-          console.error(`Error loading messages for listing ${listing.id}:`, messagesError);
+          console.error(`❌ Error loading messages for listing ${listing.id}:`, messagesError);
           return null;
         }
+
+        console.log(`📬 Listing "${listing.title}": ${messages?.length || 0} messages`);
 
         return {
           listing_id: listing.id,
@@ -101,11 +119,14 @@ export default function MessagesTab() {
       const results = await Promise.all(messagesPromises);
       const validResults = results.filter(r => r !== null && r.messages.length > 0) as MessagesByListing[];
       
+      console.log('✅ Total listings with messages:', validResults.length);
       setMessagesByListing(validResults);
     } catch (error) {
-      console.error('Error in loadMessages:', error);
+      console.error('❌ Error in loadMessages:', error);
+      setMessagesByListing([]);
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
