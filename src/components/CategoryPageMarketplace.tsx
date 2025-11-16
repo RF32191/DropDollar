@@ -18,6 +18,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import LocationBanner from '@/components/location/LocationBanner';
 import LocationVerificationModal from '@/components/modals/LocationVerificationModal';
+import ShippingAddressModal from '@/components/modals/ShippingAddressModal';
 import { 
   ClockIcon, 
   FireIcon, 
@@ -119,6 +120,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
   const [expandedScoreboards, setExpandedScoreboards] = useState<{ [key: string]: boolean }>({});
   const [showContactModal, setShowContactModal] = useState<MarketplaceListing | null>(null);
+  const [showAddressModal, setShowAddressModal] = useState<MarketplaceListing | null>(null);
   const [sellerContact, setSellerContact] = useState<string>('');
   const [editingListing, setEditingListing] = useState<MarketplaceListing | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -862,18 +864,13 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     </div>
                   )}
                   
-                  {isWinner && !listing.winner_contacted ? (
+                  {isWinner ? (
                     <button
-                      onClick={() => handleContactSeller(listing)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors"
+                      onClick={() => setShowAddressModal(listing)}
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 rounded-lg transition-all duration-300 shadow-lg"
                     >
-                      <PhoneIcon className="inline h-5 w-5 mr-2" />
-                      Contact Seller for Shipping
+                      📦 Provide Shipping Address
                     </button>
-                  ) : isWinner && listing.winner_contacted ? (
-                    <div className="w-full bg-green-900/30 border border-green-700 text-green-300 font-bold py-3 rounded-lg text-center">
-                      ✅ Seller Contacted
-                    </div>
                   ) : isSeller && listing.session_status !== 'completed' ? (
                     <div className="w-full bg-purple-900/30 border border-purple-700 text-purple-300 font-bold py-3 rounded-lg text-center">
                       📦 Your Listing - Cannot Join Own Competition
@@ -956,6 +953,19 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               </button>
             </div>
           </div>
+        )}
+
+        {/* Shipping Address Modal */}
+        {showAddressModal && (
+          <ShippingAddressModal
+            listingId={showAddressModal.id}
+            listingTitle={showAddressModal.title}
+            onClose={() => setShowAddressModal(null)}
+            onSuccess={() => {
+              setMessage({ type: 'success', text: 'Shipping address sent to seller!' });
+              loadListings();
+            }}
+          />
         )}
 
         {/* Edit Listing Modal */}
