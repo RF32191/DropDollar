@@ -200,7 +200,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   };
 
   // Join listing
-  const handleJoinListing = async (listing: MarketplaceListing) => {
+  const handleJoinListing = async (listing: MarketplaceListing, autoPlay: boolean = true) => {
     if (!user || !isAuthenticated) {
       setMessage({ type: 'error', text: 'Please sign in to join' });
       return;
@@ -228,14 +228,19 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
       if (error) throw error;
 
       if (data?.success) {
-        setMessage({ type: 'success', text: `Joined successfully! Entry: ${amount} tokens` });
+        setMessage({ type: 'success', text: `Joined successfully! Starting game...` });
         
-        // Set up game flow
-        setSelectedListing({
+        // Set up game flow with RNG seed
+        const listingWithSeed = {
           ...listing,
-          rng_seed: data.rng_seed
-        });
-        setCurrentView('game');
+          rng_seed: data.rng_seed || listing.rng_seed || 1
+        };
+        
+        // Auto-start game immediately after joining
+        if (autoPlay) {
+          setSelectedListing(listingWithSeed);
+          setCurrentView('game');
+        }
         
         // Refresh tokens and listings
         await refreshUserTokens();
@@ -758,23 +763,27 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
                   {/* Entry Amount Selector */}
                   {canJoinListing && improvedLocation?.isGamingAllowed && (
-                    <div className="mb-4">
-                      <label className="block text-xs font-medium text-gray-400 mb-2">Entry Amount:</label>
-                      <div className="flex space-x-2">
+                    <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                      <div className="flex items-center mb-2">
+                        <span className="text-blue-400 text-xl mr-2">🎯</span>
+                        <label className="block text-sm font-bold text-blue-300">Choose Your Entry Amount:</label>
+                      </div>
+                      <div className="flex space-x-2 mb-2">
                         {[1, 5, 10].map(amount => (
                           <button
                             key={amount}
                             onClick={() => setEntryAmount(prev => ({ ...prev, [listing.id]: amount }))}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
+                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
                               (entryAmount[listing.id] || 1) === amount
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white scale-105 shadow-lg'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                             }`}
                           >
-                            {amount}
+                            {amount} 🪙
                           </button>
                         ))}
                       </div>
+                      <p className="text-xs text-gray-400 italic">Higher entry = bigger contribution to prize pool!</p>
                     </div>
                   )}
 
@@ -848,9 +857,9 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     ) : locationVerified && improvedLocation?.isGamingAllowed ? (
                       <button
                         onClick={() => handleJoinListing(listing)}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                       >
-                        🎮 Join Competition ({entryAmount[listing.id] || 1} tokens)
+                        🎮 Join & Play Game ({entryAmount[listing.id] || 1} tokens)
                       </button>
                     ) : (
                       <div className="w-full bg-yellow-900/30 border border-yellow-700 text-yellow-300 text-sm py-3 rounded-lg text-center">

@@ -81,7 +81,6 @@ export default function TriumphStyleDashboard() {
   const [isSeller, setIsSeller] = useState(false);
   const [sellerStatus, setSellerStatus] = useState<any>(null);
   const [isCheckingSeller, setIsCheckingSeller] = useState(true);
-  const [sellerDataReady, setSellerDataReady] = useState(false);
   const [showSellerForm, setShowSellerForm] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [sellerFormData, setSellerFormData] = useState({
