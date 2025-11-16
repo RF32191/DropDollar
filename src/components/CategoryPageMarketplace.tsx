@@ -511,21 +511,12 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const playersWithScores = participants.filter(p => p.score !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
 
-              // Debug info
+              // Check if user is the seller
               const isSeller = user && (listing.seller_id === user.id || listing.seller_id === user.id.toString());
               const canEdit = isSeller && listing.participants_count === 0 && listing.session_status !== 'completed';
               
-              if (user && listing.participants_count === 0) {
-                console.log('🔍 Edit Check:', {
-                  listingId: listing.id,
-                  listingSellerId: listing.seller_id,
-                  userId: user.id,
-                  match: listing.seller_id === user.id,
-                  participantsCount: listing.participants_count,
-                  sessionStatus: listing.session_status,
-                  canEdit
-                });
-              }
+              // Sellers cannot join their own listing
+              const canJoinListing = !isSeller && canJoin;
 
               return (
                 <div key={listing.id} className={`backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
@@ -668,7 +659,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                   )}
 
                   {/* Entry Amount Selector */}
-                  {canJoin && improvedLocation?.isGamingAllowed && (
+                  {canJoinListing && improvedLocation?.isGamingAllowed && (
                     <div className="mb-4">
                       <label className="block text-xs font-medium text-gray-400 mb-2">Entry Amount:</label>
                       <div className="flex space-x-2">
@@ -746,7 +737,11 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     <div className="w-full bg-green-900/30 border border-green-700 text-green-300 font-bold py-3 rounded-lg text-center">
                       ✅ Seller Contacted
                     </div>
-                  ) : canJoin ? (
+                  ) : isSeller && listing.session_status !== 'completed' ? (
+                    <div className="w-full bg-purple-900/30 border border-purple-700 text-purple-300 font-bold py-3 rounded-lg text-center">
+                      📦 Your Listing - Cannot Join Own Competition
+                    </div>
+                  ) : canJoinListing ? (
                     improvedLocation?.data?.restricted ? (
                       <div className="w-full bg-red-900/30 border border-red-700 text-red-300 text-sm py-3 rounded-lg text-center">
                         <ShieldCheckIcon className="inline h-4 w-4 mr-1" />
