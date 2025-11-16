@@ -117,7 +117,6 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [currentView, setCurrentView] = useState<'list' | 'game'>('list');
   const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
-  const [entryAmount, setEntryAmount] = useState<{ [key: string]: number }>({});
   const [expandedScoreboards, setExpandedScoreboards] = useState<{ [key: string]: boolean }>({});
   const [showContactModal, setShowContactModal] = useState<MarketplaceListing | null>(null);
   const [sellerContact, setSellerContact] = useState<string>('');
@@ -206,18 +205,16 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
       return;
     }
 
-    // Check location verification (same as WTA, Hot Sell, Games)
-    if (!locationVerified || !improvedLocation?.isGamingAllowed) {
+    // Only block if explicitly restricted (not if just loading or pending verification)
+    if (improvedLocation?.data?.restricted) {
       setMessage({ 
         type: 'error', 
-        text: improvedLocation?.data?.restricted 
-          ? `Gaming is not allowed in ${improvedLocation.data.state}` 
-          : 'Location verification required. Please enable location to participate.' 
+        text: `Gaming is not allowed in ${improvedLocation.data.state}` 
       });
       return;
     }
 
-    const amount = entryAmount[listing.id] || 1;
+    const amount = 1; // Fixed 1 token entry
 
     try {
       const { data, error } = await supabase.rpc('join_marketplace_session', {
@@ -761,31 +758,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     </div>
                   )}
 
-                  {/* Entry Amount Selector */}
-                  {canJoinListing && !improvedLocation?.data?.restricted && (
-                    <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-                      <div className="flex items-center mb-2">
-                        <span className="text-blue-400 text-xl mr-2">🎯</span>
-                        <label className="block text-sm font-bold text-blue-300">Choose Your Entry Amount:</label>
-                      </div>
-                      <div className="flex space-x-2 mb-2">
-                        {[1, 5, 10].map(amount => (
-                          <button
-                            key={amount}
-                            onClick={() => setEntryAmount(prev => ({ ...prev, [listing.id]: amount }))}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
-                              (entryAmount[listing.id] || 1) === amount
-                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white scale-105 shadow-lg'
-                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                          >
-                            {amount} 🪙
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-400 italic">Higher entry = bigger contribution to prize pool!</p>
-                    </div>
-                  )}
+                  {/* Fixed 1 Token Entry - No selector needed */}
 
                   {/* Scoreboard (hidden dropdown for participants) */}
                   {userParticipant && playersWithScores.length > 0 && (
@@ -861,7 +834,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                         onClick={() => handleJoinListing(listing)}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                       >
-                        🎮 Join & Play Game ({entryAmount[listing.id] || 1} tokens)
+                        🎮 Join & Play Game (1 token)
                       </button>
                     )
                   ) : userParticipant && !userParticipant.score ? (
