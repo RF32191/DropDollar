@@ -376,10 +376,11 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
             {listings.map((listing) => {
               const progressPercent = Math.min((listing.prize_pool / listing.base_price) * 100, 100);
               const timeRemaining = calculateTimeRemaining(listing);
-              const userParticipant = listing.participants.find(p => p.user_id === user?.id);
+              const participants = listing.participants || [];
+              const userParticipant = participants.find(p => p.user_id === user?.id);
               const isWinner = listing.winner_user_id === user?.id;
               const canJoin = listing.session_status !== 'completed' && !userParticipant;
-              const playersWithScores = listing.participants.filter(p => p.score !== null);
+              const playersWithScores = participants.filter(p => p.score !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
 
               return (
