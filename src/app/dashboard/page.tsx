@@ -79,9 +79,8 @@ export default function TriumphStyleDashboard() {
   
   // Seller registration state
   const [isSeller, setIsSeller] = useState(false);
-  const [isCheckingSeller, setIsCheckingSeller] = useState(true);
   const [sellerStatus, setSellerStatus] = useState<any>(null);
-  const [hasCheckedSeller, setHasCheckedSeller] = useState(false);
+  const [isCheckingSeller, setIsCheckingSeller] = useState(true);
   const [showSellerForm, setShowSellerForm] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [sellerFormData, setSellerFormData] = useState({
@@ -121,9 +120,17 @@ export default function TriumphStyleDashboard() {
     if (user && isAuthenticated && !authLoading) {
       console.log('🎮 [Dashboard] User authenticated, loading data immediately...');
       loadDashboardData();
-      checkSellerStatus();
     }
   }, [searchParams, user?.id, isAuthenticated, authLoading]);
+
+  // Separate useEffect for seller status check to prevent flashing
+  useEffect(() => {
+    // Only check seller status once when user is first authenticated
+    if (user && isAuthenticated && !authLoading && isCheckingSeller) {
+      console.log('🔍 [Dashboard] Running one-time seller status check...');
+      checkSellerStatus();
+    }
+  }, [user?.id, isAuthenticated, authLoading]);
 
   // Token synchronization is now handled by useTokenSync hook
 
@@ -260,12 +267,11 @@ export default function TriumphStyleDashboard() {
 
   const checkSellerStatus = async () => {
     if (!user?.id) {
-      setHasCheckedSeller(true);
+      setIsCheckingSeller(false);
       return;
     }
     
     try {
-      setIsCheckingSeller(true);
       console.log('🔍 [Dashboard] Checking seller status...');
       
       const { data, error } = await supabase.rpc('check_seller_status');
@@ -273,7 +279,7 @@ export default function TriumphStyleDashboard() {
       if (error) {
         console.error('❌ [Dashboard] Error checking seller status:', error);
         setIsSeller(false);
-        setHasCheckedSeller(true);
+        setIsCheckingSeller(false);
         return;
       }
       
@@ -304,7 +310,6 @@ export default function TriumphStyleDashboard() {
       setIsSeller(false);
     } finally {
       setIsCheckingSeller(false);
-      setHasCheckedSeller(true);
     }
   };
 
@@ -856,10 +861,10 @@ export default function TriumphStyleDashboard() {
               )}
             </div>
 
-            {!hasCheckedSeller ? (
+            {isCheckingSeller ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-400 mt-2">Loading...</p>
+                <p className="text-gray-400 mt-2">Checking seller status...</p>
               </div>
             ) : sellerStatus?.status === 'pending' ? (
               <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/20">
