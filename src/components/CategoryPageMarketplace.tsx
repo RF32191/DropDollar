@@ -762,7 +762,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                   )}
 
                   {/* Entry Amount Selector */}
-                  {canJoinListing && improvedLocation?.isGamingAllowed && (
+                  {canJoinListing && !improvedLocation?.data?.restricted && (
                     <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
                       <div className="flex items-center mb-2">
                         <span className="text-blue-400 text-xl mr-2">🎯</span>
@@ -849,23 +849,20 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                       📦 Your Listing - Cannot Join Own Competition
                     </div>
                   ) : canJoinListing ? (
+                    // Show restricted message ONLY if explicitly restricted
                     improvedLocation?.data?.restricted ? (
                       <div className="w-full bg-red-900/30 border border-red-700 text-red-300 text-sm py-3 rounded-lg text-center">
                         <ShieldCheckIcon className="inline h-4 w-4 mr-1" />
                         Gaming Not Available in {improvedLocation.data.state}
                       </div>
-                    ) : locationVerified && improvedLocation?.isGamingAllowed ? (
+                    ) : (
+                      // Show button if not restricted (location check happens on click)
                       <button
                         onClick={() => handleJoinListing(listing)}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
                       >
                         🎮 Join & Play Game ({entryAmount[listing.id] || 1} tokens)
                       </button>
-                    ) : (
-                      <div className="w-full bg-yellow-900/30 border border-yellow-700 text-yellow-300 text-sm py-3 rounded-lg text-center">
-                        <MapPinIcon className="inline h-4 w-4 mr-1" />
-                        Location Verification Required
-                      </div>
                     )
                   ) : userParticipant && !userParticipant.score ? (
                     // User already joined = already passed location check
