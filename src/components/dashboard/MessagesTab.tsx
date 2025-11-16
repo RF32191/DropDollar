@@ -48,6 +48,8 @@ export default function MessagesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [expandedListings, setExpandedListings] = useState<{ [key: string]: boolean }>({});
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [replyText, setReplyText] = useState<{ [key: string]: string }>({});
+  const [sendingMessage, setSendingMessage] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     if (user && !hasLoadedOnce) {
@@ -132,7 +134,7 @@ export default function MessagesTab() {
 
   const markAsRead = async (messageId: string) => {
     try {
-      const { error } = await supabase.rpc('mark_message_read', {
+      const { error} = await supabase.rpc('mark_message_read', {
         message_id_param: messageId
       });
 
@@ -144,6 +146,34 @@ export default function MessagesTab() {
       }
     } catch (error) {
       console.error('Error in markAsRead:', error);
+    }
+  };
+
+  const sendChatMessage = async (listingId: string) => {
+    const messageContent = replyText[listingId]?.trim();
+    if (!messageContent) return;
+
+    try {
+      setSendingMessage(prev => ({ ...prev, [listingId]: true }));
+
+      const { data, error } = await supabase.rpc('send_marketplace_chat_message', {
+        listing_id_param: listingId,
+        message_content_param: messageContent
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        // Clear input
+        setReplyText(prev => ({ ...prev, [listingId]: '' }));
+        // Reload messages to show new message
+        loadMessages();
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(prev => ({ ...prev, [listingId]: false }));
     }
   };
 
@@ -337,6 +367,37 @@ export default function MessagesTab() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+              
+              {/* Chat Reply Box */}
+              {isExpanded && (
+                <div className="border-t border-white/10 p-4 bg-gray-900/50">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="text"
+                      value={replyText[listingGroup.listing_id] || ''}
+                      onChange={(e) => setReplyText(prev => ({ ...prev, [listingGroup.listing_id]: e.target.value }))}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !sendingMessage[listingGroup.listing_id]) {
+                          sendChatMessage(listingGroup.listing_id);
+                        }
+                      }}
+                      placeholder="Type your message..."
+                      className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none"
+                      disabled={sendingMessage[listingGroup.listing_id]}
+                    />
+                    <button
+                      onClick={() => sendChatMessage(listingGroup.listing_id)}
+                      disabled={!replyText[listingGroup.listing_id]?.trim() || sendingMessage[listingGroup.listing_id]}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                    >
+                      {sendingMessage[listingGroup.listing_id] ? '...' : 'Send'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💬 Chat with the {listingGroup.messages[0]?.sender_id === user?.id ? 'buyer' : 'seller'} about this item
+                  </p>
                 </div>
               )}
             </div>
