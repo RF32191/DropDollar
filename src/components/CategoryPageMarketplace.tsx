@@ -410,33 +410,60 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     ? 'bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/15' 
                     : listing.session_status === 'completed'
                     ? 'bg-green-500/10 border-green-500/20 hover:bg-green-500/15'
-                    : 'bg-gray-900/80 border-gray-700/50 hover:bg-gray-800/90'
+                    : 'bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/15'
                 }`}>
-                  {/* Product Image */}
-                  {listing.image_urls && Array.isArray(listing.image_urls) && listing.image_urls.length > 0 && (
-                    <div className="mb-4 rounded-2xl overflow-hidden">
+                  {/* Product Image or Category Icon */}
+                  <div className="mb-4 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700/50">
+                    {listing.image_urls && Array.isArray(listing.image_urls) && listing.image_urls.length > 0 ? (
                       <img 
                         src={listing.image_urls[0]} 
                         alt={listing.title}
                         className="w-full h-48 object-cover"
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="w-full h-48 flex items-center justify-center">
+                        <div className="text-center">
+                          <span className="text-6xl mb-2 block">{categoryIcon}</span>
+                          <p className="text-gray-400 text-sm">No Image</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Product Info Header */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-2xl font-bold text-white">{listing.title}</h3>
+                      <div className="flex items-center">
+                        <span className="text-3xl mr-3">{categoryIcon}</span>
+                        <h3 className="text-xl font-bold text-white">{listing.title}</h3>
+                      </div>
+                      <div className="flex items-center rounded-full px-3 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        <TrophyIcon className="w-4 h-4 mr-1" />
+                        <span className="text-xs font-semibold">MARKETPLACE</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-gray-300 mb-3">{listing.description}</p>
+                    
+                    {/* Product Details Row */}
+                    <div className="flex flex-wrap gap-3 mb-2">
                       {listing.condition && (
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
                           {listing.condition.toUpperCase()}
                         </span>
                       )}
+                      {listing.brand && (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-700 text-gray-300">
+                          {listing.brand}
+                        </span>
+                      )}
+                      {listing.shipping_included && (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-300 border border-green-500/30">
+                          ✓ FREE SHIPPING
+                        </span>
+                      )}
                     </div>
-                    <p className="text-gray-300 text-sm mb-3">{listing.description}</p>
-                    {listing.brand && (
-                      <p className="text-xs text-gray-400 mb-1">Brand: <span className="text-white font-semibold">{listing.brand}</span></p>
-                    )}
+                    
                     <p className="text-xs text-gray-400">Seller: <span className="text-white font-semibold">{listing.seller_username}</span></p>
                   </div>
 
