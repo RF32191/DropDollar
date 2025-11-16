@@ -859,27 +859,16 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                       </div>
                     )
                   ) : userParticipant && !userParticipant.score ? (
-                    locationVerified && improvedLocation?.isGamingAllowed ? (
-                      <button
-                        onClick={() => {
-                          setSelectedListing(listing);
-                          setCurrentView('game');
-                        }}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition-colors"
-                      >
-                        🎮 Play Game
-                      </button>
-                    ) : improvedLocation?.data?.restricted ? (
-                      <div className="w-full bg-red-900/30 border border-red-700 text-red-300 text-sm py-3 rounded-lg text-center">
-                        <ShieldCheckIcon className="inline h-4 w-4 mr-1" />
-                        Gaming Not Available in {improvedLocation.data.state}
-                      </div>
-                    ) : (
-                      <div className="w-full bg-yellow-900/30 border border-yellow-700 text-yellow-300 text-sm py-3 rounded-lg text-center">
-                        <MapPinIcon className="inline h-4 w-4 mr-1" />
-                        Location verification required to play
-                      </div>
-                    )
+                    // User already joined = already passed location check
+                    <button
+                      onClick={() => {
+                        setSelectedListing(listing);
+                        setCurrentView('game');
+                      }}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition-colors"
+                    >
+                      🎮 Play Game
+                    </button>
                   ) : userParticipant && userParticipant.score ? (
                     <div className="w-full bg-gray-700 text-gray-300 font-bold py-3 rounded-lg text-center">
                       ✅ Game Completed - Score: {userParticipant.score}

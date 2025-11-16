@@ -139,14 +139,15 @@ export default function SellerDashboard() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 min-h-[400px]">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
-        <p className="text-gray-400 text-lg">Loading seller dashboard...</p>
-      </div>
-    );
-  }
+  // Don't show loading spinner - render dashboard skeleton instead to prevent flashing
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex flex-col items-center justify-center py-16 min-h-[400px]">
+  //       <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
+  //       <p className="text-gray-400 text-lg">Loading seller dashboard...</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="space-y-6">
