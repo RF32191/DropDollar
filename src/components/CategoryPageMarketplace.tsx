@@ -6,7 +6,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
-import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
+// Individual game components for marketplace
+import LaserDodgeGame from '@/components/games/LaserDodgeGame';
+import MultiTargetGame from '@/components/games/MultiTargetGame';
+import SwordParryGameSimple from '@/components/games/SwordParryGameSimple';
+import QuickClickGame from '@/components/games/QuickClickGame';
+import ColorSequenceGame from '@/components/games/ColorSequenceGame';
+import BladeBounceGame from '@/components/games/BladeBounceGame';
+import CashStackGame from '@/components/games/CashStackGame';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import LocationBanner from '@/components/location/LocationBanner';
@@ -391,20 +398,111 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   };
 
   if (currentView === 'game' && selectedListing) {
-    return (
-      <CompetitionGameFlow
-        gameType={selectedListing.game_type}
-        onGameEnd={handleGameComplete}
-        onExit={() => {
-          setCurrentView('list');
-          setSelectedListing(null);
-        }}
-        listingId={selectedListing.id}
-        entryNumber={selectedListing.participants_count}
-        isCompetitionMode={true}
-        rngSeed={selectedListing.rng_seed}
-      />
-    );
+    const gameProps = {
+      onGameEnd: handleGameComplete,
+      onExit: () => {
+        setCurrentView('list');
+        setSelectedListing(null);
+      },
+      listingId: selectedListing.session_id,
+      entryNumber: selectedListing.participants_count,
+      isCompetitionMode: true,
+      rngSeed: selectedListing.rng_seed || 1
+    };
+
+    // Render the appropriate game component based on game_type
+    const renderGame = () => {
+      switch (selectedListing.game_type) {
+        case 'laser_dodge':
+        case 'laser-dodge':
+          return <LaserDodgeGame {...gameProps} />;
+        case 'multi_target':
+        case 'multi-target':
+        case 'multi_target_reaction':
+          return <MultiTargetGame {...gameProps} />;
+        case 'sword_parry':
+        case 'sword-parry':
+          return <SwordParryGameSimple {...gameProps} />;
+        case 'number_tap':
+        case 'quick_click':
+        case 'quick-click':
+          return <QuickClickGame {...gameProps} />;
+        case 'memory_color':
+        case 'color_sequence':
+        case 'color-sequence':
+          return <ColorSequenceGame {...gameProps} />;
+        case 'blade_bounce':
+        case 'blade-bounce':
+          return <BladeBounceGame {...gameProps} />;
+        case 'cash_stack':
+        case 'cash-stack':
+        case 'falling_object':
+        case 'falling-objects':
+          return <CashStackGame {...gameProps} />;
+        case 'crypto_match':
+          return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+            <div className="text-center">
+              <h2 className="text-2xl mb-4">Crypto Match game coming soon!</h2>
+              <button 
+                onClick={() => {
+                  setCurrentView('list');
+                  setSelectedListing(null);
+                }}
+                className="bg-blue-600 px-6 py-3 rounded-lg"
+              >
+                Back to Listings
+              </button>
+            </div>
+          </div>;
+        case 'alien_shooter':
+          return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+            <div className="text-center">
+              <h2 className="text-2xl mb-4">Alien Shooter game coming soon!</h2>
+              <button 
+                onClick={() => {
+                  setCurrentView('list');
+                  setSelectedListing(null);
+                }}
+                className="bg-blue-600 px-6 py-3 rounded-lg"
+              >
+                Back to Listings
+              </button>
+            </div>
+          </div>;
+        case 'brain_freeze':
+          return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+            <div className="text-center">
+              <h2 className="text-2xl mb-4">Brain Freeze game coming soon!</h2>
+              <button 
+                onClick={() => {
+                  setCurrentView('list');
+                  setSelectedListing(null);
+                }}
+                className="bg-blue-600 px-6 py-3 rounded-lg"
+              >
+                Back to Listings
+              </button>
+            </div>
+          </div>;
+        default:
+          return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
+            <div className="text-center">
+              <h2 className="text-2xl mb-4">Unknown game type: {selectedListing.game_type}</h2>
+              <button 
+                onClick={() => {
+                  setCurrentView('list');
+                  setSelectedListing(null);
+                }}
+                className="bg-blue-600 px-6 py-3 rounded-lg"
+              >
+                Back to Listings
+              </button>
+            </div>
+          </div>;
+      }
+    };
+
+    return renderGame();
   }
 
   if (!category) {
