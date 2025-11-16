@@ -656,8 +656,10 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const playersWithScores = participants.filter(p => p.score !== null && p.completed_at !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
               
-              // Show scoreboard to participants or if session is completed with scores
-              const canSeeScoreboard = userParticipant || (listing.session_status === 'completed' && playersWithScores.length > 0);
+              // Show scoreboard to ANYONE if there are scores (not just participants!)
+              const canSeeScoreboard = playersWithScores.length > 0;
+              
+              console.log(`📊 Listing ${listing.title}: ${playersWithScores.length} players with scores, canSee=${canSeeScoreboard}`);
 
               // Check if user is the seller
               const isSeller = user && (listing.seller_id === user.id || listing.seller_id === user.id.toString());
