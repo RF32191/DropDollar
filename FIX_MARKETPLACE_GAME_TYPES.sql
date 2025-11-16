@@ -11,7 +11,7 @@ DROP CONSTRAINT IF EXISTS marketplace_listings_game_type_check;
 ALTER TABLE public.marketplace_listings
 ADD CONSTRAINT marketplace_listings_game_type_check
 CHECK (game_type IN (
-    -- Original games
+    -- Original gamesf
     'crypto_match',
     'laser_dodge', 
     'alien_shooter',
