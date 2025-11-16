@@ -729,21 +729,25 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     <p className="text-xs text-gray-400">Seller: <span className="text-white font-semibold">{listing.seller_username}</span></p>
                   </div>
 
+                  {/* Winner Badge - MOST PROMINENT */}
+                  {listing.winner_username && listing.session_status === 'completed' && (
+                    <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 text-center shadow-2xl animate-pulse border-2 border-yellow-300">
+                      <div className="text-gray-900 font-black text-lg flex items-center justify-center">
+                        <TrophyIcon className="inline h-6 w-6 mr-2 text-yellow-900" />
+                        🏆 WINNER: {listing.winner_username.toUpperCase()} 🏆
+                      </div>
+                      <div className="text-xs text-gray-800 mt-1 font-semibold">
+                        Score: {listing.winner_score ? Math.round(listing.winner_score) : 'N/A'} points
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Status Badge */}
-                  {listing.session_status === 'active' && (
+                  {listing.session_status === 'active' && !listing.winner_username && (
                     <div className="mb-4 rounded-2xl p-3 bg-gradient-to-r from-orange-500 to-red-500 text-center">
                       <span className="text-white font-bold flex items-center justify-center">
                         <FireIcon className="inline h-5 w-5 mr-2" />
                         ACTIVE COMPETITION
-                      </span>
-                    </div>
-                  )}
-                  
-                  {listing.winner_username && (
-                    <div className="mb-4 rounded-2xl p-3 bg-gradient-to-r from-green-500 to-emerald-500 text-center">
-                      <span className="text-white font-bold flex items-center justify-center">
-                        <TrophyIcon className="inline h-5 w-5 mr-2" />
-                        Winner: {listing.winner_username}
                       </span>
                     </div>
                   )}
