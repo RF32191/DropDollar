@@ -405,87 +405,114 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
 
               return (
-                <div key={listing.id} className={`bg-gray-800 rounded-xl p-6 border ${
+                <div key={listing.id} className={`backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
                   listing.session_status === 'active' 
-                    ? 'border-orange-500 shadow-lg shadow-orange-500/20' 
+                    ? 'bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/15' 
                     : listing.session_status === 'completed'
-                    ? 'border-green-500 shadow-lg shadow-green-500/20'
-                    : 'border-gray-700'
-                } hover:border-blue-500 transition-colors`}>
+                    ? 'bg-green-500/10 border-green-500/20 hover:bg-green-500/15'
+                    : 'bg-gray-900/80 border-gray-700/50 hover:bg-gray-800/90'
+                }`}>
+                  {/* Product Image */}
+                  {listing.image_urls && Array.isArray(listing.image_urls) && listing.image_urls.length > 0 && (
+                    <div className="mb-4 rounded-2xl overflow-hidden">
+                      <img 
+                        src={listing.image_urls[0]} 
+                        alt={listing.title}
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* Product Info Header */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-2xl font-bold text-white">{listing.title}</h3>
+                      {listing.condition && (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          {listing.condition.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-300 text-sm mb-3">{listing.description}</p>
+                    {listing.brand && (
+                      <p className="text-xs text-gray-400 mb-1">Brand: <span className="text-white font-semibold">{listing.brand}</span></p>
+                    )}
+                    <p className="text-xs text-gray-400">Seller: <span className="text-white font-semibold">{listing.seller_username}</span></p>
+                  </div>
+
                   {/* Status Badge */}
                   {listing.session_status === 'active' && (
-                    <div className="mb-4 bg-orange-900/30 border border-orange-700 rounded-lg p-2 text-center">
-                      <span className="text-orange-300 font-bold">
-                        <FireIcon className="inline h-5 w-5 mr-1" />
+                    <div className="mb-4 rounded-2xl p-3 bg-gradient-to-r from-orange-500 to-red-500 text-center">
+                      <span className="text-white font-bold flex items-center justify-center">
+                        <FireIcon className="inline h-5 w-5 mr-2" />
                         ACTIVE COMPETITION
                       </span>
                     </div>
                   )}
                   
                   {listing.winner_username && (
-                    <div className="mb-4 bg-green-900/30 border border-green-700 rounded-lg p-2 text-center">
-                      <span className="text-green-300 font-bold">
-                        <TrophyIcon className="inline h-5 w-5 mr-1" />
+                    <div className="mb-4 rounded-2xl p-3 bg-gradient-to-r from-green-500 to-emerald-500 text-center">
+                      <span className="text-white font-bold flex items-center justify-center">
+                        <TrophyIcon className="inline h-5 w-5 mr-2" />
                         Winner: {listing.winner_username}
                       </span>
                     </div>
                   )}
 
-                  {/* Product Info */}
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-white mb-2">{listing.title}</h3>
-                    <p className="text-gray-300 text-sm mb-2">{listing.description}</p>
-                    <p className="text-xs text-gray-400">Seller: {listing.seller_username}</p>
+                  {/* Base Price */}
+                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-green-500 to-emerald-500">
+                    <div className="text-center">
+                      <p className="text-green-100 text-sm font-medium mb-1">ITEM VALUE</p>
+                      <p className="text-3xl font-bold text-white">{listing.base_price} Tokens</p>
+                    </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-gray-700 rounded-lg p-2">
-                      <div className="text-xs text-gray-400">Base Price</div>
-                      <div className="text-lg font-bold text-white">{listing.base_price}</div>
-                    </div>
-                    <div className="bg-gray-700 rounded-lg p-2">
-                      <div className="text-xs text-gray-400">Prize Pool</div>
-                      <div className="text-lg font-bold text-green-400">{listing.prize_pool.toFixed(0)}</div>
-                    </div>
-                    <div className="bg-gray-700 rounded-lg p-2">
-                      <div className="text-xs text-gray-400">Players</div>
-                      <div className="text-lg font-bold text-blue-400">
+                  {/* Prize Pool */}
+                  <div className="rounded-2xl p-4 mb-4 bg-gradient-to-r from-purple-500 to-pink-500">
+                    <div className="text-center">
+                      <p className="text-purple-100 text-sm font-medium mb-1">CURRENT POOL</p>
+                      <p className="text-3xl font-bold text-white">{listing.prize_pool.toFixed(0)} Tokens</p>
+                      <div className="mt-2 flex items-center justify-center text-sm text-purple-100">
                         <UserGroupIcon className="inline h-4 w-4 mr-1" />
-                        {listing.participants_count}
+                        {listing.participants_count} {listing.participants_count === 1 ? 'Player' : 'Players'}
                       </div>
                     </div>
-                    <div className="bg-gray-700 rounded-lg p-2">
-                      <div className="text-xs text-gray-400">Game</div>
-                      <div className="text-sm font-bold text-purple-400">{listing.game_type.replace('_', ' ')}</div>
-                    </div>
+                  </div>
+
+                  {/* Game Type Badge */}
+                  <div className="mb-4 rounded-2xl p-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-center">
+                    <p className="text-blue-100 text-xs font-medium mb-1">COMPETITION GAME</p>
+                    <p className="text-lg font-bold text-white">{listing.game_type.replace(/_/g, ' ').replace(/-/g, ' ').toUpperCase()}</p>
                   </div>
 
                   {/* Progress Bar */}
                   {listing.session_status !== 'completed' && (
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Progress</span>
-                        <span>{progressPercent.toFixed(1)}%</span>
+                    <div className="mb-4 rounded-2xl p-4 bg-gray-800/50">
+                      <div className="flex justify-between text-sm font-semibold text-white mb-2">
+                        <span>🎯 FUNDING PROGRESS</span>
+                        <span className="text-yellow-400">{progressPercent.toFixed(1)}%</span>
                       </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                         <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 h-3 rounded-full transition-all duration-300 animate-pulse"
                           style={{ width: `${progressPercent}%` }}
                         />
+                      </div>
+                      <div className="mt-2 text-center text-xs text-gray-400">
+                        {listing.prize_pool.toFixed(0)} / {listing.base_price} tokens
                       </div>
                     </div>
                   )}
 
                   {/* Timer */}
                   {timeRemaining && listing.session_status === 'active' && (
-                    <div className="mb-4 bg-orange-900/30 border border-orange-700 rounded-lg p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-orange-300 font-bold text-sm">
-                          <ClockIcon className="inline h-4 w-4 mr-1" />
-                          Time Left:
-                        </span>
-                        <span className="text-orange-200 font-bold">{timeRemaining}</span>
+                    <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-orange-600 to-red-600">
+                      <div className="flex items-center justify-center">
+                        <ClockIcon className="h-6 w-6 mr-2 text-white animate-pulse" />
+                        <div className="text-center">
+                          <p className="text-orange-100 text-xs font-medium">COMPETITION ENDS IN</p>
+                          <p className="text-2xl font-bold text-white">{timeRemaining}</p>
+                        </div>
                       </div>
                     </div>
                   )}
