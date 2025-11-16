@@ -862,9 +862,9 @@ export default function TriumphStyleDashboard() {
             </div>
 
             {isCheckingSeller ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-400 mt-2">Checking seller status...</p>
+              <div className="text-center py-16 min-h-[400px] flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
+                <p className="text-gray-400 text-lg">Checking seller status...</p>
               </div>
             ) : sellerStatus?.status === 'pending' ? (
               <div className="bg-yellow-500/10 backdrop-blur-sm rounded-xl p-4 border border-yellow-500/20">
@@ -881,8 +881,10 @@ export default function TriumphStyleDashboard() {
               </div>
             ) : isSeller ? (
               <div className="space-y-6">
-                {/* Seller Dashboard */}
-                <SellerDashboard />
+                {/* Seller Dashboard - wrapped to prevent flashing */}
+                <div className="min-h-[200px]">
+                  <SellerDashboard />
+                </div>
               </div>
             ) : (
               <div>
