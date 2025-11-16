@@ -58,8 +58,7 @@ export default function SellPage() {
     condition: 'new',
     brand: '',
     dimensions: '',
-    weight: '',
-    images: [] as string[]
+    weight: ''
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -230,17 +229,23 @@ export default function SellPage() {
       if (error) throw error;
 
       if (data?.success) {
-        // If images were uploaded, update the listing with image URLs
-        if (imageUrls.length > 0 && data.session_id) {
+        // If images were uploaded or additional data, update the listing
+        if (imageUrls.length > 0 || formData.condition || formData.brand || formData.dimensions || formData.weight) {
+          const updateData: any = {
+            condition: formData.condition,
+            brand: formData.brand || null,
+            dimensions: formData.dimensions || null,
+            weight: formData.weight || null
+          };
+          
+          // Add image_urls as JSONB array if images were uploaded
+          if (imageUrls.length > 0) {
+            updateData.image_urls = imageUrls;
+          }
+          
           await supabase
             .from('marketplace_listings')
-            .update({ 
-              images: imageUrls,
-              condition: formData.condition,
-              brand: formData.brand,
-              dimensions: formData.dimensions,
-              weight: formData.weight
-            })
+            .update(updateData)
             .eq('id', data.session_id);
         }
 
@@ -258,8 +263,7 @@ export default function SellPage() {
           condition: 'new',
           brand: '',
           dimensions: '',
-          weight: '',
-          images: []
+          weight: ''
         });
         setImageFiles([]);
 

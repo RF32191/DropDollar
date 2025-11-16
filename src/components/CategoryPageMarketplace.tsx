@@ -40,6 +40,10 @@ interface MarketplaceListing {
   game_type: string;
   shipping_included: boolean;
   image_urls: any;
+  condition?: string;
+  brand?: string;
+  dimensions?: string;
+  weight?: string;
   status: string;
   created_at: string;
   session_id: string;
