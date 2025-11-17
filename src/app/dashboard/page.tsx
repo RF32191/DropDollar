@@ -91,6 +91,30 @@ export default function TriumphStyleDashboard() {
     contactPhone: ''
   });
 
+  // Load unread message count on mount
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      if (user?.id) {
+        try {
+          const { data, error } = await supabase.rpc('get_total_unread_count', { 
+            p_user_id: user.id 
+          });
+          if (!error && data !== null) {
+            setUnreadMessageCount(data);
+          }
+        } catch (error) {
+          console.error('Error loading unread count:', error);
+        }
+      }
+    };
+
+    loadUnreadCount();
+    
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadUnreadCount, 5000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
   useEffect(() => {
     // Check URL parameters for tab selection
     const tab = searchParams.get('tab');
@@ -420,7 +444,7 @@ export default function TriumphStyleDashboard() {
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
-        <CleanNavigation />
+        <CleanNavigation unreadMessageCount={unreadMessageCount} />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -434,7 +458,7 @@ export default function TriumphStyleDashboard() {
   if (!user || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
-        <CleanNavigation />
+        <CleanNavigation unreadMessageCount={unreadMessageCount} />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -458,7 +482,7 @@ export default function TriumphStyleDashboard() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-500/5 rounded-full blur-2xl animate-pulse delay-500"></div>
         </div>
 
-      <CleanNavigation />
+      <CleanNavigation unreadMessageCount={unreadMessageCount} />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Wallet Display */}

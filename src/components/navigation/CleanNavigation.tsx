@@ -9,9 +9,10 @@ import { playNavigationClick, playButtonHover } from '@/lib/gameAudio';
 interface CleanNavigationProps {
   variant?: 'light' | 'dark' | 'gradient';
   currentPage?: string;
+  unreadMessageCount?: number;
 }
 
-export default function CleanNavigation({ variant = 'gradient', currentPage }: CleanNavigationProps) {
+export default function CleanNavigation({ variant = 'gradient', currentPage, unreadMessageCount = 0 }: CleanNavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -134,12 +135,18 @@ export default function CleanNavigation({ variant = 'gradient', currentPage }: C
 
           {/* Desktop User Menu - Right side */}
           <div className="hidden lg:flex items-center ml-auto pr-2">
-            <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
+            <UserMenu 
+              variant={variant === 'light' ? 'light' : 'dark'} 
+              unreadMessageCount={unreadMessageCount}
+            />
           </div>
 
           {/* Mobile menu button */}
           <div className="flex lg:hidden items-center space-x-2 ml-auto pr-2">
-            <UserMenu variant={variant === 'light' ? 'light' : 'dark'} />
+            <UserMenu 
+              variant={variant === 'light' ? 'light' : 'dark'}
+              unreadMessageCount={unreadMessageCount}
+            />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className={`p-3 rounded-xl transition-all duration-300 hover:scale-110 hover:rotate-12 group ${variant === 'light' ? 'text-gray-700 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200' : 'text-white hover:bg-gradient-to-r hover:from-white/10 hover:to-white/20'}`}

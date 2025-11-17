@@ -3,14 +3,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { ChevronDownIcon, UserIcon, CogIcon, ArrowRightOnRectangleIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, UserIcon, CogIcon, ArrowRightOnRectangleIcon, BanknotesIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 interface UserMenuProps {
   className?: string;
   variant?: 'default' | 'dark' | 'light';
+  unreadMessageCount?: number;
 }
 
-export default function UserMenu({ className = '', variant = 'default' }: UserMenuProps) {
+export default function UserMenu({ className = '', variant = 'default', unreadMessageCount = 0 }: UserMenuProps) {
   const { user, isLoading, logout, forceLogout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -115,12 +116,18 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
           // Double-click to go to dashboard
           window.location.href = '/dashboard';
         }}
-        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg"
+        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative"
         title="Click to open menu, double-click to go to dashboard"
       >
         <UserIcon className="h-5 w-5" />
         <span className="hidden sm:inline">{getUserDisplayName()}</span>
         <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        {/* Unread Message Indicator */}
+        {unreadMessageCount > 0 && (
+          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg animate-pulse border-2 border-white">
+            {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+          </div>
+        )}
       </button>
 
       {/* Dropdown Menu */}
@@ -196,6 +203,31 @@ export default function UserMenu({ className = '', variant = 'default' }: UserMe
             >
               <CogIcon className="h-4 w-4 mr-3" />
               🏠 Dashboard
+            </Link>
+            
+            {/* Messages Link with Badge */}
+            <Link
+              href="/dashboard?tab=messages"
+              className={`flex items-center justify-between px-4 py-2 text-sm ${styles.item} transition-colors duration-200 font-semibold relative`}
+              onClick={() => {
+                console.log('Messages clicked');
+                setIsOpen(false);
+              }}
+            >
+              <div className="flex items-center">
+                <div className="relative mr-3">
+                  <EnvelopeIcon className="h-4 w-4" />
+                  {unreadMessageCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50 border border-white"></div>
+                  )}
+                </div>
+                💬 Messages
+              </div>
+              {unreadMessageCount > 0 && (
+                <div className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg">
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </div>
+              )}
             </Link>
             
             <Link
