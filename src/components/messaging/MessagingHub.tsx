@@ -42,6 +42,7 @@ export default function MessagingHub() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [setupRequired, setSetupRequired] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient();
 
@@ -60,7 +61,15 @@ export default function MessagingHub() {
       const { data, error } = await supabase.rpc('get_user_conversations');
       
       if (error) {
+        // If function doesn't exist yet, show friendly message
+        if (error.message?.includes('Could not find the function') || error.message?.includes('does not exist')) {
+          console.warn('⚠️ Messaging system not set up yet. Please run SQL files.');
+          setSetupRequired(true);
+          setIsLoading(false);
+          return;
+        }
         console.error('Error loading conversations:', error);
+        setIsLoading(false);
         return;
       }
       
@@ -93,6 +102,10 @@ export default function MessagingHub() {
       });
       
       if (error) {
+        if (error.message?.includes('Could not find the function') || error.message?.includes('does not exist')) {
+          console.warn('⚠️ Message functions not set up yet');
+          return;
+        }
         console.error('Error loading messages:', error);
         return;
       }
@@ -135,7 +148,11 @@ export default function MessagingHub() {
       
       if (error) {
         console.error('Error sending message:', error);
-        alert('Failed to send message: ' + error.message);
+        if (error.message?.includes('Could not find the function') || error.message?.includes('does not exist')) {
+          alert('Messaging system not set up yet. Please run the SQL setup files.');
+        } else {
+          alert('Failed to send message: ' + error.message);
+        }
         return;
       }
       
@@ -182,6 +199,35 @@ export default function MessagingHub() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-400">Loading messages...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (setupRequired) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="max-w-2xl bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-8">
+          <div className="text-center">
+            <ChatBubbleLeftRightIcon className="h-16 w-16 mx-auto mb-4 text-yellow-400" />
+            <h3 className="text-xl font-bold text-white mb-2">
+              ⚠️ Messaging System Setup Required
+            </h3>
+            <p className="text-gray-300 mb-4">
+              The new messaging system needs to be set up in your database.
+            </p>
+            <div className="bg-gray-800 rounded-xl p-4 text-left space-y-2 mb-4">
+              <p className="text-sm text-gray-300 font-semibold">Run these SQL files in order:</p>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-gray-400">
+                <li>CREATE_MESSAGING_SYSTEM.sql</li>
+                <li>FIX_ANONYMOUS_USERNAMES.sql</li>
+                <li>INTEGRATE_MARKETPLACE_MESSAGING.sql</li>
+              </ol>
+            </div>
+            <p className="text-xs text-gray-400">
+              Check the MESSAGING_SETUP_GUIDE.md for detailed instructions
+            </p>
+          </div>
         </div>
       </div>
     );
