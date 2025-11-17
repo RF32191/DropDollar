@@ -42,12 +42,64 @@ export default function SimpleMessagesPlaceholder() {
   };
 
   const loadConversations = async () => {
+    if (!user) return;
+    
     try {
-      const { data, error } = await supabase.rpc('get_user_conversations');
-      if (error) throw error;
-      setConversations(data || []);
+      // Get all conversations where user is a participant
+      const { data: userParticipations, error: partError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (partError) throw partError;
+
+      if (!userParticipations || userParticipations.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      const conversationIds = userParticipations.map(p => p.conversation_id);
+
+      // Get conversation details
+      const { data: convs, error: convsError } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          title,
+          conversation_type,
+          listing_id,
+          created_at,
+          last_message_at
+        `)
+        .in('id', conversationIds)
+        .order('last_message_at', { ascending: false });
+
+      if (convsError) throw convsError;
+
+      // Get last message for each conversation
+      const convsWithDetails = await Promise.all(
+        (convs || []).map(async (conv) => {
+          const { data: lastMsg } = await supabase
+            .from('messages')
+            .select('message_text')
+            .eq('conversation_id', conv.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          return {
+            ...conv,
+            last_message: lastMsg?.message_text || 'No messages yet',
+            unread_count: 0 // Can be enhanced later
+          };
+        })
+      );
+
+      setConversations(convsWithDetails);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      setConversations([]);
     }
   };
 
@@ -180,32 +232,25 @@ export default function SimpleMessagesPlaceholder() {
       // Reload conversations
       await loadConversations();
       
-      // Find and set active conversation
-      const { data: allConvs, error: convsError } = await supabase.rpc('get_user_conversations');
-      
-      if (convsError) {
-        console.error('Error loading conversations:', convsError);
-        throw convsError;
+      // Get the conversation details directly
+      const { data: convData, error: convError } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .single();
+
+      if (convError) {
+        console.error('Error loading conversation:', convError);
+        throw convError;
       }
 
-      console.log('All conversations:', allConvs);
+      console.log('Found conversation:', convData);
       
-      const newConv = allConvs?.find((c: any) => c.id === conversationId);
-      
-      if (newConv) {
-        console.log('Found conversation:', newConv);
-        setActiveConversation(newConv);
-        loadMessages(newConv.id);
+      if (convData) {
+        setActiveConversation(convData);
+        loadMessages(convData.id);
       } else {
-        console.warn('Conversation created but not found in list');
-        const foundConv = allConvs?.find((c: any) => 
-          c.title === conversationTitle || c.title?.includes(otherUser.username)
-        );
-        if (foundConv) {
-          console.log('Found by title:', foundConv);
-          setActiveConversation(foundConv);
-          loadMessages(foundConv.id);
-        }
+        console.error('Could not find conversation after creation');
       }
 
       setSearchUsername('');
@@ -220,14 +265,32 @@ export default function SimpleMessagesPlaceholder() {
 
   const loadMessages = async (conversationId: string) => {
     try {
-      const { data, error } = await supabase.rpc('get_conversation_messages', {
-        conversation_id_param: conversationId,
-        limit_param: 100,
-        offset_param: 0
-      });
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          conversation_id,
+          sender_id,
+          message_text,
+          message_type,
+          metadata,
+          is_edited,
+          created_at,
+          sender:users!sender_id(username)
+        `)
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true })
+        .limit(100);
 
       if (error) throw error;
-      setMessages(data || []);
+
+      // Format messages for display
+      const formattedMessages = (data || []).map((msg: any) => ({
+        ...msg,
+        sender_username: msg.sender?.username || 'Unknown'
+      }));
+
+      setMessages(formattedMessages);
       
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -238,18 +301,31 @@ export default function SimpleMessagesPlaceholder() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation || isSending) return;
+    if (!newMessage.trim() || !activeConversation || isSending || !user) return;
 
     setIsSending(true);
     try {
-      const { error } = await supabase.rpc('send_message', {
-        conversation_id_param: activeConversation.id,
-        message_text_param: newMessage.trim(),
-        message_type_param: 'text',
-        metadata_param: {}
-      });
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: activeConversation.id,
+          sender_id: user.id,
+          message_text: newMessage.trim(),
+          message_type: 'text',
+          metadata: {},
+          created_at: new Date().toISOString()
+        });
 
       if (error) throw error;
+
+      // Update conversation last_message_at
+      await supabase
+        .from('conversations')
+        .update({ 
+          last_message_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', activeConversation.id);
 
       setNewMessage('');
       await loadMessages(activeConversation.id);
