@@ -60,13 +60,16 @@ export default function SimpleMessagesPlaceholder() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, username, email')
-        .or(`username.ilike.%${username}%,email.ilike.%${username}%`)
+        .select('id, username')
+        .ilike('username', `%${username}%`)
         .neq('id', user?.id)
+        .not('username', 'is', null)
         .limit(5);
 
       if (error) throw error;
-      setSearchResults(data || []);
+      // Filter out any results without usernames
+      const filteredData = (data || []).filter(u => u.username && u.username.trim() !== '');
+      setSearchResults(filteredData);
     } catch (error) {
       console.error('Error searching users:', error);
       setSearchResults([]);
@@ -223,7 +226,7 @@ export default function SimpleMessagesPlaceholder() {
                 setSearchUsername(e.target.value);
                 searchUsers(e.target.value);
               }}
-              placeholder="Search users by username..."
+              placeholder="Search by username..."
               className="flex-1 bg-transparent text-white placeholder-gray-400 focus:outline-none"
             />
             {searchUsername && (
@@ -239,10 +242,15 @@ export default function SimpleMessagesPlaceholder() {
                 <button
                   key={result.id}
                   onClick={() => startConversation(result)}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-700 transition-colors border-b border-gray-700 last:border-b-0"
+                  className="w-full text-left px-4 py-3 hover:bg-gray-700 transition-colors border-b border-gray-700 last:border-b-0 flex items-center"
                 >
-                  <p className="text-white font-semibold">{result.username || result.email}</p>
-                  {result.username && <p className="text-xs text-gray-400">{result.email}</p>}
+                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-3">
+                    {result.username.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">{result.username}</p>
+                    <p className="text-xs text-gray-400">Click to message</p>
+                  </div>
                 </button>
               ))}
             </div>
