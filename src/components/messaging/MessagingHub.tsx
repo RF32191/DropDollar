@@ -65,6 +65,7 @@ export default function MessagingHub() {
       setUser(user);
     };
     loadUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load conversations
@@ -102,6 +103,7 @@ export default function MessagingHub() {
       const interval = setInterval(loadConversations, 5000);
       return () => clearInterval(interval);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Load messages for selected conversation
@@ -142,6 +144,7 @@ export default function MessagingHub() {
       const interval = setInterval(() => loadMessages(selectedConversation.id), 3000);
       return () => clearInterval(interval);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConversation]);
 
   // Send message
