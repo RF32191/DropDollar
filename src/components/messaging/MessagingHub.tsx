@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { 
   ChatBubbleLeftRightIcon, 
@@ -43,8 +43,20 @@ export default function MessagingHub() {
   const [isSending, setIsSending] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [setupRequired, setSetupRequired] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClientComponentClient();
+
+  // Global error handler
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('MessagingHub error:', error);
+      setRenderError(error.message);
+    };
+    
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
   // Load user
   useEffect(() => {
@@ -192,6 +204,29 @@ export default function MessagingHub() {
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   };
+
+  if (renderError) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="max-w-2xl bg-red-500/10 border border-red-500/30 rounded-2xl p-8">
+          <div className="text-center">
+            <h3 className="text-xl font-bold text-white mb-2">
+              ⚠️ Error Loading Messages
+            </h3>
+            <p className="text-gray-300 mb-4 font-mono text-sm">
+              {renderError}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
