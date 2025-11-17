@@ -89,7 +89,7 @@ export default function SimpleMessagesPlaceholder() {
       // Generate conversation title
       const conversationTitle = `Chat with ${otherUser.username}`;
       
-      // The function returns a UUID directly, not { data, error }
+      // The function returns a TABLE with conversation_id column
       const response = await supabase.rpc('get_or_create_conversation', {
         participant_ids: [user.id, otherUser.id],
         conversation_type_param: 'direct',
@@ -104,10 +104,12 @@ export default function SimpleMessagesPlaceholder() {
         throw response.error;
       }
 
-      const conversationId = response.data;
+      // Response.data is an array with one object: [{ conversation_id: 'uuid' }]
+      const conversationId = response.data?.[0]?.conversation_id;
       console.log('Conversation ID:', conversationId);
 
       if (!conversationId) {
+        console.error('No conversation ID in response:', response.data);
         throw new Error('No conversation ID returned');
       }
 
