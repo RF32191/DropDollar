@@ -602,19 +602,21 @@ export default function SimpleMessagesPlaceholder() {
                             </p>
                           )}
                           <div
-                            className={`rounded-2xl px-4 py-2 ${
+                            className={`px-4 py-2 ${
                               isOwnMessage
-                                ? 'bg-blue-500 text-white rounded-br-sm'
+                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-3xl rounded-br-md shadow-lg shadow-cyan-500/50'
                                 : message.message_type === 'system'
-                                ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                                : 'bg-gray-700 text-white rounded-bl-sm'
+                                ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 rounded-2xl'
+                                : 'bg-transparent text-gray-200 rounded-bl-md'
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-wrap break-words">
+                            <p className={`text-sm whitespace-pre-wrap break-words ${
+                              isOwnMessage ? 'font-medium' : ''
+                            }`}>
                               {message.message_text}
                             </p>
                             <p className={`text-xs mt-1 ${
-                              isOwnMessage ? 'text-blue-200' : 'text-gray-400'
+                              isOwnMessage ? 'text-cyan-100' : 'text-gray-500'
                             }`}>
                               {formatTime(message.created_at)}
                             </p>
@@ -636,13 +638,13 @@ export default function SimpleMessagesPlaceholder() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Type a message..."
-                    className="flex-1 bg-gray-700 text-white rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+                    className="flex-1 bg-gray-700 text-white rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-800 placeholder-gray-400 transition-all"
                     disabled={isSending}
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || isSending}
-                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-full p-3 transition-colors flex items-center justify-center"
+                    className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-full p-3 transition-all shadow-lg shadow-cyan-500/50 hover:shadow-cyan-500/70 flex items-center justify-center"
                     title="Send message"
                   >
                     {isSending ? (
