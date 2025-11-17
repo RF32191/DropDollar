@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase/client';
 import { 
   ChatBubbleLeftRightIcon, 
   PaperAirplaneIcon,
@@ -20,7 +20,6 @@ export default function SimpleMessagesPlaceholder() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     loadUser();
@@ -29,7 +28,8 @@ export default function SimpleMessagesPlaceholder() {
 
   const loadUser = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user || null;
       setUser(user);
       if (user) {
         loadConversations();
