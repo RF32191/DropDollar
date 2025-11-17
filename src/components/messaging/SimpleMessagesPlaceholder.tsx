@@ -19,7 +19,13 @@ export default function SimpleMessagesPlaceholder() {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const addDebug = (msg: string) => {
+    setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
+    console.log(msg);
+  };
 
   useEffect(() => {
     loadUser();
@@ -302,12 +308,12 @@ export default function SimpleMessagesPlaceholder() {
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !activeConversation || isSending || !user) {
-      console.log('Cannot send:', { newMessage: !!newMessage.trim(), activeConversation: !!activeConversation, isSending, user: !!user });
+      addDebug(`❌ Cannot send: message=${!!newMessage.trim()}, conv=${!!activeConversation}, sending=${isSending}, user=${!!user}`);
       return;
     }
 
     setIsSending(true);
-    console.log('Sending message:', newMessage.trim());
+    addDebug(`📤 Sending: "${newMessage.trim()}"`);
     
     try {
       const { data, error } = await supabase
@@ -323,11 +329,11 @@ export default function SimpleMessagesPlaceholder() {
         .select();
 
       if (error) {
-        console.error('Error inserting message:', error);
+        addDebug(`❌ Insert error: ${error.message}`);
         throw error;
       }
 
-      console.log('Message inserted:', data);
+      addDebug(`✅ Message inserted! ID: ${data[0]?.id}`);
 
       // Update conversation last_message_at
       const { error: updateError } = await supabase
@@ -339,20 +345,21 @@ export default function SimpleMessagesPlaceholder() {
         .eq('id', activeConversation.id);
 
       if (updateError) {
-        console.error('Error updating conversation:', updateError);
+        addDebug(`⚠️ Conversation update error: ${updateError.message}`);
       }
 
       setNewMessage('');
       
       // Reload messages and conversations
+      addDebug(`🔄 Reloading messages...`);
       await Promise.all([
         loadMessages(activeConversation.id),
         loadConversations()
       ]);
       
-      console.log('Message sent successfully');
+      addDebug(`✅ Message sent successfully!`);
     } catch (error) {
-      console.error('Error sending message:', error);
+      addDebug(`❌ FAILED: ${(error as Error).message}`);
       alert('Failed to send message: ' + (error as Error).message);
     } finally {
       setIsSending(false);
@@ -631,6 +638,16 @@ export default function SimpleMessagesPlaceholder() {
 
               {/* Message Input */}
               <div className="p-4 border-t border-gray-700 bg-gray-800">
+                {/* Debug Info Panel */}
+                {debugInfo.length > 0 && (
+                  <div className="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p className="text-xs font-bold text-yellow-300 mb-1">🔍 DEBUG INFO:</p>
+                    {debugInfo.map((info, i) => (
+                      <p key={i} className="text-xs text-yellow-200 font-mono">{info}</p>
+                    ))}
+                  </div>
+                )}
+                
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
@@ -655,7 +672,7 @@ export default function SimpleMessagesPlaceholder() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                  Press Enter to send, Shift+Enter for new line
+                  Press Enter to send • Debug info shows above if issues occur
                 </p>
               </div>
             </>
