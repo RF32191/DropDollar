@@ -12,7 +12,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
 import SellerDashboard from '@/components/seller/SellerDashboard';
-import DirectMessaging from '@/components/messaging/DirectMessaging';
+import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlaceholder';
 // Dashboard with comprehensive icon imports
 import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
@@ -843,7 +843,7 @@ export default function TriumphStyleDashboard() {
           )}
 
           {activeTab === 'messages' && (
-            <DirectMessaging />
+            <SimpleMessagesPlaceholder />
           )}
             </div>
           </div>
