@@ -59,6 +59,8 @@ export default function SimpleMessagesPlaceholder() {
     if (!user) return;
     
     try {
+      addDebug('📋 Loading conversations...');
+      
       // Get all conversations where user is a participant
       const { data: userParticipations, error: partError } = await supabase
         .from('conversation_participants')
@@ -70,10 +72,12 @@ export default function SimpleMessagesPlaceholder() {
 
       if (!userParticipations || userParticipations.length === 0) {
         setConversations([]);
+        addDebug('📋 No conversations found');
         return;
       }
 
       const conversationIds = userParticipations.map(p => p.conversation_id);
+      addDebug(`📋 Found ${conversationIds.length} conversations`);
 
       // Get conversation details
       const { data: convs, error: convsError } = await supabase
@@ -91,9 +95,10 @@ export default function SimpleMessagesPlaceholder() {
 
       if (convsError) throw convsError;
 
-      // Get last message for each conversation
+      // Get last message and other participant's username for each conversation
       const convsWithDetails = await Promise.all(
         (convs || []).map(async (conv) => {
+          // Get last message
           const { data: lastMsg } = await supabase
             .from('messages')
             .select('message_text')
@@ -102,8 +107,32 @@ export default function SimpleMessagesPlaceholder() {
             .limit(1)
             .single();
 
+          // Get other participant's user_id
+          const { data: otherParticipant } = await supabase
+            .from('conversation_participants')
+            .select('user_id')
+            .eq('conversation_id', conv.id)
+            .neq('user_id', user.id)
+            .limit(1)
+            .single();
+
+          // Get other participant's username
+          let displayName = conv.title || 'Unknown User';
+          if (otherParticipant?.user_id) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('username, email')
+              .eq('id', otherParticipant.user_id)
+              .single();
+            
+            if (userData) {
+              displayName = userData.username || userData.email?.split('@')[0] || 'User';
+            }
+          }
+
           return {
             ...conv,
+            display_name: displayName, // Use this for display
             last_message: lastMsg?.message_text || 'No messages yet',
             unread_count: 0 // Can be enhanced later
           };
@@ -111,8 +140,10 @@ export default function SimpleMessagesPlaceholder() {
       );
 
       setConversations(convsWithDetails);
+      addDebug(`✅ Loaded ${convsWithDetails.length} conversations with usernames`);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      addDebug(`❌ Error loading conversations: ${(error as Error).message}`);
       setConversations([]);
     }
   };
@@ -261,8 +292,15 @@ export default function SimpleMessagesPlaceholder() {
       console.log('Found conversation:', convData);
       
       if (convData) {
-        setActiveConversation(convData);
-        loadMessages(convData.id);
+        // Add display_name for immediate use
+        const convWithDisplayName = {
+          ...convData,
+          display_name: otherUser.username
+        };
+        setActiveConversation(convWithDisplayName);
+        setShouldAutoScroll(true); // Enable auto-scroll
+        await loadMessages(convData.id); // Load messages immediately
+        addDebug(`✅ Opened conversation with ${otherUser.username}`);
       } else {
         console.error('Could not find conversation after creation');
       }
@@ -554,7 +592,7 @@ export default function SimpleMessagesPlaceholder() {
                     {/* Avatar */}
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-bold text-lg">
-                        {conv.title?.charAt(0)?.toUpperCase() || '?'}
+                        {conv.display_name?.charAt(0)?.toUpperCase() || '?'}
                       </span>
                     </div>
                     
@@ -562,7 +600,7 @@ export default function SimpleMessagesPlaceholder() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-semibold text-white text-sm truncate">
-                          {conv.title || 'Unknown'}
+                          {conv.display_name || 'Unknown User'}
                         </p>
                         <p className="text-xs text-gray-500 flex-shrink-0 ml-2">
                           {formatTime(conv.last_message_at)}
@@ -595,12 +633,12 @@ export default function SimpleMessagesPlaceholder() {
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
                   <span className="text-white font-bold">
-                    {activeConversation.title?.charAt(0)?.toUpperCase() || '?'}
+                    {activeConversation.display_name?.charAt(0)?.toUpperCase() || '?'}
                   </span>
                 </div>
                 {/* Name & Status */}
                 <div>
-                  <h3 className="font-bold text-white">{activeConversation.title || 'Conversation'}</h3>
+                  <h3 className="font-bold text-white">{activeConversation.display_name || 'Unknown User'}</h3>
                   <p className="text-xs text-gray-400">
                     {activeConversation.conversation_type === 'direct' ? 'Direct Message' : 'Group Chat'}
                   </p>
