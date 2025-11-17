@@ -67,23 +67,52 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      // Try optimized RPC first
+      const { data: rpcData, error: rpcError } = await supabase
         .rpc('get_total_unread_count', { p_user_id: user.id });
       
-      if (error) {
-        console.error('Error loading unread count:', error);
+      if (!rpcError && rpcData !== null) {
+        const count = rpcData || 0;
+        setTotalUnreadCount(count);
+        if (onUnreadCountChange) {
+          onUnreadCountChange(count);
+        }
+        addDebug(`📬 Total unread (RPC): ${count}`);
         return;
       }
       
-      const count = data || 0;
-      setTotalUnreadCount(count);
+      // Fallback: Count manually if RPC not available
+      addDebug(`⚠️ RPC failed, using fallback: ${rpcError?.message}`);
       
-      // Notify parent component
-      if (onUnreadCountChange) {
-        onUnreadCountChange(count);
+      const { data: participations } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+      
+      if (!participations || participations.length === 0) {
+        setTotalUnreadCount(0);
+        if (onUnreadCountChange) onUnreadCountChange(0);
+        return;
       }
       
-      addDebug(`📬 Total unread: ${count}`);
+      const conversationIds = participations.map(p => p.conversation_id);
+      
+      const { count, error: countError } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .in('conversation_id', conversationIds)
+        .neq('sender_id', user.id)
+        .eq('is_read', false);
+      
+      if (!countError) {
+        const unreadCount = count || 0;
+        setTotalUnreadCount(unreadCount);
+        if (onUnreadCountChange) {
+          onUnreadCountChange(unreadCount);
+        }
+        addDebug(`📬 Total unread (fallback): ${unreadCount}`);
+      }
     } catch (error) {
       console.error('Error loading unread count:', error);
     }
@@ -96,31 +125,51 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
       addDebug('📋 Loading conversations...');
       const startTime = Date.now();
       
-      // Parallel query: Get conversations and unread counts at the same time
-      const [participationsResult, unreadResult] = await Promise.all([
-        supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', user.id)
-          .eq('is_active', true),
-        supabase.rpc('get_unread_by_conversation', { p_user_id: user.id })
-      ]);
+      // Get user's conversations
+      const { data: participationsData, error: participationsError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
 
-      if (participationsResult.error) throw participationsResult.error;
+      if (participationsError) throw participationsError;
 
-      if (!participationsResult.data || participationsResult.data.length === 0) {
+      if (!participationsData || participationsData.length === 0) {
         setConversations([]);
         addDebug('📋 No conversations found');
         return;
       }
 
-      const conversationIds = participationsResult.data.map(p => p.conversation_id);
+      const conversationIds = participationsData.map(p => p.conversation_id);
       
-      // Create unread lookup map
+      // Try to get unread counts via RPC, fall back to manual query
       const unreadMap: Record<string, number> = {};
-      (unreadResult.data || []).forEach((item: any) => {
-        unreadMap[item.conversation_id] = item.unread_count;
-      });
+      
+      const { data: unreadData, error: unreadError } = await supabase
+        .rpc('get_unread_by_conversation', { p_user_id: user.id });
+      
+      if (!unreadError && unreadData) {
+        // RPC worked
+        unreadData.forEach((item: any) => {
+          unreadMap[item.conversation_id] = item.unread_count;
+        });
+        addDebug('✅ Got unread counts via RPC');
+      } else {
+        // RPC failed, count manually
+        addDebug('⚠️ RPC failed, counting unread manually');
+        
+        // Count unread per conversation
+        for (const convId of conversationIds) {
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', convId)
+            .neq('sender_id', user.id)
+            .eq('is_read', false);
+          
+          unreadMap[convId] = count || 0;
+        }
+      }
 
       // Get conversation details
       const { data: convs, error: convsError } = await supabase
@@ -450,23 +499,38 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
     if (!user) return;
     
     try {
-      const { data, error } = await supabase.rpc('mark_conversation_read', {
+      // Try RPC first
+      const { data: rpcData, error: rpcError } = await supabase.rpc('mark_conversation_read', {
         p_conversation_id: conversationId,
         p_user_id: user.id
       });
 
-      if (error) {
-        console.error('Error marking as read:', error);
-        return;
+      if (!rpcError) {
+        addDebug(`✅ Marked ${rpcData || 0} messages as read (RPC)`);
+      } else {
+        // Fallback: Update directly
+        addDebug('⚠️ RPC failed, marking read manually');
+        
+        const { error: updateError } = await supabase
+          .from('messages')
+          .update({ 
+            is_read: true,
+            read_at: new Date().toISOString()
+          })
+          .eq('conversation_id', conversationId)
+          .neq('sender_id', user.id)
+          .eq('is_read', false);
+        
+        if (!updateError) {
+          addDebug('✅ Marked messages as read (fallback)');
+        }
       }
-
-      addDebug(`✅ Marked ${data || 0} messages as read`);
       
-      // Update unread counts
-      await Promise.all([
+      // Update unread counts (don't await to avoid blocking)
+      Promise.all([
         loadUnreadCount(),
         loadConversations()
-      ]);
+      ]).catch(err => console.error('Error updating counts:', err));
     } catch (error) {
       console.error('Error marking conversation as read:', error);
     }

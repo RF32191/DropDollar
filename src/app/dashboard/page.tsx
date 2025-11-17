@@ -91,20 +91,56 @@ export default function TriumphStyleDashboard() {
     contactPhone: ''
   });
 
-  // Load unread message count on mount
+  // Load unread message count on mount - Works even if SQL not run yet
   useEffect(() => {
     const loadUnreadCount = async () => {
-      if (user?.id) {
-        try {
-          const { data, error } = await supabase.rpc('get_total_unread_count', { 
-            p_user_id: user.id 
-          });
-          if (!error && data !== null) {
-            setUnreadMessageCount(data);
-          }
-        } catch (error) {
-          console.error('Error loading unread count:', error);
+      if (!user?.id) return;
+      
+      try {
+        // Try the optimized RPC function first
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_total_unread_count', { 
+          p_user_id: user.id 
+        });
+        
+        if (!rpcError && rpcData !== null) {
+          console.log('✅ Loaded unread count via RPC:', rpcData);
+          setUnreadMessageCount(rpcData);
+          return;
         }
+        
+        // If RPC fails (SQL not run), fall back to direct query
+        console.log('⚠️ RPC failed, using fallback query. Error:', rpcError?.message);
+        
+        // Get user's conversations
+        const { data: participations } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true);
+        
+        if (!participations || participations.length === 0) {
+          setUnreadMessageCount(0);
+          return;
+        }
+        
+        const conversationIds = participations.map(p => p.conversation_id);
+        
+        // Count unread messages
+        const { count, error: countError } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .in('conversation_id', conversationIds)
+          .neq('sender_id', user.id)
+          .eq('is_read', false);
+        
+        if (!countError) {
+          console.log('✅ Loaded unread count via fallback:', count || 0);
+          setUnreadMessageCount(count || 0);
+        } else {
+          console.error('❌ Fallback query failed:', countError);
+        }
+      } catch (error) {
+        console.error('❌ Error loading unread count:', error);
       }
     };
 
