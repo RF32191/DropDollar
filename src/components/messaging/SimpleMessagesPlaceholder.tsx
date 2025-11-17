@@ -77,30 +77,70 @@ export default function SimpleMessagesPlaceholder() {
   };
 
   const startConversation = async (otherUser: any) => {
-    if (!user) return;
+    if (!user) {
+      alert('Please log in to start a conversation');
+      return;
+    }
 
+    setIsLoading(true);
     try {
+      console.log('Starting conversation with:', otherUser.username);
+      
+      // Generate conversation title
+      const conversationTitle = `Chat with ${otherUser.username}`;
+      
       const { data, error } = await supabase.rpc('get_or_create_conversation', {
         participant_ids: [user.id, otherUser.id],
         conversation_type_param: 'direct',
         listing_id_param: null,
-        title_param: null
+        title_param: conversationTitle
       });
 
-      if (error) throw error;
+      console.log('RPC response:', { data, error });
 
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+
+      // Reload conversations
       await loadConversations();
-      const convs = await supabase.rpc('get_user_conversations');
-      const newConv = convs.data?.find((c: any) => c.id === data);
+      
+      // Find the new/existing conversation
+      const { data: allConvs, error: convsError } = await supabase.rpc('get_user_conversations');
+      
+      if (convsError) {
+        console.error('Error loading conversations:', convsError);
+        throw convsError;
+      }
+
+      console.log('All conversations:', allConvs);
+      
+      const newConv = allConvs?.find((c: any) => c.id === data);
+      
       if (newConv) {
+        console.log('Found conversation:', newConv);
         setActiveConversation(newConv);
         loadMessages(newConv.id);
+      } else {
+        console.warn('Conversation created but not found in list');
+        // Try to find by participants
+        const foundConv = allConvs?.find((c: any) => 
+          c.title === conversationTitle || c.title?.includes(otherUser.username)
+        );
+        if (foundConv) {
+          setActiveConversation(foundConv);
+          loadMessages(foundConv.id);
+        }
       }
 
       setSearchUsername('');
       setSearchResults([]);
     } catch (error) {
       console.error('Error starting conversation:', error);
+      alert('Failed to start conversation: ' + (error as Error).message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -236,13 +276,14 @@ export default function SimpleMessagesPlaceholder() {
             )}
           </div>
 
-          {searchResults.length > 0 && (
+          {searchResults.length > 0 && !isLoading && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
               {searchResults.map((result) => (
                 <button
                   key={result.id}
                   onClick={() => startConversation(result)}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-700 transition-colors border-b border-gray-700 last:border-b-0 flex items-center"
+                  disabled={isLoading}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-b border-gray-700 last:border-b-0 flex items-center"
                 >
                   <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-3">
                     {result.username.charAt(0).toUpperCase()}
@@ -253,6 +294,15 @@ export default function SimpleMessagesPlaceholder() {
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+          
+          {isLoading && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 p-4">
+              <div className="flex items-center justify-center text-gray-400">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+                <span>Starting conversation...</span>
+              </div>
             </div>
           )}
         </div>
