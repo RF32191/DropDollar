@@ -843,7 +843,7 @@ export default function TriumphStyleDashboard() {
           )}
 
           {activeTab === 'messages' && (
-            <MessagesTab />
+            <MessagingHub />
           )}
             </div>
           </div>
