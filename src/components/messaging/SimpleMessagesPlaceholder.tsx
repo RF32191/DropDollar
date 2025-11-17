@@ -480,88 +480,145 @@ export default function SimpleMessagesPlaceholder() {
         </div>
       </div>
 
-      <div className="flex h-[500px]">
-        <div className="w-1/3 border-r border-gray-700 overflow-y-auto">
+      {/* Main Chat Layout - Like iMessage/WhatsApp */}
+      <div className="flex h-[600px]">
+        {/* LEFT SIDE - Conversation List */}
+        <div className="w-1/3 border-r border-gray-700 overflow-y-auto bg-gray-800/50">
+          {/* Conversations Header */}
+          <div className="p-3 border-b border-gray-700 bg-gray-800">
+            <h3 className="text-sm font-bold text-white">MESSAGES</h3>
+          </div>
+
+          {/* Conversation List */}
           {conversations.length === 0 ? (
             <div className="p-6 text-center text-gray-400">
-              <p className="text-sm">No conversations yet</p>
-              <p className="text-xs mt-1">Search for users above to start chatting!</p>
+              <ChatBubbleLeftRightIcon className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+              <p className="text-sm font-semibold">No messages yet</p>
+              <p className="text-xs mt-1">Search for a user above to start chatting!</p>
             </div>
           ) : (
-            conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => {
-                  setActiveConversation(conv);
-                  loadMessages(conv.id);
-                }}
-                className={`w-full text-left p-4 border-b border-gray-800 hover:bg-gray-800/50 transition-colors ${
-                  activeConversation?.id === conv.id ? 'bg-blue-500/20 border-l-4 border-l-blue-500' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-semibold text-white text-sm truncate">
-                    {conv.title}
-                  </p>
-                  {conv.unread_count > 0 && (
-                    <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full ml-2">
-                      {conv.unread_count}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400 truncate">{conv.last_message || 'No messages yet'}</p>
-                <p className="text-xs text-gray-500 mt-1">{formatTime(conv.last_message_at)}</p>
-              </button>
-            ))
+            <div className="divide-y divide-gray-800">
+              {conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => {
+                    setActiveConversation(conv);
+                    loadMessages(conv.id);
+                  }}
+                  className={`w-full text-left p-4 hover:bg-gray-700/50 transition-colors ${
+                    activeConversation?.id === conv.id ? 'bg-gray-700 border-l-4 border-l-blue-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start space-x-3">
+                    {/* Avatar */}
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-lg">
+                        {conv.title?.charAt(0)?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                    
+                    {/* Conversation Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-semibold text-white text-sm truncate">
+                          {conv.title || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                          {formatTime(conv.last_message_at)}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-400 truncate pr-2">
+                          {conv.last_message || 'Start chatting...'}
+                        </p>
+                        {conv.unread_count > 0 && (
+                          <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full flex-shrink-0">
+                            {conv.unread_count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="flex-1 flex flex-col">
+        {/* RIGHT SIDE - Chat Window */}
+        <div className="flex-1 flex flex-col bg-gray-900">
           {activeConversation ? (
             <>
-              <div className="p-4 border-b border-gray-700 bg-gray-800">
-                <h3 className="font-bold text-white">{activeConversation.title || 'Conversation'}</h3>
-                <p className="text-xs text-gray-400 mt-1">
-                  {activeConversation.conversation_type === 'direct' ? 'Direct Message' : 'Conversation'}
-                </p>
+              {/* Chat Header */}
+              <div className="p-4 border-b border-gray-700 bg-gray-800 flex items-center space-x-3">
+                {/* Avatar */}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <span className="text-white font-bold">
+                    {activeConversation.title?.charAt(0)?.toUpperCase() || '?'}
+                  </span>
+                </div>
+                {/* Name & Status */}
+                <div>
+                  <h3 className="font-bold text-white">{activeConversation.title || 'Conversation'}</h3>
+                  <p className="text-xs text-gray-400">
+                    {activeConversation.conversation_type === 'direct' ? 'Direct Message' : 'Group Chat'}
+                  </p>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-900 to-gray-800">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-400 py-12">
-                    <p>No messages yet</p>
-                    <p className="text-xs mt-1">Start the conversation!</p>
+                    <ChatBubbleLeftRightIcon className="h-16 w-16 mx-auto mb-4 text-gray-600" />
+                    <p className="font-semibold">No messages yet</p>
+                    <p className="text-xs mt-1">Send a message to start the conversation!</p>
                   </div>
                 ) : (
-                  messages.map((message) => {
+                  messages.map((message, index) => {
                     const isOwnMessage = message.sender_id === user?.id;
+                    const showAvatar = index === 0 || messages[index - 1].sender_id !== message.sender_id;
+                    
                     return (
                       <div
                         key={message.id}
-                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} items-end space-x-2`}
                       >
-                        <div
-                          className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                            isOwnMessage
-                              ? 'bg-blue-500 text-white'
-                              : message.message_type === 'system'
-                              ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                              : 'bg-gray-700 text-white'
-                          }`}
-                        >
-                          {!isOwnMessage && (
-                            <p className="text-xs font-semibold mb-1 text-gray-300">
-                              {message.sender_username}
+                        {/* Other user avatar */}
+                        {!isOwnMessage && showAvatar && (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs font-bold">
+                              {message.sender_username?.charAt(0)?.toUpperCase() || '?'}
+                            </span>
+                          </div>
+                        )}
+                        {!isOwnMessage && !showAvatar && <div className="w-8" />}
+                        
+                        {/* Message Bubble */}
+                        <div className={`max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
+                          {!isOwnMessage && showAvatar && (
+                            <p className="text-xs font-semibold mb-1 text-gray-400 ml-2">
+                              {message.sender_username || 'Unknown'}
                             </p>
                           )}
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            {message.message_text}
-                          </p>
-                          <p className={`text-xs mt-1 ${
-                            isOwnMessage ? 'text-blue-200' : 'text-gray-400'
-                          }`}>
-                            {formatTime(message.created_at)}
-                          </p>
+                          <div
+                            className={`rounded-2xl px-4 py-2 ${
+                              isOwnMessage
+                                ? 'bg-blue-500 text-white rounded-br-sm'
+                                : message.message_type === 'system'
+                                ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                                : 'bg-gray-700 text-white rounded-bl-sm'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {message.message_text}
+                            </p>
+                            <p className={`text-xs mt-1 ${
+                              isOwnMessage ? 'text-blue-200' : 'text-gray-400'
+                            }`}>
+                              {formatTime(message.created_at)}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -570,33 +627,43 @@ export default function SimpleMessagesPlaceholder() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Message Input */}
               <div className="p-4 border-t border-gray-700 bg-gray-800">
-                <div className="flex items-end space-x-2">
-                  <textarea
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Type a message..."
-                    className="flex-1 bg-gray-700 text-white rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    rows={1}
+                    className="flex-1 bg-gray-700 text-white rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
                     disabled={isSending}
                   />
                   <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || isSending}
-                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl p-3 transition-colors"
+                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-full p-3 transition-colors flex items-center justify-center"
+                    title="Send message"
                   >
-                    <PaperAirplaneIcon className="h-5 w-5" />
+                    {isSending ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    ) : (
+                      <PaperAirplaneIcon className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Press Enter to send, Shift+Enter for new line
+                </p>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
+            <div className="flex-1 flex items-center justify-center text-gray-400 bg-gradient-to-b from-gray-900 to-gray-800">
               <div className="text-center">
-                <ChatBubbleLeftRightIcon className="h-16 w-16 mx-auto mb-4 text-gray-600" />
-                <p className="text-lg font-semibold mb-2">Select a conversation</p>
-                <p className="text-sm">Or search for users above to start chatting</p>
+                <ChatBubbleLeftRightIcon className="h-20 w-20 mx-auto mb-4 text-gray-600" />
+                <p className="text-lg font-semibold mb-2 text-white">Welcome to Messages</p>
+                <p className="text-sm text-gray-400">Select a conversation from the left</p>
+                <p className="text-sm text-gray-500 mt-1">or search for a user to start chatting</p>
               </div>
             </div>
           )}
