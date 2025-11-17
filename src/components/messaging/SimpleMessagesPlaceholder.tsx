@@ -89,18 +89,26 @@ export default function SimpleMessagesPlaceholder() {
       // Generate conversation title
       const conversationTitle = `Chat with ${otherUser.username}`;
       
-      const { data, error } = await supabase.rpc('get_or_create_conversation', {
+      // The function returns a UUID directly, not { data, error }
+      const response = await supabase.rpc('get_or_create_conversation', {
         participant_ids: [user.id, otherUser.id],
         conversation_type_param: 'direct',
         listing_id_param: null,
         title_param: conversationTitle
       });
 
-      console.log('RPC response:', { data, error });
+      console.log('RPC response:', response);
 
-      if (error) {
-        console.error('RPC error:', error);
-        throw error;
+      if (response.error) {
+        console.error('RPC error:', response.error);
+        throw response.error;
+      }
+
+      const conversationId = response.data;
+      console.log('Conversation ID:', conversationId);
+
+      if (!conversationId) {
+        throw new Error('No conversation ID returned');
       }
 
       // Reload conversations
@@ -116,7 +124,7 @@ export default function SimpleMessagesPlaceholder() {
 
       console.log('All conversations:', allConvs);
       
-      const newConv = allConvs?.find((c: any) => c.id === data);
+      const newConv = allConvs?.find((c: any) => c.id === conversationId);
       
       if (newConv) {
         console.log('Found conversation:', newConv);
@@ -124,13 +132,16 @@ export default function SimpleMessagesPlaceholder() {
         loadMessages(newConv.id);
       } else {
         console.warn('Conversation created but not found in list');
-        // Try to find by participants
+        // Try to find by title
         const foundConv = allConvs?.find((c: any) => 
           c.title === conversationTitle || c.title?.includes(otherUser.username)
         );
         if (foundConv) {
+          console.log('Found by title:', foundConv);
           setActiveConversation(foundConv);
           loadMessages(foundConv.id);
+        } else {
+          console.error('Could not find conversation after creation');
         }
       }
 
