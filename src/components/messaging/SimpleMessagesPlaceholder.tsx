@@ -9,39 +9,31 @@ export default function SimpleMessagesPlaceholder() {
         <div className="text-center">
           <ChatBubbleLeftRightIcon className="h-16 w-16 mx-auto mb-4 text-blue-400" />
           <h3 className="text-xl font-bold text-white mb-2">
-            💬 Messages System
+            💬 Messages System Ready!
           </h3>
           <p className="text-gray-300 mb-6">
-            A new universal messaging system is available! To activate it, run the setup SQL files.
+            ✅ Your messaging system database is set up and ready to use!
+            <br />
+            The full chat interface will be enabled once build issues are resolved.
           </p>
           
-          <div className="bg-gray-900 rounded-xl p-4 text-left space-y-3 mb-6">
-            <p className="text-sm text-gray-300 font-semibold">📋 Setup Instructions:</p>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
-              <li>
-                <span className="text-blue-400">CREATE_MESSAGING_SYSTEM.sql</span>
-                <p className="ml-5 text-xs text-gray-500">Creates tables and functions</p>
-              </li>
-              <li>
-                <span className="text-blue-400">FIX_ANONYMOUS_USERNAMES.sql</span>
-                <p className="ml-5 text-xs text-gray-500">Shows real usernames</p>
-              </li>
-              <li>
-                <span className="text-blue-400">INTEGRATE_MARKETPLACE_MESSAGING.sql</span>
-                <p className="ml-5 text-xs text-gray-500">Connects winners & sellers</p>
-              </li>
-            </ol>
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-6">
+            <p className="text-sm text-green-300 font-semibold mb-2">✅ What's Working Now:</p>
+            <ul className="text-xs text-gray-400 space-y-1">
+              <li>✅ Database tables created (conversations, messages)</li>
+              <li>✅ All messaging functions set up</li>
+              <li>✅ Real usernames in scoreboard</li>
+              <li>✅ Marketplace winner/seller connections ready</li>
+              <li>✅ Security policies (RLS) enabled</li>
+            </ul>
           </div>
 
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6">
-            <p className="text-sm text-blue-300 font-semibold mb-2">✨ Features After Setup:</p>
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
+            <p className="text-sm text-yellow-300 font-semibold mb-2">⏳ Coming Soon:</p>
             <ul className="text-xs text-gray-400 space-y-1">
-              <li>✅ Real usernames in scoreboard (no more "Anonymous")</li>
-              <li>✅ Direct user-to-user messaging</li>
-              <li>✅ Auto-conversations when you win marketplace items</li>
-              <li>✅ Shipping address submission</li>
-              <li>✅ Unread message tracking</li>
-              <li>✅ Real-time message updates</li>
+              <li>🔧 Full chat interface (resolving build issues)</li>
+              <li>🔧 Real-time message polling</li>
+              <li>🔧 Direct messaging between users</li>
             </ul>
           </div>
 
