@@ -659,7 +659,18 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               // Show scoreboard to ANYONE if there are scores (not just participants!)
               const canSeeScoreboard = playersWithScores.length > 0;
               
-              console.log(`📊 Listing ${listing.title}: ${playersWithScores.length} players with scores, canSee=${canSeeScoreboard}`);
+              console.log(`📊 Listing ${listing.title}:`, {
+                playersWithScores: playersWithScores.length,
+                canSee: canSeeScoreboard,
+                winner_username: listing.winner_username,
+                winner_score: listing.winner_score,
+                session_status: listing.session_status,
+                participants: participants.map(p => ({
+                  username: p.username,
+                  score: p.score,
+                  completed_at: p.completed_at
+                }))
+              });
 
               // Check if user is the seller
               const isSeller = user && (listing.seller_id === user.id || listing.seller_id === user.id.toString());
