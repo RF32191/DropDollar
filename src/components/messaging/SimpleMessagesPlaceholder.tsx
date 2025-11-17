@@ -9,7 +9,11 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
-export default function SimpleMessagesPlaceholder() {
+interface SimpleMessagesPlaceholderProps {
+  onUnreadCountChange?: (count: number) => void;
+}
+
+export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: SimpleMessagesPlaceholderProps) {
   const [user, setUser] = useState<any>(null);
   const [searchUsername, setSearchUsername] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -20,6 +24,7 @@ export default function SimpleMessagesPlaceholder() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
@@ -46,7 +51,10 @@ export default function SimpleMessagesPlaceholder() {
       const user = session?.user || null;
       setUser(user);
       if (user) {
-        loadConversations();
+        await Promise.all([
+          loadConversations(),
+          loadUnreadCount()
+        ]);
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -55,29 +63,64 @@ export default function SimpleMessagesPlaceholder() {
     }
   };
 
+  const loadUnreadCount = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('get_total_unread_count', { p_user_id: user.id });
+      
+      if (error) {
+        console.error('Error loading unread count:', error);
+        return;
+      }
+      
+      const count = data || 0;
+      setTotalUnreadCount(count);
+      
+      // Notify parent component
+      if (onUnreadCountChange) {
+        onUnreadCountChange(count);
+      }
+      
+      addDebug(`📬 Total unread: ${count}`);
+    } catch (error) {
+      console.error('Error loading unread count:', error);
+    }
+  };
+
   const loadConversations = async () => {
     if (!user) return;
     
     try {
       addDebug('📋 Loading conversations...');
+      const startTime = Date.now();
       
-      // Get all conversations where user is a participant
-      const { data: userParticipations, error: partError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
+      // Parallel query: Get conversations and unread counts at the same time
+      const [participationsResult, unreadResult] = await Promise.all([
+        supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true),
+        supabase.rpc('get_unread_by_conversation', { p_user_id: user.id })
+      ]);
 
-      if (partError) throw partError;
+      if (participationsResult.error) throw participationsResult.error;
 
-      if (!userParticipations || userParticipations.length === 0) {
+      if (!participationsResult.data || participationsResult.data.length === 0) {
         setConversations([]);
         addDebug('📋 No conversations found');
         return;
       }
 
-      const conversationIds = userParticipations.map(p => p.conversation_id);
-      addDebug(`📋 Found ${conversationIds.length} conversations`);
+      const conversationIds = participationsResult.data.map(p => p.conversation_id);
+      
+      // Create unread lookup map
+      const unreadMap: Record<string, number> = {};
+      (unreadResult.data || []).forEach((item: any) => {
+        unreadMap[item.conversation_id] = item.unread_count;
+      });
 
       // Get conversation details
       const { data: convs, error: convsError } = await supabase
@@ -95,52 +138,68 @@ export default function SimpleMessagesPlaceholder() {
 
       if (convsError) throw convsError;
 
-      // Get last message and other participant's username for each conversation
-      const convsWithDetails = await Promise.all(
-        (convs || []).map(async (conv) => {
-          // Get last message
-          const { data: lastMsg } = await supabase
-            .from('messages')
-            .select('message_text')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+      // Batch fetch: Get ALL last messages, other participants, and usernames in 3 queries
+      const [lastMessagesResult, otherParticipantsResult] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('conversation_id, message_text, created_at')
+          .in('conversation_id', conversationIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('conversation_participants')
+          .select('conversation_id, user_id')
+          .in('conversation_id', conversationIds)
+          .neq('user_id', user.id)
+      ]);
 
-          // Get other participant's user_id
-          const { data: otherParticipant } = await supabase
-            .from('conversation_participants')
-            .select('user_id')
-            .eq('conversation_id', conv.id)
-            .neq('user_id', user.id)
-            .limit(1)
-            .single();
+      // Group last messages by conversation
+      const lastMessageMap: Record<string, string> = {};
+      const seenConvs = new Set<string>();
+      (lastMessagesResult.data || []).forEach((msg: any) => {
+        if (!seenConvs.has(msg.conversation_id)) {
+          lastMessageMap[msg.conversation_id] = msg.message_text;
+          seenConvs.add(msg.conversation_id);
+        }
+      });
 
-          // Get other participant's username
-          let displayName = conv.title || 'Unknown User';
-          if (otherParticipant?.user_id) {
-            const { data: userData } = await supabase
-              .from('users')
-              .select('username, email')
-              .eq('id', otherParticipant.user_id)
-              .single();
-            
-            if (userData) {
-              displayName = userData.username || userData.email?.split('@')[0] || 'User';
-            }
-          }
+      // Group other participants by conversation
+      const participantMap: Record<string, string> = {};
+      (otherParticipantsResult.data || []).forEach((part: any) => {
+        if (!participantMap[part.conversation_id]) {
+          participantMap[part.conversation_id] = part.user_id;
+        }
+      });
 
-          return {
-            ...conv,
-            display_name: displayName, // Use this for display
-            last_message: lastMsg?.message_text || 'No messages yet',
-            unread_count: 0 // Can be enhanced later
-          };
-        })
-      );
+      // Get ALL usernames in one query
+      const uniqueUserIds = [...new Set(Object.values(participantMap))];
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, username, email')
+        .in('id', uniqueUserIds);
+
+      const usernameMap: Record<string, string> = {};
+      (usersData || []).forEach((u: any) => {
+        usernameMap[u.id] = u.username || u.email?.split('@')[0] || 'User';
+      });
+
+      // Combine all data
+      const convsWithDetails = (convs || []).map((conv) => {
+        const otherUserId = participantMap[conv.id];
+        const displayName = otherUserId 
+          ? usernameMap[otherUserId] || conv.title || 'Unknown User'
+          : conv.title || 'Unknown User';
+
+        return {
+          ...conv,
+          display_name: displayName,
+          last_message: lastMessageMap[conv.id] || 'No messages yet',
+          unread_count: unreadMap[conv.id] || 0
+        };
+      });
 
       setConversations(convsWithDetails);
-      addDebug(`✅ Loaded ${convsWithDetails.length} conversations with usernames`);
+      const loadTime = Date.now() - startTime;
+      addDebug(`✅ Loaded ${convsWithDetails.length} conversations in ${loadTime}ms`);
     } catch (error) {
       console.error('Error loading conversations:', error);
       addDebug(`❌ Error loading conversations: ${(error as Error).message}`);
@@ -299,7 +358,7 @@ export default function SimpleMessagesPlaceholder() {
         };
         setActiveConversation(convWithDisplayName);
         setShouldAutoScroll(true); // Enable auto-scroll
-        await loadMessages(convData.id); // Load messages immediately
+        await loadMessages(convData.id, true); // Load messages immediately and mark as read
         addDebug(`✅ Opened conversation with ${otherUser.username}`);
       } else {
         console.error('Could not find conversation after creation');
@@ -315,7 +374,7 @@ export default function SimpleMessagesPlaceholder() {
     }
   };
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = async (conversationId: string, markAsRead: boolean = false) => {
     try {
       addDebug(`📥 Loading messages for conversation ${conversationId.substring(0, 8)}...`);
       
@@ -360,11 +419,42 @@ export default function SimpleMessagesPlaceholder() {
       setMessages(formattedMessages);
       addDebug(`✅ Set ${formattedMessages.length} messages to state!`);
       
+      // Mark as read if requested
+      if (markAsRead && user) {
+        await markConversationAsRead(conversationId);
+      }
+      
       // Only scroll on first load or when user is at bottom
       setTimeout(() => scrollToBottom(false), 50);
     } catch (error) {
       console.error('Error loading messages:', error);
       addDebug(`❌ Failed to load: ${(error as Error).message}`);
+    }
+  };
+
+  const markConversationAsRead = async (conversationId: string) => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('mark_conversation_read', {
+        p_conversation_id: conversationId,
+        p_user_id: user.id
+      });
+
+      if (error) {
+        console.error('Error marking as read:', error);
+        return;
+      }
+
+      addDebug(`✅ Marked ${data || 0} messages as read`);
+      
+      // Update unread counts
+      await Promise.all([
+        loadUnreadCount(),
+        loadConversations()
+      ]);
+    } catch (error) {
+      console.error('Error marking conversation as read:', error);
     }
   };
 
@@ -582,24 +672,31 @@ export default function SimpleMessagesPlaceholder() {
                   onClick={() => {
                     setActiveConversation(conv);
                     setShouldAutoScroll(true); // Enable auto-scroll when opening conversation
-                    loadMessages(conv.id);
+                    loadMessages(conv.id, true); // Mark as read when opening
                   }}
-                  className={`w-full text-left p-4 hover:bg-gray-700/50 transition-colors ${
+                  className={`w-full text-left p-4 hover:bg-gray-700/50 transition-colors relative ${
                     activeConversation?.id === conv.id ? 'bg-gray-700 border-l-4 border-l-blue-500' : ''
                   }`}
                 >
                   <div className="flex items-start space-x-3">
-                    {/* Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-lg">
-                        {conv.display_name?.charAt(0)?.toUpperCase() || '?'}
-                      </span>
+                    {/* Avatar with Unread Badge */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">
+                          {conv.display_name?.charAt(0)?.toUpperCase() || '?'}
+                        </span>
+                      </div>
+                      {conv.unread_count > 0 && (
+                        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg border-2 border-gray-800">
+                          {conv.unread_count > 99 ? '99+' : conv.unread_count}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Conversation Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="font-semibold text-white text-sm truncate">
+                        <p className={`font-semibold text-sm truncate ${conv.unread_count > 0 ? 'text-white' : 'text-gray-300'}`}>
                           {conv.display_name || 'Unknown User'}
                         </p>
                         <p className="text-xs text-gray-500 flex-shrink-0 ml-2">
@@ -607,14 +704,9 @@ export default function SimpleMessagesPlaceholder() {
                         </p>
                       </div>
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-gray-400 truncate pr-2">
+                        <p className={`text-xs truncate pr-2 ${conv.unread_count > 0 ? 'text-white font-medium' : 'text-gray-400'}`}>
                           {conv.last_message || 'Start chatting...'}
                         </p>
-                        {conv.unread_count > 0 && (
-                          <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full flex-shrink-0">
-                            {conv.unread_count}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>

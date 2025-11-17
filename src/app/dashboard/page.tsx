@@ -77,6 +77,7 @@ export default function TriumphStyleDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
   const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages'>('recent');
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   // Seller registration state
   const [isSeller, setIsSeller] = useState(false);
@@ -591,7 +592,7 @@ export default function TriumphStyleDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center px-6 py-4 text-sm font-medium transition-all duration-300 ${
+                  className={`flex items-center px-6 py-4 text-sm font-medium transition-all duration-300 relative ${
                     activeTab === tab.id
                       ? 'text-blue-400 border-b-2 border-blue-400 bg-white/5'
                       : 'text-purple-200 hover:text-white hover:bg-white/5'
@@ -599,6 +600,11 @@ export default function TriumphStyleDashboard() {
                 >
                   <tab.icon className="w-5 h-5 mr-2" />
                   {tab.label}
+                  {tab.id === 'messages' && unreadMessageCount > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-2 shadow-lg animate-pulse">
+                      {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                    </div>
+                  )}
                 </button>
               ))}
                 </div>
@@ -843,7 +849,9 @@ export default function TriumphStyleDashboard() {
           )}
 
           {activeTab === 'messages' && (
-            <SimpleMessagesPlaceholder />
+            <SimpleMessagesPlaceholder 
+              onUnreadCountChange={(count) => setUnreadMessageCount(count)}
+            />
           )}
             </div>
           </div>
