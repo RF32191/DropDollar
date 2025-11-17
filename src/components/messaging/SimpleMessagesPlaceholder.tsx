@@ -40,21 +40,42 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
     }
   };
 
+  // Load user and messages immediately on mount
   useEffect(() => {
+    console.log('🎯 SimpleMessages component mounted - loading data immediately');
     loadUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reload when component becomes visible (e.g., tab switched)
+  useEffect(() => {
+    if (document.visibilityState === 'visible' && user) {
+      console.log('👁️ Component visible - refreshing data');
+      Promise.all([
+        loadConversations(),
+        loadUnreadCount()
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document.visibilityState]);
+
   const loadUser = async () => {
     try {
+      console.log('💬 SimpleMessages: Loading user...');
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user || null;
       setUser(user);
+      
       if (user) {
+        console.log('👤 User found:', user.id.substring(0, 8), '- Loading messages...');
+        // Load conversations and unread count immediately
         await Promise.all([
           loadConversations(),
           loadUnreadCount()
         ]);
+        console.log('✅ Initial load complete!');
+      } else {
+        console.log('❌ No user found in session');
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -119,9 +140,13 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
   };
 
   const loadConversations = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('⏳ loadConversations: No user yet');
+      return;
+    }
     
     try {
+      console.log('📋 loadConversations: Starting for user', user.id.substring(0, 8));
       addDebug('📋 Loading conversations...');
       const startTime = Date.now();
       
@@ -637,13 +662,17 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
   useEffect(() => {
     if (user) {
       // Load conversations and unread count together
+      console.log('🔄 Setting up auto-refresh (every 3 seconds)');
       const interval = setInterval(() => {
         Promise.all([
           loadConversations(),
           loadUnreadCount()
         ]);
-      }, 4000); // Reduced from 5000ms for faster badge updates
-      return () => clearInterval(interval);
+      }, 3000); // Every 3 seconds for real-time feel
+      return () => {
+        console.log('🛑 Cleaning up auto-refresh');
+        clearInterval(interval);
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);

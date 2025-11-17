@@ -94,12 +94,21 @@ export default function TriumphStyleDashboard() {
   // Load unread message count on mount - Works even if SQL not run yet
   useEffect(() => {
     const loadUnreadCount = async () => {
-      if (!user?.id) return;
+      // Get current user from session
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user || user;
+      
+      if (!currentUser?.id) {
+        console.log('⏳ No user yet, waiting...');
+        return;
+      }
+      
+      console.log('🔄 Loading unread count for user:', currentUser.id.substring(0, 8));
       
       try {
         // Try the optimized RPC function first
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_total_unread_count', { 
-          p_user_id: user.id 
+          p_user_id: currentUser.id 
         });
         
         if (!rpcError && rpcData !== null) {
@@ -115,14 +124,16 @@ export default function TriumphStyleDashboard() {
         const { data: participations } = await supabase
           .from('conversation_participants')
           .select('conversation_id')
-          .eq('user_id', user.id)
+          .eq('user_id', currentUser.id)
           .eq('is_active', true);
         
         if (!participations || participations.length === 0) {
+          console.log('📭 No conversations found');
           setUnreadMessageCount(0);
           return;
         }
         
+        console.log('📋 Found', participations.length, 'conversations');
         const conversationIds = participations.map(p => p.conversation_id);
         
         // Count unread messages
@@ -130,7 +141,7 @@ export default function TriumphStyleDashboard() {
           .from('messages')
           .select('*', { count: 'exact', head: true })
           .in('conversation_id', conversationIds)
-          .neq('sender_id', user.id)
+          .neq('sender_id', currentUser.id)
           .eq('is_read', false);
         
         if (!countError) {
@@ -144,12 +155,13 @@ export default function TriumphStyleDashboard() {
       }
     };
 
+    // Load immediately
     loadUnreadCount();
     
-    // Poll for updates every 5 seconds
-    const interval = setInterval(loadUnreadCount, 5000);
+    // Poll for updates every 4 seconds (faster updates)
+    const interval = setInterval(loadUnreadCount, 4000);
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [user, isAuthenticated]); // Trigger on auth changes
 
   useEffect(() => {
     // Check URL parameters for tab selection
