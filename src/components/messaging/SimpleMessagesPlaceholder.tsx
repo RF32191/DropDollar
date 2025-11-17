@@ -271,6 +271,8 @@ export default function SimpleMessagesPlaceholder() {
 
   const loadMessages = async (conversationId: string) => {
     try {
+      addDebug(`📥 Loading messages for conversation ${conversationId.substring(0, 8)}...`);
+      
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -288,7 +290,12 @@ export default function SimpleMessagesPlaceholder() {
         .order('created_at', { ascending: true })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        addDebug(`❌ Load error: ${error.message}`);
+        throw error;
+      }
+
+      addDebug(`📨 Loaded ${data?.length || 0} messages`);
 
       // Format messages for display
       const formattedMessages = (data || []).map((msg: any) => ({
@@ -297,12 +304,14 @@ export default function SimpleMessagesPlaceholder() {
       }));
 
       setMessages(formattedMessages);
+      addDebug(`✅ Messages set to state (${formattedMessages.length} total)`);
       
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (error) {
       console.error('Error loading messages:', error);
+      addDebug(`❌ Failed to load: ${(error as Error).message}`);
     }
   };
 
@@ -641,7 +650,20 @@ export default function SimpleMessagesPlaceholder() {
                 {/* Debug Info Panel */}
                 {debugInfo.length > 0 && (
                   <div className="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                    <p className="text-xs font-bold text-yellow-300 mb-1">🔍 DEBUG INFO:</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-bold text-yellow-300">🔍 DEBUG INFO:</p>
+                      <button
+                        onClick={() => {
+                          addDebug(`📊 Current state: ${messages.length} messages in memory`);
+                          if (activeConversation) {
+                            loadMessages(activeConversation.id);
+                          }
+                        }}
+                        className="text-xs bg-yellow-500/20 hover:bg-yellow-500/30 px-2 py-1 rounded text-yellow-200"
+                      >
+                        🔄 Reload
+                      </button>
+                    </div>
                     {debugInfo.map((info, i) => (
                       <p key={i} className="text-xs text-yellow-200 font-mono">{info}</p>
                     ))}
