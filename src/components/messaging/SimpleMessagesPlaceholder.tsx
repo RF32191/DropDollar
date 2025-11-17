@@ -20,11 +20,22 @@ export default function SimpleMessagesPlaceholder() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   
   const addDebug = (msg: string) => {
     setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
     console.log(msg);
+  };
+
+  const scrollToBottom = (smooth = true) => {
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: smooth ? 'smooth' : 'auto',
+        block: 'end'
+      });
+    }
   };
 
   useEffect(() => {
@@ -314,9 +325,8 @@ export default function SimpleMessagesPlaceholder() {
       setMessages(formattedMessages);
       addDebug(`✅ Set ${formattedMessages.length} messages to state!`);
       
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      // Only scroll on first load or when user is at bottom
+      setTimeout(() => scrollToBottom(false), 50);
     } catch (error) {
       console.error('Error loading messages:', error);
       addDebug(`❌ Failed to load: ${(error as Error).message}`);
@@ -329,8 +339,10 @@ export default function SimpleMessagesPlaceholder() {
       return;
     }
 
+    setShouldAutoScroll(true); // Enable auto-scroll when sending
     setIsSending(true);
     addDebug(`📤 Sending: "${newMessage.trim()}"`);
+
     
     try {
       const { data, error } = await supabase
@@ -374,6 +386,9 @@ export default function SimpleMessagesPlaceholder() {
         loadConversations()
       ]);
       
+      // Scroll to bottom after sending
+      setTimeout(() => scrollToBottom(true), 100);
+      
       addDebug(`✅ Message sent successfully!`);
     } catch (error) {
       addDebug(`❌ FAILED: ${(error as Error).message}`);
@@ -406,7 +421,11 @@ export default function SimpleMessagesPlaceholder() {
 
   useEffect(() => {
     if (activeConversation) {
-      const interval = setInterval(() => loadMessages(activeConversation.id), 3000);
+      // Disable auto-scroll during polling to prevent jumping
+      const interval = setInterval(() => {
+        setShouldAutoScroll(false);
+        loadMessages(activeConversation.id);
+      }, 3000);
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -527,6 +546,7 @@ export default function SimpleMessagesPlaceholder() {
                   key={conv.id}
                   onClick={() => {
                     setActiveConversation(conv);
+                    setShouldAutoScroll(true); // Enable auto-scroll when opening conversation
                     loadMessages(conv.id);
                   }}
                   className={`w-full text-left p-4 hover:bg-gray-700/50 transition-colors ${
@@ -591,7 +611,11 @@ export default function SimpleMessagesPlaceholder() {
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-900 to-gray-800">
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-900 to-gray-800 scroll-smooth"
+                style={{ maxHeight: '450px' }}
+              >
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-400 py-12">
                     <ChatBubbleLeftRightIcon className="h-16 w-16 mx-auto mb-4 text-gray-600" />
