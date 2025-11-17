@@ -273,19 +273,10 @@ export default function SimpleMessagesPlaceholder() {
     try {
       addDebug(`📥 Loading messages for conversation ${conversationId.substring(0, 8)}...`);
       
+      // Load messages without join (no foreign key needed)
       const { data, error } = await supabase
         .from('messages')
-        .select(`
-          id,
-          conversation_id,
-          sender_id,
-          message_text,
-          message_type,
-          metadata,
-          is_edited,
-          created_at,
-          sender:users!sender_id(username)
-        `)
+        .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -295,16 +286,33 @@ export default function SimpleMessagesPlaceholder() {
         throw error;
       }
 
-      addDebug(`📨 Loaded ${data?.length || 0} messages`);
+      addDebug(`📨 Loaded ${data?.length || 0} messages from DB`);
+
+      // Get unique sender IDs
+      const senderIds = [...new Set(data?.map((msg: any) => msg.sender_id) || [])];
+      
+      // Load usernames separately
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, username, email')
+        .in('id', senderIds);
+
+      // Create username lookup
+      const usernameLookup: Record<string, string> = {};
+      (usersData || []).forEach((u: any) => {
+        usernameLookup[u.id] = u.username || u.email?.split('@')[0] || 'User';
+      });
+
+      addDebug(`👤 Loaded ${Object.keys(usernameLookup).length} usernames`);
 
       // Format messages for display
       const formattedMessages = (data || []).map((msg: any) => ({
         ...msg,
-        sender_username: msg.sender?.username || 'Unknown'
+        sender_username: usernameLookup[msg.sender_id] || 'Unknown'
       }));
 
       setMessages(formattedMessages);
-      addDebug(`✅ Messages set to state (${formattedMessages.length} total)`);
+      addDebug(`✅ Set ${formattedMessages.length} messages to state!`);
       
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
