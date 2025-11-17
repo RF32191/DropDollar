@@ -598,7 +598,13 @@ export default function TriumphStyleDashboard() {
                       : 'text-purple-200 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <tab.icon className="w-5 h-5 mr-2" />
+                  {/* Icon with indicator for messages */}
+                  <div className="relative mr-2">
+                    <tab.icon className="w-5 h-5" />
+                    {tab.id === 'messages' && unreadMessageCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50 border border-white"></div>
+                    )}
+                  </div>
                   {tab.label}
                   {tab.id === 'messages' && unreadMessageCount > 0 && (
                     <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-2 shadow-lg animate-pulse">

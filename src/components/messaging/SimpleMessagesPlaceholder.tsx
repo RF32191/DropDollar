@@ -376,27 +376,46 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
 
   const loadMessages = async (conversationId: string, markAsRead: boolean = false) => {
     try {
+      const startTime = Date.now();
       addDebug(`📥 Loading messages for conversation ${conversationId.substring(0, 8)}...`);
       
-      // Load messages without join (no foreign key needed)
-      const { data, error } = await supabase
+      // Parallel loading: Get messages and mark as read at the same time
+      const messagePromise = supabase
         .from('messages')
-        .select('*')
+        .select('id, conversation_id, sender_id, message_text, message_type, created_at, is_read')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
-        .limit(100);
+        .limit(50); // Reduced from 100 for faster loading
+
+      const markAsReadPromise = markAsRead && user 
+        ? markConversationAsRead(conversationId)
+        : Promise.resolve();
+
+      // Execute both at once
+      const [messagesResult] = await Promise.all([
+        messagePromise,
+        markAsReadPromise
+      ]);
+
+      const { data, error } = messagesResult;
 
       if (error) {
         addDebug(`❌ Load error: ${error.message}`);
         throw error;
       }
 
-      addDebug(`📨 Loaded ${data?.length || 0} messages from DB`);
+      if (!data || data.length === 0) {
+        setMessages([]);
+        addDebug(`📭 No messages in conversation`);
+        const loadTime = Date.now() - startTime;
+        addDebug(`⚡ Loaded in ${loadTime}ms`);
+        return;
+      }
 
       // Get unique sender IDs
-      const senderIds = [...new Set(data?.map((msg: any) => msg.sender_id) || [])];
+      const senderIds = [...new Set(data.map((msg: any) => msg.sender_id))];
       
-      // Load usernames separately
+      // Load usernames in parallel (don't wait)
       const { data: usersData } = await supabase
         .from('users')
         .select('id, username, email')
@@ -408,23 +427,18 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
         usernameLookup[u.id] = u.username || u.email?.split('@')[0] || 'User';
       });
 
-      addDebug(`👤 Loaded ${Object.keys(usernameLookup).length} usernames`);
-
       // Format messages for display
-      const formattedMessages = (data || []).map((msg: any) => ({
+      const formattedMessages = data.map((msg: any) => ({
         ...msg,
         sender_username: usernameLookup[msg.sender_id] || 'Unknown'
       }));
 
       setMessages(formattedMessages);
-      addDebug(`✅ Set ${formattedMessages.length} messages to state!`);
       
-      // Mark as read if requested
-      if (markAsRead && user) {
-        await markConversationAsRead(conversationId);
-      }
+      const loadTime = Date.now() - startTime;
+      addDebug(`⚡ Loaded ${formattedMessages.length} messages in ${loadTime}ms`);
       
-      // Only scroll on first load or when user is at bottom
+      // Scroll to bottom after setting messages
       setTimeout(() => scrollToBottom(false), 50);
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -546,11 +560,11 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
 
   useEffect(() => {
     if (activeConversation) {
-      // Disable auto-scroll during polling to prevent jumping
+      // Faster polling for active conversation (2 seconds)
       const interval = setInterval(() => {
         setShouldAutoScroll(false);
         loadMessages(activeConversation.id);
-      }, 3000);
+      }, 2000); // Reduced from 3000ms for faster updates
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -558,7 +572,13 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
 
   useEffect(() => {
     if (user) {
-      const interval = setInterval(loadConversations, 5000);
+      // Load conversations and unread count together
+      const interval = setInterval(() => {
+        Promise.all([
+          loadConversations(),
+          loadUnreadCount()
+        ]);
+      }, 4000); // Reduced from 5000ms for faster badge updates
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
