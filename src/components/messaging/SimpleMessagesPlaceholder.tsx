@@ -19,22 +19,19 @@ export default function SimpleMessagesPlaceholder() {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
   const addDebug = (msg: string) => {
-    setDebugInfo(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()}: ${msg}`]);
-    console.log(msg);
+    // Keep console logging for debugging if needed
+    console.log(`[Chat] ${msg}`);
   };
 
   const scrollToBottom = (smooth = true) => {
-    if (shouldAutoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
-        behavior: smooth ? 'smooth' : 'auto',
-        block: 'end'
-      });
+    if (shouldAutoScroll && messagesContainerRef.current) {
+      // Scroll the container to the bottom, not the whole page
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   };
 
@@ -679,29 +676,6 @@ export default function SimpleMessagesPlaceholder() {
 
               {/* Message Input */}
               <div className="p-4 border-t border-gray-700 bg-gray-800">
-                {/* Debug Info Panel */}
-                {debugInfo.length > 0 && (
-                  <div className="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-bold text-yellow-300">🔍 DEBUG INFO:</p>
-                      <button
-                        onClick={() => {
-                          addDebug(`📊 Current state: ${messages.length} messages in memory`);
-                          if (activeConversation) {
-                            loadMessages(activeConversation.id);
-                          }
-                        }}
-                        className="text-xs bg-yellow-500/20 hover:bg-yellow-500/30 px-2 py-1 rounded text-yellow-200"
-                      >
-                        🔄 Reload
-                      </button>
-                    </div>
-                    {debugInfo.map((info, i) => (
-                      <p key={i} className="text-xs text-yellow-200 font-mono">{info}</p>
-                    ))}
-                  </div>
-                )}
-                
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
@@ -726,7 +700,7 @@ export default function SimpleMessagesPlaceholder() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                  Press Enter to send • Debug info shows above if issues occur
+                  Press Enter to send • Shift+Enter for new line
                 </p>
               </div>
             </>
