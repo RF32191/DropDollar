@@ -85,38 +85,102 @@ export default function SimpleMessagesPlaceholder() {
     setIsLoading(true);
     try {
       console.log('Starting conversation with:', otherUser.username);
+      console.log('User ID:', user.id);
+      console.log('Other User ID:', otherUser.id);
       
       // Generate conversation title
       const conversationTitle = `Chat with ${otherUser.username}`;
       
-      // The function returns a TABLE with conversation_id column
-      const response = await supabase.rpc('get_or_create_conversation', {
-        participant_ids: [user.id, otherUser.id],
-        conversation_type_param: 'direct',
-        listing_id_param: null,
-        title_param: conversationTitle
-      });
+      // Try direct table manipulation instead of RPC (more reliable)
+      console.log('Attempting direct conversation creation...');
+      
+      // First, check if conversation exists
+      const { data: existingConvs, error: checkError } = await supabase
+        .from('conversations')
+        .select(`
+          id,
+          title,
+          conversation_participants!inner(user_id)
+        `)
+        .eq('conversation_type', 'direct');
 
-      console.log('RPC response:', response);
+      console.log('Existing conversations check:', existingConvs, checkError);
 
-      if (response.error) {
-        console.error('RPC error:', response.error);
-        throw response.error;
+      let conversationId: string | null = null;
+
+      // Find conversation between these two users
+      if (existingConvs && !checkError) {
+        for (const conv of existingConvs) {
+          const participants = conv.conversation_participants.map((p: any) => p.user_id);
+          if (
+            participants.length === 2 &&
+            participants.includes(user.id) &&
+            participants.includes(otherUser.id)
+          ) {
+            conversationId = conv.id;
+            console.log('Found existing conversation:', conversationId);
+            break;
+          }
+        }
       }
 
-      // Response.data is an array with one object: [{ conversation_id: 'uuid' }]
-      const conversationId = response.data?.[0]?.conversation_id;
-      console.log('Conversation ID:', conversationId);
-
+      // If no existing conversation, create one
       if (!conversationId) {
-        console.error('No conversation ID in response:', response.data);
-        throw new Error('No conversation ID returned');
+        console.log('Creating new conversation...');
+        
+        const { data: newConv, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            title: conversationTitle,
+            conversation_type: 'direct',
+            created_by: user.id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_message_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating conversation:', createError);
+          throw createError;
+        }
+
+        conversationId = newConv.id;
+        console.log('Created conversation:', conversationId);
+
+        // Add both participants
+        const { error: participantsError } = await supabase
+          .from('conversation_participants')
+          .insert([
+            {
+              conversation_id: conversationId,
+              user_id: user.id,
+              role: 'owner',
+              joined_at: new Date().toISOString(),
+              is_active: true
+            },
+            {
+              conversation_id: conversationId,
+              user_id: otherUser.id,
+              role: 'member',
+              joined_at: new Date().toISOString(),
+              is_active: true
+            }
+          ]);
+
+        if (participantsError) {
+          console.error('Error adding participants:', participantsError);
+          throw participantsError;
+        }
+
+        console.log('Added participants');
       }
 
       // Reload conversations
       await loadConversations();
       
-      // Find the new/existing conversation
+      // Find and set active conversation
       const { data: allConvs, error: convsError } = await supabase.rpc('get_user_conversations');
       
       if (convsError) {
@@ -134,7 +198,6 @@ export default function SimpleMessagesPlaceholder() {
         loadMessages(newConv.id);
       } else {
         console.warn('Conversation created but not found in list');
-        // Try to find by title
         const foundConv = allConvs?.find((c: any) => 
           c.title === conversationTitle || c.title?.includes(otherUser.username)
         );
@@ -142,8 +205,6 @@ export default function SimpleMessagesPlaceholder() {
           console.log('Found by title:', foundConv);
           setActiveConversation(foundConv);
           loadMessages(foundConv.id);
-        } else {
-          console.error('Could not find conversation after creation');
         }
       }
 
