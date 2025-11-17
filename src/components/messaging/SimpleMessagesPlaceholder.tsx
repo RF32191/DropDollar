@@ -301,11 +301,16 @@ export default function SimpleMessagesPlaceholder() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation || isSending || !user) return;
+    if (!newMessage.trim() || !activeConversation || isSending || !user) {
+      console.log('Cannot send:', { newMessage: !!newMessage.trim(), activeConversation: !!activeConversation, isSending, user: !!user });
+      return;
+    }
 
     setIsSending(true);
+    console.log('Sending message:', newMessage.trim());
+    
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: activeConversation.id,
@@ -314,12 +319,18 @@ export default function SimpleMessagesPlaceholder() {
           message_type: 'text',
           metadata: {},
           created_at: new Date().toISOString()
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting message:', error);
+        throw error;
+      }
+
+      console.log('Message inserted:', data);
 
       // Update conversation last_message_at
-      await supabase
+      const { error: updateError } = await supabase
         .from('conversations')
         .update({ 
           last_message_at: new Date().toISOString(),
@@ -327,11 +338,22 @@ export default function SimpleMessagesPlaceholder() {
         })
         .eq('id', activeConversation.id);
 
+      if (updateError) {
+        console.error('Error updating conversation:', updateError);
+      }
+
       setNewMessage('');
-      await loadMessages(activeConversation.id);
-      await loadConversations();
+      
+      // Reload messages and conversations
+      await Promise.all([
+        loadMessages(activeConversation.id),
+        loadConversations()
+      ]);
+      
+      console.log('Message sent successfully');
     } catch (error) {
       console.error('Error sending message:', error);
+      alert('Failed to send message: ' + (error as Error).message);
     } finally {
       setIsSending(false);
     }
@@ -498,7 +520,10 @@ export default function SimpleMessagesPlaceholder() {
           {activeConversation ? (
             <>
               <div className="p-4 border-b border-gray-700 bg-gray-800">
-                <h3 className="font-bold text-white">{activeConversation.title}</h3>
+                <h3 className="font-bold text-white">{activeConversation.title || 'Conversation'}</h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  {activeConversation.conversation_type === 'direct' ? 'Direct Message' : 'Conversation'}
+                </p>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
