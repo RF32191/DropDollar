@@ -63,8 +63,7 @@ export default function ListingUpload({
     { id: 'quick-click', name: 'Quick Click Challenge', emoji: '⚡', description: 'Click as fast as you can' },
     { id: 'pattern-match', name: 'Pattern Matching', emoji: '🧩', description: 'Match patterns quickly' },
     { id: 'reflex-test', name: 'Reflex Test', emoji: '⏱️', description: 'Test your reaction time' },
-    { id: 'laser-dodge', name: 'Laser Dodge', emoji: '🚀', description: 'Dodge lasers and obstacles' },
-    { id: 'crypto-match', name: 'Crypto Match', emoji: '💎', description: 'Match crypto symbols fast' }
+    { id: 'laser-dodge', name: 'Laser Dodge', emoji: '🚀', description: 'Dodge lasers and obstacles' }
   ];
 
   const handleInputChange = (field: string, value: string | number) => {
