@@ -90,27 +90,29 @@ export default function SellerDashboard() {
 
   const loadListings = async () => {
     try {
-      // First get the seller_profile id
-      const { data: sellerProfile } = await supabase
-        .from('seller_profiles')
-        .select('id')
-        .eq('user_id', user?.id)
-        .eq('status', 'approved')
-        .single();
-      
-      if (!sellerProfile) {
-        console.log('No seller profile found');
+      if (!user?.id) {
+        console.log('No user ID found');
         return;
       }
+
+      console.log('🔍 Loading listings for seller:', user.id);
       
+      // Query marketplace_listings directly using user.id
+      // (marketplace_listings.seller_id = users.id, not seller_profiles.id)
       const { data, error } = await supabase
         .from('marketplace_listings')
         .select('*')
-        .eq('seller_id', sellerProfile.id)
+        .eq('seller_id', user.id)
+        .neq('status', 'deleted')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading listings:', error);
+        throw error;
+      }
 
+      console.log('✅ Loaded listings:', data?.length || 0);
+      
       if (data) {
         setListings(data);
       }
