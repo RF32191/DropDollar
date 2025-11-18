@@ -13,8 +13,9 @@ import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
 import SellerDashboard from '@/components/seller/SellerDashboard';
 import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlaceholder';
+import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon, EnvelopeIcon, HomeIcon, UserIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -76,7 +77,7 @@ export default function TriumphStyleDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages' | 'profile'>('recent');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   // Seller registration state
@@ -659,7 +660,8 @@ export default function TriumphStyleDashboard() {
                 { id: 'practice', label: 'Practice History', icon: StarIcon },
                 { id: 'competition', label: 'Competition History', icon: TrophyIcon },
                 { id: 'stats', label: 'Statistics', icon: ChartBarIcon },
-                { id: 'messages', label: 'Messages', icon: EnvelopeIcon }
+                { id: 'messages', label: 'Messages', icon: EnvelopeIcon },
+                { id: 'profile', label: 'Shipping Address', icon: HomeIcon }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -930,6 +932,19 @@ export default function TriumphStyleDashboard() {
             <SimpleMessagesPlaceholder 
               onUnreadCountChange={(count) => setUnreadMessageCount(count)}
             />
+          )}
+
+          {activeTab === 'profile' && (
+            <div>
+              <h2 className="text-xl font-bold mb-4 flex items-center">
+                <HomeIcon className="w-6 h-6 mr-2 text-blue-400" />
+                Shipping Address
+              </h2>
+              <p className="text-gray-300 mb-6">
+                Save your shipping address for quick prize delivery when you win marketplace competitions!
+              </p>
+              <ShippingAddressForm />
+            </div>
           )}
             </div>
           </div>
