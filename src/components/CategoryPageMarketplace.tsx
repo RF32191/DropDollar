@@ -672,6 +672,18 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const playersWithScores = participants.filter(p => p.score !== null && p.completed_at !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
               
+              // Debug winner detection
+              if (listing.session_status === 'completed') {
+                console.log(`🏆 Winner Check for "${listing.title}":`, {
+                  isWinner,
+                  myUserId: user?.id,
+                  winner_user_id: listing.winner_user_id,
+                  winner_username: listing.winner_username,
+                  listing_status: listing.status,
+                  showClaimButton: isWinner && listing.status !== 'address_provided'
+                });
+              }
+              
               // Show scoreboard to ANYONE if there are scores (not just participants!)
               const canSeeScoreboard = playersWithScores.length > 0;
               

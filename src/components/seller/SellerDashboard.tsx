@@ -362,36 +362,48 @@ export default function SellerDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {listings.map((listing) => (
-                  <div
-                    key={listing.id}
-                    className="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-700 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-white font-bold text-lg">{listing.title}</h3>
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="text-gray-400">Price: ${listing.price}</span>
-                          <span className="text-gray-400">
-                            Players: {listing.participants_count}/{listing.max_participants}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            listing.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                            listing.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
-                            'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {listing.status}
-                          </span>
+                {listings.map((listing) => {
+                  console.log('📦 Seller Listing:', listing);
+                  return (
+                    <div
+                      key={listing.id}
+                      className="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-700 transition-colors border border-gray-600"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-white font-bold text-lg mb-2">{listing.title}</h3>
+                          <p className="text-gray-400 text-sm line-clamp-2">{listing.description}</p>
                         </div>
+                        {listing.image_urls && listing.image_urls[0] && (
+                          <img 
+                            src={listing.image_urls[0]} 
+                            alt={listing.title}
+                            className="w-20 h-20 object-cover rounded-lg ml-4"
+                          />
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-gray-400 text-xs">
+                      <div className="flex items-center gap-4 text-sm flex-wrap">
+                        <span className="text-yellow-400 font-bold">
+                          💰 {listing.base_price} tokens
+                        </span>
+                        <span className="text-gray-400">
+                          🎮 {listing.game_type}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          listing.status === 'active' || listing.status === 'waiting' ? 'bg-green-500/20 text-green-400' :
+                          listing.status === 'completed' || listing.status === 'winner_selected' ? 'bg-blue-500/20 text-blue-400' :
+                          listing.status === 'address_provided' ? 'bg-purple-500/20 text-purple-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {listing.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                        <span className="text-gray-400 text-xs ml-auto">
                           {new Date(listing.created_at).toLocaleDateString()}
-                        </p>
+                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
