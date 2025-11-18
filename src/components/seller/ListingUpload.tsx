@@ -57,13 +57,14 @@ export default function ListingUpload({
   
   const categories = ListingManagementService.getCategories();
   const gameTypes = [
-    { id: 'multi-target', name: 'Multi-Target Reaction', emoji: '🎯', description: 'Click the correct target quickly' },
-    { id: 'falling-objects', name: 'Falling Object Catch', emoji: '🏀', description: 'Catch objects with perfect timing' },
-    { id: 'color-sequence', name: 'Color Sequence Memory', emoji: '🌈', description: 'Remember color sequences' },
-    { id: 'quick-click', name: 'Quick Click Challenge', emoji: '⚡', description: 'Click as fast as you can' },
-    { id: 'pattern-match', name: 'Pattern Matching', emoji: '🧩', description: 'Match patterns quickly' },
-    { id: 'reflex-test', name: 'Reflex Test', emoji: '⏱️', description: 'Test your reaction time' },
-    { id: 'laser-dodge', name: 'Laser Dodge', emoji: '🚀', description: 'Dodge lasers and obstacles' }
+    { id: 'multi-target', name: 'Multi-Target Reaction', emoji: '🎯', description: 'Click highlighted targets quickly' },
+    { id: 'falling-objects', name: 'Falling Object Catch', emoji: '🏀', description: 'Catch coins and dollars with your case' },
+    { id: 'color-sequence', name: 'Color Sequence Memory', emoji: '🌈', description: 'Remember and repeat color sequences' },
+    { id: 'laser-dodge', name: 'Laser Dodge EXTREME', emoji: '🚀', description: 'Pilot through laser grids' },
+    { id: 'quick-click', name: 'QuickClick Challenge', emoji: '⚡', description: 'Lightning-fast reaction test' },
+    { id: 'sword-parry', name: 'Sword Slash', emoji: '⚔️', description: 'Destroy red attacks with sword slashes' },
+    { id: 'blade-bounce', name: 'Blade Bounce: Mouseblade', emoji: '🗡️', description: 'Control sword with mouse movement' },
+    { id: 'cash-stack', name: 'Cash Stack Challenge', emoji: '💰', description: 'Stack coins on falling 3D cash sprites' }
   ];
 
   const handleInputChange = (field: string, value: string | number) => {
