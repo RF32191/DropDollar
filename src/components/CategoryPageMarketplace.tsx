@@ -679,14 +679,38 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               // Sellers cannot join their own listing
               const canJoinListing = !isSeller && canJoin;
 
+              // Check if this listing has a winner
+              const hasWinner = listing.winner_username && listing.session_status === 'completed';
+
               return (
-                <div key={listing.id} className={`backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-                  listing.session_status === 'active' 
+                <div key={listing.id} className={`backdrop-blur-xl rounded-3xl p-6 border transition-all duration-300 hover:scale-105 hover:shadow-2xl relative overflow-hidden ${
+                  hasWinner
+                    ? 'bg-gradient-to-br from-yellow-500/20 via-yellow-400/10 to-yellow-500/20 border-yellow-400/40 animate-pulse shadow-yellow-500/50 shadow-2xl' 
+                    : listing.session_status === 'active' 
                     ? 'bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/15' 
                     : listing.session_status === 'completed'
                     ? 'bg-green-500/10 border-green-500/20 hover:bg-green-500/15'
                     : 'bg-yellow-500/10 border-yellow-500/20 hover:bg-yellow-500/15'
                 }`}>
+                  {/* Celebration Sparkles for Winners */}
+                  {hasWinner && (
+                    <>
+                      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+                        {/* Animated sparkles */}
+                        <div className="absolute top-4 left-4 text-3xl animate-bounce" style={{animationDelay: '0s'}}>✨</div>
+                        <div className="absolute top-4 right-4 text-3xl animate-bounce" style={{animationDelay: '0.2s'}}>✨</div>
+                        <div className="absolute bottom-4 left-8 text-2xl animate-bounce" style={{animationDelay: '0.4s'}}>⭐</div>
+                        <div className="absolute bottom-4 right-8 text-2xl animate-bounce" style={{animationDelay: '0.6s'}}>⭐</div>
+                        <div className="absolute top-1/2 left-4 text-2xl animate-pulse" style={{animationDelay: '0.3s'}}>💫</div>
+                        <div className="absolute top-1/2 right-4 text-2xl animate-pulse" style={{animationDelay: '0.5s'}}>💫</div>
+                        {/* Trophy emojis */}
+                        <div className="absolute top-8 left-1/4 text-xl animate-bounce" style={{animationDelay: '0.1s'}}>🏆</div>
+                        <div className="absolute top-8 right-1/4 text-xl animate-bounce" style={{animationDelay: '0.7s'}}>🏆</div>
+                      </div>
+                      {/* Glowing border effect */}
+                      <div className="absolute inset-0 rounded-3xl border-4 border-yellow-400/60 animate-pulse"></div>
+                    </>
+                  )}
                   {/* Product Image or Category Icon */}
                   <div className="mb-4 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 border-2 border-gray-700/50">
                     {listing.image_urls && Array.isArray(listing.image_urls) && listing.image_urls.length > 0 ? (
@@ -742,15 +766,26 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     <p className="text-xs text-gray-400">Seller: <span className="text-white font-semibold">{listing.seller_username}</span></p>
                   </div>
 
-                  {/* Winner Badge - MOST PROMINENT */}
+                  {/* Winner Badge - ULTRA PROMINENT WITH CELEBRATION */}
                   {listing.winner_username && listing.session_status === 'completed' && (
-                    <div className="mb-4 rounded-2xl p-4 bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 text-center shadow-2xl animate-pulse border-2 border-yellow-300">
-                      <div className="text-gray-900 font-black text-lg flex items-center justify-center">
-                        <TrophyIcon className="inline h-6 w-6 mr-2 text-yellow-900" />
-                        🏆 WINNER: {listing.winner_username.toUpperCase()} 🏆
-                      </div>
-                      <div className="text-xs text-gray-800 mt-1 font-semibold">
-                        Score: {listing.winner_score ? Math.round(listing.winner_score) : 'N/A'} points
+                    <div className="mb-6 rounded-3xl p-6 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 text-center shadow-2xl border-4 border-yellow-500 relative overflow-hidden transform hover:scale-105 transition-transform">
+                      {/* Animated background shimmer */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                      
+                      {/* Main Winner Text */}
+                      <div className="relative z-10">
+                        <div className="text-5xl mb-3 animate-bounce">🎉</div>
+                        <div className="text-gray-900 font-black text-2xl flex items-center justify-center mb-2">
+                          <TrophyIcon className="inline h-8 w-8 mr-2 text-yellow-900 animate-pulse" />
+                          WINNER!
+                        </div>
+                        <div className="text-3xl font-black text-gray-900 mb-3 tracking-wide">
+                          {listing.winner_username.toUpperCase()}
+                        </div>
+                        <div className="inline-block bg-gray-900 text-yellow-400 px-4 py-2 rounded-full font-bold text-lg shadow-lg">
+                          🏆 {listing.winner_score ? Math.round(listing.winner_score) : 'N/A'} Points
+                        </div>
+                        <div className="text-5xl mt-3 animate-bounce" style={{animationDelay: '0.2s'}}>🎊</div>
                       </div>
                     </div>
                   )}

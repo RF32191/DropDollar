@@ -193,6 +193,20 @@ body:has([data-location-banner="true"]) .location-banner-spacer {
   animation: gradient 3s ease infinite;
 }
 
+/* Shimmer animation for winner celebration */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
 /* Flickering animations for page themes */
 @keyframes hotRedFlicker {
   0%, 100% {
