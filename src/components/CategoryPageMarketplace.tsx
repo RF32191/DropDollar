@@ -135,6 +135,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [deletingListing, setDeletingListing] = useState<string | null>(null);
+  const [gameWarningListing, setGameWarningListing] = useState<MarketplaceListing | null>(null);
 
   const category = categories[categoryId];
 
@@ -350,8 +351,23 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
       if (data?.success) {
         setMessage({ type: 'success', text: data.message || 'Listing deleted successfully!' });
-        await loadListings(); // Reload to show updated list
-        await refreshUserTokens(); // Refresh in case user was a participant
+        
+        // Reload listings
+        try {
+          await loadListings();
+        } catch (loadError) {
+          console.error('Error reloading listings:', loadError);
+        }
+        
+        // Refresh tokens if function exists
+        try {
+          if (refreshUserTokens && typeof refreshUserTokens === 'function') {
+            await refreshUserTokens();
+          }
+        } catch (refreshError) {
+          console.error('Error refreshing tokens:', refreshError);
+          // Don't fail the whole operation if token refresh fails
+        }
       } else {
         throw new Error(data?.message || 'Failed to delete listing');
       }
@@ -950,10 +966,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                   ) : userParticipant && !userParticipant.score ? (
                     // User already joined = already passed location check
                     <button
-                      onClick={() => {
-                        setSelectedListing(listing);
-                        setCurrentView('game');
-                      }}
+                      onClick={() => setGameWarningListing(listing)}
                       className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition-colors"
                     >
                       🎮 Play Game
@@ -1022,6 +1035,74 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               loadListings();
             }}
           />
+        )}
+
+        {/* Game Warning Modal */}
+        {gameWarningListing && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full border-4 border-yellow-500 animate-pulse-slow">
+              <div className="text-center mb-6">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h2 className="text-2xl font-bold text-yellow-400 mb-2">
+                  IMPORTANT WARNING!
+                </h2>
+              </div>
+              
+              <div className="bg-red-900/30 border border-red-600 rounded-lg p-4 mb-4">
+                <p className="text-white font-bold mb-3 text-lg">
+                  🚨 Read Carefully Before Playing:
+                </p>
+                <ul className="text-yellow-200 space-y-2 text-sm">
+                  <li className="flex items-start">
+                    <span className="mr-2">❗</span>
+                    <span>Your <strong>1 token entry fee</strong> has already been paid</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">❗</span>
+                    <span>If you <strong>close the game page or go back</strong>, you will <strong className="text-red-400">LOSE YOUR TOKEN</strong></span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">❗</span>
+                    <span>You <strong>MUST finish the game</strong> to submit your score</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="mr-2">✅</span>
+                    <span>Complete the game to qualify for the prize</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-green-900/20 border border-green-600 rounded-lg p-3 mb-6">
+                <p className="text-green-300 text-sm text-center">
+                  <strong>Playing for:</strong> {gameWarningListing.title}<br/>
+                  <strong>Prize Value:</strong> {gameWarningListing.base_price} tokens
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setGameWarningListing(null)}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-lg transition-colors"
+                >
+                  ❌ Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedListing(gameWarningListing);
+                    setCurrentView('game');
+                    setGameWarningListing(null);
+                  }}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors"
+                >
+                  ✅ I Understand, Play
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-400 text-center mt-4">
+                Make sure you have a stable connection and won't be interrupted
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Edit Listing Modal */}
