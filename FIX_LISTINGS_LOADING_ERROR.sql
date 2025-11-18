@@ -171,5 +171,6 @@ SELECT
 FROM get_all_marketplace_listings(NULL)
 GROUP BY session_status;
 
-RAISE NOTICE '✅ Listings loading function updated successfully!';
+-- Success message
+SELECT '✅ Listings loading function updated successfully!' as status;
 
