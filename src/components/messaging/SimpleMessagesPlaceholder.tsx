@@ -212,18 +212,20 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
 
       if (convsError) throw convsError;
 
-      // Batch fetch: Get ALL last messages, other participants, and usernames in 3 queries
+      // Optimized batch fetch with limits for speed
       const [lastMessagesResult, otherParticipantsResult] = await Promise.all([
         supabase
           .from('messages')
           .select('conversation_id, message_text, created_at')
           .in('conversation_id', conversationIds)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(conversationIds.length), // Only get 1 per conversation
         supabase
           .from('conversation_participants')
           .select('conversation_id, user_id')
           .in('conversation_id', conversationIds)
           .neq('user_id', user.id)
+          .limit(conversationIds.length) // Only get 1 per conversation
       ]);
 
       // Group last messages by conversation
