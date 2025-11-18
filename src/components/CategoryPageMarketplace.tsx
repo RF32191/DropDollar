@@ -936,13 +936,17 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                     </div>
                   )}
                   
-                  {isWinner ? (
+                  {isWinner && listing.status !== 'address_provided' ? (
                     <button
                       onClick={() => setShowAddressModal(listing)}
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 rounded-lg transition-all duration-300 shadow-lg"
+                      className="w-full bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 hover:from-yellow-400 hover:via-yellow-300 hover:to-yellow-400 text-gray-900 font-black py-4 rounded-lg transition-all duration-300 shadow-2xl transform hover:scale-105 animate-pulse border-4 border-yellow-600"
                     >
-                      📦 Provide Shipping Address
+                      🏆 CLAIM YOUR PRIZE! 🎉
                     </button>
+                  ) : isWinner && listing.status === 'address_provided' ? (
+                    <div className="w-full bg-green-900/30 border-2 border-green-500 text-green-300 font-bold py-3 rounded-lg text-center">
+                      ✅ Prize Claimed - Seller has your address!
+                    </div>
                   ) : isSeller && listing.session_status !== 'completed' ? (
                     <div className="w-full bg-purple-900/30 border border-purple-700 text-purple-300 font-bold py-3 rounded-lg text-center">
                       📦 Your Listing - Cannot Join Own Competition

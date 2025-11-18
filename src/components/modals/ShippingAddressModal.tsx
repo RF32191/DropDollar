@@ -42,25 +42,40 @@ export default function ShippingAddressModal({
     }
 
     try {
-      const { data, error } = await supabase.rpc('winner_provide_address', {
-        listing_id_param: listingId,
-        shipping_address_param: formData
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Step 1: Save address to user profile
+      const { error: addressError } = await supabase.rpc('update_user_shipping_address', {
+        p_user_id: user.id,
+        p_address_line1: formData.address_line1,
+        p_address_line2: formData.address_line2 || null,
+        p_city: formData.city,
+        p_state: formData.state,
+        p_postal_code: formData.postal_code,
+        p_country: formData.country || 'United States',
+        p_phone: formData.phone
       });
 
-      if (error) throw error;
+      if (addressError) throw addressError;
 
-      if (data?.success) {
-        setMessage({ type: 'success', text: 'Shipping address sent to seller!' });
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2000);
-      } else {
-        throw new Error(data?.message || 'Failed to submit address');
-      }
+      // Step 2: Send address to seller
+      const { error: notifyError } = await supabase.rpc('send_winner_address_to_seller', {
+        p_listing_id: listingId,
+        p_winner_id: user.id
+      });
+
+      if (notifyError) throw notifyError;
+
+      setMessage({ type: 'success', text: '✅ Address sent to seller! They will ship your prize soon.' });
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 2000);
     } catch (error: any) {
       console.error('Error submitting address:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to submit address' });
+      setMessage({ type: 'error', text: error.message || 'Failed to submit address. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
