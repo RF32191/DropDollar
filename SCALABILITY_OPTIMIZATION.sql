@@ -384,8 +384,8 @@ ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 CREATE OR REPLACE VIEW public.index_usage AS
 SELECT 
     schemaname,
-    tablename,
-    indexname,
+    relname as tablename,
+    indexrelname as indexname,
     idx_scan as index_scans,
     idx_tup_read as tuples_read,
     idx_tup_fetch as tuples_fetched
