@@ -221,8 +221,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_user_created
 ON public.game_audit_logs(user_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_unreviewed 
-ON public.game_audit_logs(is_reviewed, severity, created_at DESC) 
-WHERE is_reviewed = false;
+ON public.game_audit_logs(reviewed, severity, created_at DESC) 
+WHERE reviewed = false;
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_session 
 ON public.game_audit_logs(session_id) WHERE session_id IS NOT NULL;
