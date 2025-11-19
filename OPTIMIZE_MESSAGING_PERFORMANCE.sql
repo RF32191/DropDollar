@@ -19,12 +19,9 @@ WHERE is_read = false;
 CREATE INDEX IF NOT EXISTS idx_conversations_created 
 ON public.conversations(created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_conversations_updated 
-ON public.conversations(updated_at DESC);
-
 -- Step 3: Add indexes for conversation_participants
-CREATE INDEX IF NOT EXISTS idx_conv_participants_user_updated 
-ON public.conversation_participants(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conv_participants_user 
+ON public.conversation_participants(user_id, conversation_id);
 
 CREATE INDEX IF NOT EXISTS idx_conv_participants_conversation 
 ON public.conversation_participants(conversation_id, user_id);
@@ -46,61 +43,69 @@ AS $$
 BEGIN
     RETURN QUERY
     WITH user_convs AS (
-        -- Get all conversations for this user
-        SELECT 
+        -- Get all conversations for this user, ordered by most recent message
+        SELECT DISTINCT ON (cp.conversation_id)
             cp.conversation_id as conv_id,
-            c.updated_at
+            COALESCE(
+                (SELECT MAX(created_at) FROM messages WHERE conversation_id = cp.conversation_id),
+                c.created_at
+            ) as last_activity
         FROM conversation_participants cp
         JOIN conversations c ON c.id = cp.conversation_id
         WHERE cp.user_id = p_user_id
-        ORDER BY c.updated_at DESC
+        ORDER BY cp.conversation_id, last_activity DESC
+    ),
+    sorted_convs AS (
+        SELECT conv_id, last_activity
+        FROM user_convs
+        ORDER BY last_activity DESC
         LIMIT 50  -- Only load most recent 50 conversations
     ),
     other_users AS (
         -- Get the other participant in each conversation
         SELECT 
-            uc.conv_id,
+            sc.conv_id,
             cp.user_id as other_uid,
             u.username as other_uname
-        FROM user_convs uc
-        JOIN conversation_participants cp ON cp.conversation_id = uc.conv_id
+        FROM sorted_convs sc
+        JOIN conversation_participants cp ON cp.conversation_id = sc.conv_id
         JOIN users u ON u.id = cp.user_id
         WHERE cp.user_id != p_user_id
     ),
     last_messages AS (
         -- Get last message for each conversation (optimized with DISTINCT ON)
-        SELECT DISTINCT ON (uc.conv_id)
-            uc.conv_id,
+        SELECT DISTINCT ON (sc.conv_id)
+            sc.conv_id,
             m.content as last_msg,
             m.created_at as last_msg_time
-        FROM user_convs uc
-        LEFT JOIN messages m ON m.conversation_id = uc.conv_id
-        ORDER BY uc.conv_id, m.created_at DESC
+        FROM sorted_convs sc
+        LEFT JOIN messages m ON m.conversation_id = sc.conv_id
+        ORDER BY sc.conv_id, m.created_at DESC
     ),
     unread_counts AS (
         -- Get unread message counts (using indexed query)
         SELECT 
-            uc.conv_id,
+            sc.conv_id,
             COUNT(*)::BIGINT as unread
-        FROM user_convs uc
-        JOIN messages m ON m.conversation_id = uc.conv_id
+        FROM sorted_convs sc
+        JOIN messages m ON m.conversation_id = sc.conv_id
         WHERE m.sender_id != p_user_id
           AND m.is_read = false
-        GROUP BY uc.conv_id
+        GROUP BY sc.conv_id
     )
     SELECT 
-        uc.conv_id::UUID,
+        sc.conv_id::UUID,
         ou.other_uid::UUID,
         COALESCE(ou.other_uname, 'Unknown')::TEXT,
         COALESCE(lm.last_msg, '')::TEXT,
         lm.last_msg_time::TIMESTAMPTZ,
         COALESCE(uc_count.unread, 0)::BIGINT,
-        uc.updated_at::TIMESTAMPTZ
-    FROM user_convs uc
-    LEFT JOIN other_users ou ON ou.conv_id = uc.conv_id
-    LEFT JOIN last_messages lm ON lm.conv_id = uc.conv_id
-    LEFT JOIN unread_counts uc_count ON uc_count.conv_id = uc.conv_id
-    ORDER BY uc.updated_at DESC;
+        sc.last_activity::TIMESTAMPTZ
+    FROM sorted_convs sc
+    LEFT JOIN other_users ou ON ou.conv_id = sc.conv_id
+    LEFT JOIN last_messages lm ON lm.conv_id = sc.conv_id
+    LEFT JOIN unread_counts uc_count ON uc_count.conv_id = sc.conv_id
+    ORDER BY sc.last_activity DESC;
 END;
 $$;
 
