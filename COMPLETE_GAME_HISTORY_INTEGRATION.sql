@@ -343,16 +343,16 @@ INSERT INTO public.game_history (
     created_at
 )
 SELECT 
-    p.user_id,
-    c.game_type,
-    'wta',
-    p.session_id,
-    p.score,
+    p.user_id::UUID,
+    c.game_type::TEXT,
+    'wta'::TEXT,
+    p.session_id::UUID,
+    p.score::NUMERIC,
     CASE WHEN s.winner_user_id = p.user_id THEN s.winner_prize ELSE 0 END,
-    c.entry_fee,
+    c.entry_fee::NUMERIC,
     CASE WHEN s.winner_user_id = p.user_id THEN 'won' ELSE 'lost' END,
-    c.title,
-    p.completed_at
+    c.title::TEXT,
+    p.completed_at::TIMESTAMPTZ
 FROM winner_takes_all_participants p
 JOIN winner_takes_all_sessions s ON s.id = p.session_id
 JOIN winner_takes_all_configs c ON c.id = s.config_id
@@ -375,23 +375,23 @@ INSERT INTO public.game_history (
     created_at
 )
 SELECT 
-    p.user_id,
-    c.game_type,
-    '1v1',
-    p.session_id,
-    p.score,
+    p.user_id::UUID,
+    c.game_type::TEXT,
+    '1v1'::TEXT,
+    p.session_id::UUID,
+    p.score::NUMERIC,
     CASE 
         WHEN s.winner_user_id = p.user_id THEN s.winner_prize
         WHEN s.loser_user_id = p.user_id THEN s.loser_prize
         ELSE 0 
     END,
-    c.entry_fee,
+    c.entry_fee::NUMERIC,
     CASE 
         WHEN s.winner_user_id = p.user_id THEN 'won'
         ELSE 'lost'
     END,
-    '1v1 Match',
-    p.completed_at
+    '1v1 Match'::TEXT,
+    p.completed_at::TIMESTAMPTZ
 FROM one_v_one_participants p
 JOIN one_v_one_sessions s ON s.id = p.session_id
 JOIN one_v_one_configs c ON c.id = s.config_id
