@@ -298,10 +298,11 @@ END $$;
 -- ============================================
 
 -- Create unified active sessions view for all game types
+-- Note: Cast all IDs to TEXT for consistent type across UNION
 CREATE OR REPLACE VIEW public.all_active_sessions AS
 SELECT 
     'wta' as game_type,
-    s.id as session_id,
+    s.id::TEXT as session_id,
     c.title,
     s.status,
     s.participants_count,
@@ -317,7 +318,7 @@ UNION ALL
 
 SELECT 
     '1v1' as game_type,
-    s.id as session_id,
+    s.id::TEXT as session_id,
     '1v1 Match' as title,
     s.status,
     s.participants_count,
@@ -332,7 +333,7 @@ UNION ALL
 
 SELECT 
     'marketplace' as game_type,
-    ms.id as session_id,
+    ms.id::TEXT as session_id,
     ml.title,
     ms.status,
     ms.participants_count,
