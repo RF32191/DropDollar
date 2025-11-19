@@ -598,7 +598,7 @@ export default function TriumphStyleDashboard() {
           <div className="flex items-center justify-center h-64">
         <div className="text-center">
               <p className="text-lg mb-4">Please log in to view your dashboard</p>
-              <Link href="/signin" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+              <Link href="/auth/login" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
             Sign In
           </Link>
             </div>
