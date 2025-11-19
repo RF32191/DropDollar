@@ -4,8 +4,12 @@
 -- Store all game results and track token transactions
 -- ============================================
 
--- Step 1: Create game_history table (if not exists)
-CREATE TABLE IF NOT EXISTS public.game_history (
+-- Step 0: Drop existing tables if they exist (to update schema)
+DROP TABLE IF EXISTS public.game_history CASCADE;
+DROP TABLE IF EXISTS public.token_transactions CASCADE;
+
+-- Step 1: Create game_history table
+CREATE TABLE public.game_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     game_type TEXT NOT NULL,
@@ -22,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.game_history (
 );
 
 -- Step 2: Create token_transactions table
-CREATE TABLE IF NOT EXISTS public.token_transactions (
+CREATE TABLE public.token_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     transaction_type TEXT NOT NULL CHECK (transaction_type IN ('purchase', 'win', 'entry_fee', 'refund', 'seller_payout')),

@@ -4,8 +4,11 @@
 -- Ensure all marketplace participants have proper usernames displayed
 -- ============================================
 
--- Step 1: Create or replace get_all_marketplace_listings to include proper usernames
-CREATE OR REPLACE FUNCTION public.get_all_marketplace_listings()
+-- Step 0: Drop existing function to change return type
+DROP FUNCTION IF EXISTS public.get_all_marketplace_listings();
+
+-- Step 1: Create get_all_marketplace_listings to include proper usernames
+CREATE FUNCTION public.get_all_marketplace_listings()
 RETURNS TABLE (
     id UUID,
     seller_id UUID,
