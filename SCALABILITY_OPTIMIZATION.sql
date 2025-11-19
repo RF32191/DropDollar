@@ -213,8 +213,8 @@ ANALYZE public.seller_transactions;
 CREATE INDEX IF NOT EXISTS idx_admin_notifications_admin_unread 
 ON public.admin_notifications(admin_id, is_read, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_admin_notifications_type_priority 
-ON public.admin_notifications(notification_type, priority, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_notifications_type_severity 
+ON public.admin_notifications(type, severity, created_at DESC);
 
 -- game_audit_logs table
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_created 
