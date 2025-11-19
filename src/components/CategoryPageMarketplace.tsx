@@ -183,9 +183,30 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
   useEffect(() => {
     loadListings(); // Initial load with spinner
-    const interval = setInterval(() => loadListings(true), 30000); // Silent refresh every 30 seconds
-    return () => clearInterval(interval);
+    checkExpiredSessions(); // Check for expired sessions on mount
+    
+    const listingsInterval = setInterval(() => loadListings(true), 30000); // Silent refresh every 30 seconds
+    const expiryInterval = setInterval(checkExpiredSessions, 60000); // Check for expired sessions every 60 seconds
+    
+    return () => {
+      clearInterval(listingsInterval);
+      clearInterval(expiryInterval);
+    };
   }, [loadListings]);
+  
+  // Check for expired marketplace sessions and process winners
+  const checkExpiredSessions = async () => {
+    try {
+      const { error } = await supabase.rpc('check_expired_marketplace_sessions');
+      if (error) {
+        console.error('Error checking expired sessions:', error);
+      } else {
+        console.log('✅ Checked expired sessions');
+      }
+    } catch (error) {
+      console.error('Error in checkExpiredSessions:', error);
+    }
+  };
 
   // Calculate time remaining
   const calculateTimeRemaining = (listing: MarketplaceListing) => {
