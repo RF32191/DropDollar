@@ -152,8 +152,8 @@ CREATE INDEX IF NOT EXISTS idx_1v1_leaderboards_winrate
 ON public.one_v_one_leaderboards(config_id, win_rate DESC);
 
 -- Optimize 1v1 configs
-CREATE INDEX IF NOT EXISTS idx_1v1_configs_active 
-ON public.one_v_one_configs(is_active) WHERE is_active = true;
+-- Note: one_v_one_configs table has no is_active/enabled column
+-- All configs are always active, so no index needed
 
 -- Analyze 1v1 tables
 ANALYZE public.one_v_one_sessions;
