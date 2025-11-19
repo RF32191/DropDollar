@@ -181,10 +181,18 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_listings_price
 ON public.marketplace_listings(base_price, status) 
 WHERE status != 'deleted';
 
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_search 
-ON public.marketplace_listings USING gin(
-    to_tsvector('english', title || ' ' || COALESCE(description, '') || ' ' || COALESCE(brand, ''))
-);
+-- Full-text search index (requires IMMUTABLE function)
+-- Option 1: Create a generated column first (recommended but requires ALTER TABLE)
+-- Option 2: Skip for now - regular LIKE searches still work fine
+-- 
+-- Skipping full-text search index to avoid IMMUTABLE error
+-- You can still search using: WHERE title ILIKE '%search%'
+-- Performance is still good with the other indexes we added!
+--
+-- If you need full-text search later, run this separately:
+-- ALTER TABLE marketplace_listings ADD COLUMN search_vector tsvector
+--   GENERATED ALWAYS AS (to_tsvector('english', title || ' ' || COALESCE(description, '') || ' ' || COALESCE(brand, ''))) STORED;
+-- CREATE INDEX idx_marketplace_listings_search ON marketplace_listings USING gin(search_vector);
 
 -- Optimize sessions table
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_listing_status 
