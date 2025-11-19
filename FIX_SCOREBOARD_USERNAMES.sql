@@ -11,8 +11,8 @@ DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(category_filter TEXT);
 DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(category_filter TEXT, session_status TEXT);
 
--- Step 1: Create get_all_marketplace_listings to include proper usernames
-CREATE FUNCTION public.get_all_marketplace_listings()
+-- Step 1: Create get_all_marketplace_listings with optional category filter
+CREATE FUNCTION public.get_all_marketplace_listings(category_filter TEXT DEFAULT NULL)
 RETURNS TABLE (
     id UUID,
     seller_id UUID,
@@ -96,24 +96,32 @@ BEGIN
     FROM public.marketplace_listings ml
     LEFT JOIN public.marketplace_sessions ms ON ms.listing_id = ml.id
     WHERE ml.status != 'deleted'
+      AND (category_filter IS NULL OR ml.category = category_filter)
     ORDER BY ml.created_at DESC;
 END;
 $$;
 
--- Step 2: Grant execute permission
-GRANT EXECUTE ON FUNCTION public.get_all_marketplace_listings() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_all_marketplace_listings() TO anon;
+-- Step 2: Grant execute permission (both with and without parameter)
+GRANT EXECUTE ON FUNCTION public.get_all_marketplace_listings(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_all_marketplace_listings(TEXT) TO anon;
 
 -- Step 3: Verify the function returns proper usernames
 SELECT 
     '🔍 Testing Scoreboard Usernames' as info,
     ml.title,
+    ml.category,
     (participants->0->>'username') as first_player_username,
     (participants->0->>'user_id') as first_player_id,
     jsonb_array_length(participants) as total_participants
-FROM get_all_marketplace_listings() ml
+FROM get_all_marketplace_listings(NULL) ml
 WHERE jsonb_array_length(participants) > 0
 LIMIT 3;
+
+-- Test with category filter
+SELECT 
+    '🔍 Testing Electronics Filter' as info,
+    COUNT(*) as total_electronics_listings
+FROM get_all_marketplace_listings('electronics') ml;
 
 -- Success message
 SELECT '✅ Scoreboard usernames fixed! All players will now show their real usernames.' as status;
