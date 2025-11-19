@@ -293,6 +293,24 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
       if (error) throw error;
 
       if (data?.success) {
+        // Record game history
+        try {
+          await supabase.rpc('record_game_history', {
+            p_user_id: user.id,
+            p_game_type: selectedListing.game_type,
+            p_session_type: 'marketplace',
+            p_session_id: selectedListing.session_id,
+            p_score: result.score,
+            p_accuracy: result.accuracy,
+            p_tokens_spent: 1, // Entry fee
+            p_result: 'participated',
+            p_listing_title: selectedListing.title
+          });
+        } catch (historyError) {
+          console.warn('Could not record game history:', historyError);
+          // Don't fail the score save if history recording fails
+        }
+
         setMessage({ type: 'success', text: `Score saved! Score: ${result.score}` });
         setCurrentView('list');
         setSelectedListing(null);
@@ -696,6 +714,13 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
               const playersWithScores = participants.filter(p => p.score !== null && p.completed_at !== null);
               const isScoreboardVisible = expandedScoreboards[listing.id] || false;
               
+              // Ensure every player has a proper username display
+              playersWithScores.forEach(player => {
+                if (!player.username || player.username === 'Anonymous' || player.username.startsWith('Player')) {
+                  console.warn(`⚠️ Missing username for player:`, player);
+                }
+              });
+              
               // Debug winner detection
               if (listing.session_status === 'completed') {
                 console.log(`🏆 Winner Check for "${listing.title}":`, {
@@ -937,9 +962,9 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
                               >
                                 <span className="text-white font-bold">
                                   {index === 0 && '👑 '}
-                                  {participant.user_id === user?.id ? 'You' : participant.username}
+                                  {participant.user_id === user?.id ? 'You' : (participant.username || 'Player' + participant.user_id.slice(0, 4))}
                                 </span>
-                                <span className="text-green-400 font-bold">{participant.score}</span>
+                                <span className="text-green-400 font-bold">{typeof participant.score === 'number' ? participant.score.toFixed(2) : participant.score}</span>
                               </div>
                             ))}
                         </div>

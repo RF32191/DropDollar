@@ -65,6 +65,7 @@ export default function TriumphStyleDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [gameHistory, setGameHistory] = useState<GameHistoryRecord[]>([]);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0,
     practiceGames: 0,
@@ -263,6 +264,13 @@ export default function TriumphStyleDashboard() {
         })
       ]);
 
+      // Load transactions separately
+      loadTransactions(user.id).then(txns => {
+        setTransactions(txns);
+      }).catch(err => {
+        console.error('❌ [Dashboard] Transactions load failed:', err);
+      });
+
       setGameHistory(gameHistory);
       setHighScores(highScores);
       setUserStats(userStats);
@@ -297,12 +305,39 @@ export default function TriumphStyleDashboard() {
     try {
       console.log('🎮 [Dashboard] Loading game history...');
       
+      // Try new game_history table first, fall back to old method if it doesn't exist
+      try {
+        const { data: newHistory, error: newError } = await supabase
+          .from('game_history')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (!newError && newHistory && newHistory.length > 0) {
+          console.log('✅ [Dashboard] Game history loaded from new table:', newHistory.length, 'games');
+          return newHistory.map(game => ({
+            id: game.id,
+            game_type: game.game_type,
+            score: game.score,
+            accuracy: game.accuracy,
+            created_at: game.created_at,
+            is_practice: game.session_type === 'practice',
+            tokens_won: game.tokens_won || 0,
+            avg_reaction_time: game.avg_reaction_time
+          }));
+        }
+      } catch (tableError) {
+        console.log('⚠️ [Dashboard] New table not ready, using old method');
+      }
+      
+      // Fallback to old method
       const gameHistory = await SimpleGameService.getUserGameHistory(userId);
       console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
-      return gameHistory; // Return instead of setting state
+      return gameHistory;
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadGameHistory:', error);
-      return []; // Return empty array on error
+      return [];
     }
   };
 
@@ -337,6 +372,30 @@ export default function TriumphStyleDashboard() {
         totalPrizeMoney: 0,
         averageScore: 0
       };
+    }
+  };
+
+  const loadTransactions = async (userId: string) => {
+    try {
+      console.log('💰 [Dashboard] Loading token transactions...');
+      
+      const { data, error } = await supabase
+        .from('token_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ [Dashboard] Transaction load error:', error);
+        return [];
+      }
+
+      console.log('✅ [Dashboard] Transactions loaded:', data.length);
+      return data || [];
+    } catch (error) {
+      console.error('❌ [Dashboard] Error in loadTransactions:', error);
+      return [];
     }
   };
 
@@ -660,6 +719,7 @@ export default function TriumphStyleDashboard() {
                 { id: 'practice', label: 'Practice History', icon: StarIcon },
                 { id: 'competition', label: 'Competition History', icon: TrophyIcon },
                 { id: 'stats', label: 'Statistics', icon: ChartBarIcon },
+                { id: 'transactions', label: 'Token History', icon: BanknotesIcon },
                 { id: 'messages', label: 'Messages', icon: EnvelopeIcon },
                 { id: 'profile', label: 'Shipping Address', icon: HomeIcon }
               ].map((tab) => (
@@ -944,6 +1004,68 @@ export default function TriumphStyleDashboard() {
                 Save your shipping address for quick prize delivery when you win marketplace competitions!
               </p>
               <ShippingAddressForm />
+            </div>
+          )}
+
+          {activeTab === 'transactions' && (
+            <div>
+              <h2 className="text-xl font-bold mb-4 flex items-center">
+                <BanknotesIcon className="w-6 h-6 mr-2 text-green-500" />
+                Token Transaction History
+              </h2>
+              {transactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <BanknotesIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No transactions yet</p>
+                  <Link href="/games" className="text-blue-500 hover:text-blue-400 mt-2 inline-block">
+                    Start playing to earn tokens!
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {transactions.map((txn) => (
+                    <div key={txn.id} className="flex items-center justify-between bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-all duration-300">
+                      <div className="flex items-center">
+                        <div className={`p-3 rounded-full mr-4 ${
+                          txn.transaction_type === 'win' || txn.transaction_type === 'refund' 
+                            ? 'bg-green-500/20 text-green-400' 
+                            : txn.transaction_type === 'purchase' 
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {txn.transaction_type === 'win' && '🏆'}
+                          {txn.transaction_type === 'purchase' && '💳'}
+                          {txn.transaction_type === 'entry_fee' && '🎮'}
+                          {txn.transaction_type === 'refund' && '↩️'}
+                          {txn.transaction_type === 'seller_payout' && '💰'}
+                        </div>
+                        <div>
+                          <p className="text-white font-medium capitalize">{txn.transaction_type.replace('_', ' ')}</p>
+                          <p className="text-purple-200 text-sm">
+                            {txn.description || 'Token transaction'}
+                          </p>
+                          <p className="text-gray-400 text-xs mt-1">
+                            {formatDate(txn.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold text-lg ${
+                          txn.transaction_type === 'win' || txn.transaction_type === 'refund' || txn.transaction_type === 'purchase'
+                            ? 'text-green-400' 
+                            : 'text-red-400'
+                        }`}>
+                          {txn.transaction_type === 'win' || txn.transaction_type === 'refund' || txn.transaction_type === 'purchase' ? '+' : '-'}
+                          {Math.abs(txn.amount).toFixed(2)} tokens
+                        </p>
+                        <p className="text-gray-400 text-sm">
+                          Balance: {txn.balance_after.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
             </div>
