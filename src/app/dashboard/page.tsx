@@ -821,10 +821,24 @@ export default function TriumphStyleDashboard() {
 
           {activeTab === 'practice' && (
             <div>
-              <h2 className="text-xl font-bold mb-4 flex items-center">
-                <StarIcon className="w-6 h-6 mr-2 text-yellow-500" />
-                Practice History
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center">
+                  <StarIcon className="w-6 h-6 mr-2 text-yellow-500" />
+                  Practice History
+                </h2>
+                <button
+                  onClick={() => {
+                    console.log('🔄 Manual practice history refresh');
+                    loadDashboardData();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
               {gameHistory.filter(g => g.is_practice).length === 0 ? (
                 <div className="text-center py-8">
                   <StarIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
@@ -859,10 +873,24 @@ export default function TriumphStyleDashboard() {
 
           {activeTab === 'competition' && (
             <div>
-              <h2 className="text-xl font-bold mb-4 flex items-center">
-                <TrophyIcon className="w-6 h-6 mr-2 text-red-500" />
-                Competition History
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold flex items-center">
+                  <TrophyIcon className="w-6 h-6 mr-2 text-red-500" />
+                  Competition History
+                </h2>
+                <button
+                  onClick={() => {
+                    console.log('🔄 Manual competition history refresh');
+                    loadDashboardData();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
               {gameHistory.filter(g => !g.is_practice).length === 0 ? (
                 <div className="text-center py-8">
                   <TrophyIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
