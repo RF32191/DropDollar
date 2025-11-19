@@ -47,7 +47,7 @@ $$;
 -- Step 2: Create function to get per-game analytics
 CREATE OR REPLACE FUNCTION public.get_user_per_game_analytics(p_user_id UUID)
 RETURNS TABLE (
-    game_type TEXT,
+    game_type_out TEXT,
     total_plays BIGINT,
     best_score NUMERIC,
     average_score NUMERIC,
@@ -62,7 +62,7 @@ BEGIN
     RETURN QUERY
     WITH base_stats AS (
         SELECT 
-            gh.game_type,
+            gh.game_type as gt,
             COUNT(*) as plays,
             MAX(gh.score) as best,
             AVG(gh.score) as avg_score,
@@ -73,36 +73,36 @@ BEGIN
     ),
     recent_scores AS (
         SELECT 
-            gh.game_type,
+            gh.gt,
             AVG(gh.score) as recent_avg
         FROM (
             SELECT 
-                game_type,
+                game_type as gt,
                 score,
                 ROW_NUMBER() OVER (PARTITION BY game_type ORDER BY created_at DESC) as rn
             FROM public.game_history
             WHERE user_id = p_user_id
         ) gh
         WHERE gh.rn <= 5
-        GROUP BY gh.game_type
+        GROUP BY gh.gt
     ),
     old_scores AS (
         SELECT 
-            gh.game_type,
+            gh.gt,
             AVG(gh.score) as old_avg
         FROM (
             SELECT 
-                game_type,
+                game_type as gt,
                 score,
                 ROW_NUMBER() OVER (PARTITION BY game_type ORDER BY created_at DESC) as rn
             FROM public.game_history
             WHERE user_id = p_user_id
         ) gh
         WHERE gh.rn BETWEEN 6 AND 10
-        GROUP BY gh.game_type
+        GROUP BY gh.gt
     )
     SELECT 
-        bs.game_type::TEXT,
+        bs.gt::TEXT,
         bs.plays::BIGINT,
         bs.best::NUMERIC,
         bs.avg_score::NUMERIC,
@@ -116,8 +116,8 @@ BEGIN
         END as skill_trend,
         bs.last_play::TIMESTAMPTZ
     FROM base_stats bs
-    LEFT JOIN recent_scores rs ON rs.game_type = bs.game_type
-    LEFT JOIN old_scores os ON os.game_type = bs.game_type
+    LEFT JOIN recent_scores rs ON rs.gt = bs.gt
+    LEFT JOIN old_scores os ON os.gt = bs.gt
     ORDER BY bs.plays DESC, bs.best DESC;
 END;
 $$;
