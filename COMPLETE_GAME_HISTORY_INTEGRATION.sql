@@ -45,13 +45,42 @@ BEGIN
 END;
 $$;
 
--- Step 2: Create trigger on game_sessions for practice games
-DROP TRIGGER IF EXISTS trigger_save_practice_history ON public.game_sessions;
-CREATE TRIGGER trigger_save_practice_history
-    AFTER INSERT OR UPDATE ON public.game_sessions
-    FOR EACH ROW
-    WHEN (NEW.is_practice = true AND NEW.score IS NOT NULL)
-    EXECUTE FUNCTION public.auto_save_practice_to_history();
+-- Step 2: Create trigger on game_sessions for practice games (if table exists)
+-- Note: Only create if game_sessions table exists, otherwise skip
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'game_sessions') THEN
+        DROP TRIGGER IF EXISTS trigger_save_practice_history ON public.game_sessions;
+        
+        -- Check if is_practice column exists
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'game_sessions' 
+            AND column_name = 'is_practice'
+        ) THEN
+            EXECUTE 'CREATE TRIGGER trigger_save_practice_history
+                AFTER INSERT OR UPDATE ON public.game_sessions
+                FOR EACH ROW
+                WHEN (NEW.is_practice = true AND NEW.score IS NOT NULL)
+                EXECUTE FUNCTION public.auto_save_practice_to_history()';
+        ELSE
+            -- Use session_type column instead if it exists
+            IF EXISTS (
+                SELECT FROM information_schema.columns 
+                WHERE table_schema = 'public' 
+                AND table_name = 'game_sessions' 
+                AND column_name = 'session_type'
+            ) THEN
+                EXECUTE 'CREATE TRIGGER trigger_save_practice_history
+                    AFTER INSERT OR UPDATE ON public.game_sessions
+                    FOR EACH ROW
+                    WHEN (NEW.session_type = ''practice'' AND NEW.score IS NOT NULL)
+                    EXECUTE FUNCTION public.auto_save_practice_to_history()';
+            END IF;
+        END IF;
+    END IF;
+END $$;
 
 -- Step 3: Create trigger function to auto-save WTA games to history
 CREATE OR REPLACE FUNCTION public.auto_save_wta_to_history()
@@ -217,37 +246,88 @@ GRANT EXECUTE ON FUNCTION public.auto_save_practice_to_history() TO authenticate
 GRANT EXECUTE ON FUNCTION public.auto_save_wta_to_history() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.auto_save_1v1_to_history() TO authenticated;
 
--- Step 8: Backfill existing practice games (only for existing users)
-INSERT INTO public.game_history (
-    user_id,
-    game_type,
-    session_type,
-    session_id,
-    score,
-    accuracy,
-    avg_reaction_time,
-    tokens_won,
-    tokens_spent,
-    result,
-    created_at
-)
-SELECT 
-    gs.user_id,
-    gs.game_type,
-    'practice',
-    gs.id,
-    gs.score,
-    gs.accuracy,
-    gs.avg_reaction_time,
-    0,
-    0,
-    'participated',
-    gs.created_at
-FROM game_sessions gs
-JOIN public.users u ON u.id = gs.user_id
-WHERE gs.is_practice = true
-  AND gs.score IS NOT NULL
-ON CONFLICT DO NOTHING;
+-- Step 8: Backfill existing practice games (only for existing users, if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'game_sessions') THEN
+        -- Check which column to use for practice detection
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'game_sessions' 
+            AND column_name = 'is_practice'
+        ) THEN
+            -- Use is_practice column
+            INSERT INTO public.game_history (
+                user_id,
+                game_type,
+                session_type,
+                session_id,
+                score,
+                accuracy,
+                avg_reaction_time,
+                tokens_won,
+                tokens_spent,
+                result,
+                created_at
+            )
+            SELECT 
+                gs.user_id,
+                gs.game_type,
+                'practice',
+                gs.id,
+                gs.score,
+                gs.accuracy,
+                gs.avg_reaction_time,
+                0,
+                0,
+                'participated',
+                gs.created_at
+            FROM game_sessions gs
+            JOIN public.users u ON u.id = gs.user_id
+            WHERE gs.is_practice = true
+              AND gs.score IS NOT NULL
+            ON CONFLICT DO NOTHING;
+        ELSIF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'game_sessions' 
+            AND column_name = 'session_type'
+        ) THEN
+            -- Use session_type column
+            INSERT INTO public.game_history (
+                user_id,
+                game_type,
+                session_type,
+                session_id,
+                score,
+                accuracy,
+                avg_reaction_time,
+                tokens_won,
+                tokens_spent,
+                result,
+                created_at
+            )
+            SELECT 
+                gs.user_id,
+                gs.game_type,
+                'practice',
+                gs.id,
+                gs.score,
+                gs.accuracy,
+                gs.avg_reaction_time,
+                0,
+                0,
+                'participated',
+                gs.created_at
+            FROM game_sessions gs
+            JOIN public.users u ON u.id = gs.user_id
+            WHERE gs.session_type = 'practice'
+              AND gs.score IS NOT NULL
+            ON CONFLICT DO NOTHING;
+        END IF;
+    END IF;
+END $$;
 
 -- Step 9: Backfill existing WTA games (only for existing users)
 INSERT INTO public.game_history (
