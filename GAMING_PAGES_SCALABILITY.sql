@@ -89,7 +89,7 @@ ON public.wta_leaderboards(config_id, total_winnings DESC);
 
 -- Optimize WTA configs
 CREATE INDEX IF NOT EXISTS idx_wta_configs_active 
-ON public.winner_takes_all_configs(enabled) WHERE enabled = true;
+ON public.winner_takes_all_configs(is_active) WHERE is_active = true;
 
 -- Analyze WTA tables
 ANALYZE public.winner_takes_all_sessions;
@@ -153,7 +153,7 @@ ON public.one_v_one_leaderboards(config_id, win_rate DESC);
 
 -- Optimize 1v1 configs
 CREATE INDEX IF NOT EXISTS idx_1v1_configs_active 
-ON public.one_v_one_configs(enabled) WHERE enabled = true;
+ON public.one_v_one_configs(is_active) WHERE is_active = true;
 
 -- Analyze 1v1 tables
 ANALYZE public.one_v_one_sessions;
@@ -384,7 +384,7 @@ BEGIN
     FROM public.winner_takes_all_sessions s
     JOIN public.winner_takes_all_configs c ON c.id = s.config_id
     WHERE s.status IN ('waiting', 'active')
-      AND c.enabled = true
+      AND c.is_active = true
     ORDER BY s.created_at DESC
     LIMIT 50; -- Limit for performance
 END;
