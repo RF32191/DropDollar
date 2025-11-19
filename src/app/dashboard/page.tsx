@@ -358,9 +358,36 @@ export default function TriumphStyleDashboard() {
     try {
       console.log('📊 [Dashboard] Loading user stats...');
       
+      // Try new analytics function first
+      try {
+        const { data: statsData, error: statsError } = await supabase.rpc('get_user_comprehensive_stats', {
+          p_user_id: userId
+        });
+
+        if (!statsError && statsData && statsData.length > 0) {
+          const stats = statsData[0];
+          console.log('✅ [Dashboard] User stats loaded from analytics:', stats);
+          return {
+            totalGames: Number(stats.total_games) || 0,
+            practiceGames: Number(stats.practice_games) || 0,
+            competitionGames: Number(stats.competition_games) || 0,
+            totalTokensWagered: Number(stats.total_tokens_wagered) || 0,
+            totalTokensWon: Number(stats.total_tokens_won) || 0,
+            totalPrizeMoney: Number(stats.total_prize_money) || 0,
+            averageScore: Number(stats.average_score) || 0,
+            winRate: Number(stats.win_rate) || 0,
+            gamesWon: Number(stats.games_won) || 0,
+            gamesLost: Number(stats.games_lost) || 0
+          };
+        }
+      } catch (analyticsError) {
+        console.log('⚠️ [Dashboard] Analytics function not ready, using fallback');
+      }
+      
+      // Fallback to old method
       const userStats = await SimpleGameService.getUserGameStats(userId);
       console.log('✅ [Dashboard] User stats loaded:', userStats);
-      return userStats; // Return instead of setting state
+      return userStats;
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadUserStats:', error);
       return {
