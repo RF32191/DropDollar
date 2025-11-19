@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS public.game_history_archive (
 );
 
 -- Add partitioning constraint for future partitioning
-CREATE INDEX IF NOT EXISTS idx_game_history_created_month ON public.game_history(date_trunc('month', created_at));
+-- Note: date_trunc() index removed (not IMMUTABLE in index context)
+-- Using created_at index instead - still fast for month-based queries
 
 -- Optimize common query patterns
 CREATE INDEX IF NOT EXISTS idx_game_history_user_session ON public.game_history(user_id, session_type, created_at DESC);
@@ -118,8 +119,8 @@ ANALYZE public.game_history;
 CREATE INDEX IF NOT EXISTS idx_token_transactions_user_type_created 
 ON public.token_transactions(user_id, transaction_type, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_token_transactions_created_month 
-ON public.token_transactions(date_trunc('month', created_at));
+-- Note: date_trunc() index removed (not IMMUTABLE in index context)
+-- Using created_at DESC index instead - still fast for time-based queries
 
 CREATE INDEX IF NOT EXISTS idx_token_transactions_related 
 ON public.token_transactions(related_game_id) WHERE related_game_id IS NOT NULL;
