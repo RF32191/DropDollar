@@ -52,17 +52,17 @@
 -- STEP 2: OPTIMIZE USERS TABLE
 -- ============================================
 
+-- Enable trigram extension FIRST (required for trigram indexes)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- Add composite indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_users_email_active ON public.users(email) WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_tokens ON public.users(id, purchased_tokens, won_tokens);
 CREATE INDEX IF NOT EXISTS idx_users_created ON public.users(created_at DESC);
 
--- Optimize username lookups (for scoreboards)
+-- Optimize username lookups (for scoreboards) - requires pg_trgm extension
 CREATE INDEX IF NOT EXISTS idx_users_username_trgm ON public.users USING gin(username gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_users_email_trgm ON public.users USING gin(email gin_trgm_ops);
-
--- Enable trigram extension for fast text search
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Analyze users table
 ANALYZE public.users;
