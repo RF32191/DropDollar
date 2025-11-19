@@ -168,7 +168,7 @@ GRANT SELECT ON public.token_transactions TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_game_history TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_token_transaction TO authenticated;
 
--- Step 8: Backfill game history from marketplace participants
+-- Step 8: Backfill game history from marketplace participants (only for existing users)
 INSERT INTO public.game_history (
     user_id,
     game_type,
@@ -201,6 +201,7 @@ SELECT
 FROM marketplace_participants mp
 JOIN marketplace_sessions ms ON ms.id = mp.session_id
 JOIN marketplace_listings ml ON ml.id = ms.listing_id
+JOIN public.users u ON u.id = mp.user_id  -- Only backfill for users that still exist
 WHERE mp.score IS NOT NULL
 ON CONFLICT DO NOTHING;
 
