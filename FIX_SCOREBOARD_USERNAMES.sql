@@ -4,8 +4,12 @@
 -- Ensure all marketplace participants have proper usernames displayed
 -- ============================================
 
--- Step 0: Drop existing function to change return type
+-- Step 0: Drop ALL versions of existing function (including overloaded versions)
 DROP FUNCTION IF EXISTS public.get_all_marketplace_listings();
+DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(TEXT);
+DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(category_filter TEXT);
+DROP FUNCTION IF EXISTS public.get_all_marketplace_listings(category_filter TEXT, session_status TEXT);
 
 -- Step 1: Create get_all_marketplace_listings to include proper usernames
 CREATE FUNCTION public.get_all_marketplace_listings()
