@@ -140,9 +140,12 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   const category = categories[categoryId];
 
   // Load marketplace listings
-  const loadListings = useCallback(async () => {
+  const loadListings = useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      // Only show loading spinner on initial load, not on auto-refresh
+      if (!silent) {
+        setIsLoading(true);
+      }
       const { data, error } = await supabase.rpc('get_all_marketplace_listings', {
         category_filter: categoryId
       });
@@ -179,8 +182,8 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
   }, [categoryId]);
 
   useEffect(() => {
-    loadListings();
-    const interval = setInterval(loadListings, 30000); // Refresh every 30 seconds
+    loadListings(); // Initial load with spinner
+    const interval = setInterval(() => loadListings(true), 30000); // Silent refresh every 30 seconds
     return () => clearInterval(interval);
   }, [loadListings]);
 
@@ -245,7 +248,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
         
         // Refresh tokens and listings
         await refreshUserTokens();
-        await loadListings();
+        await loadListings(true); // Silent to prevent scroll jump
       } else {
         throw new Error(data?.message || 'Failed to join');
       }
@@ -272,7 +275,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
         setMessage({ type: 'success', text: `Score saved! Score: ${result.score}` });
         setCurrentView('list');
         setSelectedListing(null);
-        await loadListings();
+        await loadListings(true); // Silent to prevent scroll jump
       } else {
         throw new Error(data?.message || 'Failed to save score');
       }
@@ -354,7 +357,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
         
         // Reload listings
         try {
-          await loadListings();
+          await loadListings(true); // Silent to prevent scroll jump
         } catch (loadError) {
           console.error('Error reloading listings:', loadError);
         }
@@ -451,7 +454,7 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
 
       setMessage({ type: 'success', text: 'Listing updated successfully!' });
       setEditingListing(null);
-      await loadListings();
+      await loadListings(true); // Silent to prevent scroll jump
     } catch (error: any) {
       console.error('Error updating listing:', error);
       setMessage({ type: 'error', text: error.message || 'Failed to update listing' });
