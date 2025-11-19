@@ -283,9 +283,11 @@ BEGIN
         CREATE INDEX IF NOT EXISTS idx_hot_sell_sessions_status_created 
         ON public.hot_sell_sessions(status, created_at DESC);
         
-        CREATE INDEX IF NOT EXISTS idx_hot_sell_sessions_timer 
-        ON public.hot_sell_sessions(timer_started_at, status) 
-        WHERE timer_started_at IS NOT NULL;
+        -- Note: hot_sell_sessions has no timer_started_at column
+        -- Hot Sell uses created_at + completed_at instead
+        CREATE INDEX IF NOT EXISTS idx_hot_sell_sessions_completed 
+        ON public.hot_sell_sessions(completed_at) 
+        WHERE completed_at IS NOT NULL;
         
         RAISE NOTICE '✅ Hot Sell indexes created';
     END IF;
