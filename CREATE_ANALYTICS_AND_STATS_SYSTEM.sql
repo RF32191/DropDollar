@@ -60,54 +60,65 @@ SECURITY DEFINER
 AS $$
 BEGIN
     RETURN QUERY
-    WITH game_stats AS (
+    WITH base_stats AS (
         SELECT 
             gh.game_type,
             COUNT(*) as plays,
             MAX(gh.score) as best,
             AVG(gh.score) as avg_score,
-            MAX(gh.created_at) as last_play,
-            -- Calculate recent average (last 5 games)
-            (
-                SELECT AVG(score) 
-                FROM public.game_history gh2 
-                WHERE gh2.user_id = p_user_id 
-                  AND gh2.game_type = gh.game_type
-                ORDER BY gh2.created_at DESC
-                LIMIT 5
-            ) as recent_avg,
-            -- Calculate old average (games 6-10)
-            (
-                SELECT AVG(score) 
-                FROM (
-                    SELECT score 
-                    FROM public.game_history gh3 
-                    WHERE gh3.user_id = p_user_id 
-                      AND gh3.game_type = gh.game_type
-                    ORDER BY gh3.created_at DESC
-                    OFFSET 5 LIMIT 5
-                ) old_games
-            ) as old_avg
+            MAX(gh.created_at) as last_play
         FROM public.game_history gh
         WHERE gh.user_id = p_user_id
         GROUP BY gh.game_type
+    ),
+    recent_scores AS (
+        SELECT 
+            gh.game_type,
+            AVG(gh.score) as recent_avg
+        FROM (
+            SELECT 
+                game_type,
+                score,
+                ROW_NUMBER() OVER (PARTITION BY game_type ORDER BY created_at DESC) as rn
+            FROM public.game_history
+            WHERE user_id = p_user_id
+        ) gh
+        WHERE gh.rn <= 5
+        GROUP BY gh.game_type
+    ),
+    old_scores AS (
+        SELECT 
+            gh.game_type,
+            AVG(gh.score) as old_avg
+        FROM (
+            SELECT 
+                game_type,
+                score,
+                ROW_NUMBER() OVER (PARTITION BY game_type ORDER BY created_at DESC) as rn
+            FROM public.game_history
+            WHERE user_id = p_user_id
+        ) gh
+        WHERE gh.rn BETWEEN 6 AND 10
+        GROUP BY gh.game_type
     )
     SELECT 
-        gs.game_type::TEXT,
-        gs.plays::BIGINT,
-        gs.best::NUMERIC,
-        gs.avg_score::NUMERIC,
-        COALESCE(gs.recent_avg, gs.avg_score)::NUMERIC,
+        bs.game_type::TEXT,
+        bs.plays::BIGINT,
+        bs.best::NUMERIC,
+        bs.avg_score::NUMERIC,
+        COALESCE(rs.recent_avg, bs.avg_score)::NUMERIC,
         CASE 
-            WHEN gs.old_avg IS NULL THEN '📈 New Game'
-            WHEN gs.recent_avg > gs.old_avg * 1.1 THEN '🚀 Improving!'
-            WHEN gs.recent_avg > gs.old_avg THEN '📈 Getting Better'
-            WHEN gs.recent_avg >= gs.old_avg * 0.95 THEN '➡️ Steady'
+            WHEN os.old_avg IS NULL THEN '📈 New Game'
+            WHEN rs.recent_avg > os.old_avg * 1.1 THEN '🚀 Improving!'
+            WHEN rs.recent_avg > os.old_avg THEN '📈 Getting Better'
+            WHEN rs.recent_avg >= os.old_avg * 0.95 THEN '➡️ Steady'
             ELSE '📉 Practice More'
         END as skill_trend,
-        gs.last_play::TIMESTAMPTZ
-    FROM game_stats gs
-    ORDER BY gs.plays DESC, gs.best DESC;
+        bs.last_play::TIMESTAMPTZ
+    FROM base_stats bs
+    LEFT JOIN recent_scores rs ON rs.game_type = bs.game_type
+    LEFT JOIN old_scores os ON os.game_type = bs.game_type
+    ORDER BY bs.plays DESC, bs.best DESC;
 END;
 $$;
 
