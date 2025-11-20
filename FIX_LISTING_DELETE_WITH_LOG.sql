@@ -232,37 +232,8 @@ BEGIN
     -- Delete the listing
     DELETE FROM public.marketplace_listings WHERE id = p_listing_id;
 
-    -- Note: Admin notification skipped due to type constraints
-    -- The deletion is logged in deleted_listings_log table instead
-    
-    -- Notify seller
-    IF v_seller_id IS NOT NULL THEN
-        INSERT INTO public.admin_messages (user_id, message_type, title, message, metadata, created_at)
-        VALUES (
-            v_seller_id, 
-            'listing_removed', 
-            '⚠️ Listing Removed by Admin',
-            format('Your listing "%s" has been removed.
-
-📦 Listing: %s
-🗓️ Removed: %s
-%s
-
-The listing has been archived. Contact support if this was done in error.', 
-                v_listing_title, 
-                v_listing_title, 
-                TO_CHAR(NOW(), 'Mon DD at HH24:MI'),
-                CASE WHEN p_reason IS NOT NULL THEN '📋 Reason: ' || p_reason 
-                     ELSE '📋 No specific reason provided.' END
-            ),
-            jsonb_build_object(
-                'listing_id', p_listing_id, 
-                'action', 'admin_deletion', 
-                'reason', p_reason
-            ),
-            NOW()
-        );
-    END IF;
+    -- Note: Notifications skipped - deletion is fully logged in deleted_listings_log
+    -- Admins can view the log to see all deletions with full context
 
     v_result := json_build_object(
         'success', true, 
