@@ -93,8 +93,8 @@ export default function AdminDashboard() {
     try {
       setIsLoading(true);
       
-      // Check if user email is rf32191@gmail.com
-      const isMasterAdmin = user?.email === 'rf32191@gmail.com';
+      // Check if user email is rf32191@gmail.com or rf32191@yahoo.com
+      const isMasterAdmin = user?.email === 'rf32191@gmail.com' || user?.email === 'rf32191@yahoo.com';
       
       if (isMasterAdmin) {
         // Master admin - set permissions manually
