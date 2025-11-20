@@ -53,6 +53,17 @@ export default function StripeConnect() {
 
   const loadWalletData = async () => {
     try {
+      // Try new dual wallet RPC first
+      const { data: dualWalletData, error: dualWalletError } = await supabase
+        .rpc('get_seller_wallet');
+
+      if (!dualWalletError && dualWalletData) {
+        console.log('✅ [StripeConnect] Dual wallet loaded:', dualWalletData);
+        setWalletData(dualWalletData);
+        return;
+      }
+
+      // Fallback to old method if new RPC doesn't exist
       const { data, error } = await supabase
         .rpc('get_seller_stripe_status');
 
@@ -208,17 +219,96 @@ export default function StripeConnect() {
 
   return (
     <div className="space-y-6">
-      {/* Wallet Balance */}
-      <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl p-6 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white/80 text-sm font-medium">Seller Wallet Balance</p>
-            <p className="text-4xl font-bold text-white mt-2">
-              ${walletData.wallet_balance.toFixed(2)}
-            </p>
-            <p className="text-white/60 text-xs mt-1">85% of your listing sales</p>
+      {/* Dual Wallet System - Pending + Released */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Pending Wallet */}
+        <div className="bg-gradient-to-br from-yellow-600 to-orange-600 rounded-xl p-6 shadow-xl border-2 border-yellow-400/30">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="animate-pulse w-3 h-3 bg-yellow-300 rounded-full"></div>
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wide">Pending Wallet</p>
+              </div>
+              <p className="text-white/60 text-xs mt-1">⏳ Awaiting tracking submission</p>
+            </div>
+            <svg className="w-12 h-12 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
-          <BanknotesIcon className="w-16 h-16 text-white/30" />
+          <div>
+            <p className="text-4xl font-bold text-white">
+              ${(walletData.pending_balance || 0).toFixed(2)}
+            </p>
+            <p className="text-white/70 text-sm mt-2">
+              {walletData.total_pending_sales || 0} sale{walletData.total_pending_sales !== 1 ? 's' : ''} pending
+            </p>
+            <div className="mt-3 bg-yellow-500/20 rounded-lg px-3 py-2">
+              <p className="text-white/80 text-xs">
+                💡 Submit tracking numbers to release funds
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Released Wallet */}
+        <div className="bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl p-6 shadow-xl border-2 border-green-400/30">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-300 rounded-full"></div>
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wide">Released Wallet</p>
+              </div>
+              <p className="text-white/60 text-xs mt-1">✅ Ready to withdraw</p>
+            </div>
+            <BanknotesIcon className="w-12 h-12 text-white/20" />
+          </div>
+          <div>
+            <p className="text-4xl font-bold text-white">
+              ${(walletData.released_balance || walletData.wallet_balance || 0).toFixed(2)}
+            </p>
+            <p className="text-white/70 text-sm mt-2">
+              {walletData.total_released_sales || 0} sale{walletData.total_released_sales !== 1 ? 's' : ''} released
+            </p>
+            <p className="text-white/60 text-xs mt-3">
+              85% of your listing sales
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Lifetime Stats */}
+      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Lifetime Stats
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <p className="text-gray-400 text-xs uppercase">Total Earned</p>
+            <p className="text-white text-2xl font-bold mt-1">
+              ${(walletData.total_earned || walletData.wallet_balance || 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <p className="text-gray-400 text-xs uppercase">Total Withdrawn</p>
+            <p className="text-white text-2xl font-bold mt-1">
+              ${(walletData.total_withdrawn || 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <p className="text-gray-400 text-xs uppercase">Pending Sales</p>
+            <p className="text-white text-2xl font-bold mt-1">
+              {walletData.total_pending_sales || 0}
+            </p>
+          </div>
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <p className="text-gray-400 text-xs uppercase">Released Sales</p>
+            <p className="text-white text-2xl font-bold mt-1">
+              {walletData.total_released_sales || 0}
+            </p>
+          </div>
         </div>
       </div>
 
