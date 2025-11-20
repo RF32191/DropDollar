@@ -104,8 +104,9 @@ CREATE POLICY "Users can view shipping for their sessions"
     USING (
         EXISTS (
             SELECT 1 FROM public.marketplace_sessions ms
+            JOIN public.marketplace_listings ml ON ml.id = ms.listing_id
             WHERE ms.id = session_id
-            AND (ms.winner_user_id = auth.uid() OR ms.seller_id = auth.uid())
+            AND (ms.winner_user_id = auth.uid() OR ml.seller_id = auth.uid())
         )
     );
 
