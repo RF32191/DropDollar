@@ -268,7 +268,7 @@ export default function SellPage() {
           description: '',
           category: 'electronics',
           base_price: '',
-          game_type: 'crypto_match',
+          game_type: 'multi-target', // Default to first real game
           shipping_included: true,
           seller_contact: '',
           condition: 'new',
