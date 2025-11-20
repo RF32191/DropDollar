@@ -65,14 +65,14 @@ export default function WebLayout({ children, currentPage }: WebLayoutProps) {
       id: 'signin',
       label: 'Sign In',
       shortLabel: 'Sign In',
-      href: '/signin',
+      href: '/auth/login',
       icon: <User className="h-4 w-4" />
     },
     {
       id: 'signup',
       label: 'Sign Up',
       shortLabel: 'Sign Up',
-      href: '/signup',
+      href: '/auth/register',
       icon: <User className="h-4 w-4" />
     },
     {
