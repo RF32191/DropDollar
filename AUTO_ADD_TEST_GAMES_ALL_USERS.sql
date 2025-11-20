@@ -37,32 +37,40 @@ BEGIN
         LIMIT 5
     LOOP
         BEGIN
-            -- Add a practice game
-            INSERT INTO public.game_history (
-                user_id,
-                game_type,
-                session_type,
-                session_id,
-                score,
-                accuracy,
-                avg_reaction_time,
-                tokens_won,
-                tokens_spent,
-                result,
-                created_at
-            ) VALUES (
-                v_user.id,
-                'crypto_match',
-                'practice',
-                gen_random_uuid(),
-                FLOOR(RANDOM() * 200 + 50)::NUMERIC, -- Random score 50-250
-                FLOOR(RANDOM() * 30 + 70)::NUMERIC,   -- Random accuracy 70-100
-                FLOOR(RANDOM() * 300 + 100)::INTEGER,  -- Random reaction time
-                0,
-                0,
-                'participated',
-                NOW()
-            );
+            -- Add a practice game with a REAL game type
+            DECLARE
+                v_game_types TEXT[] := ARRAY['multi-target', 'falling-objects', 'color-sequence', 'laser-dodge', 'quick-click', 'sword-parry', 'blade-bounce', 'cash-stack'];
+                v_random_game TEXT;
+            BEGIN
+                -- Pick a random real game
+                v_random_game := v_game_types[FLOOR(RANDOM() * array_length(v_game_types, 1) + 1)];
+                
+                INSERT INTO public.game_history (
+                    user_id,
+                    game_type,
+                    session_type,
+                    session_id,
+                    score,
+                    accuracy,
+                    avg_reaction_time,
+                    tokens_won,
+                    tokens_spent,
+                    result,
+                    created_at
+                ) VALUES (
+                    v_user.id,
+                    v_random_game, -- Use real game type
+                    'practice',
+                    gen_random_uuid(),
+                    FLOOR(RANDOM() * 200 + 50)::NUMERIC, -- Random score 50-250
+                    FLOOR(RANDOM() * 30 + 70)::NUMERIC,   -- Random accuracy 70-100
+                    FLOOR(RANDOM() * 300 + 100)::INTEGER,  -- Random reaction time
+                    0,
+                    0,
+                    'participated',
+                    NOW()
+                );
+            END;
             
             v_games_added := v_games_added + 1;
             RAISE NOTICE '✅ Added test game for: %', v_user.email;

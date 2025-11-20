@@ -50,7 +50,7 @@ BEGIN
     
     RAISE NOTICE '📊 Games before: %', v_count_before;
     
-    -- Insert test game
+    -- Insert test game with a REAL game type
     INSERT INTO public.game_history (
         user_id,
         game_type,
@@ -65,7 +65,7 @@ BEGIN
         created_at
     ) VALUES (
         v_user_id,
-        'crypto_match',
+        'multi-target', -- REAL game type from games page
         'practice',
         gen_random_uuid(),
         150.5,

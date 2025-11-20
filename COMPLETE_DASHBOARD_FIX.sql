@@ -181,7 +181,7 @@ SELECT '✅ Debug function created: check_my_game_history()' as status;
 
 -- Step 6: Create function to manually add a test practice game
 CREATE OR REPLACE FUNCTION public.test_add_practice_game(
-    p_game_type TEXT DEFAULT 'crypto_match',
+    p_game_type TEXT DEFAULT 'multi-target', -- REAL game type
     p_score NUMERIC DEFAULT 100
 )
 RETURNS TABLE (
@@ -255,7 +255,8 @@ SELECT '
 🧪 TEST IT NOW:
 
 Option A - Add a test game (while signed in):
-SELECT * FROM test_add_practice_game(''crypto_match'', 150);
+SELECT * FROM test_add_practice_game(''multi-target'', 150);
+-- Or use any real game: ''falling-objects'', ''laser-dodge'', ''quick-click'', etc.
 
 Option B - Check your current games:
 SELECT * FROM check_my_game_history();

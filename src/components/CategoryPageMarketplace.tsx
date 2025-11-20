@@ -544,10 +544,10 @@ export default function CategoryPageMarketplace({ categoryId, categoryIcon }: Ca
         case 'falling_object':
         case 'falling-objects':
           return <CashStackGame {...gameProps} />;
-        case 'crypto_match':
+        case 'crypto_match': // Legacy - redirect to multi-target
           return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">
             <div className="text-center">
-              <h2 className="text-2xl mb-4">Crypto Match game coming soon!</h2>
+              <h2 className="text-2xl mb-4">⚠️ Invalid game type. Please use a valid game from the games page.</h2>
               <button 
                 onClick={() => {
                   setCurrentView('list');
