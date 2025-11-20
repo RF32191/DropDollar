@@ -247,6 +247,10 @@ GRANT EXECUTE ON FUNCTION public.admin_delete_listing(UUID, TEXT) TO authenticat
 -- ==========================================
 -- STEP 4: Fix audit logs ambiguous user_id error
 -- ==========================================
+
+-- Drop existing function first (return type changed)
+DROP FUNCTION IF EXISTS public.get_unreviewed_audit_logs();
+
 CREATE OR REPLACE FUNCTION public.get_unreviewed_audit_logs()
 RETURNS TABLE (
     id UUID,
