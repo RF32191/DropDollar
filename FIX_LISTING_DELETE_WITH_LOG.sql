@@ -230,22 +230,16 @@ BEGIN
     DELETE FROM public.marketplace_listings WHERE id = p_listing_id;
 
     -- Log action in admin notifications
-    INSERT INTO public.admin_notifications (type, title, message, severity, metadata, created_at)
+    INSERT INTO public.admin_notifications (type, title, message, severity, created_at)
     VALUES (
         'listing_deleted', 
         'Listing Deleted by Admin',
-        format('Listing "%s" by seller %s has been deleted and moved to log.%s', 
+        format('Listing "%s" by seller %s has been deleted and moved to log.%s Participants affected: %s', 
             v_listing_title, COALESCE(v_seller_username, 'Unknown'),
-            CASE WHEN p_reason IS NOT NULL THEN ' Reason: ' || p_reason ELSE '' END
+            CASE WHEN p_reason IS NOT NULL THEN ' Reason: ' || p_reason || '.' ELSE '' END,
+            v_participants_count
         ),
         'warning', 
-        jsonb_build_object(
-            'listing_id', p_listing_id, 
-            'seller_id', v_seller_id, 
-            'deleted_by', auth.uid(), 
-            'reason', p_reason, 
-            'participants_affected', v_participants_count
-        ),
         NOW()
     );
 
