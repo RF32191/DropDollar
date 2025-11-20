@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS public.deleted_listings_log (
 -- Add RLS
 ALTER TABLE public.deleted_listings_log ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Admins can view deleted listings log" ON public.deleted_listings_log;
+
 -- Policy: Only admins can view deleted listings log
 CREATE POLICY "Admins can view deleted listings log"
 ON public.deleted_listings_log
