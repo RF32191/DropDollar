@@ -303,9 +303,9 @@ export default function TriumphStyleDashboard() {
 
   const loadGameHistory = async (userId: string) => {
     try {
-      console.log('🎮 [Dashboard] Loading game history...');
+      console.log('🎮 [Dashboard] Loading game history for user:', userId);
       
-      // Try new game_history table first, fall back to old method if it doesn't exist
+      // Try new game_history table first
       try {
         const { data: newHistory, error: newError } = await supabase
           .from('game_history')
@@ -314,26 +314,53 @@ export default function TriumphStyleDashboard() {
           .order('created_at', { ascending: false })
           .limit(100);
 
-        if (!newError && newHistory && newHistory.length > 0) {
-          console.log('✅ [Dashboard] Game history loaded from new table:', newHistory.length, 'games');
-          return newHistory.map(game => ({
+        if (newError) {
+          console.error('❌ [Dashboard] Query error:', newError);
+          throw newError;
+        }
+
+        // SUCCESS - even if empty array, this means table exists and query worked
+        console.log('✅ [Dashboard] Game history loaded from new table:', newHistory?.length || 0, 'games');
+        
+        if (!newHistory || newHistory.length === 0) {
+          console.log('⚠️ [Dashboard] No games found. User needs to play a game!');
+          return [];
+        }
+
+        // Map the data, checking for both is_practice column and session_type
+        return newHistory.map(game => {
+          // Use is_practice if it exists (computed column), otherwise calculate from session_type
+          const isPractice = game.is_practice !== undefined 
+            ? game.is_practice 
+            : (game.session_type === 'practice');
+          
+          console.log('🎮 [Dashboard] Game mapped:', {
+            id: game.id,
+            type: game.game_type,
+            session_type: game.session_type,
+            is_practice: isPractice,
+            score: game.score
+          });
+          
+          return {
             id: game.id,
             game_type: game.game_type,
             score: game.score,
             accuracy: game.accuracy,
             created_at: game.created_at,
-            is_practice: game.session_type === 'practice',
+            is_practice: isPractice,
             tokens_won: game.tokens_won || 0,
             avg_reaction_time: game.avg_reaction_time
-          }));
-        }
-      } catch (tableError) {
-        console.log('⚠️ [Dashboard] New table not ready, using old method');
+          };
+        });
+      } catch (tableError: any) {
+        console.log('⚠️ [Dashboard] New table not available:', tableError.message);
+        console.log('⚠️ [Dashboard] Falling back to SimpleGameService');
       }
       
-      // Fallback to old method
+      // Fallback to old method only if table doesn't exist
       const gameHistory = await SimpleGameService.getUserGameHistory(userId);
-      console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
+      console.log('✅ [Dashboard] Game history loaded via fallback:', gameHistory.length, 'games');
       return gameHistory;
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadGameHistory:', error);
