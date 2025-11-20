@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import StripeConnect from './StripeConnect';
+import TrackingSubmissionModal from '@/components/shipping/TrackingSubmissionModal';
 import Link from 'next/link';
 import {
   BellIcon,
@@ -15,6 +16,7 @@ import {
   ExclamationCircleIcon,
   ClockIcon,
   ChartBarIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 
 interface SellerNotification {
@@ -24,6 +26,7 @@ interface SellerNotification {
   message: string;
   action_required: boolean;
   action_url: string | null;
+  metadata: any; // Store session_id, winner info, etc.
   is_read: boolean;
   created_at: string;
 }
@@ -46,6 +49,10 @@ export default function SellerDashboard() {
   const [listings, setListings] = useState<SellerListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [walletData, setWalletData] = useState<any>(null);
+  
+  // Tracking submission modal state
+  const [trackingModalOpen, setTrackingModalOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<SellerNotification | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -585,9 +592,15 @@ export default function SellerDashboard() {
                           {notification.type === 'warning' && (
                             <ExclamationCircleIcon className="w-5 h-5 text-yellow-500" />
                           )}
+                          {notification.type === 'winner_address_received' && (
+                            <TruckIcon className="w-5 h-5 text-blue-500" />
+                          )}
+                          {notification.type === 'funds_released' && (
+                            <BanknotesIcon className="w-5 h-5 text-green-500" />
+                          )}
                           <h3 className="text-white font-semibold">{notification.title}</h3>
                         </div>
-                        <p className="text-gray-300 text-sm">{notification.message}</p>
+                        <p className="text-gray-300 text-sm whitespace-pre-line">{notification.message}</p>
                         <p className="text-gray-500 text-xs mt-2">
                           {new Date(notification.created_at).toLocaleString()}
                         </p>
@@ -601,7 +614,21 @@ export default function SellerDashboard() {
                         </button>
                       )}
                     </div>
-                    {notification.action_required && notification.action_url && (
+                    
+                    {/* Action Buttons */}
+                    {notification.action_required && notification.metadata?.action_type === 'submit_tracking' && (
+                      <button
+                        onClick={() => {
+                          setSelectedNotification(notification);
+                          setTrackingModalOpen(true);
+                        }}
+                        className="mt-3 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-3 rounded-lg text-sm font-semibold flex items-center justify-center transition-all"
+                      >
+                        <TruckIcon className="w-5 h-5 mr-2" />
+                        📝 Submit Tracking Number
+                      </button>
+                    )}
+                    {notification.action_required && notification.action_url && notification.metadata?.action_type !== 'submit_tracking' && (
                       <Link
                         href={notification.action_url}
                         className="mt-3 inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
@@ -616,6 +643,25 @@ export default function SellerDashboard() {
           </div>
         )}
       </div>
+      
+      {/* Tracking Submission Modal */}
+      {selectedNotification && selectedNotification.metadata && (
+        <TrackingSubmissionModal
+          isOpen={trackingModalOpen}
+          onClose={() => {
+            setTrackingModalOpen(false);
+            setSelectedNotification(null);
+          }}
+          sessionId={selectedNotification.metadata.session_id}
+          listingTitle={selectedNotification.metadata.listing_title || 'Item'}
+          winnerUsername={selectedNotification.metadata.winner_username || 'Winner'}
+          sellerEarnings={selectedNotification.metadata.seller_earnings || 0}
+          onSuccess={() => {
+            // Reload data after successful submission
+            loadSellerData();
+          }}
+        />
+      )}
     </div>
   );
 }
