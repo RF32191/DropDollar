@@ -1,170 +1,303 @@
--- ============================================================================
--- COMPLETE DASHBOARD FIX - Drops views, policies, then converts type
--- Run this to fix dashboard game history display
--- ============================================================================
+-- ============================================
+-- COMPLETE DASHBOARD PRACTICE GAMES FIX
+-- ============================================
+-- This will make practice games appear in dashboard
+-- ============================================
 
--- Step 1: Drop ALL dependent views FIRST
-DO $$
-DECLARE
-    view_record RECORD;
-BEGIN
-    FOR view_record IN 
-        SELECT viewname 
-        FROM pg_views 
-        WHERE schemaname = 'public' 
-        AND viewname LIKE '%game%' OR viewname LIKE '%activity%'
-    LOOP
-        EXECUTE format('DROP VIEW IF EXISTS public.%I CASCADE', view_record.viewname);
-        RAISE NOTICE 'Dropped view: %', view_record.viewname;
-    END LOOP;
-    
-    RAISE NOTICE '✅ All dependent views dropped';
-END $$;
+-- Step 1: Check current state
+SELECT '
+============================================
+🔍 DIAGNOSTIC: Checking Current State
+============================================
+' as status;
 
--- Step 2: Drop ALL existing policies
-DO $$
-DECLARE
-    policy_record RECORD;
-BEGIN
-    -- Disable RLS temporarily
-    ALTER TABLE public.game_history DISABLE ROW LEVEL SECURITY;
-    
-    -- Drop all policies
-    FOR policy_record IN 
-        SELECT policyname 
-        FROM pg_policies 
-        WHERE tablename = 'game_history'
-    LOOP
-        EXECUTE format('DROP POLICY IF EXISTS %I ON public.game_history', policy_record.policyname);
-        RAISE NOTICE 'Dropped policy: %', policy_record.policyname;
-    END LOOP;
-    
-    RAISE NOTICE '✅ All policies dropped';
-END $$;
-
--- Step 3: NOW check and fix user_id column type
-DO $$
-DECLARE
-    user_id_type TEXT;
-BEGIN
-    -- Get the data type of user_id column
-    SELECT data_type INTO user_id_type
-    FROM information_schema.columns
-    WHERE table_name = 'game_history' AND column_name = 'user_id';
-    
-    RAISE NOTICE 'Current user_id type: %', user_id_type;
-    
-    -- If user_id is TEXT, convert it to UUID for consistency
-    IF user_id_type = 'text' OR user_id_type = 'character varying' THEN
-        RAISE NOTICE 'Converting user_id from TEXT to UUID...';
-        
-        -- Convert the column type (views and policies already dropped)
-        ALTER TABLE public.game_history 
-        ALTER COLUMN user_id TYPE UUID USING user_id::uuid;
-        
-        RAISE NOTICE '✅ user_id converted to UUID';
-    ELSE
-        RAISE NOTICE '✅ user_id is already UUID type';
-    END IF;
-END $$;
-
--- Step 4: Add missing columns to game_history (safe, won't error if exists)
-DO $$
-BEGIN
-    -- Add tournament_type if missing
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'game_history' AND column_name = 'tournament_type'
-    ) THEN
-        ALTER TABLE public.game_history ADD COLUMN tournament_type TEXT;
-        RAISE NOTICE '✅ Added tournament_type column';
-    END IF;
-    
-    -- Add game_session_id if missing
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'game_history' AND column_name = 'game_session_id'
-    ) THEN
-        ALTER TABLE public.game_history ADD COLUMN game_session_id UUID;
-        RAISE NOTICE '✅ Added game_session_id column';
-    END IF;
-END $$;
-
--- Step 5: Re-enable RLS
-ALTER TABLE public.game_history ENABLE ROW LEVEL SECURITY;
-
--- Step 6: Create new policies (now user_id is UUID, so no casting needed)
-CREATE POLICY "users_view_own_games" ON public.game_history 
-FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "users_insert_own_games" ON public.game_history 
-FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "service_full_access" ON public.game_history 
-FOR ALL USING (true) WITH CHECK (true);
-
--- Step 7: Recreate essential views (optional - views will be recreated by app if needed)
-CREATE OR REPLACE VIEW user_activity_stats AS
+-- Show current game_history table structure
 SELECT 
-    user_id,
-    COUNT(*) as total_games,
-    COUNT(*) FILTER (WHERE is_practice = true) as practice_games,
-    COUNT(*) FILTER (WHERE is_competition = true) as competition_games,
-    AVG(score) as avg_score,
-    MAX(score) as best_score,
-    SUM(tokens_won) as total_tokens_won
-FROM public.game_history
-GROUP BY user_id;
+    '📊 Current game_history columns:' as info,
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns 
+WHERE table_schema = 'public' 
+AND table_name = 'game_history'
+ORDER BY ordinal_position;
 
--- Step 8: Grant permissions
-GRANT ALL ON public.game_history TO authenticated, anon;
-GRANT SELECT ON user_activity_stats TO authenticated, anon;
+-- Check if there's any data
+SELECT 
+    '📊 Total records in game_history:' as info,
+    COUNT(*) as total_records,
+    COUNT(CASE WHEN session_type = 'practice' THEN 1 END) as practice_games,
+    COUNT(CASE WHEN session_type != 'practice' THEN 1 END) as competition_games
+FROM public.game_history;
 
--- Step 9: Verification
+-- Check RLS policies
+SELECT 
+    '🔒 RLS Policies on game_history:' as info,
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd,
+    qual
+FROM pg_policies 
+WHERE tablename = 'game_history';
+
+-- Step 2: Ensure RLS is properly configured
 DO $$
-DECLARE
-    game_count INTEGER;
-    practice_count INTEGER;
-    comp_count INTEGER;
-    user_id_type TEXT;
-    policy_count INTEGER;
-    view_count INTEGER;
 BEGIN
-    -- Get current type
-    SELECT data_type INTO user_id_type
-    FROM information_schema.columns
-    WHERE table_name = 'game_history' AND column_name = 'user_id';
-    
-    -- Count policies
-    SELECT COUNT(*) INTO policy_count
-    FROM pg_policies
-    WHERE tablename = 'game_history';
-    
-    -- Count views
-    SELECT COUNT(*) INTO view_count
-    FROM pg_views
-    WHERE schemaname = 'public' 
-    AND (viewname LIKE '%game%' OR viewname LIKE '%activity%');
-    
-    SELECT COUNT(*) INTO game_count FROM public.game_history;
-    SELECT COUNT(*) INTO practice_count FROM public.game_history WHERE is_practice = true;
-    SELECT COUNT(*) INTO comp_count FROM public.game_history WHERE is_competition = true;
-    
-    RAISE NOTICE '========================================';
-    RAISE NOTICE '✅ DASHBOARD FIX COMPLETE!';
-    RAISE NOTICE '========================================';
-    RAISE NOTICE '✅ user_id type: %', user_id_type;
-    RAISE NOTICE '✅ Policies created: %', policy_count;
-    RAISE NOTICE '✅ Views recreated: %', view_count;
-    RAISE NOTICE '📊 Total games: %', game_count;
-    RAISE NOTICE '🎯 Practice games: %', practice_count;
-    RAISE NOTICE '🏆 Competition games: %', comp_count;
-    RAISE NOTICE '';
-    RAISE NOTICE '✅ Type conversion complete';
-    RAISE NOTICE '✅ Views recreated';
-    RAISE NOTICE '✅ RLS policies active';
-    RAISE NOTICE '✅ Permissions granted';
-    RAISE NOTICE '✅ Dashboard ready!';
-    RAISE NOTICE '========================================';
+    -- Enable RLS
+    ALTER TABLE public.game_history ENABLE ROW LEVEL SECURITY;
+    RAISE NOTICE '✅ RLS enabled on game_history';
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE '⚠️ RLS already enabled or error: %', SQLERRM;
 END $$;
 
+-- Drop and recreate policies
+DROP POLICY IF EXISTS "Users can view own game history" ON public.game_history;
+DROP POLICY IF EXISTS "Users can insert own game history" ON public.game_history;
+DROP POLICY IF EXISTS "users_view_own_games" ON public.game_history;
+DROP POLICY IF EXISTS "users_insert_own_games" ON public.game_history;
+
+-- Create simple, working policies
+CREATE POLICY "users_view_own_games"
+    ON public.game_history
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "users_insert_own_games"
+    ON public.game_history
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+
+-- Grant permissions
+GRANT SELECT, INSERT ON public.game_history TO authenticated;
+
+SELECT '✅ RLS policies recreated' as status;
+
+-- Step 3: Create a view for easier querying (optional but helpful)
+DROP VIEW IF EXISTS public.user_practice_games CASCADE;
+CREATE OR REPLACE VIEW public.user_practice_games AS
+SELECT 
+    gh.id,
+    gh.user_id,
+    gh.game_type,
+    gh.session_type,
+    gh.score,
+    gh.accuracy,
+    gh.avg_reaction_time,
+    gh.tokens_won,
+    gh.tokens_spent,
+    gh.created_at,
+    u.username,
+    u.email
+FROM public.game_history gh
+LEFT JOIN public.users u ON u.id = gh.user_id
+WHERE gh.session_type = 'practice'
+ORDER BY gh.created_at DESC;
+
+GRANT SELECT ON public.user_practice_games TO authenticated;
+
+SELECT '✅ Practice games view created' as status;
+
+-- Step 4: Test direct query (simulates what dashboard does)
+SELECT '
+============================================
+🧪 TEST: Simulating Dashboard Query
+============================================
+' as status;
+
+-- Get first authenticated user for testing
+DO $$
+DECLARE
+    v_test_user_id UUID;
+    v_game_count INTEGER;
+BEGIN
+    -- Get first user
+    SELECT id INTO v_test_user_id 
+    FROM auth.users 
+    LIMIT 1;
+    
+    IF v_test_user_id IS NULL THEN
+        RAISE NOTICE '⚠️ No users found in auth.users for testing';
+        RETURN;
+    END IF;
+    
+    RAISE NOTICE '🧪 Testing with user: %', v_test_user_id;
+    
+    -- Simulate dashboard query
+    SELECT COUNT(*) INTO v_game_count
+    FROM public.game_history
+    WHERE user_id = v_test_user_id;
+    
+    RAISE NOTICE '📊 Games found for user: %', v_game_count;
+    
+    IF v_game_count = 0 THEN
+        RAISE NOTICE '⚠️ No games found. User needs to play a practice game first!';
+    ELSE
+        RAISE NOTICE '✅ Games exist! Dashboard should display them.';
+    END IF;
+    
+END $$;
+
+-- Step 5: Create debug function for users
+CREATE OR REPLACE FUNCTION public.check_my_game_history()
+RETURNS TABLE (
+    total_games BIGINT,
+    practice_games BIGINT,
+    competition_games BIGINT,
+    latest_game_date TIMESTAMPTZ,
+    sample_games JSONB
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_games,
+        COUNT(CASE WHEN session_type = 'practice' THEN 1 END) as practice_games,
+        COUNT(CASE WHEN session_type IN ('competition', 'wta', '1v1', 'marketplace') THEN 1 END) as competition_games,
+        MAX(created_at) as latest_game_date,
+        jsonb_agg(
+            jsonb_build_object(
+                'game_type', game_type,
+                'session_type', session_type,
+                'score', score,
+                'created_at', created_at
+            )
+            ORDER BY created_at DESC
+        ) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as sample_games
+    FROM public.game_history
+    WHERE user_id = auth.uid();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.check_my_game_history() TO authenticated;
+
+SELECT '✅ Debug function created: check_my_game_history()' as status;
+
+-- Step 6: Create function to manually add a test practice game
+CREATE OR REPLACE FUNCTION public.test_add_practice_game(
+    p_game_type TEXT DEFAULT 'crypto_match',
+    p_score NUMERIC DEFAULT 100
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT,
+    game_id UUID
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_game_id UUID;
+    v_user_id UUID;
+BEGIN
+    -- Get current user
+    v_user_id := auth.uid();
+    
+    IF v_user_id IS NULL THEN
+        RETURN QUERY SELECT false, 'Not authenticated', NULL::UUID;
+        RETURN;
+    END IF;
+    
+    -- Insert test game
+    INSERT INTO public.game_history (
+        user_id,
+        game_type,
+        session_type,
+        score,
+        accuracy,
+        avg_reaction_time,
+        tokens_won,
+        tokens_spent,
+        result,
+        created_at
+    ) VALUES (
+        v_user_id,
+        p_game_type,
+        'practice',
+        p_score,
+        95.0,
+        250,
+        0,
+        0,
+        'participated',
+        NOW()
+    ) RETURNING id INTO v_game_id;
+    
+    RETURN QUERY SELECT 
+        true, 
+        'Test practice game added! Check your dashboard.', 
+        v_game_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.test_add_practice_game(TEXT, NUMERIC) TO authenticated;
+
+SELECT '✅ Test function created: test_add_practice_game()' as status;
+
+-- Step 7: Show final status
+SELECT '
+============================================
+✅ DASHBOARD FIX COMPLETE!
+============================================
+
+🎯 WHAT WAS FIXED:
+1. RLS policies recreated (simple and working)
+2. Permissions granted to authenticated users
+3. View created for easy practice game queries
+4. Debug functions added
+
+🧪 TEST IT NOW:
+
+Option A - Add a test game (while signed in):
+SELECT * FROM test_add_practice_game(''crypto_match'', 150);
+
+Option B - Check your current games:
+SELECT * FROM check_my_game_history();
+
+Option C - Play a real practice game:
+1. Go to /games
+2. Play any game in practice mode
+3. Go to /dashboard
+4. Click "Practice History" tab
+
+🔍 IF STILL NOT WORKING:
+
+Run this to see if games are saving:
+SELECT * FROM public.game_history 
+WHERE user_id = auth.uid()
+ORDER BY created_at DESC 
+LIMIT 10;
+
+If this returns games but dashboard is empty:
+- Clear browser cache
+- Check browser console for errors
+- Make sure Vercel deployment is complete
+
+If this returns NO games:
+- Games are not saving
+- Check browser console during game play
+- Look for "Game history saved" message
+
+============================================
+' as final_instructions;
+
+-- Show sample query that dashboard uses
+SELECT '
+📋 DASHBOARD QUERY (what the frontend runs):
+
+SELECT * FROM game_history 
+WHERE user_id = ''YOUR_USER_ID''
+ORDER BY created_at DESC 
+LIMIT 100;
+
+This should return all your games.
+Practice History tab filters: WHERE session_type = ''practice''
+Competition History tab filters: WHERE session_type IN (''competition'', ''wta'', ''1v1'', ''marketplace'')
+
+' as dashboard_query_info;
