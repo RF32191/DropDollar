@@ -51,7 +51,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM public.users 
         WHERE id = auth.uid() 
-        AND email = 'rf32191@gmail.com'
+        AND email IN ('rf32191@gmail.com', 'rf32191@yahoo.com')
     ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin access required';
     END IF;
@@ -135,7 +135,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM public.users 
         WHERE id = auth.uid() 
-        AND email = 'rf32191@gmail.com'
+        AND email IN ('rf32191@gmail.com', 'rf32191@yahoo.com')
     ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin access required';
     END IF;
@@ -288,7 +288,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM public.users 
         WHERE id = auth.uid() 
-        AND email = 'rf32191@gmail.com'
+        AND email IN ('rf32191@gmail.com', 'rf32191@yahoo.com')
     ) THEN
         RAISE EXCEPTION 'Unauthorized: Admin access required';
     END IF;
