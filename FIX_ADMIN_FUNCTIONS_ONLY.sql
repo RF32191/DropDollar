@@ -324,32 +324,11 @@ BEGIN
 END $$;
 
 -- Final summary
-SELECT '
-============================================
-✅ ADMIN FUNCTIONS UPDATED
-============================================
-
-WHAT WAS DONE:
-
-1️⃣ Updated admin_get_all_listings() to use JWT email
-2️⃣ Updated admin_delete_listing() to use JWT email  
-3️⃣ Fixed audit logs "user_id ambiguous" error
-4️⃣ Tested your admin access
-
-✅ JWT Email Check: Uses auth.jwt()->>'email'
-   This is ALWAYS populated from your browser session
-   Even if the database has NULL
-
-🎯 NEXT STEPS:
-
-1. Check the NOTICES above - it shows your JWT email
-2. Refresh your admin dashboard (Cmd+Shift+R)
-3. Click "Manage Listings" - should work now!
-4. Click "Shipping Tracking" - should work now!
-
-If it still says "Unauthorized", the error will show
-your actual JWT email so we can debug further.
-
-============================================
-' as summary;
+SELECT '============================================' as "ADMIN FUNCTIONS UPDATED";
+SELECT '1. Updated admin_get_all_listings() to use JWT email' as "What was done";
+SELECT '2. Updated admin_delete_listing() to use JWT email' as " ";
+SELECT '3. Fixed audit logs user_id ambiguous error' as "  ";
+SELECT '4. Tested your admin access (check NOTICES above)' as "   ";
+SELECT '============================================' as "    ";
+SELECT 'NEXT: Refresh admin dashboard and try Manage Listings!' as "Next Steps";
 
