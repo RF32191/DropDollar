@@ -317,7 +317,7 @@ export default function SellPage() {
           <h1 className="text-3xl font-bold mb-4">Sign In Required</h1>
           <p className="text-gray-300 mb-6">Please sign in to create marketplace listings</p>
           <Link
-            href="/auth/signin"
+            href="/auth/login"
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition-colors"
           >
             Sign In
