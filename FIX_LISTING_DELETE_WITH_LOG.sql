@@ -232,10 +232,10 @@ BEGIN
     -- Delete the listing
     DELETE FROM public.marketplace_listings WHERE id = p_listing_id;
 
-    -- Log action in admin notifications
+    -- Log action in admin notifications (using 'system' type since 'listing_deleted' may not be allowed)
     INSERT INTO public.admin_notifications (type, title, message, severity, created_at)
     VALUES (
-        'listing_deleted', 
+        'system', 
         'Listing Deleted by Admin',
         format('Listing "%s" by seller %s has been deleted and moved to log.%s Participants affected: %s', 
             v_listing_title, COALESCE(v_seller_username, 'Unknown'),
