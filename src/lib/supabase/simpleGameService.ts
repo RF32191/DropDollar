@@ -70,25 +70,21 @@ export class SimpleGameService {
         console.log('⚠️ [SimpleGameService] RPC function not available, trying direct insert...');
       }
 
-      // Fallback: Direct insert (will work after emergency fix)
-      const { data, error } = await supabase
+      // Fallback: Direct insert using correct column names (session_type, tokens_spent)
+      const { data, error} = await supabase
         .from('game_history')
         .insert([{
           user_id: gameData.user_id,
           game_type: gameData.game_type,
+          session_type: gameData.is_practice ? 'practice' : 'competition', // Map to session_type
+          session_id: gameData.listing_id ? gameData.listing_id : null, // Use listing_id as session_id if available
           score: Number(gameData.score), // Ensure score is a number
           accuracy: Number(gameData.accuracy), // Ensure accuracy is a number
           avg_reaction_time: gameData.avg_reaction_time || 0,
-          game_duration: gameData.game_duration || 60,
-          is_practice: gameData.is_practice,
-          is_competition: !gameData.is_practice,
-          listing_id: gameData.listing_id || null,
-          entry_number: gameData.entry_number || null,
-          placement: gameData.placement || null,
-          prize_won: gameData.prize_won || 0,
-          tokens_wagered: gameData.tokens_wagered || 0,
-          tokens_won: gameData.tokens_won || 0,
-          metadata: gameData.metadata || null,
+          tokens_won: gameData.tokens_won || gameData.prize_won || 0,
+          tokens_spent: gameData.tokens_wagered || 0, // Map tokens_wagered to tokens_spent
+          result: gameData.placement === 1 ? 'won' : (gameData.placement ? 'lost' : 'participated'),
+          listing_title: null, // Set by marketplace games only
           created_at: new Date().toISOString()
         }])
         .select()
@@ -143,7 +139,7 @@ export class SimpleGameService {
         .from('game_history')
         .select('*')
         .eq('user_id', userId)
-        .eq('is_practice', true)
+        .eq('session_type', 'practice') // Use session_type instead of is_practice
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -167,7 +163,7 @@ export class SimpleGameService {
         .from('game_history')
         .select('*')
         .eq('user_id', userId)
-        .eq('is_competition', true)
+        .in('session_type', ['competition', 'wta', '1v1', 'marketplace']) // Use session_type for all competition types
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -199,7 +195,7 @@ export class SimpleGameService {
       // Use a more efficient query with aggregation
       const { data, error } = await supabase
         .from('game_history')
-        .select('is_practice, is_competition, score, tokens_wagered, tokens_won, prize_won')
+        .select('session_type, score, tokens_spent, tokens_won')
         .eq('user_id', userId);
 
       if (error) {
@@ -218,13 +214,13 @@ export class SimpleGameService {
 
       const games = data || [];
       const totalGames = games.length;
-      const practiceGames = games.filter(g => g.is_practice).length;
-      const competitionGames = games.filter(g => g.is_competition).length;
-      const totalTokensWagered = games.reduce((sum, g) => sum + (g.tokens_wagered || 0), 0);
-      const totalTokensWon = games.reduce((sum, g) => sum + (g.tokens_won || 0), 0);
-      const totalPrizeMoney = games.reduce((sum, g) => sum + (g.prize_won || 0), 0);
-      const averageScore = totalGames > 0 ? games.reduce((sum, g) => sum + g.score, 0) / totalGames : 0;
-      const bestScore = totalGames > 0 ? Math.max(...games.map(g => g.score)) : 0;
+      const practiceGames = games.filter((g: any) => g.session_type === 'practice').length;
+      const competitionGames = games.filter((g: any) => ['competition', 'wta', '1v1', 'marketplace'].includes(g.session_type)).length;
+      const totalTokensWagered = games.reduce((sum: number, g: any) => sum + (g.tokens_spent || 0), 0);
+      const totalTokensWon = games.reduce((sum: number, g: any) => sum + (g.tokens_won || 0), 0);
+      const totalPrizeMoney = totalTokensWon - totalTokensWagered; // Net profit
+      const averageScore = totalGames > 0 ? games.reduce((sum: number, g: any) => sum + g.score, 0) / totalGames : 0;
+      const bestScore = totalGames > 0 ? Math.max(...games.map((g: any) => g.score)) : 0;
 
       return {
         totalGames,
@@ -259,7 +255,7 @@ export class SimpleGameService {
       // Use a more efficient query - only select needed fields
       const { data, error } = await supabase
         .from('game_history')
-        .select('game_type, score, accuracy, created_at, is_practice, is_competition')
+        .select('id, user_id, game_type, score, accuracy, created_at, session_type')
         .eq('user_id', userId)
         .order('score', { ascending: false });
 
