@@ -45,6 +45,7 @@ export default function SellerDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [listings, setListings] = useState<SellerListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [walletData, setWalletData] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -63,11 +64,45 @@ export default function SellerDashboard() {
       await Promise.all([
         loadNotifications(),
         loadListings(),
+        loadWalletData(),
       ]);
     } catch (error) {
       console.error('Error loading seller data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadWalletData = async () => {
+    try {
+      // Try new dual wallet RPC
+      const { data, error } = await supabase.rpc('get_seller_wallet');
+
+      if (!error && data) {
+        console.log('✅ [SellerDashboard] Dual wallet loaded:', data);
+        setWalletData(data);
+      } else {
+        // Initialize with zeros if RPC doesn't exist yet
+        setWalletData({
+          pending_balance: 0,
+          released_balance: 0,
+          total_pending_sales: 0,
+          total_released_sales: 0,
+          total_earned: 0,
+          total_withdrawn: 0
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading wallet:', error);
+      // Initialize with zeros on error
+      setWalletData({
+        pending_balance: 0,
+        released_balance: 0,
+        total_pending_sales: 0,
+        total_released_sales: 0,
+        total_earned: 0,
+        total_withdrawn: 0
+      });
     }
   };
 
@@ -202,6 +237,99 @@ export default function SellerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Dual Wallet Display - Always Visible */}
+      {walletData && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Pending Wallet */}
+          <div className="bg-gradient-to-br from-yellow-600 to-orange-600 rounded-xl p-6 shadow-xl border-2 border-yellow-400/30">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="animate-pulse w-3 h-3 bg-yellow-300 rounded-full"></div>
+                  <p className="text-white/90 text-sm font-semibold uppercase tracking-wide">Pending Wallet</p>
+                </div>
+                <p className="text-white/60 text-xs mt-1">⏳ Awaiting tracking submission</p>
+              </div>
+              <ClockIcon className="w-12 h-12 text-white/20" />
+            </div>
+            <div>
+              <p className="text-4xl font-bold text-white">
+                ${(walletData.pending_balance || 0).toFixed(2)}
+              </p>
+              <p className="text-white/70 text-sm mt-2">
+                {walletData.total_pending_sales || 0} sale{walletData.total_pending_sales !== 1 ? 's' : ''} pending
+              </p>
+              <div className="mt-3 bg-yellow-500/20 rounded-lg px-3 py-2">
+                <p className="text-white/80 text-xs">
+                  💡 Submit tracking numbers to release funds
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Released Wallet */}
+          <div className="bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl p-6 shadow-xl border-2 border-green-400/30">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-300 rounded-full"></div>
+                  <p className="text-white/90 text-sm font-semibold uppercase tracking-wide">Released Wallet</p>
+                </div>
+                <p className="text-white/60 text-xs mt-1">✅ Ready to withdraw</p>
+              </div>
+              <BanknotesIcon className="w-12 h-12 text-white/20" />
+            </div>
+            <div>
+              <p className="text-4xl font-bold text-white">
+                ${(walletData.released_balance || 0).toFixed(2)}
+              </p>
+              <p className="text-white/70 text-sm mt-2">
+                {walletData.total_released_sales || 0} sale{walletData.total_released_sales !== 1 ? 's' : ''} released
+              </p>
+              <p className="text-white/60 text-xs mt-3">
+                85% of your listing sales
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lifetime Stats - Always Visible */}
+      {walletData && (
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <ChartBarIcon className="w-5 h-5 text-blue-400" />
+            Lifetime Stats
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-700/50 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase">Total Earned</p>
+              <p className="text-white text-2xl font-bold mt-1">
+                ${(walletData.total_earned || 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="bg-gray-700/50 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase">Total Withdrawn</p>
+              <p className="text-white text-2xl font-bold mt-1">
+                ${(walletData.total_withdrawn || 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="bg-gray-700/50 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase">Pending Sales</p>
+              <p className="text-white text-2xl font-bold mt-1">
+                {walletData.total_pending_sales || 0}
+              </p>
+            </div>
+            <div className="bg-gray-700/50 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase">Released Sales</p>
+              <p className="text-white text-2xl font-bold mt-1">
+                {walletData.total_released_sales || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex space-x-2 border-b border-gray-700">
