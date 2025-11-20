@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import ShippingTrackingPanel from '@/components/admin/ShippingTrackingPanel';
+import ListingManagementPanel from '@/components/admin/ListingManagementPanel';
 import {
   ShieldCheckIcon,
   UserGroupIcon,
@@ -15,7 +16,8 @@ import {
   ClockIcon,
   BellIcon,
   ChartBarIcon,
-  TruckIcon
+  TruckIcon,
+  ShoppingBagIcon
 } from '@heroicons/react/24/outline';
 
 interface PendingSeller {
@@ -64,7 +66,7 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState('');
   const ADMIN_PASSWORD = '321SnoopDog1994321!';
   
-  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking'>('sellers');
+  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -369,6 +371,17 @@ export default function AdminDashboard() {
               <TruckIcon className="inline h-5 w-5 mr-2" />
               Shipping Tracking
             </button>
+            <button
+              onClick={() => setActiveTab('listings')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'listings'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <ShoppingBagIcon className="inline h-5 w-5 mr-2" />
+              Manage Listings
+            </button>
           </div>
         </div>
 
@@ -527,6 +540,11 @@ export default function AdminDashboard() {
         {/* Shipping Tracking Tab */}
         {activeTab === 'tracking' && (
           <ShippingTrackingPanel />
+        )}
+        
+        {/* Listing Management Tab */}
+        {activeTab === 'listings' && (
+          <ListingManagementPanel />
         )}
       </div>
     </div>
