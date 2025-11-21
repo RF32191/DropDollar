@@ -5,17 +5,45 @@
 -- Solution: Deduct actual shipping cost from seller earnings
 -- ============================================
 
--- Step 1: Add shipping cost tracking columns
+-- Step 1: Add all required columns to marketplace_sessions
 ALTER TABLE public.marketplace_sessions 
 ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(10,2) DEFAULT 0.00;
 
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS seller_earnings NUMERIC(10,2) DEFAULT 0.00;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS winner_shipping_address JSONB;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS tracking_number TEXT;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS tracking_provider TEXT;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS tracking_url TEXT;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS tracking_submitted_at TIMESTAMPTZ;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS estimated_delivery TIMESTAMPTZ;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS funds_released BOOLEAN DEFAULT false;
+
+ALTER TABLE public.marketplace_sessions 
+ADD COLUMN IF NOT EXISTS funds_released_at TIMESTAMPTZ;
+
+-- Step 2: Add shipping cost tracking columns to seller_wallets
 ALTER TABLE public.seller_wallets 
 ADD COLUMN IF NOT EXISTS total_shipping_costs NUMERIC(10,2) DEFAULT 0.00;
 
 ALTER TABLE public.seller_wallets 
 ADD COLUMN IF NOT EXISTS total_platform_fees NUMERIC(10,2) DEFAULT 0.00;
 
--- Step 2: Update save_shippo_label_and_submit_tracking to deduct shipping cost
+-- Step 3: Update save_shippo_label_and_submit_tracking to deduct shipping cost
 DROP FUNCTION IF EXISTS public.save_shippo_label_and_submit_tracking(UUID, TEXT, TEXT, TEXT, TEXT, NUMERIC, TIMESTAMPTZ);
 
 CREATE OR REPLACE FUNCTION public.save_shippo_label_and_submit_tracking(
@@ -151,7 +179,7 @@ BEGIN
 END;
 $$;
 
--- Step 3: Update the Shippo config function to show shipping will be deducted
+-- Step 4: Update the Shippo config function to show shipping will be deducted
 DROP FUNCTION IF EXISTS public.generate_shipping_label_shippo(UUID, NUMERIC, NUMERIC, NUMERIC, NUMERIC);
 
 CREATE OR REPLACE FUNCTION public.generate_shipping_label_shippo(
@@ -246,7 +274,7 @@ BEGIN
 END;
 $$;
 
--- Step 4: Add view to see shipping cost breakdown
+-- Step 5: Add view to see shipping cost breakdown
 CREATE OR REPLACE VIEW seller_earnings_breakdown AS
 SELECT 
     sw.seller_id,
@@ -266,7 +294,7 @@ SELECT
 FROM seller_wallets sw
 JOIN users u ON u.id = sw.seller_id;
 
--- Step 5: Add function to get detailed earnings for seller
+-- Step 6: Add function to get detailed earnings for seller
 CREATE OR REPLACE FUNCTION public.get_seller_earnings_breakdown(p_seller_id UUID DEFAULT NULL)
 RETURNS TABLE (
     seller_id UUID,
@@ -306,13 +334,13 @@ BEGIN
 END;
 $$;
 
--- Step 6: Add comments explaining the cost structure
+-- Step 7: Add comments explaining the cost structure
 COMMENT ON COLUMN marketplace_sessions.seller_earnings IS 'Seller share (85% of prize pool) BEFORE shipping costs';
 COMMENT ON COLUMN marketplace_sessions.shipping_cost IS 'Actual shipping label cost (deducted from seller earnings)';
 COMMENT ON COLUMN seller_wallets.total_shipping_costs IS 'Cumulative shipping costs paid across all sales';
 COMMENT ON COLUMN seller_wallets.lifetime_earnings IS 'Net earnings AFTER shipping costs and platform fees';
 
--- Step 7: Create function to estimate shipping cost before listing
+-- Step 8: Create function to estimate shipping cost before listing
 CREATE OR REPLACE FUNCTION public.estimate_seller_net_earnings(
     p_prize_pool NUMERIC,
     p_estimated_shipping_cost NUMERIC DEFAULT 12.50  -- Average USPS Priority Mail cost
