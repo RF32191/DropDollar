@@ -5,12 +5,15 @@
 -- Solution: Deduct actual shipping cost from seller earnings
 -- ============================================
 
--- Step 1: Add shipping cost tracking column
+-- Step 1: Add shipping cost tracking columns
 ALTER TABLE public.marketplace_sessions 
 ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(10,2) DEFAULT 0.00;
 
 ALTER TABLE public.seller_wallets 
 ADD COLUMN IF NOT EXISTS total_shipping_costs NUMERIC(10,2) DEFAULT 0.00;
+
+ALTER TABLE public.seller_wallets 
+ADD COLUMN IF NOT EXISTS total_platform_fees NUMERIC(10,2) DEFAULT 0.00;
 
 -- Step 2: Update save_shippo_label_and_submit_tracking to deduct shipping cost
 DROP FUNCTION IF EXISTS public.save_shippo_label_and_submit_tracking(UUID, TEXT, TEXT, TEXT, TEXT, NUMERIC, TIMESTAMPTZ);
