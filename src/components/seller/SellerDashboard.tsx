@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import StripeConnect from './StripeConnect';
 import TrackingSubmissionModal from '@/components/shipping/TrackingSubmissionModal';
+import SellerProcessGuide from './SellerProcessGuide';
 import Link from 'next/link';
 import {
   BellIcon,
@@ -391,6 +392,9 @@ export default function SellerDashboard() {
       <div>
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Seller Process Guide */}
+            <SellerProcessGuide />
+            
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link
@@ -656,6 +660,7 @@ export default function SellerDashboard() {
           listingTitle={selectedNotification.metadata.listing_title || 'Item'}
           winnerUsername={selectedNotification.metadata.winner_username || 'Winner'}
           sellerEarnings={selectedNotification.metadata.seller_earnings || 0}
+          winnerAddress={selectedNotification.metadata.winner_address}
           onSuccess={() => {
             // Reload data after successful submission
             loadSellerData();

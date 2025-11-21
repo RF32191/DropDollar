@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { 
   XMarkIcon,
@@ -8,6 +8,7 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
+import ShippoLabelGenerator from './ShippoLabelGenerator';
 
 interface TrackingSubmissionModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface TrackingSubmissionModalProps {
   listingTitle: string;
   winnerUsername: string;
   sellerEarnings: number;
+  winnerAddress?: any;
   onSuccess?: () => void;
 }
 
@@ -26,8 +28,10 @@ export default function TrackingSubmissionModal({
   listingTitle,
   winnerUsername,
   sellerEarnings,
+  winnerAddress,
   onSuccess
 }: TrackingSubmissionModalProps) {
+  const [activeTab, setActiveTab] = useState<'generate' | 'manual'>('generate');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingProvider, setTrackingProvider] = useState('USPS');
   const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState(7);
@@ -119,10 +123,44 @@ export default function TrackingSubmissionModal({
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="border-b border-gray-700">
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setActiveTab('generate')}
+              className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+                activeTab === 'generate'
+                  ? 'text-white border-b-2 border-blue-500 bg-blue-900/20'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-center">
+                <span className="mr-2">📦</span>
+                Generate Label (Shippo)
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('manual')}
+              className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+                activeTab === 'manual'
+                  ? 'text-white border-b-2 border-blue-500 bg-blue-900/20'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center justify-center">
+                <span className="mr-2">📝</span>
+                Manual Entry
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <div className="p-6">
           {/* Item Details */}
-          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 mb-6">
             <h3 className="text-white font-semibold mb-2">📦 Item Details</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
@@ -139,6 +177,24 @@ export default function TrackingSubmissionModal({
               </div>
             </div>
           </div>
+
+          {/* Shippo Label Generator Tab */}
+          {activeTab === 'generate' && winnerAddress && (
+            <ShippoLabelGenerator
+              sessionId={sessionId}
+              listingTitle={listingTitle}
+              winnerUsername={winnerUsername}
+              winnerAddress={winnerAddress}
+              onSuccess={() => {
+                if (onSuccess) onSuccess();
+                onClose();
+              }}
+            />
+          )}
+
+          {/* Manual Entry Tab */}
+          {activeTab === 'manual' && (
+            <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Tracking Provider */}
           <div>
@@ -235,38 +291,40 @@ export default function TrackingSubmissionModal({
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !trackingNumber.trim()}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <TruckIcon className="w-5 h-5 mr-2" />
-                  Submit & Release Funds
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !trackingNumber.trim()}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <TruckIcon className="w-5 h-5 mr-2" />
+                      Submit & Release Funds
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

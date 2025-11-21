@@ -73,10 +73,10 @@ END $$;
 CREATE OR REPLACE FUNCTION public.claim_marketplace_prize(
     p_session_id UUID,
     p_address_line1 TEXT,
-    p_address_line2 TEXT DEFAULT NULL,
     p_city TEXT,
     p_state TEXT,
     p_postal_code TEXT,
+    p_address_line2 TEXT DEFAULT NULL,
     p_country TEXT DEFAULT 'USA',
     p_phone TEXT DEFAULT NULL,
     p_save_address BOOLEAN DEFAULT false
