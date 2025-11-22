@@ -621,18 +621,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const currentShipPos = shipRef.current; // Use ref for accurate real-time position
     let collision = false;
     
-      // Check RED laser collisions - Precise hitbox for center beam detection
+      // Check RED laser collisions - CONSISTENT hitbox matching laser beam width
+      // The laser visual is 16px (h-4) = ~4 units, ship is 32px (w-8 h-8) = ~8 units
+      // Center of ship must be within 2.5 units of laser center line for collision
       for (const laser of harmfulLasers) {
         if (laser.type === 'horizontal') {
-          // Precise hitbox of 3.0 - ship dies when touching red laser beam
-          if (Math.abs(laser.position - currentShipPos.y) < 3.0) {
+          // Ship dies when center is within 2.5 units of horizontal laser center line
+          if (Math.abs(laser.position - currentShipPos.y) < 2.5) {
             collision = true;
             console.log('LaserDodge: 💀 Hit by horizontal RED laser at', laser.position, 'ship at', currentShipPos.y);
             break;
           }
         } else {
-          // Precise hitbox of 3.0 - ship dies when touching red laser beam
-          if (Math.abs(laser.position - currentShipPos.x) < 3.0) {
+          // Ship dies when center is within 2.5 units of vertical laser center line
+          if (Math.abs(laser.position - currentShipPos.x) < 2.5) {
             collision = true;
             console.log('LaserDodge: 💀 Hit by vertical RED laser at', laser.position, 'ship at', currentShipPos.x);
             break;
@@ -640,11 +642,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         }
       }
 
-    // Check enemy ship collisions - precise hitbox
+    // Check enemy ship collisions - CONSISTENT hitbox
+    // Both player ship and enemy ship are 32px (w-8 h-8 and w-6 h-6 respectively)
+    // Player ship = ~8 units, Enemy ship = ~6 units
+    // Collision when centers are within 4 units (half of 8)
     if (!collision) {
       for (const enemy of enemyShipsRef.current) {
-        // Precise hitbox of 5 units for enemy collision (ship and enemy are both 8px = ~2.5 units)
-        if (Math.abs(enemy.x - currentShipPos.x) < 5 && Math.abs(enemy.y - currentShipPos.y) < 5) {
+        // PRECISE hitbox: 4 units for realistic ship-to-ship collision
+        if (Math.abs(enemy.x - currentShipPos.x) < 4 && Math.abs(enemy.y - currentShipPos.y) < 4) {
           collision = true;
           console.log('LaserDodge: 💥 Collision with enemy ship at', enemy.x, enemy.y, 'ship at', currentShipPos.x, currentShipPos.y);
           break;

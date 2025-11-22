@@ -63,6 +63,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const [totalAttacks, setTotalAttacks] = useState(0);
   const [perfectDestroys, setPerfectDestroys] = useState(0);
   const [isSlashing, setIsSlashing] = useState(false); // Track if user is actively slashing
+  const [hearts, setHearts] = useState(3); // Player has 3 hearts
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
@@ -329,10 +330,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         
         // MUCH larger protection zone - attacks must get within 12 units to hit center
         if (distanceToCenter < 12 && !attack.destroyed) {
-          // Attack hit player
-          console.log('SwordParry: Attack hit center! Game Over!');
-          endGame();
-          return false;
+          // Attack hit player - DEDUCT 1 HEART instead of instant death
+          console.log('SwordParry: Attack hit center! Losing 1 heart!');
+          setHearts(prev => {
+            const newHearts = prev - 1;
+            console.log(`❤️ Heart lost! Remaining: ${newHearts}`);
+            if (newHearts <= 0) {
+              console.log('💀 All hearts lost! Game Over!');
+              endGame();
+            }
+            return newHearts;
+          });
+          return false; // Remove this attack
         }
         
         // Keep attacks that are still moving toward center or have been destroyed
@@ -478,6 +487,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     setDestroyedAttacks(0);
     setTotalAttacks(0);
     setPerfectDestroys(0);
+    setHearts(3); // Reset hearts to 3
     setTimeLeft(60);
     timeLeftRef.current = 60; // Reset the ref too
     gameStartTimeRef.current = Date.now();
@@ -589,6 +599,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                   <p><span className="text-yellow-300 font-semibold">Perfect Slashes:</span> Random chance for bonus points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-pink-400 rounded-full mt-2 animate-pulse"></div>
+                  <p><span className="text-pink-300 font-semibold">3 Hearts:</span> You have 3 hearts! Attacks that reach center remove 1 heart</p>
+                </div>
+                <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-green-400 rounded-full mt-2 animate-pulse"></div>
                   <p><span className="text-green-300 font-semibold">Optional Targets:</span> Cut floating objects for bonus points</p>
                 </div>
@@ -652,6 +666,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             ⚔️ Sword Parry Training
           </div>
           <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-600">
+              ❤️ Hearts: {hearts}/3
+            </div>
             <div className="text-sm text-gray-600">Time: {timeLeft}s</div>
             <div className="text-sm text-gray-600">Score: {score}</div>
             <div className="text-sm text-gray-600">
@@ -842,6 +859,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         {/* Instructions */}
         <div className="mt-8 text-sm text-gray-600 space-y-2">
           <div>⚔️ <strong>Slash:</strong> Click/tap to destroy bright red glowing attacks when your sword is near them!</div>
+          <div>❤️ <strong>Hearts:</strong> You have 3 hearts! Lose 1 heart each time an attack reaches the center</div>
           <div>🎯 <strong>Perfect:</strong> Random chance for perfect slash bonus points</div>
           <div>💎 <strong>Targets:</strong> Cut optional purple targets for bonus points</div>
           <div>🛡️ <strong>Protect:</strong> Don't let red attacks reach the large blue center circle!</div>
