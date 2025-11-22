@@ -124,7 +124,68 @@ export default function ShippoLabelGenerator({
         throw new Error(`Label generation failed: ${transactionData.messages}`);
       }
 
-      // Step 5: Save to database and release funds
+      // Step 5: Validate tracking number destination matches winner address
+      console.log('🔍 Validating tracking number destination...');
+      
+      // Get validation config
+      const { data: validationConfig, error: validationConfigError } = await supabase.rpc(
+        'validate_tracking_with_shippo',
+        {
+          p_session_id: sessionId,
+          p_tracking_number: transactionData.tracking_number,
+          p_carrier: cheapestRate.provider
+        }
+      );
+
+      if (validationConfigError) {
+        console.error('Validation config error:', validationConfigError);
+        throw new Error('Failed to get tracking validation config');
+      }
+
+      // Call Shippo Tracking API to get destination address
+      const trackingResponse = await fetch(
+        `https://api.goshippo.com/tracks/${cheapestRate.provider}/${transactionData.tracking_number}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `ShippoToken ${config.shippo_api_key}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const trackingData = await trackingResponse.json();
+      console.log('📍 Tracking data received:', trackingData);
+
+      // Extract destination address from tracking
+      const destinationZip = trackingData.address_to?.zip || trackingData.address_to?.zip_code || '';
+      const destinationCity = trackingData.address_to?.city || '';
+      const destinationState = trackingData.address_to?.state || '';
+      const trackingStatus = trackingData.tracking_status?.status || 'unknown';
+
+      console.log('📍 Destination:', { city: destinationCity, state: destinationState, zip: destinationZip });
+      console.log('📍 Expected:', validationConfig.expected_address);
+
+      // Step 6: Save validation result and conditionally release funds
+      const { data: validationResult, error: validationError } = await supabase.rpc(
+        'save_tracking_validation_result',
+        {
+          p_session_id: sessionId,
+          p_tracking_number: transactionData.tracking_number,
+          p_validation_status: 'valid',
+          p_destination_zip: destinationZip,
+          p_destination_city: destinationCity,
+          p_destination_state: destinationState,
+          p_tracking_status: trackingStatus,
+          p_validation_details: trackingData
+        }
+      );
+
+      if (validationError) throw validationError;
+
+      console.log('✅ Validation result:', validationResult);
+
+      // Step 7: Save to database (tracking info already saved by validation)
       const { data: saveResult, error: saveError } = await supabase.rpc(
         'save_shippo_label_and_submit_tracking',
         {
@@ -150,13 +211,24 @@ export default function ShippoLabelGenerator({
         cost: cheapestRate.amount,
         eta: transactionData.eta,
         gross_earnings: saveResult?.gross_earnings,
-        net_earnings: saveResult?.net_earnings
+        net_earnings: saveResult?.net_earnings,
+        validated: validationResult?.validated,
+        address_matches: validationResult?.address_matches,
+        funds_released: validationResult?.funds_released
       });
 
       setStep('success');
       
       // Open label in new tab
       window.open(transactionData.label_url, '_blank');
+
+      // Show warning if address doesn't match
+      if (!validationResult?.address_matches) {
+        alert('⚠️ WARNING: Package destination does not match winner address!\n\nFunds will NOT be released until this is resolved.\n\nExpected: ' + 
+              validationResult?.expected_address + 
+              '\nActual: ' + 
+              validationResult?.actual_address);
+      }
 
       if (onSuccess) {
         setTimeout(onSuccess, 3000);
@@ -181,9 +253,42 @@ export default function ShippoLabelGenerator({
               Shipping Label Generated!
             </h3>
             <p className="text-gray-300 mb-4">
-              Your label has been created and funds have been released to your wallet.
+              {labelData.funds_released 
+                ? 'Your label has been created and funds have been released to your wallet.'
+                : 'Your label has been created. Funds will be held pending until address verification.'}
             </p>
           </div>
+
+          {/* Validation Status */}
+          {labelData.validated !== undefined && (
+            <div className={`border-2 rounded-lg p-4 mb-4 ${
+              labelData.address_matches 
+                ? 'bg-green-900/30 border-green-500' 
+                : 'bg-red-900/30 border-red-500'
+            }`}>
+              <div className="flex items-center">
+                <div className="text-3xl mr-3">
+                  {labelData.address_matches ? '✅' : '⚠️'}
+                </div>
+                <div>
+                  <div className={`font-semibold ${
+                    labelData.address_matches ? 'text-green-300' : 'text-red-300'
+                  }`}>
+                    {labelData.address_matches 
+                      ? 'Address Verified ✓' 
+                      : 'Address Mismatch Warning'}
+                  </div>
+                  <div className={`text-sm ${
+                    labelData.address_matches ? 'text-green-100' : 'text-red-100'
+                  }`}>
+                    {labelData.address_matches 
+                      ? 'Package destination matches winner\'s address. Funds have been released to your wallet!' 
+                      : 'Package destination does NOT match winner\'s address. Funds are being held pending. Please contact support.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Earnings Breakdown */}
           {labelData.gross_earnings && labelData.net_earnings && (
