@@ -49,20 +49,26 @@ BEGIN
         ELSE
             RAISE NOTICE '❌ Profile MISSING in public.users - CREATING NOW...';
             
-            -- Create missing profile
-            INSERT INTO public.users (
-                id,
-                email,
-                username,
-                created_at
-            ) VALUES (
-                v_auth_record.id,
-                v_auth_record.email,
-                SPLIT_PART(v_auth_record.email, '@', 1),
-                v_auth_record.created_at
-            );
-            
-            RAISE NOTICE '✅ Profile created!';
+            -- Create missing profile (handle email conflict)
+            BEGIN
+                INSERT INTO public.users (
+                    id,
+                    email,
+                    username,
+                    created_at
+                ) VALUES (
+                    v_auth_record.id,
+                    v_auth_record.email,
+                    SPLIT_PART(v_auth_record.email, '@', 1),
+                    v_auth_record.created_at
+                )
+                ON CONFLICT (id) DO NOTHING;
+                
+                RAISE NOTICE '✅ Profile created!';
+            EXCEPTION
+                WHEN unique_violation THEN
+                    RAISE NOTICE '⚠️ Profile already exists (email conflict)';
+            END;
         END IF;
         
         -- Check if balance exists
@@ -105,26 +111,32 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- Create user profile (if not exists)
-    INSERT INTO public.users (
-        id,
-        email,
-        username,
-        created_at
-    ) VALUES (
-        NEW.id,
-        NEW.email,
-        COALESCE(
-            NEW.raw_user_meta_data->>'username',
-            NEW.raw_user_meta_data->>'full_name',
-            SPLIT_PART(NEW.email, '@', 1)
-        ),
-        NEW.created_at
-    )
-    ON CONFLICT (id) DO UPDATE
-    SET 
-        email = EXCLUDED.email,
-        updated_at = NOW();
+    -- Create user profile (handle both id and email conflicts)
+    BEGIN
+        INSERT INTO public.users (
+            id,
+            email,
+            username,
+            created_at
+        ) VALUES (
+            NEW.id,
+            NEW.email,
+            COALESCE(
+                NEW.raw_user_meta_data->>'username',
+                NEW.raw_user_meta_data->>'full_name',
+                SPLIT_PART(NEW.email, '@', 1)
+            ),
+            NEW.created_at
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET 
+            email = EXCLUDED.email,
+            updated_at = NOW();
+    EXCEPTION
+        WHEN unique_violation THEN
+            -- Email already exists, skip
+            NULL;
+    END;
     
     -- Create user balance (if not exists)
     INSERT INTO public.user_balances (
@@ -170,22 +182,28 @@ BEGIN
     FOR v_auth_user IN 
         SELECT id, email, created_at FROM auth.users
     LOOP
-        -- Ensure profile exists
-        INSERT INTO public.users (
-            id,
-            email,
-            username,
-            created_at
-        ) VALUES (
-            v_auth_user.id,
-            v_auth_user.email,
-            SPLIT_PART(v_auth_user.email, '@', 1),
-            v_auth_user.created_at
-        )
-        ON CONFLICT (id) DO UPDATE
-        SET 
-            email = EXCLUDED.email,
-            updated_at = NOW();
+        -- Ensure profile exists (handle both id and email conflicts)
+        BEGIN
+            INSERT INTO public.users (
+                id,
+                email,
+                username,
+                created_at
+            ) VALUES (
+                v_auth_user.id,
+                v_auth_user.email,
+                SPLIT_PART(v_auth_user.email, '@', 1),
+                v_auth_user.created_at
+            )
+            ON CONFLICT (id) DO UPDATE
+            SET 
+                email = EXCLUDED.email,
+                updated_at = NOW();
+        EXCEPTION
+            WHEN unique_violation THEN
+                -- Email already exists, just skip
+                NULL;
+        END;
         
         -- Ensure balance exists
         INSERT INTO public.user_balances (
@@ -306,24 +324,30 @@ BEGIN
         RETURN 'ERROR: User not found in auth.users. User must register first.';
     END IF;
     
-    -- Create/update profile
-    INSERT INTO public.users (
-        id,
-        email,
-        username,
-        created_at
-    ) 
-    SELECT 
-        id,
-        email,
-        SPLIT_PART(email, '@', 1),
-        created_at
-    FROM auth.users
-    WHERE id = v_user_id
-    ON CONFLICT (id) DO UPDATE
-    SET 
-        email = EXCLUDED.email,
-        updated_at = NOW();
+    -- Create/update profile (handle email conflicts)
+    BEGIN
+        INSERT INTO public.users (
+            id,
+            email,
+            username,
+            created_at
+        ) 
+        SELECT 
+            id,
+            email,
+            SPLIT_PART(email, '@', 1),
+            created_at
+        FROM auth.users
+        WHERE id = v_user_id
+        ON CONFLICT (id) DO UPDATE
+        SET 
+            email = EXCLUDED.email,
+            updated_at = NOW();
+    EXCEPTION
+        WHEN unique_violation THEN
+            -- Email already exists, skip
+            NULL;
+    END;
     
     -- Create/update balance
     INSERT INTO public.user_balances (
