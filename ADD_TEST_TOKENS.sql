@@ -38,22 +38,13 @@ BEGIN
         
         IF v_current_balance IS NULL THEN
             -- Create balance record if doesn't exist
+            -- Only insert essential columns that exist in all schemas
             INSERT INTO public.user_balances (
                 user_id, 
-                drop_tokens, 
-                cash_balance_usd,
-                pending_earnings_usd,
-                total_earned_usd,
-                total_spent_usd,
-                updated_at
+                drop_tokens
             ) VALUES (
                 v_user_id, 
-                300.00, 
-                0.00,
-                0.00,
-                0.00,
-                0.00,
-                NOW()
+                300.00
             );
             
             v_new_balance := 300.00;
@@ -72,33 +63,40 @@ BEGIN
             RAISE NOTICE '✅ Updated balance: % → %', v_current_balance, v_new_balance;
         END IF;
         
-        -- Log the transaction
-        INSERT INTO public.wallet_transactions (
-            user_id,
-            amount,
-            transaction_type,
-            before_balance,
-            after_balance,
-            reason,
-            metadata,
-            created_at
-        ) VALUES (
-            v_user_id,
-            300.00,
-            'admin_credit',
-            COALESCE(v_current_balance, 0),
-            v_new_balance,
-            'Test tokens for shipping label testing',
-            jsonb_build_object(
-                'admin_action', true,
-                'purpose', 'testing',
-                'email', v_email,
-                'date', NOW()
-            ),
-            NOW()
-        );
-        
-        RAISE NOTICE '✅ Transaction logged';
+        -- Try to log the transaction (if table exists)
+        BEGIN
+            INSERT INTO public.wallet_transactions (
+                user_id,
+                amount,
+                transaction_type,
+                before_balance,
+                after_balance,
+                reason,
+                metadata,
+                created_at
+            ) VALUES (
+                v_user_id,
+                300.00,
+                'admin_credit',
+                COALESCE(v_current_balance, 0),
+                v_new_balance,
+                'Test tokens for shipping label testing',
+                jsonb_build_object(
+                    'admin_action', true,
+                    'purpose', 'testing',
+                    'email', v_email,
+                    'date', NOW()
+                ),
+                NOW()
+            );
+            
+            RAISE NOTICE '✅ Transaction logged';
+        EXCEPTION
+            WHEN undefined_table THEN
+                RAISE NOTICE '⚠️ wallet_transactions table does not exist - skipping transaction log';
+            WHEN OTHERS THEN
+                RAISE NOTICE '⚠️ Could not log transaction: % - continuing anyway', SQLERRM;
+        END;
         RAISE NOTICE '🎉 SUCCESS! Added 300 tokens to %', v_email;
         RAISE NOTICE '💰 New balance: % tokens', v_new_balance;
     END LOOP;
@@ -107,12 +105,11 @@ BEGIN
     RAISE NOTICE '✅ ALL DONE!';
 END $$;
 
--- Verify the balances
+-- Verify the balances (only query columns that definitely exist)
 SELECT 
     u.email,
     u.username,
     ub.drop_tokens as token_balance,
-    ub.cash_balance_usd,
     ub.updated_at
 FROM public.users u
 JOIN public.user_balances ub ON ub.user_id = u.id
