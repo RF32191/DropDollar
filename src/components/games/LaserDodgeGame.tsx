@@ -190,7 +190,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Calculate blue laser bonus with decimal precision (using shipRef for real-time position)
     // MASSIVELY INCREASED BONUS - 1.0 points per frame per laser!
-    // PLUS: 50 point immediate bonus when first touching a blue laser!
+    // PLUS: 200 point immediate bonus when first touching a blue laser!
     let blueBonus = 0;
     let immediateBonus = 0;
     const blueLasers = lasersRef.current.filter(l => !l.isHarmful);
@@ -212,11 +212,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         }
       }
       
-      // Give 50 point immediate bonus on first touch of this laser
+      // Give 200 point immediate bonus on first touch of this laser
       if (isOnLaser && !laser.bonusCollected) {
-        immediateBonus += 50;
+        immediateBonus += 200;
         laser.bonusCollected = true; // Mark as collected
-        console.log('LaserDodge: 💎 Blue laser bonus collected! +50 points');
+        console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points');
       }
     }
     
@@ -968,7 +968,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
                 <p className="text-xs text-red-200">
                   <span className="text-yellow-300 font-bold">🎯 RISK/REWARD:</span> Stay ON blue lasers for MASSIVE bonus points! 
-                  You get <span className="text-cyan-300 font-bold">+50 points instantly</span> when you first touch a blue laser, PLUS 60+ points per second while staying on it! In extreme mode, they take 2.4-4 seconds to turn red, giving you time to rack up huge scores before escaping.
+                  You get <span className="text-cyan-300 font-bold">+200 points instantly</span> when you first touch a blue laser, PLUS 60+ points per second while staying on it! In extreme mode, they take 2.4-4 seconds to turn red, giving you time to rack up huge scores before escaping.
                 </p>
               </div>
             </div>
