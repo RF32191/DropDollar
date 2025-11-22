@@ -147,7 +147,10 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
-RAISE NOTICE '✅ Auto-profile creation trigger installed';
+DO $$
+BEGIN
+    RAISE NOTICE '✅ Auto-profile creation trigger installed';
+END $$;
 
 -- ================================================
 -- PART 3: FIX ALL EXISTING USERS (RETROACTIVE)
@@ -276,7 +279,10 @@ USING (auth.uid() = user_id);
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_balances ENABLE ROW LEVEL SECURITY;
 
-RAISE NOTICE '✅ RLS policies configured';
+DO $$
+BEGIN
+    RAISE NOTICE '✅ RLS policies configured';
+END $$;
 
 -- ================================================
 -- PART 6: CREATE ADMIN FUNCTION TO FIX ANY USER
