@@ -307,14 +307,18 @@ END $$;
 -- PART 8: ADD MATERIALIZED VIEWS FOR ANALYTICS
 -- ================================================
 
--- Materialized views (only if tables exist)
+-- Materialized views (drop and recreate to avoid column issues)
 DO $$
 BEGIN
     -- User statistics view
     IF EXISTS (SELECT 1 FROM information_schema.tables 
                WHERE table_schema = 'public' AND table_name = 'users') THEN
         
-        CREATE MATERIALIZED VIEW IF NOT EXISTS user_statistics AS
+        -- Drop existing view if it exists
+        DROP MATERIALIZED VIEW IF EXISTS user_statistics CASCADE;
+        
+        -- Create fresh view
+        CREATE MATERIALIZED VIEW user_statistics AS
         SELECT 
             COUNT(*) as total_users,
             COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as users_last_24h,
@@ -324,7 +328,7 @@ BEGIN
             MAX(created_at) as last_user_created
         FROM users;
         
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_user_statistics_refresh ON user_statistics ((true));
+        CREATE UNIQUE INDEX idx_user_statistics_refresh ON user_statistics ((true));
         RAISE NOTICE 'User statistics materialized view created';
     END IF;
     
@@ -332,7 +336,11 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables 
                WHERE table_schema = 'public' AND table_name = 'marketplace_listings') THEN
         
-        CREATE MATERIALIZED VIEW IF NOT EXISTS marketplace_statistics AS
+        -- Drop existing view if it exists
+        DROP MATERIALIZED VIEW IF EXISTS marketplace_statistics CASCADE;
+        
+        -- Create fresh view
+        CREATE MATERIALIZED VIEW marketplace_statistics AS
         SELECT 
             COUNT(*) as total_listings,
             COUNT(DISTINCT seller_id) as total_sellers,
@@ -340,7 +348,7 @@ BEGIN
             MAX(created_at) as last_listing_created
         FROM marketplace_listings;
         
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_statistics_refresh ON marketplace_statistics ((true));
+        CREATE UNIQUE INDEX idx_marketplace_statistics_refresh ON marketplace_statistics ((true));
         RAISE NOTICE 'Marketplace statistics materialized view created';
     END IF;
 END $$;
