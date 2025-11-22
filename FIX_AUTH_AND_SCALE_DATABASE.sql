@@ -440,16 +440,39 @@ BEGIN
         v_result := v_result || 'admin_notifications, ';
     END IF;
     
-    -- Refresh materialized views if they exist
-    IF EXISTS (SELECT 1 FROM pg_matviews WHERE schemaname = 'public' AND matviewname = 'user_statistics') THEN
-        REFRESH MATERIALIZED VIEW CONCURRENTLY user_statistics;
-        v_result := v_result || 'Refreshed: user_statistics, ';
-    END IF;
+    -- Refresh materialized views if they exist (use non-concurrent if concurrent fails)
+    BEGIN
+        IF EXISTS (SELECT 1 FROM pg_matviews WHERE schemaname = 'public' AND matviewname = 'user_statistics') THEN
+            BEGIN
+                REFRESH MATERIALIZED VIEW CONCURRENTLY user_statistics;
+                v_result := v_result || 'Refreshed: user_statistics, ';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    -- Try non-concurrent refresh if concurrent fails
+                    REFRESH MATERIALIZED VIEW user_statistics;
+                    v_result := v_result || 'Refreshed (non-concurrent): user_statistics, ';
+            END;
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            v_result := v_result || 'user_statistics refresh failed, ';
+    END;
     
-    IF EXISTS (SELECT 1 FROM pg_matviews WHERE schemaname = 'public' AND matviewname = 'marketplace_statistics') THEN
-        REFRESH MATERIALIZED VIEW CONCURRENTLY marketplace_statistics;
-        v_result := v_result || 'marketplace_statistics';
-    END IF;
+    BEGIN
+        IF EXISTS (SELECT 1 FROM pg_matviews WHERE schemaname = 'public' AND matviewname = 'marketplace_statistics') THEN
+            BEGIN
+                REFRESH MATERIALIZED VIEW CONCURRENTLY marketplace_statistics;
+                v_result := v_result || 'marketplace_statistics';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    REFRESH MATERIALIZED VIEW marketplace_statistics;
+                    v_result := v_result || '(non-concurrent): marketplace_statistics';
+            END;
+        END IF;
+    EXCEPTION
+        WHEN OTHERS THEN
+            v_result := v_result || 'marketplace_statistics refresh failed';
+    END;
     
     RETURN 'Database optimized: ' || v_result;
 END;
@@ -533,9 +556,12 @@ END $$;
 -- View to monitor slow queries (if pg_stat_statements extension exists)
 DO $$
 BEGIN
+    -- Drop existing view first
+    DROP VIEW IF EXISTS slow_queries CASCADE;
+    
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements') THEN
         EXECUTE '
-        CREATE OR REPLACE VIEW slow_queries AS
+        CREATE VIEW slow_queries AS
         SELECT 
             query,
             calls,
@@ -546,13 +572,15 @@ BEGIN
         WHERE mean_exec_time > 100
         ORDER BY mean_exec_time DESC
         LIMIT 50';
+        RAISE NOTICE 'slow_queries view created';
     ELSE
         RAISE NOTICE 'pg_stat_statements extension not found - slow_queries view not created';
     END IF;
 END $$;
 
 -- View to monitor table sizes
-CREATE OR REPLACE VIEW table_sizes AS
+DROP VIEW IF EXISTS table_sizes CASCADE;
+CREATE VIEW table_sizes AS
 SELECT 
     schemaname,
     tablename,
