@@ -85,7 +85,7 @@ USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON public.users(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_users_email_verified ON public.users(email_verified);
+CREATE INDEX IF NOT EXISTS idx_users_is_verified ON public.users(is_verified) WHERE is_verified = true;
 CREATE INDEX IF NOT EXISTS idx_users_status ON public.users(status) WHERE status = 'active';
 
 -- Composite indexes for common queries
@@ -198,7 +198,7 @@ SELECT
     COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as users_last_7d,
     COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as users_last_30d,
     COUNT(*) FILTER (WHERE status = 'active') as active_users,
-    COUNT(*) FILTER (WHERE email_verified = true) as verified_users
+    COUNT(*) FILTER (WHERE is_verified = true) as verified_users
 FROM users;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_statistics_refresh ON user_statistics ((true));
@@ -337,18 +337,26 @@ COMMENT ON TABLE admin_messages IS
 -- PART 14: ADD PERFORMANCE MONITORING
 -- ================================================
 
--- View to monitor slow queries
-CREATE OR REPLACE VIEW slow_queries AS
-SELECT 
-    query,
-    calls,
-    total_exec_time,
-    mean_exec_time,
-    max_exec_time
-FROM pg_stat_statements
-WHERE mean_exec_time > 100  -- queries slower than 100ms
-ORDER BY mean_exec_time DESC
-LIMIT 50;
+-- View to monitor slow queries (if pg_stat_statements extension exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements') THEN
+        EXECUTE '
+        CREATE OR REPLACE VIEW slow_queries AS
+        SELECT 
+            query,
+            calls,
+            total_exec_time,
+            mean_exec_time,
+            max_exec_time
+        FROM pg_stat_statements
+        WHERE mean_exec_time > 100
+        ORDER BY mean_exec_time DESC
+        LIMIT 50';
+    ELSE
+        RAISE NOTICE 'pg_stat_statements extension not found - slow_queries view not created';
+    END IF;
+END $$;
 
 -- View to monitor table sizes
 CREATE OR REPLACE VIEW table_sizes AS
