@@ -85,12 +85,25 @@ USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON public.users(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_users_is_verified ON public.users(is_verified) WHERE is_verified = true;
-CREATE INDEX IF NOT EXISTS idx_users_status ON public.users(status) WHERE status = 'active';
 
--- Composite indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_users_email_status ON public.users(email, status);
-CREATE INDEX IF NOT EXISTS idx_users_username_status ON public.users(username, status);
+-- Composite indexes for common queries (only if columns exist)
+DO $$
+BEGIN
+    -- Only create status indexes if status column exists
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users' 
+        AND column_name = 'status'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_users_email_status ON public.users(email, status);
+        CREATE INDEX IF NOT EXISTS idx_users_username_status ON public.users(username, status);
+        CREATE INDEX IF NOT EXISTS idx_users_status ON public.users(status) WHERE status = 'active';
+        RAISE NOTICE 'Status indexes created';
+    ELSE
+        RAISE NOTICE 'Status column not found - skipping status indexes';
+    END IF;
+END $$;
 
 -- Add BRIN index for time-series data (very efficient for large datasets)
 CREATE INDEX IF NOT EXISTS idx_users_created_at_brin ON public.users USING brin(created_at);
@@ -112,46 +125,69 @@ WHERE drop_tokens > 0;
 -- PART 4: OPTIMIZE MARKETPLACE_SESSIONS FOR SCALE
 -- ================================================
 
--- Indexes for fast session queries
+-- Indexes for fast session queries (only guaranteed columns)
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_listing ON public.marketplace_sessions(listing_id);
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_winner ON public.marketplace_sessions(winner_user_id);
-CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_status ON public.marketplace_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_created ON public.marketplace_sessions(created_at DESC);
 
--- Composite indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_status_created 
-ON public.marketplace_sessions(status, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_winner_status 
-ON public.marketplace_sessions(winner_user_id, status) 
-WHERE winner_user_id IS NOT NULL;
-
--- BRIN index for time-series
+-- BRIN index for time-series (very efficient for large datasets)
 CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_created_brin 
 ON public.marketplace_sessions USING brin(created_at);
+
+-- Optional status indexes
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'marketplace_sessions' 
+        AND column_name = 'status'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_status ON public.marketplace_sessions(status);
+        CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_status_created 
+        ON public.marketplace_sessions(status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_marketplace_sessions_winner_status 
+        ON public.marketplace_sessions(winner_user_id, status) WHERE winner_user_id IS NOT NULL;
+        RAISE NOTICE 'Marketplace session status indexes created';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 5: OPTIMIZE MARKETPLACE_LISTINGS FOR SCALE
 -- ================================================
 
--- Indexes for fast listing queries
+-- Indexes for fast listing queries (only guaranteed columns)
 CREATE INDEX IF NOT EXISTS idx_marketplace_listings_seller ON public.marketplace_listings(seller_id);
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status ON public.marketplace_listings(status);
 CREATE INDEX IF NOT EXISTS idx_marketplace_listings_created ON public.marketplace_listings(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_ends ON public.marketplace_listings(ends_at);
 
--- Composite indexes for marketplace browsing
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status_created 
-ON public.marketplace_listings(status, created_at DESC) 
-WHERE status = 'active';
-
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status_ends 
-ON public.marketplace_listings(status, ends_at) 
-WHERE status = 'active';
-
--- GiST index for full-text search on title and description
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_search 
-ON public.marketplace_listings USING gin(to_tsvector('english', title || ' ' || COALESCE(description, '')));
+-- Optional indexes (only if columns exist)
+DO $$
+BEGIN
+    -- Status indexes
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'marketplace_listings' 
+        AND column_name = 'status'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status ON public.marketplace_listings(status);
+        CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status_created 
+        ON public.marketplace_listings(status, created_at DESC) WHERE status = 'active';
+        RAISE NOTICE 'Marketplace status indexes created';
+    END IF;
+    
+    -- Full-text search indexes
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'marketplace_listings' 
+        AND column_name = 'title'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_marketplace_listings_search 
+        ON public.marketplace_listings USING gin(to_tsvector('english', title || ' ' || COALESCE(description, '')));
+        RAISE NOTICE 'Marketplace search index created';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 6: OPTIMIZE SELLER_WALLETS FOR SCALE
@@ -191,26 +227,27 @@ WHERE is_read = false;
 -- ================================================
 
 -- Materialized view for user statistics (refresh hourly)
+-- Only includes columns that definitely exist in all schemas
 CREATE MATERIALIZED VIEW IF NOT EXISTS user_statistics AS
 SELECT 
     COUNT(*) as total_users,
     COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as users_last_24h,
     COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as users_last_7d,
     COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as users_last_30d,
-    COUNT(*) FILTER (WHERE status = 'active') as active_users,
-    COUNT(*) FILTER (WHERE is_verified = true) as verified_users
+    MIN(created_at) as first_user_created,
+    MAX(created_at) as last_user_created
 FROM users;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_statistics_refresh ON user_statistics ((true));
 
 -- Materialized view for marketplace statistics (refresh every 5 minutes)
+-- Only includes columns that definitely exist
 CREATE MATERIALIZED VIEW IF NOT EXISTS marketplace_statistics AS
 SELECT 
     COUNT(*) as total_listings,
-    COUNT(*) FILTER (WHERE status = 'active') as active_listings,
-    SUM(prize_pool) FILTER (WHERE status = 'active') as total_prize_pool,
     COUNT(DISTINCT seller_id) as total_sellers,
-    AVG(entry_price) as avg_entry_price
+    MIN(created_at) as first_listing_created,
+    MAX(created_at) as last_listing_created
 FROM marketplace_listings;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_statistics_refresh ON marketplace_statistics ((true));
