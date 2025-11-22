@@ -26,6 +26,7 @@ interface Laser {
   isHarmful: boolean;
   timeToHarmful: number;
   createdAt: number;
+  bonusCollected: boolean; // Track if player collected the 50pt bonus from this laser
 }
 
 interface Ship {
@@ -189,20 +190,33 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Calculate blue laser bonus with decimal precision (using shipRef for real-time position)
     // MASSIVELY INCREASED BONUS - 1.0 points per frame per laser!
+    // PLUS: 50 point immediate bonus when first touching a blue laser!
     let blueBonus = 0;
+    let immediateBonus = 0;
     const blueLasers = lasersRef.current.filter(l => !l.isHarmful);
     const currentShip = shipRef.current; // Use ref for accurate position
     for (const laser of blueLasers) {
+      let isOnLaser = false;
+      
       if (laser.type === 'horizontal') {
         // Ship is on blue horizontal laser
         if (Math.abs(laser.position - currentShip.y) < 2) {
+          isOnLaser = true;
           blueBonus += 1.0; // 1.0 points per frame on blue laser (100x increase!)
         }
       } else {
         // Ship is on blue vertical laser
         if (Math.abs(laser.position - currentShip.x) < 2) {
+          isOnLaser = true;
           blueBonus += 1.0; // 1.0 points per frame on blue laser (100x increase!)
         }
+      }
+      
+      // Give 50 point immediate bonus on first touch of this laser
+      if (isOnLaser && !laser.bonusCollected) {
+        immediateBonus += 50;
+        laser.bonusCollected = true; // Mark as collected
+        console.log('LaserDodge: 💎 Blue laser bonus collected! +50 points');
       }
     }
     
@@ -210,7 +224,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     let shootingBonus = 0;
     // This will be calculated when bullets hit enemies
     
-    const newScore = Number((baseScore + blueBonus + shootingBonus).toFixed(2));
+    const newScore = Number((baseScore + blueBonus + shootingBonus + immediateBonus).toFixed(2));
     currentScoreRef.current = newScore;
     setScore(newScore);
 
@@ -255,7 +269,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             position: seededRng.nextFloat(10, 90),
             isHarmful: false,
             timeToHarmful: seededRng.nextInt(800, 1500),
-            createdAt: now
+            createdAt: now,
+            bonusCollected: false
           };
           
           console.log(`LaserDodge: Created laser #${i}:`, newLaser.type, 'at', newLaser.position);
@@ -334,7 +349,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               : isExtremeMode 
               ? Math.max(2400, 4000 - (level * 100)) // MUCH SLOWER transition in extreme mode (2.4-4s)
               : Math.max(800, 1500 - (level * 100)), // Normal mode timing
-            createdAt: now
+            createdAt: now,
+            bonusCollected: false
           };
           
           console.log(`LaserDodge: Created laser #${i}:`, newLaser.type, 'at position', newLaser.position);
@@ -952,7 +968,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
                 <p className="text-xs text-red-200">
                   <span className="text-yellow-300 font-bold">🎯 RISK/REWARD:</span> Stay ON blue lasers for MASSIVE bonus points! 
-                  You earn 60+ points per second on each blue laser! In extreme mode, they take 2.4-4 seconds to turn red, giving you time to rack up huge scores before escaping.
+                  You get <span className="text-cyan-300 font-bold">+50 points instantly</span> when you first touch a blue laser, PLUS 60+ points per second while staying on it! In extreme mode, they take 2.4-4 seconds to turn red, giving you time to rack up huge scores before escaping.
                 </p>
               </div>
             </div>
