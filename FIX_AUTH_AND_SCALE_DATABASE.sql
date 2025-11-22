@@ -193,64 +193,157 @@ END $$;
 -- PART 6: OPTIMIZE SELLER_WALLETS FOR SCALE
 -- ================================================
 
--- Indexes for seller wallet queries
-CREATE INDEX IF NOT EXISTS idx_seller_wallets_seller ON public.seller_wallets(seller_id);
-CREATE INDEX IF NOT EXISTS idx_seller_wallets_pending ON public.seller_wallets(pending_balance) 
-WHERE pending_balance > 0;
-CREATE INDEX IF NOT EXISTS idx_seller_wallets_released ON public.seller_wallets(released_balance) 
-WHERE released_balance > 0;
+-- Indexes for seller wallet queries (only if table exists)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' AND table_name = 'seller_wallets') THEN
+        
+        CREATE INDEX IF NOT EXISTS idx_seller_wallets_seller ON public.seller_wallets(seller_id);
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'seller_wallets' 
+                   AND column_name = 'pending_balance') THEN
+            CREATE INDEX IF NOT EXISTS idx_seller_wallets_pending ON public.seller_wallets(pending_balance) 
+            WHERE pending_balance > 0;
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'seller_wallets' 
+                   AND column_name = 'released_balance') THEN
+            CREATE INDEX IF NOT EXISTS idx_seller_wallets_released ON public.seller_wallets(released_balance) 
+            WHERE released_balance > 0;
+        END IF;
+        
+        RAISE NOTICE 'Seller wallets indexes created';
+    ELSE
+        RAISE NOTICE 'seller_wallets table not found - skipping';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 7: OPTIMIZE ADMIN_MESSAGES & NOTIFICATIONS
 -- ================================================
 
--- Indexes for message queries
-CREATE INDEX IF NOT EXISTS idx_admin_messages_sender ON public.admin_messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_admin_messages_recipient ON public.admin_messages(recipient_id);
-CREATE INDEX IF NOT EXISTS idx_admin_messages_created ON public.admin_messages(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_admin_messages_read ON public.admin_messages(is_read) 
-WHERE is_read = false;
+-- Indexes for admin_messages (only if table and columns exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' AND table_name = 'admin_messages') THEN
+        
+        -- Create indexes only for columns that exist
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_messages' 
+                   AND column_name = 'sender_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_messages_sender ON public.admin_messages(sender_id);
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_messages' 
+                   AND column_name = 'recipient_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_messages_recipient ON public.admin_messages(recipient_id);
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_messages' 
+                   AND column_name = 'created_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_messages_created ON public.admin_messages(created_at DESC);
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_messages' 
+                   AND column_name = 'is_read') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_messages_read ON public.admin_messages(is_read) 
+            WHERE is_read = false;
+            
+            -- Composite index for unread messages (if recipient_id also exists)
+            IF EXISTS (SELECT 1 FROM information_schema.columns 
+                       WHERE table_schema = 'public' AND table_name = 'admin_messages' 
+                       AND column_name = 'recipient_id') THEN
+                CREATE INDEX IF NOT EXISTS idx_admin_messages_recipient_unread 
+                ON public.admin_messages(recipient_id, is_read, created_at DESC) 
+                WHERE is_read = false;
+            END IF;
+        END IF;
+        
+        RAISE NOTICE 'Admin messages indexes created';
+    ELSE
+        RAISE NOTICE 'admin_messages table not found - skipping';
+    END IF;
+END $$;
 
--- Composite index for unread messages
-CREATE INDEX IF NOT EXISTS idx_admin_messages_recipient_unread 
-ON public.admin_messages(recipient_id, is_read, created_at DESC) 
-WHERE is_read = false;
-
--- Indexes for notifications
-CREATE INDEX IF NOT EXISTS idx_admin_notifications_user ON public.admin_notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON public.admin_notifications(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_admin_notifications_read ON public.admin_notifications(is_read) 
-WHERE is_read = false;
+-- Indexes for admin_notifications (only if table and columns exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' AND table_name = 'admin_notifications') THEN
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_notifications' 
+                   AND column_name = 'user_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_notifications_user ON public.admin_notifications(user_id);
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_notifications' 
+                   AND column_name = 'created_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON public.admin_notifications(created_at DESC);
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'admin_notifications' 
+                   AND column_name = 'is_read') THEN
+            CREATE INDEX IF NOT EXISTS idx_admin_notifications_read ON public.admin_notifications(is_read) 
+            WHERE is_read = false;
+        END IF;
+        
+        RAISE NOTICE 'Admin notifications indexes created';
+    ELSE
+        RAISE NOTICE 'admin_notifications table not found - skipping';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 8: ADD MATERIALIZED VIEWS FOR ANALYTICS
 -- ================================================
 
--- Materialized view for user statistics (refresh hourly)
--- Only includes columns that definitely exist in all schemas
-CREATE MATERIALIZED VIEW IF NOT EXISTS user_statistics AS
-SELECT 
-    COUNT(*) as total_users,
-    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as users_last_24h,
-    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as users_last_7d,
-    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as users_last_30d,
-    MIN(created_at) as first_user_created,
-    MAX(created_at) as last_user_created
-FROM users;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_statistics_refresh ON user_statistics ((true));
-
--- Materialized view for marketplace statistics (refresh every 5 minutes)
--- Only includes columns that definitely exist
-CREATE MATERIALIZED VIEW IF NOT EXISTS marketplace_statistics AS
-SELECT 
-    COUNT(*) as total_listings,
-    COUNT(DISTINCT seller_id) as total_sellers,
-    MIN(created_at) as first_listing_created,
-    MAX(created_at) as last_listing_created
-FROM marketplace_listings;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_statistics_refresh ON marketplace_statistics ((true));
+-- Materialized views (only if tables exist)
+DO $$
+BEGIN
+    -- User statistics view
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' AND table_name = 'users') THEN
+        
+        CREATE MATERIALIZED VIEW IF NOT EXISTS user_statistics AS
+        SELECT 
+            COUNT(*) as total_users,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as users_last_24h,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as users_last_7d,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as users_last_30d,
+            MIN(created_at) as first_user_created,
+            MAX(created_at) as last_user_created
+        FROM users;
+        
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_user_statistics_refresh ON user_statistics ((true));
+        RAISE NOTICE 'User statistics materialized view created';
+    END IF;
+    
+    -- Marketplace statistics view
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' AND table_name = 'marketplace_listings') THEN
+        
+        CREATE MATERIALIZED VIEW IF NOT EXISTS marketplace_statistics AS
+        SELECT 
+            COUNT(*) as total_listings,
+            COUNT(DISTINCT seller_id) as total_sellers,
+            MIN(created_at) as first_listing_created,
+            MAX(created_at) as last_listing_created
+        FROM marketplace_listings;
+        
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_marketplace_statistics_refresh ON marketplace_statistics ((true));
+        RAISE NOTICE 'Marketplace statistics materialized view created';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 9: ADD QUERY OPTIMIZATION FUNCTIONS
@@ -294,27 +387,63 @@ $$;
 -- PART 10: ADD DATABASE MAINTENANCE FUNCTIONS
 -- ================================================
 
--- Function to analyze and optimize all tables
+-- Function to analyze and optimize all tables (only existing ones)
 CREATE OR REPLACE FUNCTION optimize_database()
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+    v_result TEXT := '';
 BEGIN
-    -- Analyze all tables for query planner
-    ANALYZE users;
-    ANALYZE user_balances;
-    ANALYZE marketplace_listings;
-    ANALYZE marketplace_sessions;
-    ANALYZE seller_wallets;
-    ANALYZE admin_messages;
-    ANALYZE admin_notifications;
+    -- Analyze tables that exist
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        ANALYZE users;
+        v_result := v_result || 'Analyzed: users, ';
+    END IF;
     
-    -- Refresh materialized views
-    REFRESH MATERIALIZED VIEW CONCURRENTLY user_statistics;
-    REFRESH MATERIALIZED VIEW CONCURRENTLY marketplace_statistics;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
+        ANALYZE user_balances;
+        v_result := v_result || 'user_balances, ';
+    END IF;
     
-    RETURN 'Database optimized successfully';
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'marketplace_listings') THEN
+        ANALYZE marketplace_listings;
+        v_result := v_result || 'marketplace_listings, ';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'marketplace_sessions') THEN
+        ANALYZE marketplace_sessions;
+        v_result := v_result || 'marketplace_sessions, ';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'seller_wallets') THEN
+        ANALYZE seller_wallets;
+        v_result := v_result || 'seller_wallets, ';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_messages') THEN
+        ANALYZE admin_messages;
+        v_result := v_result || 'admin_messages, ';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_notifications') THEN
+        ANALYZE admin_notifications;
+        v_result := v_result || 'admin_notifications, ';
+    END IF;
+    
+    -- Refresh materialized views if they exist
+    IF EXISTS (SELECT 1 FROM pg_matviews WHERE schemaname = 'public' AND matviewname = 'user_statistics') THEN
+        REFRESH MATERIALIZED VIEW CONCURRENTLY user_statistics;
+        v_result := v_result || 'Refreshed: user_statistics, ';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM pg_matviews WHERE schemaname = 'public' AND matviewname = 'marketplace_statistics') THEN
+        REFRESH MATERIALIZED VIEW CONCURRENTLY marketplace_statistics;
+        v_result := v_result || 'marketplace_statistics';
+    END IF;
+    
+    RETURN 'Database optimized: ' || v_result;
 END;
 $$;
 
@@ -343,32 +472,51 @@ COMMENT ON DATABASE postgres IS
 -- PART 12: ADD AUTOMATIC VACUUM SETTINGS
 -- ================================================
 
--- Configure autovacuum for high-traffic tables
-ALTER TABLE users SET (
-    autovacuum_vacuum_scale_factor = 0.05,
-    autovacuum_analyze_scale_factor = 0.02
-);
-
-ALTER TABLE user_balances SET (
-    autovacuum_vacuum_scale_factor = 0.05,
-    autovacuum_analyze_scale_factor = 0.02
-);
-
-ALTER TABLE marketplace_sessions SET (
-    autovacuum_vacuum_scale_factor = 0.05,
-    autovacuum_analyze_scale_factor = 0.02
-);
+-- Configure autovacuum for high-traffic tables (only if they exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        ALTER TABLE users SET (
+            autovacuum_vacuum_scale_factor = 0.05,
+            autovacuum_analyze_scale_factor = 0.02
+        );
+        RAISE NOTICE 'Autovacuum configured for users';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_balances') THEN
+        ALTER TABLE user_balances SET (
+            autovacuum_vacuum_scale_factor = 0.05,
+            autovacuum_analyze_scale_factor = 0.02
+        );
+        RAISE NOTICE 'Autovacuum configured for user_balances';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'marketplace_sessions') THEN
+        ALTER TABLE marketplace_sessions SET (
+            autovacuum_vacuum_scale_factor = 0.05,
+            autovacuum_analyze_scale_factor = 0.02
+        );
+        RAISE NOTICE 'Autovacuum configured for marketplace_sessions';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 13: ADD TABLE PARTITIONING (FOR FUTURE SCALE)
 -- ================================================
 
--- Comment for future implementation:
-COMMENT ON TABLE marketplace_sessions IS 
-'Consider partitioning by created_at (monthly) when table exceeds 10M rows';
-
-COMMENT ON TABLE admin_messages IS 
-'Consider partitioning by created_at (monthly) when table exceeds 10M rows';
+-- Comments for future implementation (only if tables exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'marketplace_sessions') THEN
+        COMMENT ON TABLE marketplace_sessions IS 
+        'Consider partitioning by created_at (monthly) when table exceeds 10M rows';
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_messages') THEN
+        COMMENT ON TABLE admin_messages IS 
+        'Consider partitioning by created_at (monthly) when table exceeds 10M rows';
+    END IF;
+END $$;
 
 -- ================================================
 -- PART 14: ADD PERFORMANCE MONITORING
