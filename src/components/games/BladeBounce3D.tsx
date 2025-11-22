@@ -890,45 +890,13 @@ export default function BladeBounce3D({
     }
   }, [gameState]);
 
-  // Mouse control - VERTICAL MOVEMENT + CLICK ROTATION + FULLSCREEN CURSOR LOCK
+  // Mouse control - BLADE FOLLOWS CURSOR DIRECTLY
   useEffect(() => {
     const container = containerRef.current;
     const canvas = rendererRef.current?.domElement;
     if (!container || !canvas) return;
 
     console.log('🖱️ [BladeBounce3D] Attaching mouse events to canvas');
-    
-    // Request pointer lock when game starts playing
-    const requestPointerLock = () => {
-      if (gameState === 'playing' && canvas) {
-        canvas.requestPointerLock = canvas.requestPointerLock || 
-          (canvas as any).mozRequestPointerLock || 
-          (canvas as any).webkitRequestPointerLock;
-        canvas.requestPointerLock?.();
-        console.log('🔒 [BladeBounce3D] Pointer lock requested');
-      }
-    };
-    
-    // Request fullscreen when game starts
-    const requestFullscreen = () => {
-      if (gameState === 'playing' && container) {
-        const elem = container as any;
-        if (elem.requestFullscreen) {
-          elem.requestFullscreen();
-        } else if (elem.mozRequestFullScreen) {
-          elem.mozRequestFullScreen();
-        } else if (elem.webkitRequestFullscreen) {
-          elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) {
-          elem.msRequestFullscreen();
-        }
-        console.log('🖥️ [BladeBounce3D] Fullscreen requested');
-      }
-    };
-    
-    // Click to lock pointer and request fullscreen
-    canvas.addEventListener('click', requestPointerLock);
-    canvas.addEventListener('click', requestFullscreen);
     
     const handleMouseMove = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
@@ -938,21 +906,11 @@ export default function BladeBounce3D({
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
       
-      // Use movementX/Y for pointer lock mode, or clientX/Y for normal mode
-      let mouseX, mouseY;
+      // Get mouse position relative to canvas
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
       
-      if (document.pointerLockElement === canvas) {
-        // POINTER LOCKED: Use movement deltas for smooth cursor-is-blade control
-        // Track virtual cursor position that can't leave screen
-        mouseX = Math.max(0, Math.min(rect.width, (e.clientX || centerX) + e.movementX));
-        mouseY = Math.max(0, Math.min(rect.height, (e.clientY || centerY) + e.movementY));
-      } else {
-        // NOT LOCKED: Clamp to canvas bounds so cursor can't leave
-        mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-        mouseY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
-      }
-      
-      // FULL CURSOR TRACKING - sword follows mouse in X and Y
+      // BLADE FOLLOWS CURSOR - sword tracks mouse position in X and Y
       const normalizedX = (mouseX - centerX) / centerX; // -1 to 1
       const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
       const newTargetX = normalizedX * SWORD_X_RANGE; // Horizontal movement
@@ -970,7 +928,7 @@ export default function BladeBounce3D({
         });
       }
       
-      // Update sword position IMMEDIATELY for direct tracking
+      // Update sword position IMMEDIATELY for direct cursor tracking
       if (swordGroupRef.current) {
         swordGroupRef.current.position.x = newTargetX;
         swordGroupRef.current.position.y = newTargetY;
@@ -1073,36 +1031,17 @@ export default function BladeBounce3D({
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
-    // Make canvas focusable for better event handling
-    canvas.style.cursor = 'none'; // Hide cursor - the BLADE IS the cursor!
+    // Make canvas focusable and hide cursor - the BLADE IS the cursor!
+    canvas.style.cursor = 'none';
     canvas.tabIndex = 0;
     
-    // Monitor pointer lock changes
-    const handlePointerLockChange = () => {
-      if (document.pointerLockElement !== canvas) {
-        console.log('🔓 [BladeBounce3D] Pointer lock released');
-      }
-    };
-    
-    document.addEventListener('pointerlockchange', handlePointerLockChange);
-    document.addEventListener('mozpointerlockchange', handlePointerLockChange);
-    document.addEventListener('webkitpointerlockchange', handlePointerLockChange);
-    
-    console.log('📱 [BladeBounce3D] Touch controls enabled for mobile!');
+    console.log('📱 [BladeBounce3D] Mouse and touch controls enabled!');
     
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('touchmove', handleTouchMove);
       canvas.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('pointerlockchange', handlePointerLockChange);
-      document.removeEventListener('mozpointerlockchange', handlePointerLockChange);
-      document.removeEventListener('webkitpointerlockchange', handlePointerLockChange);
-      
-      // Release pointer lock when unmounting
-      if (document.pointerLockElement) {
-        document.exitPointerLock();
-      }
       
       console.log('🧹 [BladeBounce3D] Removed mouse and touch events');
     };
