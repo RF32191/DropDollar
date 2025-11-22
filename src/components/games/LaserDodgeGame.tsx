@@ -188,6 +188,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const baseScore = Number((timeSinceStart / 50).toFixed(2));
     
     // Calculate blue laser bonus with decimal precision (using shipRef for real-time position)
+    // MASSIVELY INCREASED BONUS - 1.0 points per frame per laser!
     let blueBonus = 0;
     const blueLasers = lasersRef.current.filter(l => !l.isHarmful);
     const currentShip = shipRef.current; // Use ref for accurate position
@@ -195,12 +196,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       if (laser.type === 'horizontal') {
         // Ship is on blue horizontal laser
         if (Math.abs(laser.position - currentShip.y) < 2) {
-          blueBonus += 0.01; // 0.01 points per frame on blue laser (decimal precision)
+          blueBonus += 1.0; // 1.0 points per frame on blue laser (100x increase!)
         }
       } else {
         // Ship is on blue vertical laser
         if (Math.abs(laser.position - currentShip.x) < 2) {
-          blueBonus += 0.01; // 0.01 points per frame on blue laser (decimal precision)
+          blueBonus += 1.0; // 1.0 points per frame on blue laser (100x increase!)
         }
       }
     }
@@ -950,8 +951,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               
               <div className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-400/30 rounded-xl p-3 sm:p-4 mt-4 sm:mt-6">
                 <p className="text-xs text-red-200">
-                  <span className="text-yellow-300 font-bold">🎯 RISK/REWARD:</span> After 30 seconds, stay ON blue lasers for bonus points! 
-                  They take 2.4-4 seconds to turn red, giving you time to earn big bonuses before escaping.
+                  <span className="text-yellow-300 font-bold">🎯 RISK/REWARD:</span> Stay ON blue lasers for MASSIVE bonus points! 
+                  You earn 60+ points per second on each blue laser! In extreme mode, they take 2.4-4 seconds to turn red, giving you time to rack up huge scores before escaping.
                 </p>
               </div>
             </div>

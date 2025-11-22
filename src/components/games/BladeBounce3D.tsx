@@ -32,6 +32,7 @@ interface Enemy3D {
   isVertical?: boolean; // For laser orientation
   spawnTime?: number; // When laser was created
   isDangerous?: boolean; // True when laser is red (active)
+  hasDealtDamage?: boolean; // True if enemy sword has already dealt damage (prevents multiple hits)
 }
 
 interface Particle3D {
@@ -1359,7 +1360,7 @@ export default function BladeBounce3D({
         }
         
         // Check if ENEMY SWORD BLADE hits ANYWHERE along player's ENTIRE BLADE!
-        if (ENEMY_SWORD_BLADE_DAMAGE && enemy.type === 'enemy_sword' && swordGroupRef.current) {
+        if (ENEMY_SWORD_BLADE_DAMAGE && enemy.type === 'enemy_sword' && swordGroupRef.current && !enemy.hasDealtDamage) {
           const swordWorldPos = new THREE.Vector3();
           swordGroupRef.current.getWorldPosition(swordWorldPos);
           
@@ -1370,7 +1371,7 @@ export default function BladeBounce3D({
                               (enemy.y - swordWorldPos.y) < 4.2;   // Top (blade tip)
           
           if (isNearBlade) {
-            // Enemy sword blade hit player's blade! Lose heart!
+            // Enemy sword blade hit player's blade! Lose 1 heart only!
             const hitArea = (enemy.y - swordWorldPos.y) > 1.0 ? 'BLADE' : 
                           (enemy.y - swordWorldPos.y) > -0.2 ? 'GUARD/HANDLE' : 'POMMEL';
             
@@ -1385,8 +1386,19 @@ export default function BladeBounce3D({
             playSound(200, 0.3, 'sawtooth');
             createParticles(enemy.x, enemy.y, 0xff0000, 40); // More particles!
             
-            // Don't destroy the enemy sword - it keeps going!
-            console.log('⚔️ Enemy sword continues slashing through!');
+            // Mark that this sword has dealt damage so it can't hit again
+            enemy.hasDealtDamage = true;
+            
+            // Remove enemy sword after hitting (prevents multiple hits)
+            if (sceneRef.current) {
+              sceneRef.current.remove(enemy.mesh);
+              if (enemy.glowMesh) {
+                sceneRef.current.remove(enemy.glowMesh);
+              }
+            }
+            
+            console.log('⚔️ Enemy sword removed after dealing 1 heart damage!');
+            return false; // Remove from array
           }
         }
         
