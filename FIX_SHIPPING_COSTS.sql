@@ -122,7 +122,7 @@ BEGIN
     RAISE NOTICE '📊 PENDING WALLET DEDUCTION:';
     RAISE NOTICE '   Amount to deduct: $% (this transaction gross only)', v_seller_earnings;
     RAISE NOTICE '   Amount to release: $% (net after shipping)', v_net_earnings;
-    RAISE NOTICE '====================================';;
+    RAISE NOTICE '====================================';
     
     -- Update session with tracking info and shipping cost
     UPDATE marketplace_sessions
