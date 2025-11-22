@@ -76,7 +76,7 @@ BEGIN
         ml.seller_id,
         ml.id,
         ml.title,
-        ms.seller_earnings,
+        COALESCE(ms.seller_earnings, ms.prize_pool * 0.85) as calculated_seller_earnings,
         ms.winner_user_id
     INTO 
         v_seller_id,
@@ -92,15 +92,37 @@ BEGIN
         RAISE EXCEPTION 'Session not found';
     END IF;
     
+    -- Ensure seller_earnings is set in session (if not already)
+    IF v_seller_earnings IS NULL THEN
+        SELECT prize_pool * 0.85 INTO v_seller_earnings
+        FROM marketplace_sessions
+        WHERE id = p_session_id;
+        
+        -- Update the session with calculated seller_earnings
+        UPDATE marketplace_sessions
+        SET seller_earnings = v_seller_earnings
+        WHERE id = p_session_id;
+        
+        RAISE NOTICE '💰 Calculated seller earnings: $% (85%% of prize pool)', v_seller_earnings;
+    END IF;
+    
     -- Calculate net earnings after shipping cost
     v_net_earnings := v_seller_earnings - p_shipping_cost;
     
     IF v_net_earnings < 0 THEN
-        RAISE EXCEPTION 'Shipping cost (%) exceeds seller earnings (%)', p_shipping_cost, v_seller_earnings;
+        RAISE EXCEPTION 'Shipping cost ($%) exceeds seller earnings ($%)', p_shipping_cost, v_seller_earnings;
     END IF;
     
-    RAISE NOTICE '💰 Seller earnings: %, Shipping cost: %, Net: %', 
-                 v_seller_earnings, p_shipping_cost, v_net_earnings;
+    RAISE NOTICE '====================================';
+    RAISE NOTICE '💰 EARNINGS BREAKDOWN FOR THIS TRANSACTION:';
+    RAISE NOTICE '   Gross Earnings (85%%): $%', v_seller_earnings;
+    RAISE NOTICE '   Shipping Cost: -$%', p_shipping_cost;
+    RAISE NOTICE '   Net Earnings: $%', v_net_earnings;
+    RAISE NOTICE '====================================';
+    RAISE NOTICE '📊 PENDING WALLET DEDUCTION:';
+    RAISE NOTICE '   Amount to deduct: $% (this transaction gross only)', v_seller_earnings;
+    RAISE NOTICE '   Amount to release: $% (net after shipping)', v_net_earnings;
+    RAISE NOTICE '====================================';;
     
     -- Update session with tracking info and shipping cost
     UPDATE marketplace_sessions

@@ -1,7 +1,7 @@
 -- ============================================
 -- ADD TEST TOKENS FOR TESTING
 -- ============================================
--- Add 300 tokens to ryanrfermoselle@yahoo.com for testing
+-- Add 300 tokens to ryanrfermoselle@yahoo.com and rfermoselle@avidbio.com
 -- This prevents deficit when testing shipping label generation
 -- ============================================
 
@@ -10,81 +10,112 @@ DECLARE
     v_user_id UUID;
     v_current_balance NUMERIC;
     v_new_balance NUMERIC;
+    v_email TEXT;
 BEGIN
-    -- Get user ID
-    SELECT id INTO v_user_id
-    FROM public.users
-    WHERE email = 'ryanrfermoselle@yahoo.com';
-    
-    IF v_user_id IS NULL THEN
-        RAISE EXCEPTION 'User with email ryanrfermoselle@yahoo.com not found';
-    END IF;
-    
-    RAISE NOTICE '✅ Found user: %', v_user_id;
-    
-    -- Get current balance
-    SELECT balance INTO v_current_balance
-    FROM public.user_balances
-    WHERE user_id = v_user_id;
-    
-    IF v_current_balance IS NULL THEN
-        -- Create balance record if doesn't exist
-        INSERT INTO public.user_balances (user_id, balance, updated_at)
-        VALUES (v_user_id, 300.00, NOW());
+    -- Loop through both email addresses
+    FOR v_email IN 
+        SELECT unnest(ARRAY['ryanrfermoselle@yahoo.com', 'rfermoselle@avidbio.com'])
+    LOOP
+        RAISE NOTICE '====================================';
+        RAISE NOTICE '🔍 Processing: %', v_email;
         
-        v_new_balance := 300.00;
+        -- Get user ID
+        SELECT id INTO v_user_id
+        FROM public.users
+        WHERE email = v_email;
         
-        RAISE NOTICE '✅ Created balance record with 300 tokens';
-    ELSE
-        -- Update existing balance
-        UPDATE public.user_balances
-        SET 
-            balance = balance + 300.00,
-            updated_at = NOW()
+        IF v_user_id IS NULL THEN
+            RAISE NOTICE '❌ User with email % not found - skipping', v_email;
+            CONTINUE;
+        END IF;
+        
+        RAISE NOTICE '✅ Found user: %', v_user_id;
+        
+        -- Get current balance (column is drop_tokens, not balance)
+        SELECT drop_tokens INTO v_current_balance
+        FROM public.user_balances
         WHERE user_id = v_user_id;
         
-        v_new_balance := v_current_balance + 300.00;
+        IF v_current_balance IS NULL THEN
+            -- Create balance record if doesn't exist
+            INSERT INTO public.user_balances (
+                user_id, 
+                drop_tokens, 
+                cash_balance_usd,
+                pending_earnings_usd,
+                total_earned_usd,
+                total_spent_usd,
+                updated_at
+            ) VALUES (
+                v_user_id, 
+                300.00, 
+                0.00,
+                0.00,
+                0.00,
+                0.00,
+                NOW()
+            );
+            
+            v_new_balance := 300.00;
+            
+            RAISE NOTICE '✅ Created balance record with 300 tokens';
+        ELSE
+            -- Update existing balance
+            UPDATE public.user_balances
+            SET 
+                drop_tokens = drop_tokens + 300.00,
+                updated_at = NOW()
+            WHERE user_id = v_user_id;
+            
+            v_new_balance := v_current_balance + 300.00;
+            
+            RAISE NOTICE '✅ Updated balance: % → %', v_current_balance, v_new_balance;
+        END IF;
         
-        RAISE NOTICE '✅ Updated balance: % → %', v_current_balance, v_new_balance;
-    END IF;
+        -- Log the transaction
+        INSERT INTO public.wallet_transactions (
+            user_id,
+            amount,
+            transaction_type,
+            before_balance,
+            after_balance,
+            reason,
+            metadata,
+            created_at
+        ) VALUES (
+            v_user_id,
+            300.00,
+            'admin_credit',
+            COALESCE(v_current_balance, 0),
+            v_new_balance,
+            'Test tokens for shipping label testing',
+            jsonb_build_object(
+                'admin_action', true,
+                'purpose', 'testing',
+                'email', v_email,
+                'date', NOW()
+            ),
+            NOW()
+        );
+        
+        RAISE NOTICE '✅ Transaction logged';
+        RAISE NOTICE '🎉 SUCCESS! Added 300 tokens to %', v_email;
+        RAISE NOTICE '💰 New balance: % tokens', v_new_balance;
+    END LOOP;
     
-    -- Log the transaction
-    INSERT INTO public.wallet_transactions (
-        user_id,
-        amount,
-        transaction_type,
-        before_balance,
-        after_balance,
-        reason,
-        metadata,
-        created_at
-    ) VALUES (
-        v_user_id,
-        300.00,
-        'admin_credit',
-        COALESCE(v_current_balance, 0),
-        v_new_balance,
-        'Test tokens for shipping label testing',
-        jsonb_build_object(
-            'admin_action', true,
-            'purpose', 'testing',
-            'date', NOW()
-        ),
-        NOW()
-    );
-    
-    RAISE NOTICE '✅ Transaction logged';
-    RAISE NOTICE '🎉 SUCCESS! Added 300 tokens to ryanrfermoselle@yahoo.com';
-    RAISE NOTICE '💰 New balance: % tokens', v_new_balance;
+    RAISE NOTICE '====================================';
+    RAISE NOTICE '✅ ALL DONE!';
 END $$;
 
--- Verify the balance
+-- Verify the balances
 SELECT 
     u.email,
     u.username,
-    ub.balance,
+    ub.drop_tokens as token_balance,
+    ub.cash_balance_usd,
     ub.updated_at
 FROM public.users u
 JOIN public.user_balances ub ON ub.user_id = u.id
-WHERE u.email = 'ryanrfermoselle@yahoo.com';
+WHERE u.email IN ('ryanrfermoselle@yahoo.com', 'rfermoselle@avidbio.com')
+ORDER BY u.email;
 

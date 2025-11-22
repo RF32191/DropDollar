@@ -100,12 +100,12 @@ DECLARE
     v_net_earnings NUMERIC;
     v_result JSON;
 BEGIN
-    -- Get winner's expected address
+    -- Get winner's expected address and calculate earnings
     SELECT 
         winner_shipping_address,
         ml.seller_id,
-        ms.seller_earnings,
-        ms.shipping_cost
+        COALESCE(ms.seller_earnings, ms.prize_pool * 0.85) as calculated_seller_earnings,
+        COALESCE(ms.shipping_cost, 0) as calculated_shipping_cost
     INTO 
         v_winner_address,
         v_seller_id,
@@ -114,6 +114,21 @@ BEGIN
     FROM marketplace_sessions ms
     JOIN marketplace_listings ml ON ml.id = ms.listing_id
     WHERE ms.id = p_session_id;
+    
+    -- Ensure seller_earnings is set in session (if not already)
+    IF v_seller_earnings IS NULL THEN
+        SELECT prize_pool * 0.85 INTO v_seller_earnings
+        FROM marketplace_sessions
+        WHERE id = p_session_id;
+        
+        -- Update the session with calculated seller_earnings
+        UPDATE marketplace_sessions
+        SET seller_earnings = v_seller_earnings
+        WHERE id = p_session_id;
+    END IF;
+    
+    RAISE NOTICE '💰 Seller earnings for this transaction: $%', v_seller_earnings;
+    RAISE NOTICE '📦 Shipping cost: $%', v_shipping_cost;
     
     -- Extract expected destination
     v_expected_zip := v_winner_address->>'postal_code';
@@ -146,10 +161,24 @@ BEGIN
     
     -- Only release funds if address matches
     IF v_address_matches THEN
-        -- Calculate net earnings
+        -- Calculate net earnings (gross - shipping cost)
         v_net_earnings := v_seller_earnings - v_shipping_cost;
         
+        RAISE NOTICE '====================================';
+        RAISE NOTICE '💰 FUND RELEASE CALCULATION:';
+        RAISE NOTICE '   Gross Earnings (85%%): $%', v_seller_earnings;
+        RAISE NOTICE '   Shipping Cost: $%', v_shipping_cost;
+        RAISE NOTICE '   Net Earnings: $%', v_net_earnings;
+        RAISE NOTICE '====================================';
+        RAISE NOTICE '📊 WALLET UPDATE:';
+        RAISE NOTICE '   Deducting from pending: $% (this transaction only)', v_seller_earnings;
+        RAISE NOTICE '   Adding to released: $% (net after shipping)', v_net_earnings;
+        RAISE NOTICE '====================================';
+        
         -- Update seller wallet: Move from pending to released
+        -- IMPORTANT: We deduct v_seller_earnings (gross) from pending
+        --            because that's what was added when winner claimed
+        --            We add v_net_earnings (after shipping) to released
         UPDATE seller_wallets
         SET 
             pending_balance = GREATEST(pending_balance - v_seller_earnings, 0),
