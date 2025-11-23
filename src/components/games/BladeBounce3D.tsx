@@ -65,8 +65,8 @@ const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
 const ENEMY_SWORD_ROTATION_BASE = 0.08; // Base rotation speed for enemy swords (faster)
 const ENEMY_SWORD_ROTATION_INCREASE = 0.03; // Rotation speed increase per difficulty tier (more aggressive)
 const SWORD_MOVE_SPEED = 1.0; // Full mouse tracking speed
-const SWORD_X_RANGE = 12; // Horizontal movement range
-const SWORD_Y_RANGE = 10; // Vertical movement range
+const SWORD_X_RANGE = 18; // Horizontal movement range - INCREASED for full window coverage
+const SWORD_Y_RANGE = 14; // Vertical movement range - INCREASED for full window coverage
 const ENEMY_SWORD_GAP = 7; // Gap between top and bottom enemy swords
 const ENEMY_SWORD_SPEED_BASE = 0.08; // Base movement speed (faster)
 const ENEMY_SWORD_BLADE_DAMAGE = true; // Sword blades hurt player's handle
@@ -1031,9 +1031,17 @@ export default function BladeBounce3D({
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
-    // Make canvas focusable and hide cursor everywhere - the BLADE IS the cursor!
-    document.body.style.cursor = 'none'; // Hide cursor on entire page
+    // Make canvas focusable
     canvas.tabIndex = 0;
+    
+    // Hide cursor ONLY during gameplay - the BLADE IS the cursor!
+    if (gameState === 'playing') {
+      document.body.style.cursor = 'none';
+      console.log('🖱️ [BladeBounce3D] Cursor hidden - blade is now your cursor!');
+    } else {
+      document.body.style.cursor = ''; // Show cursor on menus
+      console.log('🖱️ [BladeBounce3D] Cursor visible on menu');
+    }
     
     console.log('📱 [BladeBounce3D] WINDOW-LEVEL mouse tracking enabled! Sword follows cursor anywhere!');
     
@@ -1042,7 +1050,7 @@ export default function BladeBounce3D({
       canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('touchmove', handleTouchMove);
       canvas.removeEventListener('touchstart', handleTouchStart);
-      document.body.style.cursor = ''; // Restore cursor
+      document.body.style.cursor = ''; // Always restore cursor when unmounting
       
       console.log('🧹 [BladeBounce3D] Removed mouse and touch events');
     };
@@ -1768,8 +1776,8 @@ export default function BladeBounce3D({
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
               ⚔️ BLADE BOUNCE 3D
             </h1>
-            <p className="text-3xl mb-4 text-cyan-300 font-bold">🖱️ MOUSE: Sword follows cursor anywhere!</p>
-            <p className="text-2xl mb-4 text-cyan-300">🖱️ Click to rotate 45°</p>
+            <p className="text-3xl mb-4 text-cyan-300 font-bold">🖱️ MOUSE: Sword follows cursor EVERYWHERE across entire window!</p>
+            <p className="text-2xl mb-4 text-cyan-300">🖱️ Full screen range - move to all edges! Click to rotate 45°</p>
             <p className="text-3xl mb-4 text-pink-400 font-bold">📱 MOBILE: Touch & drag to move sword!</p>
             <p className="text-2xl mb-4 text-pink-400">📱 Tap anywhere to rotate 45°</p>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
