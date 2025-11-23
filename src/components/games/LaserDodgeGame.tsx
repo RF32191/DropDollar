@@ -883,8 +883,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4 cursor-pointer"
+        onClick={handleStartGame}
+      >
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl pointer-events-none">
+          <div className="absolute top-4 left-0 right-0 z-50">
+            <div className="text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-2xl sm:text-3xl font-black py-3 px-6 rounded-full inline-block animate-pulse shadow-2xl">
+              🖱️ CLICK ANYWHERE TO START 🖱️
+            </div>
+          </div>
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
@@ -982,22 +990,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              {!isCompetitionMode && onExit && (
+            {!isCompetitionMode && onExit && (
+              <div className="flex justify-center">
                 <button
-                  onClick={onExit}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent starting game when clicking exit
+                    onExit();
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base pointer-events-auto"
                 >
-                  ← Back
+                  ← Back to Menu
                 </button>
-              )}
-              <button
-                onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse text-sm sm:text-base`}
-              >
-                🔥 START EXTREME
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
