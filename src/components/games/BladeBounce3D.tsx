@@ -1782,7 +1782,7 @@ export default function BladeBounce3D({
               🖱️ CLICK ANYWHERE TO START 🖱️
             </div>
           </div>
-          <div className="min-h-full flex flex-col items-center justify-start py-12 px-4 pointer-events-none">
+          <div className="min-h-full flex flex-col items-center justify-start py-12 px-4">
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse pt-20">
               ⚔️ BLADE BOUNCE 3D
             </h1>

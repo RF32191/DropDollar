@@ -422,7 +422,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
             🖱️ CLICK ANYWHERE TO START 🖱️
           </div>
         </div>
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 text-center border border-white/20 shadow-2xl pointer-events-none">
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 text-center border border-white/20 shadow-2xl">
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
