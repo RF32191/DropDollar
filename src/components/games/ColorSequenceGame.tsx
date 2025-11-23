@@ -413,8 +413,16 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-purple-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm overflow-y-auto">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 text-center border border-white/20 shadow-2xl">
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-red-900 via-purple-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm overflow-y-auto cursor-pointer"
+        onClick={handleStartGame}
+      >
+        <div className="absolute top-8 left-0 right-0 z-50 pointer-events-none">
+          <div className="text-center bg-gradient-to-r from-purple-400 to-pink-500 text-white text-3xl font-black py-4 px-8 rounded-full inline-block animate-pulse shadow-2xl">
+            🖱️ CLICK ANYWHERE TO START 🖱️
+          </div>
+        </div>
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 text-center border border-white/20 shadow-2xl pointer-events-none">
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
