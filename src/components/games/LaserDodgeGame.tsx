@@ -216,7 +216,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       // Add to instantBonusRef so it persists across frames!
       if (isOnLaser && !laser.bonusCollected) {
         instantBonusRef.current += 200; // Add 200 points IMMEDIATELY and PERMANENTLY
-        laser.bonusCollected = true; // Mark as collected
+        laser.bonusCollected = true; // Mark as collected on the object
+        
+        // Also update the ref array so the flag persists
+        lasersRef.current = lasersRef.current.map(l => 
+          l.id === laser.id ? { ...l, bonusCollected: true } : l
+        );
+        
         console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points! Total instant bonuses:', instantBonusRef.current);
       }
     }
