@@ -890,13 +890,13 @@ export default function BladeBounce3D({
     }
   }, [gameState]);
 
-  // Mouse control - BLADE FOLLOWS CURSOR DIRECTLY
+  // Mouse control - BLADE FOLLOWS CURSOR EVERYWHERE (window-level tracking)
   useEffect(() => {
     const container = containerRef.current;
     const canvas = rendererRef.current?.domElement;
     if (!container || !canvas) return;
 
-    console.log('🖱️ [BladeBounce3D] Attaching mouse events to canvas');
+    console.log('🖱️ [BladeBounce3D] Attaching mouse events to WINDOW for full tracking');
     
     const handleMouseMove = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
@@ -906,13 +906,13 @@ export default function BladeBounce3D({
       const centerX = rect.width / 2;
       const centerY = rect.height / 2;
       
-      // Get mouse position relative to canvas
+      // Get mouse position relative to canvas (works even when cursor is outside!)
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       
-      // BLADE FOLLOWS CURSOR - sword tracks mouse position in X and Y
-      const normalizedX = (mouseX - centerX) / centerX; // -1 to 1
-      const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
+      // BLADE FOLLOWS CURSOR EXACTLY - Clamp to playable area but track anywhere
+      const normalizedX = Math.max(-1, Math.min(1, (mouseX - centerX) / centerX)); // Clamp to -1 to 1
+      const normalizedY = Math.max(-1, Math.min(1, (mouseY - centerY) / centerY)); // Clamp to -1 to 1
       const newTargetX = normalizedX * SWORD_X_RANGE; // Horizontal movement
       const newTargetY = -normalizedY * SWORD_Y_RANGE; // Invert for intuitive control
       
@@ -1025,23 +1025,24 @@ export default function BladeBounce3D({
       console.log('📱 Touch rotation: +45°');
     };
     
-    // Attach mouse AND touch events
-    canvas.addEventListener('mousemove', handleMouseMove);
+    // Attach mouse events to WINDOW (tracks everywhere!) and touch to canvas
+    window.addEventListener('mousemove', handleMouseMove); // Window-level tracking!
     canvas.addEventListener('click', handleClick);
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
-    // Make canvas focusable and hide cursor - the BLADE IS the cursor!
-    canvas.style.cursor = 'none';
+    // Make canvas focusable and hide cursor everywhere - the BLADE IS the cursor!
+    document.body.style.cursor = 'none'; // Hide cursor on entire page
     canvas.tabIndex = 0;
     
-    console.log('📱 [BladeBounce3D] Mouse and touch controls enabled!');
+    console.log('📱 [BladeBounce3D] WINDOW-LEVEL mouse tracking enabled! Sword follows cursor anywhere!');
     
     return () => {
-      canvas.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousemove', handleMouseMove); // Clean up window listener
       canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('touchmove', handleTouchMove);
       canvas.removeEventListener('touchstart', handleTouchStart);
+      document.body.style.cursor = ''; // Restore cursor
       
       console.log('🧹 [BladeBounce3D] Removed mouse and touch events');
     };
@@ -1696,12 +1697,16 @@ export default function BladeBounce3D({
   }, [gameState, startGame]);
 
   return (
-    <div className="relative w-full h-screen bg-[#0a0e1a] overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-[#0a0e1a] overflow-hidden" style={{ margin: 0, padding: 0 }}>
       <div 
         ref={containerRef} 
         className="w-full h-full"
         style={{ 
-          position: 'relative',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           touchAction: 'none', // Prevent touch scrolling
           userSelect: 'none' // Prevent text selection
         }}

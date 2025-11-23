@@ -81,6 +81,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const timerRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
+  const instantBonusRef = useRef(0); // Track accumulated instant bonuses from blue lasers
   const isGameRunningRef = useRef(false);
   const extremeModeTriggeredRef = useRef(false); // Track if extreme mode audio played
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
@@ -192,7 +193,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     // MASSIVELY INCREASED BONUS - 1.0 points per frame per laser!
     // PLUS: 200 point immediate bonus when first touching a blue laser!
     let blueBonus = 0;
-    let immediateBonus = 0;
     const blueLasers = lasersRef.current.filter(l => !l.isHarmful);
     const currentShip = shipRef.current; // Use ref for accurate position
     for (const laser of blueLasers) {
@@ -213,10 +213,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
       
       // Give 200 point immediate bonus on first touch of this laser
+      // Add to instantBonusRef so it persists across frames!
       if (isOnLaser && !laser.bonusCollected) {
-        immediateBonus += 200;
+        instantBonusRef.current += 200; // Add 200 points IMMEDIATELY and PERMANENTLY
         laser.bonusCollected = true; // Mark as collected
-        console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points');
+        console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points! Total instant bonuses:', instantBonusRef.current);
       }
     }
     
@@ -224,7 +225,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     let shootingBonus = 0;
     // This will be calculated when bullets hit enemies
     
-    const newScore = Number((baseScore + blueBonus + shootingBonus + immediateBonus).toFixed(2));
+    // Calculate total score: base + instant bonuses + frame bonuses
+    const newScore = Number((baseScore + instantBonusRef.current + blueBonus + shootingBonus).toFixed(2));
     currentScoreRef.current = newScore;
     setScore(newScore);
 
@@ -815,6 +817,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     // Reset everything
     setScore(0);
     currentScoreRef.current = 0;
+    instantBonusRef.current = 0; // Reset instant bonuses
     setLasers([]);
     setEnemyShips([]);
     setBullets([]);
