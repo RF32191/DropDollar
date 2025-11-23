@@ -1774,15 +1774,23 @@ export default function BladeBounce3D({
       {/* Ready screen - SCROLLABLE + CLICK TO START */}
       {gameState === 'ready' && (
         <div 
-          className="absolute inset-0 bg-black/70 text-white overflow-y-auto cursor-pointer" 
-          onClick={startGame}
+          className="absolute inset-0 bg-black/70 text-white overflow-y-auto"
         >
+          {/* Clickable background overlay */}
+          <div 
+            className="fixed inset-0 cursor-pointer z-0"
+            onClick={startGame}
+          />
+          
           <div className="absolute top-8 left-0 right-0 z-50 pointer-events-none">
             <div className="text-center bg-gradient-to-r from-cyan-400 to-blue-500 text-black text-3xl sm:text-4xl font-black py-4 px-8 rounded-full inline-block animate-pulse shadow-2xl">
               🖱️ CLICK ANYWHERE TO START 🖱️
             </div>
           </div>
-          <div className="min-h-full flex flex-col items-center justify-start py-12 px-4">
+          <div 
+            className="min-h-full flex flex-col items-center justify-start py-12 px-4 relative z-10 cursor-pointer"
+            onClick={startGame}
+          >
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse pt-20">
               ⚔️ BLADE BOUNCE 3D
             </h1>

@@ -884,10 +884,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   if (gameState === 'ready') {
     return (
       <div 
-        className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4 cursor-pointer"
-        onClick={handleStartGame}
+        className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4"
       >
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl">
+        {/* Clickable background overlay */}
+        <div 
+          className="absolute inset-0 cursor-pointer"
+          onClick={handleStartGame}
+        />
+        
+        <div 
+          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl z-10 cursor-pointer"
+          onClick={handleStartGame}
+        >
           <div className="absolute top-4 left-0 right-0 z-50">
             <div className="text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-2xl sm:text-3xl font-black py-3 px-6 rounded-full inline-block animate-pulse shadow-2xl">
               🖱️ CLICK ANYWHERE TO START 🖱️
