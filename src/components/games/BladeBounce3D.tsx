@@ -65,8 +65,8 @@ const DANGER_ZONE_HIT_RADIUS = 1.2; // Hit detection radius (larger than visual)
 const ENEMY_SWORD_ROTATION_BASE = 0.08; // Base rotation speed for enemy swords (faster)
 const ENEMY_SWORD_ROTATION_INCREASE = 0.03; // Rotation speed increase per difficulty tier (more aggressive)
 const SWORD_MOVE_SPEED = 1.0; // Full mouse tracking speed
-const SWORD_X_RANGE = 18; // Horizontal movement range - INCREASED for full window coverage
-const SWORD_Y_RANGE = 14; // Vertical movement range - INCREASED for full window coverage
+const SWORD_X_RANGE = 25; // Horizontal movement range - MAXIMUM for ENTIRE window edge-to-edge
+const SWORD_Y_RANGE = 20; // Vertical movement range - MAXIMUM for ENTIRE window edge-to-edge
 const ENEMY_SWORD_GAP = 7; // Gap between top and bottom enemy swords
 const ENEMY_SWORD_SPEED_BASE = 0.08; // Base movement speed (faster)
 const ENEMY_SWORD_BLADE_DAMAGE = true; // Sword blades hurt player's handle
@@ -1037,9 +1037,11 @@ export default function BladeBounce3D({
     // Hide cursor ONLY during gameplay - the BLADE IS the cursor!
     if (gameState === 'playing') {
       document.body.style.cursor = 'none';
+      container.style.cursor = 'none';
       console.log('🖱️ [BladeBounce3D] Cursor hidden - blade is now your cursor!');
     } else {
-      document.body.style.cursor = ''; // Show cursor on menus
+      document.body.style.cursor = 'default'; // Show cursor on menus
+      container.style.cursor = 'default';
       console.log('🖱️ [BladeBounce3D] Cursor visible on menu');
     }
     
@@ -1771,7 +1773,7 @@ export default function BladeBounce3D({
       
       {/* Ready screen - SCROLLABLE */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 bg-black/70 text-white overflow-y-auto">
+        <div className="absolute inset-0 bg-black/70 text-white overflow-y-auto" style={{ cursor: 'default' }}>
           <div className="min-h-full flex flex-col items-center justify-start py-12 px-4">
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse">
               ⚔️ BLADE BOUNCE 3D
@@ -1805,6 +1807,7 @@ export default function BladeBounce3D({
             <button
               onClick={startGame}
               className="px-12 py-6 bg-cyan-500 hover:bg-cyan-600 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto mb-8"
+              style={{ cursor: 'pointer' }}
             >
               START GAME
             </button>
