@@ -545,8 +545,16 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-red-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm">
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl">
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-gray-900 via-red-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm cursor-pointer"
+        onClick={handleStartGame}
+      >
+        <div className="absolute top-8 left-0 right-0 z-50 pointer-events-none">
+          <div className="text-center bg-gradient-to-r from-red-400 to-orange-500 text-white text-3xl font-black py-4 px-8 rounded-full inline-block animate-pulse shadow-2xl">
+            🖱️ CLICK ANYWHERE TO START 🖱️
+          </div>
+        </div>
+        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl pointer-events-none">
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>
@@ -620,22 +628,19 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            <div className="flex space-x-4">
-              {!isCompetitionMode && onExit && (
+            {!isCompetitionMode && onExit && (
+              <div className="flex justify-center">
                 <button
-                  onClick={onExit}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExit();
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform pointer-events-auto"
                 >
-                  ← Back
+                  ← Back to Menu
                 </button>
-              )}
-              <button
-                onClick={handleStartGame}
-                className={`${!isCompetitionMode && onExit ? 'flex-1' : 'w-full'} bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse`}
-              >
-                ⚔️ Begin Training
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
