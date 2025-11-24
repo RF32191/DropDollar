@@ -15,7 +15,7 @@ import SellerDashboard from '@/components/seller/SellerDashboard';
 import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlaceholder';
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
