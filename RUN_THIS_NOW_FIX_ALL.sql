@@ -93,7 +93,7 @@ BEGIN
     
     RAISE NOTICE '📊 Session ID: %', session_record.id;
     RAISE NOTICE '📊 Participants: %', session_record.participants_count;
-    RAISE NOTICE '📊 Pot: $%', session_record.current_pot;
+    RAISE NOTICE '📊 Pot: % tokens', session_record.current_pot;
 
     -- Check if already paid
     IF session_record.winner_user_id IS NOT NULL THEN
@@ -157,9 +157,9 @@ BEGIN
     v_winner_payout := total_pot * 0.50;
     v_loser_payout := total_pot * 0.35;
 
-    RAISE NOTICE '🏆 WINNER: % (score: %) = $%', winner_record.username, winner_record.score, v_winner_payout;
-    RAISE NOTICE '🥈 LOSER: % (score: %) = $%', loser_record.username, loser_record.score, v_loser_payout;
-    RAISE NOTICE '💼 PLATFORM FEE: $%', v_platform_fee;
+    RAISE NOTICE '🏆 WINNER: % (score: %) = % tokens', winner_record.username, winner_record.score, v_winner_payout;
+    RAISE NOTICE '🥈 LOSER: % (score: %) = % tokens', loser_record.username, loser_record.score, v_loser_payout;
+    RAISE NOTICE '💼 PLATFORM FEE: % tokens', v_platform_fee;
 
     -- Pay winner
     UPDATE public.users
@@ -402,7 +402,7 @@ BEGIN
   RAISE NOTICE '   1. Two players join ANY 1v1 listing';
   RAISE NOTICE '   2. Both complete the game';
   RAISE NOTICE '   3. 10-second countdown appears';
-  RAISE NOTICE '   4. Winner gets 50%, loser gets 35%';
+  RAISE NOTICE '   4. Winner gets 50%%, loser gets 35%%';
   RAISE NOTICE '   5. Session resets automatically';
   RAISE NOTICE '   6. Listing goes back to "waiting"';
   RAISE NOTICE '';
