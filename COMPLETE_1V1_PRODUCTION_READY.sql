@@ -71,6 +71,7 @@ BEGIN
                 status,
                 participants_count,
                 current_pot,
+                prize_pool,
                 rng_seed,
                 created_at,
                 updated_at
@@ -78,6 +79,7 @@ BEGIN
                 gen_random_uuid(),
                 config_rec.id,
                 'waiting',
+                0,
                 0,
                 0,
                 config_rec.rng_seed,
@@ -250,7 +252,7 @@ BEGIN
         RAISE NOTICE '⚠️ No session found - creating new one for config: %', config_id_param;
         
         INSERT INTO public.one_v_one_sessions (
-            id, config_id, status, participants_count, current_pot, 
+            id, config_id, status, participants_count, current_pot, prize_pool,
             rng_seed, created_at, updated_at
         )
         SELECT 
@@ -258,6 +260,7 @@ BEGIN
             config_id_param, 
             'waiting', 
             0, 
+            0,
             0,
             COALESCE(rng_seed, floor(random() * 1000000)::INTEGER),
             NOW(),
@@ -356,12 +359,13 @@ BEGIN
 
     -- Create new session immediately (don't wait for reset)
     INSERT INTO public.one_v_one_sessions (
-        id, config_id, status, participants_count, current_pot, 
+        id, config_id, status, participants_count, current_pot, prize_pool,
         rng_seed, created_at, updated_at
     ) VALUES (
         gen_random_uuid(),
         config_id_param,
         'waiting',
+        0,
         0,
         0,
         session_record.rng_seed,
@@ -418,12 +422,13 @@ BEGIN
         IF NOT session_exists THEN
             -- Create new waiting session
             INSERT INTO public.one_v_one_sessions (
-                id, config_id, status, participants_count, current_pot,
+                id, config_id, status, participants_count, current_pot, prize_pool,
                 rng_seed, created_at, updated_at
             ) VALUES (
                 gen_random_uuid(),
                 NEW.config_id,
                 'waiting',
+                0,
                 0,
                 0,
                 NEW.rng_seed,
