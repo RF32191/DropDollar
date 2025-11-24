@@ -6,6 +6,32 @@
 -- ============================================================================
 
 -- ============================================================================
+-- STEP 0: RESET ALL INCOMPLETE REGISTRATIONS
+-- ============================================================================
+
+DO $$
+DECLARE
+    incomplete_count INT;
+BEGIN
+    -- Count incomplete registrations
+    SELECT COUNT(*) INTO incomplete_count
+    FROM public.seller_profiles
+    WHERE registration_completed = FALSE OR status IN ('draft', 'in_progress', 'pending');
+    
+    IF incomplete_count > 0 THEN
+        RAISE NOTICE '🗑️ Deleting % incomplete seller registrations...', incomplete_count;
+        
+        -- Delete all incomplete registrations
+        DELETE FROM public.seller_profiles
+        WHERE registration_completed = FALSE OR status IN ('draft', 'in_progress', 'pending');
+        
+        RAISE NOTICE '✅ Deleted % incomplete registrations', incomplete_count;
+    ELSE
+        RAISE NOTICE '✅ No incomplete registrations to delete';
+    END IF;
+END $$;
+
+-- ============================================================================
 -- STEP 1: BACKUP EXISTING SELLER PROFILES (IF ANY EXIST)
 -- ============================================================================
 
@@ -15,7 +41,7 @@ BEGIN
     -- Drop old backup if exists
     DROP TABLE IF EXISTS public.seller_profiles_backup;
     
-    -- Create backup of current seller_profiles
+    -- Create backup of current seller_profiles (after cleanup)
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'seller_profiles') THEN
         CREATE TABLE public.seller_profiles_backup AS 
         SELECT * FROM public.seller_profiles;
@@ -162,7 +188,7 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Shop name already taken');
     END IF;
     
-    -- Create initial seller profile
+    -- Create initial seller profile (status = 'draft' until completed)
     INSERT INTO public.seller_profiles (
         user_id,
         shop_name,
@@ -176,7 +202,7 @@ BEGIN
         shop_description_param,
         shop_tagline_param,
         1,
-        'pending'
+        'draft'  -- Changed from 'pending' - only pending after completion
     ) RETURNING id INTO v_seller_id;
     
     RETURN jsonb_build_object(
@@ -484,6 +510,48 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.complete_seller_registration TO authenticated;
 
+-- Add function to reset incomplete registration
+CREATE OR REPLACE FUNCTION public.reset_seller_registration()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_user_id UUID;
+    v_deleted_count INT;
+BEGIN
+    v_user_id := auth.uid();
+    IF v_user_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+    END IF;
+    
+    -- Delete incomplete registrations (draft or in_progress only, not pending/approved)
+    DELETE FROM public.seller_profiles
+    WHERE user_id = v_user_id 
+    AND status IN ('draft', 'in_progress')
+    AND registration_completed = FALSE;
+    
+    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+    
+    IF v_deleted_count > 0 THEN
+        RETURN jsonb_build_object(
+            'success', true,
+            'message', 'Incomplete registration deleted. You can start fresh!'
+        );
+    ELSE
+        RETURN jsonb_build_object(
+            'success', false,
+            'message', 'No incomplete registration found to delete'
+        );
+    END IF;
+    
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Error: ' || SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.reset_seller_registration TO authenticated;
+
 -- Update RLS policies to use user_id
 DROP POLICY IF EXISTS "Users can view own profile" ON public.seller_profiles;
 CREATE POLICY "Users can view own profile" ON public.seller_profiles
@@ -491,7 +559,18 @@ CREATE POLICY "Users can view own profile" ON public.seller_profiles
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.seller_profiles;
 CREATE POLICY "Users can update own profile" ON public.seller_profiles
-    FOR UPDATE USING (auth.uid() = user_id);
+    FOR UPDATE USING (
+        auth.uid() = user_id 
+        AND (status IN ('draft', 'in_progress') OR registration_completed = FALSE)
+    );
+
+DROP POLICY IF EXISTS "Users can delete own incomplete profile" ON public.seller_profiles;
+CREATE POLICY "Users can delete own incomplete profile" ON public.seller_profiles
+    FOR DELETE USING (
+        auth.uid() = user_id 
+        AND status IN ('draft', 'in_progress')
+        AND registration_completed = FALSE
+    );
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.seller_profiles;
 CREATE POLICY "Users can insert own profile" ON public.seller_profiles
