@@ -192,18 +192,38 @@ export default function AdminDashboard() {
 
   const loadSellerVerifications = async () => {
     try {
-      // Load sellers requiring verification
+      // Load only COMPLETED and SUBMITTED seller registrations
       const { data: sellersData, error: sellersError } = await supabase
         .from('seller_profiles')
         .select(`
           id,
           user_id,
           shop_name,
+          shop_description,
           business_name,
+          business_type,
+          full_legal_name,
+          date_of_birth,
+          ssn_last4,
+          dl_front_url,
+          dl_back_url,
+          selfie_url,
+          contact_email,
+          contact_phone,
+          address_line1,
+          city,
+          state,
+          postal_code,
+          verification_status,
+          status,
+          registration_completed,
+          submitted_at,
           identity_verified,
           created_at
         `)
-        .order('created_at', { ascending: false })
+        .eq('registration_completed', true)
+        .in('status', ['pending', 'approved', 'rejected'])
+        .order('submitted_at', { ascending: false })
         .limit(50);
 
       if (sellersError) throw sellersError;
@@ -236,7 +256,24 @@ export default function AdminDashboard() {
           username: userData?.username || 'Unknown',
           email: userData?.email || 'No email',
           shop_name: seller.shop_name || 'No shop name',
+          shop_description: seller.shop_description,
           business_name: seller.business_name || 'No business name',
+          business_type: seller.business_type,
+          full_legal_name: seller.full_legal_name,
+          date_of_birth: seller.date_of_birth,
+          ssn_last4: seller.ssn_last4,
+          dl_front_url: seller.dl_front_url,
+          dl_back_url: seller.dl_back_url,
+          selfie_url: seller.selfie_url,
+          contact_email: seller.contact_email,
+          contact_phone: seller.contact_phone,
+          address_line1: seller.address_line1,
+          city: seller.city,
+          state: seller.state,
+          postal_code: seller.postal_code,
+          verification_status: seller.verification_status,
+          status: seller.status,
+          submitted_at: seller.submitted_at,
           risk_score: risk?.overall_risk_score || 0,
           risk_flags: risk?.risk_flags || [],
           identity_verified: seller.identity_verified || false,
@@ -729,27 +766,101 @@ export default function AdminDashboard() {
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                        {/* Registration Status Badge */}
+                        <div className="mb-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            seller.status === 'approved' ? 'bg-green-600' :
+                            seller.status === 'rejected' ? 'bg-red-600' :
+                            'bg-yellow-600'
+                          }`}>
+                            {seller.status === 'pending' ? '⏳ Pending Review' :
+                             seller.status === 'approved' ? '✅ Approved' :
+                             '❌ Rejected'}
+                          </span>
+                          {seller.submitted_at && (
+                            <span className="ml-3 text-sm text-gray-400">
+                              Submitted: {new Date(seller.submitted_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Registration Details - Grid Layout */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 bg-gray-900/50 p-4 rounded-lg">
+                          <div className="col-span-2 md:col-span-3 border-b border-gray-700 pb-2 mb-2">
+                            <p className="text-sm font-bold text-blue-400">📋 Registration Information</p>
+                          </div>
+                          
+                          {/* Identity Information */}
                           <div>
-                            <p className="text-sm text-gray-400">Username</p>
-                            <p className="text-white">{seller.username}</p>
+                            <p className="text-xs text-gray-400">Legal Name</p>
+                            <p className="text-sm text-white">{seller.full_legal_name || 'Not provided'}</p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-400">Email</p>
-                            <p className="text-white">{seller.email}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Identity Status</p>
-                            <p className={`font-bold ${seller.identity_verified ? 'text-green-400' : 'text-yellow-400'}`}>
-                              {seller.identity_verified ? 'Verified' : 'Not Verified'}
+                            <p className="text-xs text-gray-400">Date of Birth</p>
+                            <p className="text-sm text-white">
+                              {seller.date_of_birth ? new Date(seller.date_of_birth).toLocaleDateString() : 'Not provided'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-400">Documents</p>
-                            <p className="text-white flex items-center">
-                              <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
-                              {seller.documents_count}
+                            <p className="text-xs text-gray-400">SSN Last 4</p>
+                            <p className="text-sm text-white">***-**-{seller.ssn_last4 || '****'}</p>
+                          </div>
+                          
+                          {/* Business Information */}
+                          <div>
+                            <p className="text-xs text-gray-400">Business Type</p>
+                            <p className="text-sm text-white">{seller.business_type || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Business Name</p>
+                            <p className="text-sm text-white">{seller.business_name || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Shop Description</p>
+                            <p className="text-sm text-white line-clamp-2">{seller.shop_description || 'Not provided'}</p>
+                          </div>
+                          
+                          {/* Contact Information */}
+                          <div>
+                            <p className="text-xs text-gray-400">Contact Email</p>
+                            <p className="text-sm text-white">{seller.contact_email || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Contact Phone</p>
+                            <p className="text-sm text-white">{seller.contact_phone || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">Address</p>
+                            <p className="text-sm text-white">
+                              {seller.address_line1 ? 
+                                `${seller.city}, ${seller.state} ${seller.postal_code}` : 
+                                'Not provided'}
                             </p>
+                          </div>
+                          
+                          {/* Documents */}
+                          <div className="col-span-2 md:col-span-3 border-t border-gray-700 pt-2 mt-2">
+                            <p className="text-xs text-gray-400 mb-2">Identity Documents</p>
+                            <div className="flex gap-2">
+                              {seller.dl_front_url && (
+                                <a href={seller.dl_front_url} target="_blank" rel="noopener noreferrer"
+                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
+                                  DL Front
+                                </a>
+                              )}
+                              {seller.dl_back_url && (
+                                <a href={seller.dl_back_url} target="_blank" rel="noopener noreferrer"
+                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
+                                  DL Back
+                                </a>
+                              )}
+                              {seller.selfie_url && (
+                                <a href={seller.selfie_url} target="_blank" rel="noopener noreferrer"
+                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
+                                  Selfie
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
 
