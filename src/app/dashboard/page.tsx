@@ -62,6 +62,7 @@ export default function TriumphStyleDashboard() {
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading: authLoading, refreshTokens } = useAuth();
   const { tokenBalance, isLoading: tokensLoading } = useTokenSync();
+
   const [userProfile, setUserProfile] = useState<any>(null);
   const [gameHistory, setGameHistory] = useState<GameHistoryRecord[]>([]);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
