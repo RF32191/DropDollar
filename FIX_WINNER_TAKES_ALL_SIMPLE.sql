@@ -5,7 +5,98 @@
 -- ============================================================================
 
 -- ============================================================================
--- STEP 1: RESET ALL WTA SESSIONS
+-- STEP 1: ADD MISSING COLUMNS TO WTA SESSIONS TABLE
+-- ============================================================================
+
+DO $$ 
+BEGIN
+    -- Add current_pot if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_sessions' 
+        AND column_name = 'current_pot'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_sessions 
+        ADD COLUMN current_pot INTEGER DEFAULT 0;
+        RAISE NOTICE '✅ Added current_pot column';
+    ELSE
+        RAISE NOTICE '⚠️ current_pot column already exists';
+    END IF;
+
+    -- Add timer_duration if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_sessions' 
+        AND column_name = 'timer_duration'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_sessions 
+        ADD COLUMN timer_duration INTEGER DEFAULT 60;
+        RAISE NOTICE '✅ Added timer_duration column';
+    ELSE
+        RAISE NOTICE '⚠️ timer_duration column already exists';
+    END IF;
+
+    -- Add winner_user_id if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_sessions' 
+        AND column_name = 'winner_user_id'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_sessions 
+        ADD COLUMN winner_user_id UUID;
+        RAISE NOTICE '✅ Added winner_user_id column';
+    ELSE
+        RAISE NOTICE '⚠️ winner_user_id column already exists';
+    END IF;
+
+    -- Add prize_amount if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_sessions' 
+        AND column_name = 'prize_amount'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_sessions 
+        ADD COLUMN prize_amount NUMERIC;
+        RAISE NOTICE '✅ Added prize_amount column';
+    ELSE
+        RAISE NOTICE '⚠️ prize_amount column already exists';
+    END IF;
+
+    -- Add platform_fee if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_sessions' 
+        AND column_name = 'platform_fee'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_sessions 
+        ADD COLUMN platform_fee NUMERIC;
+        RAISE NOTICE '✅ Added platform_fee column';
+    ELSE
+        RAISE NOTICE '⚠️ platform_fee column already exists';
+    END IF;
+
+    -- Add completed_at if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_sessions' 
+        AND column_name = 'completed_at'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_sessions 
+        ADD COLUMN completed_at TIMESTAMPTZ;
+        RAISE NOTICE '✅ Added completed_at column';
+    ELSE
+        RAISE NOTICE '⚠️ completed_at column already exists';
+    END IF;
+END $$;
+
+-- ============================================================================
+-- STEP 2: RESET ALL WTA SESSIONS
 -- ============================================================================
 
 DELETE FROM public.winner_takes_all_participants;
@@ -24,7 +115,7 @@ SET
     updated_at = NOW();
 
 -- ============================================================================
--- STEP 2: SIMPLE WTA PAYOUT FUNCTION (NO TOKEN_TRANSACTIONS)
+-- STEP 3: SIMPLE WTA PAYOUT FUNCTION (NO TOKEN_TRANSACTIONS)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.process_wta_payout(config_id_param TEXT)
@@ -166,7 +257,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_wta_payout(TEXT) TO authenticated, anon;
 
 -- ============================================================================
--- STEP 3: SIMPLE WTA RESET FUNCTION
+-- STEP 4: SIMPLE WTA RESET FUNCTION
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.reset_wta_session(config_id_param TEXT)
@@ -218,7 +309,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.reset_wta_session(TEXT) TO authenticated, anon;
 
 -- ============================================================================
--- STEP 4: ENSURE TOKENS ARE NULL-SAFE
+-- STEP 5: ENSURE TOKENS ARE NULL-SAFE
 -- ============================================================================
 
 UPDATE public.users 
