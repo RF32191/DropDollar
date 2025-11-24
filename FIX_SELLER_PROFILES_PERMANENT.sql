@@ -51,7 +51,23 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 2: DETERMINE CURRENT COLUMN NAME AND STANDARDIZE
+-- STEP 2: FIX STATUS CHECK CONSTRAINT TO ALLOW 'draft'
+-- ============================================================================
+
+DO $$
+BEGIN
+    -- Drop old status check constraint if it exists
+    ALTER TABLE public.seller_profiles DROP CONSTRAINT IF EXISTS seller_profiles_status_check;
+    
+    -- Add new constraint that includes 'draft'
+    ALTER TABLE public.seller_profiles ADD CONSTRAINT seller_profiles_status_check
+        CHECK (status IN ('draft', 'pending', 'approved', 'rejected', 'suspended', 'active', 'inactive'));
+    
+    RAISE NOTICE '✅ Updated status constraint to allow draft';
+END $$;
+
+-- ============================================================================
+-- STEP 3: DETERMINE CURRENT COLUMN NAME AND STANDARDIZE
 -- ============================================================================
 
 DO $$
