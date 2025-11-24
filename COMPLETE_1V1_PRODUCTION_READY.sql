@@ -241,7 +241,7 @@ BEGIN
     -- Find active session with FOR UPDATE lock to prevent race conditions
     SELECT * INTO session_record
     FROM public.one_v_one_sessions
-    WHERE config_id = config_id_param
+    WHERE config_id::TEXT = config_id_param
     AND status IN ('active', 'waiting')
     ORDER BY created_at DESC
     LIMIT 1
@@ -257,7 +257,7 @@ BEGIN
         )
         SELECT 
             gen_random_uuid(), 
-            config_id_param, 
+            config_id_param::UUID, 
             'waiting', 
             0, 
             0,
@@ -266,7 +266,7 @@ BEGIN
             NOW(),
             NOW()
         FROM public.one_v_one_configs
-        WHERE id = config_id_param
+        WHERE id::TEXT = config_id_param
         LIMIT 1
         RETURNING id INTO v_new_session_id;
         
@@ -363,7 +363,7 @@ BEGIN
         rng_seed, created_at, updated_at
     ) VALUES (
         gen_random_uuid(),
-        config_id_param,
+        config_id_param::UUID,
         'waiting',
         0,
         0,
