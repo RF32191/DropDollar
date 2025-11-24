@@ -15,14 +15,7 @@ import SellerDashboard from '@/components/seller/SellerDashboard';
 import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlaceholder';
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, ShieldCheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon } from '@heroicons/react/24/outline';
-import dynamic from 'next/dynamic';
-
-// Dynamically import admin dashboard (only loads if user is admin)
-const AdminTaxDashboard = dynamic(() => import('@/app/admin/tax/page').then(mod => mod.default), {
-  ssr: false,
-  loading: () => <div className="text-white">Loading admin dashboard...</div>
-});
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -85,8 +78,7 @@ export default function TriumphStyleDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages' | 'profile' | 'admin'>('recent');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages' | 'profile'>('recent');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   // Seller registration state
@@ -101,15 +93,6 @@ export default function TriumphStyleDashboard() {
     contactPhone: ''
   });
 
-  // Check if user is admin
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (user?.email) {
-        setIsAdmin(user.email === 'rf32191@gmail.com');
-      }
-    };
-    checkAdminStatus();
-  }, [user]);
 
   // Load unread message count on mount - Works even if SQL not run yet
   useEffect(() => {
@@ -793,8 +776,7 @@ export default function TriumphStyleDashboard() {
                 { id: 'stats', label: 'Statistics', icon: ChartBarIcon },
                 { id: 'transactions', label: 'Token History', icon: BanknotesIcon },
                 { id: 'messages', label: 'Messages', icon: EnvelopeIcon },
-                { id: 'profile', label: 'Shipping Address', icon: HomeIcon },
-                ...(isAdmin ? [{ id: 'admin', label: '🔐 Admin Tax Dashboard', icon: ShieldCheckIcon }] : [])
+                { id: 'profile', label: 'Shipping Address', icon: HomeIcon }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1170,15 +1152,6 @@ export default function TriumphStyleDashboard() {
             </div>
           )}
 
-          {activeTab === 'admin' && isAdmin && (
-            <div>
-              <h2 className="text-xl font-bold mb-4 flex items-center">
-                <ShieldCheckIcon className="w-6 h-6 mr-2 text-red-400" />
-                🔐 Admin Tax Dashboard
-              </h2>
-              <AdminTaxDashboard />
-            </div>
-          )}
             </div>
           </div>
         </div>
