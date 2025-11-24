@@ -451,22 +451,3 @@ function getOrdinalSuffix(n: number): string {
   const v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 }
-
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
-export {
-  recordEarning,
-  recordEarningsBatch,
-  recalculateTaxYearSummary,
-  getTaxYearSummary,
-  getAllTaxYearSummaries,
-  getEarningsLedger,
-  getTotalEarnings,
-  recordGameWin,
-  recordTournamentPrize,
-  recordRefund,
-  recordAdjustment,
-};
-
