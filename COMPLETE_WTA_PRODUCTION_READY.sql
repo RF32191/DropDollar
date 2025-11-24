@@ -43,7 +43,7 @@ BEGIN
     RAISE NOTICE '🔄 Creating initial WTA sessions for all configs...';
     
     FOR config_rec IN 
-        SELECT id, game_type, entry_fee, rng_seed 
+        SELECT id, game_type, entry_fee, rng_seed, base_price 
         FROM public.winner_takes_all_configs
         WHERE is_active = TRUE
     LOOP
@@ -57,7 +57,7 @@ BEGIN
         IF NOT session_exists THEN
             INSERT INTO public.winner_takes_all_sessions (
                 id, config_id, status, participants_count, current_pot,
-                timer_duration, created_at, updated_at
+                timer_duration, base_price, created_at, updated_at
             ) VALUES (
                 gen_random_uuid(),
                 config_rec.id,
@@ -65,6 +65,7 @@ BEGIN
                 0,
                 0,
                 60,
+                COALESCE(config_rec.base_price, config_rec.entry_fee, 0),
                 NOW(),
                 NOW()
             ) RETURNING id INTO new_session_id;
@@ -109,11 +110,11 @@ BEGIN
         -- Auto-create session
         INSERT INTO public.winner_takes_all_sessions (
             id, config_id, status, participants_count, current_pot,
-            timer_duration, created_at, updated_at
+            timer_duration, base_price, created_at, updated_at
         )
         SELECT 
             gen_random_uuid(), config_id_param, 'waiting', 0, 0,
-            60, NOW(), NOW()
+            60, COALESCE(base_price, entry_fee, 0), NOW(), NOW()
         FROM public.winner_takes_all_configs
         WHERE id = config_id_param
         LIMIT 1
@@ -179,11 +180,15 @@ BEGIN
     -- Create new session immediately
     INSERT INTO public.winner_takes_all_sessions (
         id, config_id, status, participants_count, current_pot,
-        timer_duration, created_at, updated_at
-    ) VALUES (
+        timer_duration, base_price, created_at, updated_at
+    )
+    SELECT 
         gen_random_uuid(), config_id_param, 'waiting', 0, 0,
-        60, NOW(), NOW()
-    ) ON CONFLICT DO NOTHING;
+        60, COALESCE(base_price, entry_fee, 0), NOW(), NOW()
+    FROM public.winner_takes_all_configs
+    WHERE id = config_id_param
+    LIMIT 1
+    ON CONFLICT DO NOTHING;
 
     -- Clean up old participants
     DELETE FROM public.winner_takes_all_participants WHERE session_id = session_record.id;
@@ -229,11 +234,15 @@ BEGIN
         IF NOT session_exists THEN
             INSERT INTO public.winner_takes_all_sessions (
                 id, config_id, status, participants_count, current_pot,
-                timer_duration, created_at, updated_at
-            ) VALUES (
+                timer_duration, base_price, created_at, updated_at
+            )
+            SELECT 
                 gen_random_uuid(), NEW.config_id, 'waiting', 0, 0,
-                60, NOW(), NOW()
-            ) ON CONFLICT DO NOTHING;
+                60, COALESCE(base_price, entry_fee, 0), NOW(), NOW()
+            FROM public.winner_takes_all_configs
+            WHERE id = NEW.config_id
+            LIMIT 1
+            ON CONFLICT DO NOTHING;
         END IF;
     END IF;
     
