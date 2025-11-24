@@ -506,16 +506,3 @@ export function exportRecordsToCSV(records: Form1099ExportRecord[]): string {
 
   return [headers, ...rows].join('\n');
 }
-
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
-export {
-  generate1099DataForUser,
-  generatePending1099s,
-  email1099Forms,
-  export1099DataForYear,
-  exportRecordsToCSV,
-};
-
