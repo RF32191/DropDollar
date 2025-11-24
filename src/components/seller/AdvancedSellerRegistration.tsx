@@ -515,23 +515,27 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
 
       {/* Progress Stepper */}
       <div className="mb-8">
+        <div className="mb-4 bg-blue-900/20 border border-blue-700 rounded-lg p-3 text-center">
+          <p className="text-blue-300 text-sm">
+            💡 <strong>Tip:</strong> Click any step circle below to navigate freely. You don't need to save to browse steps!
+          </p>
+        </div>
         <div className="flex items-center justify-between">
           {STEPS.map((step, index) => (
             <div key={step.number} className="flex-1">
               <div className="flex items-center">
                 <button
                   onClick={() => {
-                    // Allow navigation to completed steps or current step
-                    if (step.number <= currentStep) {
-                      setCurrentStep(step.number);
-                      setMessage(null);
-                    }
+                    // Allow navigation to ANY step (browse mode)
+                    setCurrentStep(step.number);
+                    setMessage(null);
                   }}
-                  disabled={step.number > currentStep}
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${
-                    currentStep >= step.number
-                      ? 'border-blue-500 bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-                      : 'border-gray-600 bg-gray-800 text-gray-400 cursor-not-allowed'
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all cursor-pointer ${
+                    currentStep === step.number
+                      ? 'border-blue-500 bg-blue-500 text-white'
+                      : currentStep > step.number
+                      ? 'border-green-500 bg-green-600 text-white hover:bg-green-700'
+                      : 'border-gray-600 bg-gray-700 text-gray-400 hover:bg-gray-600'
                   }`}>
                   {currentStep > step.number ? (
                     <CheckCircleIcon className="w-6 h-6" />
@@ -541,12 +545,20 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
                 </button>
                 <div className="ml-2 flex-1">
                   <div className={`text-sm font-medium ${
-                    currentStep >= step.number ? 'text-blue-400' : 'text-gray-400'
+                    currentStep === step.number 
+                      ? 'text-blue-400' 
+                      : currentStep > step.number 
+                      ? 'text-green-400' 
+                      : 'text-gray-400'
                   }`}>
                     Step {step.number}
                   </div>
                   <div className={`text-xs ${
-                    currentStep >= step.number ? 'text-gray-300' : 'text-gray-500'
+                    currentStep === step.number 
+                      ? 'text-gray-300' 
+                      : currentStep > step.number 
+                      ? 'text-gray-400' 
+                      : 'text-gray-500'
                   }`}>
                     {step.title}
                   </div>
