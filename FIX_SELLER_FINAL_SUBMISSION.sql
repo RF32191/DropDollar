@@ -52,6 +52,188 @@ BEGIN
         RAISE NOTICE '⚠️ submitted_at column already exists';
     END IF;
 
+    -- Contact Email
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'contact_email'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN contact_email TEXT;
+        RAISE NOTICE '✅ Added contact_email column';
+    ELSE
+        RAISE NOTICE '⚠️ contact_email column already exists';
+    END IF;
+
+    -- Contact Phone
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'contact_phone'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN contact_phone TEXT;
+        RAISE NOTICE '✅ Added contact_phone column';
+    ELSE
+        RAISE NOTICE '⚠️ contact_phone column already exists';
+    END IF;
+
+    -- Address Line 1
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'address_line1'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN address_line1 TEXT;
+        RAISE NOTICE '✅ Added address_line1 column';
+    ELSE
+        RAISE NOTICE '⚠️ address_line1 column already exists';
+    END IF;
+
+    -- Address Line 2
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'address_line2'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN address_line2 TEXT;
+        RAISE NOTICE '✅ Added address_line2 column';
+    ELSE
+        RAISE NOTICE '⚠️ address_line2 column already exists';
+    END IF;
+
+    -- City
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'city'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN city TEXT;
+        RAISE NOTICE '✅ Added city column';
+    ELSE
+        RAISE NOTICE '⚠️ city column already exists';
+    END IF;
+
+    -- State
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'state'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN state TEXT;
+        RAISE NOTICE '✅ Added state column';
+    ELSE
+        RAISE NOTICE '⚠️ state column already exists';
+    END IF;
+
+    -- Postal Code
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'postal_code'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN postal_code TEXT;
+        RAISE NOTICE '✅ Added postal_code column';
+    ELSE
+        RAISE NOTICE '⚠️ postal_code column already exists';
+    END IF;
+
+    -- Country
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'country'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN country TEXT DEFAULT 'US';
+        RAISE NOTICE '✅ Added country column';
+    ELSE
+        RAISE NOTICE '⚠️ country column already exists';
+    END IF;
+
+    -- Shop Description
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'shop_description'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN shop_description TEXT;
+        RAISE NOTICE '✅ Added shop_description column';
+    ELSE
+        RAISE NOTICE '⚠️ shop_description column already exists';
+    END IF;
+
+    -- Business Type
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'business_type'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN business_type TEXT;
+        RAISE NOTICE '✅ Added business_type column';
+    ELSE
+        RAISE NOTICE '⚠️ business_type column already exists';
+    END IF;
+
+    -- Terms Accepted
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'terms_accepted'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN terms_accepted BOOLEAN DEFAULT FALSE;
+        RAISE NOTICE '✅ Added terms_accepted column';
+    ELSE
+        RAISE NOTICE '⚠️ terms_accepted column already exists';
+    END IF;
+
+    -- Privacy Accepted
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'privacy_accepted'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN privacy_accepted BOOLEAN DEFAULT FALSE;
+        RAISE NOTICE '✅ Added privacy_accepted column';
+    ELSE
+        RAISE NOTICE '⚠️ privacy_accepted column already exists';
+    END IF;
+
+    -- Seller Agreement Accepted
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'seller_profiles' 
+        AND column_name = 'seller_agreement_accepted'
+    ) THEN
+        ALTER TABLE public.seller_profiles 
+        ADD COLUMN seller_agreement_accepted BOOLEAN DEFAULT FALSE;
+        RAISE NOTICE '✅ Added seller_agreement_accepted column';
+    ELSE
+        RAISE NOTICE '⚠️ seller_agreement_accepted column already exists';
+    END IF;
+
 END $$;
 
 -- ============================================================================
