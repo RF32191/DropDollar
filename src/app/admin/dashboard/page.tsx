@@ -18,7 +18,9 @@ import {
   ChartBarIcon,
   TruckIcon,
   ShoppingBagIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  IdentificationIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
 import dynamic from 'next/dynamic';
 
@@ -61,6 +63,20 @@ interface AdminNotification {
   created_at: string;
 }
 
+interface SellerVerification {
+  seller_id: string;
+  user_id: string;
+  username: string;
+  email: string;
+  shop_name: string;
+  business_name: string;
+  risk_score: number;
+  risk_flags: string[];
+  identity_verified: boolean;
+  documents_count: number;
+  created_at: string;
+}
+
 export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -74,10 +90,11 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState('');
   const ADMIN_PASSWORD = '321SnoopDog1994321!';
   
-  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax'>('sellers');
+  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax' | 'verification'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [sellerVerifications, setSellerVerifications] = useState<SellerVerification[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -119,6 +136,7 @@ export default function AdminDashboard() {
         
         await loadPendingSellers();
         await loadAuditLogs();
+        await loadSellerVerifications();
       } else {
         // Try RPC for other potential admins
         const { data, error } = await supabase.rpc('check_admin_status');
@@ -169,6 +187,67 @@ export default function AdminDashboard() {
       setAuditLogs(data || []);
     } catch (error) {
       console.error('Error loading audit logs:', error);
+    }
+  };
+
+  const loadSellerVerifications = async () => {
+    try {
+      // Load sellers requiring verification
+      const { data: sellersData, error: sellersError } = await supabase
+        .from('seller_profiles')
+        .select(`
+          id,
+          user_id,
+          shop_name,
+          business_name,
+          identity_verified,
+          created_at
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (sellersError) throw sellersError;
+
+      // Load risk scores
+      const { data: riskData, error: riskError } = await supabase
+        .from('seller_risk_scores')
+        .select('seller_id, overall_risk_score, risk_flags');
+
+      // Load document counts
+      const { data: docsData, error: docsError } = await supabase
+        .from('seller_documents')
+        .select('seller_id');
+
+      // Combine the data
+      const verifications = await Promise.all((sellersData || []).map(async (seller) => {
+        // Get user info
+        const { data: userData } = await supabase
+          .from('users')
+          .select('username, email')
+          .eq('id', seller.user_id)
+          .single();
+
+        const risk = riskData?.find(r => r.seller_id === seller.id);
+        const docCount = docsData?.filter(d => d.seller_id === seller.id).length || 0;
+
+        return {
+          seller_id: seller.id,
+          user_id: seller.user_id,
+          username: userData?.username || 'Unknown',
+          email: userData?.email || 'No email',
+          shop_name: seller.shop_name || 'No shop name',
+          business_name: seller.business_name || 'No business name',
+          risk_score: risk?.overall_risk_score || 0,
+          risk_flags: risk?.risk_flags || [],
+          identity_verified: seller.identity_verified || false,
+          documents_count: docCount,
+          created_at: seller.created_at
+        };
+      }));
+
+      setSellerVerifications(verifications);
+    } catch (error) {
+      console.error('Error loading seller verifications:', error);
     }
   };
 
@@ -401,6 +480,17 @@ export default function AdminDashboard() {
               <DocumentTextIcon className="inline h-5 w-5 mr-2" />
               W-9 & 1099 Tax
             </button>
+            <button
+              onClick={() => setActiveTab('verification')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'verification'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <IdentificationIcon className="inline h-5 w-5 mr-2" />
+              Seller Verification
+            </button>
           </div>
         </div>
 
@@ -574,6 +664,130 @@ export default function AdminDashboard() {
               W-9 & 1099 Tax Management
             </h2>
             <AdminTaxDashboard />
+          </div>
+        )}
+
+        {/* Seller Verification Tab */}
+        {activeTab === 'verification' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4 flex items-center">
+              <IdentificationIcon className="w-6 h-6 mr-2 text-green-400" />
+              Seller Verification & Risk Management
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-green-600 rounded-lg p-4">
+                <div className="text-2xl font-bold">
+                  {sellerVerifications.filter(s => s.identity_verified).length}
+                </div>
+                <div className="text-sm">Verified Sellers</div>
+              </div>
+              <div className="bg-yellow-600 rounded-lg p-4">
+                <div className="text-2xl font-bold">
+                  {sellerVerifications.filter(s => !s.identity_verified).length}
+                </div>
+                <div className="text-sm">Unverified Sellers</div>
+              </div>
+              <div className="bg-red-600 rounded-lg p-4">
+                <div className="text-2xl font-bold">
+                  {sellerVerifications.filter(s => s.risk_score >= 40).length}
+                </div>
+                <div className="text-sm">High Risk Sellers</div>
+              </div>
+            </div>
+
+            {sellerVerifications.length === 0 ? (
+              <div className="text-center py-12 bg-gray-800 rounded-lg">
+                <CheckCircleIcon className="h-16 w-16 mx-auto mb-4 text-green-500" />
+                <p className="text-xl text-gray-300">No sellers to review!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sellerVerifications.map((seller) => (
+                  <div key={seller.seller_id} className={`rounded-lg p-6 border ${
+                    seller.risk_score >= 70 ? 'bg-red-900/20 border-red-700' :
+                    seller.risk_score >= 40 ? 'bg-yellow-900/20 border-yellow-700' :
+                    'bg-gray-800 border-gray-700'
+                  }`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          {seller.identity_verified ? (
+                            <CheckCircleIcon className="h-6 w-6 mr-2 text-green-400" />
+                          ) : (
+                            <ExclamationTriangleIcon className="h-6 w-6 mr-2 text-yellow-400" />
+                          )}
+                          <h3 className="text-xl font-bold text-white">
+                            {seller.shop_name}
+                          </h3>
+                          <span className={`ml-3 px-3 py-1 rounded-full text-xs font-bold ${
+                            seller.risk_score >= 70 ? 'bg-red-600' :
+                            seller.risk_score >= 40 ? 'bg-yellow-600' :
+                            'bg-green-600'
+                          }`}>
+                            Risk Score: {seller.risk_score}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                          <div>
+                            <p className="text-sm text-gray-400">Username</p>
+                            <p className="text-white">{seller.username}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">Email</p>
+                            <p className="text-white">{seller.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">Identity Status</p>
+                            <p className={`font-bold ${seller.identity_verified ? 'text-green-400' : 'text-yellow-400'}`}>
+                              {seller.identity_verified ? 'Verified' : 'Not Verified'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">Documents</p>
+                            <p className="text-white flex items-center">
+                              <DocumentDuplicateIcon className="h-4 w-4 mr-1" />
+                              {seller.documents_count}
+                            </p>
+                          </div>
+                        </div>
+
+                        {seller.risk_flags && seller.risk_flags.length > 0 && (
+                          <div>
+                            <p className="text-sm text-gray-400 mb-1">Risk Flags:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {seller.risk_flags.map((flag, index) => (
+                                <span key={index} className="bg-red-700 px-3 py-1 rounded-full text-xs text-white">
+                                  {flag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-col gap-2 ml-4">
+                        <button 
+                          onClick={() => window.open(`/admin/seller/${seller.seller_id}`, '_blank')}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          View Details
+                        </button>
+                        {!seller.identity_verified && (
+                          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            Verify Now
+                          </button>
+                        )}
+                        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                          Suspend
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
