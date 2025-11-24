@@ -265,42 +265,6 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     }
   }
 
-  async function handleStep3Submit() {
-    if (!contactEmail || !contactPhone || !addressLine1 || !city || !state || !postalCode) {
-      setMessage({ type: 'error', text: 'All contact fields are required' });
-      return;
-    }
-    
-    setIsLoading(true);
-    setMessage(null);
-    
-    try {
-      const { data, error } = await supabase.rpc('update_seller_registration_step3', {
-        contact_email_param: contactEmail.trim(),
-        contact_phone_param: contactPhone.trim(),
-        address_line1_param: addressLine1.trim(),
-        address_line2_param: addressLine2.trim() || null,
-        city_param: city.trim(),
-        state_param: state.trim(),
-        postal_code_param: postalCode.trim(),
-        country_param: country,
-      });
-      
-      if (error) throw error;
-      
-      if (data?.success) {
-        setMessage({ type: 'success', text: data.message });
-        setCurrentStep(4);
-      } else {
-        setMessage({ type: 'error', text: data?.message || 'Failed to save contact information' });
-      }
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to save contact information' });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   async function handleStep4Submit() {
     // This is now for Contact Information (old step 3)
     
