@@ -181,11 +181,6 @@ export default function TaxAdminDashboard() {
     }
   };
 
-  const downloadUserDocs = (userId: string) => {
-    const url = `/api/tax/admin/documents/${userId}?format=json`;
-    window.open(url, '_blank');
-  };
-
   // ============================================================================
   // 1099 MANAGEMENT
   // ============================================================================
