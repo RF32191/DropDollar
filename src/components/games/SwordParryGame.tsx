@@ -579,7 +579,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             </h2>
             <p className="text-red-200 text-sm mb-6 font-medium">Master of Blade Defense</p>
             
-            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10">
+            <div className="text-left text-sm text-white/90 mb-8 space-y-3 bg-black/20 rounded-2xl p-6 backdrop-blur-sm border border-white/10 max-h-96 overflow-y-auto pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}>
               {/* Epilepsy Warning */}
               <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-4 mb-6">
                 <div className="flex items-center space-x-2 mb-2">
@@ -637,7 +638,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             </div>
             
             {!isCompetitionMode && onExit && (
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-4">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -645,7 +646,29 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                   }}
                   className="bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform pointer-events-auto"
                 >
-                  ← Back to Menu
+                  ← Back
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartGame();
+                  }}
+                  className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform pointer-events-auto"
+                >
+                  Start Game →
+                </button>
+              </div>
+            )}
+            {isCompetitionMode && (
+              <div className="flex justify-center">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartGame();
+                  }}
+                  className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold py-4 px-12 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform pointer-events-auto animate-pulse"
+                >
+                  Start Game →
                 </button>
               </div>
             )}
