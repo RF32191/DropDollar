@@ -95,7 +95,129 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 4: SCALABLE PAYOUT FUNCTION (HANDLES MILLIONS OF USERS)
+-- STEP 4: JOIN FUNCTION (ALLOWS PLAYERS TO JOIN SESSIONS)
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS public.join_1v1_session(TEXT, UUID, NUMERIC);
+DROP FUNCTION IF EXISTS public.join_1v1_session(UUID, TEXT, NUMERIC);
+
+CREATE OR REPLACE FUNCTION public.join_1v1_session(
+    session_id_param TEXT,
+    user_id_param UUID,
+    entry_fee_param NUMERIC
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_session_uuid UUID;
+    v_purchased NUMERIC;
+    v_won NUMERIC;
+    v_participant_id UUID;
+    v_rng_seed INT;
+    v_username TEXT;
+    v_current_count INT;
+BEGIN
+    -- Convert to UUID
+    BEGIN
+        v_session_uuid := session_id_param::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Invalid session ID');
+    END;
+    
+    RAISE NOTICE '🎮 1V1 JOIN: session=%, user=%', v_session_uuid, user_id_param;
+    
+    -- Get current participant count (with row lock for concurrency)
+    SELECT COALESCE(participants_count, 0)
+    INTO v_current_count
+    FROM one_v_one_sessions
+    WHERE id = v_session_uuid
+    AND status IN ('waiting', 'active')
+    FOR UPDATE SKIP LOCKED;
+    
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session not found or locked');
+    END IF;
+    
+    -- Block if 2 players already (1v1 = max 2 players)
+    IF v_current_count >= 2 THEN
+        RAISE NOTICE '❌ BLOCKED: Listing full (2 players)';
+        RETURN jsonb_build_object('success', false, 'message', 'Listing full - 2 players maximum');
+    END IF;
+    
+    -- Check tokens (ensure NULL-safety)
+    SELECT COALESCE(purchased_tokens, 0), COALESCE(won_tokens, 0)
+    INTO v_purchased, v_won
+    FROM users WHERE id = user_id_param;
+    
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'User not found');
+    END IF;
+    
+    IF (v_purchased + v_won) < entry_fee_param THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens');
+    END IF;
+    
+    -- Check not already joined
+    IF EXISTS(SELECT 1 FROM one_v_one_participants WHERE session_id = v_session_uuid AND user_id = user_id_param) THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Already joined');
+    END IF;
+    
+    -- Deduct tokens (use purchased first, then won) - ATOMIC operation
+    IF v_purchased >= entry_fee_param THEN
+        UPDATE users 
+        SET purchased_tokens = purchased_tokens - entry_fee_param,
+            updated_at = NOW()
+        WHERE id = user_id_param;
+    ELSE
+        UPDATE users 
+        SET purchased_tokens = 0, 
+            won_tokens = won_tokens - (entry_fee_param - v_purchased),
+            updated_at = NOW()
+        WHERE id = user_id_param;
+    END IF;
+    
+    -- Get RNG seed and username
+    SELECT rng_seed INTO v_rng_seed FROM one_v_one_sessions WHERE id = v_session_uuid;
+    SELECT username INTO v_username FROM users WHERE id = user_id_param;
+    
+    -- Add participant (ATOMIC operation)
+    INSERT INTO one_v_one_participants (session_id, user_id, username, entry_fee, rng_seed, joined_at)
+    VALUES (v_session_uuid, user_id_param, COALESCE(v_username, 'Player'), entry_fee_param, v_rng_seed, NOW())
+    RETURNING id INTO v_participant_id;
+    
+    -- Increment participant count and pot (ATOMIC operation)
+    UPDATE one_v_one_sessions
+    SET participants_count = participants_count + 1,
+        current_pot = COALESCE(current_pot, 0) + entry_fee_param,
+        status = CASE WHEN participants_count + 1 >= 2 THEN 'active' ELSE 'waiting' END,
+        updated_at = NOW()
+    WHERE id = v_session_uuid;
+    
+    -- Get updated count
+    SELECT participants_count INTO v_current_count FROM one_v_one_sessions WHERE id = v_session_uuid;
+    
+    RAISE NOTICE '✅ Player joined! Total: %, Pot: %', v_current_count, entry_fee_param;
+    
+    RETURN jsonb_build_object(
+        'success', true,
+        'participant_id', v_participant_id,
+        'message', 'Successfully joined!',
+        'participants_count', v_current_count,
+        'rng_seed', v_rng_seed
+    );
+    
+EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING '❌ 1v1 join error: %', SQLERRM;
+    RETURN jsonb_build_object('success', false, 'message', 'Error: ' || SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.join_1v1_session(TEXT, UUID, NUMERIC) TO authenticated, anon;
+
+-- ============================================================================
+-- STEP 5: SCALABLE PAYOUT FUNCTION (HANDLES MILLIONS OF USERS)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.process_1v1_payout(config_id_param TEXT)
@@ -272,7 +394,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_1v1_payout(TEXT) TO authenticated, anon;
 
 -- ============================================================================
--- STEP 5: AUTO-CREATE SESSION TRIGGER (ENSURES SESSIONS ALWAYS EXIST)
+-- STEP 6: AUTO-CREATE SESSION TRIGGER (ENSURES SESSIONS ALWAYS EXIST)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.ensure_1v1_session_exists()
@@ -323,7 +445,7 @@ CREATE TRIGGER auto_create_1v1_session
     EXECUTE FUNCTION public.ensure_1v1_session_exists();
 
 -- ============================================================================
--- STEP 6: OPTIMIZE DATABASE FOR SCALE
+-- STEP 7: OPTIMIZE DATABASE FOR SCALE
 -- ============================================================================
 
 -- Add indexes for fast lookups (critical for millions of users)
