@@ -31,7 +31,25 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 2: CREATE INITIAL SESSIONS FOR ALL WTA CONFIGS
+-- STEP 2: ADD IS_ACTIVE COLUMN IF MISSING
+-- ============================================================================
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'winner_takes_all_configs' 
+        AND column_name = 'is_active'
+    ) THEN
+        ALTER TABLE public.winner_takes_all_configs 
+        ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+        RAISE NOTICE '✅ Added is_active column to winner_takes_all_configs';
+    END IF;
+END $$;
+
+-- ============================================================================
+-- STEP 3: CREATE INITIAL SESSIONS FOR ALL WTA CONFIGS
 -- ============================================================================
 
 DO $$
@@ -45,7 +63,7 @@ BEGIN
     FOR config_rec IN 
         SELECT id, game_type, entry_fee, rng_seed, base_price 
         FROM public.winner_takes_all_configs
-        WHERE is_active = TRUE
+        WHERE COALESCE(is_active, TRUE) = TRUE
     LOOP
         SELECT EXISTS(
             SELECT 1 
@@ -78,7 +96,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 3: SCALABLE WTA PAYOUT FUNCTION
+-- STEP 4: SCALABLE WTA PAYOUT FUNCTION
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS public.process_wta_payout(TEXT);
@@ -212,7 +230,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_wta_payout(TEXT) TO authenticated, anon;
 
 -- ============================================================================
--- STEP 4: AUTO-CREATE WTA SESSION TRIGGER
+-- STEP 5: AUTO-CREATE WTA SESSION TRIGGER
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.ensure_wta_session_exists()
@@ -258,7 +276,7 @@ CREATE TRIGGER auto_create_wta_session
     EXECUTE FUNCTION public.ensure_wta_session_exists();
 
 -- ============================================================================
--- STEP 5: OPTIMIZE FOR SCALE
+-- STEP 6: OPTIMIZE FOR SCALE
 -- ============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_wta_sessions_config_status 

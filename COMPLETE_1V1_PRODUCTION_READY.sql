@@ -21,7 +21,25 @@ ALTER COLUMN won_tokens SET DEFAULT 0,
 ALTER COLUMN purchased_tokens SET DEFAULT 0;
 
 -- ============================================================================
--- STEP 2: CREATE INITIAL SESSIONS FOR ALL 1V1 CONFIGS
+-- STEP 2: ADD IS_ACTIVE COLUMN IF MISSING
+-- ============================================================================
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'one_v_one_configs' 
+        AND column_name = 'is_active'
+    ) THEN
+        ALTER TABLE public.one_v_one_configs 
+        ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+        RAISE NOTICE '✅ Added is_active column to one_v_one_configs';
+    END IF;
+END $$;
+
+-- ============================================================================
+-- STEP 3: CREATE INITIAL SESSIONS FOR ALL 1V1 CONFIGS
 -- ============================================================================
 
 DO $$
@@ -35,7 +53,7 @@ BEGIN
     FOR config_rec IN 
         SELECT id, game_type, entry_fee, rng_seed 
         FROM public.one_v_one_configs
-        WHERE is_active = TRUE
+        WHERE COALESCE(is_active, TRUE) = TRUE
     LOOP
         -- Check if a waiting session exists for this config
         SELECT EXISTS(
@@ -77,7 +95,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- STEP 3: SCALABLE PAYOUT FUNCTION (HANDLES MILLIONS OF USERS)
+-- STEP 4: SCALABLE PAYOUT FUNCTION (HANDLES MILLIONS OF USERS)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.process_1v1_payout(config_id_param TEXT)
@@ -254,7 +272,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_1v1_payout(TEXT) TO authenticated, anon;
 
 -- ============================================================================
--- STEP 4: AUTO-CREATE SESSION TRIGGER (ENSURES SESSIONS ALWAYS EXIST)
+-- STEP 5: AUTO-CREATE SESSION TRIGGER (ENSURES SESSIONS ALWAYS EXIST)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.ensure_1v1_session_exists()
@@ -305,7 +323,7 @@ CREATE TRIGGER auto_create_1v1_session
     EXECUTE FUNCTION public.ensure_1v1_session_exists();
 
 -- ============================================================================
--- STEP 5: OPTIMIZE DATABASE FOR SCALE
+-- STEP 6: OPTIMIZE DATABASE FOR SCALE
 -- ============================================================================
 
 -- Add indexes for fast lookups (critical for millions of users)
