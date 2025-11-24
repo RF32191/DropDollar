@@ -1,158 +1,152 @@
-# Quick Fix Guide - "Session is not active" Error
+# Quick Fix Guide - Run These Now
 
-## ⚡ What Was Fixed
+## 🚨 Two Issues Fixed
 
-Your application was calling Supabase RPC functions **before authentication was ready**, causing "Session is not active" errors.
+### Issue 1: Seller Registration Status Error ✅ FIXED
+**Error:** `"seller_profiles_status_check" constraint violated`
 
-## ✅ Solution Applied
+**Fix:** Added `'draft'` to allowed status values
 
-Created a **Session Guard** system that:
-1. ✅ Validates session before EVERY RPC call
-2. ✅ Waits for authentication to complete
-3. ✅ Automatically refreshes expired tokens
-4. ✅ Provides clear error messages to users
+### Issue 2: 1v1 Payout Not Working ✅ FIXED  
+**Problem:** Payouts and resets not happening after games complete
 
-## 📝 Files Changed
-
-### New File Created:
-- `src/lib/supabase/sessionGuard.ts` - Centralized session validation
-
-### Pages Updated:
-- `src/app/hot-sell/page.tsx`
-- `src/app/winner-takes-all/page.tsx`
-- `src/app/tournaments/1v1/page.tsx`
-
-## 🔍 Key Changes
-
-### Before (❌ Broken):
-```typescript
-// Direct RPC call without session check
-const { data, error } = await supabase.rpc('get_sessions');
-```
-
-### After (✅ Fixed):
-```typescript
-// Guarded RPC call with session validation
-const { data, error, isSessionValid } = await executeRpcWithSession('get_sessions');
-
-if (!isSessionValid) {
-  // Session expired - show user-friendly error
-  setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
-  return;
-}
-```
-
-## 🚀 Testing Your Fix
-
-1. **Login to your app**
-2. **Navigate to Hot Sell, Winner Takes All, or 1v1 pages**
-3. **Verify data loads without errors**
-4. **Check browser console for these logs:**
-   - `✅ [SessionGuard] Session is valid`
-   - `✅ [SessionGuard] RPC [name] successful`
-
-## 🐛 If You Still See Errors
-
-### Check These:
-
-1. **Environment Variables Set?**
-   ```bash
-   NEXT_PUBLIC_SUPABASE_URL=your_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
-   ```
-
-2. **RPC Functions Exist in Supabase?**
-   - `get_all_hot_sell_sessions`
-   - `get_all_winner_takes_all_sessions`
-   - `get_all_1v1_sessions`
-   - `hs_join_v2`, `wta_join_v2`, `join_1v1_session`
-   - `update_hot_sell_score`, `update_winner_takes_all_score`, `update_1v1_score`
-   - `process_hot_sell_payout_complete`, `process_payout_by_config`, `process_1v1_payout`
-
-3. **RLS Policies Allow Access?**
-   - Check Supabase dashboard → Authentication → Policies
-   - Ensure authenticated users can call these RPCs
-
-4. **User Actually Logged In?**
-   - Check if `AuthContext` shows `isAuthenticated: true`
-   - Try logging out and logging back in
-
-## 💡 How It Works
-
-```
-User logs in
-    ↓
-AuthContext sets isAuthenticated = true
-    ↓
-Page detects auth change via useEffect
-    ↓
-ensureAuthReady() validates session exists
-    ↓
-executeRpcWithSession() makes safe RPC call
-    ↓
-Data loads successfully ✅
-```
-
-## 📊 Console Logging
-
-Watch for these in browser console:
-
-### Success Indicators:
-- `✅ [Hot Sell] Authenticated, loading data...`
-- `✅ [SessionGuard] Session is valid`
-- `✅ [SessionGuard] RPC get_all_hot_sell_sessions successful`
-
-### Auth Not Ready (Normal):
-- `⏳ [Hot Sell] Waiting for authentication...`
-
-### Session Issues (Fix Required):
-- `❌ [SessionGuard] Session is not active` → User needs to log in
-- `❌ [SessionGuard] Failed to refresh session` → Token invalid, re-login needed
-
-## 🔧 Adding Session Guards to Other Pages
-
-If you need to protect other pages:
-
-```typescript
-// 1. Import the guards
-import { executeRpcWithSession, ensureAuthReady } from '@/lib/supabase/sessionGuard';
-
-// 2. Check auth before loading data
-const loadData = useCallback(async () => {
-  const authCheck = await ensureAuthReady(isAuthenticated, false);
-  if (!authCheck.ready) {
-    setIsLoading(false);
-    return;
-  }
-  
-  const { data, error, isSessionValid } = await executeRpcWithSession('your_rpc');
-  if (!isSessionValid) {
-    setMessage({ type: 'error', text: 'Session expired' });
-    return;
-  }
-  
-  // Use data...
-}, [isAuthenticated]);
-
-// 3. Wait for auth in useEffect
-useEffect(() => {
-  if (!isAuthenticated) {
-    setIsLoading(false);
-    return;
-  }
-  loadData();
-}, [isAuthenticated, loadData]);
-```
-
-## 📞 Need Help?
-
-1. Check `SESSION_AUTH_FIX_COMPLETE.md` for full details
-2. Review browser console logs for specific errors
-3. Test with a fresh login session
-4. Verify Supabase configuration in dashboard
+**Fix:** Updated payout function to require both players complete
 
 ---
 
-**Status**: ✅ Fix applied to all game pages
-**Next Steps**: Test in production with real users
+## 🚀 Run These 2 Files IN ORDER:
 
+### 1️⃣ FIRST: Fix Seller Profiles
+**[FIX_SELLER_PROFILES_PERMANENT.sql](/Users/ryanjoshuafermoselle/CryptoMarket%20AutoBroker/FIX_SELLER_PROFILES_PERMANENT.sql)**
+
+This will:
+- ✅ Delete all incomplete registrations
+- ✅ Fix status constraint (allow 'draft')
+- ✅ Standardize to `user_id` column
+- ✅ Update all registration functions
+- ✅ New registrations start as 'draft'
+- ✅ Only go to 'pending' when completed
+
+### 2️⃣ SECOND: Fix 1v1 Payouts
+**[FIX_1V1_PAYOUT_TRIGGER.sql](/Users/ryanjoshuafermoselle/CryptoMarket%20AutoBroker/FIX_1V1_PAYOUT_TRIGGER.sql)**
+
+This will:
+- ✅ Update payout function with better logic
+- ✅ Ensure both players must complete before payout
+- ✅ Fix session reset after payout
+- ✅ NULL-safe token operations
+
+---
+
+## 📋 Expected Results
+
+### After Running File #1:
+```sql
+🗑️ Deleting 3 incomplete seller registrations...
+✅ Deleted 3 incomplete registrations
+✅ Updated status constraint to allow draft
+✅ Column standardized to: user_id
+✅ All functions updated
+```
+
+**Test it:**
+- Start seller registration
+- Should work without status error
+- Status = 'draft' until you complete all steps
+
+### After Running File #2:
+```sql
+✅ Payout function: process_1v1_payout(config_id)
+✅ Reset function: reset_1v1_session(config_id)
+✅ Both players must complete before payout
+✅ Automatic session reset after payout
+```
+
+**Test it:**
+- Join 1v1 game as 2 players
+- Both complete their games
+- Wait 10 seconds
+- Payouts should happen automatically
+- Session should reset for next game
+
+---
+
+## 🧪 Testing Steps
+
+### Test Seller Registration:
+1. ✅ Run `FIX_SELLER_PROFILES_PERMANENT.sql`
+2. Go to seller registration page
+3. Start registration (should work!)
+4. Check status: `SELECT status FROM seller_profiles WHERE user_id = auth.uid();`
+5. Should show: `'draft'`
+6. Complete all 7 steps
+7. Check status again: Should show `'pending'`
+8. Now shows in admin for approval ✅
+
+### Test 1v1 Payouts:
+1. ✅ Run `FIX_1V1_PAYOUT_TRIGGER.sql`
+2. Create a 1v1 game
+3. Join as Player 1
+4. Join as Player 2 (different account)
+5. Both players play and complete
+6. Wait 10 seconds
+7. Check won_tokens: `SELECT won_tokens FROM users WHERE id = auth.uid();`
+8. Winner should have 50% of pot
+9. Loser should have 35% of pot
+10. Session should reset to 'waiting' ✅
+
+---
+
+## ⚠️ Important Notes
+
+### For Seller Registration:
+- Status values now: `'draft'`, `'pending'`, `'approved'`, `'rejected'`
+- `'draft'` = incomplete (user is still filling out form)
+- `'pending'` = complete (waiting for admin approval)
+- Only `'pending'` and `'approved'` show in admin
+
+### For 1v1 Payouts:
+- Frontend must call `process_1v1_payout(config_id)` when both players complete
+- Payout only happens when BOTH players have finished
+- Automatic session reset after payout
+- Safe for NULL tokens (won't crash)
+
+---
+
+## 🔍 Troubleshooting
+
+### Seller Registration Still Fails?
+```sql
+-- Check current constraint
+SELECT constraint_name, check_clause 
+FROM information_schema.check_constraints 
+WHERE constraint_name = 'seller_profiles_status_check';
+
+-- Should include 'draft' in the constraint
+```
+
+### 1v1 Payouts Still Not Working?
+```sql
+-- Check if payout function exists
+SELECT proname FROM pg_proc WHERE proname = 'process_1v1_payout';
+
+-- Manually trigger payout for testing
+SELECT process_1v1_payout('your-config-id-here');
+
+-- Check session status
+SELECT status, participants_count, winner_user_id 
+FROM one_v_one_sessions 
+WHERE config_id = 'your-config-id';
+```
+
+---
+
+## ✅ Summary
+
+**Two files to run:**
+1. `FIX_SELLER_PROFILES_PERMANENT.sql` - Fixes seller registration
+2. `FIX_1V1_PAYOUT_TRIGGER.sql` - Fixes 1v1 payouts
+
+**Both are ready to run right now!** 🚀
+
+Just copy, paste into Supabase SQL Editor, and run them in order.
