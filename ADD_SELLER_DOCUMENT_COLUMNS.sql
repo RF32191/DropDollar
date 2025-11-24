@@ -125,6 +125,9 @@ END $$;
 -- UPDATE THE STEP 3 FUNCTION TO USE THESE COLUMNS
 -- ============================================================================
 
+-- Drop existing function first to avoid parameter name conflicts
+DROP FUNCTION IF EXISTS public.update_seller_registration_step3_identity(TEXT, DATE, TEXT, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.update_seller_registration_step3_identity(
   full_legal_name_param TEXT,
   date_of_birth_param DATE,
