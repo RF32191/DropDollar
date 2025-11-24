@@ -19,8 +19,9 @@ import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon
 import dynamic from 'next/dynamic';
 
 // Dynamically import admin dashboard (only loads if user is admin)
-const AdminTaxDashboard = dynamic(() => import('@/app/admin/tax/page'), {
-  ssr: false
+const AdminTaxDashboard = dynamic(() => import('@/app/admin/tax/page').then(mod => mod.default), {
+  ssr: false,
+  loading: () => <div className="text-white">Loading admin dashboard...</div>
 });
 
 interface GameHistoryRecord {

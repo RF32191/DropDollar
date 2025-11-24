@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import W9OnboardingModal from '@/components/tax/W9OnboardingModal';
-
-const supabase = createClientComponentClient();
 import { 
   BanknotesIcon, 
   ShieldCheckIcon,
@@ -14,6 +12,8 @@ import {
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
+
+const supabase = createClientComponentClient();
 
 export default function CashoutPage() {
   const { user } = useAuth();
