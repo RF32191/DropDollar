@@ -85,7 +85,7 @@ export default function PageWalletDisplay() {
               ✅ CASHABLE
             </div>
             <Link 
-              href="/dashboard"
+              href="/cashout"
               className="text-xs text-green-200 hover:text-green-100 font-bold underline hover:scale-105 transition-transform"
             >
               Withdraw to Bank →

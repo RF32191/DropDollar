@@ -3,13 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
+import W9OnboardingModal from '@/components/tax/W9OnboardingModal';
 import { 
   BanknotesIcon, 
   CheckCircleIcon, 
   XCircleIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
-  ClockIcon
+  ClockIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 interface StripeStatus {
@@ -43,13 +45,32 @@ export default function StripeConnect() {
   
   const [payoutAmount, setPayoutAmount] = useState('');
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
+  
+  const [isTaxVerified, setIsTaxVerified] = useState(false);
+  const [showW9Modal, setShowW9Modal] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadWalletData();
       checkStripeStatus();
+      checkTaxStatus();
     }
   }, [user]);
+
+  const checkTaxStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('is_tax_verified')
+        .eq('id', user?.id)
+        .single();
+
+      if (error) throw error;
+      setIsTaxVerified(data?.is_tax_verified || false);
+    } catch (error) {
+      console.error('Error checking tax status:', error);
+    }
+  };
 
   const loadWalletData = async () => {
     try {
@@ -159,6 +180,16 @@ export default function StripeConnect() {
         return;
       }
 
+      // Check W-9 status before processing payout
+      if (!isTaxVerified) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Please complete your W-9 tax form before requesting payouts' 
+        });
+        setShowW9Modal(true);
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setMessage({ type: 'error', text: 'Please login first' });
@@ -217,8 +248,46 @@ export default function StripeConnect() {
 
   const isConnected = walletData.stripe_onboarding_completed && walletData.stripe_payouts_enabled;
 
+  const handleW9Complete = () => {
+    setShowW9Modal(false);
+    setIsTaxVerified(true);
+    setMessage({
+      type: 'success',
+      text: '✅ Tax information verified! You can now request payouts.'
+    });
+  };
+
   return (
     <div className="space-y-6">
+      {/* Tax Verification Status Banner */}
+      {!isTaxVerified && (
+        <div className="bg-yellow-500/10 border-2 border-yellow-500/50 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-yellow-400 font-bold mb-1">⚠️ Tax Information Required</h3>
+              <p className="text-gray-300 text-sm mb-3">
+                US law requires W-9 tax information before processing payouts. Complete your W-9 to withdraw funds.
+              </p>
+              <button
+                onClick={() => setShowW9Modal(true)}
+                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg text-sm transition-all"
+              >
+                Complete W-9 Form
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isTaxVerified && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-green-400 text-sm">
+            <ShieldCheckIcon className="w-5 h-5" />
+            <span className="font-semibold">✅ Tax Information Verified</span>
+          </div>
+        </div>
+      )}
       {/* Dual Wallet System - Pending + Released */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Pending Wallet */}
@@ -453,6 +522,15 @@ export default function StripeConnect() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* W-9 Modal */}
+      {showW9Modal && (
+        <W9OnboardingModal
+          isOpen={showW9Modal}
+          onClose={() => setShowW9Modal(false)}
+          onComplete={handleW9Complete}
+        />
       )}
     </div>
   );
