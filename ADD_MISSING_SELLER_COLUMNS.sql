@@ -11,6 +11,10 @@ ALTER TABLE public.seller_profiles
 ADD COLUMN IF NOT EXISTS registration_step INTEGER DEFAULT 1,
 ADD COLUMN IF NOT EXISTS registration_completed BOOLEAN DEFAULT false,
 
+-- Business details (Step 2)
+ADD COLUMN IF NOT EXISTS tax_id TEXT, -- EIN or SSN
+ADD COLUMN IF NOT EXISTS business_registration_number TEXT,
+
 -- Address fields
 ADD COLUMN IF NOT EXISTS business_address_line1 TEXT,
 ADD COLUMN IF NOT EXISTS business_address_line2 TEXT,
