@@ -78,7 +78,7 @@ export default function TriumphStyleDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'messages' | 'profile'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'transactions' | 'messages' | 'profile'>('recent');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   // Seller registration state
@@ -169,7 +169,7 @@ export default function TriumphStyleDashboard() {
   useEffect(() => {
     // Check URL parameters for tab selection
     const tab = searchParams.get('tab');
-    if (tab && ['recent', 'practice', 'competition', 'stats', 'messages'].includes(tab)) {
+    if (tab && ['recent', 'practice', 'competition', 'stats', 'transactions', 'messages', 'profile'].includes(tab)) {
       setActiveTab(tab as any);
     }
     
