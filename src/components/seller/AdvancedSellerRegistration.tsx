@@ -303,6 +303,33 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
 
   async function handleStep4Submit() {
     // This is now for Contact Information (old step 3)
+    
+    // Validate required fields
+    if (!contactEmail.trim()) {
+      setMessage({ type: 'error', text: 'Contact email is required' });
+      return;
+    }
+    if (!contactPhone.trim()) {
+      setMessage({ type: 'error', text: 'Phone number is required' });
+      return;
+    }
+    if (!addressLine1.trim()) {
+      setMessage({ type: 'error', text: 'Address is required' });
+      return;
+    }
+    if (!city.trim()) {
+      setMessage({ type: 'error', text: 'City is required' });
+      return;
+    }
+    if (!state.trim()) {
+      setMessage({ type: 'error', text: 'State is required' });
+      return;
+    }
+    if (!postalCode.trim()) {
+      setMessage({ type: 'error', text: 'Postal code is required' });
+      return;
+    }
+    
     setIsLoading(true);
     setMessage(null);
     
