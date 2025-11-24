@@ -313,7 +313,7 @@ export default function TaxAdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
+          'Authorization': `Bearer ${authToken}`,
         },
         body: JSON.stringify({ tax_year: form1099Year }),
       });
@@ -329,6 +329,76 @@ export default function TaxAdminDashboard() {
     } catch (error) {
       alert('Failed to verify integrity');
       console.error(error);
+    }
+  };
+
+  const downloadUserDocs = async (userId: string) => {
+    if (!authToken) {
+      alert('Please log in');
+      return;
+    }
+    
+    try {
+      const url = `/api/tax/admin/documents/${userId}`;
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Download as JSON file
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `user-tax-docs-${userId}.json`;
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+      } else {
+        alert('Failed to download user documents');
+      }
+    } catch (error) {
+      console.error('Error downloading docs:', error);
+      alert('Failed to download user documents');
+    }
+  };
+
+  const send1099ToUser = async (userId: string, userEmail: string) => {
+    if (!authToken) {
+      alert('Please log in');
+      return;
+    }
+
+    if (!confirm(`Send 1099 notification to ${userEmail}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/tax/admin/email-1099s', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ 
+          tax_year: form1099Year,
+          user_id: userId // Send to specific user only
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ 1099 notification sent to ${userEmail}!`);
+        fetch1099s(); // Refresh
+      } else {
+        alert(`❌ Failed to send: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending 1099:', error);
+      alert('Failed to send 1099 notification');
     }
   };
 
@@ -527,12 +597,20 @@ export default function TaxAdminDashboard() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => downloadUserDocs(w9.user_id)}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-all"
-                      >
-                        📥 Download
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => downloadUserDocs(w9.user_id)}
+                          className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-semibold transition-all"
+                        >
+                          📥 Docs
+                        </button>
+                        <button
+                          onClick={() => send1099ToUser(w9.user_id, w9.user_email)}
+                          className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-semibold transition-all"
+                        >
+                          📨 Send 1099
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
