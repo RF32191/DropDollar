@@ -118,6 +118,8 @@ SET
 -- STEP 3: SIMPLE WTA PAYOUT FUNCTION (NO TOKEN_TRANSACTIONS)
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS public.process_wta_payout(TEXT);
+
 CREATE OR REPLACE FUNCTION public.process_wta_payout(config_id_param TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -259,6 +261,8 @@ GRANT EXECUTE ON FUNCTION public.process_wta_payout(TEXT) TO authenticated, anon
 -- ============================================================================
 -- STEP 4: SIMPLE WTA RESET FUNCTION
 -- ============================================================================
+
+DROP FUNCTION IF EXISTS public.reset_wta_session(TEXT);
 
 CREATE OR REPLACE FUNCTION public.reset_wta_session(config_id_param TEXT)
 RETURNS JSONB
