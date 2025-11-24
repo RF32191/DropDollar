@@ -5,6 +5,13 @@
 -- Run this to ensure the entire registration flow works correctly.
 -- ============================================================================
 
+-- Drop existing functions to avoid parameter conflicts
+DROP FUNCTION IF EXISTS public.update_seller_registration_step2(TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.update_seller_registration_step3(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.update_seller_registration_step4(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.update_seller_registration_step5(TEXT, TEXT[], INTEGER, INTEGER, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.complete_seller_registration(BOOLEAN, BOOLEAN, BOOLEAN);
+
 -- ============================================================================
 -- FUNCTION: update_seller_registration_step2 (Business Details)
 -- ============================================================================
