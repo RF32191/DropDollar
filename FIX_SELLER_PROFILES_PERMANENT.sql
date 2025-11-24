@@ -170,10 +170,12 @@ END $$;
 DROP FUNCTION IF EXISTS public.start_seller_registration(TEXT, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.get_seller_registration_progress();
 DROP FUNCTION IF EXISTS public.update_seller_registration_step2(TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.update_seller_registration_step3_identity(TEXT, DATE, TEXT, TEXT, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.update_seller_registration_step3(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.update_seller_registration_step4(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.update_seller_registration_step5(TEXT, TEXT[], INTEGER, INTEGER, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.complete_seller_registration(BOOLEAN, BOOLEAN, BOOLEAN);
+DROP FUNCTION IF EXISTS public.reset_seller_registration();
 
 -- Update start_seller_registration to use user_id
 CREATE OR REPLACE FUNCTION public.start_seller_registration(
@@ -312,7 +314,101 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.update_seller_registration_step2 TO authenticated;
 
--- Update step 3 function (Contact Information)
+-- Update step 3 function (Identity Verification - NEW STEP!)
+CREATE OR REPLACE FUNCTION public.update_seller_registration_step3_identity(
+    full_legal_name_param TEXT,
+    date_of_birth_param DATE,
+    ssn_last4_param TEXT,
+    dl_front_path_param TEXT,
+    dl_back_path_param TEXT,
+    selfie_path_param TEXT
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_user_id UUID;
+    v_seller_id UUID;
+    v_current_step INT;
+BEGIN
+    -- Get the authenticated user ID
+    v_user_id := auth.uid();
+    
+    IF v_user_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Not authenticated');
+    END IF;
+
+    -- Get seller profile (FIXED: using user_id)
+    SELECT id, registration_step
+    INTO v_seller_id, v_current_step
+    FROM seller_profiles
+    WHERE user_id = v_user_id;
+
+    IF v_seller_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Seller profile not found');
+    END IF;
+
+    -- Validate we're on step 2 or 3
+    IF v_current_step < 2 THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Please complete previous steps first');
+    END IF;
+
+    -- Update seller profile with identity verification data
+    UPDATE seller_profiles
+    SET
+        full_legal_name = full_legal_name_param,
+        date_of_birth = date_of_birth_param,
+        ssn_last4 = ssn_last4_param,
+        dl_front_url = dl_front_path_param,
+        dl_back_url = dl_back_path_param,
+        selfie_url = selfie_path_param,
+        identity_verified = FALSE,
+        registration_step = GREATEST(registration_step, 3),
+        updated_at = NOW()
+    WHERE user_id = v_user_id;
+
+    -- Insert document records for the uploaded files
+    INSERT INTO seller_documents (seller_id, document_type, file_path, status)
+    VALUES
+        (v_seller_id, 'drivers_license_front', dl_front_path_param, 'pending'),
+        (v_seller_id, 'drivers_license_back', dl_back_path_param, 'pending'),
+        (v_seller_id, 'selfie_with_id', selfie_path_param, 'pending')
+    ON CONFLICT (seller_id, document_type) 
+    DO UPDATE SET
+        file_path = EXCLUDED.file_path,
+        status = 'pending',
+        uploaded_at = NOW();
+
+    -- Log verification event (if table exists)
+    BEGIN
+        INSERT INTO seller_verification_events (seller_id, event_type, event_data, created_by)
+        VALUES (
+            v_seller_id,
+            'identity_documents_uploaded',
+            jsonb_build_object(
+                'documents', jsonb_build_array('dl_front', 'dl_back', 'selfie'),
+                'name', full_legal_name_param,
+                'dob', date_of_birth_param
+            ),
+            v_user_id
+        );
+    EXCEPTION WHEN OTHERS THEN
+        -- Ignore if table doesn't exist yet
+        RAISE NOTICE 'Could not log to verification_events: %', SQLERRM;
+    END;
+
+    RETURN jsonb_build_object('success', true, 'message', 'Identity verification documents uploaded successfully!');
+
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Error: ' || SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_seller_registration_step3_identity TO authenticated;
+
+-- Update step 4 function (Contact Information - this is the OLD step3 function, now step 4)
+-- NOTE: Keeping function name as step3 for backwards compatibility with existing code
 CREATE OR REPLACE FUNCTION public.update_seller_registration_step3(
     contact_email_param TEXT,
     contact_phone_param TEXT,
