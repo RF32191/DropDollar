@@ -906,12 +906,18 @@ export default function GamesPage() {
             </div>
             <div className="text-2xl">💎</div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex gap-4">
             <a 
-              href="#sponsor-contact" 
+              href="/seller/register" 
               className="bg-white text-purple-600 hover:bg-purple-50 font-bold py-2 px-6 rounded-lg transition-colors inline-block"
             >
-              Become a Sponsor
+              Become a Seller
+            </a>
+            <a 
+              href="/advertising/campaigns/create" 
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 font-bold py-2 px-6 rounded-lg transition-all inline-block shadow-lg"
+            >
+              Create Ad Campaign
             </a>
           </div>
         </div>
