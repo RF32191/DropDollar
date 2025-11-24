@@ -309,9 +309,9 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
         full_legal_name_param: fullLegalName.trim(),
         date_of_birth_param: dateOfBirth,
         ssn_last4_param: ssnLast4,
-        dl_front_path_param: dlFrontPath,
-        dl_back_path_param: dlBackPath,
-        selfie_path_param: selfiePath
+        dl_front_url_param: dlFrontPath,
+        dl_back_url_param: dlBackPath,
+        selfie_url_param: selfiePath
       });
 
       if (error) throw error;
