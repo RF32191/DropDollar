@@ -117,6 +117,71 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     }
   }
 
+  const handleResetRegistration = async () => {
+    if (!confirm('Are you sure you want to start over? All your progress will be deleted.')) {
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      const { data, error } = await supabase.rpc('reset_seller_registration');
+      
+      if (error) throw error;
+
+      // Reset all form state
+      setShopName('');
+      setShopDescription('');
+      setShopTagline('');
+      setBusinessType('individual');
+      setBusinessName('');
+      setTaxId('');
+      setFullLegalName('');
+      setDateOfBirth('');
+      setSsnLast4('');
+      setDlFront(null);
+      setDlBack(null);
+      setSelfiePhoto(null);
+      setDlFrontPreview('');
+      setDlBackPreview('');
+      setSelfiePreview('');
+      setContactEmail('');
+      setContactPhone('');
+      setAddressLine1('');
+      setAddressLine2('');
+      setCity('');
+      setState('');
+      setPostalCode('');
+      setCountry('US');
+      setPayoutMethod('bank_transfer');
+      setBankHolderName('');
+      setBankName('');
+      setBankAccountType('checking');
+      setBankRouting('');
+      setBankAccountNumber('');
+      setPaypalEmail('');
+      setCryptoWallet('');
+      setShipsFrom('');
+      setShippingCountries(['US']);
+      setProcessingMin(1);
+      setProcessingMax(3);
+      setReturnPolicy('');
+      setShippingPolicy('');
+      setTermsAccepted(false);
+      setPrivacyAccepted(false);
+      setSellerAgreementAccepted(false);
+
+      setCurrentStep(1);
+      setMessage({ type: 'success', text: 'Registration reset! You can start over.' });
+    } catch (error: any) {
+      console.error('Reset error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to reset registration' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleStep1Submit() {
     if (!shopName.trim()) {
       setMessage({ type: 'error', text: 'Shop name is required' });
@@ -428,23 +493,52 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Header with Reset Button */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Seller Registration</h1>
+          <p className="text-gray-400 mt-1">Complete all steps to become a verified seller</p>
+        </div>
+        {currentStep > 1 && (
+          <button
+            onClick={handleResetRegistration}
+            disabled={isLoading}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            Start Over
+          </button>
+        )}
+      </div>
+
       {/* Progress Stepper */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           {STEPS.map((step, index) => (
             <div key={step.number} className="flex-1">
               <div className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                  currentStep >= step.number
-                    ? 'border-blue-500 bg-blue-500 text-white'
-                    : 'border-gray-600 bg-gray-800 text-gray-400'
-                }`}>
+                <button
+                  onClick={() => {
+                    // Allow navigation to completed steps or current step
+                    if (step.number <= currentStep) {
+                      setCurrentStep(step.number);
+                      setMessage(null);
+                    }
+                  }}
+                  disabled={step.number > currentStep}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${
+                    currentStep >= step.number
+                      ? 'border-blue-500 bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
+                      : 'border-gray-600 bg-gray-800 text-gray-400 cursor-not-allowed'
+                  }`}>
                   {currentStep > step.number ? (
                     <CheckCircleIcon className="w-6 h-6" />
                   ) : (
                     <step.icon className="w-5 h-5" />
                   )}
-                </div>
+                </button>
                 <div className="ml-2 flex-1">
                   <div className={`text-sm font-medium ${
                     currentStep >= step.number ? 'text-blue-400' : 'text-gray-400'
