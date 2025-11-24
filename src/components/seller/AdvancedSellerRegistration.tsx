@@ -13,6 +13,8 @@ import {
   CreditCardIcon,
   TruckIcon,
   DocumentTextIcon,
+  IdentificationIcon,
+  CameraIcon,
 } from '@heroicons/react/24/outline';
 
 interface RegistrationProgress {
@@ -27,10 +29,11 @@ interface RegistrationProgress {
 const STEPS = [
   { number: 1, title: 'Shop Information', icon: BuildingStorefrontIcon },
   { number: 2, title: 'Business Details', icon: BuildingOfficeIcon },
-  { number: 3, title: 'Contact Information', icon: MapPinIcon },
-  { number: 4, title: 'Banking & Payment', icon: CreditCardIcon },
-  { number: 5, title: 'Shipping & Policies', icon: TruckIcon },
-  { number: 6, title: 'Review & Submit', icon: DocumentTextIcon },
+  { number: 3, title: 'Identity Verification', icon: IdentificationIcon },
+  { number: 4, title: 'Contact Information', icon: MapPinIcon },
+  { number: 5, title: 'Banking & Payment', icon: CreditCardIcon },
+  { number: 6, title: 'Shipping & Policies', icon: TruckIcon },
+  { number: 7, title: 'Review & Submit', icon: DocumentTextIcon },
 ];
 
 export default function AdvancedSellerRegistration({ onComplete }: { onComplete?: () => void }) {
@@ -48,7 +51,18 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
   const [businessName, setBusinessName] = useState('');
   const [taxId, setTaxId] = useState('');
   
-  // Step 3: Contact Information
+  // Step 3: Identity Verification (NEW - Etsy Requirements)
+  const [fullLegalName, setFullLegalName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [ssnLast4, setSsnLast4] = useState('');
+  const [dlFront, setDlFront] = useState<File | null>(null);
+  const [dlBack, setDlBack] = useState<File | null>(null);
+  const [selfiePhoto, setSelfiePhoto] = useState<File | null>(null);
+  const [dlFrontPreview, setDlFrontPreview] = useState<string>('');
+  const [dlBackPreview, setDlBackPreview] = useState<string>('');
+  const [selfiePreview, setSelfiePreview] = useState<string>('');
+  
+  // Step 4: Contact Information
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
@@ -173,6 +187,85 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
   }
 
   async function handleStep3Submit() {
+    // Validate all required fields
+    if (!fullLegalName.trim()) {
+      setMessage({ type: 'error', text: 'Full legal name is required' });
+      return;
+    }
+    if (!dateOfBirth) {
+      setMessage({ type: 'error', text: 'Date of birth is required' });
+      return;
+    }
+    if (!ssnLast4 || ssnLast4.length !== 4) {
+      setMessage({ type: 'error', text: 'SSN last 4 digits are required' });
+      return;
+    }
+    if (!dlFront) {
+      setMessage({ type: 'error', text: 'Driver\'s license front photo is required' });
+      return;
+    }
+    if (!dlBack) {
+      setMessage({ type: 'error', text: 'Driver\'s license back photo is required' });
+      return;
+    }
+    if (!selfiePhoto) {
+      setMessage({ type: 'error', text: 'Selfie with ID is required' });
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Upload documents to Supabase Storage
+      const uploadFile = async (file: File, type: string) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${type}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('seller-documents')
+          .upload(fileName, file);
+        
+        if (uploadError) throw uploadError;
+        return fileName;
+      };
+
+      setMessage({ type: 'success', text: 'Uploading documents...' });
+
+      const dlFrontPath = await uploadFile(dlFront, 'dl_front');
+      const dlBackPath = await uploadFile(dlBack, 'dl_back');
+      const selfiePath = await uploadFile(selfiePhoto, 'selfie');
+
+      // Save identity verification data
+      const { data, error } = await supabase.rpc('update_seller_registration_step3_identity', {
+        full_legal_name_param: fullLegalName.trim(),
+        date_of_birth_param: dateOfBirth,
+        ssn_last4_param: ssnLast4,
+        dl_front_path_param: dlFrontPath,
+        dl_back_path_param: dlBackPath,
+        selfie_path_param: selfiePath
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setMessage({ type: 'success', text: 'Identity verification submitted! Moving to next step...' });
+        setTimeout(() => setCurrentStep(4), 1500);
+      } else {
+        setMessage({ type: 'error', text: data?.message || 'Failed to save identity verification' });
+      }
+    } catch (error: any) {
+      console.error('Step 3 error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to upload documents' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleStep3Submit() {
     if (!contactEmail || !contactPhone || !addressLine1 || !city || !state || !postalCode) {
       setMessage({ type: 'error', text: 'All contact fields are required' });
       return;
@@ -209,6 +302,39 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
   }
 
   async function handleStep4Submit() {
+    // This is now for Contact Information (old step 3)
+    setIsLoading(true);
+    setMessage(null);
+    
+    try {
+      const { data, error } = await supabase.rpc('update_seller_registration_step3', {
+        contact_email_param: contactEmail.trim(),
+        contact_phone_param: contactPhone.trim(),
+        address_line1_param: addressLine1.trim(),
+        address_line2_param: addressLine2.trim() || null,
+        city_param: city.trim(),
+        state_param: state.trim(),
+        postal_code_param: postalCode.trim(),
+        country_param: country,
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        setMessage({ type: 'success', text: data.message });
+        setCurrentStep(5);
+      } else {
+        setMessage({ type: 'error', text: data?.message || 'Failed to save contact information' });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to save contact information' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleStep5Submit() {
+    // This is now for Banking & Payment (old step 4)
     setIsLoading(true);
     setMessage(null);
     
@@ -231,7 +357,7 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
       
       if (data?.success) {
         setMessage({ type: 'success', text: data.message });
-        setCurrentStep(5);
+        setCurrentStep(6);
       } else {
         setMessage({ type: 'error', text: data?.message || 'Failed to save payment information' });
       }
@@ -242,7 +368,8 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     }
   }
 
-  async function handleStep5Submit() {
+  async function handleStep6Submit() {
+    // This is now for Shipping & Policies (old step 5)
     if (!shipsFrom) {
       setMessage({ type: 'error', text: 'Shipping location is required' });
       return;
@@ -265,7 +392,7 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
       
       if (data?.success) {
         setMessage({ type: 'success', text: data.message });
-        setCurrentStep(6);
+        setCurrentStep(7);
       } else {
         setMessage({ type: 'error', text: data?.message || 'Failed to save shipping information' });
       }
@@ -276,7 +403,8 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
     }
   }
 
-  async function handleStep6Submit() {
+  async function handleStep7Submit() {
+    // This is now for Review & Submit (old step 6)
     if (!termsAccepted || !privacyAccepted || !sellerAgreementAccepted) {
       setMessage({ type: 'error', text: 'You must accept all agreements to continue' });
       return;
@@ -515,6 +643,238 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
 
         {currentStep === 3 && (
           <div>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <IdentificationIcon className="w-8 h-8 mr-3 text-blue-400" />
+              Identity Verification
+            </h2>
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
+              <p className="text-yellow-200 text-sm">
+                <strong>Required by Law:</strong> To comply with tax regulations and prevent fraud, we need to verify your identity.
+                All information is encrypted and stored securely.
+              </p>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Full Legal Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Full Legal Name (as on Driver's License) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={fullLegalName}
+                  onChange={(e) => setFullLegalName(e.target.value)}
+                  placeholder="John Michael Smith"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Date of Birth & SSN */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    SSN Last 4 Digits <span className="text-red-500">*</span>
+                    <span className="text-xs text-gray-400 ml-2">(for tax reporting)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={ssnLast4}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setSsnLast4(value);
+                    }}
+                    placeholder="1234"
+                    maxLength={4}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Driver's License Front */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Driver's License (Front) <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                  {dlFrontPreview ? (
+                    <div className="relative">
+                      <img src={dlFrontPreview} alt="License Front" className="max-h-48 mx-auto rounded" />
+                      <button
+                        onClick={() => {
+                          setDlFront(null);
+                          setDlFrontPreview('');
+                        }}
+                        className="mt-2 text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-400 mb-2">Upload front of your driver's license</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setDlFront(file);
+                            setDlFrontPreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        className="hidden"
+                        id="dl-front"
+                      />
+                      <label
+                        htmlFor="dl-front"
+                        className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer"
+                      >
+                        Choose File
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Driver's License Back */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Driver's License (Back) <span className="text-red-500">*</span>
+                </label>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                  {dlBackPreview ? (
+                    <div className="relative">
+                      <img src={dlBackPreview} alt="License Back" className="max-h-48 mx-auto rounded" />
+                      <button
+                        onClick={() => {
+                          setDlBack(null);
+                          setDlBackPreview('');
+                        }}
+                        className="mt-2 text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-400 mb-2">Upload back of your driver's license</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setDlBack(file);
+                            setDlBackPreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        className="hidden"
+                        id="dl-back"
+                      />
+                      <label
+                        htmlFor="dl-back"
+                        className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer"
+                      >
+                        Choose File
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Selfie with ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Selfie Holding Your ID <span className="text-red-500">*</span>
+                </label>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-2">
+                  <p className="text-blue-200 text-xs">
+                    📸 Take a photo of yourself holding your driver's license next to your face. 
+                    Make sure your face and the ID are clearly visible.
+                  </p>
+                </div>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                  {selfiePreview ? (
+                    <div className="relative">
+                      <img src={selfiePreview} alt="Selfie" className="max-h-48 mx-auto rounded" />
+                      <button
+                        onClick={() => {
+                          setSelfiePhoto(null);
+                          setSelfiePreview('');
+                        }}
+                        className="mt-2 text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-400 mb-2">Upload selfie with your ID</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelfiePhoto(file);
+                            setSelfiePreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        className="hidden"
+                        id="selfie"
+                      />
+                      <label
+                        htmlFor="selfie"
+                        className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer"
+                      >
+                        Take/Upload Photo
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Buttons for Step 3 */}
+            <div className="flex justify-between mt-8">
+              <button
+                onClick={() => setCurrentStep(2)}
+                className="flex items-center px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
+                disabled={isLoading}
+              >
+                <ChevronLeftIcon className="w-5 h-5 mr-2" />
+                Back
+              </button>
+              <button
+                onClick={handleStep3Submit}
+                className="flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Uploading...' : 'Next: Contact Info'}
+                {!isLoading && <ChevronRightIcon className="w-5 h-5 ml-2" />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 4 && (
+          <div>
             <h2 className="text-2xl font-bold text-white mb-6">Contact Information</h2>
             <p className="text-gray-300 mb-6">
               Provide your business address and contact details.
@@ -637,7 +997,7 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6">Banking & Payment</h2>
             <p className="text-gray-300 mb-6">
@@ -763,7 +1123,7 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
           </div>
         )}
 
-        {currentStep === 5 && (
+        {currentStep === 6 && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6">Shipping & Policies</h2>
             <p className="text-gray-300 mb-6">
@@ -841,14 +1201,14 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
             
             <div className="flex gap-4 mt-6">
               <button
-                onClick={() => setCurrentStep(4)}
+                onClick={() => setCurrentStep(5)}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-bold transition-colors flex items-center justify-center"
               >
                 <ChevronLeftIcon className="w-5 h-5 mr-2" />
                 Back
               </button>
               <button
-                onClick={handleStep5Submit}
+                onClick={handleStep6Submit}
                 disabled={isLoading}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center"
               >
@@ -859,7 +1219,7 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
           </div>
         )}
 
-        {currentStep === 6 && (
+        {currentStep === 7 && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6">Review & Submit</h2>
             <p className="text-gray-300 mb-6">
@@ -967,14 +1327,14 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
             
             <div className="flex gap-4">
               <button
-                onClick={() => setCurrentStep(5)}
+                onClick={() => setCurrentStep(6)}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-bold transition-colors flex items-center justify-center"
               >
                 <ChevronLeftIcon className="w-5 h-5 mr-2" />
                 Back
               </button>
               <button
-                onClick={handleStep6Submit}
+                onClick={handleStep7Submit}
                 disabled={isLoading || !termsAccepted || !privacyAccepted || !sellerAgreementAccepted}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
