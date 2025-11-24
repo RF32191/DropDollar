@@ -17,8 +17,16 @@ import {
   BellIcon,
   ChartBarIcon,
   TruckIcon,
-  ShoppingBagIcon
+  ShoppingBagIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
+import dynamic from 'next/dynamic';
+
+// Dynamically import admin tax dashboard
+const AdminTaxDashboard = dynamic(() => import('@/app/admin/tax/page').then(mod => mod.default), {
+  ssr: false,
+  loading: () => <div className="text-white">Loading tax dashboard...</div>
+});
 
 interface PendingSeller {
   id: string;
@@ -66,7 +74,7 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState('');
   const ADMIN_PASSWORD = '321SnoopDog1994321!';
   
-  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings'>('sellers');
+  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -382,6 +390,17 @@ export default function AdminDashboard() {
               <ShoppingBagIcon className="inline h-5 w-5 mr-2" />
               Manage Listings
             </button>
+            <button
+              onClick={() => setActiveTab('tax')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'tax'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <DocumentTextIcon className="inline h-5 w-5 mr-2" />
+              W-9 & 1099 Tax
+            </button>
           </div>
         </div>
 
@@ -545,6 +564,17 @@ export default function AdminDashboard() {
         {/* Listing Management Tab */}
         {activeTab === 'listings' && (
           <ListingManagementPanel />
+        )}
+        
+        {/* Tax Management Tab */}
+        {activeTab === 'tax' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4 flex items-center">
+              <DocumentTextIcon className="w-6 h-6 mr-2 text-blue-400" />
+              W-9 & 1099 Tax Management
+            </h2>
+            <AdminTaxDashboard />
+          </div>
         )}
       </div>
     </div>
