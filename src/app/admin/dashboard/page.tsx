@@ -187,6 +187,7 @@ export default function AdminDashboard() {
   };
 
   const loadAuditLogs = async () => {
+    console.log('🔍 Loading audit logs...');
     try {
       // Query the game_audit_log table directly
       const { data, error } = await supabase
@@ -195,13 +196,30 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false })
         .limit(100);
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading from game_audit_log table:', error);
+        console.log('📋 Error details:', {
+          message: error.message,
+          code: error.code,
+          hint: error.hint
+        });
+        
+        // If table doesn't exist, show helpful message
+        if (error.message.includes('does not exist') || error.code === '42P01') {
+          console.error('🚨 TABLE DOES NOT EXIST! You need to deploy the SQL file first!');
+          console.error('📦 Deploy this file: DEPLOY_AUDIT_NO_DEADLOCK.sql');
+        }
+        throw error;
+      }
       
       setAuditLogs(data || []);
-      console.log('✅ Loaded', data?.length || 0, 'audit logs');
-    } catch (error) {
-      console.error('❌ Error loading audit logs:', error);
+      console.log('✅ Successfully loaded', data?.length || 0, 'audit logs from game_audit_log table');
+      console.log('📊 Sample audit log:', data?.[0]);
+    } catch (error: any) {
+      console.error('❌ Failed to load audit logs:', error);
+      
       // Try the view as fallback
+      console.log('🔄 Trying to load from view instead...');
       try {
         const { data: viewData, error: viewError } = await supabase
           .from('admin_detailed_audit_view')
@@ -209,12 +227,18 @@ export default function AdminDashboard() {
           .order('created_at', { ascending: false })
           .limit(100);
         
-        if (!viewError && viewData) {
+        if (viewError) {
+          console.error('❌ View also failed:', viewError);
+          console.log('🚨 AUDIT SYSTEM NOT DEPLOYED!');
+          console.log('📦 You must deploy: DEPLOY_AUDIT_NO_DEADLOCK.sql');
+          setAuditLogs([]);
+        } else if (viewData) {
           setAuditLogs(viewData);
           console.log('✅ Loaded', viewData.length, 'audit logs from view');
         }
       } catch (viewErr) {
-        console.error('❌ Error loading from view:', viewErr);
+        console.error('❌ Both table and view failed. Audit system not deployed.');
+        setAuditLogs([]);
       }
     }
   };

@@ -33,6 +33,12 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
   scoreRating?: number;
   message?: string;
 }> {
+  console.log('🎮 Attempting to log game:', {
+    game: data.gameType,
+    mode: data.gameMode,
+    score: data.score
+  });
+  
   try {
     const supabase = createClientComponentClient();
     
@@ -47,7 +53,10 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
       };
     }
     
+    console.log('✅ User authenticated:', user.email);
+    
     // Call backend audit function
+    console.log('📡 Calling frontend_log_game_completion...');
     const { data: result, error } = await supabase.rpc('frontend_log_game_completion', {
       p_game_type: data.gameType,
       p_game_mode: data.gameMode,
@@ -60,17 +69,31 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
 
     if (error) {
       console.error('❌ Game audit error:', error);
+      console.error('📋 Error details:', {
+        message: error.message,
+        code: error.code,
+        hint: error.hint
+      });
+      
+      // Check if function doesn't exist
+      if (error.message?.includes('does not exist') || error.code === '42883') {
+        console.error('🚨 FUNCTION DOES NOT EXIST!');
+        console.error('📦 You need to deploy the SQL file: DEPLOY_AUDIT_NO_DEADLOCK.sql');
+        console.error('🔗 Go to Supabase Dashboard → SQL Editor and run the file');
+      }
+      
       return {
         success: false,
         message: error.message
       };
     }
 
-    console.log('✅ Game audited:', {
+    console.log('✅ Game audited successfully:', {
       game: data.gameType,
       score: data.score,
       rating: result?.score_rating,
-      cheatScore: result?.cheat_score
+      cheatScore: result?.cheat_score,
+      auditId: result?.audit_id
     });
 
     return {
