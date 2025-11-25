@@ -45,11 +45,19 @@ interface AuditLog {
   id: string;
   user_id: string;
   username: string;
+  email: string;
   game_type: string;
+  game_mode: string;
   score: number;
+  score_rating: number;
   accuracy: number;
-  flags: string[];
-  suspicion_level: string;
+  reaction_time: number;
+  duration_seconds: number;
+  cheat_score: number;
+  threat_level: string;
+  suspicious: boolean;
+  suspicious_reasons: string[];
+  ip_address: string;
   created_at: string;
 }
 
@@ -180,13 +188,34 @@ export default function AdminDashboard() {
 
   const loadAuditLogs = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_unreviewed_audit_logs');
+      // Query the game_audit_log table directly
+      const { data, error } = await supabase
+        .from('game_audit_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
       
       if (error) throw error;
       
       setAuditLogs(data || []);
+      console.log('✅ Loaded', data?.length || 0, 'audit logs');
     } catch (error) {
-      console.error('Error loading audit logs:', error);
+      console.error('❌ Error loading audit logs:', error);
+      // Try the view as fallback
+      try {
+        const { data: viewData, error: viewError } = await supabase
+          .from('admin_detailed_audit_view')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        
+        if (!viewError && viewData) {
+          setAuditLogs(viewData);
+          console.log('✅ Loaded', viewData.length, 'audit logs from view');
+        }
+      } catch (viewErr) {
+        console.error('❌ Error loading from view:', viewErr);
+      }
     }
   };
 
@@ -606,74 +635,105 @@ export default function AdminDashboard() {
 
         {activeTab === 'audits' && permissions?.can_review_audits && (
           <div>
-            <h2 className="text-2xl font-bold mb-4">Suspicious Game Activity</h2>
+            <h2 className="text-2xl font-bold mb-6 flex items-center">
+              <ChartBarIcon className="h-8 w-8 mr-3 text-blue-400" />
+              Game Audit Logs - All Games
+              <span className="ml-4 text-sm text-gray-400">({auditLogs.length} games)</span>
+            </h2>
             
             {auditLogs.length === 0 ? (
               <div className="text-center py-12 bg-gray-800 rounded-lg">
                 <CheckCircleIcon className="h-16 w-16 mx-auto mb-4 text-green-500" />
-                <p className="text-xl text-gray-300">No suspicious activity detected!</p>
+                <p className="text-xl text-gray-300">No games played yet!</p>
+                <p className="text-sm text-gray-500 mt-2">Game results will appear here automatically</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {auditLogs.map((audit) => (
                   <div key={audit.id} className={`rounded-lg p-6 border ${
-                    audit.suspicion_level === 'critical' 
+                    audit.threat_level === 'CRITICAL' 
                       ? 'bg-red-900/20 border-red-700' 
-                      : audit.suspicion_level === 'high'
+                      : audit.threat_level === 'HIGH'
                       ? 'bg-orange-900/20 border-orange-700'
-                      : 'bg-yellow-900/20 border-yellow-700'
+                      : audit.threat_level === 'MEDIUM'
+                      ? 'bg-yellow-900/20 border-yellow-700'
+                      : audit.threat_level === 'LOW'
+                      ? 'bg-blue-900/20 border-blue-700'
+                      : 'bg-green-900/20 border-green-700'
                   }`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <ExclamationTriangleIcon className={`h-6 w-6 mr-2 ${
-                            audit.suspicion_level === 'critical' ? 'text-red-400' :
-                            audit.suspicion_level === 'high' ? 'text-orange-400' :
-                            'text-yellow-400'
-                          }`} />
+                        <div className="flex items-center mb-3">
+                          {audit.suspicious ? (
+                            <ExclamationTriangleIcon className={`h-6 w-6 mr-2 ${
+                              audit.threat_level === 'CRITICAL' ? 'text-red-400' :
+                              audit.threat_level === 'HIGH' ? 'text-orange-400' :
+                              'text-yellow-400'
+                            }`} />
+                          ) : (
+                            <CheckCircleIcon className="h-6 w-6 mr-2 text-green-400" />
+                          )}
                           <h3 className="text-xl font-bold text-white">
-                            {audit.username} - {audit.game_type}
+                            {audit.username || 'Unknown'}
                           </h3>
-                          <span className={`ml-3 px-3 py-1 rounded-full text-xs font-bold ${
-                            audit.suspicion_level === 'critical' ? 'bg-red-600' :
-                            audit.suspicion_level === 'high' ? 'bg-orange-600' :
-                            'bg-yellow-600'
+                          <span className="mx-2 text-gray-500">•</span>
+                          <span className="text-blue-400">{audit.game_type}</span>
+                          <span className="mx-2 text-gray-500">•</span>
+                          <span className="text-gray-400 text-sm">{audit.game_mode}</span>
+                          <span className={`ml-auto px-3 py-1 rounded-full text-xs font-bold ${
+                            audit.threat_level === 'CRITICAL' ? 'bg-red-600' :
+                            audit.threat_level === 'HIGH' ? 'bg-orange-600' :
+                            audit.threat_level === 'MEDIUM' ? 'bg-yellow-600' :
+                            audit.threat_level === 'LOW' ? 'bg-blue-600' :
+                            'bg-green-600'
                           }`}>
-                            {audit.suspicion_level.toUpperCase()}
+                            {audit.threat_level || 'CLEAN'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-4 mb-3">
-                          <div>
-                            <p className="text-sm text-gray-400">Score</p>
-                            <p className="text-white font-bold">{audit.score}</p>
+                        
+                        <div className="grid grid-cols-4 gap-3 mb-3">
+                          <div className="bg-gray-800/50 rounded p-2">
+                            <p className="text-xs text-gray-400">Score</p>
+                            <p className="text-lg font-bold text-white">{audit.score}</p>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Accuracy</p>
-                            <p className="text-white font-bold">{audit.accuracy}%</p>
+                          <div className="bg-gray-800/50 rounded p-2">
+                            <p className="text-xs text-gray-400">Rating</p>
+                            <p className="text-lg font-bold text-blue-400">{audit.score_rating?.toFixed(1) || '0'}/10</p>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-400">Date</p>
-                            <p className="text-white">{new Date(audit.created_at).toLocaleString()}</p>
+                          <div className="bg-gray-800/50 rounded p-2">
+                            <p className="text-xs text-gray-400">Accuracy</p>
+                            <p className="text-lg font-bold text-white">{audit.accuracy?.toFixed(1) || '0'}%</p>
+                          </div>
+                          <div className="bg-gray-800/50 rounded p-2">
+                            <p className="text-xs text-gray-400">Cheat Score</p>
+                            <p className={`text-lg font-bold ${
+                              (audit.cheat_score || 0) >= 60 ? 'text-red-400' :
+                              (audit.cheat_score || 0) >= 40 ? 'text-yellow-400' :
+                              'text-green-400'
+                            }`}>
+                              {audit.cheat_score?.toFixed(0) || '0'}
+                            </p>
                           </div>
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-400 mb-1">Flags:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {audit.flags.map((flag, index) => (
-                              <span key={index} className="bg-gray-700 px-3 py-1 rounded-full text-xs text-white">
-                                {flag}
-                              </span>
-                            ))}
-                          </div>
+
+                        <div className="text-sm text-gray-400 mb-2">
+                          <span>Duration: {audit.duration_seconds}s</span>
+                          {audit.reaction_time && <span className="ml-4">Reaction: {audit.reaction_time.toFixed(2)}ms</span>}
+                          <span className="ml-4">{new Date(audit.created_at).toLocaleString()}</span>
                         </div>
-                      </div>
-                      <div className="flex gap-3 ml-4">
-                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                          Review
-                        </button>
-                        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                          Ban User
-                        </button>
+
+                        {audit.suspicious && audit.suspicious_reasons && audit.suspicious_reasons.length > 0 && (
+                          <div className="mt-2 p-2 bg-red-900/30 rounded">
+                            <p className="text-xs text-red-300 font-semibold mb-1">🚨 Suspicious:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {audit.suspicious_reasons.map((reason, index) => (
+                                <span key={index} className="bg-red-900/60 text-red-200 px-2 py-1 rounded text-xs">
+                                  {reason}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
