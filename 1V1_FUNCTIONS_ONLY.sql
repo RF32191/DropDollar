@@ -6,15 +6,14 @@
 -- ============================================================================
 
 -- ============================================================================
--- PART 1: DROP OLD FUNCTIONS
+-- PART 1: DROP OLD FUNCTIONS (without CASCADE to avoid deadlocks)
 -- ============================================================================
 
-DROP FUNCTION IF EXISTS public.process_1v1_payout(TEXT) CASCADE;
-DROP FUNCTION IF EXISTS public.process_1v1_payout(UUID) CASCADE;
-DROP FUNCTION IF EXISTS public.join_1v1_session(TEXT, UUID, NUMERIC) CASCADE;
-DROP FUNCTION IF EXISTS public.join_1v1_session(UUID, TEXT, NUMERIC) CASCADE;
-DROP FUNCTION IF EXISTS public.ensure_1v1_session_exists() CASCADE;
-DROP TRIGGER IF EXISTS auto_create_1v1_session ON public.one_v_one_sessions;
+DROP FUNCTION IF EXISTS public.process_1v1_payout(TEXT);
+DROP FUNCTION IF EXISTS public.process_1v1_payout(UUID);
+DROP FUNCTION IF EXISTS public.join_1v1_session(TEXT, UUID, NUMERIC);
+DROP FUNCTION IF EXISTS public.join_1v1_session(UUID, TEXT, NUMERIC);
+DROP FUNCTION IF EXISTS public.join_1v1_session(UUID, UUID, NUMERIC);
 
 -- ============================================================================
 -- PART 2: CREATE JOIN FUNCTION
@@ -257,24 +256,30 @@ BEGIN
     WHERE id = session_record.id;
 
     -- Create new session immediately (don't wait for reset)
-    INSERT INTO public.one_v_one_sessions (
-        id, config_id, status, participants_count, current_pot, 
-        rng_seed, created_at, updated_at
-    )
-    SELECT
-        gen_random_uuid(),
-        v_config_uuid,
-        'waiting',
-        0,
-        0,
-        session_record.rng_seed,
-        NOW(),
-        NOW()
-    WHERE NOT EXISTS (
+    -- Only if one doesn't already exist
+    IF NOT EXISTS (
         SELECT 1 FROM public.one_v_one_sessions 
         WHERE config_id = v_config_uuid 
         AND status = 'waiting'
-    );
+    ) THEN
+        BEGIN
+            INSERT INTO public.one_v_one_sessions (
+                id, config_id, status, participants_count, current_pot, 
+                rng_seed, created_at, updated_at
+            ) VALUES (
+                gen_random_uuid(),
+                v_config_uuid,
+                'waiting',
+                0,
+                0,
+                session_record.rng_seed,
+                NOW(),
+                NOW()
+            );
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Could not create new session (may already exist): %', SQLERRM;
+        END;
+    END IF;
 
     -- Delete old participants
     DELETE FROM public.one_v_one_participants WHERE session_id = session_record.id;
