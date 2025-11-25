@@ -1059,29 +1059,47 @@ export default function CashStackGame3D({
   useEffect(() => {
     if (gameState === 'ended') {
       playSound(300, 1, 'triangle');
-      setTimeout(async () => {
-        const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
-        
-        // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-        await logGameCompletion({
-          gameType: GAME_TYPES.CASH_STACK,
-          gameMode: GAME_MODES.PRACTICE,
-          score,
-          accuracy,
-          reactionTime: 0,
-          durationSeconds: 60,
-          additionalData: {
-            towerHeight,
-            explosions,
-            bonusCoins: bonusCoinsCollected
+      
+      // Use a ref to track if we've already ended
+      const endTimeout = setTimeout(async () => {
+        try {
+          const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
+          
+          // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+          await logGameCompletion({
+            gameType: GAME_TYPES.CASH_STACK,
+            gameMode: GAME_MODES.PRACTICE,
+            score,
+            accuracy,
+            reactionTime: 0,
+            durationSeconds: 60,
+            additionalData: {
+              towerHeight,
+              explosions,
+              bonusCoins: bonusCoinsCollected
+            }
+          });
+          
+          // Call onGameEnd with error handling
+          if (onGameEnd) {
+            onGameEnd({
+              score,
+              accuracy,
+            });
           }
-        });
-        
-        onGameEnd({
-          score,
-          accuracy,
-        });
+        } catch (error) {
+          console.error('[CashStackGame3D] Error during game end:', error);
+          // Still try to call onGameEnd even if audit fails
+          if (onGameEnd) {
+            onGameEnd({
+              score,
+              accuracy: Math.min(100, (explosions * 100) / Math.max(1, towerHeight)),
+            });
+          }
+        }
       }, 2000);
+      
+      return () => clearTimeout(endTimeout);
     }
   }, [gameState, score, explosions, towerHeight, bonusCoinsCollected, onGameEnd, playSound]);
 

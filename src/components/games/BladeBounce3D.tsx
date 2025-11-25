@@ -1063,7 +1063,15 @@ export default function BladeBounce3D({
   useEffect(() => {
     if (gameState !== 'playing') return;
     
+    let isActive = true; // Track if this animation loop should continue
+    
     const animate = () => {
+      // CRITICAL: Exit immediately if animation should stop
+      if (!isActive || gameState !== 'playing') {
+        console.log('🛑 [BladeBounce3D] Animation loop stopping');
+        return;
+      }
+      
       const delta = clockRef.current.getDelta();
       const now = Date.now();
       
@@ -1139,8 +1147,19 @@ export default function BladeBounce3D({
         lastLaserSpawnRef.current = now;
       }
       
-      // Update enemies
+      // Update enemies (skip if game ended to prevent freeze)
       enemiesRef.current = enemiesRef.current.filter(enemy => {
+        // If game ended, clean up and remove all enemies immediately
+        if (!isActive || gameState !== 'playing') {
+          if (sceneRef.current) {
+            sceneRef.current.remove(enemy.mesh);
+            if (enemy.glowMesh) {
+              sceneRef.current.remove(enemy.glowMesh);
+            }
+          }
+          return false;
+        }
+        
         enemy.x += enemy.velocityX;
         enemy.y += enemy.velocityY;
         
@@ -1485,7 +1504,8 @@ export default function BladeBounce3D({
                     const newHearts = prev - 1;
                     console.log('💥 Hit RED laser! Heart lost! Remaining:', newHearts);
                     if (newHearts <= 0) {
-                      console.log('💀 All hearts lost!');
+                      console.log('💀 All hearts lost! Ending game...');
+                      setGameState('ended');
                     }
                     return newHearts;
                   });
@@ -1575,8 +1595,10 @@ export default function BladeBounce3D({
     animate();
     
     return () => {
+      isActive = false; // Stop the animation loop
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
+        console.log('🧹 [BladeBounce3D] Animation frame canceled');
       }
     };
   }, [gameState, targetAngle, gameTimer, createEnemy, createParticles, playSound]);
