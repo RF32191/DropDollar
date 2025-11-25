@@ -134,6 +134,7 @@ export default function CashStackGame3D({
   const currentSpeedMultiplierRef = useRef<number>(1);
   const coinAlignmentLineRef = useRef<THREE.Line | null>(null);
   const lastStackTimeRef = useRef<number>(0);
+  const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [countdown, setCountdown] = useState(3);
@@ -142,6 +143,12 @@ export default function CashStackGame3D({
   const [towerHeight, setTowerHeight] = useState(0);
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
+  
+  // Sync game state to ref for animation loop
+  useEffect(() => {
+    gameStateRef.current = gameState;
+    console.log('🔄 [CashStackGame3D] Game state updated:', gameState);
+  }, [gameState]);
   
   // Use RNG seed to select one of 20 patterns if in competition mode
   const [currentVariation, setCurrentVariation] = useState(() => {
@@ -806,7 +813,15 @@ export default function CashStackGame3D({
   useEffect(() => {
     if (gameState !== 'playing') return;
     
+    let isActive = true; // Track if this animation loop should continue
+    
     const animate = () => {
+      // CRITICAL: Exit immediately if animation should stop (use ref for real-time state)
+      if (!isActive || gameStateRef.current !== 'playing') {
+        console.log('🛑 [CashStackGame3D] Animation loop stopping - isActive:', isActive, 'gameState:', gameStateRef.current);
+        return;
+      }
+      
       const delta = clockRef.current.getDelta();
       const elapsedTime = (Date.now() - gameStartTimeRef.current) / 1000;
       const baseSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
@@ -984,8 +999,10 @@ export default function CashStackGame3D({
     animate();
     
     return () => {
+      isActive = false; // Stop the animation loop
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
+        console.log('🧹 [CashStackGame3D] Animation frame canceled');
       }
     };
   }, [gameState, direction, updateAlignmentLine]);

@@ -113,6 +113,7 @@ export default function BladeBounce3D({
   const inputsRef = useRef<GameInput[]>([]);
   const gameStartTimeRef = useRef<number>(0);
   const isValidatingRef = useRef<boolean>(false);
+  const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   
   // In competition mode, skip ready screen and countdown - start playing immediately
   const initialGameState = isCompetitionMode ? 'playing' : 'ready';
@@ -122,6 +123,12 @@ export default function BladeBounce3D({
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
+  
+  // Sync game state to ref for animation loop
+  useEffect(() => {
+    gameStateRef.current = gameState;
+    console.log('🔄 [BladeBounce3D] Game state updated:', gameState);
+  }, [gameState]);
   const [enemiesDestroyed, setEnemiesDestroyed] = useState(0);
   const [gameTimer, setGameTimer] = useState(GAME_DURATION);
   const [targetAngle, setTargetAngle] = useState(0);
@@ -1066,9 +1073,9 @@ export default function BladeBounce3D({
     let isActive = true; // Track if this animation loop should continue
     
     const animate = () => {
-      // CRITICAL: Exit immediately if animation should stop
-      if (!isActive || gameState !== 'playing') {
-        console.log('🛑 [BladeBounce3D] Animation loop stopping');
+      // CRITICAL: Exit immediately if animation should stop (use ref for real-time state)
+      if (!isActive || gameStateRef.current !== 'playing') {
+        console.log('🛑 [BladeBounce3D] Animation loop stopping - isActive:', isActive, 'gameState:', gameStateRef.current);
         return;
       }
       
@@ -1149,8 +1156,8 @@ export default function BladeBounce3D({
       
       // Update enemies (skip if game ended to prevent freeze)
       enemiesRef.current = enemiesRef.current.filter(enemy => {
-        // If game ended, clean up and remove all enemies immediately
-        if (!isActive || gameState !== 'playing') {
+        // If game ended, clean up and remove all enemies immediately (use ref for real-time state)
+        if (!isActive || gameStateRef.current !== 'playing') {
           if (sceneRef.current) {
             sceneRef.current.remove(enemy.mesh);
             if (enemy.glowMesh) {
