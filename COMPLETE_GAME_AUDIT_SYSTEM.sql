@@ -178,6 +178,8 @@ END $$;
 -- PART 4: CREATE GAME AUDIT LOGGING FUNCTION
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS log_game_play(UUID, TEXT, TEXT, UUID, INTEGER, NUMERIC, NUMERIC, INTEGER, JSONB);
+
 CREATE OR REPLACE FUNCTION log_game_play(
     p_user_id UUID,
     p_game_type TEXT,
@@ -252,6 +254,8 @@ END $$;
 -- ============================================================================
 -- PART 5: CREATE SUSPICIOUS PATTERN DETECTION
 -- ============================================================================
+
+DROP FUNCTION IF EXISTS detect_suspicious_patterns(UUID, UUID, TEXT, INTEGER);
 
 CREATE OR REPLACE FUNCTION detect_suspicious_patterns(
     p_audit_id UUID,
@@ -446,6 +450,8 @@ END $$;
 -- PART 6: CREATE ADMIN NOTIFICATION FUNCTION
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS notify_admin_suspicious_activity(UUID, TEXT, UUID, TEXT, TEXT, NUMERIC);
+
 CREATE OR REPLACE FUNCTION notify_admin_suspicious_activity(
     p_alert_id UUID,
     p_severity TEXT,
@@ -584,6 +590,9 @@ END $$;
 -- ============================================================================
 
 -- Get unread notifications for admin
+DROP FUNCTION IF EXISTS get_admin_notifications(TEXT);
+DROP FUNCTION IF EXISTS get_admin_notifications();
+
 CREATE OR REPLACE FUNCTION get_admin_notifications(p_admin_email TEXT DEFAULT NULL)
 RETURNS TABLE (
     id UUID,
@@ -627,6 +636,8 @@ END;
 $$;
 
 -- Get suspicious activity summary
+DROP FUNCTION IF EXISTS get_suspicious_activity_summary();
+
 CREATE OR REPLACE FUNCTION get_suspicious_activity_summary()
 RETURNS TABLE (
     total_alerts INTEGER,
@@ -659,6 +670,8 @@ END;
 $$;
 
 -- Mark notification as read
+DROP FUNCTION IF EXISTS mark_notification_read(UUID);
+
 CREATE OR REPLACE FUNCTION mark_notification_read(p_notification_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
