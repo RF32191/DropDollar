@@ -144,7 +144,6 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    v_config_uuid UUID;
     session_record RECORD;
     winner_record RECORD;
     loser_record RECORD;
@@ -153,35 +152,32 @@ DECLARE
     v_loser_payout NUMERIC;
     v_platform_fee NUMERIC;
     v_completed_count INT;
-    v_new_session_id UUID;
 BEGIN
-    -- Convert TEXT to UUID safely
-    BEGIN
-        v_config_uuid := config_id_param::UUID;
-    EXCEPTION WHEN OTHERS THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Invalid config_id format');
-    END;
+    RAISE NOTICE '💰 [1V1 PAYOUT] Starting for config: %', config_id_param;
     
     -- Find active session with FOR UPDATE lock to prevent race conditions
     SELECT * INTO session_record
     FROM public.one_v_one_sessions
-    WHERE config_id = v_config_uuid
+    WHERE config_id = config_id_param
     AND status IN ('active', 'waiting')
     ORDER BY created_at DESC
     LIMIT 1
     FOR UPDATE SKIP LOCKED;
 
     IF NOT FOUND THEN
+        RAISE NOTICE '❌ No active session found for config: %', config_id_param;
         RETURN jsonb_build_object('success', false, 'message', 'No active session found');
     END IF;
 
     -- Check if already paid
     IF session_record.winner_user_id IS NOT NULL THEN
+        RAISE NOTICE '⚠️ Session already paid out';
         RETURN jsonb_build_object('success', false, 'message', 'Already paid out');
     END IF;
 
     -- Need 2 players
     IF session_record.participants_count < 2 THEN
+        RAISE NOTICE '⏸️ Only % player(s)', session_record.participants_count;
         RETURN jsonb_build_object('success', false, 'message', 'Need 2 players');
     END IF;
 
@@ -192,7 +188,10 @@ BEGIN
     AND score IS NOT NULL
     AND completed_at IS NOT NULL;
 
+    RAISE NOTICE '📊 Completed players: %/2', v_completed_count;
+
     IF v_completed_count < 2 THEN
+        RAISE NOTICE '⏸️ Waiting for both players to finish';
         RETURN jsonb_build_object('success', false, 'message', 'Waiting for both to complete');
     END IF;
 
@@ -222,13 +221,18 @@ BEGIN
     -- Calculate payouts
     total_pot := COALESCE(session_record.current_pot, 0);
     
+    RAISE NOTICE '💰 Total pot: % tokens', total_pot;
+    
     IF total_pot <= 0 THEN
+        RAISE NOTICE '❌ Empty pot - cannot pay out';
         RETURN jsonb_build_object('success', false, 'message', 'Empty pot');
     END IF;
 
     v_platform_fee := total_pot * 0.15;
     v_winner_payout := total_pot * 0.50;
     v_loser_payout := total_pot * 0.35;
+    
+    RAISE NOTICE '💵 Payouts: Winner=%, Loser=%, Platform=%', v_winner_payout, v_loser_payout, v_platform_fee;
 
     -- Pay winner (atomic operation)
     UPDATE public.users
@@ -259,7 +263,7 @@ BEGIN
     -- Only if one doesn't already exist
     IF NOT EXISTS (
         SELECT 1 FROM public.one_v_one_sessions 
-        WHERE config_id = v_config_uuid 
+        WHERE config_id = config_id_param
         AND status = 'waiting'
     ) THEN
         BEGIN
@@ -268,7 +272,7 @@ BEGIN
                 rng_seed, created_at, updated_at
             ) VALUES (
                 gen_random_uuid(),
-                v_config_uuid,
+                config_id_param,
                 'waiting',
                 0,
                 0,
@@ -276,6 +280,7 @@ BEGIN
                 NOW(),
                 NOW()
             );
+            RAISE NOTICE '✅ Created new waiting session for config: %', config_id_param;
         EXCEPTION WHEN OTHERS THEN
             RAISE NOTICE 'Could not create new session (may already exist): %', SQLERRM;
         END;
@@ -283,6 +288,14 @@ BEGIN
 
     -- Delete old participants
     DELETE FROM public.one_v_one_participants WHERE session_id = session_record.id;
+
+    RAISE NOTICE '✅ ======================================';
+    RAISE NOTICE '✅ PAYOUT COMPLETE!';
+    RAISE NOTICE '✅ Winner: % (Score: %) = % tokens', winner_record.username, winner_record.score, v_winner_payout;
+    RAISE NOTICE '✅ Loser: % (Score: %) = % tokens', loser_record.username, loser_record.score, v_loser_payout;
+    RAISE NOTICE '✅ Platform fee: % tokens', v_platform_fee;
+    RAISE NOTICE '✅ New session created for config: %', config_id_param;
+    RAISE NOTICE '✅ ======================================';
 
     RETURN jsonb_build_object(
         'success', true,
