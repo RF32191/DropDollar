@@ -370,7 +370,7 @@ END $$;
 -- PART 6: ENSURE CRON JOB EXISTS FOR CLEANUP
 -- ============================================================================
 
-DO $$
+DO $cron_setup$
 BEGIN
     -- Check if pg_cron extension is available
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
@@ -381,7 +381,7 @@ BEGIN
         PERFORM cron.schedule(
             'cleanup-low-score-audit-logs',
             '0 3 * * *', -- Daily at 3 AM UTC
-            $$SELECT cleanup_low_score_audit_logs();$$
+            'SELECT cleanup_low_score_audit_logs();'
         );
         
         RAISE NOTICE '✅ Scheduled daily cleanup job (3 AM UTC)';
@@ -393,7 +393,7 @@ EXCEPTION
     WHEN OTHERS THEN
         RAISE NOTICE '⚠️ Could not schedule cron job: %', SQLERRM;
         RAISE NOTICE '   Run cleanup manually: SELECT cleanup_low_score_audit_logs();';
-END $$;
+END $cron_setup$;
 
 -- ============================================================================
 -- PART 7: UPDATE TRIGGERS FOR 1v1 AND WTA
