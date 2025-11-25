@@ -95,7 +95,10 @@ ALTER TABLE public.one_v_one_sessions
 ADD CONSTRAINT one_v_one_sessions_config_id_fkey
 FOREIGN KEY (config_id) REFERENCES public.one_v_one_configs(id);
 
-RAISE NOTICE '✅ Foreign key recreated with TEXT types';
+DO $$
+BEGIN
+    RAISE NOTICE '✅ Foreign key recreated with TEXT types';
+END $$;
 
 -- ============================================================================
 -- STEP 3: RESET ALL SESSIONS
