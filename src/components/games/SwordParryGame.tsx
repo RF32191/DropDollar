@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FairRNGService, SwordSlashRNGConfig } from '@/lib/fairRNGService';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface GameResult {
   score: number;
@@ -436,7 +437,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   }, [gameState, attacks, optionalTargets, mousePos, isSlashing]);
 
   // End game
-  const endGame = useCallback(() => {
+  const endGame = useCallback(async () => {
     console.log('SwordParry: Ending game...');
     isGameRunningRef.current = false;
     setGameState('ended');
@@ -466,9 +467,26 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       avgReactionTime
     };
     
+    // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+    const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+    await logGameCompletion({
+      gameType: GAME_TYPES.SWORD_PARRY,
+      gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+      score: currentScoreRef.current,
+      accuracy,
+      reactionTime: avgReactionTime,
+      durationSeconds: gameDuration,
+      additionalData: {
+        listingId,
+        entryNumber,
+        totalAttacks,
+        destroyedAttacks
+      }
+    });
+    
     console.log('SwordParryGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);
-  }, [totalAttacks, destroyedAttacks, onGameEnd]);
+  }, [totalAttacks, destroyedAttacks, listingId, entryNumber, isCompetitionMode, onGameEnd]);
 
   // Start game
   const handleStartGame = () => {

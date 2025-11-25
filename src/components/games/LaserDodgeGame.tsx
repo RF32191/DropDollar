@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
 import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd, playShootSound, playExplosionSound, playEnemyHitSound } from '@/lib/gameAudio';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface GameResult {
   score: number;
@@ -714,7 +715,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Check collisions - integrated into game loop state (removed separate useEffect to avoid stale closures)
 
   // End game
-  const endGame = () => {
+  const endGame = async () => {
     console.log('LaserDodge: Ending game...');
     isGameRunningRef.current = false;
     setGameState('ended');
@@ -735,6 +736,22 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       accuracy: 100,
       avgReactionTime: 0
     };
+    
+    // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+    const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+    await logGameCompletion({
+      gameType: GAME_TYPES.LASER_DODGE,
+      gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+      score: currentScoreRef.current,
+      accuracy: 100,
+      reactionTime: 0,
+      durationSeconds: gameDuration,
+      additionalData: {
+        rngSeed,
+        listingId,
+        entryNumber
+      }
+    });
     
     console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);

@@ -5,6 +5,7 @@ import { useGameEngine } from '@/lib/gameEngine';
 import { GameAudio } from '@/utils/gameAudio';
 import GameCountdown from './GameCountdown';
 import { FairRNGService, FallingObjectRNGConfig } from '@/lib/fairRNGService';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface GameResult {
   score: number;
@@ -66,7 +67,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       listingId,
       entryNumber
     },
-    onGameEnd: () => {
+    onGameEnd: async () => {
       setGameState('ended');
       const accuracy = totalObjects > 0 ? (caughtObjects / totalObjects) * 100 : 0;
       
@@ -78,6 +79,22 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         accuracy,
         avgReactionTime: 0 // Not applicable for this game
       };
+      
+      // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+      await logGameCompletion({
+        gameType: GAME_TYPES.FALLING_OBJECT,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: currentScoreRef.current,
+        accuracy,
+        reactionTime: 0,
+        durationSeconds: 60,
+        additionalData: {
+          listingId,
+          entryNumber,
+          caughtObjects,
+          totalObjects
+        }
+      });
       
       console.log('FallingObjectGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);

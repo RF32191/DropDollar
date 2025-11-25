@@ -5,6 +5,7 @@ import { useGameEngine, GameEngine } from '@/lib/gameEngine';
 import { GameAudio } from '@/utils/gameAudio';
 import GameCountdown from './GameCountdown';
 import { FairRNGService, MultiTargetRNGConfig } from '@/lib/fairRNGService';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface GameResult {
   score: number;
@@ -61,7 +62,7 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       isPractice: !rngSeed, // If no seed, it's practice mode
       seed: rngSeed // Use the seed from session (1-20)
     },
-    onGameEnd: () => {
+    onGameEnd: async () => {
       console.log('MultiTarget: Game engine onGameEnd callback triggered');
       // Play game end sound
       GameAudio.playGameEnd();
@@ -76,6 +77,22 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
         accuracy,
         avgReactionTime
       };
+      
+      // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+      await logGameCompletion({
+        gameType: GAME_TYPES.MULTI_TARGET,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: currentScoreRef.current,
+        accuracy,
+        reactionTime: avgReactionTime,
+        durationSeconds: 60,
+        additionalData: {
+          rngSeed,
+          listingId,
+          entryNumber,
+          rounds: round
+        }
+      });
       
       console.log('MultiTargetGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameEngine } from '@/lib/gameEngine';
 import { GameAudio } from '@/utils/gameAudio';
 import GameCountdown from './GameCountdown';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface GameResult {
   score: number;
@@ -62,7 +63,7 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
       listingId,
       entryNumber
     },
-    onGameEnd: () => {
+    onGameEnd: async () => {
       console.log('ColorSequence: Game engine onGameEnd callback triggered');
       
       setGameState('ended');
@@ -75,6 +76,21 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
         accuracy,
         avgReactionTime
       };
+      
+      // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+      await logGameCompletion({
+        gameType: GAME_TYPES.COLOR_SEQUENCE,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: currentScoreRef.current,
+        accuracy,
+        reactionTime: avgReactionTime,
+        durationSeconds: 60,
+        additionalData: {
+          listingId,
+          entryNumber,
+          rounds: round
+        }
+      });
       
       console.log('ColorSequenceGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);

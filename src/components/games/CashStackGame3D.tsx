@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 /**
  * CASH STACK 3D - Professional WebGL Stack Game
@@ -1058,14 +1059,31 @@ export default function CashStackGame3D({
   useEffect(() => {
     if (gameState === 'ended') {
       playSound(300, 1, 'triangle');
-      setTimeout(() => {
+      setTimeout(async () => {
+        const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
+        
+        // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+        await logGameCompletion({
+          gameType: GAME_TYPES.CASH_STACK,
+          gameMode: GAME_MODES.PRACTICE,
+          score,
+          accuracy,
+          reactionTime: 0,
+          durationSeconds: 60,
+          additionalData: {
+            towerHeight,
+            explosions,
+            bonusCoins: bonusCoinsCollected
+          }
+        });
+        
         onGameEnd({
           score,
-          accuracy: Math.min(100, (explosions * 100) / Math.max(1, towerHeight)),
+          accuracy,
         });
       }, 2000);
     }
-  }, [gameState, score, explosions, towerHeight, onGameEnd, playSound]);
+  }, [gameState, score, explosions, towerHeight, bonusCoinsCollected, onGameEnd, playSound]);
 
   return (
     <div className="relative w-full h-screen bg-[#0a1628] overflow-hidden">

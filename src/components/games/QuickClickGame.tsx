@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd } from '@/lib/gameAudio';
 import { FairRNGService, QuickClickRNGConfig } from '@/lib/fairRNGService';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface GameResult {
   score: number;
@@ -299,7 +300,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   }, [gameState, currentRound, rounds]);
 
   // End game
-  const endGame = useCallback((finalRounds: Round[]) => {
+  const endGame = useCallback(async (finalRounds: Round[]) => {
     console.log('QuickClick: Game ended', finalRounds);
     setGameState('ended');
     
@@ -338,9 +339,26 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       avgReactionTime
     };
     
+    // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+    await logGameCompletion({
+      gameType: GAME_TYPES.QUICK_CLICK,
+      gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+      score: finalScore,
+      accuracy,
+      reactionTime: avgReactionTime,
+      durationSeconds: 60,
+      additionalData: {
+        rngSeed,
+        listingId,
+        entryNumber,
+        rounds: finalRounds.length,
+        bonusScore
+      }
+    });
+    
     console.log('QuickClickGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);
-  }, [onGameEnd]);
+  }, [rngSeed, listingId, entryNumber, isCompetitionMode, onGameEnd]);
 
   // Start game
   const handleStartGame = () => {
