@@ -123,12 +123,6 @@ export default function BladeBounce3D({
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
-  
-  // Sync game state to ref for animation loop
-  useEffect(() => {
-    gameStateRef.current = gameState;
-    console.log('🔄 [BladeBounce3D] Game state updated:', gameState);
-  }, [gameState]);
   const [enemiesDestroyed, setEnemiesDestroyed] = useState(0);
   const [gameTimer, setGameTimer] = useState(GAME_DURATION);
   const [targetAngle, setTargetAngle] = useState(0);
@@ -137,6 +131,35 @@ export default function BladeBounce3D({
   const [isRotating, setIsRotating] = useState(false);
   const [showSuspicionWarning, setShowSuspicionWarning] = useState(false);
   const [suspicionScore, setSuspicionScore] = useState(0);
+  
+  // Sync game state to ref for animation loop (MUST be after all state declarations)
+  useEffect(() => {
+    gameStateRef.current = gameState;
+    console.log('🔄 [BladeBounce3D] Game state updated:', gameState);
+    
+    // CRITICAL: Immediately stop everything when game ends
+    if (gameState === 'ended') {
+      // Cancel animation frame
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+        console.log('⚠️ [BladeBounce3D] EMERGENCY STOP - Animation frame canceled');
+      }
+      
+      // Clear all enemies immediately
+      if (sceneRef.current && enemiesRef.current.length > 0) {
+        console.log('🧹 [BladeBounce3D] Cleaning up', enemiesRef.current.length, 'enemies');
+        enemiesRef.current.forEach(enemy => {
+          if (sceneRef.current) {
+            sceneRef.current.remove(enemy.mesh);
+            if (enemy.glowMesh) {
+              sceneRef.current.remove(enemy.glowMesh);
+            }
+          }
+        });
+        enemiesRef.current = [];
+      }
+    }
+  }, [gameState]);
   
   // Audio
   const audioContextRef = useRef<AudioContext | null>(null);
