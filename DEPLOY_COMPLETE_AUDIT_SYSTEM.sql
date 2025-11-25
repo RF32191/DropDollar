@@ -659,7 +659,21 @@ END $$;
 -- PART 10: ADMIN HELPER FUNCTIONS
 -- ============================================================================
 
-DROP FUNCTION IF EXISTS get_admin_notifications(INTEGER) CASCADE;
+-- Drop all possible versions of get_admin_notifications
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT proname, oidvectortypes(proargtypes) as argtypes
+        FROM pg_proc 
+        WHERE proname = 'get_admin_notifications'
+        AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+    LOOP
+        EXECUTE format('DROP FUNCTION IF EXISTS public.get_admin_notifications(%s) CASCADE', r.argtypes);
+        RAISE NOTICE 'Dropped function: get_admin_notifications(%)', r.argtypes;
+    END LOOP;
+END $$;
 
 CREATE OR REPLACE FUNCTION get_admin_notifications(p_limit INTEGER DEFAULT 50)
 RETURNS TABLE(
@@ -695,7 +709,21 @@ $$;
 
 GRANT EXECUTE ON FUNCTION get_admin_notifications TO authenticated;
 
-DROP FUNCTION IF EXISTS mark_notification_read(UUID) CASCADE;
+-- Drop all possible versions of mark_notification_read
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT proname, oidvectortypes(proargtypes) as argtypes
+        FROM pg_proc 
+        WHERE proname = 'mark_notification_read'
+        AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+    LOOP
+        EXECUTE format('DROP FUNCTION IF EXISTS public.mark_notification_read(%s) CASCADE', r.argtypes);
+        RAISE NOTICE 'Dropped function: mark_notification_read(%)', r.argtypes;
+    END LOOP;
+END $$;
 
 CREATE OR REPLACE FUNCTION mark_notification_read(p_notification_id UUID)
 RETURNS BOOLEAN
