@@ -222,12 +222,17 @@ GRANT EXECUTE ON FUNCTION public.join_1v1_session(TEXT, UUID, NUMERIC) TO authen
 -- STEP 5: SCALABLE PAYOUT FUNCTION (HANDLES MILLIONS OF USERS)
 -- ============================================================================
 
+-- Drop old versions with different signatures
+DROP FUNCTION IF EXISTS public.process_1v1_payout(TEXT);
+DROP FUNCTION IF EXISTS public.process_1v1_payout(UUID);
+
 CREATE OR REPLACE FUNCTION public.process_1v1_payout(config_id_param TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
+    v_config_uuid UUID;
     session_record RECORD;
     winner_record RECORD;
     loser_record RECORD;
@@ -238,10 +243,17 @@ DECLARE
     v_completed_count INT;
     v_new_session_id UUID;
 BEGIN
+    -- Convert TEXT to UUID safely
+    BEGIN
+        v_config_uuid := config_id_param::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Invalid config_id format');
+    END;
+    
     -- Find active session with FOR UPDATE lock to prevent race conditions
     SELECT * INTO session_record
     FROM public.one_v_one_sessions
-    WHERE config_id::TEXT = config_id_param
+    WHERE config_id = v_config_uuid
     AND status IN ('active', 'waiting')
     ORDER BY created_at DESC
     LIMIT 1
@@ -249,7 +261,7 @@ BEGIN
 
     IF NOT FOUND THEN
         -- No session found - create one automatically
-        RAISE NOTICE '⚠️ No session found - creating new one for config: %', config_id_param;
+        RAISE NOTICE '⚠️ No session found - creating new one for config: %', v_config_uuid;
         
         INSERT INTO public.one_v_one_sessions (
             id, config_id, status, participants_count, current_pot, prize_pool,
@@ -257,7 +269,7 @@ BEGIN
         )
         SELECT 
             gen_random_uuid(), 
-            config_id_param::UUID, 
+            v_config_uuid, 
             'waiting', 
             0, 
             0,
@@ -266,7 +278,7 @@ BEGIN
             NOW(),
             NOW()
         FROM public.one_v_one_configs
-        WHERE id::TEXT = config_id_param
+        WHERE id = v_config_uuid
         LIMIT 1
         RETURNING id INTO v_new_session_id;
         
@@ -363,7 +375,7 @@ BEGIN
         rng_seed, created_at, updated_at
     ) VALUES (
         gen_random_uuid(),
-        config_id_param::UUID,
+        v_config_uuid,
         'waiting',
         0,
         0,
