@@ -62,6 +62,7 @@ CREATE TABLE public.game_audit_log (
     suspicious BOOLEAN DEFAULT FALSE,
     suspicious_reasons TEXT[],
     cheat_score NUMERIC(5,2) DEFAULT 0,
+    threat_level TEXT DEFAULT 'NONE' CHECK (threat_level IN ('NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
     additional_data JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -325,6 +326,7 @@ DECLARE
     v_is_suspicious BOOLEAN := FALSE;
     v_suspicious_reasons TEXT[] := '{}';
     v_cheat_score NUMERIC := 0;
+    v_threat_level TEXT := 'NONE';
     v_max_score INTEGER := 1000;
     v_score_rating NUMERIC;
 BEGIN
@@ -345,16 +347,29 @@ BEGIN
         FROM jsonb_array_elements_text(v_game_cheat_check->'reasons');
     END IF;
     
+    -- Calculate threat level based on cheat score
+    IF v_cheat_score >= 80 THEN
+        v_threat_level := 'CRITICAL';
+    ELSIF v_cheat_score >= 60 THEN
+        v_threat_level := 'HIGH';
+    ELSIF v_cheat_score >= 40 THEN
+        v_threat_level := 'MEDIUM';
+    ELSIF v_cheat_score >= 20 THEN
+        v_threat_level := 'LOW';
+    ELSE
+        v_threat_level := 'NONE';
+    END IF;
+    
     INSERT INTO public.game_audit_log (
         user_id, username, email, game_type, game_mode, session_id,
         score, score_rating, max_score, accuracy, reaction_time,
         duration_seconds, ip_address, suspicious, suspicious_reasons,
-        cheat_score, additional_data
+        cheat_score, threat_level, additional_data
     ) VALUES (
         p_user_id, v_username, v_email, p_game_type, p_game_mode, p_session_id,
         p_score, v_score_rating, v_max_score, p_accuracy, p_reaction_time,
         p_duration_seconds, inet_client_addr(), v_is_suspicious, v_suspicious_reasons,
-        v_cheat_score, p_additional_data
+        v_cheat_score, v_threat_level, p_additional_data
     ) RETURNING id INTO v_audit_id;
     
     PERFORM detect_suspicious_patterns(v_audit_id, p_user_id, p_game_type, p_score);
