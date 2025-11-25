@@ -280,8 +280,8 @@ import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export function GameAuditDashboard() {
-  const [notifications, setNotifications] = useState([]);
-  const [summary, setSummary] = useState(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
   const supabase = createClientComponentClient();
   
   useEffect(() => {
