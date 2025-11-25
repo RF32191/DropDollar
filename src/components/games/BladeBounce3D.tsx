@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { GameInput, GameSession } from '@/types/gameSession';
 import SuspiciousActivityWarning from '@/components/warnings/SuspiciousActivityWarning';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 /**
  * BLADE BOUNCE 3D - Professional WebGL Sword Defense Game
@@ -1615,6 +1616,34 @@ export default function BladeBounce3D({
       }
       
       setTimeout(async () => {
+        // Helper function to log game and call onGameEnd
+        const logAndEndGame = async (finalScoreValue: number, finalAccuracyValue: number) => {
+          // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+          const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+          await logGameCompletion({
+            gameType: GAME_TYPES.BLADE_BOUNCE,
+            gameMode: gameSession ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+            score: finalScoreValue,
+            accuracy: finalAccuracyValue,
+            reactionTime: 0,
+            durationSeconds: gameDuration,
+            additionalData: {
+              hearts,
+              enemiesDestroyed,
+              listingId,
+              entryNumber,
+              isCompetitionMode,
+              gameId,
+              sessionId: gameSession?.sessionId
+            }
+          });
+          
+          onGameEnd({
+            score: finalScoreValue,
+            accuracy: finalAccuracyValue,
+          });
+        };
+        
         // If gameSession is provided, validate server-side
         if (gameSession) {
           console.log('🔒 [BladeBounce3D] Submitting game for server-side validation...', {
@@ -1644,10 +1673,7 @@ export default function BladeBounce3D({
               console.error('❌ [BladeBounce3D] Validation failed:', result.reason);
               console.warn('⚠️ [BladeBounce3D] Using client score despite validation failure');
               // Don't fail the game - use client score as fallback
-              onGameEnd({
-                score: finalScore,
-                accuracy: finalAccuracy,
-              });
+              await logAndEndGame(finalScore, finalAccuracy);
             } else {
               console.log('✅ [BladeBounce3D] Game validated successfully:', {
                 serverScore: result.serverScore,
@@ -1665,27 +1691,18 @@ export default function BladeBounce3D({
               }
               
               // Use server-validated score
-              onGameEnd({
-                score: result.serverScore,
-                accuracy: result.accuracy || finalAccuracy,
-              });
+              await logAndEndGame(result.serverScore, result.accuracy || finalAccuracy);
             }
           } catch (error) {
             console.error('❌ [BladeBounce3D] Validation error:', error);
             console.warn('⚠️ [BladeBounce3D] Continuing with client score despite validation error');
             // Don't fail the game - use client score as fallback
-            onGameEnd({
-              score: finalScore,
-              accuracy: finalAccuracy,
-            });
+            await logAndEndGame(finalScore, finalAccuracy);
           }
         } else {
           // No validation required (practice mode)
           console.log('🎮 [BladeBounce3D] Practice mode - no validation required');
-          onGameEnd({
-            score: finalScore,
-            accuracy: finalAccuracy,
-          });
+          await logAndEndGame(finalScore, finalAccuracy);
         }
       }, 2000);
     }
