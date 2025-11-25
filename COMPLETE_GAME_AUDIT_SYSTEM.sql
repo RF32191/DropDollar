@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS public.admin_notifications (
     data JSONB,
     
     -- Status
-    read BOOLEAN DEFAULT FALSE,
+    is_read BOOLEAN DEFAULT FALSE,
     read_at TIMESTAMPTZ,
     
     -- Metadata
@@ -166,7 +166,7 @@ END $$;
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_admin_notif_email ON public.admin_notifications(admin_email);
-CREATE INDEX IF NOT EXISTS idx_admin_notif_unread ON public.admin_notifications(read) WHERE read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_admin_notif_unread ON public.admin_notifications(is_read) WHERE is_read = FALSE;
 CREATE INDEX IF NOT EXISTS idx_admin_notif_created_at ON public.admin_notifications(created_at DESC);
 
 DO $$
@@ -616,7 +616,7 @@ RETURNS TABLE (
     related_user_id UUID,
     username TEXT,
     data JSONB,
-    read BOOLEAN,
+    is_read BOOLEAN,
     created_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
@@ -638,7 +638,7 @@ BEGIN
         n.related_user_id,
         u.username,
         n.data,
-        n.read,
+        n.is_read,
         n.created_at
     FROM public.admin_notifications n
     LEFT JOIN auth.users u ON n.related_user_id = u.id
@@ -688,7 +688,7 @@ SECURITY DEFINER
 AS $$
 BEGIN
     UPDATE public.admin_notifications
-    SET read = TRUE, read_at = NOW()
+    SET is_read = TRUE, read_at = NOW()
     WHERE id = p_notification_id
     AND admin_email IN (SELECT email FROM auth.users WHERE id = auth.uid());
 END;
