@@ -139,25 +139,58 @@ export default function BladeBounce3D({
     
     // CRITICAL: Immediately stop everything when game ends
     if (gameState === 'ended') {
-      // Cancel animation frame
+      console.log('🛑 [BladeBounce3D] EMERGENCY SHUTDOWN INITIATED');
+      
+      // 1. Cancel animation frame IMMEDIATELY
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
-        console.log('⚠️ [BladeBounce3D] EMERGENCY STOP - Animation frame canceled');
+        animationIdRef.current = undefined;
+        console.log('⚠️ [BladeBounce3D] ✓ Animation frame canceled');
       }
       
-      // Clear all enemies immediately
-      if (sceneRef.current && enemiesRef.current.length > 0) {
+      // 2. Clear all enemies immediately
+      if (enemiesRef.current.length > 0) {
         console.log('🧹 [BladeBounce3D] Cleaning up', enemiesRef.current.length, 'enemies');
         enemiesRef.current.forEach(enemy => {
           if (sceneRef.current) {
-            sceneRef.current.remove(enemy.mesh);
-            if (enemy.glowMesh) {
-              sceneRef.current.remove(enemy.glowMesh);
+            try {
+              sceneRef.current.remove(enemy.mesh);
+              if (enemy.glowMesh) {
+                sceneRef.current.remove(enemy.glowMesh);
+              }
+            } catch (e) {
+              // Ignore errors during cleanup
             }
           }
         });
         enemiesRef.current = [];
+        console.log('⚠️ [BladeBounce3D] ✓ All enemies removed');
       }
+      
+      // 3. Clear danger zones
+      if (dangerZonesRef.current.length > 0 && sceneRef.current) {
+        dangerZonesRef.current.forEach(zone => {
+          try {
+            sceneRef.current?.remove(zone);
+          } catch (e) {
+            // Ignore errors
+          }
+        });
+        dangerZonesRef.current = [];
+        console.log('⚠️ [BladeBounce3D] ✓ Danger zones cleared');
+      }
+      
+      // 4. Stop any pending renders
+      if (rendererRef.current) {
+        try {
+          rendererRef.current.setAnimationLoop(null);
+          console.log('⚠️ [BladeBounce3D] ✓ Renderer stopped');
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
+      console.log('✅ [BladeBounce3D] EMERGENCY SHUTDOWN COMPLETE');
     }
   }, [gameState]);
   
@@ -1099,6 +1132,11 @@ export default function BladeBounce3D({
       // CRITICAL: Exit immediately if animation should stop (use ref for real-time state)
       if (!isActive || gameStateRef.current !== 'playing') {
         console.log('🛑 [BladeBounce3D] Animation loop stopping - isActive:', isActive, 'gameState:', gameStateRef.current);
+        // Clean up animation frame reference
+        if (animationIdRef.current) {
+          cancelAnimationFrame(animationIdRef.current);
+          animationIdRef.current = undefined;
+        }
         return;
       }
       
@@ -1653,8 +1691,14 @@ export default function BladeBounce3D({
   // Handle game end with HEART BONUS and server-side validation
   useEffect(() => {
     if (gameState === 'ended' && !isValidatingRef.current) {
+      console.log('🏁 [BladeBounce3D] Game ended - processing results...');
       isValidatingRef.current = true; // Prevent double submission
-      playSound(300, 1, 'triangle');
+      
+      try {
+        playSound(300, 1, 'triangle');
+      } catch (e) {
+        console.error('Sound error:', e);
+      }
       
       // Calculate heart bonus
       const heartBonus = hearts * HEART_BONUS_POINTS;
@@ -1667,7 +1711,10 @@ export default function BladeBounce3D({
         console.log(`💚 HEART BONUS: +${heartBonus} points (${hearts} hearts × ${HEART_BONUS_POINTS})`);
       }
       
-      setTimeout(async () => {
+      // NON-BLOCKING: Process in background without freezing UI
+      setTimeout(() => {
+        (async () => {
+          try {
         // Helper function to log game and call onGameEnd
         const logAndEndGame = async (finalScoreValue: number, finalAccuracyValue: number) => {
           // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
@@ -1756,6 +1803,19 @@ export default function BladeBounce3D({
           console.log('🎮 [BladeBounce3D] Practice mode - no validation required');
           await logAndEndGame(finalScore, finalAccuracy);
         }
+          } catch (error) {
+            console.error('❌ [BladeBounce3D] Error in game end processing:', error);
+            // Still try to end the game even if there's an error
+            try {
+              onGameEnd({
+                score: finalScore,
+                accuracy: finalAccuracy,
+              });
+            } catch (e) {
+              console.error('❌ [BladeBounce3D] Fatal error calling onGameEnd:', e);
+            }
+          }
+        })(); // Immediately invoke async function
       }, 2000);
     }
   }, [gameState, score, enemiesDestroyed, hearts, onGameEnd, playSound, gameSession, onExit]);

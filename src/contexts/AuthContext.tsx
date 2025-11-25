@@ -25,57 +25,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastActivity, setLastActivity] = useState(Date.now());
 
-  // Check for inactivity timeout
-  useEffect(() => {
-    const checkInactivity = () => {
-      const now = Date.now();
-      const timeSinceLastActivity = now - lastActivity;
-      
-      if (isAuthenticated && timeSinceLastActivity > INACTIVITY_TIMEOUT) {
-        console.log('⏰ Session timed out due to inactivity');
-        logout();
-      }
-    };
-
-    const interval = setInterval(checkInactivity, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [isAuthenticated, lastActivity]);
-
-  // Update last activity on user interaction
-  useEffect(() => {
-    const updateActivity = () => {
-      setLastActivity(Date.now());
-      if (isAuthenticated) {
-        localStorage.setItem('lastActivity', Date.now().toString());
-      }
-    };
-
-    // Track various user activities
-    window.addEventListener('mousedown', updateActivity);
-    window.addEventListener('keydown', updateActivity);
-    window.addEventListener('scroll', updateActivity);
-    window.addEventListener('touchstart', updateActivity);
-
-    return () => {
-      window.removeEventListener('mousedown', updateActivity);
-      window.removeEventListener('keydown', updateActivity);
-      window.removeEventListener('scroll', updateActivity);
-      window.removeEventListener('touchstart', updateActivity);
-    };
-  }, [isAuthenticated]);
-
   // Initialize authentication on mount
   useEffect(() => {
+    console.log('🔐 [AuthContext] Initializing authentication...');
     initializeAuth();
   }, []);
 
   const initializeAuth = async () => {
     try {
-      console.log('🔐 Initializing authentication...');
+      console.log('🔐 [AuthContext] Starting initializeAuth...');
+      setIsLoading(true); // Ensure loading is true at start
       
       // Check for remember me preference
       const rememberMe = localStorage.getItem('rememberMe') === 'true';
-      console.log('Remember me:', rememberMe);
+      console.log('🔐 [AuthContext] Remember me:', rememberMe);
 
       // INSTANT DISPLAY: Load from localStorage FIRST for immediate UI
       const storedUser = localStorage.getItem('user');
@@ -339,6 +302,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
     }
   };
+
+  // Check for inactivity timeout (MUST be after logout is defined)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const checkInactivity = () => {
+      const now = Date.now();
+      const timeSinceLastActivity = now - lastActivity;
+      
+      if (timeSinceLastActivity > INACTIVITY_TIMEOUT) {
+        console.log('⏰ Session timed out due to inactivity');
+        logout();
+      }
+    };
+
+    const interval = setInterval(checkInactivity, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [isAuthenticated, lastActivity]);
+
+  // Update last activity on user interaction (MUST be after logout is defined)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const updateActivity = () => {
+      setLastActivity(Date.now());
+      localStorage.setItem('lastActivity', Date.now().toString());
+    };
+
+    // Track various user activities
+    window.addEventListener('mousedown', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+    window.addEventListener('touchstart', updateActivity);
+
+    return () => {
+      window.removeEventListener('mousedown', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+      window.removeEventListener('touchstart', updateActivity);
+    };
+  }, [isAuthenticated]);
 
   const refreshUser = async () => {
     if (!user) return;
