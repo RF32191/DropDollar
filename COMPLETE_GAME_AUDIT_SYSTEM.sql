@@ -543,21 +543,10 @@ ON public.game_audit_log
 FOR SELECT
 TO authenticated
 USING (
-    -- Check if admin_roles table exists, otherwise allow rf32191@gmail.com
-    CASE 
-        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'admin_roles') THEN
-            EXISTS (
-                SELECT 1 FROM public.admin_roles
-                WHERE user_id = auth.uid()
-                AND active = TRUE
-                AND role IN ('super', 'support')
-            )
-        ELSE
-            -- Fallback: allow specific admin email
-            auth.uid() IN (
-                SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com'
-            )
-    END
+    -- Allow specific admin email (rf32191@gmail.com)
+    auth.uid() IN (
+        SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com'
+    )
 );
 
 -- Security alerts: Only admins
@@ -567,21 +556,10 @@ ON public.game_security_alerts
 FOR SELECT
 TO authenticated
 USING (
-    -- Check if admin_roles table exists, otherwise allow rf32191@gmail.com
-    CASE 
-        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'admin_roles') THEN
-            EXISTS (
-                SELECT 1 FROM public.admin_roles
-                WHERE user_id = auth.uid()
-                AND active = TRUE
-                AND role IN ('super', 'support')
-            )
-        ELSE
-            -- Fallback: allow specific admin email
-            auth.uid() IN (
-                SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com'
-            )
-    END
+    -- Allow specific admin email (rf32191@gmail.com)
+    auth.uid() IN (
+        SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com'
+    )
 );
 
 -- Admin notifications: Only specific admin
