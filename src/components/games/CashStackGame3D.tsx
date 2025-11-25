@@ -1075,8 +1075,7 @@ export default function CashStackGame3D({
             durationSeconds: 60,
             additionalData: {
               towerHeight,
-              explosions,
-              bonusCoins: bonusCoinsCollected
+              explosions
             }
           });
           
@@ -1101,7 +1100,7 @@ export default function CashStackGame3D({
       
       return () => clearTimeout(endTimeout);
     }
-  }, [gameState, score, explosions, towerHeight, bonusCoinsCollected, onGameEnd, playSound]);
+  }, [gameState, score, explosions, towerHeight, onGameEnd, playSound]);
 
   return (
     <div className="relative w-full h-screen bg-[#0a1628] overflow-hidden">
