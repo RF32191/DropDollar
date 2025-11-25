@@ -341,8 +341,11 @@ END $$;
 -- PART 5: UPDATE AUTO-LOG FUNCTIONS TO NOTIFY ON HIGH SCORES
 -- ============================================================================
 
+-- Drop triggers first (they depend on functions)
+DROP TRIGGER IF EXISTS trigger_log_1v1_game ON public.one_v_one_participants;
+
 -- Update 1v1 auto-log to check for high scores
-DROP FUNCTION IF EXISTS auto_log_1v1_game();
+DROP FUNCTION IF EXISTS auto_log_1v1_game() CASCADE;
 
 CREATE OR REPLACE FUNCTION auto_log_1v1_game()
 RETURNS TRIGGER
@@ -400,14 +403,16 @@ END;
 $$;
 
 -- Recreate trigger
-DROP TRIGGER IF EXISTS trigger_log_1v1_game ON public.one_v_one_participants;
 CREATE TRIGGER trigger_log_1v1_game
     AFTER UPDATE ON public.one_v_one_participants
     FOR EACH ROW
     EXECUTE FUNCTION auto_log_1v1_game();
 
+-- Drop WTA trigger first
+DROP TRIGGER IF EXISTS trigger_log_wta_game ON public.winner_takes_all_participants;
+
 -- Update WTA auto-log to check for high scores
-DROP FUNCTION IF EXISTS auto_log_wta_game();
+DROP FUNCTION IF EXISTS auto_log_wta_game() CASCADE;
 
 CREATE OR REPLACE FUNCTION auto_log_wta_game()
 RETURNS TRIGGER
@@ -464,7 +469,6 @@ END;
 $$;
 
 -- Recreate trigger
-DROP TRIGGER IF EXISTS trigger_log_wta_game ON public.winner_takes_all_participants;
 CREATE TRIGGER trigger_log_wta_game
     AFTER UPDATE ON public.winner_takes_all_participants
     FOR EACH ROW
