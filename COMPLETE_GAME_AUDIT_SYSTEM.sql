@@ -149,6 +149,21 @@ CREATE TABLE IF NOT EXISTS public.admin_notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add admin_email column if it doesn't exist (for existing tables)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = 'admin_notifications'
+        AND column_name = 'admin_email'
+    ) THEN
+        ALTER TABLE public.admin_notifications
+        ADD COLUMN admin_email TEXT NOT NULL DEFAULT 'rf32191@gmail.com';
+        RAISE NOTICE '✅ Added admin_email column to existing table';
+    END IF;
+END $$;
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_admin_notif_email ON public.admin_notifications(admin_email);
 CREATE INDEX IF NOT EXISTS idx_admin_notif_unread ON public.admin_notifications(read) WHERE read = FALSE;
@@ -528,12 +543,21 @@ ON public.game_audit_log
 FOR SELECT
 TO authenticated
 USING (
-    EXISTS (
-        SELECT 1 FROM public.admin_roles
-        WHERE user_id = auth.uid()
-        AND active = TRUE
-        AND role IN ('super', 'support')
-    )
+    -- Check if admin_roles table exists, otherwise allow rf32191@gmail.com
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'admin_roles') THEN
+            EXISTS (
+                SELECT 1 FROM public.admin_roles
+                WHERE user_id = auth.uid()
+                AND active = TRUE
+                AND role IN ('super', 'support')
+            )
+        ELSE
+            -- Fallback: allow specific admin email
+            auth.uid() IN (
+                SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com'
+            )
+    END
 );
 
 -- Security alerts: Only admins
@@ -543,12 +567,21 @@ ON public.game_security_alerts
 FOR SELECT
 TO authenticated
 USING (
-    EXISTS (
-        SELECT 1 FROM public.admin_roles
-        WHERE user_id = auth.uid()
-        AND active = TRUE
-        AND role IN ('super', 'support')
-    )
+    -- Check if admin_roles table exists, otherwise allow rf32191@gmail.com
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'admin_roles') THEN
+            EXISTS (
+                SELECT 1 FROM public.admin_roles
+                WHERE user_id = auth.uid()
+                AND active = TRUE
+                AND role IN ('super', 'support')
+            )
+        ELSE
+            -- Fallback: allow specific admin email
+            auth.uid() IN (
+                SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com'
+            )
+    END
 );
 
 -- Admin notifications: Only specific admin
@@ -558,9 +591,9 @@ ON public.admin_notifications
 FOR SELECT
 TO authenticated
 USING (
-    admin_email IN (
-        SELECT email FROM auth.users WHERE id = auth.uid()
-    )
+    admin_email = (SELECT email FROM auth.users WHERE id = auth.uid())
+    OR
+    admin_email = 'rf32191@gmail.com'
 );
 
 DO $$
