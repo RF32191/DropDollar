@@ -162,7 +162,7 @@ SELECT frontend_log_game_completion(
     92.5,
     0.45,
     65,
-    '{"test": "complete_fix", "timestamp": "' || NOW()::TEXT || '"}'::jsonb
+    jsonb_build_object('test', 'complete_fix', 'timestamp', NOW()::TEXT)
 ) as test_result;
 
 -- Step 4: Verify it was inserted
