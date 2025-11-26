@@ -5,6 +5,9 @@
  * Required for fair skill-based gaming compliance.
  * 
  * This is integrated into every game just like RNG seeding.
+ * 
+ * @version 2.0.0 - Fixed RLS permissions and username retrieval
+ * @lastUpdated 2025-11-26
  */
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -33,11 +36,16 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
   scoreRating?: number;
   message?: string;
 }> {
+  console.log('');
+  console.log('========================================');
+  console.log('🎮 GAME AUDIT LOGGING STARTED');
+  console.log('========================================');
   console.log('🎮 Attempting to log game:', {
     game: data.gameType,
     mode: data.gameMode,
     score: data.score
   });
+  console.log('📊 Full data:', data);
   
   try {
     const supabase = createClientComponentClient();
@@ -54,9 +62,21 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
     }
     
     console.log('✅ User authenticated:', user.email);
+    console.log('✅ User ID:', user.id);
     
     // Call backend audit function
-    console.log('📡 Calling frontend_log_game_completion...');
+    console.log('========================================');
+    console.log('📡 CALLING BACKEND RPC FUNCTION');
+    console.log('========================================');
+    console.log('📡 Function: frontend_log_game_completion');
+    console.log('📡 Parameters:', {
+      game_type: data.gameType,
+      game_mode: data.gameMode,
+      score: data.score,
+      accuracy: data.accuracy,
+      reaction_time: data.reactionTime,
+      duration: data.durationSeconds
+    });
     const { data: result, error } = await supabase.rpc('frontend_log_game_completion', {
       p_game_type: data.gameType,
       p_game_mode: data.gameMode,
@@ -68,11 +88,15 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
     });
 
     if (error) {
+      console.log('========================================');
+      console.error('❌ BACKEND ERROR OCCURRED');
+      console.log('========================================');
       console.error('❌ Game audit error:', error);
       console.error('📋 Error details:', {
         message: error.message,
         code: error.code,
-        hint: error.hint
+        hint: error.hint,
+        details: error.details
       });
       
       // Check if function doesn't exist
@@ -88,6 +112,9 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
       };
     }
 
+    console.log('========================================');
+    console.log('✅ BACKEND SUCCESS - AUDIT LOGGED!');
+    console.log('========================================');
     console.log('✅ Game audited successfully:', {
       game: data.gameType,
       score: data.score,
@@ -95,6 +122,8 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
       cheatScore: result?.cheat_score,
       auditId: result?.audit_id
     });
+    console.log('📊 Full result from backend:', result);
+    console.log('========================================');
 
     return {
       success: true,

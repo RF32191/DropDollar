@@ -333,6 +333,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     
     const finalScore = Number((speedScore + accuracyBonus + bonusScore).toFixed(2));
     
+    console.log('');
+    console.log('========================================');
+    console.log('🏁 [QuickClick] GAME END HANDLER CALLED');
+    console.log('========================================');
+    
     const gameResult = {
       score: finalScore,
       accuracy,
@@ -342,6 +347,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
     console.log('🎯 [QuickClick] Game ended, preparing to log audit...');
     console.log('🎯 [QuickClick] Final score:', finalScore, 'Accuracy:', accuracy);
+    console.log('🎯 [QuickClick] Calling logGameCompletion from @/lib/gameAudit...');
     
     try {
       const auditResult = await logGameCompletion({
