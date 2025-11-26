@@ -468,21 +468,30 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     };
     
     // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+    console.log('🎯 [SwordParry] Game ended, preparing to log audit...');
+    console.log('🎯 [SwordParry] Final score:', currentScoreRef.current, 'Accuracy:', accuracy);
+    
     const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
-    await logGameCompletion({
-      gameType: GAME_TYPES.SWORD_PARRY,
-      gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
-      score: currentScoreRef.current,
-      accuracy,
-      reactionTime: avgReactionTime,
-      durationSeconds: gameDuration,
-      additionalData: {
-        listingId,
-        entryNumber,
-        totalAttacks,
-        destroyedAttacks
-      }
-    });
+    
+    try {
+      const auditResult = await logGameCompletion({
+        gameType: GAME_TYPES.SWORD_PARRY,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: currentScoreRef.current,
+        accuracy,
+        reactionTime: avgReactionTime,
+        durationSeconds: gameDuration,
+        additionalData: {
+          listingId,
+          entryNumber,
+          totalAttacks,
+          destroyedAttacks
+        }
+      });
+      console.log('🎯 [SwordParry] Audit result:', auditResult);
+    } catch (error) {
+      console.error('🎯 [SwordParry] Audit logging failed:', error);
+    }
     
     console.log('SwordParryGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);

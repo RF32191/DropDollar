@@ -1718,24 +1718,33 @@ export default function BladeBounce3D({
         // Helper function to log game and call onGameEnd
         const logAndEndGame = async (finalScoreValue: number, finalAccuracyValue: number) => {
           // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+          console.log('🎯 [BladeBounce] Game ended, preparing to log audit...');
+          console.log('🎯 [BladeBounce] Final score:', finalScoreValue, 'Accuracy:', finalAccuracyValue);
+          
           const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
-          await logGameCompletion({
-            gameType: GAME_TYPES.BLADE_BOUNCE,
-            gameMode: gameSession ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
-            score: finalScoreValue,
-            accuracy: finalAccuracyValue,
-            reactionTime: 0,
-            durationSeconds: gameDuration,
-            additionalData: {
-              hearts,
-              enemiesDestroyed,
-              listingId,
-              entryNumber,
-              isCompetitionMode,
-              gameId,
-              sessionId: gameSession?.sessionId
-            }
-          });
+          
+          try {
+            const auditResult = await logGameCompletion({
+              gameType: GAME_TYPES.BLADE_BOUNCE,
+              gameMode: gameSession ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+              score: finalScoreValue,
+              accuracy: finalAccuracyValue,
+              reactionTime: 0,
+              durationSeconds: gameDuration,
+              additionalData: {
+                hearts,
+                enemiesDestroyed,
+                listingId,
+                entryNumber,
+                isCompetitionMode,
+                gameId,
+                sessionId: gameSession?.sessionId
+              }
+            });
+            console.log('🎯 [BladeBounce] Audit result:', auditResult);
+          } catch (error) {
+            console.error('🎯 [BladeBounce] Audit logging failed:', error);
+          }
           
           onGameEnd({
             score: finalScoreValue,

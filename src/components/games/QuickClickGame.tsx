@@ -340,21 +340,29 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     };
     
     // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-    await logGameCompletion({
-      gameType: GAME_TYPES.QUICK_CLICK,
-      gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
-      score: finalScore,
-      accuracy,
-      reactionTime: avgReactionTime,
-      durationSeconds: 60,
-      additionalData: {
-        rngSeed,
-        listingId,
-        entryNumber,
-        rounds: finalRounds.length,
-        bonusScore
-      }
-    });
+    console.log('🎯 [QuickClick] Game ended, preparing to log audit...');
+    console.log('🎯 [QuickClick] Final score:', finalScore, 'Accuracy:', accuracy);
+    
+    try {
+      const auditResult = await logGameCompletion({
+        gameType: GAME_TYPES.QUICK_CLICK,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: finalScore,
+        accuracy,
+        reactionTime: avgReactionTime,
+        durationSeconds: 60,
+        additionalData: {
+          rngSeed,
+          listingId,
+          entryNumber,
+          rounds: finalRounds.length,
+          bonusScore
+        }
+      });
+      console.log('🎯 [QuickClick] Audit result:', auditResult);
+    } catch (error) {
+      console.error('🎯 [QuickClick] Audit logging failed:', error);
+    }
     
     console.log('QuickClickGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);

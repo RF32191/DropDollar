@@ -79,20 +79,28 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       };
       
       // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-      await logGameCompletion({
-        gameType: GAME_TYPES.MULTI_TARGET,
-        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
-        score: currentScoreRef.current,
-        accuracy,
-        reactionTime: avgReactionTime,
-        durationSeconds: 60,
-        additionalData: {
-          rngSeed,
-          listingId,
-          entryNumber,
-          rounds: round
-        }
-      });
+      console.log('🎯 [MultiTarget] Game ended, preparing to log audit...');
+      console.log('🎯 [MultiTarget] Final score:', currentScoreRef.current, 'Accuracy:', accuracy);
+      
+      try {
+        const auditResult = await logGameCompletion({
+          gameType: GAME_TYPES.MULTI_TARGET,
+          gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+          score: currentScoreRef.current,
+          accuracy,
+          reactionTime: avgReactionTime,
+          durationSeconds: 60,
+          additionalData: {
+            rngSeed,
+            listingId,
+            entryNumber,
+            rounds: round
+          }
+        });
+        console.log('🎯 [MultiTarget] Audit result:', auditResult);
+      } catch (error) {
+        console.error('🎯 [MultiTarget] Audit logging failed:', error);
+      }
       
       console.log('MultiTargetGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);

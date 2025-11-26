@@ -78,19 +78,27 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
       };
       
       // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-      await logGameCompletion({
-        gameType: GAME_TYPES.COLOR_SEQUENCE,
-        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
-        score: currentScoreRef.current,
-        accuracy,
-        reactionTime: avgReactionTime,
-        durationSeconds: 60,
-        additionalData: {
-          listingId,
-          entryNumber,
-          rounds: round
-        }
-      });
+      console.log('🎯 [ColorSequence] Game ended, preparing to log audit...');
+      console.log('🎯 [ColorSequence] Final score:', currentScoreRef.current, 'Accuracy:', accuracy);
+      
+      try {
+        const auditResult = await logGameCompletion({
+          gameType: GAME_TYPES.COLOR_SEQUENCE,
+          gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+          score: currentScoreRef.current,
+          accuracy,
+          reactionTime: avgReactionTime,
+          durationSeconds: 60,
+          additionalData: {
+            listingId,
+            entryNumber,
+            rounds: round
+          }
+        });
+        console.log('🎯 [ColorSequence] Audit result:', auditResult);
+      } catch (error) {
+        console.error('🎯 [ColorSequence] Audit logging failed:', error);
+      }
       
       console.log('ColorSequenceGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);

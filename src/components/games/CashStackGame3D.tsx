@@ -1083,18 +1083,26 @@ export default function CashStackGame3D({
           const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
           
           // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-          await logGameCompletion({
-            gameType: GAME_TYPES.CASH_STACK,
-            gameMode: GAME_MODES.PRACTICE,
-            score,
-            accuracy,
-            reactionTime: 0,
-            durationSeconds: 60,
-            additionalData: {
-              towerHeight,
-              explosions
-            }
-          });
+          console.log('🎯 [CashStack] Game ended, preparing to log audit...');
+          console.log('🎯 [CashStack] Final score:', score, 'Accuracy:', accuracy);
+          
+          try {
+            const auditResult = await logGameCompletion({
+              gameType: GAME_TYPES.CASH_STACK,
+              gameMode: GAME_MODES.PRACTICE,
+              score,
+              accuracy,
+              reactionTime: 0,
+              durationSeconds: 60,
+              additionalData: {
+                towerHeight,
+                explosions
+              }
+            });
+            console.log('🎯 [CashStack] Audit result:', auditResult);
+          } catch (auditError) {
+            console.error('🎯 [CashStack] Audit logging failed:', auditError);
+          }
           
           // Call onGameEnd with error handling
           if (onGameEnd) {

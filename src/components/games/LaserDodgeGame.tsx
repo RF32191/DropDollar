@@ -738,20 +738,29 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     };
     
     // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+    console.log('🎯 [LaserDodge] Game ended, preparing to log audit...');
+    console.log('🎯 [LaserDodge] Final score:', currentScoreRef.current);
+    
     const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
-    await logGameCompletion({
-      gameType: GAME_TYPES.LASER_DODGE,
-      gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
-      score: currentScoreRef.current,
-      accuracy: 100,
-      reactionTime: 0,
-      durationSeconds: gameDuration,
-      additionalData: {
-        rngSeed,
-        listingId,
-        entryNumber
-      }
-    });
+    
+    try {
+      const auditResult = await logGameCompletion({
+        gameType: GAME_TYPES.LASER_DODGE,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: currentScoreRef.current,
+        accuracy: 100,
+        reactionTime: 0,
+        durationSeconds: gameDuration,
+        additionalData: {
+          rngSeed,
+          listingId,
+          entryNumber
+        }
+      });
+      console.log('🎯 [LaserDodge] Audit result:', auditResult);
+    } catch (error) {
+      console.error('🎯 [LaserDodge] Audit logging failed:', error);
+    }
     
     console.log('LaserDodgeGame calling onGameEnd with:', gameResult);
     onGameEnd(gameResult);
