@@ -6,22 +6,13 @@
  * 
  * This is integrated into every game just like RNG seeding.
  * 
- * @version 6.0.0 - FIX: Use shared Supabase client for auth
- * @lastUpdated 2025-11-27 @ 12:45 PM EST
- * @deploymentId v6-auth-fix-1732730700
+ * @version 7.0.0 - FIX: Remove double-stringify of JSONB
+ * @lastUpdated 2025-11-27 @ 5:45 PM EST
+ * @deploymentId v7-jsonb-fix
  */
 
 // Use the SHARED Supabase client that has the user's session
 import { supabase } from '@/lib/supabase/client';
-
-// 🔥🔥🔥 BUILD ID: 20251127-1245 - USING SHARED CLIENT 🔥🔥🔥
-console.log('');
-console.log('⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐');
-console.log('📊 GAME AUDIT v6.0 - BUILD 20251127-1245');
-console.log('📊 USING SHARED SUPABASE CLIENT (auth fix)');
-console.log('📊 All games will be logged to admin');
-console.log('⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐');
-console.log('');
 
 export interface GameAuditData {
   gameType: string;
@@ -128,14 +119,15 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
       reaction_time: data.reactionTime,
       duration: data.durationSeconds
     });
+    // Don't stringify - Supabase handles JSONB conversion automatically
     const { data: result, error } = await supabase.rpc('frontend_log_game_completion', {
       p_game_type: data.gameType,
       p_game_mode: data.gameMode,
       p_score: data.score,
-      p_accuracy: data.accuracy || null,
-      p_reaction_time: data.reactionTime || null,
-      p_duration_seconds: data.durationSeconds || null,
-      p_additional_data: data.additionalData ? JSON.stringify(data.additionalData) : null
+      p_accuracy: data.accuracy ?? null,
+      p_reaction_time: data.reactionTime ?? null,
+      p_duration_seconds: data.durationSeconds ?? null,
+      p_additional_data: data.additionalData ?? null
     });
 
     if (error) {
