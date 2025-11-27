@@ -31,8 +31,13 @@ interface Round {
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
-  // 🔥 DEPLOYMENT VERIFICATION - v3.0 deployed 2025-11-27
-  console.log('🚀🚀🚀 [QuickClick] v3.0 AUDIT VERSION LOADED 🚀🚀🚀');
+  // 🔥 DEPLOYMENT VERIFICATION - v4.0 deployed 2025-11-27 @ 11:00 AM
+  console.log('');
+  console.log('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
+  console.log('🎮 QUICK CLICK v4.0 WITH AUDIT LOGGING');
+  console.log('🔒 Audit logs will be sent to admin dashboard');
+  console.log('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
+  console.log('');
   
   // DON'T use pre-generated configs - causes gameplay issues
   // Instead, use rngSeed to initialize engine for runtime generation
