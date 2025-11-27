@@ -4,6 +4,15 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+console.log('');
+console.log('💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵');
+console.log('💵 CASH STACK v8.0 - BUILD 20251127-1900');
+console.log('💵 If you see this, NEW CODE IS RUNNING!');
+console.log('🔒 Audit logs WILL be sent to admin dashboard');
+console.log('💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵');
+console.log('');
+
 /**
  * CASH STACK 3D - Professional WebGL Stack Game
  * - Full 3D graphics with Three.js

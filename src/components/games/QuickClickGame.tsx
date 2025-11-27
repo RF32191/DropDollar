@@ -31,12 +31,12 @@ interface Round {
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
-  // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-1230 🔥🔥🔥
+  // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
   console.log('');
   console.log('🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮');
-  console.log('🎮 QUICK CLICK v5.0 - BUILD 20251127-1230');
+  console.log('🎮 QUICK CLICK v8.0 - BUILD 20251127-1900');
   console.log('🎮 If you see this, NEW CODE IS RUNNING!');
-  console.log('🔒 Audit logs will be sent to admin dashboard');
+  console.log('🔒 Audit logs WILL be sent to admin dashboard');
   console.log('🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮');
   console.log('');
   

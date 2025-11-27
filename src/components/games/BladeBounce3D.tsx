@@ -6,6 +6,15 @@ import { GameInput, GameSession } from '@/types/gameSession';
 import SuspiciousActivityWarning from '@/components/warnings/SuspiciousActivityWarning';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+console.log('');
+console.log('🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️');
+console.log('🗡️ BLADE BOUNCE v8.0 - BUILD 20251127-1900');
+console.log('🗡️ If you see this, NEW CODE IS RUNNING!');
+console.log('🔒 Audit logs WILL be sent to admin dashboard');
+console.log('🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️');
+console.log('');
+
 /**
  * BLADE BOUNCE 3D - Professional WebGL Sword Defense Game
  * - Full 3D sword with smooth 45° rotation

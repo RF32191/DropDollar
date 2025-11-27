@@ -6,10 +6,18 @@
  * 
  * This is integrated into every game just like RNG seeding.
  * 
- * @version 7.0.0 - FIX: Remove double-stringify of JSONB
- * @lastUpdated 2025-11-27 @ 5:45 PM EST
- * @deploymentId v7-jsonb-fix
+ * @version 8.0.0 - All games updated with cache busters
+ * @lastUpdated 2025-11-27 @ 7:00 PM EST
+ * @deploymentId v8-all-games
  */
+
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+console.log('');
+console.log('🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐');
+console.log('🔐 GAME AUDIT SYSTEM v8.0 - BUILD 20251127-1900');
+console.log('🔐 If you see this, AUDIT CODE IS RUNNING!');
+console.log('🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐🔐');
+console.log('');
 
 // Use the SHARED Supabase client that has the user's session
 import { supabase } from '@/lib/supabase/client';

@@ -4,6 +4,15 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FairRNGService, SwordSlashRNGConfig } from '@/lib/fairRNGService';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+console.log('');
+console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+console.log('⚔️ SWORD PARRY v8.0 - BUILD 20251127-1900');
+console.log('⚔️ If you see this, NEW CODE IS RUNNING!');
+console.log('🔒 Audit logs WILL be sent to admin dashboard');
+console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+console.log('');
+
 interface GameResult {
   score: number;
   accuracy: number;
@@ -438,7 +447,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   // End game
   const endGame = useCallback(async () => {
-    console.log('SwordParry: Ending game...');
+    console.log('');
+    console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+    console.log('⚔️ SWORD PARRY: ENDING GAME - AUDIT WILL BE LOGGED');
+    console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+    console.log('');
     isGameRunningRef.current = false;
     setGameState('ended');
     
