@@ -93,14 +93,20 @@ const LASER_POINTS = 20; // Points for destroying a laser (increased reward)
 export default function BladeBounce3D({
   onGameEnd,
   onExit,
+  listingId,
+  entryNumber,
   isCompetitionMode = false,
+  gameId,
   gameSession,
 }: BladeBounce3DProps) {
   console.log('🎯 [BladeBounce3D] Component initialized', {
     isCompetitionMode,
     hasOnGameEnd: !!onGameEnd,
     hasOnExit: !!onExit,
-    hasGameSession: !!gameSession
+    hasGameSession: !!gameSession,
+    listingId,
+    entryNumber,
+    gameId
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1720,15 +1726,18 @@ export default function BladeBounce3D({
         console.log(`💚 HEART BONUS: +${heartBonus} points (${hearts} hearts × ${HEART_BONUS_POINTS})`);
       }
       
-      // NON-BLOCKING: Process in background without freezing UI
-      setTimeout(() => {
-        (async () => {
-          try {
-        // Helper function to log game and call onGameEnd
-        const logAndEndGame = async (finalScoreValue: number, finalAccuracyValue: number) => {
-          // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-          console.log('🎯 [BladeBounce] Game ended, preparing to log audit...');
-          console.log('🎯 [BladeBounce] Final score:', finalScoreValue, 'Accuracy:', finalAccuracyValue);
+      // Process immediately (no delay - audit must complete!)
+      (async () => {
+        try {
+          // Helper function to log game and call onGameEnd
+          const logAndEndGame = async (finalScoreValue: number, finalAccuracyValue: number) => {
+            // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
+            console.log('');
+            console.log('🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️');
+            console.log('🗡️ BLADE BOUNCE: LOGGING TO AUDIT SYSTEM');
+            console.log('🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️');
+            console.log('🎯 [BladeBounce] Game ended, preparing to log audit...');
+            console.log('🎯 [BladeBounce] Final score:', finalScoreValue, 'Accuracy:', finalAccuracyValue);
           
           const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
           
@@ -1834,9 +1843,8 @@ export default function BladeBounce3D({
             }
           }
         })(); // Immediately invoke async function
-      }, 2000);
     }
-  }, [gameState, score, enemiesDestroyed, hearts, onGameEnd, playSound, gameSession, onExit]);
+  }, [gameState, score, enemiesDestroyed, hearts, onGameEnd, playSound, gameSession, onExit, listingId, entryNumber, isCompetitionMode, gameId]);
 
   // Keyboard control
   useEffect(() => {
