@@ -6,8 +6,9 @@
  * 
  * This is integrated into every game just like RNG seeding.
  * 
- * @version 2.0.0 - Fixed RLS permissions and username retrieval
- * @lastUpdated 2025-11-26
+ * @version 3.0.0 - CRITICAL FIX: Ensure audit logs reach admin dashboard
+ * @lastUpdated 2025-11-27
+ * @deploymentId v3-audit-fix-1732726200
  */
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
