@@ -6,21 +6,22 @@
  * 
  * This is integrated into every game just like RNG seeding.
  * 
- * @version 5.0.0 - CACHE BUSTER DEPLOYMENT
- * @lastUpdated 2025-11-27 @ 12:30 PM EST
- * @deploymentId v5-cache-bust-1732729800
+ * @version 6.0.0 - FIX: Use shared Supabase client for auth
+ * @lastUpdated 2025-11-27 @ 12:45 PM EST
+ * @deploymentId v6-auth-fix-1732730700
  */
 
-// 🔥🔥🔥 CACHE BUSTER - UNIQUE BUILD ID: 20251127-1230 🔥🔥🔥
+// Use the SHARED Supabase client that has the user's session
+import { supabase } from '@/lib/supabase/client';
+
+// 🔥🔥🔥 BUILD ID: 20251127-1245 - USING SHARED CLIENT 🔥🔥🔥
 console.log('');
 console.log('⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐');
-console.log('📊 GAME AUDIT v5.0 - BUILD 20251127-1230');
-console.log('📊 If you see this, NEW CODE IS RUNNING!');
+console.log('📊 GAME AUDIT v6.0 - BUILD 20251127-1245');
+console.log('📊 USING SHARED SUPABASE CLIENT (auth fix)');
 console.log('📊 All games will be logged to admin');
 console.log('⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐');
 console.log('');
-
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export interface GameAuditData {
   gameType: string;
@@ -58,21 +59,61 @@ export async function logGameCompletion(data: GameAuditData): Promise<{
   console.log('📊 Full data:', data);
   
   try {
-    const supabase = createClientComponentClient();
+    // Use SHARED supabase client (imported at top) - has the auth session
+    console.log('📡 Using shared Supabase client...');
     
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    // Try multiple methods to get the user
+    let user = null;
+    let userEmail = 'unknown';
+    let userId = null;
     
-    if (!user) {
-      console.warn('⚠️ Game audit: User not authenticated');
-      return {
-        success: false,
-        message: 'User not authenticated'
-      };
+    // Method 1: getUser()
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      user = userData.user;
+      userEmail = user.email || 'unknown';
+      userId = user.id;
+      console.log('✅ Method 1 (getUser) SUCCESS:', userEmail);
+    } else {
+      console.log('⚠️ Method 1 (getUser) failed, trying getSession...');
+      
+      // Method 2: getSession()
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        user = sessionData.session.user;
+        userEmail = user.email || 'unknown';
+        userId = user.id;
+        console.log('✅ Method 2 (getSession) SUCCESS:', userEmail);
+      } else {
+        console.log('⚠️ Method 2 (getSession) failed, checking localStorage...');
+        
+        // Method 3: Check localStorage directly
+        if (typeof window !== 'undefined') {
+          const storedAuth = localStorage.getItem('dropdollar-auth-token');
+          if (storedAuth) {
+            try {
+              const parsed = JSON.parse(storedAuth);
+              if (parsed?.user) {
+                userEmail = parsed.user.email || 'unknown';
+                userId = parsed.user.id;
+                console.log('✅ Method 3 (localStorage) SUCCESS:', userEmail);
+              }
+            } catch (e) {
+              console.log('⚠️ Method 3 (localStorage) parse error');
+            }
+          }
+        }
+      }
     }
     
-    console.log('✅ User authenticated:', user.email);
-    console.log('✅ User ID:', user.id);
+    // If still no user, log anyway with anonymous
+    if (!userId) {
+      console.warn('⚠️ Game audit: Could not determine user, logging as anonymous');
+      userEmail = 'anonymous-player';
+    }
+    
+    console.log('✅ Final user for audit:', userEmail);
+    console.log('✅ User ID:', userId || 'anonymous');
     
     // Call backend audit function
     console.log('========================================');
