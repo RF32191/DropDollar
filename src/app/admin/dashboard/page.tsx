@@ -665,6 +665,51 @@ export default function AdminDashboard() {
               <span className="ml-4 text-sm text-gray-400">({auditLogs.length} games)</span>
             </h2>
             
+            {/* 🔥 TEST BUTTON - Click to test if audit logging works */}
+            <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-600 rounded-lg">
+              <p className="text-yellow-400 font-bold mb-2">🔧 Debug: Test Audit Function</p>
+              <button
+                onClick={async () => {
+                  console.log('🧪 TEST BUTTON CLICKED - Testing audit function...');
+                  try {
+                    // Get current user
+                    const { data: { user } } = await supabase.auth.getUser();
+                    console.log('🧪 Current user:', user?.email || 'NOT LOGGED IN');
+                    
+                    // Call the RPC function directly
+                    const { data, error } = await supabase.rpc('frontend_log_game_completion', {
+                      p_game_type: 'ADMIN_TEST_BUTTON',
+                      p_game_mode: 'test',
+                      p_score: Math.floor(Math.random() * 1000) + 100,
+                      p_accuracy: 85.5,
+                      p_reaction_time: 200,
+                      p_duration_seconds: 30,
+                      p_additional_data: { test: true, timestamp: new Date().toISOString() }
+                    });
+                    
+                    if (error) {
+                      console.error('❌ TEST FAILED:', error);
+                      alert('❌ TEST FAILED: ' + error.message);
+                    } else {
+                      console.log('✅ TEST SUCCESS:', data);
+                      alert('✅ TEST SUCCESS! Check console for details. Refresh page to see new log.');
+                      // Reload audit logs
+                      window.location.reload();
+                    }
+                  } catch (err) {
+                    console.error('❌ TEST ERROR:', err);
+                    alert('❌ TEST ERROR: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                  }
+                }}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg transition-colors"
+              >
+                🧪 Test Audit Function Now
+              </button>
+              <p className="text-yellow-300/70 text-sm mt-2">
+                Click this button to test if the audit SQL function is working. Check browser console for details.
+              </p>
+            </div>
+            
             {auditLogs.length === 0 ? (
               <div className="text-center py-12 bg-gray-800 rounded-lg">
                 <CheckCircleIcon className="h-16 w-16 mx-auto mb-4 text-green-500" />
