@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd } from '@/lib/gameAudio';
+import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd, playSwordMiss } from '@/lib/gameAudio';
 import { FairRNGService, QuickClickRNGConfig } from '@/lib/fairRNGService';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
@@ -153,153 +153,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     }, waitTime);
   }, [currentRound, seededRng]);
 
-  // Handle click
-  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (gameState === 'waiting') {
-      // Clicked too early - give zero score
-      console.log(`QuickClick: Clicked too early! Round ${currentRound}`);
-      
-      const newRound: Round = {
-        roundNumber: currentRound,
-        reactionTime: 0,
-        clicked: true,
-        isBonus: currentRound === 4,
-        targetX: targetPosition?.x,
-        targetY: targetPosition?.y,
-        accuracy: 0 // Zero accuracy for premature click
-      };
-      
-      setRounds(prev => [...prev, newRound]);
-      setGameState('clicked');
-      
-      // Play failure sound
-      playQuickClickMiss();
-      
-      // Move to next round or end game
-      setTimeout(() => {
-        if (currentRound < 4) {
-          setCurrentRound(prev => prev + 1);
-          setGameState('waiting');
-        } else {
-          setGameState('ended');
-        }
-      }, 1000);
-      
-      return;
-    }
-    
-    if (gameState === 'flash') {
-      const reactionTime = Date.now() - flashStartTime;
-      console.log(`QuickClick: Clicked! Reaction time: ${reactionTime}ms`);
-      
-      const isBonus = currentRound === 4;
-      let accuracy = 100;
-      
-      if (isBonus && targetPosition && gameAreaRef.current) {
-        // Calculate click accuracy for bonus round
-        const rect = gameAreaRef.current.getBoundingClientRect();
-        const clickX = ((event.clientX - rect.left) / rect.width) * 100;
-        const clickY = ((event.clientY - rect.top) / rect.height) * 100;
-        setClickPosition({ x: clickX, y: clickY });
-        
-        // Calculate distance from target (in percentage points)
-        const distance = Math.sqrt(
-          Math.pow(clickX - targetPosition.x, 2) + Math.pow(clickY - targetPosition.y, 2)
-        );
-        
-        // Convert distance to accuracy (closer = higher accuracy)
-        accuracy = Math.max(0, 100 - (distance * 2)); // 2% penalty per percentage point distance
-        console.log(`QuickClick: Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)})`);
-      }
-      
-      // Play success sound based on performance
-      if (isBonus) {
-        playQuickClickBonusHit(accuracy);
-      } else {
-        playQuickClickSuccess(reactionTime);
-      }
-      
-      // Record the round
-      const newRound: Round = {
-        roundNumber: currentRound,
-        reactionTime,
-        clicked: true,
-        isBonus,
-        targetX: targetPosition?.x,
-        targetY: targetPosition?.y,
-        accuracy: isBonus ? accuracy : undefined
-      };
-      
-      setRounds(prev => [...prev, newRound]);
-      setGameState('clicked');
-      
-      // Move to next round or end game
-      setTimeout(() => {
-        if (currentRound < 4) {
-          setCurrentRound(prev => prev + 1);
-          setCountdown(3);
-          setGameState('countdown');
-        } else {
-          endGame([...rounds, newRound]);
-        }
-      }, 2000); // Longer delay for bonus round to show results
-      
-    } else if (gameState === 'waiting') {
-      // Clicked too early - just ignore it, don't end the round
-      console.log('QuickClick: Clicked too early! Waiting for green...');
-      // Play error sound
-      try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-        audio.volume = 0.1;
-        audio.play().catch(() => {});
-      } catch (e) {
-        // Audio failed, continue silently
-      }
-      // Don't end the round - let it continue to flash state
-    }
-  }, [gameState, flashStartTime, currentRound, rounds, targetPosition]);
-
-  // Auto-fail if no click during flash (Too Late)
-  useEffect(() => {
-    if (gameState === 'flash') {
-      const timeout = setTimeout(() => {
-        console.log('QuickClick: No click - too late');
-        // Play error sound
-        try {
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
-          audio.volume = 0.1;
-          audio.play().catch(() => {});
-        } catch (e) {
-          // Audio failed, continue silently
-        }
-        
-        // Give a penalty score (999ms = very slow reaction)
-        const newRound: Round = {
-          roundNumber: currentRound,
-          reactionTime: 999, // Penalty score for missing
-          clicked: false,
-          isBonus: currentRound === 4
-        };
-        
-        setRounds(prev => [...prev, newRound]);
-        setGameState('clicked');
-        
-        setTimeout(() => {
-          if (currentRound < 4) {
-            setCurrentRound(prev => prev + 1);
-            setCountdown(3);
-            setGameState('countdown');
-          } else {
-            endGame([...rounds, newRound]);
-          }
-        }, 1500);
-      }, 2000); // 2 seconds to click after flash (more generous)
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [gameState, currentRound, rounds]);
-
-  // End game
+  // End game - moved here so it can be used by handleClick and useEffect
   const endGame = useCallback(async (finalRounds: Round[]) => {
     console.log('QuickClick: Game ended', finalRounds);
     setGameState('ended');
@@ -374,8 +228,150 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     onGameEnd(gameResult);
   }, [rngSeed, listingId, entryNumber, isCompetitionMode, onGameEnd]);
 
+  // Handle click
+  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState === 'waiting') {
+      // Clicked too early - give zero score
+      console.log(`QuickClick: Clicked too early! Round ${currentRound}`);
+      
+      const newRound: Round = {
+        roundNumber: currentRound,
+        reactionTime: 0,
+        clicked: true,
+        isBonus: currentRound === 4,
+        targetX: targetPosition?.x,
+        targetY: targetPosition?.y,
+        accuracy: 0 // Zero accuracy for premature click
+      };
+      
+      setRounds(prev => [...prev, newRound]);
+      setGameState('clicked');
+      
+      // Play failure sound
+      playSwordMiss();
+      
+      // Move to next round or end game
+      setTimeout(() => {
+        if (currentRound < 4) {
+          setCurrentRound(prev => prev + 1);
+          setGameState('waiting');
+        } else {
+          // Call endGame to ensure audit logging happens
+          endGame([...rounds, newRound]);
+        }
+      }, 1000);
+      
+      return;
+    }
+    
+    if (gameState === 'flash') {
+      const reactionTime = Date.now() - flashStartTime;
+      console.log(`QuickClick: Clicked! Reaction time: ${reactionTime}ms`);
+      
+      const isBonus = currentRound === 4;
+      let accuracy = 100;
+      
+      if (isBonus && targetPosition && gameAreaRef.current) {
+        // Calculate click accuracy for bonus round
+        const rect = gameAreaRef.current.getBoundingClientRect();
+        const clickX = ((event.clientX - rect.left) / rect.width) * 100;
+        const clickY = ((event.clientY - rect.top) / rect.height) * 100;
+        setClickPosition({ x: clickX, y: clickY });
+        
+        // Calculate distance from target (in percentage points)
+        const distance = Math.sqrt(
+          Math.pow(clickX - targetPosition.x, 2) + Math.pow(clickY - targetPosition.y, 2)
+        );
+        
+        // Convert distance to accuracy (closer = higher accuracy)
+        accuracy = Math.max(0, 100 - (distance * 2)); // 2% penalty per percentage point distance
+        console.log(`QuickClick: Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)})`);
+      }
+      
+      // Play success sound based on performance
+      if (isBonus) {
+        playQuickClickBonusHit(accuracy);
+      } else {
+        playQuickClickSuccess(reactionTime);
+      }
+      
+      // Record the round
+      const newRound: Round = {
+        roundNumber: currentRound,
+        reactionTime,
+        clicked: true,
+        isBonus,
+        targetX: targetPosition?.x,
+        targetY: targetPosition?.y,
+        accuracy: isBonus ? accuracy : undefined
+      };
+      
+      setRounds(prev => [...prev, newRound]);
+      setGameState('clicked');
+      
+      // Move to next round or end game
+      setTimeout(() => {
+        if (currentRound < 4) {
+          setCurrentRound(prev => prev + 1);
+          setCountdown(3);
+          setGameState('countdown');
+        } else {
+          endGame([...rounds, newRound]);
+        }
+      }, 2000); // Longer delay for bonus round to show results
+    }
+    // Note: 'waiting' state is already handled at the start of this function (early click case)
+  }, [gameState, flashStartTime, currentRound, rounds, targetPosition, endGame]);
+
+  // Auto-fail if no click during flash (Too Late)
+  useEffect(() => {
+    if (gameState === 'flash') {
+      const timeout = setTimeout(() => {
+        console.log('QuickClick: No click - too late');
+        // Play error sound
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
+          audio.volume = 0.1;
+          audio.play().catch(() => {});
+        } catch (e) {
+          // Audio failed, continue silently
+        }
+        
+        // Give a penalty score (999ms = very slow reaction)
+        const newRound: Round = {
+          roundNumber: currentRound,
+          reactionTime: 999, // Penalty score for missing
+          clicked: false,
+          isBonus: currentRound === 4
+        };
+        
+        setRounds(prev => [...prev, newRound]);
+        setGameState('clicked');
+        
+        setTimeout(() => {
+          if (currentRound < 4) {
+            setCurrentRound(prev => prev + 1);
+            setCountdown(3);
+            setGameState('countdown');
+          } else {
+            endGame([...rounds, newRound]);
+          }
+        }, 1500);
+      }, 2000); // 2 seconds to click after flash (more generous)
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [gameState, currentRound, rounds, endGame]);
+
   // Start game
   const handleStartGame = () => {
+    console.log('');
+    console.log('========================================');
+    console.log('🎮 QUICK CLICK GAME STARTED');
+    console.log('========================================');
+    console.log('🎮 Audit logging is ENABLED');
+    console.log('🎮 Game will be logged on completion');
+    console.log('========================================');
     setCountdown(3);
     setGameState('countdown');
   };
