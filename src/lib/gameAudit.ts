@@ -6,17 +6,18 @@
  * 
  * This is integrated into every game just like RNG seeding.
  * 
- * @version 4.0.0 - BULLETPROOF AUDIT LOGGING
- * @lastUpdated 2025-11-27 @ 11:00 AM
- * @deploymentId v4-final-audit-fix
+ * @version 5.0.0 - CACHE BUSTER DEPLOYMENT
+ * @lastUpdated 2025-11-27 @ 12:30 PM EST
+ * @deploymentId v5-cache-bust-1732729800
  */
 
-// 🔥 IMMEDIATE LOG ON MODULE LOAD
+// 🔥🔥🔥 CACHE BUSTER - UNIQUE BUILD ID: 20251127-1230 🔥🔥🔥
 console.log('');
-console.log('🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒');
-console.log('📊 GAME AUDIT MODULE v4.0 LOADED');
+console.log('⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐');
+console.log('📊 GAME AUDIT v5.0 - BUILD 20251127-1230');
+console.log('📊 If you see this, NEW CODE IS RUNNING!');
 console.log('📊 All games will be logged to admin');
-console.log('🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒🔒');
+console.log('⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐');
 console.log('');
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';

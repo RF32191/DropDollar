@@ -31,12 +31,13 @@ interface Round {
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
-  // 🔥 DEPLOYMENT VERIFICATION - v4.0 deployed 2025-11-27 @ 11:00 AM
+  // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-1230 🔥🔥🔥
   console.log('');
-  console.log('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
-  console.log('🎮 QUICK CLICK v4.0 WITH AUDIT LOGGING');
+  console.log('🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮');
+  console.log('🎮 QUICK CLICK v5.0 - BUILD 20251127-1230');
+  console.log('🎮 If you see this, NEW CODE IS RUNNING!');
   console.log('🔒 Audit logs will be sent to admin dashboard');
-  console.log('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
+  console.log('🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮');
   console.log('');
   
   // DON'T use pre-generated configs - causes gameplay issues
