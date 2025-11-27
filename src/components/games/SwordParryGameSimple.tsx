@@ -3,6 +3,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FairRNGService, SwordSlashRNGConfig } from '@/lib/fairRNGService';
 import { playSwordHit, playSwordMiss, playGameEnd } from '@/lib/gameAudio';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+console.log('');
+console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+console.log('⚔️ SWORD SLASH SIMPLE v8.0 - BUILD 20251127-1900');
+console.log('⚔️ If you see this, NEW CODE IS RUNNING!');
+console.log('🔒 Audit logs WILL be sent to admin dashboard');
+console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+console.log('');
 
 interface GameResult {
   score: number;
@@ -349,7 +359,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     lastSpawn.current = Date.now();
   };
 
-  const endGame = () => {
+  const endGame = async () => {
     // Prevent multiple calls
     if (gameEndedRef.current) {
       console.log('⚠️ SwordParry: endGame already called, ignoring duplicate');
@@ -368,6 +378,35 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     playGameEnd(performance);
     
     console.log(`SwordParry: Game ended. Final score: ${finalScore}, Accuracy: ${accuracy.toFixed(1)}%`);
+    
+    // 🔒 AUDIT LOGGING - Required for fair skill-based gaming
+    console.log('');
+    console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+    console.log('⚔️ SWORD SLASH: LOGGING TO AUDIT SYSTEM');
+    console.log('⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️⚔️');
+    console.log('');
+    
+    const gameDuration = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+    
+    try {
+      const auditResult = await logGameCompletion({
+        gameType: GAME_TYPES.SWORD_PARRY,
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: finalScore,
+        accuracy,
+        reactionTime: 250,
+        durationSeconds: gameDuration,
+        additionalData: {
+          listingId,
+          entryNumber,
+          destroyedCount,
+          totalCount
+        }
+      });
+      console.log('⚔️ Audit result:', auditResult);
+    } catch (error) {
+      console.error('⚔️ Audit logging failed:', error);
+    }
     
     onGameEnd({
       score: finalScore,
