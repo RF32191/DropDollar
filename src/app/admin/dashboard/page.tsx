@@ -20,7 +20,8 @@ import {
   ShoppingBagIcon,
   DocumentTextIcon,
   IdentificationIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import dynamic from 'next/dynamic';
 
@@ -384,6 +385,50 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteAuditLog = async (auditId: string) => {
+    if (!confirm('Are you sure you want to delete this audit log?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('game_audit_log')
+        .delete()
+        .eq('id', auditId);
+      
+      if (error) throw error;
+      
+      setMessage({ type: 'success', text: 'Audit log deleted successfully!' });
+      // Remove from local state immediately for better UX
+      setAuditLogs(prev => prev.filter(log => log.id !== auditId));
+    } catch (error: any) {
+      console.error('Error deleting audit log:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to delete audit log' });
+    }
+  };
+
+  const handleClearAllAuditLogs = async () => {
+    const confirmText = prompt('Type "DELETE ALL" to confirm clearing all audit logs:');
+    if (confirmText !== 'DELETE ALL') {
+      setMessage({ type: 'error', text: 'Deletion cancelled - confirmation text did not match.' });
+      return;
+    }
+    
+    try {
+      // Delete all audit logs
+      const { error } = await supabase
+        .from('game_audit_log')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // This deletes all rows
+      
+      if (error) throw error;
+      
+      setMessage({ type: 'success', text: 'All audit logs cleared successfully!' });
+      setAuditLogs([]);
+    } catch (error: any) {
+      console.error('Error clearing audit logs:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to clear audit logs' });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 text-white">
@@ -659,11 +704,23 @@ export default function AdminDashboard() {
 
         {activeTab === 'audits' && permissions?.can_review_audits && (
           <div>
-            <h2 className="text-2xl font-bold mb-6 flex items-center">
-              <ChartBarIcon className="h-8 w-8 mr-3 text-blue-400" />
-              Game Audit Logs - All Games
-              <span className="ml-4 text-sm text-gray-400">({auditLogs.length} games)</span>
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold flex items-center">
+                <ChartBarIcon className="h-8 w-8 mr-3 text-blue-400" />
+                Game Audit Logs - All Games
+                <span className="ml-4 text-sm text-gray-400">({auditLogs.length} games)</span>
+              </h2>
+              
+              {auditLogs.length > 0 && (
+                <button
+                  onClick={handleClearAllAuditLogs}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                  Clear All Logs
+                </button>
+              )}
+            </div>
             
             {/* 🔥 TEST BUTTON - Click to test if audit logging works */}
             <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-600 rounded-lg">
@@ -803,6 +860,18 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         )}
+                      </div>
+                      
+                      {/* Delete Button */}
+                      <div className="ml-4 flex flex-col gap-2">
+                        <button
+                          onClick={() => handleDeleteAuditLog(audit.id)}
+                          className="flex items-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600 border border-red-600 text-red-400 hover:text-white rounded-lg font-medium transition-all"
+                          title="Delete this audit log"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
