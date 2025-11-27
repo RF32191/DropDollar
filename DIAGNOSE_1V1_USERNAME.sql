@@ -34,7 +34,7 @@ WHERE proname = 'update_1v1_score';
 
 -- Check 5: Are there any RULES on the table?
 SELECT '📏 RULES ON one_v_one_participants:' as check5;
-SELECT rulename, ev_type, is_instead
+SELECT rulename, definition
 FROM pg_rules
 WHERE tablename = 'one_v_one_participants';
 
