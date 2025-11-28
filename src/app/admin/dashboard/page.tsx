@@ -281,53 +281,35 @@ export default function AdminDashboard() {
 
   const loadSellerVerifications = async () => {
     try {
-      // Load ALL seller registrations (step 6+ or any status)
+      console.log('🔍 [Verification] Loading seller verifications...');
+      
+      // Load ALL seller registrations
       const { data: sellersData, error: sellersError } = await supabase
         .from('seller_profiles')
-        .select(`
-          id,
-          user_id,
-          shop_name,
-          shop_description,
-          business_name,
-          business_type,
-          full_legal_name,
-          date_of_birth,
-          ssn_last4,
-          dl_front_url,
-          dl_back_url,
-          selfie_url,
-          contact_email,
-          contact_phone,
-          address_line1,
-          city,
-          state,
-          postal_code,
-          status,
-          registration_step,
-          submitted_at,
-          identity_verified,
-          verified,
-          created_at
-        `)
-        .gte('registration_step', 1)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (sellersError) throw sellersError;
+      console.log('📊 [Verification] Query result:', { 
+        count: sellersData?.length || 0, 
+        error: sellersError?.message || 'none',
+        data: sellersData
+      });
 
-      // Load risk scores
-      const { data: riskData, error: riskError } = await supabase
-        .from('seller_risk_scores')
-        .select('seller_id, overall_risk_score, risk_flags');
+      if (sellersError) {
+        console.error('❌ [Verification] Error:', sellersError);
+        throw sellersError;
+      }
 
-      // Load document counts
-      const { data: docsData, error: docsError } = await supabase
-        .from('seller_documents')
-        .select('seller_id');
+      // If no sellers, log and return
+      if (!sellersData || sellersData.length === 0) {
+        console.log('⚠️ [Verification] No sellers found in database');
+        setSellerVerifications([]);
+        return;
+      }
 
       // Combine the data
-      const verifications = await Promise.all((sellersData || []).map(async (seller) => {
+      const verifications = await Promise.all(sellersData.map(async (seller: any) => {
         // Get user info
         const { data: userData } = await supabase
           .from('users')
@@ -335,8 +317,7 @@ export default function AdminDashboard() {
           .eq('id', seller.user_id)
           .single();
 
-        const risk = riskData?.find(r => r.seller_id === seller.id);
-        const docCount = docsData?.filter(d => d.seller_id === seller.id).length || 0;
+        console.log('👤 [Verification] Seller:', seller.shop_name, '| DL:', seller.dl_front_url ? 'YES' : 'NO');
 
         return {
           seller_id: seller.id,
@@ -362,18 +343,19 @@ export default function AdminDashboard() {
           status: seller.status || 'pending',
           registration_step: seller.registration_step || 0,
           submitted_at: seller.submitted_at || seller.created_at,
-          risk_score: risk?.overall_risk_score || 0,
-          risk_flags: risk?.risk_flags || [],
+          risk_score: 0,
+          risk_flags: [],
           identity_verified: seller.identity_verified || false,
           verified: seller.verified || false,
-          documents_count: docCount,
+          documents_count: 0,
           created_at: seller.created_at
         };
       }));
 
+      console.log('✅ [Verification] Loaded', verifications.length, 'seller verifications');
       setSellerVerifications(verifications);
     } catch (error) {
-      console.error('Error loading seller verifications:', error);
+      console.error('❌ [Verification] Error loading seller verifications:', error);
     }
   };
 
