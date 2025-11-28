@@ -1118,40 +1118,80 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <p className="text-xs text-gray-400">Contact Phone</p>
-                            <p className="text-sm text-white">{seller.contact_phone || 'Not provided'}</p>
+                            <p className="text-sm text-white">
+                              {seller.contact_phone ? 
+                                `(***) ***-${seller.contact_phone.slice(-4)}` : 
+                                'Not provided'}
+                            </p>
                           </div>
                           <div>
                             <p className="text-xs text-gray-400">Address</p>
                             <p className="text-sm text-white">
                               {seller.address_line1 ? 
-                                `${seller.city}, ${seller.state} ${seller.postal_code}` : 
+                                `*** ${seller.city}, ${seller.state} ${seller.postal_code}` : 
                                 'Not provided'}
                             </p>
                           </div>
                           
-                          {/* Documents */}
-                          <div className="col-span-2 md:col-span-3 border-t border-gray-700 pt-2 mt-2">
-                            <p className="text-xs text-gray-400 mb-2">Identity Documents</p>
-                            <div className="flex gap-2">
-                              {seller.dl_front_url && (
-                                <a href={seller.dl_front_url} target="_blank" rel="noopener noreferrer"
-                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
-                                  DL Front
-                                </a>
-                              )}
-                              {seller.dl_back_url && (
-                                <a href={seller.dl_back_url} target="_blank" rel="noopener noreferrer"
-                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
-                                  DL Back
-                                </a>
-                              )}
-                              {seller.selfie_url && (
-                                <a href={seller.selfie_url} target="_blank" rel="noopener noreferrer"
-                                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
-                                  Selfie
-                                </a>
-                              )}
+                          {/* Identity Documents - IMAGES DISPLAYED */}
+                          <div className="col-span-2 md:col-span-3 border-t border-gray-700 pt-4 mt-2">
+                            <p className="text-sm font-bold text-green-400 mb-3">📸 Identity Verification Documents</p>
+                            <div className="grid grid-cols-3 gap-4">
+                              {/* Driver's License Front */}
+                              <div className="bg-gray-900 p-2 rounded-lg">
+                                <p className="text-xs text-gray-400 mb-2 text-center">DL Front</p>
+                                {seller.dl_front_url ? (
+                                  <a href={seller.dl_front_url} target="_blank" rel="noopener noreferrer">
+                                    <img 
+                                      src={seller.dl_front_url} 
+                                      alt="Driver's License Front"
+                                      className="w-full h-32 object-cover rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
+                                    />
+                                  </a>
+                                ) : (
+                                  <div className="w-full h-32 bg-gray-800 rounded flex items-center justify-center text-gray-500 text-xs">
+                                    Not uploaded
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Driver's License Back */}
+                              <div className="bg-gray-900 p-2 rounded-lg">
+                                <p className="text-xs text-gray-400 mb-2 text-center">DL Back</p>
+                                {seller.dl_back_url ? (
+                                  <a href={seller.dl_back_url} target="_blank" rel="noopener noreferrer">
+                                    <img 
+                                      src={seller.dl_back_url} 
+                                      alt="Driver's License Back"
+                                      className="w-full h-32 object-cover rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
+                                    />
+                                  </a>
+                                ) : (
+                                  <div className="w-full h-32 bg-gray-800 rounded flex items-center justify-center text-gray-500 text-xs">
+                                    Not uploaded
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Selfie */}
+                              <div className="bg-gray-900 p-2 rounded-lg">
+                                <p className="text-xs text-gray-400 mb-2 text-center">Selfie</p>
+                                {seller.selfie_url ? (
+                                  <a href={seller.selfie_url} target="_blank" rel="noopener noreferrer">
+                                    <img 
+                                      src={seller.selfie_url} 
+                                      alt="Selfie"
+                                      className="w-full h-32 object-cover rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
+                                    />
+                                  </a>
+                                ) : (
+                                  <div className="w-full h-32 bg-gray-800 rounded flex items-center justify-center text-gray-500 text-xs">
+                                    Not uploaded
+                                  </div>
+                                )}
+                              </div>
                             </div>
+                            <p className="text-xs text-gray-500 mt-2 text-center">Click images to view full size</p>
                           </div>
                         </div>
 
@@ -1170,19 +1210,41 @@ export default function AdminDashboard() {
                       </div>
                       
                       <div className="flex flex-col gap-2 ml-4">
+                        {/* Show Approve/Reject for pending sellers */}
+                        {seller.status === 'pending' && (
+                          <>
+                            <button 
+                              onClick={() => handleApproveSeller(seller.seller_id)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-colors flex items-center"
+                            >
+                              <CheckCircleIcon className="h-5 w-5 mr-2" />
+                              Approve
+                            </button>
+                            <button 
+                              onClick={() => handleRejectSeller(seller.seller_id)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors flex items-center"
+                            >
+                              <XCircleIcon className="h-5 w-5 mr-2" />
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {/* Show status badge for non-pending */}
+                        {seller.status === 'active' && (
+                          <span className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-center">
+                            ✅ Approved
+                          </span>
+                        )}
+                        {seller.status === 'rejected' && (
+                          <span className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-center">
+                            ❌ Rejected
+                          </span>
+                        )}
                         <button 
                           onClick={() => window.open(`/admin/seller/${seller.seller_id}`, '_blank')}
                           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                         >
-                          View Details
-                        </button>
-                        {!seller.identity_verified && (
-                          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                            Verify Now
-                          </button>
-                        )}
-                        <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                          Suspend
+                          View Full Details
                         </button>
                       </div>
                     </div>
