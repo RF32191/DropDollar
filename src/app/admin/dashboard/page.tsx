@@ -317,7 +317,23 @@ export default function AdminDashboard() {
           .eq('id', seller.user_id)
           .single();
 
-        console.log('👤 [Verification] Seller:', seller.shop_name, '| DL:', seller.dl_front_url ? 'YES' : 'NO');
+        console.log('👤 [Verification] Seller:', seller.shop_name, '| DL path:', seller.dl_front_url);
+
+        // Generate public URLs for storage paths
+        const getStorageUrl = (path: string | null) => {
+          if (!path) return '';
+          // If it's already a full URL, return as-is
+          if (path.startsWith('http')) return path;
+          // Generate public URL from Supabase storage
+          const { data } = supabase.storage.from('seller-documents').getPublicUrl(path);
+          return data?.publicUrl || '';
+        };
+
+        const dlFrontUrl = getStorageUrl(seller.dl_front_url);
+        const dlBackUrl = getStorageUrl(seller.dl_back_url);
+        const selfieUrl = getStorageUrl(seller.selfie_url);
+        
+        console.log('🖼️ [Verification] DL Front URL:', dlFrontUrl);
 
         return {
           seller_id: seller.id,
@@ -331,9 +347,9 @@ export default function AdminDashboard() {
           full_legal_name: seller.full_legal_name || '',
           date_of_birth: seller.date_of_birth || '',
           ssn_last4: seller.ssn_last4 || '',
-          dl_front_url: seller.dl_front_url || '',
-          dl_back_url: seller.dl_back_url || '',
-          selfie_url: seller.selfie_url || '',
+          dl_front_url: dlFrontUrl,
+          dl_back_url: dlBackUrl,
+          selfie_url: selfieUrl,
           contact_email: seller.contact_email || '',
           contact_phone: seller.contact_phone || '',
           address_line1: seller.address_line1 || '',
