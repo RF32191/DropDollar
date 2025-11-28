@@ -1076,14 +1076,14 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
             
             <div className="flex gap-4 mt-6">
               <button
-                onClick={() => setCurrentStep(2)}
+                onClick={() => setCurrentStep(3)}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-bold transition-colors flex items-center justify-center"
               >
                 <ChevronLeftIcon className="w-5 h-5 mr-2" />
                 Back
               </button>
               <button
-                onClick={handleStep3Submit}
+                onClick={handleStep4Submit}
                 disabled={isLoading}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center"
               >
@@ -1202,14 +1202,14 @@ export default function AdvancedSellerRegistration({ onComplete }: { onComplete?
             
             <div className="flex gap-4 mt-6">
               <button
-                onClick={() => setCurrentStep(3)}
+                onClick={() => setCurrentStep(4)}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-bold transition-colors flex items-center justify-center"
               >
                 <ChevronLeftIcon className="w-5 h-5 mr-2" />
                 Back
               </button>
               <button
-                onClick={handleStep4Submit}
+                onClick={handleStep5Submit}
                 disabled={isLoading}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center justify-center"
               >
