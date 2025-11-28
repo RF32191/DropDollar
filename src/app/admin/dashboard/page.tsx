@@ -99,6 +99,12 @@ export default function AdminDashboard() {
   const [passwordError, setPasswordError] = useState('');
   const ADMIN_PASSWORD = '321SnoopDog1994321!';
   
+  // Secondary password for sensitive tabs (Tax, Verification)
+  const [isSensitiveTabsUnlocked, setIsSensitiveTabsUnlocked] = useState(false);
+  const [sensitivePasswordInput, setSensitivePasswordInput] = useState('');
+  const [sensitivePasswordError, setSensitivePasswordError] = useState('');
+  const SENSITIVE_TABS_PASSWORD = '124816SnoopDog';
+  
   const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax' | 'verification'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -120,6 +126,17 @@ export default function AdminDashboard() {
     } else {
       setPasswordError('Incorrect password');
       setPasswordInput('');
+    }
+  };
+
+  const handleSensitivePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sensitivePasswordInput === SENSITIVE_TABS_PASSWORD) {
+      setIsSensitiveTabsUnlocked(true);
+      setSensitivePasswordError('');
+    } else {
+      setSensitivePasswordError('Incorrect password');
+      setSensitivePasswordInput('');
     }
   };
 
@@ -891,25 +908,83 @@ export default function AdminDashboard() {
           <ListingManagementPanel />
         )}
         
-        {/* Tax Management Tab */}
+        {/* Tax Management Tab - Password Protected */}
         {activeTab === 'tax' && (
           <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center">
               <DocumentTextIcon className="w-6 h-6 mr-2 text-blue-400" />
               W-9 & 1099 Tax Management
+              {!isSensitiveTabsUnlocked && <span className="ml-2 text-sm text-yellow-400">🔒 Locked</span>}
             </h2>
-            <AdminTaxDashboard />
+            {!isSensitiveTabsUnlocked ? (
+              <div className="bg-gray-800 rounded-lg p-8 max-w-md mx-auto">
+                <div className="text-center mb-6">
+                  <div className="text-6xl mb-4">🔐</div>
+                  <h3 className="text-xl font-bold text-white">Sensitive Data Protection</h3>
+                  <p className="text-gray-400 mt-2">Enter password to access tax documents</p>
+                </div>
+                <form onSubmit={handleSensitivePasswordSubmit}>
+                  <input
+                    type="password"
+                    value={sensitivePasswordInput}
+                    onChange={(e) => setSensitivePasswordInput(e.target.value)}
+                    placeholder="Enter sensitive data password"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white mb-4"
+                  />
+                  {sensitivePasswordError && (
+                    <p className="text-red-400 text-sm mb-4">{sensitivePasswordError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold"
+                  >
+                    Unlock Tax Documents
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <AdminTaxDashboard />
+            )}
           </div>
         )}
 
-        {/* Seller Verification Tab */}
+        {/* Seller Verification Tab - Password Protected */}
         {activeTab === 'verification' && (
           <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center">
               <IdentificationIcon className="w-6 h-6 mr-2 text-green-400" />
               Seller Verification & Risk Management
+              {!isSensitiveTabsUnlocked && <span className="ml-2 text-sm text-yellow-400">🔒 Locked</span>}
             </h2>
             
+            {!isSensitiveTabsUnlocked ? (
+              <div className="bg-gray-800 rounded-lg p-8 max-w-md mx-auto">
+                <div className="text-center mb-6">
+                  <div className="text-6xl mb-4">🔐</div>
+                  <h3 className="text-xl font-bold text-white">Sensitive Data Protection</h3>
+                  <p className="text-gray-400 mt-2">Enter password to access seller verification data</p>
+                </div>
+                <form onSubmit={handleSensitivePasswordSubmit}>
+                  <input
+                    type="password"
+                    value={sensitivePasswordInput}
+                    onChange={(e) => setSensitivePasswordInput(e.target.value)}
+                    placeholder="Enter sensitive data password"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white mb-4"
+                  />
+                  {sensitivePasswordError && (
+                    <p className="text-red-400 text-sm mb-4">{sensitivePasswordError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold"
+                  >
+                    Unlock Seller Verification
+                  </button>
+                </form>
+              </div>
+            ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-green-600 rounded-lg p-4">
                 <div className="text-2xl font-bold">
@@ -1096,6 +1171,8 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+            </>
             )}
           </div>
         )}
