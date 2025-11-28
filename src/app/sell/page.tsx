@@ -58,8 +58,23 @@ export default function SellPage() {
     condition: 'new',
     brand: '',
     dimensions: '',
-    weight: ''
+    weight: '',
+    timer_duration: 30 // Default 30 minutes
   });
+
+  // Timer duration options (in minutes)
+  const timerOptions = [
+    { value: 3, label: '3 minutes' },
+    { value: 5, label: '5 minutes' },
+    { value: 10, label: '10 minutes' },
+    { value: 15, label: '15 minutes' },
+    { value: 30, label: '30 minutes' },
+    { value: 60, label: '1 hour' },
+    { value: 120, label: '2 hours' },
+    { value: 360, label: '6 hours' },
+    { value: 720, label: '12 hours' },
+    { value: 1440, label: '24 hours' }
+  ];
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
 
@@ -222,7 +237,8 @@ export default function SellPage() {
         base_price_param: parseFloat(formData.base_price),
         game_type_param: formData.game_type,
         shipping_included_param: formData.shipping_included,
-        seller_contact_param: formData.seller_contact || null
+        seller_contact_param: formData.seller_contact || null,
+        timer_duration_param: formData.timer_duration * 60 // Convert minutes to seconds
       });
 
       if (error) throw error;
@@ -232,12 +248,13 @@ export default function SellPage() {
         console.log('📸 Images uploaded:', imageUrls.length, 'URLs:', imageUrls);
         
         // If images were uploaded or additional data, update the listing
-        if (imageUrls.length > 0 || formData.condition || formData.brand || formData.dimensions || formData.weight) {
+        if (imageUrls.length > 0 || formData.condition || formData.brand || formData.dimensions || formData.weight || formData.timer_duration) {
           const updateData: any = {
             condition: formData.condition,
             brand: formData.brand || null,
             dimensions: formData.dimensions || null,
-            weight: formData.weight || null
+            weight: formData.weight || null,
+            timer_duration: formData.timer_duration * 60 // Convert minutes to seconds
           };
           
           // Add image_urls as JSONB array if images were uploaded
@@ -270,6 +287,7 @@ export default function SellPage() {
           base_price: '',
           game_type: 'multi-target', // Default to first real game
           shipping_included: true,
+          timer_duration: 30, // Reset to default 30 minutes
           seller_contact: '',
           condition: 'new',
           brand: '',
@@ -631,6 +649,32 @@ export default function SellPage() {
                       <div className="text-sm text-gray-400">{game.description}</div>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Timer Duration */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  ⏱️ Competition Timer * (Starts when base price is met)
+                </label>
+                <select
+                  value={formData.timer_duration}
+                  onChange={(e) => setFormData({ ...formData, timer_duration: parseInt(e.target.value) })}
+                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  {timerOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2 p-3 bg-blue-900/20 border border-blue-700 rounded-lg">
+                  <p className="text-xs text-blue-300">
+                    ⚡ Timer starts when players contribute enough tokens to reach the base price
+                  </p>
+                  <p className="text-xs text-yellow-300 mt-1">
+                    🚫 Players cannot join in the final 2 minutes of the countdown
+                  </p>
                 </div>
               </div>
 
