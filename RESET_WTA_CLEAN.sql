@@ -30,7 +30,7 @@ WHERE game_duration IS NOT NULL OR game_duration IS NULL;
 INSERT INTO winner_takes_all_sessions (
     id, config_id, status, participants_count, current_pot, prize_pool,
     timer_started_at, timer_duration, winner_user_id, winner_prize,
-    platform_fee, rng_seed, created_at, updated_at, completed_at
+    platform_fee, rng_seed, created_at, updated_at, completed_at, base_price
 )
 SELECT 
     gen_random_uuid(),
@@ -47,7 +47,8 @@ SELECT
     floor(random() * 99999 + 1)::integer,
     NOW(),
     NOW(),
-    NULL
+    NULL,
+    COALESCE(c.entry_fee, c.base_price, 1)  -- base_price from config
 FROM winner_takes_all_configs c;
 
 -- Step 7: Verify cleanup
