@@ -19,6 +19,10 @@ ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS state TEXT;
 ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS postal_code TEXT;
 ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'US';
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT false;
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS privacy_accepted BOOLEAN DEFAULT false;
+ALTER TABLE seller_profiles ADD COLUMN IF NOT EXISTS seller_agreement_accepted BOOLEAN DEFAULT false;
 
 -- Step 3: Fix the update_seller_registration_step3 function
 DROP FUNCTION IF EXISTS public.update_seller_registration_step3(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
