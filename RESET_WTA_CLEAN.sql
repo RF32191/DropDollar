@@ -33,7 +33,7 @@ INSERT INTO winner_takes_all_sessions (
     platform_fee, rng_seed, created_at, updated_at, completed_at
 )
 SELECT 
-    gen_random_uuid()::TEXT,
+    gen_random_uuid(),
     c.id,
     'waiting',
     0,
