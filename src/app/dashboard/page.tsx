@@ -481,9 +481,10 @@ export default function TriumphStyleDashboard() {
       console.log('✅ [Dashboard] Seller status parsed:', sellerData);
       setSellerStatus(sellerData);
       
-      // Only set as seller if approved
-      const isApprovedSeller = sellerData?.is_seller === true && sellerData?.status === 'approved';
-      console.log('✅ [Dashboard] Is approved seller:', isApprovedSeller);
+      // Only set as seller if approved (status can be 'approved' or 'active')
+      const isApprovedSeller = sellerData?.is_seller === true && 
+        (sellerData?.status === 'approved' || sellerData?.status === 'active');
+      console.log('✅ [Dashboard] Is approved seller:', isApprovedSeller, 'status:', sellerData?.status);
       setIsSeller(isApprovedSeller);
       
       // Pre-fill email if user is already a seller
@@ -1193,7 +1194,7 @@ export default function TriumphStyleDashboard() {
                   </div>
                 </div>
               </div>
-            ) : isSeller ? (
+            ) : (isSeller || sellerStatus?.status === 'active') ? (
               <div className="space-y-6">
                 {/* Seller Dashboard - wrapped to prevent flashing */}
                 <div className="min-h-[200px]">
