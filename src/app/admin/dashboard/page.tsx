@@ -78,11 +78,29 @@ interface SellerVerification {
   username: string;
   email: string;
   shop_name: string;
+  shop_description: string;
   business_name: string;
+  business_type: string;
+  full_legal_name: string;
+  date_of_birth: string;
+  ssn_last4: string;
+  contact_email: string;
+  contact_phone: string;
+  address_line1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  dl_front_url: string;
+  dl_back_url: string;
+  selfie_url: string;
+  status: string;
+  registration_step: number;
   risk_score: number;
   risk_flags: string[];
   identity_verified: boolean;
+  verified: boolean;
   documents_count: number;
+  submitted_at: string;
   created_at: string;
 }
 
@@ -263,7 +281,7 @@ export default function AdminDashboard() {
 
   const loadSellerVerifications = async () => {
     try {
-      // Load only COMPLETED and SUBMITTED seller registrations
+      // Load ALL seller registrations (step 6+ or any status)
       const { data: sellersData, error: sellersError } = await supabase
         .from('seller_profiles')
         .select(`
@@ -285,17 +303,16 @@ export default function AdminDashboard() {
           city,
           state,
           postal_code,
-          verification_status,
           status,
-          registration_completed,
+          registration_step,
           submitted_at,
           identity_verified,
+          verified,
           created_at
         `)
-        .eq('registration_completed', true)
-        .in('status', ['pending', 'approved', 'rejected'])
-        .order('submitted_at', { ascending: false })
-        .limit(50);
+        .gte('registration_step', 1)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (sellersError) throw sellersError;
 
@@ -327,27 +344,28 @@ export default function AdminDashboard() {
           username: userData?.username || 'Unknown',
           email: userData?.email || 'No email',
           shop_name: seller.shop_name || 'No shop name',
-          shop_description: seller.shop_description,
-          business_name: seller.business_name || 'No business name',
-          business_type: seller.business_type,
-          full_legal_name: seller.full_legal_name,
-          date_of_birth: seller.date_of_birth,
-          ssn_last4: seller.ssn_last4,
-          dl_front_url: seller.dl_front_url,
-          dl_back_url: seller.dl_back_url,
-          selfie_url: seller.selfie_url,
-          contact_email: seller.contact_email,
-          contact_phone: seller.contact_phone,
-          address_line1: seller.address_line1,
-          city: seller.city,
-          state: seller.state,
-          postal_code: seller.postal_code,
-          verification_status: seller.verification_status,
-          status: seller.status,
-          submitted_at: seller.submitted_at,
+          shop_description: seller.shop_description || '',
+          business_name: seller.business_name || '',
+          business_type: seller.business_type || '',
+          full_legal_name: seller.full_legal_name || '',
+          date_of_birth: seller.date_of_birth || '',
+          ssn_last4: seller.ssn_last4 || '',
+          dl_front_url: seller.dl_front_url || '',
+          dl_back_url: seller.dl_back_url || '',
+          selfie_url: seller.selfie_url || '',
+          contact_email: seller.contact_email || '',
+          contact_phone: seller.contact_phone || '',
+          address_line1: seller.address_line1 || '',
+          city: seller.city || '',
+          state: seller.state || '',
+          postal_code: seller.postal_code || '',
+          status: seller.status || 'pending',
+          registration_step: seller.registration_step || 0,
+          submitted_at: seller.submitted_at || seller.created_at,
           risk_score: risk?.overall_risk_score || 0,
           risk_flags: risk?.risk_flags || [],
           identity_verified: seller.identity_verified || false,
+          verified: seller.verified || false,
           documents_count: docCount,
           created_at: seller.created_at
         };
