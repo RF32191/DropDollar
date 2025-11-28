@@ -146,18 +146,15 @@ ORDER BY proname;
 
 SELECT '
 ============================================
-✅ ALL ISSUES FIXED!
+ALL ISSUES FIXED!
 ============================================
 
-1. ❌ Cleared all seller profiles
-2. ✅ Fixed approved_by column (now TEXT)
-3. ✅ Fixed approve_seller function
-4. ✅ Fixed get_pending_sellers
+1. Cleared all seller profiles
+2. Fixed approved_by column (now TEXT)
+3. Fixed approve_seller function
+4. Fixed get_pending_sellers
 
 NEXT: Register as seller again.
-If steps 4/5 still don't advance, check browser
-console for errors - the functions return success
-but frontend may have issue.
 ============================================
 ' as done;
 
