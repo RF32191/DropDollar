@@ -177,9 +177,6 @@ BEGIN
         updated_at = NOW()
     WHERE user_id = v_user_id;
     
-    -- Also update users table
-    UPDATE users SET is_seller = true, updated_at = NOW() WHERE id = v_user_id;
-    
     RETURN jsonb_build_object(
         'success', true,
         'message', 'Congratulations! Your seller account is now active!',
