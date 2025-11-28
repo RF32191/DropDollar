@@ -103,7 +103,7 @@ export default function SellPage() {
       const sellerData = Array.isArray(data) ? data[0] : data;
       console.log('✅ [Sell Page] Seller status:', sellerData);
       
-      if (sellerData?.is_seller === true && sellerData?.status === 'approved') {
+      if (sellerData?.is_seller === true && (sellerData?.status === 'approved' || sellerData?.status === 'active')) {
         setIsSeller(true);
         
         // Pre-fill seller contact
