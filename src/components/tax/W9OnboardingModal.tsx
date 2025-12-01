@@ -46,6 +46,13 @@ export default function W9OnboardingModal({
 
   const supabase = getSupabaseClient();
 
+  // Login state
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   // Get current user on mount
   useEffect(() => {
     const getUser = async () => {
@@ -54,6 +61,7 @@ export default function W9OnboardingModal({
       if (user) {
         console.log('[W9] User authenticated:', user.email);
         setCurrentUser(user);
+        setShowLogin(false);
       } else {
         console.log('[W9] No user found:', error?.message);
         // Also try getSession as fallback
@@ -61,6 +69,10 @@ export default function W9OnboardingModal({
         if (session?.user) {
           console.log('[W9] Found user via session:', session.user.email);
           setCurrentUser(session.user);
+          setShowLogin(false);
+        } else {
+          console.log('[W9] No session found, showing login');
+          setShowLogin(true);
         }
       }
     };
@@ -70,7 +82,123 @@ export default function W9OnboardingModal({
     }
   }, [isOpen, supabase.auth]);
 
+  // Handle login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError(null);
+
+    try {
+      console.log('[W9] Attempting login for:', loginEmail);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (error) {
+        console.error('[W9] Login error:', error.message);
+        setLoginError(error.message);
+      } else if (data.user) {
+        console.log('[W9] Login successful:', data.user.email);
+        setCurrentUser(data.user);
+        setShowLogin(false);
+        setLoginEmail('');
+        setLoginPassword('');
+      }
+    } catch (err) {
+      console.error('[W9] Login exception:', err);
+      setLoginError('An unexpected error occurred');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
+
+  // ============================================================================
+  // LOGIN REQUIRED SCREEN
+  // ============================================================================
+  if (showLogin && !currentUser) {
+    return (
+      <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4 py-8">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-md w-full p-8 border border-white/10 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🔐</div>
+              <h2 className="text-2xl font-bold text-white mb-2">Login Required</h2>
+              <p className="text-gray-400 text-sm">
+                Please sign in to complete your W-9 form. Your tax information will be linked to your account.
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-white mb-2 text-sm font-medium">Email</label>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-white mb-2 text-sm font-medium">Password</label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              {loginError && (
+                <div className="p-3 bg-red-500/20 border border-red-500 text-red-200 rounded-xl text-sm">
+                  ❌ {loginError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold rounded-xl transition-all duration-300 disabled:opacity-50"
+              >
+                {loginLoading ? 'Signing in...' : '🔓 Sign In & Continue'}
+              </button>
+            </form>
+
+            <div className="mt-6 flex gap-4">
+              {!isBlocking && (
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={async () => {
+                  // Try to refresh auth state
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    setCurrentUser(user);
+                    setShowLogin(false);
+                  }
+                }}
+                className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+              >
+                🔄 Retry Auth
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ============================================================================
   // FORM VALIDATION
