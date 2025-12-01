@@ -413,6 +413,21 @@ export default function W9OnboardingModal({
             </div>
           </form>
 
+          {/* Debug Info - shows what's filled out */}
+          <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-4 mt-6">
+            <p className="text-blue-200 text-xs font-bold mb-2">📋 Form Status (Debug):</p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-blue-100">
+              <span>Name: {formData.full_name ? `✅ "${formData.full_name}"` : '❌ Missing'}</span>
+              <span>Classification: {formData.tax_classification ? `✅ ${formData.tax_classification}` : '❌ Missing'}</span>
+              <span>SSN: {formData.ssn ? `✅ ${formData.ssn.length}/9 digits` : '❌ Not entered'}</span>
+              <span>EIN: {formData.ein ? `✅ ${formData.ein.length}/9 digits` : '⚪ Not entered'}</span>
+              <span>Address: {formData.address_line1 ? `✅ "${formData.address_line1}"` : '❌ Missing'}</span>
+              <span>City: {formData.city ? `✅ "${formData.city}"` : '❌ Missing'}</span>
+              <span>State: {formData.state ? `✅ "${formData.state}"` : '❌ Missing'}</span>
+              <span>Postal: {formData.postal_code ? `✅ "${formData.postal_code}"` : '❌ Missing'}</span>
+            </div>
+          </div>
+
           <div className="flex gap-4 mt-8">
             <button
               onClick={() => setStep('intro')}
@@ -421,18 +436,30 @@ export default function W9OnboardingModal({
               ← Back
             </button>
             <button
+              type="button"
               onClick={() => {
+                console.log('========================================');
+                console.log('[W9] Continue to Signature clicked!');
+                console.log('[W9] Current form data:', JSON.stringify(formData, null, 2));
+                
                 const validationError = validateForm();
+                console.log('[W9] Validation result:', validationError || 'PASSED');
+                
                 if (validationError) {
+                  console.log('[W9] Setting error:', validationError);
                   setError(validationError);
                   // Scroll to error
                   setTimeout(() => {
-                    document.getElementById('w9-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const errorEl = document.getElementById('w9-error');
+                    console.log('[W9] Error element found:', !!errorEl);
+                    errorEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }, 100);
                 } else {
+                  console.log('[W9] ✅ Validation passed! Moving to signature step');
                   setError(null);
                   setStep('signature');
                 }
+                console.log('========================================');
               }}
               className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
             >
