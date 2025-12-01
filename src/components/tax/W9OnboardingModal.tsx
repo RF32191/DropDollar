@@ -429,7 +429,50 @@ export default function W9OnboardingModal({
     } catch (err: any) {
       console.error('[W9] Direct Supabase exception:', err);
       const errorMsg = err?.message || err?.toString() || 'Unknown error occurred';
+      
+      // Handle network errors specifically
+      if (errorMsg.includes('Load failed') || errorMsg.includes('fetch') || errorMsg.includes('network')) {
+        return { 
+          success: false, 
+          error: 'Network error - please check your internet connection and try again. If the problem persists, the tax_profiles table may not exist in Supabase.' 
+        };
+      }
+      
       return { success: false, error: errorMsg };
+    }
+  };
+
+  // Alternative: Use RPC function to insert (more reliable with RLS)
+  const submitViaRPC = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log('[W9] Trying RPC submission...');
+      
+      const ssnLast4 = formData.ssn ? formData.ssn.slice(-4) : null;
+      
+      const { data, error } = await supabase.rpc('submit_w9_form', {
+        p_user_id: userId,
+        p_full_name: formData.full_name?.trim(),
+        p_business_name: formData.business_name?.trim() || null,
+        p_tax_classification: formData.tax_classification,
+        p_ssn_last4: ssnLast4,
+        p_ein: formData.ein || null,
+        p_address_line1: formData.address_line1?.trim(),
+        p_address_line2: formData.address_line2?.trim() || null,
+        p_city: formData.city?.trim(),
+        p_state: formData.state?.toUpperCase(),
+        p_postal_code: formData.postal_code,
+      });
+
+      if (error) {
+        console.error('[W9] RPC error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('[W9] RPC success:', data);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[W9] RPC exception:', err);
+      return { success: false, error: err?.message || 'RPC failed' };
     }
   };
 
