@@ -1146,65 +1146,64 @@ export default function AdminDashboard() {
                             </p>
                           </div>
                           
-                          {/* Identity Documents - IMAGES DISPLAYED */}
+                          {/* Identity Documents - DIRECT LINKS */}
                           <div className="col-span-2 md:col-span-3 border-t border-gray-700 pt-4 mt-2">
                             <p className="text-sm font-bold text-green-400 mb-3">📸 Identity Verification Documents</p>
                             <div className="grid grid-cols-3 gap-4">
                               {/* Driver's License Front */}
-                              <div className="bg-gray-900 p-2 rounded-lg">
-                                <p className="text-xs text-gray-400 mb-2 text-center">DL Front</p>
+                              <div className="bg-gray-900 p-3 rounded-lg text-center">
+                                <p className="text-xs text-gray-400 mb-2">DL Front</p>
                                 {seller.dl_front_url ? (
-                                  <a href={seller.dl_front_url} target="_blank" rel="noopener noreferrer">
-                                    <img 
-                                      src={seller.dl_front_url} 
-                                      alt="Driver's License Front"
-                                      className="w-full h-32 object-cover rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
-                                    />
+                                  <a 
+                                    href={seller.dl_front_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    📄 View Document
                                   </a>
                                 ) : (
-                                  <div className="w-full h-32 bg-gray-800 rounded flex items-center justify-center text-gray-500 text-xs">
-                                    Not uploaded
-                                  </div>
+                                  <span className="text-gray-500 text-xs">Not uploaded</span>
                                 )}
                               </div>
                               
                               {/* Driver's License Back */}
-                              <div className="bg-gray-900 p-2 rounded-lg">
-                                <p className="text-xs text-gray-400 mb-2 text-center">DL Back</p>
+                              <div className="bg-gray-900 p-3 rounded-lg text-center">
+                                <p className="text-xs text-gray-400 mb-2">DL Back</p>
                                 {seller.dl_back_url ? (
-                                  <a href={seller.dl_back_url} target="_blank" rel="noopener noreferrer">
-                                    <img 
-                                      src={seller.dl_back_url} 
-                                      alt="Driver's License Back"
-                                      className="w-full h-32 object-cover rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
-                                    />
+                                  <a 
+                                    href={seller.dl_back_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    📄 View Document
                                   </a>
                                 ) : (
-                                  <div className="w-full h-32 bg-gray-800 rounded flex items-center justify-center text-gray-500 text-xs">
-                                    Not uploaded
-                                  </div>
+                                  <span className="text-gray-500 text-xs">Not uploaded</span>
                                 )}
                               </div>
                               
                               {/* Selfie */}
-                              <div className="bg-gray-900 p-2 rounded-lg">
-                                <p className="text-xs text-gray-400 mb-2 text-center">Selfie</p>
+                              <div className="bg-gray-900 p-3 rounded-lg text-center">
+                                <p className="text-xs text-gray-400 mb-2">Selfie</p>
                                 {seller.selfie_url ? (
-                                  <a href={seller.selfie_url} target="_blank" rel="noopener noreferrer">
-                                    <img 
-                                      src={seller.selfie_url} 
-                                      alt="Selfie"
-                                      className="w-full h-32 object-cover rounded border border-gray-600 hover:border-blue-500 cursor-pointer"
-                                    />
+                                  <a 
+                                    href={seller.selfie_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    📷 View Selfie
                                   </a>
                                 ) : (
-                                  <div className="w-full h-32 bg-gray-800 rounded flex items-center justify-center text-gray-500 text-xs">
-                                    Not uploaded
-                                  </div>
+                                  <span className="text-gray-500 text-xs">Not uploaded</span>
                                 )}
                               </div>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2 text-center">Click images to view full size</p>
+                            <p className="text-xs text-gray-500 mt-3 text-center">
+                              Click buttons to open documents in new tab (works with HEIC, JPG, PNG)
+                            </p>
                           </div>
                         </div>
 
