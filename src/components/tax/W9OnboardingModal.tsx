@@ -213,12 +213,13 @@ export default function W9OnboardingModal({
   // ============================================================================
   if (step === 'form') {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-3xl w-full p-8 border border-white/10 shadow-2xl my-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">W-9 Tax Information</h2>
-            <p className="text-gray-400 text-sm">Complete the form below. All fields are required unless marked optional.</p>
-          </div>
+      <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
+        <div className="min-h-full flex items-start justify-center p-4 py-8">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-3xl w-full p-8 border border-white/10 shadow-2xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">W-9 Tax Information</h2>
+              <p className="text-gray-400 text-sm">Complete the form below. All fields are required unless marked optional.</p>
+            </div>
 
           {error && (
             <div id="w9-error" className="bg-red-500/30 border-2 border-red-500 text-red-100 px-6 py-4 rounded-xl mb-6 animate-pulse">
@@ -466,6 +467,7 @@ export default function W9OnboardingModal({
               Continue to Signature →
             </button>
           </div>
+          </div>
         </div>
       </div>
     );
@@ -475,8 +477,9 @@ export default function W9OnboardingModal({
   // SIGNATURE STEP
   // ============================================================================
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-2xl w-full p-8 border border-white/10 shadow-2xl my-8">
+    <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
+      <div className="min-h-full flex items-start justify-center p-4 py-8">
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-2xl w-full p-8 border border-white/10 shadow-2xl">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-white mb-2">Electronic Signature</h2>
           <p className="text-gray-400 text-sm">Review and sign your W-9 information</p>
@@ -553,6 +556,7 @@ export default function W9OnboardingModal({
         <p className="text-gray-400 text-xs text-center mt-6">
           By submitting, you authorize us to use this information for tax reporting purposes as required by US law.
         </p>
+        </div>
       </div>
     </div>
   );
