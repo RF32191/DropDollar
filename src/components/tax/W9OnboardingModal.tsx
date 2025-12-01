@@ -50,42 +50,51 @@ export default function W9OnboardingModal({
   // FORM VALIDATION
   // ============================================================================
   const validateForm = (): string | null => {
+    console.log('[W9] Validating form:', formData);
+
     if (!formData.full_name || formData.full_name.trim().length < 2) {
-      return 'Please enter your full legal name';
+      return '❌ Full Legal Name: Please enter your full legal name (at least 2 characters)';
     }
 
     if (!formData.tax_classification) {
-      return 'Please select a tax classification';
+      return '❌ Tax Classification: Please select a tax classification';
     }
 
-    if (!formData.ssn && !formData.ein) {
-      return 'Please enter either SSN or EIN';
+    // Check for SSN or EIN
+    const ssnDigits = formData.ssn ? formData.ssn.replace(/\D/g, '') : '';
+    const einDigits = formData.ein ? formData.ein.replace(/\D/g, '') : '';
+
+    if (!ssnDigits && !einDigits) {
+      return '❌ Tax ID Required: Please enter either your Social Security Number (SSN) OR Employer Identification Number (EIN)';
     }
 
-    if (formData.ssn && formData.ssn.replace(/\D/g, '').length !== 9) {
-      return 'SSN must be 9 digits';
+    if (ssnDigits && ssnDigits.length !== 9) {
+      return `❌ SSN: Must be exactly 9 digits. You entered ${ssnDigits.length} digits. (Enter without dashes)`;
     }
 
-    if (formData.ein && formData.ein.replace(/\D/g, '').length !== 9) {
-      return 'EIN must be 9 digits';
+    if (einDigits && einDigits.length !== 9) {
+      return `❌ EIN: Must be exactly 9 digits. You entered ${einDigits.length} digits. (Enter without dashes)`;
     }
 
     if (!formData.address_line1 || formData.address_line1.trim().length < 3) {
-      return 'Please enter your street address';
+      return '❌ Street Address: Please enter your street address (at least 3 characters)';
     }
 
     if (!formData.city || formData.city.trim().length < 2) {
-      return 'Please enter your city';
+      return '❌ City: Please enter your city (at least 2 characters)';
     }
 
-    if (!formData.state || formData.state.length !== 2) {
-      return 'Please enter a valid state code (e.g., "CA")';
+    if (!formData.state || formData.state.trim().length !== 2) {
+      return `❌ State: Please enter a 2-letter state code (e.g., "CA", "NY"). You entered: "${formData.state || ''}"`;
     }
 
-    if (!formData.postal_code || !formData.postal_code.match(/^\d{5}(-\d{4})?$/)) {
-      return 'Please enter a valid postal code';
+    // More flexible postal code validation - accept 5 digits with optional -XXXX
+    const postalDigits = formData.postal_code ? formData.postal_code.replace(/\D/g, '') : '';
+    if (!postalDigits || (postalDigits.length !== 5 && postalDigits.length !== 9)) {
+      return `❌ Postal Code: Please enter a valid 5-digit ZIP code (e.g., "94102"). You entered: "${formData.postal_code || ''}"`;
     }
 
+    console.log('[W9] Validation passed!');
     return null;
   };
 
@@ -212,8 +221,9 @@ export default function W9OnboardingModal({
           </div>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-xl mb-6">
-              {error}
+            <div id="w9-error" className="bg-red-500/30 border-2 border-red-500 text-red-100 px-6 py-4 rounded-xl mb-6 animate-pulse">
+              <p className="font-bold text-lg mb-1">⚠️ Please fix the following:</p>
+              <p>{error}</p>
             </div>
           )}
 
@@ -272,27 +282,37 @@ export default function W9OnboardingModal({
             {/* Tax ID Section */}
             <div className="bg-black/20 rounded-2xl p-6 space-y-4">
               <h3 className="text-white font-semibold text-lg mb-4">Tax Identification Numbers</h3>
-              <p className="text-yellow-400 text-sm mb-4">
-                🔒 <strong>Security:</strong> Only the last 4 digits of your SSN will be stored.
-              </p>
+              <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-4 mb-4">
+                <p className="text-yellow-200 text-sm">
+                  🔒 <strong>Security:</strong> We need your full SSN to verify your identity and comply with IRS regulations. 
+                  However, only the <strong>last 4 digits</strong> are stored in our database.
+                </p>
+              </div>
               
               <div>
                 <label className="block text-white mb-2 text-sm font-medium">
-                  Social Security Number (SSN)
+                  Social Security Number (SSN) <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="password"
                   value={formData.ssn || ''}
                   onChange={(e) => setFormData({ ...formData, ssn: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
-                  placeholder="123-45-6789"
-                  maxLength={11}
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none font-mono text-lg tracking-wider"
+                  placeholder="Enter 9 digits (no dashes)"
+                  maxLength={9}
                 />
-                <p className="text-gray-400 text-xs mt-1">Required for individuals</p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-gray-400 text-xs">Required for individuals</p>
+                  <p className={`text-xs font-mono ${
+                    (formData.ssn?.length || 0) === 9 ? 'text-green-400' : 'text-gray-400'
+                  }`}>
+                    {formData.ssn?.length || 0}/9 digits {(formData.ssn?.length || 0) === 9 && '✓'}
+                  </p>
+                </div>
               </div>
 
-              <div className="text-center text-gray-400 text-sm">
-                — OR —
+              <div className="text-center text-gray-400 text-sm py-2">
+                — OR (for businesses) —
               </div>
 
               <div>
@@ -303,11 +323,18 @@ export default function W9OnboardingModal({
                   type="text"
                   value={formData.ein || ''}
                   onChange={(e) => setFormData({ ...formData, ein: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none"
-                  placeholder="12-3456789"
-                  maxLength={10}
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:border-blue-500 focus:outline-none font-mono text-lg tracking-wider"
+                  placeholder="Enter 9 digits (no dashes)"
+                  maxLength={9}
                 />
-                <p className="text-gray-400 text-xs mt-1">Required for businesses</p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-gray-400 text-xs">Required for businesses only</p>
+                  <p className={`text-xs font-mono ${
+                    (formData.ein?.length || 0) === 9 ? 'text-green-400' : 'text-gray-400'
+                  }`}>
+                    {formData.ein?.length || 0}/9 digits {(formData.ein?.length || 0) === 9 && '✓'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -398,6 +425,10 @@ export default function W9OnboardingModal({
                 const validationError = validateForm();
                 if (validationError) {
                   setError(validationError);
+                  // Scroll to error
+                  setTimeout(() => {
+                    document.getElementById('w9-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 100);
                 } else {
                   setError(null);
                   setStep('signature');
