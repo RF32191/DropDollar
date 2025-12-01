@@ -18,7 +18,7 @@ import {
   W9SubmissionRequest, 
   TaxClassification 
 } from '@/types/tax';
-import { getSupabaseClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 
 interface W9OnboardingModalProps {
@@ -43,8 +43,6 @@ export default function W9OnboardingModal({
     tax_classification: 'individual',
     country: 'US',
   });
-
-  const supabase = getSupabaseClient();
 
   // Login state
   const [showLogin, setShowLogin] = useState(false);
@@ -80,7 +78,7 @@ export default function W9OnboardingModal({
     if (isOpen) {
       getUser();
     }
-  }, [isOpen, supabase.auth]);
+  }, [isOpen]);
 
   // Handle login
   const handleLogin = async (e: React.FormEvent) => {
