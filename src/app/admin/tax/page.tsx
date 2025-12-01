@@ -67,19 +67,44 @@ export default function TaxAdminDashboard() {
 
   const adminEmail = 'rf32191@gmail.com';
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   
   const supabase = createClientComponentClient();
 
   // Get auth token on mount
   useEffect(() => {
     const getToken = async () => {
+      console.log('[Tax Admin] Getting auth token...');
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        console.log('[Tax Admin] Session found:', session.user?.email);
         setAuthToken(session.access_token);
+        setCurrentUserEmail(session.user?.email || null);
+      } else {
+        console.log('[Tax Admin] No session found');
       }
+      setIsAuthReady(true);
     };
     getToken();
-  }, []);
+    
+    // Also listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Tax Admin] Auth state changed:', event, session?.user?.email);
+      if (session) {
+        setAuthToken(session.access_token);
+        setCurrentUserEmail(session.user?.email || null);
+      } else {
+        setAuthToken(null);
+        setCurrentUserEmail(null);
+      }
+      setIsAuthReady(true);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
 
   // ============================================================================
   // TEST SECTION - Admin W-9 & 1099 Testing
@@ -89,14 +114,20 @@ export default function TaxAdminDashboard() {
     setShowW9Modal(true);
   };
 
+  // Helper function to get fresh auth token
+  const getFreshToken = async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setAuthToken(session.access_token);
+      setCurrentUserEmail(session.user?.email || null);
+      return session.access_token;
+    }
+    return null;
+  };
+
   const handleGenerateTest1099 = async () => {
     if (!testAmount || parseInt(testAmount) <= 0) {
       alert('Please enter a valid withdrawal amount');
-      return;
-    }
-
-    if (!authToken) {
-      alert('Please log in with rf32191@gmail.com to access this feature');
       return;
     }
 
@@ -104,11 +135,26 @@ export default function TaxAdminDashboard() {
     setTestResult(null);
 
     try {
+      // Get fresh token
+      let token = authToken;
+      if (!token) {
+        console.log('[Tax Admin] No token cached, getting fresh token...');
+        token = await getFreshToken();
+      }
+
+      if (!token) {
+        setTestResult('❌ Please log in with rf32191@gmail.com to access this feature.\n\nIf you are logged in, try refreshing the page.');
+        setTestLoading(false);
+        return;
+      }
+
+      console.log('[Tax Admin] Generating test 1099 with token...');
+
       const response = await fetch('/api/tax/admin/test-1099', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           email: adminEmail,
@@ -144,8 +190,15 @@ export default function TaxAdminDashboard() {
   const fetchW9s = async () => {
     setW9Loading(true);
     try {
-      if (!authToken) {
-        alert('Please log in with rf32191@gmail.com to access admin features');
+      // Get fresh token
+      let token = authToken;
+      if (!token) {
+        token = await getFreshToken();
+      }
+
+      if (!token) {
+        console.log('[Tax Admin] No token for fetchW9s');
+        setW9Loading(false);
         return;
       }
 
@@ -163,7 +216,7 @@ export default function TaxAdminDashboard() {
 
       const response = await fetch(url, {
         headers: { 
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
@@ -171,11 +224,10 @@ export default function TaxAdminDashboard() {
       if (result.success) {
         setW9s(result.data);
       } else {
-        alert(`Failed to fetch W-9s: ${result.error}`);
+        console.error('Failed to fetch W-9s:', result.error);
       }
     } catch (error) {
       console.error('Error fetching W-9s:', error);
-      alert('Failed to fetch W-9 records');
     } finally {
       setW9Loading(false);
     }
@@ -188,11 +240,21 @@ export default function TaxAdminDashboard() {
   const fetch1099s = async () => {
     setForm1099Loading(true);
     try {
-      if (!authToken) return;
+      // Get fresh token
+      let token = authToken;
+      if (!token) {
+        token = await getFreshToken();
+      }
+
+      if (!token) {
+        console.log('[Tax Admin] No token for fetch1099s');
+        setForm1099Loading(false);
+        return;
+      }
 
       const response = await fetch(
         `/api/tax/admin/w9s?needs_1099=true&limit=500`,
-        { headers: { 'Authorization': `Bearer ${authToken}` } }
+        { headers: { 'Authorization': `Bearer ${token}` } }
       );
 
       const result = await response.json();
@@ -225,7 +287,13 @@ export default function TaxAdminDashboard() {
   const generate1099s = async () => {
     if (!confirm(`Generate 1099s for tax year ${form1099Year}?`)) return;
 
-    if (!authToken) {
+    // Get fresh token
+    let token = authToken;
+    if (!token) {
+      token = await getFreshToken();
+    }
+
+    if (!token) {
       alert('Please log in with rf32191@gmail.com');
       return;
     }
@@ -235,7 +303,7 @@ export default function TaxAdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ tax_year: form1099Year }),
       });
@@ -243,9 +311,9 @@ export default function TaxAdminDashboard() {
       const result = await response.json();
       alert(
         `1099 Generation Complete!\n\n` +
-        `Success: ${result.stats.success}\n` +
-        `Failed: ${result.stats.failed}\n` +
-        `Total: ${result.stats.total}`
+        `Success: ${result.stats?.success || 0}\n` +
+        `Failed: ${result.stats?.failed || 0}\n` +
+        `Total: ${result.stats?.total || 0}`
       );
 
       if (result.success) {
@@ -263,7 +331,13 @@ export default function TaxAdminDashboard() {
       `This will send messages to their account dashboards (not email).`
     )) return;
 
-    if (!authToken) {
+    // Get fresh token
+    let token = authToken;
+    if (!token) {
+      token = await getFreshToken();
+    }
+
+    if (!token) {
       alert('Please log in with rf32191@gmail.com');
       return;
     }
@@ -273,7 +347,7 @@ export default function TaxAdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ tax_year: form1099Year }),
       });
@@ -281,9 +355,9 @@ export default function TaxAdminDashboard() {
       const result = await response.json();
       alert(
         `Notification Delivery Complete!\n\n` +
-        `✅ Sent to user accounts: ${result.stats.success}\n` +
-        `❌ Failed: ${result.stats.failed}\n` +
-        `📊 Total: ${result.stats.total}\n\n` +
+        `✅ Sent to user accounts: ${result.stats?.success || 0}\n` +
+        `❌ Failed: ${result.stats?.failed || 0}\n` +
+        `📊 Total: ${result.stats?.total || 0}\n\n` +
         `Users can view their 1099s in their account dashboard.`
       );
     } catch (error) {
@@ -303,23 +377,34 @@ export default function TaxAdminDashboard() {
   };
 
   const verifyIntegrity = async () => {
+    // Get fresh token
+    let token = authToken;
+    if (!token) {
+      token = await getFreshToken();
+    }
+
+    if (!token) {
+      alert('Please log in to verify integrity');
+      return;
+    }
+
     try {
       const response = await fetch('/api/tax/admin/backup/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ tax_year: form1099Year }),
       });
 
       const result = await response.json();
       alert(
-        `Data Integrity Check - ${result.overall_status}\n\n` +
-        `Passed: ${result.summary.passed}\n` +
-        `Warnings: ${result.summary.warnings}\n` +
-        `Failed: ${result.summary.failed}\n\n` +
-        `${result.checks.map((c: any) => `${c.check_name}: ${c.status}`).join('\n')}`
+        `Data Integrity Check - ${result.overall_status || 'Unknown'}\n\n` +
+        `Passed: ${result.summary?.passed || 0}\n` +
+        `Warnings: ${result.summary?.warnings || 0}\n` +
+        `Failed: ${result.summary?.failed || 0}\n\n` +
+        `${result.checks?.map((c: any) => `${c.check_name}: ${c.status}`).join('\n') || 'No details'}`
       );
     } catch (error) {
       alert('Failed to verify integrity');
@@ -328,7 +413,13 @@ export default function TaxAdminDashboard() {
   };
 
   const downloadUserDocs = async (userId: string) => {
-    if (!authToken) {
+    // Get fresh token
+    let token = authToken;
+    if (!token) {
+      token = await getFreshToken();
+    }
+
+    if (!token) {
       alert('Please log in');
       return;
     }
@@ -337,7 +428,7 @@ export default function TaxAdminDashboard() {
       const url = `/api/tax/admin/documents/${userId}`;
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
@@ -362,12 +453,18 @@ export default function TaxAdminDashboard() {
   };
 
   const send1099ToUser = async (userId: string, userEmail: string) => {
-    if (!authToken) {
-      alert('Please log in');
+    if (!confirm(`Send 1099 notification to ${userEmail}?`)) {
       return;
     }
 
-    if (!confirm(`Send 1099 notification to ${userEmail}?`)) {
+    // Get fresh token
+    let token = authToken;
+    if (!token) {
+      token = await getFreshToken();
+    }
+
+    if (!token) {
+      alert('Please log in');
       return;
     }
 
@@ -376,7 +473,7 @@ export default function TaxAdminDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
           tax_year: form1099Year,
@@ -397,17 +494,37 @@ export default function TaxAdminDashboard() {
     }
   };
 
-  // Load data on mount
+  // Load data when auth is ready
   useEffect(() => {
-    fetchW9s();
-    fetch1099s();
-  }, []);
+    if (isAuthReady && authToken) {
+      console.log('[Tax Admin] Auth ready, fetching data...');
+      fetchW9s();
+      fetch1099s();
+    }
+  }, [isAuthReady, authToken]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
       <div className="container mx-auto max-w-7xl">
         <h1 className="text-5xl font-bold mb-2 text-gray-900">🧾 Tax Administration</h1>
-        <p className="text-gray-600 mb-8">Manage W-9 forms, 1099 documents, and tax compliance</p>
+        <p className="text-gray-600 mb-4">Manage W-9 forms, 1099 documents, and tax compliance</p>
+        
+        {/* Auth Status */}
+        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-8 ${
+          isAuthReady 
+            ? authToken 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-red-100 text-red-800'
+            : 'bg-yellow-100 text-yellow-800'
+        }`}>
+          {!isAuthReady ? (
+            <>⏳ Loading authentication...</>
+          ) : authToken ? (
+            <>✅ Logged in as: {currentUserEmail}</>
+          ) : (
+            <>❌ Not authenticated - please log in</>
+          )}
+        </div>
 
         {/* ====================================================================== */}
         {/* ADMIN TEST SECTION */}
