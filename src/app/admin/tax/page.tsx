@@ -70,6 +70,12 @@ export default function TaxAdminDashboard() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  
   const supabase = createClientComponentClient();
 
   // Get auth token on mount
@@ -105,6 +111,54 @@ export default function TaxAdminDashboard() {
       subscription.unsubscribe();
     };
   }, [supabase.auth]);
+
+  // ============================================================================
+  // LOGIN FUNCTION
+  // ============================================================================
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError(null);
+
+    try {
+      console.log('[Tax Admin] Attempting login for:', loginEmail);
+      
+      // Check if email is admin email
+      if (loginEmail.toLowerCase() !== adminEmail.toLowerCase()) {
+        setLoginError('This login is only for admin access (rf32191@gmail.com)');
+        setLoginLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (error) {
+        console.error('[Tax Admin] Login error:', error.message);
+        setLoginError(error.message);
+      } else if (data.session) {
+        console.log('[Tax Admin] Login successful!');
+        setAuthToken(data.session.access_token);
+        setCurrentUserEmail(data.session.user?.email || null);
+        setLoginEmail('');
+        setLoginPassword('');
+      }
+    } catch (err) {
+      console.error('[Tax Admin] Login exception:', err);
+      setLoginError('An unexpected error occurred');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setAuthToken(null);
+    setCurrentUserEmail(null);
+  };
 
   // ============================================================================
   // TEST SECTION - Admin W-9 & 1099 Testing
@@ -509,23 +563,79 @@ export default function TaxAdminDashboard() {
         <h1 className="text-5xl font-bold mb-2 text-gray-900">🧾 Tax Administration</h1>
         <p className="text-gray-600 mb-4">Manage W-9 forms, 1099 documents, and tax compliance</p>
         
-        {/* Auth Status */}
-        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-8 ${
-          isAuthReady 
-            ? authToken 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-            : 'bg-yellow-100 text-yellow-800'
-        }`}>
-          {!isAuthReady ? (
-            <>⏳ Loading authentication...</>
-          ) : authToken ? (
-            <>✅ Logged in as: {currentUserEmail}</>
-          ) : (
-            <>❌ Not authenticated - please log in</>
-          )}
-        </div>
+        {/* Auth Status & Login */}
+        {!isAuthReady ? (
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-8 bg-yellow-100 text-yellow-800">
+            ⏳ Loading authentication...
+          </div>
+        ) : authToken ? (
+          <div className="flex items-center gap-4 mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+              ✅ Logged in as: {currentUserEmail}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-all"
+            >
+              Sign Out
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 max-w-md">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">🔐 Admin Login Required</h2>
+            <p className="text-gray-600 mb-6">
+              Please log in with your admin credentials to access tax management.
+            </p>
+            
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="rf32191@gmail.com"
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+                />
+              </div>
 
+              {loginError && (
+                <div className="p-3 bg-red-100 text-red-700 rounded-xl text-sm">
+                  ❌ {loginError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+              >
+                {loginLoading ? 'Logging in...' : '🔓 Log In to Tax Admin'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Only show content when authenticated */}
+        {authToken && (
+          <>
         {/* ====================================================================== */}
         {/* ADMIN TEST SECTION */}
         {/* ====================================================================== */}
@@ -816,6 +926,8 @@ export default function TaxAdminDashboard() {
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* W-9 Modal */}
