@@ -13,12 +13,13 @@
  * - Client-side validation before submission
  */
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   W9SubmissionRequest, 
   TaxClassification 
 } from '@/types/tax';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { getSupabaseClient } from '@/lib/supabase/client';
+import { User } from '@supabase/supabase-js';
 
 interface W9OnboardingModalProps {
   isOpen: boolean;
@@ -36,13 +37,38 @@ export default function W9OnboardingModal({
   const [step, setStep] = useState<'intro' | 'form' | 'signature'>('intro');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [formData, setFormData] = useState<Partial<W9SubmissionRequest>>({
     tax_classification: 'individual',
     country: 'US',
   });
 
-  const supabase = createClientComponentClient();
+  const supabase = getSupabaseClient();
+
+  // Get current user on mount
+  useEffect(() => {
+    const getUser = async () => {
+      console.log('[W9] Checking authentication...');
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user) {
+        console.log('[W9] User authenticated:', user.email);
+        setCurrentUser(user);
+      } else {
+        console.log('[W9] No user found:', error?.message);
+        // Also try getSession as fallback
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log('[W9] Found user via session:', session.user.email);
+          setCurrentUser(session.user);
+        }
+      }
+    };
+    
+    if (isOpen) {
+      getUser();
+    }
+  }, [isOpen, supabase.auth]);
 
   if (!isOpen) return null;
 
@@ -114,79 +140,60 @@ export default function W9OnboardingModal({
       }
 
       console.log('[W9] Starting submission...');
+      console.log('[W9] Current user from state:', currentUser?.email);
 
-      // Get fresh auth session (refresh if needed)
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('[W9] Session error:', sessionError);
-        setError('Session expired. Please refresh the page and log in again.');
-        setLoading(false);
-        return;
-      }
+      // Use the user we already have, or try to get one
+      let userId = currentUser?.id;
+      let userEmail = currentUser?.email;
 
-      if (!session) {
-        console.error('[W9] No session found');
-        setError('Authentication required. Please log in.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('[W9] Session found for:', session.user?.email);
-
-      // Try to refresh the token to ensure it's valid
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      const activeSession = refreshData?.session || session;
-
-      if (refreshError) {
-        console.warn('[W9] Token refresh warning:', refreshError.message);
-        // Continue with existing session
-      }
-
-      console.log('[W9] Using token (first 20 chars):', activeSession.access_token?.substring(0, 20) + '...');
-
-      // Submit W-9
-      const response = await fetch('/api/tax/w9/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${activeSession.access_token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
-      console.log('[W9] API response:', result);
-
-      if (!response.ok) {
-        // If auth failed, try direct Supabase insert
-        if (response.status === 401) {
-          console.log('[W9] API auth failed, trying direct Supabase...');
-          const directResult = await submitDirectToSupabase(activeSession.user.id);
-          if (directResult.success) {
-            console.log('✅ W-9 submitted via direct Supabase');
-            if (onSuccess) {
-              onSuccess();
-            } else {
-              setTimeout(() => onClose(), 2000);
-            }
-            return;
+      if (!userId) {
+        console.log('[W9] No user in state, trying to fetch...');
+        
+        // Try multiple methods to get the user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          userId = user.id;
+          userEmail = user.email;
+          console.log('[W9] Got user via getUser():', userEmail);
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            userId = session.user.id;
+            userEmail = session.user.email;
+            console.log('[W9] Got user via getSession():', userEmail);
           }
-          throw new Error(directResult.error || 'Direct submission also failed');
         }
-        throw new Error(result.message || result.errors?.join(', ') || 'Failed to submit W-9');
       }
 
-      console.log('✅ W-9 submitted successfully');
-      
-      // Show success and close
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        setTimeout(() => {
-          onClose();
-        }, 2000);
+      if (!userId) {
+        console.error('[W9] Could not find authenticated user');
+        setError('❌ Not logged in.\n\nPlease refresh the page and make sure you are logged in before filling out the W-9.');
+        setLoading(false);
+        return;
       }
+
+      console.log('[W9] Submitting for user:', userEmail, 'ID:', userId);
+
+      // Try direct Supabase insert (most reliable)
+      console.log('[W9] Using direct Supabase submission...');
+      const directResult = await submitDirectToSupabase(userId);
+      
+      if (directResult.success) {
+        console.log('✅ W-9 submitted successfully via Supabase');
+        
+        // Show success message briefly
+        setError(null);
+        
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          setTimeout(() => onClose(), 1500);
+        }
+        return;
+      }
+      
+      // If direct failed, show the error
+      throw new Error(directResult.error || 'Failed to submit W-9');
 
     } catch (err: any) {
       console.error('[W9] Submission error:', err);
@@ -561,9 +568,16 @@ export default function W9OnboardingModal({
             </div>
           </form>
 
-          {/* Debug Info - shows what's filled out */}
+          {/* User Info & Form Status */}
           <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-4 mt-6">
-            <p className="text-blue-200 text-xs font-bold mb-2">📋 Form Status (Debug):</p>
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-blue-200 text-xs font-bold">📋 Form Status:</p>
+              <p className={`text-xs font-bold px-3 py-1 rounded-full ${
+                currentUser ? 'bg-green-500/30 text-green-200' : 'bg-red-500/30 text-red-200'
+              }`}>
+                {currentUser ? `✅ Signed in as: ${currentUser.email}` : '❌ Not signed in!'}
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-2 text-xs text-blue-100">
               <span>Name: {formData.full_name ? `✅ "${formData.full_name}"` : '❌ Missing'}</span>
               <span>Classification: {formData.tax_classification ? `✅ ${formData.tax_classification}` : '❌ Missing'}</span>
