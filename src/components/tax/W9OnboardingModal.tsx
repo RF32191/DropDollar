@@ -188,9 +188,18 @@ export default function W9OnboardingModal({
         }, 2000);
       }
 
-    } catch (err) {
-      console.error('W-9 submission error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } catch (err: any) {
+      console.error('[W9] Submission error:', err);
+      const errorMsg = err?.message || err?.toString() || 'An unexpected error occurred';
+      
+      // Provide helpful error messages
+      if (errorMsg.includes('does not exist') || errorMsg.includes('42P01')) {
+        setError('❌ Tax tables not set up yet!\n\nPlease run CREATE_TAX_TABLES.sql in Supabase SQL Editor first.');
+      } else if (errorMsg.includes('permission')) {
+        setError('❌ Permission denied.\n\nPlease run CREATE_TAX_TABLES.sql to set up proper permissions.');
+      } else {
+        setError(`❌ ${errorMsg}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -199,6 +208,8 @@ export default function W9OnboardingModal({
   // Fallback: Submit directly to Supabase if API auth fails
   const submitDirectToSupabase = async (userId: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      console.log('[W9] Direct Supabase submission for user:', userId);
+      
       // Extract last 4 of SSN
       const ssnLast4 = formData.ssn ? formData.ssn.slice(-4) : null;
       const ein = formData.ein ? formData.ein.replace(/\D/g, '').replace(/^(\d{2})(\d{7})$/, '$1-$2') : null;
@@ -220,12 +231,32 @@ export default function W9OnboardingModal({
         electronic_consent_given: formData.consent_given,
       };
 
+      console.log('[W9] Data to insert:', taxProfileData);
+
       // Check for existing profile
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('tax_profiles')
         .select('id')
         .eq('user_id', userId)
         .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 = no rows (OK, means we need to insert)
+        // Any other error is a problem
+        console.error('[W9] Error checking existing profile:', checkError);
+        
+        // Check if table doesn't exist
+        if (checkError.message?.includes('does not exist') || checkError.code === '42P01') {
+          return { 
+            success: false, 
+            error: 'Tax tables not created yet. Please run CREATE_TAX_TABLES.sql in Supabase first!' 
+          };
+        }
+        
+        return { success: false, error: `Database error: ${checkError.message}` };
+      }
+
+      console.log('[W9] Existing profile check:', existing ? 'Found - will update' : 'Not found - will insert');
 
       if (existing) {
         // Update existing
@@ -234,20 +265,41 @@ export default function W9OnboardingModal({
           .update(taxProfileData)
           .eq('user_id', userId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('[W9] Update error:', error);
+          return { success: false, error: `Update failed: ${error.message}` };
+        }
+        console.log('[W9] ✅ Updated existing tax profile');
       } else {
         // Insert new
         const { error } = await supabase
           .from('tax_profiles')
           .insert(taxProfileData);
 
-        if (error) throw error;
+        if (error) {
+          console.error('[W9] Insert error:', error);
+          
+          // Provide specific error messages
+          if (error.message?.includes('permission denied')) {
+            return { success: false, error: 'Permission denied. RLS policy may be blocking insert. Run CREATE_TAX_TABLES.sql to fix.' };
+          }
+          if (error.message?.includes('does not exist')) {
+            return { success: false, error: 'Tax tables not created yet. Please run CREATE_TAX_TABLES.sql in Supabase first!' };
+          }
+          if (error.message?.includes('violates')) {
+            return { success: false, error: `Data validation error: ${error.message}` };
+          }
+          
+          return { success: false, error: `Insert failed: ${error.message}` };
+        }
+        console.log('[W9] ✅ Inserted new tax profile');
       }
 
       return { success: true };
-    } catch (err) {
-      console.error('[W9] Direct Supabase error:', err);
-      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    } catch (err: any) {
+      console.error('[W9] Direct Supabase exception:', err);
+      const errorMsg = err?.message || err?.toString() || 'Unknown error occurred';
+      return { success: false, error: errorMsg };
     }
   };
 
