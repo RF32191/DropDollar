@@ -170,7 +170,55 @@ export default function CashoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+      {/* Navigation Header */}
+      <nav className="bg-gray-900/80 backdrop-blur-lg border-b border-gray-700 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-2 text-white hover:text-green-400 transition-colors"
+              >
+                <span className="text-2xl">💰</span>
+                <span className="text-xl font-bold">DropDollar</span>
+              </button>
+              <span className="text-gray-500">|</span>
+              <span className="text-gray-400">Cash Out</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {user ? (
+                <>
+                  <div className="hidden md:flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-700">
+                    <span className="text-green-400">✅</span>
+                    <span className="text-white font-medium">{user.email}</span>
+                  </div>
+                  <div className="bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full">
+                    <span className="text-green-400 font-bold">${wonTokens.toFixed(2)}</span>
+                  </div>
+                </>
+              ) : (
+                <button
+                  onClick={() => router.push('/auth/signin')}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2 rounded-lg transition-all"
+                >
+                  Sign In
+                </button>
+              )}
+              
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="text-gray-400 hover:text-white px-3 py-2 rounded-lg transition-colors"
+              >
+                Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -302,13 +350,14 @@ export default function CashoutPage() {
           </button>
         </div>
       </div>
+      </div>
 
       {/* W-9 Modal */}
       {showW9Modal && (
         <W9OnboardingModal
           isOpen={showW9Modal}
           onClose={() => setShowW9Modal(false)}
-          onComplete={handleW9Complete}
+          onSuccess={handleW9Complete}
         />
       )}
     </div>
