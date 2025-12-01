@@ -434,12 +434,46 @@ export default function W9OnboardingModal({
   };
 
   // ============================================================================
+  // NAVIGATION HEADER COMPONENT
+  // ============================================================================
+  const NavigationHeader = () => (
+    <div className="bg-black/40 border-b border-white/10 px-6 py-3 flex justify-between items-center rounded-t-3xl -mx-8 -mt-8 mb-6">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">💰</span>
+        <span className="text-white font-bold">DropDollar</span>
+      </div>
+      <div className="flex items-center gap-4">
+        {currentUser ? (
+          <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1.5 rounded-full">
+            <span className="text-green-400 text-sm">✅</span>
+            <span className="text-green-200 text-sm font-medium">{currentUser.email}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-red-500/20 px-3 py-1.5 rounded-full">
+            <span className="text-red-400 text-sm">⚠️</span>
+            <span className="text-red-200 text-sm">Not signed in</span>
+          </div>
+        )}
+        {!isBlocking && (
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  // ============================================================================
   // INTRO STEP
   // ============================================================================
   if (step === 'intro') {
     return (
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-2xl w-full p-8 border border-white/10 shadow-2xl">
+          <NavigationHeader />
           <div className="text-center mb-6">
             <div className="text-6xl mb-4">📋</div>
             <h2 className="text-3xl font-bold text-white mb-2">Tax Information Required</h2>
@@ -493,6 +527,7 @@ export default function W9OnboardingModal({
       <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
         <div className="min-h-full flex items-start justify-center p-4 py-8">
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-3xl w-full p-8 border border-white/10 shadow-2xl">
+            <NavigationHeader />
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-white mb-2">W-9 Tax Information</h2>
               <p className="text-gray-400 text-sm">Complete the form below. All fields are required unless marked optional.</p>
@@ -764,7 +799,9 @@ export default function W9OnboardingModal({
     return (
       <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
         <div className="min-h-full flex items-center justify-center p-4 py-8">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-lg w-full p-8 border border-white/10 shadow-2xl text-center">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-lg w-full p-8 border border-white/10 shadow-2xl">
+            <NavigationHeader />
+            <div className="text-center">
             <div className="text-8xl mb-6">✅</div>
             <h2 className="text-3xl font-bold text-white mb-4">W-9 Submitted Successfully!</h2>
             <p className="text-gray-300 mb-6">
@@ -804,6 +841,7 @@ export default function W9OnboardingModal({
             <p className="text-gray-500 text-xs mt-6">
               Your W-9 is now visible to the admin in the Tax Management dashboard.
             </p>
+            </div>
           </div>
         </div>
       </div>
@@ -817,6 +855,7 @@ export default function W9OnboardingModal({
     <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
       <div className="min-h-full flex items-start justify-center p-4 py-8">
         <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-2xl w-full p-8 border border-white/10 shadow-2xl">
+        <NavigationHeader />
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-white mb-2">Electronic Signature</h2>
           <p className="text-gray-400 text-sm">Review and sign your W-9 information</p>

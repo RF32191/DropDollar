@@ -59,22 +59,68 @@ export async function GET(request: NextRequest) {
 
     const supabase = getServiceClient();
 
-    // Use the admin function to get W-9s
-    let query = supabase.rpc('admin_get_all_w9s', {
+    // Try the RPC function first, fallback to direct query
+    let w9s: any[] = [];
+    let fetchError: any = null;
+
+    // Try RPC function first
+    const { data: rpcData, error: rpcError } = await supabase.rpc('admin_get_all_w9s', {
       p_limit: limit,
       p_offset: offset,
       p_search: search,
     });
 
-    const { data: w9s, error } = await query;
+    if (rpcError) {
+      console.log('RPC failed, trying direct query:', rpcError.message);
+      
+      // Fallback: Direct table query
+      let directQuery = supabase
+        .from('tax_profiles')
+        .select(`
+          id,
+          user_id,
+          full_name,
+          business_name,
+          tax_classification,
+          ssn_last4,
+          ein,
+          city,
+          state,
+          signed_at,
+          is_verified,
+          created_at
+        `)
+        .order('signed_at', { ascending: false, nullsFirst: false })
+        .range(offset, offset + limit - 1);
 
-    if (error) {
-      console.error('Error fetching W-9s:', error);
+      if (search) {
+        directQuery = directQuery.or(`full_name.ilike.%${search}%,ssn_last4.ilike.%${search}%,ein.ilike.%${search}%`);
+      }
+
+      const { data: directData, error: directError } = await directQuery;
+
+      if (directError) {
+        console.error('Direct query also failed:', directError);
+        fetchError = directError;
+      } else {
+        // Map to expected format
+        w9s = (directData || []).map((tp: any) => ({
+          ...tp,
+          user_email: 'See user table', // We don't have email in direct query
+          total_lifetime_earnings_cents: 0,
+          needs_1099_current_year: false,
+        }));
+      }
+    } else {
+      w9s = rpcData || [];
+    }
+
+    if (fetchError && w9s.length === 0) {
       return NextResponse.json(
         { 
           success: false, 
           error: 'Failed to fetch W-9 records',
-          details: error.message 
+          details: fetchError.message 
         },
         { status: 500 }
       );
