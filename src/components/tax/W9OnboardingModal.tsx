@@ -361,6 +361,8 @@ export default function W9OnboardingModal({
         postal_code: formData.postal_code,
         country: formData.country || 'US',
         signed_at: new Date().toISOString(),
+        signature_ip: 'client-submission',
+        signature_user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
         electronic_consent_given: formData.consent_given,
       };
 
