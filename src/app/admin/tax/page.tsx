@@ -275,15 +275,64 @@ export default function TaxAdminDashboard() {
       });
 
       const result = await response.json();
-      if (result.success) {
+      console.log('[Tax Admin] W-9 API result:', result);
+      
+      if (result.success && result.data && result.data.length > 0) {
         setW9s(result.data);
       } else {
-        console.error('Failed to fetch W-9s:', result.error);
+        console.log('[Tax Admin] API returned empty, trying direct query...');
+        // Fallback: Try direct Supabase query
+        await fetchW9sDirect();
       }
     } catch (error) {
       console.error('Error fetching W-9s:', error);
+      // Try direct query on error
+      await fetchW9sDirect();
     } finally {
       setW9Loading(false);
+    }
+  };
+
+  // Direct Supabase query for W-9s (bypasses API)
+  const fetchW9sDirect = async () => {
+    try {
+      console.log('[Tax Admin] Fetching W-9s directly from Supabase...');
+      
+      const { data, error } = await supabase
+        .from('tax_profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[Tax Admin] Direct query error:', error);
+        return;
+      }
+
+      console.log('[Tax Admin] Direct query result:', data);
+
+      if (data && data.length > 0) {
+        // Map to expected format
+        const mappedW9s = data.map((tp: any) => ({
+          id: tp.id,
+          user_id: tp.user_id,
+          user_email: tp.user_id, // We don't have email in direct query
+          full_name: tp.full_name,
+          business_name: tp.business_name,
+          tax_classification: tp.tax_classification,
+          ssn_last4: tp.ssn_last4,
+          ein: tp.ein,
+          city: tp.city,
+          state: tp.state,
+          signed_at: tp.signed_at || tp.created_at,
+          is_verified: tp.is_verified || false,
+          total_lifetime_earnings_cents: 0,
+          needs_1099_current_year: false,
+        }));
+        setW9s(mappedW9s);
+        console.log('[Tax Admin] Loaded', mappedW9s.length, 'W-9s directly');
+      }
+    } catch (err) {
+      console.error('[Tax Admin] Direct query exception:', err);
     }
   };
 
@@ -767,12 +816,30 @@ export default function TaxAdminDashboard() {
             </select>
           </div>
 
-          <button
-            onClick={fetchW9s}
-            disabled={w9Loading}
-            className="mb-6 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-all disabled:opacity-50"
-          >
-            {w9Loading ? 'Loading...' : '🔍 Search'}
+          <div className="flex gap-4 mb-6">
+            <button
+              onClick={fetchW9s}
+              disabled={w9Loading}
+              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+            >
+              {w9Loading ? 'Loading...' : '🔍 Search via API'}
+            </button>
+            
+            <button
+              onClick={fetchW9sDirect}
+              disabled={w9Loading}
+              className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition-all disabled:opacity-50"
+            >
+              📊 Load Direct from Database
+            </button>
+            
+            <span className="flex items-center text-gray-500 text-sm">
+              Found: {w9s.length} records
+            </span>
+          </div>
+          
+          <div className="hidden" style={{display: 'none'}}>
+            {/* Removed duplicate button */
           </button>
 
           {/* W-9 Table */}
