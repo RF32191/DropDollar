@@ -319,21 +319,36 @@ export default function AdminDashboard() {
 
         console.log('👤 [Verification] Seller:', seller.shop_name, '| DL path:', seller.dl_front_url);
 
-        // Generate public URLs for storage paths
-        const getStorageUrl = (path: string | null) => {
+        // Generate SIGNED URLs for private storage (expires in 1 hour)
+        const getSignedUrl = async (path: string | null) => {
           if (!path) return '';
           // If it's already a full URL, return as-is
           if (path.startsWith('http')) return path;
-          // Generate public URL from Supabase storage
-          const { data } = supabase.storage.from('seller-documents').getPublicUrl(path);
-          return data?.publicUrl || '';
+          
+          try {
+            const { data, error } = await supabase.storage
+              .from('seller-documents')
+              .createSignedUrl(path, 3600); // 1 hour expiry
+            
+            if (error) {
+              console.error('Error creating signed URL:', error);
+              return '';
+            }
+            return data?.signedUrl || '';
+          } catch (err) {
+            console.error('Error getting signed URL:', err);
+            return '';
+          }
         };
 
-        const dlFrontUrl = getStorageUrl(seller.dl_front_url);
-        const dlBackUrl = getStorageUrl(seller.dl_back_url);
-        const selfieUrl = getStorageUrl(seller.selfie_url);
+        // Get signed URLs for all documents
+        const [dlFrontUrl, dlBackUrl, selfieUrl] = await Promise.all([
+          getSignedUrl(seller.dl_front_url),
+          getSignedUrl(seller.dl_back_url),
+          getSignedUrl(seller.selfie_url)
+        ]);
         
-        console.log('🖼️ [Verification] DL Front URL:', dlFrontUrl);
+        console.log('🔐 [Verification] Signed DL Front URL:', dlFrontUrl ? 'Generated' : 'None');
 
         return {
           seller_id: seller.id,
