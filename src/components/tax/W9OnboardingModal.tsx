@@ -34,7 +34,7 @@ export default function W9OnboardingModal({
   onSuccess,
   isBlocking = false,
 }: W9OnboardingModalProps) {
-  const [step, setStep] = useState<'intro' | 'form' | 'signature'>('intro');
+  const [step, setStep] = useState<'intro' | 'form' | 'signature' | 'success'>('intro');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -307,14 +307,9 @@ export default function W9OnboardingModal({
       if (directResult.success) {
         console.log('✅ W-9 submitted successfully via Supabase');
         
-        // Show success message briefly
+        // Show success screen
         setError(null);
-        
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          setTimeout(() => onClose(), 1500);
-        }
+        setStep('success');
         return;
       }
       
@@ -763,6 +758,59 @@ export default function W9OnboardingModal({
   }
 
   // ============================================================================
+  // SUCCESS STEP
+  // ============================================================================
+  if (step === 'success') {
+    return (
+      <div className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4 py-8">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-lg w-full p-8 border border-white/10 shadow-2xl text-center">
+            <div className="text-8xl mb-6">✅</div>
+            <h2 className="text-3xl font-bold text-white mb-4">W-9 Submitted Successfully!</h2>
+            <p className="text-gray-300 mb-6">
+              Your tax information has been saved securely. You can now withdraw your winnings.
+            </p>
+            
+            <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4 mb-6">
+              <p className="text-green-200 text-sm">
+                <strong>Account:</strong> {currentUser?.email}<br />
+                <strong>Name:</strong> {formData.full_name}<br />
+                <strong>Status:</strong> ✅ Tax Verified
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  if (onSuccess) {
+                    onSuccess();
+                  } else {
+                    onClose();
+                  }
+                }}
+                className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg"
+              >
+                🎉 Continue to Withdraw
+              </button>
+              
+              <button
+                onClick={onClose}
+                className="w-full px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+              >
+                Close
+              </button>
+            </div>
+
+            <p className="text-gray-500 text-xs mt-6">
+              Your W-9 is now visible to the admin in the Tax Management dashboard.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================================
   // SIGNATURE STEP
   // ============================================================================
   return (
@@ -849,5 +897,10 @@ export default function W9OnboardingModal({
       </div>
     </div>
   );
+
+  // ============================================================================
+  // SUCCESS STEP - This shouldn't render because we check step === 'success' above
+  // But adding as fallback
+  // ============================================================================
 }
 
