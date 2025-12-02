@@ -140,18 +140,16 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
   };
 
   const handleDownloadPDF = (notification: TaxNotification) => {
+    console.log('[1099] Opening form for PDF download...');
     // Open the form first, then print after it renders
     setSelectedForm(notification);
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    // Use a longer timeout to ensure the form renders completely
-    setTimeout(() => {
-      window.print();
-    }, 500);
   };
 
   const handleViewFullForm = (notification: TaxNotification) => {
+    console.log('[1099] Opening full form view...');
     setSelectedForm(notification);
     if (!notification.is_read) {
       markAsRead(notification.id);
@@ -160,7 +158,357 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
 
   // Function to print the current form (called from the full form view)
   const handlePrintForm = () => {
-    window.print();
+    console.log('[1099] Print button clicked!');
+    try {
+      // Try to trigger print
+      if (typeof window !== 'undefined' && window.print) {
+        console.log('[1099] Calling window.print()...');
+        window.print();
+        console.log('[1099] window.print() called successfully');
+      } else {
+        console.error('[1099] window.print not available');
+        alert('Print not available. Please use Ctrl+P (Windows) or Cmd+P (Mac) to print.');
+      }
+    } catch (error) {
+      console.error('[1099] Print error:', error);
+      alert('Could not open print dialog. Please use Ctrl+P (Windows) or Cmd+P (Mac) to print this page.');
+    }
+  };
+  
+  // Alternative: Open in new window for printing
+  const handleOpenPrintWindow = () => {
+    console.log('[1099] Opening print in new window...');
+    console.log('[1099] Selected form metadata:', selectedForm?.metadata);
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow && selectedForm) {
+      // Extract all data from the notification metadata
+      const metadata = selectedForm.metadata || {};
+      const taxYear = metadata.tax_year || new Date().getFullYear();
+      const amount = typeof metadata.amount === 'number' ? metadata.amount : 0;
+      const fullName = metadata.full_name || 'Recipient';
+      const ssnLast4 = metadata.ssn_last4 || 'XXXX';
+      const address = metadata.address || 'Address on file';
+      const filingDeadline = metadata.filing_deadline || `April 15, ${taxYear + 1}`;
+      const generatedAt = metadata.generated_at ? new Date(metadata.generated_at).toLocaleDateString() : new Date().toLocaleDateString();
+      const formId = selectedForm.id.substring(0, 12).toUpperCase();
+      
+      console.log('[1099] Generating PDF with data:', { taxYear, amount, fullName, ssnLast4, address });
+      
+      const amountFormatted = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>1099-NEC Tax Document - ${fullName} - ${taxYear}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, Helvetica, sans-serif; 
+              padding: 30px; 
+              max-width: 850px; 
+              margin: 0 auto; 
+              background: white;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .watermark {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 80px;
+              color: rgba(0,0,0,0.03);
+              font-weight: bold;
+              pointer-events: none;
+              z-index: -1;
+            }
+            .official-copy {
+              background: #1a365d;
+              color: white;
+              padding: 8px 15px;
+              font-size: 11px;
+              text-align: center;
+              margin-bottom: 15px;
+            }
+            .header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-start;
+              border-bottom: 3px solid black; 
+              padding-bottom: 12px; 
+              margin-bottom: 0; 
+            }
+            .void-box { font-size: 10px; color: #666; }
+            .form-title { font-size: 32px; font-weight: bold; }
+            .form-subtitle { font-size: 13px; margin-top: 2px; }
+            .copy-type { font-size: 10px; color: #666; margin-top: 4px; }
+            .tax-year { font-size: 42px; font-weight: bold; }
+            .omb { font-size: 10px; color: #666; }
+            
+            .form-grid { 
+              display: grid; 
+              grid-template-columns: 1fr 1fr; 
+              border: 2px solid black;
+              border-top: none;
+            }
+            .left-col { border-right: 2px solid black; }
+            
+            .field { 
+              padding: 10px 12px; 
+              border-bottom: 1px solid #999;
+              min-height: 45px;
+            }
+            .field:last-child { border-bottom: none; }
+            .field-label { 
+              font-size: 9px; 
+              color: #333; 
+              text-transform: uppercase; 
+              margin-bottom: 3px;
+              font-weight: 600;
+            }
+            .field-value { font-weight: bold; font-size: 13px; }
+            .field-value-large { font-weight: bold; font-size: 16px; }
+            .field-text { font-size: 12px; }
+            
+            .payer-field { min-height: 95px; }
+            
+            .amount-field { 
+              background: linear-gradient(135deg, #f0fff0 0%, #e8f5e9 100%); 
+              padding: 15px 12px;
+              min-height: 70px;
+            }
+            .amount-value { 
+              font-size: 36px; 
+              color: #2e7d32; 
+              font-weight: bold;
+              font-family: 'Courier New', monospace;
+            }
+            
+            .reserved-field { background: #f5f5f5; }
+            .reserved-text { color: #999; font-style: italic; font-size: 11px; }
+            
+            .state-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr 1fr;
+            }
+            .state-field {
+              padding: 8px 10px;
+              border-right: 1px solid #999;
+              font-size: 11px;
+            }
+            .state-field:last-child { border-right: none; }
+            .state-label { font-size: 8px; color: #333; text-transform: uppercase; margin-bottom: 2px; }
+            
+            .account-field { border-bottom: none; }
+            
+            .irs-notice {
+              background: #fffde7;
+              border: 2px solid #ffc107;
+              padding: 15px;
+              margin-top: 15px;
+              font-size: 11px;
+              line-height: 1.5;
+            }
+            .notice-title { font-weight: bold; color: #f57c00; margin-bottom: 5px; }
+            
+            .deadline-box {
+              background: #ffebee;
+              border: 2px solid #ef5350;
+              padding: 12px 15px;
+              margin-top: 10px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .deadline-label { font-size: 10px; color: #666; text-transform: uppercase; }
+            .deadline-value { font-size: 20px; font-weight: bold; color: #c62828; }
+            
+            .doc-info {
+              margin-top: 15px;
+              padding: 10px;
+              background: #f5f5f5;
+              font-size: 10px;
+              display: grid;
+              grid-template-columns: 1fr 1fr 1fr;
+              gap: 10px;
+            }
+            .doc-info-label { color: #666; }
+            .doc-info-value { font-weight: bold; }
+            
+            .footer {
+              margin-top: 20px;
+              padding-top: 10px;
+              border-top: 1px solid #ccc;
+              display: flex;
+              justify-content: space-between;
+              font-size: 9px;
+              color: #666;
+            }
+            
+            .no-edit-notice {
+              background: #e3f2fd;
+              border: 1px solid #2196f3;
+              padding: 10px;
+              margin-top: 15px;
+              font-size: 10px;
+              text-align: center;
+              color: #1565c0;
+            }
+            
+            @media print { 
+              body { padding: 15px; }
+              .official-copy { -webkit-print-color-adjust: exact; }
+              .amount-field { -webkit-print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="watermark">OFFICIAL COPY</div>
+          
+          <div class="official-copy">
+            📋 OFFICIAL TAX DOCUMENT - RETAIN FOR YOUR RECORDS - DO NOT ALTER
+          </div>
+          
+          <div class="header">
+            <div>
+              <div class="void-box">VOID ☐ &nbsp; CORRECTED ☐</div>
+              <div class="form-title">1099-NEC</div>
+              <div class="form-subtitle">Nonemployee Compensation</div>
+              <div class="copy-type">Copy B — For Recipient</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="omb">OMB No. 1545-0116</div>
+              <div class="tax-year">${taxYear}</div>
+              <div class="omb">Form 1099-NEC</div>
+            </div>
+          </div>
+          
+          <div class="form-grid">
+            <!-- LEFT COLUMN -->
+            <div class="left-col">
+              <div class="field payer-field">
+                <div class="field-label">Payer's name, street address, city or town, state or province, country, ZIP or foreign postal code, and telephone no.</div>
+                <div class="field-value">DropDollar Inc.</div>
+                <div class="field-text">123 Tech Boulevard</div>
+                <div class="field-text">San Francisco, CA 94102</div>
+                <div class="field-text">United States</div>
+                <div class="field-text">support@drop-dollar.com</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Payer's TIN</div>
+                <div class="field-value">XX-XXXXXXX</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Recipient's TIN</div>
+                <div class="field-value">XXX-XX-${ssnLast4}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Recipient's name</div>
+                <div class="field-value-large">${fullName}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">Street address (including apt. no.)</div>
+                <div class="field-text">${address}</div>
+              </div>
+              <div class="field account-field">
+                <div class="field-label">Account number (see instructions)</div>
+                <div class="field-value" style="font-family: monospace;">${formId}</div>
+              </div>
+            </div>
+            
+            <!-- RIGHT COLUMN -->
+            <div class="right-col">
+              <div class="field amount-field">
+                <div class="field-label">1 Nonemployee compensation</div>
+                <div class="amount-value">$ ${amountFormatted}</div>
+              </div>
+              <div class="field">
+                <div class="field-label">2 Payer made direct sales totaling $5,000 or more of consumer products to recipient for resale ▶</div>
+                <div style="font-size: 16px;">☐</div>
+              </div>
+              <div class="field reserved-field">
+                <div class="field-label">3</div>
+                <div class="reserved-text">Reserved</div>
+              </div>
+              <div class="field">
+                <div class="field-label">4 Federal income tax withheld</div>
+                <div class="field-value">$ 0.00</div>
+              </div>
+              <div class="state-grid">
+                <div class="state-field">
+                  <div class="state-label">5 State tax withheld</div>
+                  <div>$ 0.00</div>
+                </div>
+                <div class="state-field">
+                  <div class="state-label">6 State/Payer's state no.</div>
+                  <div>CA</div>
+                </div>
+                <div class="state-field">
+                  <div class="state-label">7 State income</div>
+                  <div>$ ${amountFormatted}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="irs-notice">
+            <div class="notice-title">⚠️ IMPORTANT TAX INFORMATION</div>
+            This is important tax information and is being furnished to the Internal Revenue Service. If you are required to file a return, a negligence penalty or other sanction may be imposed on you if this income is taxable and the IRS determines that it has not been reported.
+          </div>
+          
+          <div class="deadline-box">
+            <div>
+              <div class="deadline-label">Tax Filing Deadline</div>
+              <div class="deadline-value">${filingDeadline}</div>
+            </div>
+            <div style="text-align: right; font-size: 11px; color: #666;">
+              Report on Schedule C (Form 1040)<br>
+              and Schedule SE for self-employment tax
+            </div>
+          </div>
+          
+          <div class="doc-info">
+            <div>
+              <div class="doc-info-label">Document ID</div>
+              <div class="doc-info-value">${formId}</div>
+            </div>
+            <div>
+              <div class="doc-info-label">Generated</div>
+              <div class="doc-info-value">${generatedAt}</div>
+            </div>
+            <div>
+              <div class="doc-info-label">Tax Year</div>
+              <div class="doc-info-value">${taxYear}</div>
+            </div>
+          </div>
+          
+          <div class="no-edit-notice">
+            🔒 This is an official, uneditable copy of your 1099-NEC tax document. Retain for your records.
+          </div>
+          
+          <div class="footer">
+            <div>Form 1099-NEC (Rev. ${taxYear})</div>
+            <div>Cat. No. 72590N</div>
+            <div>Department of the Treasury - Internal Revenue Service</div>
+          </div>
+          
+          <script>
+            // Auto-print when loaded
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 500);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } else {
+      alert('Could not open print window. Please allow popups for this site.');
+    }
   };
 
   if (!user) {
@@ -203,30 +551,37 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
         </button>
 
         {/* Action buttons */}
-        <div className="fixed top-4 left-4 z-50 flex gap-2 print:hidden">
+        <div className="fixed top-4 left-4 right-4 z-50 flex gap-2 print:hidden">
+          <button
+            onClick={handleOpenPrintWindow}
+            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg transition-all"
+          >
+            <ArrowDownTrayIcon className="w-6 h-6" />
+            📄 DOWNLOAD PDF
+          </button>
           <button
             onClick={handlePrintForm}
-            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all"
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-4 rounded-xl font-bold transition-all"
           >
             <PrinterIcon className="w-6 h-6" />
-            🖨️ Print / Save as PDF
+            🖨️ Print
           </button>
           <button
             onClick={() => setSelectedForm(null)}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors"
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-4 rounded-xl font-semibold transition-colors"
           >
-            ✕ Close
+            ✕
           </button>
         </div>
         
         {/* Bottom floating print button for mobile */}
-        <div className="fixed bottom-4 left-4 right-4 z-50 print:hidden">
+        <div className="fixed bottom-4 left-4 right-4 z-50 print:hidden flex gap-2">
           <button
-            onClick={handlePrintForm}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-4 rounded-xl font-bold text-xl shadow-2xl transition-all"
+            onClick={handleOpenPrintWindow}
+            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-5 rounded-xl font-bold text-xl shadow-2xl transition-all"
           >
-            <PrinterIcon className="w-7 h-7" />
-            📄 SAVE AS PDF / PRINT
+            <ArrowDownTrayIcon className="w-7 h-7" />
+            📄 DOWNLOAD PDF
           </button>
         </div>
 
