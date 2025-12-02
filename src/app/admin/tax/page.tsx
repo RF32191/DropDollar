@@ -601,10 +601,22 @@ export default function TaxAdminDashboard() {
   useEffect(() => {
     if (isAuthReady && authToken) {
       console.log('[Tax Admin] Auth ready, fetching data...');
-      fetchW9s();
+      // Try direct query first (more reliable)
+      fetchW9sDirect();
       fetch1099s();
     }
   }, [isAuthReady, authToken]);
+
+  // Also auto-load on mount after a short delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (w9s.length === 0) {
+        console.log('[Tax Admin] Auto-loading W-9s...');
+        fetchW9sDirect();
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4">
@@ -791,7 +803,16 @@ export default function TaxAdminDashboard() {
         {/* W-9 DOCUMENTS SECTION */}
         {/* ====================================================================== */}
         <div className="bg-white rounded-3xl shadow-xl p-8 mb-8">
-          <h2 className="text-3xl font-bold mb-6">📋 All W-9 Documents</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold">📋 All W-9 Documents</h2>
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                w9s.length > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {w9s.length} records loaded
+              </span>
+            </div>
+          </div>
 
           {/* Search & Filter */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
