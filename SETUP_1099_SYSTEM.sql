@@ -2,6 +2,70 @@
 -- SETUP 1099 NOTIFICATION SYSTEM
 -- ============================================================================
 
+-- Add withdrawal tracking to tax_profiles (if not exists)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'tax_profiles' AND column_name = 'total_withdrawals_ytd') THEN
+        ALTER TABLE tax_profiles ADD COLUMN total_withdrawals_ytd NUMERIC(12,2) DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'tax_profiles' AND column_name = 'withdrawal_year') THEN
+        ALTER TABLE tax_profiles ADD COLUMN withdrawal_year INTEGER DEFAULT EXTRACT(YEAR FROM NOW());
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'tax_profiles' AND column_name = 'last_withdrawal_at') THEN
+        ALTER TABLE tax_profiles ADD COLUMN last_withdrawal_at TIMESTAMPTZ;
+    END IF;
+END $$;
+
+-- Function to record a withdrawal for tax purposes
+CREATE OR REPLACE FUNCTION record_withdrawal_for_tax(
+    p_user_id UUID,
+    p_amount NUMERIC
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_current_year INTEGER := EXTRACT(YEAR FROM NOW());
+    v_current_total NUMERIC;
+BEGIN
+    -- Check if user has a tax profile
+    IF NOT EXISTS (SELECT 1 FROM tax_profiles WHERE user_id = p_user_id) THEN
+        RETURN jsonb_build_object('success', false, 'error', 'No W-9 on file');
+    END IF;
+    
+    -- Get current total, reset if new year
+    SELECT 
+        CASE 
+            WHEN withdrawal_year = v_current_year THEN COALESCE(total_withdrawals_ytd, 0)
+            ELSE 0
+        END
+    INTO v_current_total
+    FROM tax_profiles 
+    WHERE user_id = p_user_id;
+    
+    -- Update the withdrawal tracking
+    UPDATE tax_profiles
+    SET 
+        total_withdrawals_ytd = v_current_total + p_amount,
+        withdrawal_year = v_current_year,
+        last_withdrawal_at = NOW(),
+        updated_at = NOW()
+    WHERE user_id = p_user_id;
+    
+    RETURN jsonb_build_object(
+        'success', true,
+        'new_total', v_current_total + p_amount,
+        'year', v_current_year
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION record_withdrawal_for_tax TO authenticated;
+
 -- Create 1099 tracking table
 CREATE TABLE IF NOT EXISTS tax_1099_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

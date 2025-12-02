@@ -557,6 +557,13 @@ export default function TaxAdminDashboard() {
     const userName = w9Record?.full_name || 'User';
     
     try {
+      // Get user's YTD withdrawals from tax_profiles (most accurate for 1099)
+      const { data: taxProfileData } = await supabase
+        .from('tax_profiles')
+        .select('total_withdrawals_ytd, withdrawal_year')
+        .eq('user_id', userId)
+        .single();
+
       // Get user's total earnings from user_balances
       const { data: balanceData } = await supabase
         .from('user_balances')
@@ -564,7 +571,7 @@ export default function TaxAdminDashboard() {
         .eq('user_id', userId)
         .single();
 
-      // Get completed withdrawals for the tax year
+      // Get completed withdrawals for the tax year (backup)
       const startOfYear = `${form1099Year}-01-01`;
       const endOfYear = `${form1099Year}-12-31`;
       
@@ -576,16 +583,6 @@ export default function TaxAdminDashboard() {
         .gte('completed_at', startOfYear)
         .lte('completed_at', endOfYear);
       
-      // Get earnings transactions for the tax year
-      const { data: earnings } = await supabase
-        .from('user_transactions')
-        .select('amount')
-        .eq('user_id', userId)
-        .in('type', ['earning', 'prize_win'])
-        .eq('status', 'completed')
-        .gte('created_at', startOfYear)
-        .lte('created_at', endOfYear);
-
       // Get marketplace winnings
       const { data: marketplaceWins } = await supabase
         .from('marketplace_sessions')
@@ -594,17 +591,19 @@ export default function TaxAdminDashboard() {
         .eq('status', 'completed');
 
       // Calculate totals
+      const taxProfileYTD = (taxProfileData?.withdrawal_year === form1099Year) 
+        ? Number(taxProfileData?.total_withdrawals_ytd || 0) 
+        : 0;
       const withdrawalTotal = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
-      const earningsTotal = earnings?.reduce((sum, e) => sum + Math.abs(Number(e.amount || 0)), 0) || 0;
       const marketplaceTotal = marketplaceWins?.reduce((sum, m) => sum + Number(m.prize_pool || 0), 0) || 0;
       const totalEarnedLifetime = Number(balanceData?.total_earned || 0);
       const currentBalance = Number(balanceData?.cash_balance || 0);
 
-      // For 1099, use the LARGER of: withdrawals, earnings transactions, or total_earned
-      // This ensures we capture all taxable income
-      let totalEarnings = Math.max(withdrawalTotal, earningsTotal, marketplaceTotal);
+      // For 1099, use the tax_profile YTD withdrawals (most accurate)
+      // Fall back to withdrawal_requests if tax_profile tracking isn't available
+      let totalEarnings = taxProfileYTD > 0 ? taxProfileYTD : withdrawalTotal;
       
-      // If no transaction data, use lifetime earnings
+      // If no withdrawal data, use lifetime earnings
       if (totalEarnings === 0) {
         totalEarnings = totalEarnedLifetime;
       }
@@ -614,14 +613,15 @@ export default function TaxAdminDashboard() {
         `📊 1099-NEC for ${userName} (${userEmail})\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `Tax Year: ${form1099Year}\n\n` +
-        `EARNINGS BREAKDOWN:\n` +
-        `• Completed Withdrawals: $${withdrawalTotal.toFixed(2)}\n` +
-        `• Earnings Transactions: $${earningsTotal.toFixed(2)}\n` +
+        `WITHDRAWAL TRACKING:\n` +
+        `• W-9 Profile YTD Withdrawals: $${taxProfileYTD.toFixed(2)} ⬅️ PRIMARY\n` +
+        `• Withdrawal Requests Total: $${withdrawalTotal.toFixed(2)}\n` +
         `• Marketplace Winnings: $${marketplaceTotal.toFixed(2)}\n` +
         `• Lifetime Total Earned: $${totalEarnedLifetime.toFixed(2)}\n` +
         `• Current Balance: $${currentBalance.toFixed(2)}\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `SUGGESTED 1099 AMOUNT: $${totalEarnings.toFixed(2)}\n\n` +
+        `SUGGESTED 1099 AMOUNT: $${totalEarnings.toFixed(2)}\n` +
+        `(Based on actual withdrawals taken out)\n\n` +
         `Enter amount to report on 1099:`,
         totalEarnings.toFixed(2)
       );

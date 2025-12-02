@@ -15,11 +15,19 @@ import { useRouter } from 'next/navigation';
 
 const supabase = createClientComponentClient();
 
+interface TaxProfile {
+  id: string;
+  full_name: string;
+  total_withdrawals_ytd: number;
+  withdrawal_year: number;
+}
+
 export default function CashoutPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isTaxVerified, setIsTaxVerified] = useState(false);
+  const [taxProfile, setTaxProfile] = useState<TaxProfile | null>(null);
   const [showW9Modal, setShowW9Modal] = useState(false);
   const [wonTokens, setWonTokens] = useState(0);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
@@ -51,20 +59,32 @@ export default function CashoutPage() {
   const checkTaxStatus = async () => {
     setLoading(true);
     try {
-      // Check if user has completed W-9
-      const { data, error } = await supabase
-        .from('users')
-        .select('is_tax_verified')
-        .eq('id', user?.id)
+      // Check if user has a W-9 on file (tax_profiles record)
+      const { data: taxData, error: taxError } = await supabase
+        .from('tax_profiles')
+        .select('id, full_name, total_withdrawals_ytd, withdrawal_year')
+        .eq('user_id', user?.id)
         .single();
 
-      if (error) throw error;
+      if (!taxError && taxData) {
+        // User has W-9 on file
+        setIsTaxVerified(true);
+        setTaxProfile(taxData);
+      } else {
+        // No W-9 on file, check legacy is_tax_verified flag
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_tax_verified')
+          .eq('id', user?.id)
+          .single();
 
-      setIsTaxVerified(data?.is_tax_verified || false);
-      
-      // If not verified, show W-9 modal automatically
-      if (!data?.is_tax_verified) {
-        setShowW9Modal(true);
+        if (userData?.is_tax_verified) {
+          setIsTaxVerified(true);
+        } else {
+          setIsTaxVerified(false);
+          // Show W-9 modal for first-time users
+          setShowW9Modal(true);
+        }
       }
     } catch (error) {
       console.error('Error checking tax status:', error);
@@ -133,6 +153,27 @@ export default function CashoutPage() {
         });
         setShowW9Modal(true);
         return;
+      }
+
+      // Record withdrawal for tax purposes (1099 tracking)
+      try {
+        const { error: taxError } = await supabase.rpc('record_withdrawal_for_tax', {
+          p_user_id: user?.id,
+          p_amount: amount
+        });
+        
+        if (taxError) {
+          console.error('Tax tracking error (non-blocking):', taxError);
+        } else {
+          // Update local tax profile with new total
+          if (taxProfile) {
+            const currentYear = new Date().getFullYear();
+            const newTotal = (taxProfile.withdrawal_year === currentYear ? taxProfile.total_withdrawals_ytd : 0) + amount;
+            setTaxProfile({ ...taxProfile, total_withdrawals_ytd: newTotal, withdrawal_year: currentYear });
+          }
+        }
+      } catch (taxErr) {
+        console.error('Tax tracking exception (non-blocking):', taxErr);
       }
 
       setMessage({ 
@@ -243,21 +284,58 @@ export default function CashoutPage() {
               <h3 className={`text-lg font-bold mb-2 ${
                 isTaxVerified ? 'text-green-400' : 'text-yellow-400'
               }`}>
-                {isTaxVerified ? '✅ Tax Information Verified' : '⚠️ Tax Information Required'}
+                {isTaxVerified ? '✅ W-9 On File' : '⚠️ W-9 Required'}
               </h3>
-              <p className="text-gray-300 mb-3">
-                {isTaxVerified 
-                  ? 'Your W-9 tax information is on file. You can withdraw your winnings.' 
-                  : 'US law requires tax information (W-9) before withdrawing winnings of $600+ per year. We collect this upfront to stay compliant.'}
-              </p>
-              {!isTaxVerified && (
-                <button
-                  onClick={() => setShowW9Modal(true)}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg transition-all"
-                >
-                  <DocumentTextIcon className="w-5 h-5 inline mr-2" />
-                  Complete W-9 Form
-                </button>
+              
+              {isTaxVerified ? (
+                <div className="space-y-3">
+                  <p className="text-gray-300">
+                    Your W-9 tax information is on file. You can withdraw your winnings.
+                  </p>
+                  
+                  {/* W-9 Details */}
+                  {taxProfile && (
+                    <div className="bg-gray-800/50 rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Name on W-9:</span>
+                        <span className="text-white font-medium">{taxProfile.full_name}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">{new Date().getFullYear()} Withdrawals (YTD):</span>
+                        <span className={`font-bold ${
+                          (taxProfile.withdrawal_year === new Date().getFullYear() ? taxProfile.total_withdrawals_ytd : 0) >= 600 
+                            ? 'text-yellow-400' 
+                            : 'text-green-400'
+                        }`}>
+                          ${(taxProfile.withdrawal_year === new Date().getFullYear() ? taxProfile.total_withdrawals_ytd : 0).toFixed(2)}
+                        </span>
+                      </div>
+                      {(taxProfile.withdrawal_year === new Date().getFullYear() ? taxProfile.total_withdrawals_ytd : 0) >= 600 && (
+                        <p className="text-yellow-400 text-sm mt-2">
+                          📋 You will receive a 1099-NEC for tax year {new Date().getFullYear()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  <p className="text-gray-500 text-sm">
+                    Your W-9 is saved permanently. You only need to fill it out once.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-300 mb-3">
+                    US law requires tax information (W-9) before withdrawing winnings. 
+                    You only need to complete this form once.
+                  </p>
+                  <button
+                    onClick={() => setShowW9Modal(true)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg transition-all"
+                  >
+                    <DocumentTextIcon className="w-5 h-5 inline mr-2" />
+                    Complete W-9 Form (One-Time)
+                  </button>
+                </>
               )}
             </div>
           </div>
