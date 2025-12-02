@@ -533,21 +533,28 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
                       </div>
                     </div>
 
+                    {/* Important Notice */}
+                    <div className="px-4 py-2 bg-yellow-50 border-t border-yellow-200">
+                      <p className="text-xs text-yellow-800">
+                        📋 <strong>Important:</strong> Save this document for your tax records. You'll need it to file your taxes.
+                      </p>
+                    </div>
+
                     {/* Actions */}
-                    <div className="px-4 py-3 bg-gray-50 flex gap-2 justify-end border-t">
-                      <button
-                        onClick={() => handleViewFullForm(notification)}
-                        className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                      >
-                        <DocumentTextIcon className="w-4 h-4" />
-                        View Full Form
-                      </button>
+                    <div className="px-4 py-4 bg-gray-100 border-t flex flex-col gap-3">
                       <button
                         onClick={() => handleDownloadPDF(notification)}
-                        className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl text-lg font-bold hover:from-green-500 hover:to-emerald-500 transition-all shadow-lg hover:shadow-xl"
                       >
-                        <ArrowDownTrayIcon className="w-4 h-4" />
-                        Download PDF
+                        <ArrowDownTrayIcon className="w-6 h-6" />
+                        📄 Download / Print PDF
+                      </button>
+                      <button
+                        onClick={() => handleViewFullForm(notification)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                      >
+                        <DocumentTextIcon className="w-5 h-5" />
+                        View Full IRS Form
                       </button>
                     </div>
                   </div>

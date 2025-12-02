@@ -557,7 +557,14 @@ export default function TaxAdminDashboard() {
     const userName = w9Record?.full_name || 'User';
     
     try {
-      // Get user's YTD withdrawals from tax_profiles (most accurate for 1099)
+      // Get user's current wallet balance from users table (won_tokens)
+      const { data: userData } = await supabase
+        .from('users')
+        .select('won_tokens, tokens')
+        .eq('id', userId)
+        .single();
+
+      // Get user's YTD withdrawals from tax_profiles
       const { data: taxProfileData } = await supabase
         .from('tax_profiles')
         .select('total_withdrawals_ytd, withdrawal_year')
@@ -571,7 +578,7 @@ export default function TaxAdminDashboard() {
         .eq('user_id', userId)
         .single();
 
-      // Get completed withdrawals for the tax year (backup)
+      // Get completed withdrawals for the tax year
       const startOfYear = `${form1099Year}-01-01`;
       const endOfYear = `${form1099Year}-12-31`;
       
@@ -591,39 +598,46 @@ export default function TaxAdminDashboard() {
         .eq('status', 'completed');
 
       // Calculate totals
+      const walletBalance = Number(userData?.won_tokens || 0);
+      const gameTokens = Number(userData?.tokens || 0);
       const taxProfileYTD = (taxProfileData?.withdrawal_year === form1099Year) 
         ? Number(taxProfileData?.total_withdrawals_ytd || 0) 
         : 0;
       const withdrawalTotal = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
       const marketplaceTotal = marketplaceWins?.reduce((sum, m) => sum + Number(m.prize_pool || 0), 0) || 0;
       const totalEarnedLifetime = Number(balanceData?.total_earned || 0);
-      const currentBalance = Number(balanceData?.cash_balance || 0);
+      const cashBalance = Number(balanceData?.cash_balance || 0);
 
-      // For 1099, use the tax_profile YTD withdrawals (most accurate)
-      // Fall back to withdrawal_requests if tax_profile tracking isn't available
-      let totalEarnings = taxProfileYTD > 0 ? taxProfileYTD : withdrawalTotal;
+      // For 1099, suggest the withdrawn amount (what they actually took out)
+      // The 1099 reports money PAID to the user, not their current balance
+      let suggestedAmount = taxProfileYTD > 0 ? taxProfileYTD : withdrawalTotal;
       
-      // If no withdrawal data, use lifetime earnings
-      if (totalEarnings === 0) {
-        totalEarnings = totalEarnedLifetime;
+      // If no withdrawals, but they have marketplace winnings, use that
+      if (suggestedAmount === 0 && marketplaceTotal > 0) {
+        suggestedAmount = marketplaceTotal;
       }
 
-      // Prompt admin to confirm or adjust the amount
+      // Prompt admin to enter the 1099 amount
       const confirmedAmount = prompt(
-        `📊 1099-NEC for ${userName} (${userEmail})\n` +
+        `📊 1099-NEC for ${userName}\n` +
+        `Email: ${userEmail}\n` +
+        `User ID: ${userId}\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `Tax Year: ${form1099Year}\n\n` +
-        `WITHDRAWAL TRACKING:\n` +
-        `• W-9 Profile YTD Withdrawals: $${taxProfileYTD.toFixed(2)} ⬅️ PRIMARY\n` +
-        `• Withdrawal Requests Total: $${withdrawalTotal.toFixed(2)}\n` +
+        `💰 CURRENT WALLET BALANCE: $${walletBalance.toFixed(2)}\n` +
+        `🎮 Game Tokens: ${gameTokens}\n\n` +
+        `WITHDRAWAL & EARNINGS DATA:\n` +
+        `• YTD Withdrawals (from W-9): $${taxProfileYTD.toFixed(2)}\n` +
+        `• Completed Withdrawals: $${withdrawalTotal.toFixed(2)}\n` +
         `• Marketplace Winnings: $${marketplaceTotal.toFixed(2)}\n` +
-        `• Lifetime Total Earned: $${totalEarnedLifetime.toFixed(2)}\n` +
-        `• Current Balance: $${currentBalance.toFixed(2)}\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `SUGGESTED 1099 AMOUNT: $${totalEarnings.toFixed(2)}\n` +
-        `(Based on actual withdrawals taken out)\n\n` +
-        `Enter amount to report on 1099:`,
-        totalEarnings.toFixed(2)
+        `• Cash Balance: $${cashBalance.toFixed(2)}\n` +
+        `• Lifetime Earned: $${totalEarnedLifetime.toFixed(2)}\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `💡 1099 reports MONEY PAID OUT (withdrawn)\n` +
+        `   NOT current wallet balance\n\n` +
+        `ENTER THE AMOUNT TO REPORT ON 1099:\n` +
+        `(This should be the total withdrawn/paid out)`,
+        suggestedAmount > 0 ? suggestedAmount.toFixed(2) : ''
       );
 
       if (!confirmedAmount) {
