@@ -210,8 +210,14 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
         </div>
 
         {/* Printable 1099-NEC Form */}
-        <div ref={printRef} className="max-w-4xl mx-auto my-16 print:my-0 print:max-w-none">
-          <div className="bg-white text-black p-8 print:p-4" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <div ref={printRef} id="printable-1099" className="max-w-4xl mx-auto my-16 print:my-0 print:max-w-none">
+          {/* Print Instructions Banner - hidden on print */}
+          <div className="bg-blue-600 text-white p-4 rounded-t-lg print:hidden mb-0">
+            <p className="text-center font-semibold">
+              📄 To save as PDF: Click "Print / Save PDF" → Select "Save as PDF" as the destination → Click Save
+            </p>
+          </div>
+          <div className="bg-white text-black p-8 print:p-4 rounded-b-lg print:rounded-none" style={{ fontFamily: 'Arial, sans-serif' }}>
             {/* IRS Header */}
             <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
               <div>
@@ -380,25 +386,47 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
         {/* Print styles */}
         <style jsx global>{`
           @media print {
+            /* Hide everything except the 1099 form */
             body * {
               visibility: hidden;
             }
-            .fixed {
+            
+            /* Hide navigation and buttons */
+            nav, .fixed, button, [class*="print:hidden"] {
               display: none !important;
             }
-            div[class*="max-w-4xl"] {
+            
+            /* Show only the printable 1099 */
+            #printable-1099,
+            #printable-1099 * {
+              visibility: visible !important;
+            }
+            
+            #printable-1099 {
               position: absolute;
               left: 0;
               top: 0;
-              visibility: visible;
               width: 100%;
+              margin: 0 !important;
+              padding: 0 !important;
             }
-            div[class*="max-w-4xl"] * {
-              visibility: visible;
+            
+            /* Hide the instruction banner in print */
+            #printable-1099 > div:first-child {
+              display: none !important;
             }
+            
+            /* Page settings for letter size */
             @page {
               margin: 0.5in;
-              size: letter;
+              size: letter portrait;
+            }
+            
+            /* Ensure white background */
+            #printable-1099 > div:last-child {
+              background: white !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
           }
         `}</style>

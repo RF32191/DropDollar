@@ -26,6 +26,8 @@ interface W9OnboardingModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   isBlocking?: boolean; // If true, shows as a blocker (no close button)
+  walletBalance?: number; // Current wallet balance
+  withdrawalAmount?: number; // Amount user wants to withdraw
 }
 
 export default function W9OnboardingModal({
@@ -33,6 +35,8 @@ export default function W9OnboardingModal({
   onClose,
   onSuccess,
   isBlocking = false,
+  walletBalance = 0,
+  withdrawalAmount = 0,
 }: W9OnboardingModalProps) {
   const [step, setStep] = useState<'intro' | 'form' | 'signature' | 'success'>('intro');
   const [loading, setLoading] = useState(false);
@@ -523,6 +527,27 @@ export default function W9OnboardingModal({
             <p className="text-gray-300 text-lg">IRS Form W-9 Equivalent</p>
           </div>
 
+          {/* Wallet & Withdrawal Display */}
+          {(walletBalance > 0 || withdrawalAmount > 0) && (
+            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl p-5 mb-6 border border-green-500/30">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-gray-400 text-sm mb-1">💰 Your Wallet Balance</p>
+                  <p className="text-3xl font-bold text-green-400">${walletBalance.toFixed(2)}</p>
+                </div>
+                {withdrawalAmount > 0 && (
+                  <div className="text-center border-l border-green-500/30 pl-4">
+                    <p className="text-gray-400 text-sm mb-1">📤 Withdrawal Amount</p>
+                    <p className="text-3xl font-bold text-yellow-400">${withdrawalAmount.toFixed(2)}</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-center text-gray-400 text-xs mt-3">
+                Complete your W-9 once to unlock all future withdrawals
+              </p>
+            </div>
+          )}
+
           <div className="bg-black/30 rounded-2xl p-6 mb-6 space-y-4 text-white/90">
             <p className="text-sm leading-relaxed">
               <strong className="text-yellow-400">Why is this required?</strong><br />
@@ -538,6 +563,10 @@ export default function W9OnboardingModal({
               <strong className="text-green-400">Your privacy is protected:</strong><br />
               We only store the <strong>last 4 digits</strong> of your Social Security Number.
               Your information is encrypted and secure.
+            </p>
+            <p className="text-sm leading-relaxed bg-blue-500/20 rounded-lg p-3 border border-blue-500/30">
+              <strong className="text-blue-400">✨ One-Time Form:</strong><br />
+              You only need to complete this form once. All future withdrawals will be automatically tracked for your 1099.
             </p>
           </div>
 

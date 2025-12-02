@@ -436,6 +436,8 @@ export default function CashoutPage() {
           isOpen={showW9Modal}
           onClose={() => setShowW9Modal(false)}
           onSuccess={handleW9Complete}
+          walletBalance={wonTokens}
+          withdrawalAmount={parseFloat(withdrawalAmount) || 0}
         />
       )}
     </div>
