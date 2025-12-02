@@ -175,15 +175,22 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
     }
   };
   
-  // Alternative: Open in new window for printing
-  const handleOpenPrintWindow = () => {
+  // Open in new window for printing/saving as PDF
+  const handleOpenPrintWindow = (notificationOverride?: TaxNotification) => {
+    const formToUse = notificationOverride || selectedForm;
     console.log('[1099] Opening print in new window...');
-    console.log('[1099] Selected form metadata:', selectedForm?.metadata);
+    console.log('[1099] Form metadata:', formToUse?.metadata);
+    
+    if (!formToUse) {
+      console.error('[1099] No form data available');
+      alert('Error: No form data. Please try clicking "View Full Form" first.');
+      return;
+    }
     
     const printWindow = window.open('', '_blank');
-    if (printWindow && selectedForm) {
+    if (printWindow && formToUse) {
       // Extract all data from the notification metadata
-      const metadata = selectedForm.metadata || {};
+      const metadata = formToUse.metadata || {};
       const taxYear = metadata.tax_year || new Date().getFullYear();
       const amount = typeof metadata.amount === 'number' ? metadata.amount : 0;
       const fullName = metadata.full_name || 'Recipient';
@@ -191,7 +198,7 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
       const address = metadata.address || 'Address on file';
       const filingDeadline = metadata.filing_deadline || `April 15, ${taxYear + 1}`;
       const generatedAt = metadata.generated_at ? new Date(metadata.generated_at).toLocaleDateString() : new Date().toLocaleDateString();
-      const formId = selectedForm.id.substring(0, 12).toUpperCase();
+      const formId = formToUse.id.substring(0, 12).toUpperCase();
       
       console.log('[1099] Generating PDF with data:', { taxYear, amount, fullName, ssnLast4, address });
       
@@ -495,12 +502,14 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
           </div>
           
           <script>
-            // Auto-print when loaded
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-              }, 500);
-            };
+            // Don't auto-print - let user choose to save as PDF
+            // Instructions for saving
+            document.body.insertAdjacentHTML('afterbegin', 
+              '<div style="background: #4CAF50; color: white; padding: 15px; text-align: center; font-size: 16px; position: sticky; top: 0; z-index: 1000;">' +
+              '✅ Your 1099-NEC is ready! Press <strong>Ctrl+P</strong> (Windows) or <strong>Cmd+P</strong> (Mac) → Select <strong>"Save as PDF"</strong> → Click Save' +
+              '<button onclick="window.print()" style="margin-left: 20px; padding: 10px 20px; background: white; color: #4CAF50; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">🖨️ Print / Save PDF</button>' +
+              '</div>'
+            );
           </script>
         </body>
         </html>
@@ -557,31 +566,24 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
             className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg transition-all"
           >
             <ArrowDownTrayIcon className="w-6 h-6" />
-            📄 DOWNLOAD PDF
-          </button>
-          <button
-            onClick={handlePrintForm}
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-4 rounded-xl font-bold transition-all"
-          >
-            <PrinterIcon className="w-6 h-6" />
-            🖨️ Print
+            📄 OPEN & SAVE PDF
           </button>
           <button
             onClick={() => setSelectedForm(null)}
             className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-4 rounded-xl font-semibold transition-colors"
           >
-            ✕
+            ✕ Close
           </button>
         </div>
         
-        {/* Bottom floating print button for mobile */}
-        <div className="fixed bottom-4 left-4 right-4 z-50 print:hidden flex gap-2">
+        {/* Bottom floating button for mobile */}
+        <div className="fixed bottom-4 left-4 right-4 z-50 print:hidden">
           <button
             onClick={handleOpenPrintWindow}
-            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-5 rounded-xl font-bold text-xl shadow-2xl transition-all"
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-5 rounded-xl font-bold text-xl shadow-2xl transition-all"
           >
             <ArrowDownTrayIcon className="w-7 h-7" />
-            📄 DOWNLOAD PDF
+            📄 OPEN & SAVE AS PDF
           </button>
         </div>
 
@@ -922,18 +924,21 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
                     {/* Actions */}
                     <div className="px-4 py-4 bg-gray-100 border-t flex flex-col gap-3">
                       <button
-                        onClick={() => handleDownloadPDF(notification)}
+                        onClick={() => {
+                          if (!notification.is_read) markAsRead(notification.id);
+                          handleOpenPrintWindow(notification);
+                        }}
                         className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl text-lg font-bold hover:from-green-500 hover:to-emerald-500 transition-all shadow-lg hover:shadow-xl"
                       >
                         <ArrowDownTrayIcon className="w-6 h-6" />
-                        📄 Download / Print PDF
+                        📄 SAVE AS PDF
                       </button>
                       <button
                         onClick={() => handleViewFullForm(notification)}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                       >
                         <DocumentTextIcon className="w-5 h-5" />
-                        View Full IRS Form
+                        👁️ View Full Form
                       </button>
                     </div>
                   </div>
