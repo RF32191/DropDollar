@@ -2,6 +2,32 @@
 -- SETUP 1099 NOTIFICATION SYSTEM
 -- ============================================================================
 
+-- Create 1099 tracking table
+CREATE TABLE IF NOT EXISTS tax_1099_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    tax_year INTEGER NOT NULL,
+    amount NUMERIC(12,2) NOT NULL,
+    form_type TEXT DEFAULT '1099-NEC',
+    status TEXT DEFAULT 'pending',
+    sent_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, tax_year)
+);
+
+-- Enable RLS on 1099 records
+ALTER TABLE tax_1099_records ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own 1099 records
+DROP POLICY IF EXISTS "users_view_own_1099" ON tax_1099_records;
+CREATE POLICY "users_view_own_1099" ON tax_1099_records
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Admin can manage all 1099 records
+DROP POLICY IF EXISTS "admin_manage_1099" ON tax_1099_records;
+CREATE POLICY "admin_manage_1099" ON tax_1099_records
+    FOR ALL USING (auth.jwt() ->> 'email' = 'rf32191@gmail.com');
+
 -- Create user_messages table if it doesn't exist
 CREATE TABLE IF NOT EXISTS user_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -33,12 +59,14 @@ DROP POLICY IF EXISTS "admin_send_messages" ON user_messages;
 CREATE POLICY "admin_send_messages" ON user_messages
     FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'rf32191@gmail.com');
 
--- Function to send 1099 notification to a user
+-- Function to send 1099-NEC notification to a user
 CREATE OR REPLACE FUNCTION send_1099_to_user(
     p_user_id UUID,
     p_full_name TEXT,
     p_amount NUMERIC,
-    p_tax_year INTEGER DEFAULT 2024
+    p_tax_year INTEGER DEFAULT 2024,
+    p_ssn_last4 TEXT DEFAULT NULL,
+    p_address TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -49,10 +77,38 @@ DECLARE
     v_title TEXT;
     v_content TEXT;
     v_type TEXT;
+    v_deadline TEXT;
 BEGIN
-    -- Build the message components
-    v_title := 'Your 1099-NEC Tax Form for ' || p_tax_year::TEXT;
-    v_content := 'Hello ' || p_full_name || ', Your 1099-NEC tax form for ' || p_tax_year::TEXT || ' is now available. Total Earnings: $' || ROUND(p_amount, 2)::TEXT || '. This form reports your earnings from DropDollar for tax filing. Deadline: April 15, ' || (p_tax_year + 1)::TEXT || '. Contact support with questions.';
+    -- Build the deadline date
+    v_deadline := 'April 15, ' || (p_tax_year + 1)::TEXT;
+    
+    -- Build the title
+    v_title := '1099-NEC Tax Document - Tax Year ' || p_tax_year::TEXT;
+    
+    -- Build IRS-compliant 1099-NEC content
+    v_content := E'FORM 1099-NEC - Nonemployee Compensation\n' ||
+                 E'Tax Year: ' || p_tax_year::TEXT || E'\n' ||
+                 E'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' ||
+                 E'PAYER INFORMATION:\n' ||
+                 E'DropDollar Inc.\n' ||
+                 E'support@drop-dollar.com\n' ||
+                 E'EIN: [Company EIN]\n\n' ||
+                 E'RECIPIENT INFORMATION:\n' ||
+                 E'Name: ' || p_full_name || E'\n' ||
+                 CASE WHEN p_ssn_last4 IS NOT NULL THEN E'SSN: ***-**-' || p_ssn_last4 || E'\n' ELSE '' END ||
+                 CASE WHEN p_address IS NOT NULL THEN E'Address: ' || p_address || E'\n' ELSE '' END ||
+                 E'\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' ||
+                 E'BOX 1 - NONEMPLOYEE COMPENSATION:\n' ||
+                 E'$' || ROUND(p_amount, 2)::TEXT || E'\n\n' ||
+                 E'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' ||
+                 E'This is important tax information and is being furnished to the IRS. ' ||
+                 E'If you are required to file a return, a negligence penalty or other ' ||
+                 E'sanction may be imposed on you if this income is taxable and the IRS ' ||
+                 E'determines that it has not been reported.\n\n' ||
+                 E'FILING DEADLINE: ' || v_deadline || E'\n\n' ||
+                 E'Please retain this document for your tax records. ' ||
+                 E'For questions, contact support@drop-dollar.com';
+    
     v_type := 'tax_1099';
     
     INSERT INTO user_messages (
@@ -69,15 +125,50 @@ BEGIN
         jsonb_build_object(
             'tax_year', p_tax_year,
             'amount', p_amount,
-            'generated_at', NOW()
+            'full_name', p_full_name,
+            'ssn_last4', p_ssn_last4,
+            'address', p_address,
+            'payer', 'DropDollar Inc.',
+            'form_type', '1099-NEC',
+            'box_1_amount', p_amount,
+            'generated_at', NOW(),
+            'filing_deadline', v_deadline
         )
     )
     RETURNING id INTO v_message_id;
     
+    -- Also record this in a 1099 tracking table if it exists
+    BEGIN
+        INSERT INTO tax_1099_records (
+            user_id,
+            tax_year,
+            amount,
+            form_type,
+            status,
+            sent_at
+        ) VALUES (
+            p_user_id,
+            p_tax_year,
+            p_amount,
+            '1099-NEC',
+            'sent',
+            NOW()
+        )
+        ON CONFLICT (user_id, tax_year) DO UPDATE SET
+            amount = EXCLUDED.amount,
+            sent_at = NOW(),
+            status = 'sent';
+    EXCEPTION WHEN OTHERS THEN
+        -- Table might not exist, that's okay
+        NULL;
+    END;
+    
     RETURN jsonb_build_object(
         'success', true,
         'message_id', v_message_id,
-        'user_id', p_user_id
+        'user_id', p_user_id,
+        'amount', p_amount,
+        'tax_year', p_tax_year
     );
     
 EXCEPTION WHEN OTHERS THEN

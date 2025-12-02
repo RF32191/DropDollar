@@ -212,16 +212,87 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
                 </div>
               </div>
 
-              {/* Content */}
-              <div className="bg-black/20 rounded-lg p-4 mb-3">
-                <p className="text-gray-300 text-sm whitespace-pre-wrap">
-                  {notification.content}
-                </p>
-              </div>
+              {/* 1099-NEC Document Display */}
+              {(notification.message_type === '1099_notification' || notification.message_type === 'tax_1099') && notification.metadata?.amount ? (
+                <div className="bg-white text-black rounded-lg overflow-hidden shadow-xl">
+                  {/* Document Header */}
+                  <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs opacity-80">FORM</p>
+                        <p className="text-xl font-bold">1099-NEC</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs opacity-80">TAX YEAR</p>
+                        <p className="text-2xl font-bold">{notification.metadata.tax_year || new Date().getFullYear()}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm mt-1 opacity-90">Nonemployee Compensation</p>
+                  </div>
 
-              {/* Tax metadata if available */}
-              {notification.metadata?.amount && (
-                <div className="flex items-center justify-between bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg px-4 py-3 border border-green-500/20">
+                  {/* Payer Section */}
+                  <div className="p-4 border-b border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Payer's Information</p>
+                    <p className="font-semibold">DropDollar Inc.</p>
+                    <p className="text-sm text-gray-600">support@drop-dollar.com</p>
+                  </div>
+
+                  {/* Recipient Section */}
+                  <div className="p-4 border-b border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Recipient's Information</p>
+                    <p className="font-semibold">{notification.metadata.full_name || 'Recipient'}</p>
+                    {notification.metadata.ssn_last4 && (
+                      <p className="text-sm text-gray-600">SSN: ***-**-{notification.metadata.ssn_last4}</p>
+                    )}
+                    {notification.metadata.address && (
+                      <p className="text-sm text-gray-600">{notification.metadata.address}</p>
+                    )}
+                  </div>
+
+                  {/* Box 1 - Main Amount */}
+                  <div className="p-4 bg-green-50 border-b-4 border-green-500">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Box 1 - Nonemployee Compensation</p>
+                        <p className="text-xs text-gray-400 mt-1">Report on Schedule C (Form 1040)</p>
+                      </div>
+                      <p className="text-3xl font-bold text-green-700">
+                        ${typeof notification.metadata.amount === 'number' 
+                          ? notification.metadata.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : notification.metadata.amount}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* IRS Notice */}
+                  <div className="p-4 bg-yellow-50 text-xs text-gray-600">
+                    <p className="font-semibold text-yellow-800 mb-1">⚠️ Important Tax Information</p>
+                    <p>This is important tax information and is being furnished to the IRS. If you are required to file a return, a negligence penalty or other sanction may be imposed on you if this income is taxable and the IRS determines that it has not been reported.</p>
+                  </div>
+
+                  {/* Deadline */}
+                  <div className="p-4 bg-red-50 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Filing Deadline</p>
+                      <p className="font-bold text-red-700">{notification.metadata.filing_deadline || `April 15, ${(notification.metadata.tax_year || new Date().getFullYear()) + 1}`}</p>
+                    </div>
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
+                      📥 Download PDF
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Regular notification content */
+                <div className="bg-black/20 rounded-lg p-4 mb-3">
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">
+                    {notification.content}
+                  </p>
+                </div>
+              )}
+
+              {/* Tax metadata summary for non-1099 with amount */}
+              {notification.message_type !== 'tax_1099' && notification.message_type !== '1099_notification' && notification.metadata?.amount && (
+                <div className="flex items-center justify-between bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg px-4 py-3 border border-green-500/20 mt-3">
                   <div>
                     <span className="text-gray-400 text-sm">Tax Year:</span>
                     <span className="text-white font-semibold ml-2">{notification.metadata.tax_year || 'N/A'}</span>

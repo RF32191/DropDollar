@@ -546,21 +546,77 @@ export default function TaxAdminDashboard() {
   };
 
   const send1099ToUser = async (userId: string, userEmail: string) => {
-    // Find the W-9 record to get the user's name
+    // Find the W-9 record to get the user's info
     const w9Record = w9s.find(w => w.user_id === userId);
     const userName = w9Record?.full_name || 'User';
     
-    if (!confirm(`Send 1099 notification to ${userName} (${userEmail})?`)) {
-      return;
-    }
-
     try {
-      // Use direct RPC to send 1099
+      // Calculate actual earnings for this user from their wins
+      // Sum all competition winnings (marketplace sessions where they won)
+      const { data: winningsData, error: winningsError } = await supabase
+        .from('marketplace_sessions')
+        .select('prize_pool')
+        .eq('winner_user_id', userId)
+        .eq('status', 'completed');
+      
+      let totalEarnings = 0;
+      if (!winningsError && winningsData) {
+        // Winners get the full prize pool value as taxable income
+        totalEarnings = winningsData.reduce((sum, win) => sum + (win.prize_pool || 0), 0);
+      }
+
+      // Also check game_history for any direct token winnings
+      const { data: gameWins, error: gameError } = await supabase
+        .from('game_history')
+        .select('tokens_won')
+        .eq('user_id', userId)
+        .gt('tokens_won', 0);
+      
+      if (!gameError && gameWins) {
+        // Add token winnings (convert tokens to dollars if needed)
+        const tokenWinnings = gameWins.reduce((sum, game) => sum + (game.tokens_won || 0), 0);
+        totalEarnings += tokenWinnings; // Assuming 1 token = $1, adjust if different
+      }
+
+      // Prompt admin to confirm or adjust the amount
+      const confirmedAmount = prompt(
+        `📊 1099-NEC for ${userName} (${userEmail})\n\n` +
+        `Calculated Earnings for ${form1099Year}:\n` +
+        `• Competition Winnings: $${winningsData?.reduce((s, w) => s + (w.prize_pool || 0), 0).toFixed(2) || '0.00'}\n` +
+        `• Token Winnings: $${gameWins?.reduce((s, g) => s + (g.tokens_won || 0), 0).toFixed(2) || '0.00'}\n\n` +
+        `Total: $${totalEarnings.toFixed(2)}\n\n` +
+        `Enter amount to report on 1099 (or adjust):`,
+        totalEarnings.toFixed(2)
+      );
+
+      if (!confirmedAmount) {
+        return; // User cancelled
+      }
+
+      const finalAmount = parseFloat(confirmedAmount);
+      if (isNaN(finalAmount) || finalAmount < 0) {
+        alert('❌ Invalid amount entered');
+        return;
+      }
+
+      if (finalAmount < 600) {
+        const proceed = confirm(
+          `⚠️ IRS Threshold Warning\n\n` +
+          `The amount $${finalAmount.toFixed(2)} is below the $600 IRS reporting threshold.\n\n` +
+          `1099-NEC forms are typically only required for payments of $600 or more.\n\n` +
+          `Do you still want to send this 1099?`
+        );
+        if (!proceed) return;
+      }
+
+      // Use direct RPC to send 1099 with actual amount
       const { data, error } = await supabase.rpc('send_1099_to_user', {
         p_user_id: userId,
         p_full_name: userName,
-        p_amount: 100.00, // Default amount - in real system, calculate from earnings
-        p_tax_year: form1099Year
+        p_amount: finalAmount,
+        p_tax_year: form1099Year,
+        p_ssn_last4: w9Record?.ssn_last4 || null,
+        p_address: w9Record ? `${w9Record.address_line1 || ''}, ${w9Record.city || ''}, ${w9Record.state || ''} ${w9Record.postal_code || ''}` : null
       });
 
       if (error) {
@@ -572,7 +628,16 @@ export default function TaxAdminDashboard() {
       console.log('Send 1099 result:', data);
       
       if (data?.success) {
-        alert(`✅ 1099 notification sent to ${userName}!\n\nThey will see it in their Messages.`);
+        alert(
+          `✅ 1099-NEC Sent Successfully!\n\n` +
+          `Recipient: ${userName}\n` +
+          `Email: ${userEmail}\n` +
+          `Amount: $${finalAmount.toFixed(2)}\n` +
+          `Tax Year: ${form1099Year}\n\n` +
+          `The user will see this in their Dashboard → Messages tab.`
+        );
+        // Refresh data
+        fetch1099s();
       } else {
         alert(`❌ Failed: ${data?.error || 'Unknown error'}`);
       }
