@@ -14,6 +14,7 @@ import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegist
 import SellerDashboard from '@/components/seller/SellerDashboard';
 import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlaceholder';
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
+import TaxNotifications from '@/components/notifications/TaxNotifications';
 // Dashboard with comprehensive icon imports
 import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
@@ -1074,9 +1075,25 @@ export default function TriumphStyleDashboard() {
           )}
 
           {activeTab === 'messages' && (
-            <SimpleMessagesPlaceholder 
-              onUnreadCountChange={(count) => setUnreadMessageCount(count)}
-            />
+            <div className="space-y-8">
+              {/* Tax Documents & Notifications Section */}
+              <TaxNotifications />
+              
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-gray-800 px-4 text-sm text-gray-400">Direct Messages</span>
+                </div>
+              </div>
+              
+              {/* Direct Messages */}
+              <SimpleMessagesPlaceholder 
+                onUnreadCountChange={(count) => setUnreadMessageCount(count)}
+              />
+            </div>
           )}
 
           {activeTab === 'profile' && (

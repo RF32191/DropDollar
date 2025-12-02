@@ -23,6 +23,11 @@ DROP POLICY IF EXISTS "users_read_own_messages" ON user_messages;
 CREATE POLICY "users_read_own_messages" ON user_messages
     FOR SELECT USING (auth.uid() = user_id);
 
+-- Users can update (mark as read) their own messages
+DROP POLICY IF EXISTS "users_update_own_messages" ON user_messages;
+CREATE POLICY "users_update_own_messages" ON user_messages
+    FOR UPDATE USING (auth.uid() = user_id);
+
 -- Admin can send messages to anyone
 DROP POLICY IF EXISTS "admin_send_messages" ON user_messages;
 CREATE POLICY "admin_send_messages" ON user_messages
@@ -41,7 +46,15 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_message_id UUID;
+    v_title TEXT;
+    v_content TEXT;
+    v_type TEXT;
 BEGIN
+    -- Build the message components
+    v_title := 'Your 1099-NEC Tax Form for ' || p_tax_year::TEXT;
+    v_content := 'Hello ' || p_full_name || ', Your 1099-NEC tax form for ' || p_tax_year::TEXT || ' is now available. Total Earnings: $' || ROUND(p_amount, 2)::TEXT || '. This form reports your earnings from DropDollar for tax filing. Deadline: April 15, ' || (p_tax_year + 1)::TEXT || '. Contact support with questions.';
+    v_type := 'tax_1099';
+    
     INSERT INTO user_messages (
         user_id,
         title,
@@ -50,22 +63,9 @@ BEGIN
         metadata
     ) VALUES (
         p_user_id,
-        '📋 Your 1099-NEC Tax Form for ' || p_tax_year,
-        'Hello ' || p_full_name || ',
-
-Your 1099-NEC tax form for the ' || p_tax_year || ' tax year is now available.
-
-💰 Total Earnings: $' || ROUND(p_amount, 2) || '
-
-This form reports your earnings from DropDollar. You will need this for your tax filing.
-
-IMPORTANT DEADLINES:
-• File your taxes by April 15, ' || (p_tax_year + 1)
-
-If you have questions about this form, please contact support.
-
-Thank you for using DropDollar!',
-        '1099_notification',
+        v_title,
+        v_content,
+        v_type,
         jsonb_build_object(
             'tax_year', p_tax_year,
             'amount', p_amount,
@@ -142,5 +142,5 @@ END;
 $$;
 
 SELECT '✅ 1099 SYSTEM READY!' as status;
-SELECT COUNT(*) as messages_sent FROM user_messages WHERE message_type = '1099_notification';
+SELECT COUNT(*) as messages_sent FROM user_messages WHERE message_type IN ('1099_notification', 'tax_1099');
 
