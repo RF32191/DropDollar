@@ -430,42 +430,32 @@ export default function TaxAdminDashboard() {
 
   const email1099s = async () => {
     if (!confirm(
-      `Send 1099 notifications to all users for tax year ${form1099Year}?\n\n` +
-      `This will send messages to their account dashboards (not email).`
+      `Send 1099 notifications to ALL W-9 submitters for tax year ${form1099Year}?\n\n` +
+      `This will send messages to their account dashboards.`
     )) return;
 
-    // Get fresh token
-    let token = authToken;
-    if (!token) {
-      token = await getFreshToken();
-    }
-
-    if (!token) {
-      alert('Please log in with rf32191@gmail.com');
-      return;
-    }
-
     try {
-      const response = await fetch('/api/tax/admin/email-1099s', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ tax_year: form1099Year }),
+      // Use direct RPC to send 1099s
+      const { data, error } = await supabase.rpc('admin_send_all_1099s', {
+        p_tax_year: form1099Year
       });
 
-      const result = await response.json();
+      if (error) {
+        console.error('RPC error:', error);
+        alert(`Error: ${error.message}\n\nMake sure you've run SETUP_1099_SYSTEM.sql`);
+        return;
+      }
+
+      console.log('1099 send result:', data);
       alert(
-        `Notification Delivery Complete!\n\n` +
-        `✅ Sent to user accounts: ${result.stats?.success || 0}\n` +
-        `❌ Failed: ${result.stats?.failed || 0}\n` +
-        `📊 Total: ${result.stats?.total || 0}\n\n` +
-        `Users can view their 1099s in their account dashboard.`
+        `✅ 1099 Notifications Sent!\n\n` +
+        `Sent: ${data?.sent_count || 0} messages\n` +
+        `Errors: ${data?.errors?.length || 0}\n\n` +
+        `Users will see their 1099 in their Messages.`
       );
     } catch (error) {
-      alert('Failed to send 1099 notifications');
-      console.error(error);
+      console.error('Error sending 1099s:', error);
+      alert('Failed to send 1099 notifications. Make sure SETUP_1099_SYSTEM.sql has been run.');
     }
   };
 
@@ -556,44 +546,39 @@ export default function TaxAdminDashboard() {
   };
 
   const send1099ToUser = async (userId: string, userEmail: string) => {
-    if (!confirm(`Send 1099 notification to ${userEmail}?`)) {
-      return;
-    }
-
-    // Get fresh token
-    let token = authToken;
-    if (!token) {
-      token = await getFreshToken();
-    }
-
-    if (!token) {
-      alert('Please log in');
+    // Find the W-9 record to get the user's name
+    const w9Record = w9s.find(w => w.user_id === userId);
+    const userName = w9Record?.full_name || 'User';
+    
+    if (!confirm(`Send 1099 notification to ${userName} (${userEmail})?`)) {
       return;
     }
 
     try {
-      const response = await fetch('/api/tax/admin/email-1099s', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          tax_year: form1099Year,
-          user_id: userId // Send to specific user only
-        }),
+      // Use direct RPC to send 1099
+      const { data, error } = await supabase.rpc('send_1099_to_user', {
+        p_user_id: userId,
+        p_full_name: userName,
+        p_amount: 100.00, // Default amount - in real system, calculate from earnings
+        p_tax_year: form1099Year
       });
 
-      const result = await response.json();
-      if (result.success) {
-        alert(`✅ 1099 notification sent to ${userEmail}!`);
-        fetch1099s(); // Refresh
+      if (error) {
+        console.error('RPC error:', error);
+        alert(`❌ Failed: ${error.message}\n\nMake sure SETUP_1099_SYSTEM.sql has been run.`);
+        return;
+      }
+
+      console.log('Send 1099 result:', data);
+      
+      if (data?.success) {
+        alert(`✅ 1099 notification sent to ${userName}!\n\nThey will see it in their Messages.`);
       } else {
-        alert(`❌ Failed to send: ${result.error}`);
+        alert(`❌ Failed: ${data?.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error sending 1099:', error);
-      alert('Failed to send 1099 notification');
+      alert('Failed to send 1099 notification. Make sure SETUP_1099_SYSTEM.sql has been run.');
     }
   };
 
@@ -905,12 +890,24 @@ export default function TaxAdminDashboard() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <button
-                          onClick={() => downloadUserDocs(w9.user_id)}
-                          className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-semibold transition-all"
+                          onClick={() => {
+                            alert(
+                              `📋 W-9 DETAILS\n\n` +
+                              `Name: ${w9.full_name}\n` +
+                              `Business: ${w9.business_name || 'N/A'}\n` +
+                              `Tax Class: ${w9.tax_classification}\n` +
+                              `SSN Last 4: ***-**-${w9.ssn_last4 || 'N/A'}\n` +
+                              `EIN: ${w9.ein || 'N/A'}\n` +
+                              `City: ${w9.city}\n` +
+                              `State: ${w9.state}\n` +
+                              `Signed: ${w9.signed_at ? new Date(w9.signed_at).toLocaleDateString() : 'N/A'}`
+                            );
+                          }}
+                          className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-xs font-semibold transition-all"
                         >
-                          📥 Docs
+                          👁️ View
                         </button>
                         <button
                           onClick={() => send1099ToUser(w9.user_id, w9.user_email)}
