@@ -59,6 +59,10 @@ DROP POLICY IF EXISTS "admin_send_messages" ON user_messages;
 CREATE POLICY "admin_send_messages" ON user_messages
     FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'rf32191@gmail.com');
 
+-- Drop all existing versions of the function first
+DROP FUNCTION IF EXISTS send_1099_to_user(UUID, TEXT, NUMERIC, INTEGER);
+DROP FUNCTION IF EXISTS send_1099_to_user(UUID, TEXT, NUMERIC, INTEGER, TEXT, TEXT);
+
 -- Function to send 1099-NEC notification to a user
 CREATE OR REPLACE FUNCTION send_1099_to_user(
     p_user_id UUID,
