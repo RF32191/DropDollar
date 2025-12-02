@@ -621,23 +621,24 @@ export default function TaxAdminDashboard() {
       const confirmedAmount = prompt(
         `📊 1099-NEC for ${userName}\n` +
         `Email: ${userEmail}\n` +
-        `User ID: ${userId}\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
         `Tax Year: ${form1099Year}\n\n` +
-        `💰 CURRENT WALLET BALANCE: $${walletBalance.toFixed(2)}\n` +
-        `🎮 Game Tokens: ${gameTokens}\n\n` +
-        `WITHDRAWAL & EARNINGS DATA:\n` +
-        `• YTD Withdrawals (from W-9): $${taxProfileYTD.toFixed(2)}\n` +
-        `• Completed Withdrawals: $${withdrawalTotal.toFixed(2)}\n` +
-        `• Marketplace Winnings: $${marketplaceTotal.toFixed(2)}\n` +
-        `• Cash Balance: $${cashBalance.toFixed(2)}\n` +
-        `• Lifetime Earned: $${totalEarnedLifetime.toFixed(2)}\n` +
+        `💰 WALLET (Not Yet Withdrawn):\n` +
+        `   Current Balance: $${walletBalance.toFixed(2)}\n` +
+        `   Game Tokens: ${gameTokens}\n\n` +
+        `📤 ACTUAL WITHDRAWALS (Report on 1099):\n` +
+        `   ➤ YTD Withdrawn: $${taxProfileYTD.toFixed(2)}\n` +
+        `   ➤ Completed Withdrawals: $${withdrawalTotal.toFixed(2)}\n\n` +
+        `📈 OTHER EARNINGS DATA:\n` +
+        `   Marketplace Wins: $${marketplaceTotal.toFixed(2)}\n` +
+        `   Cash Balance: $${cashBalance.toFixed(2)}\n` +
+        `   Lifetime Earned: $${totalEarnedLifetime.toFixed(2)}\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `💡 1099 reports MONEY PAID OUT (withdrawn)\n` +
-        `   NOT current wallet balance\n\n` +
-        `ENTER THE AMOUNT TO REPORT ON 1099:\n` +
-        `(This should be the total withdrawn/paid out)`,
-        suggestedAmount > 0 ? suggestedAmount.toFixed(2) : ''
+        `⚠️ IMPORTANT: 1099 = MONEY PAID OUT\n` +
+        `   (Actual withdrawals, NOT wallet balance)\n\n` +
+        `   User has withdrawn: $${Math.max(taxProfileYTD, withdrawalTotal).toFixed(2)}\n\n` +
+        `ENTER AMOUNT FOR 1099:`,
+        Math.max(taxProfileYTD, withdrawalTotal).toFixed(2)
       );
 
       if (!confirmedAmount) {
