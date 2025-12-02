@@ -140,10 +140,15 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
   };
 
   const handleDownloadPDF = (notification: TaxNotification) => {
+    // Open the form first, then print after it renders
     setSelectedForm(notification);
+    if (!notification.is_read) {
+      markAsRead(notification.id);
+    }
+    // Use a longer timeout to ensure the form renders completely
     setTimeout(() => {
       window.print();
-    }, 100);
+    }, 500);
   };
 
   const handleViewFullForm = (notification: TaxNotification) => {
@@ -151,6 +156,11 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
+  };
+
+  // Function to print the current form (called from the full form view)
+  const handlePrintForm = () => {
+    window.print();
   };
 
   if (!user) {
@@ -195,27 +205,41 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
         {/* Action buttons */}
         <div className="fixed top-4 left-4 z-50 flex gap-2 print:hidden">
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+            onClick={handlePrintForm}
+            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all"
           >
-            <PrinterIcon className="w-5 h-5" />
-            Print / Save PDF
+            <PrinterIcon className="w-6 h-6" />
+            🖨️ Print / Save as PDF
           </button>
           <button
             onClick={() => setSelectedForm(null)}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors"
           >
-            Close
+            ✕ Close
+          </button>
+        </div>
+        
+        {/* Bottom floating print button for mobile */}
+        <div className="fixed bottom-4 left-4 right-4 z-50 print:hidden">
+          <button
+            onClick={handlePrintForm}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-4 rounded-xl font-bold text-xl shadow-2xl transition-all"
+          >
+            <PrinterIcon className="w-7 h-7" />
+            📄 SAVE AS PDF / PRINT
           </button>
         </div>
 
         {/* Printable 1099-NEC Form */}
         <div ref={printRef} id="printable-1099" className="max-w-4xl mx-auto my-16 print:my-0 print:max-w-none">
           {/* Print Instructions Banner - hidden on print */}
-          <div className="bg-blue-600 text-white p-4 rounded-t-lg print:hidden mb-0">
-            <p className="text-center font-semibold">
-              📄 To save as PDF: Click "Print / Save PDF" → Select "Save as PDF" as the destination → Click Save
-            </p>
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-lg print:hidden mb-0">
+            <h3 className="text-xl font-bold text-center mb-3">📄 How to Save This 1099 as PDF</h3>
+            <div className="max-w-xl mx-auto space-y-2 text-sm">
+              <p className="flex items-center gap-2"><span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center font-bold">1</span> Click the green "SAVE AS PDF / PRINT" button below</p>
+              <p className="flex items-center gap-2"><span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center font-bold">2</span> In the print dialog, change "Destination" to <strong>"Save as PDF"</strong></p>
+              <p className="flex items-center gap-2"><span className="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center font-bold">3</span> Click <strong>"Save"</strong> to download your 1099-NEC</p>
+            </div>
           </div>
           <div className="bg-white text-black p-8 print:p-4 rounded-b-lg print:rounded-none" style={{ fontFamily: 'Arial, sans-serif' }}>
             {/* IRS Header */}
