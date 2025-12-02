@@ -505,7 +505,7 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
                 </div>
 
                 {/* 1099-NEC Preview Card */}
-                {is1099 && notification.metadata?.amount ? (
+                {is1099 && notification.metadata ? (
                   <div className="bg-white text-black rounded-lg overflow-hidden shadow-xl">
                     {/* Mini Header */}
                     <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-4 py-3 flex justify-between items-center">
@@ -529,7 +529,7 @@ export default function TaxNotifications({ onUnreadCountChange }: TaxNotificatio
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-500 uppercase">Box 1 - Compensation</p>
-                        <p className="text-2xl font-bold text-green-700">${formatAmount(notification.metadata.amount)}</p>
+                        <p className="text-2xl font-bold text-green-700">${formatAmount(notification.metadata.amount ?? 0)}</p>
                       </div>
                     </div>
 
