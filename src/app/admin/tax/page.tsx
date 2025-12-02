@@ -24,8 +24,11 @@ interface W9Record {
   tax_classification: string;
   ssn_last4: string;
   ein: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
   city: string;
   state: string;
+  postal_code: string | null;
   signed_at: string;
   is_verified: boolean;
   total_lifetime_earnings_cents: number;
@@ -321,8 +324,11 @@ export default function TaxAdminDashboard() {
           tax_classification: tp.tax_classification,
           ssn_last4: tp.ssn_last4,
           ein: tp.ein,
+          address_line1: tp.address_line1 || null,
+          address_line2: tp.address_line2 || null,
           city: tp.city,
           state: tp.state,
+          postal_code: tp.postal_code || null,
           signed_at: tp.signed_at || tp.created_at,
           is_verified: tp.is_verified || false,
           total_lifetime_earnings_cents: 0,
@@ -551,41 +557,72 @@ export default function TaxAdminDashboard() {
     const userName = w9Record?.full_name || 'User';
     
     try {
-      // Calculate actual earnings for this user from their wins
-      // Sum all competition winnings (marketplace sessions where they won)
-      const { data: winningsData, error: winningsError } = await supabase
+      // Get user's total earnings from user_balances
+      const { data: balanceData } = await supabase
+        .from('user_balances')
+        .select('total_earned, cash_balance')
+        .eq('user_id', userId)
+        .single();
+
+      // Get completed withdrawals for the tax year
+      const startOfYear = `${form1099Year}-01-01`;
+      const endOfYear = `${form1099Year}-12-31`;
+      
+      const { data: withdrawals } = await supabase
+        .from('withdrawal_requests')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('status', 'completed')
+        .gte('completed_at', startOfYear)
+        .lte('completed_at', endOfYear);
+      
+      // Get earnings transactions for the tax year
+      const { data: earnings } = await supabase
+        .from('user_transactions')
+        .select('amount')
+        .eq('user_id', userId)
+        .in('type', ['earning', 'prize_win'])
+        .eq('status', 'completed')
+        .gte('created_at', startOfYear)
+        .lte('created_at', endOfYear);
+
+      // Get marketplace winnings
+      const { data: marketplaceWins } = await supabase
         .from('marketplace_sessions')
         .select('prize_pool')
         .eq('winner_user_id', userId)
         .eq('status', 'completed');
-      
-      let totalEarnings = 0;
-      if (!winningsError && winningsData) {
-        // Winners get the full prize pool value as taxable income
-        totalEarnings = winningsData.reduce((sum, win) => sum + (win.prize_pool || 0), 0);
-      }
 
-      // Also check game_history for any direct token winnings
-      const { data: gameWins, error: gameError } = await supabase
-        .from('game_history')
-        .select('tokens_won')
-        .eq('user_id', userId)
-        .gt('tokens_won', 0);
+      // Calculate totals
+      const withdrawalTotal = withdrawals?.reduce((sum, w) => sum + Number(w.amount || 0), 0) || 0;
+      const earningsTotal = earnings?.reduce((sum, e) => sum + Math.abs(Number(e.amount || 0)), 0) || 0;
+      const marketplaceTotal = marketplaceWins?.reduce((sum, m) => sum + Number(m.prize_pool || 0), 0) || 0;
+      const totalEarnedLifetime = Number(balanceData?.total_earned || 0);
+      const currentBalance = Number(balanceData?.cash_balance || 0);
+
+      // For 1099, use the LARGER of: withdrawals, earnings transactions, or total_earned
+      // This ensures we capture all taxable income
+      let totalEarnings = Math.max(withdrawalTotal, earningsTotal, marketplaceTotal);
       
-      if (!gameError && gameWins) {
-        // Add token winnings (convert tokens to dollars if needed)
-        const tokenWinnings = gameWins.reduce((sum, game) => sum + (game.tokens_won || 0), 0);
-        totalEarnings += tokenWinnings; // Assuming 1 token = $1, adjust if different
+      // If no transaction data, use lifetime earnings
+      if (totalEarnings === 0) {
+        totalEarnings = totalEarnedLifetime;
       }
 
       // Prompt admin to confirm or adjust the amount
       const confirmedAmount = prompt(
-        `📊 1099-NEC for ${userName} (${userEmail})\n\n` +
-        `Calculated Earnings for ${form1099Year}:\n` +
-        `• Competition Winnings: $${winningsData?.reduce((s, w) => s + (w.prize_pool || 0), 0).toFixed(2) || '0.00'}\n` +
-        `• Token Winnings: $${gameWins?.reduce((s, g) => s + (g.tokens_won || 0), 0).toFixed(2) || '0.00'}\n\n` +
-        `Total: $${totalEarnings.toFixed(2)}\n\n` +
-        `Enter amount to report on 1099 (or adjust):`,
+        `📊 1099-NEC for ${userName} (${userEmail})\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `Tax Year: ${form1099Year}\n\n` +
+        `EARNINGS BREAKDOWN:\n` +
+        `• Completed Withdrawals: $${withdrawalTotal.toFixed(2)}\n` +
+        `• Earnings Transactions: $${earningsTotal.toFixed(2)}\n` +
+        `• Marketplace Winnings: $${marketplaceTotal.toFixed(2)}\n` +
+        `• Lifetime Total Earned: $${totalEarnedLifetime.toFixed(2)}\n` +
+        `• Current Balance: $${currentBalance.toFixed(2)}\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `SUGGESTED 1099 AMOUNT: $${totalEarnings.toFixed(2)}\n\n` +
+        `Enter amount to report on 1099:`,
         totalEarnings.toFixed(2)
       );
 
@@ -609,6 +646,11 @@ export default function TaxAdminDashboard() {
         if (!proceed) return;
       }
 
+      // Build full address
+      const fullAddress = w9Record ? 
+        `${w9Record.address_line1 || ''}${w9Record.address_line2 ? ', ' + w9Record.address_line2 : ''}, ${w9Record.city || ''}, ${w9Record.state || ''} ${w9Record.postal_code || ''}` : 
+        null;
+
       // Use direct RPC to send 1099 with actual amount
       const { data, error } = await supabase.rpc('send_1099_to_user', {
         p_user_id: userId,
@@ -616,7 +658,7 @@ export default function TaxAdminDashboard() {
         p_amount: finalAmount,
         p_tax_year: form1099Year,
         p_ssn_last4: w9Record?.ssn_last4 || null,
-        p_address: w9Record ? `${w9Record.address_line1 || ''}, ${w9Record.city || ''}, ${w9Record.state || ''} ${w9Record.postal_code || ''}` : null
+        p_address: fullAddress
       });
 
       if (error) {
@@ -632,9 +674,10 @@ export default function TaxAdminDashboard() {
           `✅ 1099-NEC Sent Successfully!\n\n` +
           `Recipient: ${userName}\n` +
           `Email: ${userEmail}\n` +
-          `Amount: $${finalAmount.toFixed(2)}\n` +
+          `Box 1 Amount: $${finalAmount.toFixed(2)}\n` +
           `Tax Year: ${form1099Year}\n\n` +
-          `The user will see this in their Dashboard → Messages tab.`
+          `The user will see this in their Dashboard → Messages tab\n` +
+          `and can download the PDF.`
         );
         // Refresh data
         fetch1099s();
