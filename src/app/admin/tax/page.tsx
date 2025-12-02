@@ -859,9 +859,7 @@ export default function TaxAdminDashboard() {
             </span>
           </div>
           
-          <div className="hidden" style={{display: 'none'}}>
-            {/* Removed duplicate button */
-          </button>
+          {/* Note: SSN is already masked - only last 4 digits shown */}
 
           {/* W-9 Table */}
           <div className="overflow-x-auto">
