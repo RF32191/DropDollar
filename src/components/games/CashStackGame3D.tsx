@@ -623,7 +623,10 @@ export default function CashStackGame3D({
       const bonus = stackedBlocksRef.current.length * 300;
       setScore(prev => parseFloat((prev + bonus).toFixed(2)));
       setExplosions(prev => prev + 1);
-      console.log(`💥 EXPLOSION! Blocks: ${stackedBlocksRef.current.length}, Bonus: ${bonus.toFixed(2)}`);
+      
+      // 🔥 SPEED BOOST ON EXPLOSION - increases difficulty!
+      currentSpeedMultiplierRef.current += 0.25;
+      console.log(`💥 EXPLOSION! Blocks: ${stackedBlocksRef.current.length}, Bonus: ${bonus.toFixed(2)}, Speed: ${currentSpeedMultiplierRef.current.toFixed(2)}x`);
       
       setTimeout(() => {
         const baseBlock = createBlock(0, 0, INITIAL_SIZE, INITIAL_SIZE, 0, 'x');
@@ -770,13 +773,41 @@ export default function CashStackGame3D({
       }, 2000);
     }
     
-    // DECIMAL SCORING BASED ON DROP SPEED
+    // DECIMAL SCORING BASED ON DROP SPEED + PRECISION
     const now = performance.now();
     const timeSinceLastStack = lastStackTimeRef.current > 0 ? (now - lastStackTimeRef.current) / 1000 : 0;
     lastStackTimeRef.current = now;
     
+    // Calculate precision bonus based on overlap percentage
+    const overlapWidth = current.direction === 'x' ? newWidth : current.width;
+    const overlapDepth = current.direction === 'z' ? newDepth : current.depth;
+    const originalWidth = current.direction === 'x' ? current.width : current.width;
+    const originalDepth = current.direction === 'z' ? current.depth : current.depth;
+    const overlapPercent = current.direction === 'x' 
+      ? (newWidth / current.width) * 100 
+      : (newDepth / current.depth) * 100;
+    
     // Base points
     let basePoints = 3 + Math.floor(stackedBlocksRef.current.length / 2);
+    
+    // 🎯 PRECISION BONUS: Better placement = more points!
+    // 100% overlap = 3x bonus, 90% = 2x, 80% = 1.5x, 70% = 1.2x, below 70% = 1x
+    let precisionMultiplier = 1.0;
+    let precisionLabel = '';
+    if (overlapPercent >= 98) {
+      precisionMultiplier = 3.0;
+      precisionLabel = '🎯 PERFECT!';
+      playSound(1200, 0.15, 'sine'); // Perfect sound
+    } else if (overlapPercent >= 90) {
+      precisionMultiplier = 2.0;
+      precisionLabel = '✨ Excellent!';
+    } else if (overlapPercent >= 80) {
+      precisionMultiplier = 1.5;
+      precisionLabel = '👍 Great!';
+    } else if (overlapPercent >= 70) {
+      precisionMultiplier = 1.2;
+      precisionLabel = '👌 Good';
+    }
     
     // Speed multiplier: Faster drops = more points (decimal precision)
     // Very fast (< 0.5s) = 2.0x, Fast (< 1s) = 1.5x, Normal (< 2s) = 1.2x, Slow (>= 2s) = 1.0x
@@ -796,13 +827,14 @@ export default function CashStackGame3D({
       }
     }
     
-    const finalPoints = basePoints * speedMultiplier;
+    // Final points = base × speed × precision
+    const finalPoints = basePoints * speedMultiplier * precisionMultiplier;
     
     setScore(prev => parseFloat((prev + finalPoints).toFixed(2)));
     setTowerHeight(stackedBlocksRef.current.length);
     setTotalStacks(prev => prev + 1); // Track total stacks across all explosions
     
-    console.log(`📦 Stack! Time: ${timeSinceLastStack.toFixed(3)}s, Base: ${basePoints}, Speed: ${speedMultiplier.toFixed(2)}x, Points: ${finalPoints.toFixed(2)}`);
+    console.log(`📦 Stack! ${precisionLabel} Overlap: ${overlapPercent.toFixed(1)}%, Precision: ${precisionMultiplier}x, Speed: ${speedMultiplier.toFixed(2)}x, Points: ${finalPoints.toFixed(2)}`);
     
     // Random speed boost at intervals
     if (stackedBlocksRef.current.length >= nextSpeedBoostRef.current) {
