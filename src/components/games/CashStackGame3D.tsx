@@ -475,6 +475,7 @@ export default function CashStackGame3D({
   }, [playSound]);
 
   // Update alignment line showing connection between dollar signs
+  // Uses LINEAR alignment (only along movement direction) to match explosion logic
   const updateAlignmentLine = useCallback(() => {
     if (!sceneRef.current || !currentBlockRef.current || stackedBlocksRef.current.length === 0) {
       if (alignmentLineRef.current && sceneRef.current) {
@@ -488,29 +489,37 @@ export default function CashStackGame3D({
     const last = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
 
     // Calculate world positions of dollar signs
+    const lastDollarWorldX = last.x + last.dollarX;
+    const lastDollarWorldZ = last.z + last.dollarZ;
+    const currentDollarWorldX = current.x + current.dollarX;
+    const currentDollarWorldZ = current.z + current.dollarZ;
+    
     const lastDollarWorldPos = new THREE.Vector3(
-      last.x + last.dollarX,
+      lastDollarWorldX,
       last.currentY + BLOCK_HEIGHT / 2 + 0.1,
-      last.z + last.dollarZ
+      lastDollarWorldZ
     );
 
     const currentDollarWorldPos = new THREE.Vector3(
-      current.x + current.dollarX,
+      currentDollarWorldX,
       current.currentY + BLOCK_HEIGHT / 2 + 0.1,
-      current.z + current.dollarZ
+      currentDollarWorldZ
     );
 
-    // Calculate distance for color
-    const distance = lastDollarWorldPos.distanceTo(currentDollarWorldPos);
-    const isClose = distance < DOLLAR_THRESHOLD * 2;
-    const isPerfect = distance < DOLLAR_THRESHOLD;
+    // LINEAR DISTANCE - only along movement direction (matches explosion logic)
+    const linearDistance = current.direction === 'x' 
+      ? Math.abs(lastDollarWorldX - currentDollarWorldX)
+      : Math.abs(lastDollarWorldZ - currentDollarWorldZ);
+    
+    const isClose = linearDistance < DOLLAR_THRESHOLD * 2;
+    const isPerfect = linearDistance < DOLLAR_THRESHOLD;
 
     // Create or update line
     const points = [lastDollarWorldPos, currentDollarWorldPos];
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     
-    // Yellow tape color - brighter when closer
-    const color = isPerfect ? 0xFFFF00 : (isClose ? 0xFFD700 : 0xFFA500);
+    // Yellow tape color - brighter when aligned! Green when perfect!
+    const color = isPerfect ? 0x00FF00 : (isClose ? 0xFFFF00 : 0xFFA500);
     const lineWidth = isPerfect ? 6 : (isClose ? 4 : 2);
     
     const material = new THREE.LineBasicMaterial({
@@ -530,7 +539,7 @@ export default function CashStackGame3D({
     sceneRef.current.add(line);
     alignmentLineRef.current = line;
 
-    // Add pulsing effect when close
+    // Add pulsing effect when aligned for explosion
     if (isPerfect) {
       const pulse = Math.sin(Date.now() * 0.01) * 0.2 + 0.8;
       material.opacity = pulse;
@@ -585,10 +594,13 @@ export default function CashStackGame3D({
     const current = currentBlockRef.current;
     const last = stackedBlocksRef.current[stackedBlocksRef.current.length - 1];
     
-    // Check $ alignment
-    const dollarDistX = Math.abs(last.dollarX - current.dollarX);
-    const dollarDistZ = Math.abs(last.dollarZ - current.dollarZ);
-    const dollarDist = Math.max(dollarDistX, dollarDistZ);
+    // Check $ alignment - LINEAR ALIGNMENT ONLY (along the yellow line / movement direction)
+    // If moving in X, only check X alignment; if moving in Z, only check Z alignment
+    const dollarDistX = Math.abs((last.x + last.dollarX) - (current.x + current.dollarX));
+    const dollarDistZ = Math.abs((last.z + last.dollarZ) - (current.z + current.dollarZ));
+    
+    // Linear alignment: check the direction the block is moving
+    const dollarDist = current.direction === 'x' ? dollarDistX : dollarDistZ;
     
     if (dollarDist < DOLLAR_THRESHOLD) {
       // EXPLOSION!
@@ -1081,15 +1093,32 @@ export default function CashStackGame3D({
 
   // Handle game end - FIXED: No freeze, immediate callback
   const hasEndedRef = useRef(false);
+  const finalScoreRef = useRef(0);
+  const finalAccuracyRef = useRef(0);
+  const finalTowerHeightRef = useRef(0);
+  const finalExplosionsRef = useRef(0);
+  
+  // Keep refs updated with latest values
+  useEffect(() => {
+    finalScoreRef.current = score;
+    finalTowerHeightRef.current = towerHeight;
+    finalExplosionsRef.current = explosions;
+    finalAccuracyRef.current = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
+  }, [score, towerHeight, explosions]);
   
   useEffect(() => {
     if (gameState === 'ended' && !hasEndedRef.current) {
       hasEndedRef.current = true; // Prevent double-calling
+      
+      // Capture values immediately from refs (most up-to-date)
+      const capturedScore = finalScoreRef.current;
+      const capturedAccuracy = finalAccuracyRef.current;
+      const capturedTowerHeight = finalTowerHeightRef.current;
+      const capturedExplosions = finalExplosionsRef.current;
+      
+      console.log('🎯 [CashStack] Game ended! Score:', capturedScore, 'Tower:', capturedTowerHeight);
+      
       playSound(300, 1, 'triangle');
-      
-      console.log('🎯 [CashStack] Game ended! Score:', score);
-      
-      const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
       
       // Stop all animations immediately
       if (animationIdRef.current) {
@@ -1097,40 +1126,41 @@ export default function CashStackGame3D({
         animationIdRef.current = undefined;
       }
       
-      // Quick delay for game over screen, then call onGameEnd
+      // 🔒 AUTO-AUDIT: Log to admin audit system (fire and forget, don't block)
+      logGameCompletion({
+        gameType: GAME_TYPES.CASH_STACK,
+        gameMode: GAME_MODES.PRACTICE,
+        score: capturedScore,
+        accuracy: capturedAccuracy,
+        reactionTime: 0,
+        durationSeconds: 60,
+        additionalData: {
+          towerHeight: capturedTowerHeight,
+          explosions: capturedExplosions
+        }
+      }).catch(err => console.warn('[CashStack] Audit log failed:', err));
+      
+      // Call onGameEnd after short delay for game over display
       const endTimeout = setTimeout(() => {
-        // 🔒 AUTO-AUDIT: Log to admin audit system (fire and forget)
-        logGameCompletion({
-          gameType: GAME_TYPES.CASH_STACK,
-          gameMode: GAME_MODES.PRACTICE,
-          score,
-          accuracy,
-          reactionTime: 0,
-          durationSeconds: 60,
-          additionalData: {
-            towerHeight,
-            explosions
-          }
-        }).catch(err => console.warn('[CashStack] Audit log failed:', err));
-        
-        // IMMEDIATELY call onGameEnd - don't wait for audit
-        console.log('🎯 [CashStack] Calling onGameEnd callback...');
+        console.log('🎯 [CashStack] Calling onGameEnd callback with score:', capturedScore);
         if (onGameEnd) {
           try {
             onGameEnd({
-              score,
-              accuracy,
+              score: capturedScore,
+              accuracy: capturedAccuracy,
             });
-            console.log('🎯 [CashStack] onGameEnd callback completed');
+            console.log('🎯 [CashStack] onGameEnd callback completed successfully');
           } catch (error) {
             console.error('[CashStackGame3D] onGameEnd callback error:', error);
           }
+        } else {
+          console.warn('[CashStack] onGameEnd callback is undefined!');
         }
-      }, 1500); // Reduced from 2000ms to 1500ms
+      }, 1000); // 1 second delay for game over screen
       
       return () => clearTimeout(endTimeout);
     }
-  }, [gameState, score, explosions, towerHeight, onGameEnd, playSound]);
+  }, [gameState, onGameEnd, playSound]);
 
   return (
     <div className="relative w-full h-screen bg-[#0a1628] overflow-hidden">
@@ -1211,6 +1241,39 @@ export default function CashStackGame3D({
           >
             START GAME
           </button>
+        </div>
+      )}
+      
+      {/* GAME OVER SCREEN */}
+      {gameState === 'ended' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white">
+          <div className="text-center">
+            <h1 className="text-6xl font-bold mb-4 animate-pulse text-red-500">
+              GAME OVER
+            </h1>
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 max-w-md mx-auto">
+              <div className="text-5xl font-bold text-yellow-400 mb-4">
+                {score.toFixed(2)}
+              </div>
+              <div className="text-xl text-white mb-4">Final Score</div>
+              
+              <div className="grid grid-cols-2 gap-4 text-left">
+                <div className="bg-black/30 rounded-lg p-3">
+                  <div className="text-gray-400 text-sm">🏗️ Tower Height</div>
+                  <div className="text-2xl font-bold text-green-400">{towerHeight}</div>
+                </div>
+                <div className="bg-black/30 rounded-lg p-3">
+                  <div className="text-gray-400 text-sm">💥 Explosions</div>
+                  <div className="text-2xl font-bold text-red-400">{explosions}</div>
+                </div>
+              </div>
+              
+              <div className="mt-6 text-gray-300 text-lg">
+                Recording score...
+              </div>
+              <div className="mt-2 animate-spin w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div>
+            </div>
+          </div>
         </div>
       )}
       
