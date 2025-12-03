@@ -113,12 +113,12 @@ SELECT
         ELSE '❌ ERROR: IDs still do not match'
     END as result;
 
--- Show user's data
+-- Show user's data (check what columns exist first)
 SELECT 
     'user_balances' as table_name,
     user_id,
-    tokens,
-    cash_balance
+    cash_balance,
+    total_earned
 FROM public.user_balances
 WHERE user_id = (SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com');
 
