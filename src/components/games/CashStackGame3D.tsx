@@ -98,7 +98,8 @@ const CHALLENGE_COIN_POINTS = 0;
 const CHALLENGE_HIT_RADIUS = 0;
 
 // 20 Game Variations - COSMETIC ONLY (Fair Competition)
-// ALL variations now have IDENTICAL difficulty (speedMod: 1.0, coinChance: 0.15)
+// ALL variations have IDENTICAL difficulty (speedMod: 1.0)
+// coinChance is DISABLED (coins removed for fairness)
 // Only visual appearance (color) differs - ensures fair competition
 const GAME_VARIATIONS = [
   { id: 1, name: 'Classic Green', blockColor: 0x32CD32, emissive: 0x32CD32, speedMod: 1.0, coinChance: 0.15 },
@@ -795,15 +796,9 @@ export default function CashStackGame3D({
       playSound(1500, 0.2, 'square');
     }
     
-    // Random bonus coin spawn (use variation's coin chance)
-    if (Math.random() < currentVariation.coinChance && !bonusCoinRef.current?.active) {
-      createBonusCoin();
-    }
-    
-    // Random challenge coin spawn
-    if (Math.random() < CHALLENGE_COIN_CHANCE && !challengeCoinRef.current?.active) {
-      createChallengeCoin();
-    }
+    // COIN DROPS DISABLED for fair competition - was random/luck-based
+    // Previously: if (Math.random() < currentVariation.coinChance) createBonusCoin();
+    // Previously: if (Math.random() < CHALLENGE_COIN_CHANCE) createChallengeCoin();
     
     // Create next moving block
     const nextBlock = createBlock(
