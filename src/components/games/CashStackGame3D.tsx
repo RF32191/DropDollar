@@ -156,6 +156,7 @@ export default function CashStackGame3D({
   const [totalStacks, setTotalStacks] = useState(0); // Total stacks across all explosions
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
+  const directionRef = useRef(1); // Use ref for smooth animation (no React state lag)
   
   // Sync game state to ref for animation loop
   useEffect(() => {
@@ -827,7 +828,8 @@ export default function CashStackGame3D({
     nextBlock.currentY = (stackedBlocksRef.current.length) * BLOCK_HEIGHT;
     currentBlockRef.current = nextBlock;
     
-    setDirection(prev => prev * -1);
+    // Flip direction using ref (no React state lag)
+    directionRef.current = directionRef.current * -1;
   }, [gameState, createBlock, createParticles, playSound, createBonusCoin, createChallengeCoin, currentVariation]);
 
   // Animation loop
@@ -848,19 +850,30 @@ export default function CashStackGame3D({
       const baseSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
       const currentSpeed = baseSpeed * currentSpeedMultiplierRef.current * currentVariation.speedMod; // Apply variation speed mod
       
-      // Update current block
+      // Update current block - use ref for direction (no React state lag)
       if (currentBlockRef.current && !currentBlockRef.current.isDropping) {
         const block = currentBlockRef.current;
+        const dir = directionRef.current;
         
         if (block.direction === 'x') {
-          block.x += currentSpeed * direction;
-          if (block.x < -10 || block.x > 10) {
-            setDirection(prev => prev * -1);
+          block.x += currentSpeed * dir;
+          // Clamp and reverse direction at boundaries
+          if (block.x <= -10) {
+            block.x = -10;
+            directionRef.current = 1;
+          } else if (block.x >= 10) {
+            block.x = 10;
+            directionRef.current = -1;
           }
         } else {
-          block.z += currentSpeed * direction;
-          if (block.z < -10 || block.z > 10) {
-            setDirection(prev => prev * -1);
+          block.z += currentSpeed * dir;
+          // Clamp and reverse direction at boundaries
+          if (block.z <= -10) {
+            block.z = -10;
+            directionRef.current = 1;
+          } else if (block.z >= 10) {
+            block.z = 10;
+            directionRef.current = -1;
           }
         }
         
