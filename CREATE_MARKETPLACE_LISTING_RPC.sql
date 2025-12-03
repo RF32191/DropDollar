@@ -5,8 +5,12 @@
 -- Run this in Supabase SQL Editor
 -- ============================================================================
 
--- Drop existing function if it exists
+-- Drop all existing versions of the function
+DROP FUNCTION IF EXISTS create_marketplace_listing CASCADE;
 DROP FUNCTION IF EXISTS create_marketplace_listing(text, text, text, numeric, text, boolean, text, integer);
+DROP FUNCTION IF EXISTS create_marketplace_listing(text, text, text, numeric, text);
+DROP FUNCTION IF EXISTS create_marketplace_listing(text, text, text, numeric, text, boolean);
+DROP FUNCTION IF EXISTS create_marketplace_listing(text, text, text, numeric, text, boolean, text);
 
 -- Create the RPC function
 CREATE OR REPLACE FUNCTION create_marketplace_listing(
