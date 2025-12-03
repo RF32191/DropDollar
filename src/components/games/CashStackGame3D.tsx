@@ -153,8 +153,10 @@ export default function CashStackGame3D({
   const [score, setScore] = useState(0);
   const [explosions, setExplosions] = useState(0);
   const [towerHeight, setTowerHeight] = useState(0);
+  const [totalStacks, setTotalStacks] = useState(0); // Total stacks across all explosions
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Track if we're submitting score
   
   // Sync game state to ref for animation loop
   useEffect(() => {
@@ -798,6 +800,7 @@ export default function CashStackGame3D({
     
     setScore(prev => parseFloat((prev + finalPoints).toFixed(2)));
     setTowerHeight(stackedBlocksRef.current.length);
+    setTotalStacks(prev => prev + 1); // Track total stacks across all explosions
     
     console.log(`📦 Stack! Time: ${timeSinceLastStack.toFixed(3)}s, Base: ${basePoints}, Speed: ${speedMultiplier.toFixed(2)}x, Points: ${finalPoints.toFixed(2)}`);
     
@@ -1091,32 +1094,41 @@ export default function CashStackGame3D({
     return () => clearInterval(interval);
   }, [gameState]);
 
-  // Handle game end - FIXED: No freeze, immediate callback
+  // Handle game end - FIXED: No freeze, force callback
   const hasEndedRef = useRef(false);
   const finalScoreRef = useRef(0);
   const finalAccuracyRef = useRef(0);
   const finalTowerHeightRef = useRef(0);
+  const finalTotalStacksRef = useRef(0);
   const finalExplosionsRef = useRef(0);
+  const onGameEndRef = useRef(onGameEnd);
   
   // Keep refs updated with latest values
   useEffect(() => {
     finalScoreRef.current = score;
     finalTowerHeightRef.current = towerHeight;
+    finalTotalStacksRef.current = totalStacks;
     finalExplosionsRef.current = explosions;
-    finalAccuracyRef.current = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
-  }, [score, towerHeight, explosions]);
+    finalAccuracyRef.current = Math.min(100, (explosions * 100) / Math.max(1, totalStacks));
+    onGameEndRef.current = onGameEnd;
+  }, [score, towerHeight, totalStacks, explosions, onGameEnd]);
   
   useEffect(() => {
     if (gameState === 'ended' && !hasEndedRef.current) {
       hasEndedRef.current = true; // Prevent double-calling
+      setIsSubmitting(true);
       
       // Capture values immediately from refs (most up-to-date)
       const capturedScore = finalScoreRef.current;
       const capturedAccuracy = finalAccuracyRef.current;
-      const capturedTowerHeight = finalTowerHeightRef.current;
+      const capturedTotalStacks = finalTotalStacksRef.current;
       const capturedExplosions = finalExplosionsRef.current;
       
-      console.log('🎯 [CashStack] Game ended! Score:', capturedScore, 'Tower:', capturedTowerHeight);
+      console.log('🎯 [CashStack] ===== GAME ENDED =====');
+      console.log('🎯 [CashStack] Score:', capturedScore);
+      console.log('🎯 [CashStack] Total Stacks:', capturedTotalStacks);
+      console.log('🎯 [CashStack] Explosions:', capturedExplosions);
+      console.log('🎯 [CashStack] onGameEnd exists:', !!onGameEndRef.current);
       
       playSound(300, 1, 'triangle');
       
@@ -1135,32 +1147,33 @@ export default function CashStackGame3D({
         reactionTime: 0,
         durationSeconds: 60,
         additionalData: {
-          towerHeight: capturedTowerHeight,
+          totalStacks: capturedTotalStacks,
           explosions: capturedExplosions
         }
       }).catch(err => console.warn('[CashStack] Audit log failed:', err));
       
-      // Call onGameEnd after short delay for game over display
+      // FORCE callback after 1.5 seconds - no matter what
       const endTimeout = setTimeout(() => {
-        console.log('🎯 [CashStack] Calling onGameEnd callback with score:', capturedScore);
-        if (onGameEnd) {
-          try {
-            onGameEnd({
-              score: capturedScore,
-              accuracy: capturedAccuracy,
-            });
-            console.log('🎯 [CashStack] onGameEnd callback completed successfully');
-          } catch (error) {
-            console.error('[CashStackGame3D] onGameEnd callback error:', error);
-          }
+        console.log('🎯 [CashStack] ===== CALLING onGameEnd =====');
+        console.log('🎯 [CashStack] Score being sent:', capturedScore);
+        
+        const callback = onGameEndRef.current;
+        if (callback && typeof callback === 'function') {
+          console.log('🎯 [CashStack] Executing callback NOW...');
+          callback({
+            score: capturedScore,
+            accuracy: capturedAccuracy,
+          });
+          console.log('🎯 [CashStack] ✅ Callback executed!');
         } else {
-          console.warn('[CashStack] onGameEnd callback is undefined!');
+          console.error('[CashStack] ❌ onGameEnd is not a function:', typeof callback);
         }
-      }, 1000); // 1 second delay for game over screen
+        setIsSubmitting(false);
+      }, 1500);
       
       return () => clearTimeout(endTimeout);
     }
-  }, [gameState, onGameEnd, playSound]);
+  }, [gameState, playSound]);
 
   return (
     <div className="relative w-full h-screen bg-[#0a1628] overflow-hidden">
@@ -1171,10 +1184,10 @@ export default function CashStackGame3D({
         <div className="flex justify-between items-start">
           <div className="space-y-2">
             <div className="text-white text-4xl font-bold drop-shadow-lg">
-              Score: {score}
+              Score: {score.toFixed(2)}
             </div>
             <div className="text-green-400 text-2xl font-bold">
-              🏗️ Tower: {towerHeight}
+              📦 Stacks: {totalStacks} (Tower: {towerHeight})
             </div>
             {explosions > 0 && (
               <div className="text-red-400 text-2xl font-bold">
@@ -1259,8 +1272,8 @@ export default function CashStackGame3D({
               
               <div className="grid grid-cols-2 gap-4 text-left">
                 <div className="bg-black/30 rounded-lg p-3">
-                  <div className="text-gray-400 text-sm">🏗️ Tower Height</div>
-                  <div className="text-2xl font-bold text-green-400">{towerHeight}</div>
+                  <div className="text-gray-400 text-sm">📦 Total Stacks</div>
+                  <div className="text-2xl font-bold text-green-400">{totalStacks}</div>
                 </div>
                 <div className="bg-black/30 rounded-lg p-3">
                   <div className="text-gray-400 text-sm">💥 Explosions</div>
@@ -1268,10 +1281,18 @@ export default function CashStackGame3D({
                 </div>
               </div>
               
-              <div className="mt-6 text-gray-300 text-lg">
-                Recording score...
-              </div>
-              <div className="mt-2 animate-spin w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div>
+              {isSubmitting ? (
+                <>
+                  <div className="mt-6 text-gray-300 text-lg">
+                    Recording score...
+                  </div>
+                  <div className="mt-2 animate-spin w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div>
+                </>
+              ) : (
+                <div className="mt-6 text-green-400 text-lg font-bold">
+                  ✅ Score recorded!
+                </div>
+              )}
             </div>
           </div>
         </div>
