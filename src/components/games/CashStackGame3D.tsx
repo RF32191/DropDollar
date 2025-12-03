@@ -4,12 +4,12 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
-// 🔥🔥🔥 CACHE BUSTER - BUILD 20251203-V9 🔥🔥🔥
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251203-V10 🔥🔥🔥
 console.log('');
 console.log('💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵');
-console.log('💵 CASH STACK v9.0 - BUILD 20251203-FAIR');
-console.log('💵 CHANGES: No exit button, no coin drops, fixed freeze');
-console.log('🔒 Fair competition mode - skill-based only');
+console.log('💵 CASH STACK v10.0 - BUILD 20251203-CONTINUE');
+console.log('💵 FEATURES: Manual continue button, total stacks tracking');
+console.log('🔒 Fair competition: RNG seeding, audit logging, no coins');
 console.log('💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵');
 console.log('');
 
@@ -156,7 +156,6 @@ export default function CashStackGame3D({
   const [totalStacks, setTotalStacks] = useState(0); // Total stacks across all explosions
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Track if we're submitting score
   
   // Sync game state to ref for animation loop
   useEffect(() => {
@@ -1094,86 +1093,61 @@ export default function CashStackGame3D({
     return () => clearInterval(interval);
   }, [gameState]);
 
-  // Handle game end - FIXED: No freeze, force callback
+  // Handle game end - SIMPLIFIED: Manual continue button
   const hasEndedRef = useRef(false);
-  const finalScoreRef = useRef(0);
-  const finalAccuracyRef = useRef(0);
-  const finalTowerHeightRef = useRef(0);
-  const finalTotalStacksRef = useRef(0);
-  const finalExplosionsRef = useRef(0);
-  const onGameEndRef = useRef(onGameEnd);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
+  const [finalTotalStacks, setFinalTotalStacks] = useState(0);
+  const [finalExplosions, setFinalExplosions] = useState(0);
   
-  // Keep refs updated with latest values
-  useEffect(() => {
-    finalScoreRef.current = score;
-    finalTowerHeightRef.current = towerHeight;
-    finalTotalStacksRef.current = totalStacks;
-    finalExplosionsRef.current = explosions;
-    finalAccuracyRef.current = Math.min(100, (explosions * 100) / Math.max(1, totalStacks));
-    onGameEndRef.current = onGameEnd;
-  }, [score, towerHeight, totalStacks, explosions, onGameEnd]);
+  // Manual continue function - user clicks to proceed
+  const handleContinue = useCallback(() => {
+    console.log('🎯 [CashStack] User clicked Continue');
+    console.log('🎯 [CashStack] Final score:', finalScore);
+    
+    // 🔒 Audit log (fire and forget)
+    const accuracy = Math.min(100, (finalExplosions * 100) / Math.max(1, finalTotalStacks));
+    logGameCompletion({
+      gameType: GAME_TYPES.CASH_STACK,
+      gameMode: GAME_MODES.PRACTICE,
+      score: finalScore,
+      accuracy,
+      reactionTime: 0,
+      durationSeconds: 60,
+      additionalData: { totalStacks: finalTotalStacks, explosions: finalExplosions }
+    }).catch(err => console.warn('[CashStack] Audit failed:', err));
+    
+    // Call the callback
+    if (onGameEnd && typeof onGameEnd === 'function') {
+      console.log('🎯 [CashStack] Calling onGameEnd...');
+      onGameEnd({ score: finalScore, accuracy });
+      console.log('🎯 [CashStack] ✅ Done!');
+    } else {
+      console.error('[CashStack] onGameEnd not available');
+    }
+  }, [finalScore, finalTotalStacks, finalExplosions, onGameEnd]);
   
   useEffect(() => {
     if (gameState === 'ended' && !hasEndedRef.current) {
-      hasEndedRef.current = true; // Prevent double-calling
-      setIsSubmitting(true);
+      hasEndedRef.current = true;
       
-      // Capture values immediately from refs (most up-to-date)
-      const capturedScore = finalScoreRef.current;
-      const capturedAccuracy = finalAccuracyRef.current;
-      const capturedTotalStacks = finalTotalStacksRef.current;
-      const capturedExplosions = finalExplosionsRef.current;
+      // Capture final values
+      setFinalScore(score);
+      setFinalTotalStacks(totalStacks);
+      setFinalExplosions(explosions);
+      setGameEnded(true);
       
-      console.log('🎯 [CashStack] ===== GAME ENDED =====');
-      console.log('🎯 [CashStack] Score:', capturedScore);
-      console.log('🎯 [CashStack] Total Stacks:', capturedTotalStacks);
-      console.log('🎯 [CashStack] Explosions:', capturedExplosions);
-      console.log('🎯 [CashStack] onGameEnd exists:', !!onGameEndRef.current);
+      console.log('🎯 [CashStack] Game ended! Score:', score, 'Stacks:', totalStacks);
       
       playSound(300, 1, 'triangle');
       
-      // Stop all animations immediately
+      // Stop animations
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
         animationIdRef.current = undefined;
       }
-      
-      // 🔒 AUTO-AUDIT: Log to admin audit system (fire and forget, don't block)
-      logGameCompletion({
-        gameType: GAME_TYPES.CASH_STACK,
-        gameMode: GAME_MODES.PRACTICE,
-        score: capturedScore,
-        accuracy: capturedAccuracy,
-        reactionTime: 0,
-        durationSeconds: 60,
-        additionalData: {
-          totalStacks: capturedTotalStacks,
-          explosions: capturedExplosions
-        }
-      }).catch(err => console.warn('[CashStack] Audit log failed:', err));
-      
-      // FORCE callback after 1.5 seconds - no matter what
-      const endTimeout = setTimeout(() => {
-        console.log('🎯 [CashStack] ===== CALLING onGameEnd =====');
-        console.log('🎯 [CashStack] Score being sent:', capturedScore);
-        
-        const callback = onGameEndRef.current;
-        if (callback && typeof callback === 'function') {
-          console.log('🎯 [CashStack] Executing callback NOW...');
-          callback({
-            score: capturedScore,
-            accuracy: capturedAccuracy,
-          });
-          console.log('🎯 [CashStack] ✅ Callback executed!');
-        } else {
-          console.error('[CashStack] ❌ onGameEnd is not a function:', typeof callback);
-        }
-        setIsSubmitting(false);
-      }, 1500);
-      
-      return () => clearTimeout(endTimeout);
     }
-  }, [gameState, playSound]);
+  }, [gameState, score, totalStacks, explosions, playSound]);
 
   return (
     <div className="relative w-full h-screen bg-[#0a1628] overflow-hidden">
@@ -1266,33 +1240,31 @@ export default function CashStackGame3D({
             </h1>
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 max-w-md mx-auto">
               <div className="text-5xl font-bold text-yellow-400 mb-4">
-                {score.toFixed(2)}
+                {finalScore.toFixed(2)}
               </div>
               <div className="text-xl text-white mb-4">Final Score</div>
               
               <div className="grid grid-cols-2 gap-4 text-left">
                 <div className="bg-black/30 rounded-lg p-3">
                   <div className="text-gray-400 text-sm">📦 Total Stacks</div>
-                  <div className="text-2xl font-bold text-green-400">{totalStacks}</div>
+                  <div className="text-2xl font-bold text-green-400">{finalTotalStacks}</div>
                 </div>
                 <div className="bg-black/30 rounded-lg p-3">
                   <div className="text-gray-400 text-sm">💥 Explosions</div>
-                  <div className="text-2xl font-bold text-red-400">{explosions}</div>
+                  <div className="text-2xl font-bold text-red-400">{finalExplosions}</div>
                 </div>
               </div>
               
-              {isSubmitting ? (
-                <>
-                  <div className="mt-6 text-gray-300 text-lg">
-                    Recording score...
-                  </div>
-                  <div className="mt-2 animate-spin w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div>
-                </>
-              ) : (
-                <div className="mt-6 text-green-400 text-lg font-bold">
-                  ✅ Score recorded!
-                </div>
-              )}
+              <button
+                onClick={handleContinue}
+                className="mt-6 w-full px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-xl font-bold rounded-xl transition-all transform hover:scale-105 pointer-events-auto shadow-lg"
+              >
+                ✅ Continue
+              </button>
+              
+              <p className="mt-3 text-gray-400 text-sm">
+                Click to record score and proceed
+              </p>
             </div>
           </div>
         </div>
