@@ -14,7 +14,7 @@ import dynamic from 'next/dynamic';
 
 interface CashStackGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
-  onExit?: () => void; // Made optional to match other games
+  onExit?: () => void; // DEPRECATED - Exit button removed for fair competition (no quitting mid-game)
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;

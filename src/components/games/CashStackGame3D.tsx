@@ -4,12 +4,12 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
-// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251203-V9 🔥🔥🔥
 console.log('');
 console.log('💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵');
-console.log('💵 CASH STACK v8.0 - BUILD 20251127-1900');
-console.log('💵 If you see this, NEW CODE IS RUNNING!');
-console.log('🔒 Audit logs WILL be sent to admin dashboard');
+console.log('💵 CASH STACK v9.0 - BUILD 20251203-FAIR');
+console.log('💵 CHANGES: No exit button, no coin drops, fixed freeze');
+console.log('🔒 Fair competition mode - skill-based only');
 console.log('💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵💵');
 console.log('');
 
@@ -60,6 +60,7 @@ interface ChallengeCoin {
   targetZ: number;
   active: boolean;
   alignmentLine: THREE.Line | null;
+  rotation: number;
 }
 
 interface GameSession {
@@ -72,7 +73,7 @@ interface GameSession {
 
 interface CashStackGame3DProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
-  onExit?: () => void; // Made optional to match other games
+  onExit?: () => void; // DEPRECATED - Exit button removed for fair competition
   listingId?: string;
   entryNumber?: number;
   isCompetitionMode?: boolean;
@@ -88,12 +89,13 @@ const MAX_SPEED = 0.9;
 const DOLLAR_THRESHOLD = 0.6;
 const DROP_GRAVITY = 0.025;
 const BOUNCE_DAMPING = 0.5;
-const BONUS_COIN_CHANCE = 0.15;
-const BONUS_COIN_POINTS = 500;
-const CHALLENGE_COIN_CHANCE = 0.08; // 8% chance of challenge coin
-const CHALLENGE_COIN_SPEED = 0.15; // Much faster
-const CHALLENGE_COIN_POINTS = 500;
-const CHALLENGE_HIT_RADIUS = 0.15; // Very precise
+// COIN DROP REMOVED - Was random/unfair for competitive play
+const BONUS_COIN_CHANCE = 0; // DISABLED
+const BONUS_COIN_POINTS = 0;
+const CHALLENGE_COIN_CHANCE = 0; // DISABLED
+const CHALLENGE_COIN_SPEED = 0;
+const CHALLENGE_COIN_POINTS = 0;
+const CHALLENGE_HIT_RADIUS = 0;
 
 // 20 Game Variations - COSMETIC ONLY (Fair Competition)
 // ALL variations now have IDENTICAL difficulty (speedMod: 1.0, coinChance: 0.15)
@@ -465,6 +467,7 @@ export default function CashStackGame3D({
       targetZ,
       active: true,
       alignmentLine: null,
+      rotation: 0,
     };
 
     playSound(1500, 0.1, 'square');
@@ -1081,56 +1084,54 @@ export default function CashStackGame3D({
     return () => clearInterval(interval);
   }, [gameState]);
 
-  // Handle game end
+  // Handle game end - FIXED: No freeze, immediate callback
+  const hasEndedRef = useRef(false);
+  
   useEffect(() => {
-    if (gameState === 'ended') {
+    if (gameState === 'ended' && !hasEndedRef.current) {
+      hasEndedRef.current = true; // Prevent double-calling
       playSound(300, 1, 'triangle');
       
-      // Use a ref to track if we've already ended
-      const endTimeout = setTimeout(async () => {
-        try {
-          const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
-          
-          // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-          console.log('🎯 [CashStack] Game ended, preparing to log audit...');
-          console.log('🎯 [CashStack] Final score:', score, 'Accuracy:', accuracy);
-          
+      console.log('🎯 [CashStack] Game ended! Score:', score);
+      
+      const accuracy = Math.min(100, (explosions * 100) / Math.max(1, towerHeight));
+      
+      // Stop all animations immediately
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+        animationIdRef.current = undefined;
+      }
+      
+      // Quick delay for game over screen, then call onGameEnd
+      const endTimeout = setTimeout(() => {
+        // 🔒 AUTO-AUDIT: Log to admin audit system (fire and forget)
+        logGameCompletion({
+          gameType: GAME_TYPES.CASH_STACK,
+          gameMode: GAME_MODES.PRACTICE,
+          score,
+          accuracy,
+          reactionTime: 0,
+          durationSeconds: 60,
+          additionalData: {
+            towerHeight,
+            explosions
+          }
+        }).catch(err => console.warn('[CashStack] Audit log failed:', err));
+        
+        // IMMEDIATELY call onGameEnd - don't wait for audit
+        console.log('🎯 [CashStack] Calling onGameEnd callback...');
+        if (onGameEnd) {
           try {
-            const auditResult = await logGameCompletion({
-              gameType: GAME_TYPES.CASH_STACK,
-              gameMode: GAME_MODES.PRACTICE,
-              score,
-              accuracy,
-              reactionTime: 0,
-              durationSeconds: 60,
-              additionalData: {
-                towerHeight,
-                explosions
-              }
-            });
-            console.log('🎯 [CashStack] Audit result:', auditResult);
-          } catch (auditError) {
-            console.error('🎯 [CashStack] Audit logging failed:', auditError);
-          }
-          
-          // Call onGameEnd with error handling
-          if (onGameEnd) {
             onGameEnd({
               score,
               accuracy,
             });
-          }
-        } catch (error) {
-          console.error('[CashStackGame3D] Error during game end:', error);
-          // Still try to call onGameEnd even if audit fails
-          if (onGameEnd) {
-            onGameEnd({
-              score,
-              accuracy: Math.min(100, (explosions * 100) / Math.max(1, towerHeight)),
-            });
+            console.log('🎯 [CashStack] onGameEnd callback completed');
+          } catch (error) {
+            console.error('[CashStackGame3D] onGameEnd callback error:', error);
           }
         }
-      }, 2000);
+      }, 1500); // Reduced from 2000ms to 1500ms
       
       return () => clearTimeout(endTimeout);
     }
@@ -1185,8 +1186,7 @@ export default function CashStackGame3D({
           <p className="text-lg mb-2">⚡ <span className="text-yellow-400">FAST STACKING = BONUS POINTS!</span></p>
           <p className="text-lg mb-2">⏱️ &lt;0.5s = 2.0x | &lt;1s = 1.5x | &lt;2s = 1.2x</p>
           <p className="text-lg mb-2">🎯 <span className="text-green-400">Decimal scores</span> prevent ties!</p>
-          <p className="text-lg mb-2">Align $ signs for 💥 EXPLOSION BONUS!</p>
-          <p className="text-lg mb-6">🪙 Catch coins (+500pts)</p>
+          <p className="text-lg mb-6">Align $ signs for 💥 EXPLOSION BONUS!</p>
           
           {/* Color selector - only show in practice mode */}
           {!gameSession && (
@@ -1219,15 +1219,7 @@ export default function CashStackGame3D({
         </div>
       )}
       
-      {/* Exit button - only show if onExit provided (practice mode) */}
-      {onExit && (
-        <button
-          onClick={onExit}
-          className="absolute top-6 right-6 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-all pointer-events-auto"
-        >
-          EXIT
-        </button>
-      )}
+      {/* EXIT BUTTON REMOVED - No exiting during games for fair competition */}
     </div>
   );
 }
