@@ -113,14 +113,18 @@ SELECT
         ELSE '❌ ERROR: IDs still do not match'
     END as result;
 
--- Show user's data (check what columns exist first)
-SELECT 
-    'user_balances' as table_name,
-    user_id,
-    cash_balance,
-    total_earned
-FROM public.user_balances
-WHERE user_id = (SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com');
+-- Check what tables have your user_id
+SELECT 'admin_profiles' as table_name, COUNT(*) as records 
+FROM public.admin_profiles 
+WHERE user_id = (SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com')
+UNION ALL
+SELECT 'user_balances', COUNT(*) 
+FROM public.user_balances 
+WHERE user_id = (SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com')
+UNION ALL
+SELECT 'marketplace_listings', COUNT(*) 
+FROM public.marketplace_listings 
+WHERE seller_id = (SELECT id FROM auth.users WHERE email = 'rf32191@gmail.com');
 
 SELECT '✅ You can now create marketplace listings!' as status;
 
