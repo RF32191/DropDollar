@@ -7,6 +7,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import ShippingTrackingPanel from '@/components/admin/ShippingTrackingPanel';
 import ListingManagementPanel from '@/components/admin/ListingManagementPanel';
+import AdCampaignManagement from '@/components/admin/AdCampaignManagement';
 import {
   ShieldCheckIcon,
   UserGroupIcon,
@@ -123,7 +124,7 @@ export default function AdminDashboard() {
   const [sensitivePasswordError, setSensitivePasswordError] = useState('');
   const SENSITIVE_TABS_PASSWORD = '124816SnoopDog';
   
-  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax' | 'verification'>('sellers');
+  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax' | 'verification' | 'ads'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -673,6 +674,17 @@ export default function AdminDashboard() {
             >
               <IdentificationIcon className="inline h-5 w-5 mr-2" />
               Seller Verification
+            </button>
+            <button
+              onClick={() => setActiveTab('ads')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'ads'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <ChartBarIcon className="inline h-5 w-5 mr-2" />
+              Ad Campaigns
             </button>
           </div>
         </div>
@@ -1266,6 +1278,25 @@ export default function AdminDashboard() {
             )}
             </>
             )}
+          </div>
+        )}
+
+        {/* ====================================================================== */}
+        {/* AD CAMPAIGNS TAB */}
+        {/* ====================================================================== */}
+        {activeTab === 'ads' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center text-white">
+                  <ChartBarIcon className="w-6 h-6 mr-2 text-purple-400" />
+                  Ad Campaigns Management
+                </h2>
+                <p className="text-gray-400 mt-2">Approve, monitor, and manage advertising campaigns</p>
+              </div>
+            </div>
+
+            <AdCampaignManagement />
           </div>
         )}
       </div>
