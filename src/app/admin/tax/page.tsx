@@ -14,6 +14,7 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import W9OnboardingModal from '@/components/tax/W9OnboardingModal';
+import AdCampaignManagement from '@/components/admin/AdCampaignManagement';
 
 interface W9Record {
   id: string;
@@ -1134,6 +1135,20 @@ export default function TaxAdminDashboard() {
         </div>
           </>
         )}
+      </div>
+
+      {/* ====================================================================== */}
+      {/* AD CAMPAIGNS SECTION */}
+      {/* ====================================================================== */}
+      <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 backdrop-blur-lg rounded-3xl shadow-xl p-8 border border-purple-500/20">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white">📢 Ad Campaigns Management</h2>
+            <p className="text-gray-300 mt-2">Approve, monitor, and manage advertising campaigns</p>
+          </div>
+        </div>
+
+        <AdCampaignManagement />
       </div>
 
       {/* W-9 Modal */}
