@@ -108,7 +108,10 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
       const deviceType = /mobile/i.test(userAgent) ? 'mobile' : /tablet/i.test(userAgent) ? 'tablet' : 'desktop';
       const adType = ad.is_platform_ad ? '[PLATFORM]' : '[PAID]';
 
-      await supabase.rpc('log_ad_impression', {
+      console.log(`🎯 [AdBanner] Logging impression for campaign: ${ad.id}`);
+      console.log(`🎯 [AdBanner] Page: ${pageLocation}, Session: ${sessionId}`);
+
+      const { data, error } = await supabase.rpc('log_ad_impression', {
         p_campaign_id: ad.id,
         p_page_location: pageLocation,
         p_session_id: sessionId,
@@ -116,10 +119,16 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
         p_device_type: deviceType
       });
 
-      console.log(`📊 ${adType} Ad impression logged:`, ad.headline, 
-                  ad.is_platform_ad ? '(FREE - Platform Ad)' : '(PAID - Seller Ad)');
+      if (error) {
+        console.error('❌ [AdBanner] RPC Error logging impression:', error);
+        console.error('❌ [AdBanner] Error details:', JSON.stringify(error, null, 2));
+        return;
+      }
+
+      console.log(`✅ ${adType} Ad impression logged successfully:`, ad.headline);
+      console.log(`✅ Impression ID:`, data);
     } catch (error) {
-      console.error('Error logging impression:', error);
+      console.error('❌ [AdBanner] Exception logging impression:', error);
     }
   };
 
@@ -127,21 +136,26 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
     try {
       const adType = ad.is_platform_ad ? '[PLATFORM]' : '[PAID]';
       
+      console.log(`🎯 [AdBanner] Logging click for campaign: ${ad.id}`);
+      
       // Log click (backend will charge tokens for paid ads only)
-      if (impressionId) {
-        await supabase.rpc('log_ad_click', {
-          p_campaign_id: ad.id,
-          p_impression_id: impressionId
-        });
+      const { data, error } = await supabase.rpc('log_ad_click', {
+        p_campaign_id: ad.id,
+        p_impression_id: impressionId || null
+      });
+
+      if (error) {
+        console.error('❌ [AdBanner] RPC Error logging click:', error);
+        console.error('❌ [AdBanner] Error details:', JSON.stringify(error, null, 2));
+      } else {
+        console.log(`✅ ${adType} Ad click logged successfully:`, ad.headline);
+        console.log(`✅ Click ID:`, data);
       }
 
       // Open destination in new tab
       window.open(ad.destination_url, '_blank', 'noopener,noreferrer');
-      
-      console.log(`🔗 ${adType} Ad clicked:`, ad.headline,
-                  ad.is_platform_ad ? '(FREE - Platform Ad)' : '(PAID - Charges seller 5 tokens)');
     } catch (error) {
-      console.error('Error logging click:', error);
+      console.error('❌ [AdBanner] Exception logging click:', error);
     }
   };
 

@@ -71,13 +71,20 @@ export default function AdOverlay({
           const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
           const deviceType = /mobile/i.test(userAgent) ? 'mobile' : /tablet/i.test(userAgent) ? 'tablet' : 'desktop';
 
-          await supabase.rpc('log_ad_impression', {
+          console.log('🎯 [AdOverlay] Logging impression for:', randomAd.id);
+          const { data: impressionData, error: impressionError } = await supabase.rpc('log_ad_impression', {
             p_campaign_id: randomAd.id,
             p_page_location: 'games',
             p_session_id: sessionId,
             p_user_agent: userAgent,
             p_device_type: deviceType
           });
+
+          if (impressionError) {
+            console.error('❌ [AdOverlay] Error logging impression:', impressionError);
+          } else {
+            console.log('✅ [AdOverlay] Impression logged, ID:', impressionData);
+          }
         } else {
           console.warn('⚠️ [AdOverlay] No ads available');
         }
@@ -128,18 +135,25 @@ export default function AdOverlay({
     if (!ad) return;
 
     try {
+      console.log('🎯 [AdOverlay] Logging click for:', ad.id);
+      
       // Log click
-      await supabase.rpc('log_ad_click', {
+      const { data, error } = await supabase.rpc('log_ad_click', {
         p_campaign_id: ad.id,
         p_impression_id: null
       });
 
+      if (error) {
+        console.error('❌ [AdOverlay] RPC Error logging click:', error);
+        console.error('❌ [AdOverlay] Error details:', JSON.stringify(error, null, 2));
+      } else {
+        console.log('✅ [AdOverlay] Click logged, ID:', data);
+      }
+
       // Open destination in new tab
       window.open(ad.destination_url, '_blank', 'noopener,noreferrer');
-      
-      console.log('🔗 [AdOverlay] Ad clicked:', ad.headline);
     } catch (error) {
-      console.error('❌ [AdOverlay] Error logging click:', error);
+      console.error('❌ [AdOverlay] Exception logging click:', error);
     }
   };
 
