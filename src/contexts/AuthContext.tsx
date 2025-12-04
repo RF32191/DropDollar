@@ -138,41 +138,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (userId: string) => {
     try {
-      console.log('🔍 [AuthContext] Loading user profile for ID:', userId);
-      
-      // First, get the auth user to get the email
+      // Get auth user email (minimal logging for speed)
       const { data: authUser, error: authError } = await supabase.auth.getUser();
       if (authError || !authUser.user) {
-        console.error('❌ [AuthContext] Error getting auth user:', authError);
-        setIsLoading(false); // CRITICAL: Stop loading even on error
+        console.error('Auth error:', authError);
+        setIsLoading(false);
         return;
       }
       
-      const userEmail = authUser.user.email;
-      console.log('📧 [AuthContext] Auth user email:', userEmail);
-      
-      // Use UserService to get profile by email (ensures we get the right user)
-      const profile = await UserService.getUserProfileByEmail(userEmail);
+      // Fetch profile by email
+      const profile = await UserService.getUserProfileByEmail(authUser.user.email);
       
       if (!profile) {
-        console.error('❌ [AuthContext] No user profile found for email:', userEmail);
-        console.log('🔄 [AuthContext] This user may not exist in database yet');
-        setIsLoading(false); // CRITICAL: Stop loading even if no profile
+        console.error('No profile found');
+        setIsLoading(false);
         return;
       }
       
+      // Update state immediately
       setUser(profile);
       setIsAuthenticated(true);
-      setIsLoading(false); // Stop loading immediately!
+      setIsLoading(false);
       
-      // Store in localStorage for faster access
+      // Store in localStorage (batch)
       localStorage.setItem('user', JSON.stringify(profile));
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userId', profile.id);
       localStorage.setItem('userEmail', profile.email);
       localStorage.setItem('lastActivity', Date.now().toString());
       
-      // Dispatch event for instant wallet display
+      // Dispatch event for wallet
       window.dispatchEvent(new CustomEvent('userProfileLoaded', {
         detail: {
           user: profile,
@@ -182,18 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }));
       
-      console.log('✅ [AuthContext] User profile loaded successfully:', {
-        id: profile.id,
-        email: profile.email,
-        username: profile.username,
-        purchased: profile.purchased_tokens,
-        won: profile.won_tokens,
-        total: (profile.purchased_tokens || 0) + (profile.won_tokens || 0)
-      });
+      console.log('✅ Logged in:', profile.email);
       
     } catch (error) {
-      console.error('❌ [AuthContext] Failed to load user profile:', error);
-      setIsLoading(false); // CRITICAL: Always stop loading on error
+      console.error('Login error:', error);
+      setIsLoading(false);
     }
   };
 
@@ -201,38 +189,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔐 Logging in:', email);
       
-      // Clear previous user data first to prevent cross-contamination
-      console.log('🧹 Clearing previous user data...');
+      // Clear previous user data (fast, minimal logging)
       setUser(null);
       setIsAuthenticated(false);
       
-      // CRITICAL: Only clear OUR app data, NOT Supabase auth tokens!
-      // Supabase needs its tokens to authenticate the login request
-      const appKeys = [
-        'user',
-        'isLoggedIn',
-        'userId',
-        'userEmail',
-        'sessionId',
-        'loginTime',
-        'lastActivity'
-      ];
-      
-      appKeys.forEach(key => {
-        localStorage.removeItem(key);
-        console.log('🧹 Removed app key:', key);
-      });
-      
-      // Also clear sessionStorage
+      // Quick clear of app keys (no individual logging for speed)
+      const appKeys = ['user', 'isLoggedIn', 'userId', 'userEmail', 'sessionId', 'loginTime', 'lastActivity'];
+      appKeys.forEach(key => localStorage.removeItem(key));
       sessionStorage.clear();
-      console.log('🧹 Cleared sessionStorage');
       
-      // Clear our app cookies only
+      // Clear app cookies
       document.cookie = 'dropdollar_session=; path=/; max-age=0';
       document.cookie = 'dropdollar_user=; path=/; max-age=0';
       document.cookie = 'dropdollar_remember=; path=/; max-age=0';
-      
-      console.log('✅ Previous user data cleared (Supabase auth preserved)');
       
       // Try Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({

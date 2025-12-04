@@ -355,30 +355,17 @@ export class UserService {
    */
   static async getUserProfileByEmail(email: string): Promise<UserProfile | null> {
     try {
-      console.log('🔍 [UserService] Fetching user profile for EMAIL:', email);
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
         .single();
 
-      if (error) {
-        console.error('❌ [UserService] Error fetching user profile by email:', error);
+      if (error || !data) {
+        console.error('Profile fetch error:', error);
         return null;
       }
 
-      if (!data) {
-        console.log('⚠️ [UserService] User profile not found for email:', email);
-        return null;
-      }
-
-      console.log('✅ [UserService] User profile fetched by email:', {
-        id: data.id,
-        email: data.email,
-        username: data.username,
-        tokens: data.tokens
-      });
-      
       return {
         id: data.id,
         username: data.username,
@@ -397,7 +384,7 @@ export class UserService {
         updatedAt: data.updated_at || data.created_at
       };
     } catch (error) {
-      console.error('❌ [UserService] Exception in getUserProfileByEmail:', error);
+      console.error('Profile error:', error);
       return null;
     }
   }
