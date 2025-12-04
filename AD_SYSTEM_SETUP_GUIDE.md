@@ -31,18 +31,41 @@ What it does:
 - Updates `create_ad_campaign` function to use `users.purchased_tokens` and `users.won_tokens`
 - Handles token deduction correctly (deducts from purchased first, then won)
 
-### **Step 3: Add Test Tokens**
+### **Step 3: Update Ad Priority & Logging**
+Run: `UPDATE_AD_PRIORITY_SYSTEM.sql`
+Run: `UPDATE_AD_LOGGING_FUNCTIONS.sql`
+
+What it does:
+- Prioritizes paid seller ads over free platform ads
+- Makes platform ads free (no token charges)
+- Only charges tokens for paid seller ads
+
+### **Step 4: Create Platform Default Ads** ⭐ **IMPORTANT**
+Run: `CREATE_PLATFORM_DEFAULT_ADS.sql`
+
+What it does:
+- Creates 4 permanent DropDollar promotional ads:
+  - 💰 Win Real Money Playing Skill-Based Games
+  - 🔥 $50K Prize Pools in Hot Sell Tournaments
+  - 🎁 Win Real Products - iPads, Gaming Gear & More
+  - 🏪 Sell Your Products to Thousands of Active Gamers
+- These show until sellers pay for their own ads
+- **FREE** - No token charges, unlimited impressions
+- Runs forever (10 year expiration)
+
+### **Step 5: Add Test Tokens**
 Run: `GIVE_5000_TOKENS_TO_RYAN.sql`
 
 What it does:
 - Adds 5,000 tokens to `ryanrfermoselle@yahoo.com` for testing
 
-### **Step 4 (Optional): Create Demo Ads**
+### **Step 6 (Optional): Create Seller Demo Ads**
 Run: `CREATE_DEMO_ADS.sql`
 
 What it does:
-- Creates 3 pre-approved demo ad campaigns
+- Creates 3 pre-approved demo ad campaigns from fake sellers
 - These will show immediately on all pages for testing
+- Uses paid ad format (charges tokens)
 
 ---
 
@@ -63,17 +86,29 @@ What it does:
 
 1. **Go to `/admin/dashboard`**
 2. **Click "Ad Campaigns" tab**
-3. **See all campaigns** with stats:
-   - Total impressions
-   - Total clicks
-   - Click-through rate (CTR)
-   - Budget usage
+3. **See ALL campaigns** (Platform + Paid) with:
+   - 🆓 **Platform Ad Badge** - Identifies free DropDollar ads
+   - 💰 **Budget Usage** - Tokens spent vs budget
+   - 📊 **Real-Time Stats:**
+     - Total impressions (views)
+     - Total clicks
+     - Click-through rate (CTR %)
+     - Budget percentage used
+   - 📍 **Target Pages** - Where ads are showing
+   - 👤 **Seller Info** - Username and contact
 4. **Take action:**
    - ✅ **Approve & Activate** - Makes ad go live
    - ❌ **Reject** - Reject with reason
    - ⏸️ **Pause** - Stop showing temporarily
    - ▶️ **Resume** - Restart paused ad
    - 🗑️ **Delete** - Remove & auto-refund unspent tokens
+5. **Filter campaigns:**
+   - All / Pending / Active / Paused / Completed
+6. **View aggregate stats:**
+   - Total campaigns (platform + paid)
+   - Pending approvals
+   - Active campaigns
+   - Total tokens spent (paid ads only)
 
 ### **For Users (Viewing Ads):**
 
@@ -91,27 +126,44 @@ Ads automatically appear on these pages:
 
 ## 💡 How the Banner Works
 
-### **When No Ads Exist:**
-Shows default "Become a Seller" CTA:
-```
-┌──────────────────────────────────────────┐
-│ 🚀 Advertise Your Brand Here!           │
-│ Reach thousands of skilled gamers        │
-│ [Become a Seller] [Create Ad]            │
-└──────────────────────────────────────────┘
-```
+### **Smart Ad Priority System:**
 
-### **When Ads Exist:**
-Shows rotating sponsored ads:
+#### **1️⃣ Paid Seller Ads (If Available)**
+When sellers pay for ads, they show first:
 ```
 ┌──────────────────────────────────────────┐
 │ ✨ SPONSORED                             │
 │ [Image] 50% OFF Gaming Headsets!         │
 │         Premium gear at unbeatable prices│
-│         [Shop Now →] by DemoSeller       │
+│         [Shop Now →] by GamingStoreX     │
+│         💰 [PAID AD] Charges seller      │
 │         ● ○ ○ (rotation indicators)      │
 └──────────────────────────────────────────┘
 ```
+
+#### **2️⃣ Platform Default Ads (Fallback)**
+When NO paid ads exist, shows DropDollar's own ads:
+```
+┌──────────────────────────────────────────┐
+│ ✨ SPONSORED                             │
+│ 💰 Win Real Money Playing Skill-Based!  │
+│ Join tournaments, compete fairly, cash   │
+│ out instantly. No gambling—pure skill!   │
+│ [Start Playing →] by DropDollar          │
+│ 🆓 [PLATFORM AD] Free                    │
+└──────────────────────────────────────────┘
+```
+
+### **🎯 Priority Logic:**
+1. **Paid Seller Ads** → Show ONLY these when they exist
+2. **Platform Ads** → Show when NO paid ads for that page
+3. **Never show both** → Sellers get full visibility!
+
+### **💸 Charging Logic:**
+- **Platform Ads (DropDollar):** FREE, no token charges
+- **Paid Seller Ads:** Charge per impression & click
+  - 1 token per 1,000 impressions
+  - 5 tokens per click
 
 ---
 
