@@ -21,7 +21,7 @@ interface AdBannerProps {
   maxAds?: number;
 }
 
-export default function AdBanner({ pageLocation, position = 'top', maxAds = 1 }: AdBannerProps) {
+export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }: AdBannerProps) {
   const [ads, setAds] = useState<Ad[]>([]);
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,29 +57,38 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 1 }:
 
   // Log impression when ad is viewed
   useEffect(() => {
-    if (ads.length > 0 && !impressionLogged.has(currentAd.id)) {
+    const currentAd = ads[currentAdIndex];
+    if (currentAd && !impressionLogged.has(currentAd.id)) {
       logImpression(currentAd);
       setImpressionLogged(new Set(impressionLogged).add(currentAd.id));
     }
-  }, [currentAdIndex, ads]);
+  }, [currentAdIndex, ads, impressionLogged]);
 
   const loadAds = async () => {
     try {
       setIsLoading(true);
+      console.log(`🎯 [AdBanner] Loading ads for page: ${pageLocation}`);
+      
       const { data, error } = await supabase.rpc('get_active_ads_for_page', {
         p_page_location: pageLocation
       });
 
       if (error) {
-        console.error('Error loading ads:', error);
+        console.error('❌ [AdBanner] Error loading ads:', error);
         return;
       }
 
+      console.log(`✅ [AdBanner] Received ${data?.length || 0} ads from database`);
+      
       if (data && data.length > 0) {
-        setAds(data.slice(0, maxAds));
+        const adsToShow = data.slice(0, maxAds);
+        setAds(adsToShow);
+        console.log(`📺 [AdBanner] Displaying ${adsToShow.length} ads:`, adsToShow.map((a: Ad) => a.headline));
+      } else {
+        console.log('⚠️ [AdBanner] No ads available for this page');
       }
     } catch (error) {
-      console.error('Error loading ads:', error);
+      console.error('❌ [AdBanner] Exception loading ads:', error);
     } finally {
       setIsLoading(false);
     }

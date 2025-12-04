@@ -817,7 +817,7 @@ export default function WinnerTakesAllPage() {
         )}
 
         {/* Ad Banner */}
-        <AdBanner pageLocation="winner-takes-all" position="top" maxAds={1} />
+        <AdBanner pageLocation="winner-takes-all" position="top" />
 
         {/* Header */}
         <div className="text-center mb-12">

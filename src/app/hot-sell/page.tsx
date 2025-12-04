@@ -930,7 +930,7 @@ export default function HotSellPage() {
         )}
 
         {/* Ad Banner */}
-        <AdBanner pageLocation="hot-sell" position="top" maxAds={1} />
+        <AdBanner pageLocation="hot-sell" position="top" />
 
         {/* Header */}
         <div className="text-center mb-12">

@@ -69,7 +69,7 @@ export default function TournamentsPage() {
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Ad Banner */}
-        <AdBanner pageLocation="tournaments" position="top" maxAds={1} />
+        <AdBanner pageLocation="tournaments" position="top" />
         
         {/* Header */}
         <div className="mb-12 text-center">

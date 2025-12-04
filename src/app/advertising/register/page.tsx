@@ -54,7 +54,7 @@ export default function AdvertisingRegisterPage() {
       
       <div className="max-w-7xl mx-auto px-4 py-12">
         {/* Ad Banner (Show ads from other sellers) */}
-        <AdBanner pageLocation="dashboard" position="top" maxAds={1} />
+        <AdBanner pageLocation="dashboard" position="top" />
 
         {!showForm ? (
           <>

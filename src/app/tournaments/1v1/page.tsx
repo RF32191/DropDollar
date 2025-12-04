@@ -620,7 +620,7 @@ export default function OneVOnePage() {
         
         <div className="container mx-auto px-4 py-8 pt-24">
           {/* Ad Banner */}
-          <AdBanner pageLocation="1v1" position="top" maxAds={1} />
+          <AdBanner pageLocation="1v1" position="top" />
           
           {/* Wallet Display */}
           <PageWalletDisplay />

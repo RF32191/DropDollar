@@ -896,7 +896,7 @@ export default function GamesPage() {
         </div>
 
         {/* Ad Banner */}
-        <AdBanner pageLocation="games" position="top" maxAds={1} />
+        <AdBanner pageLocation="games" position="top" />
 
         {/* Become a Seller CTA */}
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 mb-8 text-white shadow-2xl border border-green-400/30">
