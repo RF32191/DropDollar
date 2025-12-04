@@ -40,6 +40,7 @@
     "web3": "^4.16.0"
   },
   "devDependencies": {
+    "@types/three": "^0.180.0",
     "@types/web3": "^1.0.20",
     "eslint": "^8.53.0",
     "eslint-config-next": "14.0.3"
