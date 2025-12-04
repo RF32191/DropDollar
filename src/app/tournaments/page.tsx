@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import AdBanner from '@/components/ads/AdBanner';
 import { 
   TrophyIcon, 
   UsersIcon,
@@ -67,6 +68,9 @@ export default function TournamentsPage() {
       <CleanNavigation />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Ad Banner */}
+        <AdBanner pageLocation="tournaments" position="top" maxAds={1} />
+        
         {/* Header */}
         <div className="mb-12 text-center">
           <div className="flex items-center justify-center mb-6">

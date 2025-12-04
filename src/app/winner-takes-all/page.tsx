@@ -9,6 +9,7 @@ import { UserService } from '@/lib/supabase/userService';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import AdBanner from '@/components/ads/AdBanner';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import LocationBanner from '@/components/location/LocationBanner';
 import LocationVerificationModal from '@/components/modals/LocationVerificationModal';
@@ -814,6 +815,9 @@ export default function WinnerTakesAllPage() {
             isVerified={locationVerified}
           />
         )}
+
+        {/* Ad Banner */}
+        <AdBanner pageLocation="winner-takes-all" position="top" maxAds={1} />
 
         {/* Header */}
         <div className="text-center mb-12">

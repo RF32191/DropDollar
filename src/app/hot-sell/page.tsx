@@ -8,6 +8,7 @@ import { executeRpcWithSession, ensureAuthReady } from '@/lib/supabase/sessionGu
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import AdBanner from '@/components/ads/AdBanner';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import LocationBanner from '@/components/location/LocationBanner';
 import LocationVerificationModal from '@/components/modals/LocationVerificationModal';
@@ -927,6 +928,9 @@ export default function HotSellPage() {
             isVerified={locationVerified}
           />
         )}
+
+        {/* Ad Banner */}
+        <AdBanner pageLocation="hot-sell" position="top" maxAds={1} />
 
         {/* Header */}
         <div className="text-center mb-12">

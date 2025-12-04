@@ -8,6 +8,7 @@ import { executeRpcWithSession, ensureAuthReady } from '@/lib/supabase/sessionGu
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
+import AdBanner from '@/components/ads/AdBanner';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import LocationPermissionModal from '@/components/modals/LocationPermissionModal';
 import LocationBanner from '@/components/location/LocationBanner';
@@ -618,6 +619,9 @@ export default function OneVOnePage() {
         <CleanNavigation />
         
         <div className="container mx-auto px-4 py-8 pt-24">
+          {/* Ad Banner */}
+          <AdBanner pageLocation="1v1" position="top" maxAds={1} />
+          
           {/* Wallet Display */}
           <PageWalletDisplay />
           
