@@ -204,6 +204,7 @@ export const GAME_TYPES = {
   COLOR_SEQUENCE: 'color_sequence',
   BLADE_BOUNCE: 'blade_bounce',
   CASH_STACK: 'cash_stack',
+  PENNY_PASSER: 'penny_passer',
   FALLING_OBJECT: 'falling_object',
   ONE_V_ONE: 'one_v_one',
   WINNER_TAKES_ALL: 'winner_takes_all',

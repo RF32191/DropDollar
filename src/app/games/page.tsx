@@ -11,6 +11,7 @@ import QuickClickGame from '@/components/games/QuickClickGame';
 import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import BladeBounceGame from '@/components/games/BladeBounceGame';
 import CashStackGame from '@/components/games/CashStackGame';
+import PennyPasserGame from '@/components/games/PennyPasserGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -128,6 +129,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Timing', 'Precision', 'Strategy', 'Speed'],
     component: CashStackGame
+  },
+  {
+    id: 'penny-passer',
+    name: 'Penny Passer',
+    description: 'Guide a 3D penny through a street filled with moving hands in this Frogger-style challenge!',
+    icon: BanknotesIcon,
+    difficulty: 'Medium',
+    avgTime: '60s',
+    skills: ['Timing', 'Risk Assessment', 'Spatial Awareness', 'Speed'],
+    component: PennyPasserGame
   }
 ];
 
