@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTokenSync } from '@/hooks/useTokenSync';
 import { useRouter } from 'next/navigation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import CreateAdCampaign from '@/components/ads/CreateAdCampaign';
 import AdBanner from '@/components/ads/AdBanner';
+import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import Link from 'next/link';
 import {
   SparklesIcon,
@@ -18,6 +20,7 @@ import {
 
 export default function AdvertisingRegisterPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { tokenBalance, purchasedTokens, wonTokens, isLoading: tokensLoading } = useTokenSync();
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
 
@@ -53,6 +56,45 @@ export default function AdvertisingRegisterPage() {
       <CleanNavigation />
       
       <div className="max-w-7xl mx-auto px-4 py-12">
+        {/* Wallet Display */}
+        <div className="mb-6">
+          <PageWalletDisplay />
+        </div>
+
+        {/* Token Balance Card */}
+        <div className="bg-gradient-to-br from-green-900/40 to-emerald-900/40 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-2">💰 Your Token Balance</h3>
+              <p className="text-gray-300 text-sm mb-3">
+                Use tokens to create and run ad campaigns. Minimum 50 tokens required.
+              </p>
+              <div className="flex gap-6">
+                <div>
+                  <div className="text-3xl font-black text-green-400">{tokenBalance}</div>
+                  <div className="text-xs text-gray-400">Total Tokens</div>
+                </div>
+                <div className="border-l border-white/20 pl-6">
+                  <div className="text-lg font-bold text-blue-300">{purchasedTokens}</div>
+                  <div className="text-xs text-gray-400">Purchased</div>
+                </div>
+                <div className="border-l border-white/20 pl-6">
+                  <div className="text-lg font-bold text-yellow-300">{wonTokens}</div>
+                  <div className="text-xs text-gray-400">Won</div>
+                </div>
+              </div>
+            </div>
+            {tokenBalance < 50 && (
+              <Link
+                href="/buy-tokens"
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg"
+              >
+                Buy More Tokens
+              </Link>
+            )}
+          </div>
+        </div>
+        
         {/* Ad Banner (Show ads from other sellers) */}
         <AdBanner pageLocation="dashboard" position="top" />
 
