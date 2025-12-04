@@ -132,8 +132,56 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
     }
   };
 
-  if (isLoading || ads.length === 0 || dismissed) {
+  // If dismissed, don't show anything
+  if (dismissed) {
     return null;
+  }
+
+  // If loading, show a subtle loading state
+  if (isLoading) {
+    return (
+      <div className={`w-full ${position === 'top' ? 'mb-6' : 'mt-6'}`}>
+        <div className="bg-gradient-to-r from-purple-900/20 via-blue-900/20 to-purple-900/20 backdrop-blur-lg rounded-2xl p-6 border border-purple-500/20 animate-pulse">
+          <div className="h-8 bg-white/10 rounded w-1/3 mb-2"></div>
+          <div className="h-4 bg-white/10 rounded w-2/3"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no ads, show default "Become a Seller" banner
+  if (ads.length === 0) {
+    return (
+      <div className={`w-full ${position === 'top' ? 'mb-6' : 'mt-6'}`}>
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 border border-purple-500/30 shadow-2xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-left">
+              <div className="text-4xl">🚀</div>
+              <div>
+                <h3 className="text-xl font-bold text-white mb-1">Advertise Your Brand Here!</h3>
+                <p className="text-purple-100 text-sm">
+                  Reach thousands of skilled gamers • Premium placement • High engagement
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <a
+                href="/seller/apply"
+                className="bg-white hover:bg-purple-50 text-purple-600 font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg whitespace-nowrap"
+              >
+                🏪 Become a Seller
+              </a>
+              <a
+                href="/advertising/register"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg whitespace-nowrap"
+              >
+                📢 Create Ad
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const currentAd = ads[currentAdIndex];
