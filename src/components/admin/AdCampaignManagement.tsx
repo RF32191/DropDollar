@@ -250,6 +250,11 @@ export default function AdCampaignManagement() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-white">{campaign.campaign_name}</h3>
+                    {(campaign.seller_username === 'DropDollar' || campaign.token_budget >= 999999999) && (
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-blue-300 border border-blue-400/30">
+                        🆓 PLATFORM AD
+                      </span>
+                    )}
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       campaign.campaign_status === 'active' ? 'bg-green-500/20 text-green-400' :
                       campaign.campaign_status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :

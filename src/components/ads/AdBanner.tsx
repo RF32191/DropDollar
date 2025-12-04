@@ -13,6 +13,7 @@ interface Ad {
   destination_url: string;
   image_url: string | null;
   seller_username: string;
+  is_platform_ad?: boolean; // True for platform ads (free), false for paid seller ads
 }
 
 interface AdBannerProps {
@@ -83,7 +84,14 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
       if (data && data.length > 0) {
         const adsToShow = data.slice(0, maxAds);
         setAds(adsToShow);
-        console.log(`📺 [AdBanner] Displaying ${adsToShow.length} ads:`, adsToShow.map((a: Ad) => a.headline));
+        
+        const paidCount = adsToShow.filter((a: Ad) => !a.is_platform_ad).length;
+        const platformCount = adsToShow.filter((a: Ad) => a.is_platform_ad).length;
+        
+        console.log(`📺 [AdBanner] Displaying ${adsToShow.length} ads (${paidCount} paid, ${platformCount} platform):`);
+        adsToShow.forEach((a: Ad) => {
+          console.log(`   ${a.is_platform_ad ? '🆓' : '💰'} ${a.headline}`);
+        });
       } else {
         console.log('⚠️ [AdBanner] No ads available for this page');
       }
@@ -98,6 +106,7 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
     try {
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
       const deviceType = /mobile/i.test(userAgent) ? 'mobile' : /tablet/i.test(userAgent) ? 'tablet' : 'desktop';
+      const adType = ad.is_platform_ad ? '[PLATFORM]' : '[PAID]';
 
       await supabase.rpc('log_ad_impression', {
         p_campaign_id: ad.id,
@@ -107,7 +116,8 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
         p_device_type: deviceType
       });
 
-      console.log('📊 Ad impression logged:', ad.headline);
+      console.log(`📊 ${adType} Ad impression logged:`, ad.headline, 
+                  ad.is_platform_ad ? '(FREE - Platform Ad)' : '(PAID - Seller Ad)');
     } catch (error) {
       console.error('Error logging impression:', error);
     }
@@ -115,7 +125,9 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
 
   const handleAdClick = async (ad: Ad, impressionId?: string) => {
     try {
-      // Log click (backend will charge tokens)
+      const adType = ad.is_platform_ad ? '[PLATFORM]' : '[PAID]';
+      
+      // Log click (backend will charge tokens for paid ads only)
       if (impressionId) {
         await supabase.rpc('log_ad_click', {
           p_campaign_id: ad.id,
@@ -126,7 +138,8 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3 }:
       // Open destination in new tab
       window.open(ad.destination_url, '_blank', 'noopener,noreferrer');
       
-      console.log('🔗 Ad clicked:', ad.headline);
+      console.log(`🔗 ${adType} Ad clicked:`, ad.headline,
+                  ad.is_platform_ad ? '(FREE - Platform Ad)' : '(PAID - Charges seller 5 tokens)');
     } catch (error) {
       console.error('Error logging click:', error);
     }
