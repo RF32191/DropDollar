@@ -88,6 +88,39 @@ BEGIN
         RAISE NOTICE '✅ Added user_agent column to ad_impressions';
     END IF;
 
+    -- Add created_at column if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'ad_impressions' 
+        AND column_name = 'created_at'
+    ) THEN
+        ALTER TABLE public.ad_impressions ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+        RAISE NOTICE '✅ Added created_at column to ad_impressions';
+    END IF;
+
+    -- Add campaign_id column if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'ad_impressions' 
+        AND column_name = 'campaign_id'
+    ) THEN
+        ALTER TABLE public.ad_impressions ADD COLUMN campaign_id UUID;
+        RAISE NOTICE '✅ Added campaign_id column to ad_impressions';
+    END IF;
+
+    -- Add user_id column if missing
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'ad_impressions' 
+        AND column_name = 'user_id'
+    ) THEN
+        ALTER TABLE public.ad_impressions ADD COLUMN user_id UUID;
+        RAISE NOTICE '✅ Added user_id column to ad_impressions';
+    END IF;
+
     RAISE NOTICE '✅ All required columns exist in ad_impressions table';
 END $$;
 
