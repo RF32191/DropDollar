@@ -1,0 +1,82 @@
+===============================================
+🚀 RUN THESE SQL FILES IN THIS EXACT ORDER
+===============================================
+
+The tracking isn't working because tables/columns are missing.
+Run these files IN ORDER in Supabase SQL Editor:
+
+===============================================
+STEP 1: Fix the ad_impressions table
+===============================================
+FILE: FIX_AD_IMPRESSIONS_TABLE.sql
+
+This creates the table and adds all required columns:
+- is_click
+- tokens_charged
+- page_location
+- session_id
+- device_type
+- user_agent
+
+EXPECTED OUTPUT:
+✅ All required columns exist in ad_impressions table
+✅ ad_impressions table is ready!
+
+===============================================
+STEP 2: Fix the ad_campaigns table
+===============================================
+FILE: ADD_IMPRESSION_CLICK_COLUMNS.sql
+
+This adds tracking columns to campaigns:
+- total_impressions
+- total_clicks
+- click_through_rate
+
+EXPECTED OUTPUT:
+✅ Impression and click tracking columns ready!
+
+===============================================
+STEP 3: Create the tracking functions
+===============================================
+FILE: FIX_TRACKING_AND_CHARGING.sql
+
+This creates the log_ad_impression and log_ad_click functions.
+
+EXPECTED OUTPUT:
+✅ All required columns exist
+✅ Tracking functions recreated!
+
+===============================================
+STEP 4: Test that it works
+===============================================
+FILE: TEST_TRACKING_NOW.sql
+
+This manually logs a test impression to verify everything works.
+
+EXPECTED OUTPUT:
+3️⃣ TESTING with campaign: [your-campaign-id]
+✅ Test impression logged!
+📊 Updated campaign stats:
+Impressions: 1
+Tokens Spent: 0.001
+
+===============================================
+STEP 5: Clear browser cache & test
+===============================================
+
+1. Clear browser cache (Ctrl+Shift+Delete)
+2. Hard refresh (Ctrl+F5)
+3. Visit /games
+4. Open Console (F12)
+5. Should see: "✅ Ad impression logged"
+6. Wait 10 seconds
+7. Check admin panel - impressions should be > 0
+
+===============================================
+DONE!
+===============================================
+
+If all steps worked, tracking should now be functional! 🎉
+
+===============================================
+
