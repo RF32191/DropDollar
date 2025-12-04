@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import useDeviceDetection, { getAdSize } from '@/hooks/useDeviceDetection';
+import { supabase } from '@/lib/supabase/client';
+
+interface Ad {
+  id: string;
+  headline: string;
+  description: string;
+  call_to_action: string;
+  destination_url: string;
+  image_url: string | null;
+  seller_username: string;
+  is_platform_ad?: boolean;
+}
 
 interface AdOverlayProps {
   onAdComplete: () => void;
@@ -19,8 +31,65 @@ export default function AdOverlay({
 }: AdOverlayProps) {
   const [timeRemaining, setTimeRemaining] = useState(duration);
   const [canSkip, setCanSkip] = useState(false);
+  const [ad, setAd] = useState<Ad | null>(null);
+  const [isLoadingAd, setIsLoadingAd] = useState(true);
+  const [sessionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      let sid = sessionStorage.getItem('ad_session_id');
+      if (!sid) {
+        sid = Math.random().toString(36).substring(7) + Date.now().toString(36);
+        sessionStorage.setItem('ad_session_id', sid);
+      }
+      return sid;
+    }
+    return 'server';
+  });
   const deviceInfo = useDeviceDetection();
   const adSize = getAdSize(deviceInfo);
+
+  // Fetch a random ad for the games page
+  useEffect(() => {
+    const fetchAd = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_active_ads_for_page', {
+          p_page_location: 'games'
+        });
+
+        if (error) {
+          console.error('❌ [AdOverlay] Error fetching ad:', error);
+          setIsLoadingAd(false);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          // Pick a random ad
+          const randomAd = data[Math.floor(Math.random() * data.length)];
+          setAd(randomAd);
+          console.log('📺 [AdOverlay] Loaded ad:', randomAd.headline);
+
+          // Log impression
+          const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+          const deviceType = /mobile/i.test(userAgent) ? 'mobile' : /tablet/i.test(userAgent) ? 'tablet' : 'desktop';
+
+          await supabase.rpc('log_ad_impression', {
+            p_campaign_id: randomAd.id,
+            p_page_location: 'games',
+            p_session_id: sessionId,
+            p_user_agent: userAgent,
+            p_device_type: deviceType
+          });
+        } else {
+          console.warn('⚠️ [AdOverlay] No ads available');
+        }
+      } catch (error) {
+        console.error('❌ [AdOverlay] Exception fetching ad:', error);
+      } finally {
+        setIsLoadingAd(false);
+      }
+    };
+
+    fetchAd();
+  }, [sessionId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -52,6 +121,25 @@ export default function AdOverlay({
   const handleSkip = () => {
     if (canSkip && onSkip) {
       onSkip();
+    }
+  };
+
+  const handleAdClick = async () => {
+    if (!ad) return;
+
+    try {
+      // Log click
+      await supabase.rpc('log_ad_click', {
+        p_campaign_id: ad.id,
+        p_impression_id: null
+      });
+
+      // Open destination in new tab
+      window.open(ad.destination_url, '_blank', 'noopener,noreferrer');
+      
+      console.log('🔗 [AdOverlay] Ad clicked:', ad.headline);
+    } catch (error) {
+      console.error('❌ [AdOverlay] Error logging click:', error);
     }
   };
 
@@ -99,54 +187,68 @@ export default function AdOverlay({
         {/* Ad Content - Responsive */}
         <div className="bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 rounded-xl p-4 sm:p-8 lg:p-12 text-center border border-gray-600">
           
-          {/* Placeholder Ad Content */}
-          <div className="space-y-3 sm:space-y-6">
-            <div className="text-3xl sm:text-4xl lg:text-6xl">📺</div>
-            
-            <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-white mb-2 sm:mb-4">
-              Advertisement Space
-            </h2>
-            
-            <p className="text-sm sm:text-lg lg:text-xl text-gray-300 mb-3 sm:mb-6">
-              Your ad could be here! Contact us for advertising opportunities.
-            </p>
-            
-            {/* Fake Brand Elements - Desktop Only */}
-            {deviceInfo.isDesktop && (
-              <div className="grid grid-cols-3 gap-6 mb-8">
-                <div className="bg-white/10 rounded-lg p-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg mx-auto mb-3"></div>
-                  <div className="text-white font-medium">Premium Gaming</div>
-                  <div className="text-gray-400 text-sm">Experience the best</div>
-                </div>
-                
-                <div className="bg-white/10 rounded-lg p-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg mx-auto mb-3"></div>
-                  <div className="text-white font-medium">Skill Enhancement</div>
-                  <div className="text-gray-400 text-sm">Level up your game</div>
-                </div>
-                
-                <div className="bg-white/10 rounded-lg p-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mx-auto mb-3"></div>
-                  <div className="text-white font-medium">Win More</div>
-                  <div className="text-gray-400 text-sm">Increase your odds</div>
-                </div>
-              </div>
-            )}
-
-            {/* Call to Action */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-3 sm:p-6">
-              <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2">
-                🎯 Ready to Compete?
-              </h3>
-              <p className="text-blue-100 mb-2 sm:mb-4 text-xs sm:text-base">
-                Join thousands of players in skill-based competitions
-              </p>
-              <button className="bg-white/20 hover:bg-white/30 text-white font-bold py-1 px-3 sm:py-2 sm:px-6 rounded-lg transition-colors text-xs sm:text-base">
-                Learn More
-              </button>
+          {isLoadingAd ? (
+            /* Loading State */
+            <div className="space-y-6 animate-pulse">
+              <div className="w-16 h-16 bg-white/10 rounded-lg mx-auto"></div>
+              <div className="h-8 bg-white/10 rounded w-3/4 mx-auto"></div>
+              <div className="h-4 bg-white/10 rounded w-full mx-auto"></div>
+              <div className="h-10 bg-white/10 rounded w-1/2 mx-auto"></div>
             </div>
-          </div>
+          ) : ad ? (
+            /* Real Ad Content */
+            <div className="space-y-3 sm:space-y-6">
+              {ad.image_url && (
+                <img
+                  src={ad.image_url}
+                  alt={ad.headline}
+                  className="w-full max-h-48 sm:max-h-64 object-cover rounded-xl mb-4"
+                />
+              )}
+              
+              {!ad.image_url && (
+                <div className="text-4xl sm:text-6xl mb-4">
+                  {ad.is_platform_ad ? '🎮' : '🎯'}
+                </div>
+              )}
+              
+              <h2 className="text-xl sm:text-3xl lg:text-4xl font-black text-white mb-2 sm:mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                {ad.headline}
+              </h2>
+              
+              <p className="text-sm sm:text-lg lg:text-xl text-gray-300 mb-4 sm:mb-6 line-clamp-3">
+                {ad.description}
+              </p>
+              
+              {/* Call to Action */}
+              <div className="mt-6">
+                <button
+                  onClick={handleAdClick}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-base sm:text-lg"
+                >
+                  {ad.call_to_action} →
+                </button>
+                
+                <p className="text-xs text-gray-500 mt-3">
+                  by <span className="text-purple-400 font-semibold">{ad.seller_username}</span>
+                  {ad.is_platform_ad && <span className="text-blue-400 ml-2">• Platform Ad</span>}
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Fallback - No Ads Available */
+            <div className="space-y-6">
+              <div className="text-4xl sm:text-6xl">🎮</div>
+              
+              <h2 className="text-xl sm:text-3xl font-bold text-white">
+                Ready to Play?
+              </h2>
+              
+              <p className="text-sm sm:text-lg text-gray-300">
+                Your game is about to start! Get ready to show your skills.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Countdown Timer - Responsive */}
