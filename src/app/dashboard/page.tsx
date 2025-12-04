@@ -1255,7 +1255,7 @@ export default function TriumphStyleDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link href="/games" className="group bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
             <StarIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
             <p className="font-semibold text-lg">Practice Games</p>
@@ -1266,6 +1266,12 @@ export default function TriumphStyleDashboard() {
             <TrophyIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
             <p className="font-semibold text-lg">Enter Competition</p>
             <p className="text-red-100 text-sm">Win real prizes</p>
+          </Link>
+          
+          <Link href="/advertising/register" className="group bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+            <ChartBarIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
+            <p className="font-semibold text-lg">Ad Campaigns</p>
+            <p className="text-purple-100 text-sm">Promote your products</p>
           </Link>
           
           <Link href="/buy-tokens" className="group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">

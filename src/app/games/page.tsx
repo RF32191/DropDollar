@@ -12,6 +12,7 @@ import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import BladeBounceGame from '@/components/games/BladeBounceGame';
 import CashStackGame from '@/components/games/CashStackGame';
 import AdOverlay from '@/components/ads/AdOverlay';
+import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
 import GameVictoryAnimation from '@/components/GameVictoryAnimation';
 import AudioInitializer from '@/components/AudioInitializer';
@@ -892,6 +893,30 @@ export default function GamesPage() {
           >
             {showPopularityStats ? 'Hide' : 'Show'} Game Popularity Trends 📊
           </button>
+        </div>
+
+        {/* Ad Banner */}
+        <AdBanner pageLocation="games" position="top" maxAds={1} />
+
+        {/* Become a Seller CTA */}
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 mb-8 text-white shadow-2xl border border-green-400/30">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl">
+                <BanknotesIcon className="w-8 h-8" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-2xl font-black mb-1">Sell Your Products & Earn!</h3>
+                <p className="text-green-100 text-sm">List items, run competitions, reach thousands of gamers</p>
+              </div>
+            </div>
+            <Link
+              href="/seller/apply"
+              className="bg-white hover:bg-green-50 text-green-700 font-bold px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 whitespace-nowrap"
+            >
+              🏪 Become a Seller →
+            </Link>
+          </div>
         </div>
 
         {/* Sponsor Banner */}

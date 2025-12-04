@@ -1,286 +1,194 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import CleanNavigation from '@/components/navigation/CleanNavigation';
+import CreateAdCampaign from '@/components/ads/CreateAdCampaign';
+import AdBanner from '@/components/ads/AdBanner';
+import Link from 'next/link';
+import {
+  SparklesIcon,
+  ChartBarIcon,
+  CurrencyDollarIcon,
+  UserGroupIcon,
+  ArrowRightIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline';
 
-export default function AdRegistrationPage() {
-  const { user } = useAuth();
+export default function AdvertisingRegisterPage() {
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState('');
+  const [showForm, setShowForm] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setSubmitMessage('success');
-      setIsSubmitting(false);
-      setTimeout(() => {
-        router.push('/advertising/dashboard');
-      }, 2000);
-    }, 1000);
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
+        <CleanNavigation />
+        <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+          <SparklesIcon className="w-20 h-20 mx-auto text-purple-400 mb-6" />
+          <h1 className="text-4xl font-black text-white mb-4">Login Required</h1>
+          <p className="text-gray-300 mb-8">Please sign in to create ad campaigns</p>
+          <Link
+            href="/auth/login"
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold px-8 py-4 rounded-xl transition-all duration-300 inline-block"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-blue-800 via-purple-800 to-pink-800 shadow-xl border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-2xl font-bold text-white">💧</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
+      <CleanNavigation />
+      
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        {/* Ad Banner (Show ads from other sellers) */}
+        <AdBanner pageLocation="dashboard" position="top" maxAds={1} />
+
+        {!showForm ? (
+          <>
+            {/* Hero Section */}
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-3 bg-purple-500/20 border border-purple-500/30 rounded-full px-6 py-3 mb-6">
+                <SparklesIcon className="w-6 h-6 text-purple-400" />
+                <span className="text-purple-300 font-semibold">Advertising Platform</span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">DropDollar</h1>
-                <p className="text-blue-200 text-sm">Advertiser Portal</p>
-              </div>
-            </Link>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/advertising/dashboard" className="text-blue-200 hover:text-white transition-colors">
-                Dashboard
-              </Link>
-              <Link href="/advertising/billing" className="text-blue-200 hover:text-white transition-colors">
-                Billing
-              </Link>
-            </nav>
-
-            {/* User Info */}
-            <div className="flex items-center space-x-4">
-              {user ? (
-                <div className="text-white">
-                  <span className="text-sm">Welcome, {user.email}</span>
-                </div>
-              ) : (
-                <Link href="/auth/login" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors">
-                  Sign In
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            🎯 Register Your Ad Campaign
-          </h1>
-          <p className="text-xl text-blue-200 max-w-2xl mx-auto">
-            Reach thousands of engaged gamers on DropDollar with targeted advertising campaigns
-          </p>
-        </div>
-
-        {/* Registration Notice */}
-        <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 rounded-xl p-6 mb-8">
-          <div className="flex items-start space-x-3">
-            <span className="text-yellow-400 text-2xl">⚠️</span>
-            <div>
-              <h3 className="text-lg font-bold text-yellow-200 mb-2">Account Requirements Notice</h3>
-              <div className="text-yellow-100 space-y-2">
-                <p>To advertise on DropDollar, you must:</p>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Register as both a <strong>buyer</strong> and <strong>seller</strong> account</li>
-                  <li>Set up a valid payment method for ad campaign billing</li>
-                  <li>Complete identity verification for advertiser protection</li>
-                  <li>Agree to our advertising terms and content guidelines</li>
-                </ul>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Link href="/auth/register" className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                    Register Account
-                  </Link>
-                  <Link href="/seller/apply" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                    Become Seller
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Form */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-white font-medium mb-2">Campaign Name</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                  placeholder="Enter campaign name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-white font-medium mb-2">Advertiser Name</label>
-                <input 
-                  type="text" 
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                  placeholder="Your company name"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-white font-medium mb-2">Contact Email</label>
-                <input 
-                  type="email" 
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                  placeholder="contact@company.com"
-                  defaultValue={user?.email || ''}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-white font-medium mb-2">Website</label>
-                <input 
-                  type="url" 
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                  placeholder="https://yourwebsite.com"
-                />
-              </div>
-            </div>
-
-            {/* Campaign Details */}
-            <div>
-              <label className="block text-white font-medium mb-2">Ad Type</label>
-              <select className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-400">
-                <option value="practice_game">Practice Game Ads</option>
-                <option value="banner">Banner Ads</option>
-                <option value="both">Both Types</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-white font-medium mb-2">Budget ($)</label>
-                <input 
-                  type="number" 
-                  min="500"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                  placeholder="500"
-                  defaultValue="500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-white font-medium mb-2">Cost Per View ($)</label>
-                <input 
-                  type="number" 
-                  step="0.001"
-                  min="0.015"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                  placeholder="0.02"
-                  defaultValue="0.02"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Ad Creative */}
-            <div>
-              <label className="block text-white font-medium mb-2">Ad Title</label>
-              <input 
-                type="text" 
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                placeholder="Your compelling ad title"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-white font-medium mb-2">Ad Description</label>
-              <textarea 
-                rows={4}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-blue-400"
-                placeholder="Describe your product or service..."
-                required
-              />
-            </div>
-
-            {/* Terms Agreement */}
-            <div className="flex items-start space-x-3">
-              <input 
-                type="checkbox" 
-                id="terms"
-                className="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                required
-              />
-              <label htmlFor="terms" className="text-white text-sm">
-                I agree to the <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline">Terms of Service</Link> and <Link href="/privacy" className="text-blue-400 hover:text-blue-300 underline">Privacy Policy</Link>. I understand that all ad content must comply with DropDollar's advertising guidelines.
-              </label>
-            </div>
-
-            {/* Submit Button */}
-            <div className="text-center">
+              
+              <h1 className="text-5xl md:text-6xl font-black text-white mb-6">
+                Reach <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Thousands</span> of Active Gamers
+              </h1>
+              
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+                Promote your products to our engaged gaming community with token-based advertising—just like Etsy's seller fees
+              </p>
+              
               <button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-4 px-8 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold px-12 py-5 rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 text-lg"
               >
-                {isSubmitting ? 'Submitting Campaign...' : 'Submit Ad Campaign'}
+                Create Your First Campaign
+                <ArrowRightIcon className="inline w-6 h-6 ml-2" />
               </button>
             </div>
 
-            {/* Success/Error Messages */}
-            {submitMessage === 'success' && (
-              <div className="bg-green-600/20 border border-green-500/30 rounded-lg p-4 text-center">
-                <p className="text-green-200 font-medium">
-                  ✅ Campaign submitted successfully! Redirecting to dashboard...
+            {/* Features */}
+            <div className="grid md:grid-cols-3 gap-8 mb-16">
+              <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:border-purple-500/50 transition-all">
+                <div className="bg-gradient-to-br from-purple-500 to-blue-500 p-4 rounded-2xl w-fit mb-4">
+                  <UserGroupIcon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">Engaged Audience</h3>
+                <p className="text-gray-300">
+                  Connect with thousands of daily active users who play our skill-based games
                 </p>
               </div>
-            )}
-            {submitMessage === 'error' && (
-              <div className="bg-red-600/20 border border-red-500/30 rounded-lg p-4 text-center">
-                <p className="text-red-200 font-medium">
-                  ❌ Failed to submit campaign. Please try again.
-                </p>
-              </div>
-            )}
-          </form>
-        </div>
 
-        {/* Pricing Information */}
-        <div className="mt-12 bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">💰 Advertising Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="bg-blue-600/20 rounded-lg p-6 border border-blue-500/30">
-                <h3 className="text-lg font-bold text-blue-200 mb-2">Practice Game Ads</h3>
-                <p className="text-3xl font-bold text-white mb-2">$0.02</p>
-                <p className="text-blue-200 text-sm">per view</p>
-                <p className="text-gray-300 text-sm mt-2">10-second ads before practice games</p>
+              <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:border-purple-500/50 transition-all">
+                <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-4 rounded-2xl w-fit mb-4">
+                  <CurrencyDollarIcon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">Token Payments</h3>
+                <p className="text-gray-300">
+                  Pay only for results: 1 token per 1,000 impressions, 5 tokens per click
+                </p>
+              </div>
+
+              <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 hover:border-purple-500/50 transition-all">
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-2xl w-fit mb-4">
+                  <ChartBarIcon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">Real-Time Analytics</h3>
+                <p className="text-gray-300">
+                  Track impressions, clicks, and conversions with detailed campaign analytics
+                </p>
               </div>
             </div>
-            <div className="text-center">
-              <div className="bg-purple-600/20 rounded-lg p-6 border border-purple-500/30">
-                <h3 className="text-lg font-bold text-purple-200 mb-2">Banner Ads</h3>
-                <p className="text-3xl font-bold text-white mb-2">$0.015</p>
-                <p className="text-purple-200 text-sm">per view</p>
-                <p className="text-gray-300 text-sm mt-2">Strategic banner placements</p>
+
+            {/* Pricing */}
+            <div className="bg-gradient-to-br from-purple-900/40 to-blue-900/40 backdrop-blur-lg rounded-3xl p-12 border border-purple-500/30 mb-16">
+              <div className="text-center mb-8">
+                <h2 className="text-4xl font-black text-white mb-4">Simple, Performance-Based Pricing</h2>
+                <p className="text-gray-300 text-lg">Pay only for what you get—just like Etsy</p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div className="bg-white/10 rounded-2xl p-6 border border-white/20">
+                  <div className="text-5xl font-black text-purple-400 mb-2">1</div>
+                  <div className="text-gray-400 text-sm mb-3">TOKEN PER</div>
+                  <div className="text-2xl font-bold text-white mb-2">1,000 Impressions</div>
+                  <p className="text-gray-300 text-sm">Your ad shown to 1,000 users</p>
+                </div>
+
+                <div className="bg-white/10 rounded-2xl p-6 border border-white/20">
+                  <div className="text-5xl font-black text-blue-400 mb-2">5</div>
+                  <div className="text-gray-400 text-sm mb-3">TOKENS PER</div>
+                  <div className="text-2xl font-bold text-white mb-2">Click</div>
+                  <p className="text-gray-300 text-sm">User clicks through to your product</p>
+                </div>
               </div>
             </div>
-            <div className="text-center">
-              <div className="bg-green-600/20 rounded-lg p-6 border border-green-500/30">
-                <h3 className="text-lg font-bold text-green-200 mb-2">Click-Through</h3>
-                <p className="text-3xl font-bold text-white mb-2">$0.50</p>
-                <p className="text-green-200 text-sm">per click</p>
-                <p className="text-gray-300 text-sm mt-2">Performance-based pricing</p>
+
+            {/* How It Works */}
+            <div className="max-w-4xl mx-auto mb-16">
+              <h2 className="text-4xl font-black text-white text-center mb-12">How It Works</h2>
+              
+              <div className="space-y-6">
+                {[
+                  { step: 1, title: 'Create Your Campaign', desc: 'Add headline, description, images, and set your token budget' },
+                  { step: 2, title: 'Choose Your Pages', desc: 'Select where to show your ads: Games, Dashboard, Tournaments, etc.' },
+                  { step: 3, title: 'Launch & Track', desc: 'Your ad goes live after admin approval. Monitor performance in real-time' },
+                  { step: 4, title: 'Pay for Results', desc: 'Tokens are automatically deducted based on impressions and clicks' }
+                ].map((item) => (
+                  <div key={item.step} className="flex items-start gap-6 bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
+                    <div className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-black text-2xl w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                      {item.step}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                      <p className="text-gray-300">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
+
+            {/* CTA */}
+            <div className="text-center">
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold px-12 py-5 rounded-2xl transition-all duration-300 shadow-2xl hover:shadow-3xl transform hover:scale-105 text-lg"
+              >
+                Get Started Now
+                <ArrowRightIcon className="inline w-6 h-6 ml-2" />
+              </button>
+              
+              <p className="text-gray-400 text-sm mt-4">
+                Minimum budget: 50 tokens • Ads require admin approval
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setShowForm(false)}
+              className="mb-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+            >
+              ← Back to Overview
+            </button>
+            <CreateAdCampaign />
+          </>
+        )}
       </div>
     </div>
   );
