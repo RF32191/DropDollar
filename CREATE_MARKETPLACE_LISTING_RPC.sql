@@ -21,7 +21,7 @@ CREATE OR REPLACE FUNCTION create_marketplace_listing(
     game_type_param text,
     shipping_included_param boolean DEFAULT true,
     seller_contact_param text DEFAULT NULL,
-    timer_duration_param integer DEFAULT 7200
+    timer_duration_param integer DEFAULT 180 -- Changed default from 7200 (2h) to 180 (3min)
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -54,6 +54,15 @@ BEGIN
     
     -- Generate RNG seed for fair gaming
     v_rng_seed := floor(random() * 1000000 + 1)::integer;
+    
+    -- Log ALL parameters being received
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'CREATE_MARKETPLACE_LISTING called with:';
+    RAISE NOTICE 'Title: %', title_param;
+    RAISE NOTICE 'Timer Duration: % seconds (% minutes)', timer_duration_param, timer_duration_param / 60.0;
+    RAISE NOTICE 'Game Type: %', game_type_param;
+    RAISE NOTICE 'Base Price: %', base_price_param;
+    RAISE NOTICE '========================================';
     
     -- Insert the listing
     INSERT INTO public.marketplace_listings (
