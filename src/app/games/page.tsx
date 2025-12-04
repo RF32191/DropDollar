@@ -196,6 +196,7 @@ export default function GamesPage() {
   const [showSponsoredListings, setShowSponsoredListings] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
   
   // Enable fullscreen mode when game is active
   const fullscreenRef = useFullscreenGame(isGameActive);
@@ -223,6 +224,32 @@ export default function GamesPage() {
   const [pendingGameStart, setPendingGameStart] = useState<string | null>(null);
   const [adTimeoutId, setAdTimeoutId] = useState<NodeJS.Timeout | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+
+  // Check if user is a seller
+  useEffect(() => {
+    const checkSellerStatus = async () => {
+      if (user && isAuthenticated) {
+        try {
+          const { data, error } = await supabase
+            .from('seller_profiles')
+            .select('status')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (!error && data && data.status === 'approved') {
+            setIsSeller(true);
+          } else {
+            setIsSeller(false);
+          }
+        } catch (err) {
+          console.error('Error checking seller status:', err);
+          setIsSeller(false);
+        }
+      }
+    };
+    
+    checkSellerStatus();
+  }, [user, isAuthenticated]);
 
   // Auto-launch game if tournament/competition entry
   useEffect(() => {
@@ -931,20 +958,26 @@ export default function GamesPage() {
             </div>
             <div className="text-2xl">💎</div>
           </div>
-          <div className="mt-4 flex gap-4">
-            <a 
-              href="/seller/register" 
+          <div className="mt-4 flex justify-center gap-4">
+            <Link 
+              href="/seller/apply" 
               className="bg-white text-purple-600 hover:bg-purple-50 font-bold py-2 px-6 rounded-lg transition-colors inline-block"
             >
-              Become a Seller
-            </a>
-            <a 
-              href="/advertising/campaigns/create" 
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 font-bold py-2 px-6 rounded-lg transition-all inline-block shadow-lg"
+              🏪 Become a Seller
+            </Link>
+            <Link 
+              href={isSeller ? "/advertising/register" : "/seller/apply"}
+              className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white font-bold py-2 px-6 rounded-lg transition-all inline-block shadow-lg"
+              title={isSeller ? "Create your ad campaign" : "Become a seller first to create ads"}
             >
-              Create Ad Campaign
-            </a>
+              {isSeller ? "📢 Create Ad Campaign" : "📢 Advertise Here"}
+            </Link>
           </div>
+          {!isSeller && isAuthenticated && (
+            <p className="text-xs text-purple-200 mt-2">
+              💡 Become a seller to create ad campaigns
+            </p>
+          )}
         </div>
 
         {/* Popularity Stats */}
