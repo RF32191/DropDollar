@@ -1268,10 +1268,10 @@ export default function TriumphStyleDashboard() {
             <p className="text-red-100 text-sm">Win real prizes</p>
           </Link>
           
-          <Link href="/advertising/register" className="group bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
+          <Link href="/my-campaigns" className="group bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">
             <ChartBarIcon className="w-8 h-8 mx-auto mb-3 group-hover:animate-pulse" />
-            <p className="font-semibold text-lg">Ad Campaigns</p>
-            <p className="text-purple-100 text-sm">Promote your products</p>
+            <p className="font-semibold text-lg">My Campaigns</p>
+            <p className="text-purple-100 text-sm">Track your ads</p>
           </Link>
           
           <Link href="/buy-tokens" className="group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white p-6 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">

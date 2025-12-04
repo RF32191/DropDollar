@@ -113,10 +113,11 @@ SELECT
         WHEN campaign_status = 'paused' THEN '⏸️ PAUSED - Resume to show'
         ELSE '❌ NOT SHOWING'
     END as display_status,
-    impressions_count as impressions,
-    clicks_count as clicks,
-    tokens_spent as spent,
-    token_budget as budget
+    COALESCE(total_impressions, 0) as impressions,
+    COALESCE(total_clicks, 0) as clicks,
+    COALESCE(tokens_spent, 0) as spent,
+    COALESCE(token_budget, 0) as budget,
+    COALESCE(token_budget, 0) - COALESCE(tokens_spent, 0) as tokens_remaining
 FROM public.ad_campaigns
 WHERE seller_username != 'DropDollar'
 ORDER BY created_at DESC;

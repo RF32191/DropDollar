@@ -102,7 +102,7 @@ BEGIN
     IF NOT v_is_platform_ad THEN
         -- Increment impressions count and tokens spent
         UPDATE public.ad_campaigns
-        SET impressions_count = impressions_count + 1,
+        SET total_impressions = COALESCE(total_impressions, 0) + 1,
             tokens_spent = tokens_spent + v_actual_cost,
             updated_at = NOW()
         WHERE id = p_campaign_id;
@@ -126,7 +126,7 @@ BEGIN
     ELSE
         -- Just increment impressions count (no charge)
         UPDATE public.ad_campaigns
-        SET impressions_count = impressions_count + 1,
+        SET total_impressions = COALESCE(total_impressions, 0) + 1,
             updated_at = NOW()
         WHERE id = p_campaign_id;
     END IF;
@@ -238,7 +238,7 @@ BEGIN
     IF NOT v_is_platform_ad THEN
         -- Increment clicks count and tokens spent
         UPDATE public.ad_campaigns
-        SET clicks_count = clicks_count + 1,
+        SET total_clicks = COALESCE(total_clicks, 0) + 1,
             tokens_spent = tokens_spent + v_actual_cost,
             updated_at = NOW()
         WHERE id = p_campaign_id;
@@ -262,7 +262,7 @@ BEGIN
     ELSE
         -- Just increment clicks count (no charge)
         UPDATE public.ad_campaigns
-        SET clicks_count = clicks_count + 1,
+        SET total_clicks = COALESCE(total_clicks, 0) + 1,
             updated_at = NOW()
         WHERE id = p_campaign_id;
     END IF;

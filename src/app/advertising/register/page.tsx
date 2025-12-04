@@ -61,38 +61,54 @@ export default function AdvertisingRegisterPage() {
           <PageWalletDisplay />
         </div>
 
-        {/* Token Balance Card */}
-        <div className="bg-gradient-to-br from-green-900/40 to-emerald-900/40 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-white mb-2">💰 Your Token Balance</h3>
-              <p className="text-gray-300 text-sm mb-3">
-                Use tokens to create and run ad campaigns. Minimum 50 tokens required.
-              </p>
-              <div className="flex gap-6">
-                <div>
-                  <div className="text-3xl font-black text-green-400">{tokenBalance}</div>
-                  <div className="text-xs text-gray-400">Total Tokens</div>
-                </div>
-                <div className="border-l border-white/20 pl-6">
-                  <div className="text-lg font-bold text-blue-300">{purchasedTokens}</div>
-                  <div className="text-xs text-gray-400">Purchased</div>
-                </div>
-                <div className="border-l border-white/20 pl-6">
-                  <div className="text-lg font-bold text-yellow-300">{wonTokens}</div>
-                  <div className="text-xs text-gray-400">Won</div>
+        {/* Token Balance & Quick Links */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div className="lg:col-span-2 bg-gradient-to-br from-green-900/40 to-emerald-900/40 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">💰 Your Token Balance</h3>
+                <p className="text-gray-300 text-sm mb-3">
+                  Use tokens to create and run ad campaigns. Minimum 50 tokens required.
+                </p>
+                <div className="flex gap-6">
+                  <div>
+                    <div className="text-3xl font-black text-green-400">{tokenBalance}</div>
+                    <div className="text-xs text-gray-400">Total Tokens</div>
+                  </div>
+                  <div className="border-l border-white/20 pl-6">
+                    <div className="text-lg font-bold text-blue-300">{purchasedTokens}</div>
+                    <div className="text-xs text-gray-400">Purchased</div>
+                  </div>
+                  <div className="border-l border-white/20 pl-6">
+                    <div className="text-lg font-bold text-yellow-300">{wonTokens}</div>
+                    <div className="text-xs text-gray-400">Won</div>
+                  </div>
                 </div>
               </div>
+              {tokenBalance < 50 && (
+                <Link
+                  href="/buy-tokens"
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg"
+                >
+                  Buy More Tokens
+                </Link>
+              )}
             </div>
-            {tokenBalance < 50 && (
-              <Link
-                href="/buy-tokens"
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg"
-              >
-                Buy More Tokens
-              </Link>
-            )}
           </div>
+          
+          <Link
+            href="/my-campaigns"
+            className="bg-gradient-to-br from-purple-900/40 to-blue-900/40 backdrop-blur-lg rounded-2xl p-6 border border-purple-500/30 hover:border-purple-400/50 transition-all duration-300 group"
+          >
+            <ChartBarIcon className="w-12 h-12 text-purple-400 mb-3 group-hover:scale-110 transition-transform" />
+            <h3 className="text-xl font-bold text-white mb-1">View My Campaigns</h3>
+            <p className="text-gray-300 text-sm mb-3">
+              Track performance, token usage, and stats
+            </p>
+            <div className="flex items-center text-purple-400 font-semibold group-hover:translate-x-2 transition-transform">
+              View Dashboard <ArrowRightIcon className="w-4 h-4 ml-2" />
+            </div>
+          </Link>
         </div>
         
         {/* Ad Banner (Show ads from other sellers) */}

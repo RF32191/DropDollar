@@ -272,16 +272,42 @@ export default function AdCampaignManagement() {
                   <p className="text-gray-400 text-sm mb-1">by {campaign.seller_username}</p>
                   <p className="text-white font-semibold mb-1">{campaign.headline}</p>
                   <p className="text-gray-300 text-sm mb-3">{campaign.description}</p>
-                  <div className="flex gap-4 text-sm">
+                  <div className="flex gap-4 text-sm mb-3">
                     <span className="text-gray-400">
                       📍 Pages: <span className="text-purple-400">{campaign.target_pages.join(', ')}</span>
                     </span>
-                    <span className="text-gray-400">
-                      💰 Budget: <span className="text-green-400">{campaign.token_budget} tokens</span>
-                    </span>
-                    <span className="text-gray-400">
-                      💸 Spent: <span className="text-yellow-400">{campaign.tokens_spent} tokens</span>
-                    </span>
+                  </div>
+                  
+                  {/* Token Budget Progress Bar */}
+                  <div className="bg-black/20 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2 text-sm">
+                      <span className="text-gray-400">💎 Token Usage</span>
+                      <span className="text-white font-bold">
+                        {campaign.tokens_spent.toFixed(2)} / {campaign.token_budget.toFixed(0)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2 mb-1">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${
+                          (campaign.tokens_spent / campaign.token_budget) >= 0.9 ? 'bg-red-500' :
+                          (campaign.tokens_spent / campaign.token_budget) >= 0.7 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${Math.min((campaign.tokens_spent / campaign.token_budget) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">
+                        {((campaign.tokens_spent / campaign.token_budget) * 100).toFixed(1)}% used
+                      </span>
+                      <span className={`font-semibold ${
+                        (campaign.token_budget - campaign.tokens_spent) < 10 ? 'text-red-400' :
+                        (campaign.token_budget - campaign.tokens_spent) < 50 ? 'text-yellow-400' :
+                        'text-green-400'
+                      }`}>
+                        {(campaign.token_budget - campaign.tokens_spent).toFixed(2)} left
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
