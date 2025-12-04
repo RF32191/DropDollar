@@ -2,8 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { GAME_TYPES, GAME_MODES } from '@/lib/constants/games';
-import { logGameCompletion } from '@/lib/gameAudit';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface PennyPasserGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
