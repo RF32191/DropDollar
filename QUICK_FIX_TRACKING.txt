@@ -1,0 +1,38 @@
+===============================================
+🚀 QUICK FIX: Run This File in Supabase SQL
+===============================================
+
+❌ DON'T RUN: FIX_CLICKS_VIEWS_NOT_TRACKING.md (that's documentation)
+
+✅ DO RUN: FIX_TRACKING_AND_CHARGING.sql (that's the actual SQL)
+
+===============================================
+HOW TO RUN IT:
+===============================================
+
+1. Open Supabase Dashboard
+2. Click "SQL Editor" on the left
+3. Click "New Query"
+4. Open the file: FIX_TRACKING_AND_CHARGING.sql
+5. Copy ALL the contents
+6. Paste into Supabase SQL Editor
+7. Click "Run" button
+
+===============================================
+WHAT IT DOES:
+===============================================
+
+- Adds missing columns (if needed)
+- Drops old functions
+- Creates new tracking functions
+- Tests everything works
+
+===============================================
+YOU'LL SEE THIS OUTPUT:
+===============================================
+
+✅ All required columns exist
+✅ Tracking functions recreated! Test by viewing/clicking an ad.
+
+===============================================
+
