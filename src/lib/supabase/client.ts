@@ -33,6 +33,46 @@ const createMockClient = () => {
   };
 };
 
+// Safari detection
+const isSafari = typeof navigator !== 'undefined' && 
+                 /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+// Custom storage for Safari compatibility
+const createSafariCompatibleStorage = () => {
+  if (typeof window === 'undefined') return undefined;
+  
+  return {
+    getItem: (key: string) => {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        console.warn('localStorage.getItem failed (Safari private mode?):', e);
+        return null;
+      }
+    },
+    setItem: (key: string, value: string) => {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.warn('localStorage.setItem failed (Safari private mode?):', e);
+        // Fallback to sessionStorage
+        try {
+          sessionStorage.setItem(key, value);
+        } catch (e2) {
+          console.error('All storage failed:', e2);
+        }
+      }
+    },
+    removeItem: (key: string) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn('localStorage.removeItem failed:', e);
+      }
+    }
+  };
+};
+
 // Export the appropriate client
 export const supabase = isSupabaseConfigured() 
   ? createClient(supabaseUrl!, supabaseAnonKey!, {
@@ -40,9 +80,23 @@ export const supabase = isSupabaseConfigured()
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        storage: createSafariCompatibleStorage(),
         storageKey: 'dropdollar-auth-token',
-        flowType: 'pkce'
+        flowType: 'pkce',
+        // Safari-specific fixes
+        debug: false, // Disable debug logs for performance
+      },
+      // Global settings
+      global: {
+        headers: {
+          'x-client-info': 'dropdollar-web'
+        }
+      },
+      // Realtime disabled for faster initial load
+      realtime: {
+        params: {
+          eventsPerSecond: 2
+        }
       }
     })
   : createMockClient() as any;

@@ -203,14 +203,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.cookie = 'dropdollar_user=; path=/; max-age=0';
       document.cookie = 'dropdollar_remember=; path=/; max-age=0';
       
-      // Try Supabase authentication
+      // Try Supabase authentication with Safari compatibility
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Supabase login error:', error);
+        console.error('Login error:', error);
+        
+        // Safari-specific error messages
+        if (isSafari && error.message.includes('storage')) {
+          throw new Error('Safari Private Mode detected. Please disable Private Browsing or enable cookies in Settings.');
+        }
+        
+        if (isSafari && error.message.includes('network')) {
+          throw new Error('Network error. Please check your connection and try again.');
+        }
+        
         throw new Error(error.message);
       }
 
