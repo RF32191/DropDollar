@@ -574,7 +574,7 @@ export default function PennyPasserGame3D({
 
       {/* Version Tag */}
       <div className="absolute bottom-2 right-2 text-xs text-gray-500 pointer-events-none">
-        v1.0 - Penny Passer
+        v1.1 - BUILD 20251204 - Penny Passer
       </div>
     </div>
   );

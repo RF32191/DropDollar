@@ -142,9 +142,11 @@ const GAMES = [
   }
 ];
 
-// Debug: Log games array to ensure Laser Dodge is included
+// Debug: Log games array to ensure all games are included
 console.log('🎮 Available games for deployment:', GAMES.map(g => `${g.name} (${g.id})`));
 console.log('🚀 Laser Dodge game included:', GAMES.find(g => g.id === 'laser-dodge') ? '✅ YES' : '❌ NO');
+console.log('🪙 Penny Passer game included:', GAMES.find(g => g.id === 'penny-passer') ? '✅ YES' : '❌ NO');
+console.log('📊 Total games available:', GAMES.length);
 
 interface GameResult {
   score: number;
