@@ -133,6 +133,7 @@ export default function PennyPasserGame3D({
   const [collectedCoins, setCollectedCoins] = useState(0);
   const [showArrow, setShowArrow] = useState<{ direction: string; x: number; y: number } | null>(null);
   const [showJumpIndicator, setShowJumpIndicator] = useState(false);
+  const [floatingScore, setFloatingScore] = useState<{ points: number; show: boolean }>({ points: 0, show: false });
 
   // Anti-cheat tracking
   const moveTimingsRef = useRef<number[]>([]);
@@ -316,6 +317,12 @@ export default function PennyPasserGame3D({
     for (let i = 0; i < numLanes; i++) {
       // START LANES AT +2.5 (coin is at -8, LARGE safe zone from -8 to +2.5 = 10.5 units / 4 lane moves)
       const yPos = 2.5 + (i * 2.5);
+      
+      // SKIP if this lane is near the coin's starting position (ensure empty lane at spawn)
+      if (Math.abs(yPos - (-8)) < 2.5) {
+        // This lane is too close to coin spawn, skip it
+        continue;
+      }
       
       // PROGRESSIVE DIFFICULTY: Use easier patterns at start, harder patterns later
       const progressRatio = i / numLanes; // 0.0 to 1.0
@@ -785,12 +792,16 @@ export default function PennyPasserGame3D({
           const jumpBonus = isDoubleClick ? 1.5 : 1.0;
           
           // Risk bonus (closer to cars = more points)
-          const riskBonus = 1.0; // TODO: Could add proximity detection
+          const riskBonus = 1.0;
           
-          // Final calculation with decimals
+          // Final calculation with PRECISE decimals
           const points = basePoints * (1 + speedBonus) * jumpBonus * riskBonus;
           
           setScore(prev => prev + points);
+          
+          // Show floating score indicator
+          setFloatingScore({ points, show: true });
+          setTimeout(() => setFloatingScore({ points: 0, show: false }), 800);
           
           // Visual feedback for good timing
           if (speedBonus > 0.8) {
@@ -799,10 +810,8 @@ export default function PennyPasserGame3D({
             playSound(500 + (progress * 200), 0.15, 'sine');
           }
           
-          // Simplified console log
-          if (isDoubleClick) {
-            console.log(`💰 JUMP! +${points.toFixed(1)} pts`);
-          }
+          // Detailed decimal scoring log
+          console.log(`💰 +${points.toFixed(2)} pts | Speed: ${(speedBonus * 100).toFixed(1)}% | ${isDoubleClick ? '🦘 JUMP x1.5' : 'Hop'} | Total: ${(score + points).toFixed(2)}`);
         }
       }
     };
@@ -971,6 +980,15 @@ export default function PennyPasserGame3D({
               </div>
             </div>
           )}
+          
+          {/* FLOATING SCORE INDICATOR - Shows decimal points earned */}
+          {floatingScore.show && (
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 pointer-events-none z-50 animate-bounce">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-4xl font-black px-6 py-3 rounded-xl border-2 border-yellow-400 shadow-2xl">
+                +{floatingScore.points.toFixed(2)} 💰
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1042,7 +1060,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.6.2 - LARGE SAFE ZONE - 4+ Lane Moves
+        v3.6.3 - DECIMAL SCORING + Empty Starting Lane
       </div>
     </div>
   );
