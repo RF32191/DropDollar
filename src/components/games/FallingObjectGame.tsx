@@ -242,9 +242,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           newBounces++;
         }
 
-        // Check briefcase paddle collision - ONLY CATCH WHAT'S OVER SUITCASE!
-        // Suitcase is 480px wide, which is ~24% of typical fullscreen width
-        const paddleHalfWidth = 12; // ±12% for 480px suitcase (24% total)
+        // Check briefcase paddle collision - EXACT SUITCASE SIZE ONLY!
+        // Suitcase is 480px wide - make collision MUCH TIGHTER than visual
+        const paddleHalfWidth = 6; // ±6% (12% total = tight catch area)
         const paddleLeft = paddleX - paddleHalfWidth;
         const paddleRight = paddleX + paddleHalfWidth;
         const paddleTop = 82; // Adjusted for taller view
@@ -265,15 +265,15 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           let locationMultiplier = 0;
           let zoneDescription = '';
           
-          if (distanceFromCenter <= 0.8) {
-            // PERFECT CENTER - GOLD GLOW (≤0.8% = ~16px on fullscreen)
+          if (distanceFromCenter <= 0.5) {
+            // PERFECT CENTER - GOLD GLOW (≤0.5% = super tight!)
             locationMultiplier = 1.0; // 100% bonus
             zoneDescription = 'perfect-center';
             setSuitcaseGlow('gold');
             // GOLD sound - perfect catch
             playPerfectCatchSound();
           } else {
-            // EDGES OF SUITCASE - BLUE GLOW (0.8% to 12% from center)
+            // EDGES OF SUITCASE - BLUE GLOW (0.5% to 6% from center)
             // Scale bonus based on distance (closer to center = better)
             const distanceRatio = distanceFromCenter / paddleHalfWidth; // 0 to 1
             locationMultiplier = Math.max(0.1, 0.5 - (distanceRatio * 0.4)); // 50% to 10% bonus
@@ -753,31 +753,32 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* Scoring Zone Indicators - MATCHES ACTUAL COLLISION */}
+              {/* Scoring Zone Indicators - EXACT COLLISION MATCH */}
               <div
-                className="absolute opacity-40"
+                className="absolute opacity-50"
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '1.6%', // TINY gold zone for perfect center (≤0.8% each side)
-                  height: '5px',
+                  width: '1%', // TINY gold zone (≤0.5% each side = 1% total)
+                  height: '6px',
                   transform: 'translateX(-50%)',
                   backgroundColor: '#FFD700', // Bright gold for perfect center
-                  borderRadius: '2px',
-                  boxShadow: '0 0 10px rgba(255,215,0,0.8)',
+                  borderRadius: '3px',
+                  boxShadow: '0 0 15px rgba(255,215,0,1), 0 0 8px rgba(255,215,0,0.8)',
                   zIndex: 15
                 }}
               />
               <div
-                className="absolute opacity-25"
+                className="absolute opacity-30"
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '24%', // Full suitcase collision width (±12% = 24% total)
-                  height: '3px',
+                  width: '12%', // Tight collision width (±6% = 12% total)
+                  height: '4px',
                   transform: 'translateX(-50%)',
                   backgroundColor: '#3B82F6', // Blue for edge catches
-                  borderRadius: '1px',
+                  borderRadius: '2px',
+                  boxShadow: '0 0 8px rgba(59,130,246,0.6)',
                   zIndex: 13
                 }}
               />
