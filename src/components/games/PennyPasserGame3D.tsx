@@ -15,10 +15,10 @@ interface Lane {
   y: number;
   direction: 1 | -1; // 1 = right, -1 = left
   speed: number;
-  hands: Hand[];
+  wallets: Wallet[];
 }
 
-interface Hand {
+interface Wallet {
   x: number;
   mesh: THREE.Mesh;
 }
@@ -56,12 +56,14 @@ export default function PennyPasserGame3D({
   const lanesRef = useRef<Lane[]>([]);
   const rngRef = useRef<SeededRandom>(new SeededRandom(rngSeed || Date.now()));
   const hasEndedRef = useRef(false);
+  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
+  const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
 
   const [gameState, setGameState] = useState<'playing' | 'ended'>('playing');
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
   const [timeRemaining, setTimeRemaining] = useState(60);
-  const [pennyPosition, setPennyPosition] = useState(0); // Y position (rows advanced)
+  const [pennyPosition, setPennyPosition] = useState(0); // Distance traveled
   const [isMoving, setIsMoving] = useState(false);
   const [moveCount, setMoveCount] = useState(0);
   const [lastMoveTime, setLastMoveTime] = useState(Date.now());
@@ -152,13 +154,13 @@ export default function PennyPasserGame3D({
       roughness: 0.3
     });
     const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
-    penny.position.set(0, 0.5, -20); // Start at bottom
+    penny.position.set(0, 0.5, -20); // Start at bottom center
     penny.rotation.x = Math.PI / 2;
     penny.castShadow = true;
     scene.add(penny);
     pennyRef.current = penny;
 
-    // Create lanes with hands
+    // Create lanes with wallets
     const lanes: Lane[] = [];
     const numLanes = 15;
     const rng = rngRef.current;
@@ -167,36 +169,53 @@ export default function PennyPasserGame3D({
       const yPos = -15 + (i * 2.5);
       const direction = rng.next() > 0.5 ? 1 : -1;
       const speed = rng.range(0.02, 0.08);
-      const numHands = Math.floor(rng.range(2, 5));
-      const hands: Hand[] = [];
+      const numWallets = Math.floor(rng.range(2, 5));
+      const wallets: Wallet[] = [];
 
-      for (let j = 0; j < numHands; j++) {
-        const handGeometry = new THREE.BoxGeometry(1, 1.5, 0.8);
-        const handMaterial = new THREE.MeshStandardMaterial({ 
-          color: 0xffdbac // Skin tone
-        });
-        const handMesh = new THREE.Mesh(handGeometry, handMaterial);
+      for (let j = 0; j < numWallets; j++) {
+        // Create wallet (rectangular box with texture-like appearance)
+        const walletGroup = new THREE.Group();
         
-        const spacing = 20 / numHands;
-        const xPos = -10 + (j * spacing) + rng.range(-2, 2);
-        handMesh.position.set(xPos, 0.75, yPos);
-        handMesh.castShadow = true;
-        scene.add(handMesh);
-
-        // Add fingers
-        for (let k = 0; k < 5; k++) {
-          const fingerGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.6, 8);
-          const fingerMaterial = new THREE.MeshStandardMaterial({ color: 0xffdbac });
-          const finger = new THREE.Mesh(fingerGeometry, fingerMaterial);
-          finger.position.set(-0.3 + k * 0.15, 0.5, 0.3);
-          finger.rotation.x = Math.PI / 6;
-          handMesh.add(finger);
+        // Main wallet body
+        const walletGeometry = new THREE.BoxGeometry(1.5, 0.2, 1);
+        const walletMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x8B4513, // Brown leather color
+          metalness: 0.2,
+          roughness: 0.8
+        });
+        const walletMesh = new THREE.Mesh(walletGeometry, walletMaterial);
+        walletGroup.add(walletMesh);
+        
+        // Wallet clasp (gold accent)
+        const claspGeometry = new THREE.BoxGeometry(0.3, 0.25, 1.05);
+        const claspMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0xFFD700, // Gold
+          metalness: 0.9,
+          roughness: 0.1
+        });
+        const clasp = new THREE.Mesh(claspGeometry, claspMaterial);
+        clasp.position.y = 0.1;
+        walletGroup.add(clasp);
+        
+        // Add stitching details (small lines)
+        const stitchMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
+        for (let s = 0; s < 4; s++) {
+          const stitchGeometry = new THREE.BoxGeometry(0.05, 0.25, 0.05);
+          const stitch = new THREE.Mesh(stitchGeometry, stitchMaterial);
+          stitch.position.set(-0.5 + (s * 0.33), 0.1, 0.4);
+          walletGroup.add(stitch);
         }
+        
+        const spacing = 20 / numWallets;
+        const xPos = -10 + (j * spacing) + rng.range(-2, 2);
+        walletGroup.position.set(xPos, 0.6, yPos);
+        walletGroup.castShadow = true;
+        scene.add(walletGroup);
 
-        hands.push({ x: xPos, mesh: handMesh });
+        wallets.push({ x: xPos, mesh: walletGroup });
       }
 
-      lanes.push({ y: yPos, direction, speed, hands });
+      lanes.push({ y: yPos, direction, speed, wallets });
     }
     lanesRef.current = lanes;
 
@@ -230,19 +249,19 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // Move hands in lanes
+      // Move wallets in lanes
       lanesRef.current.forEach(lane => {
-        lane.hands.forEach(hand => {
-          hand.x += lane.speed * lane.direction;
+        lane.wallets.forEach(wallet => {
+          wallet.x += lane.speed * lane.direction;
           
           // Wrap around
-          if (hand.x > 12) hand.x = -12;
-          if (hand.x < -12) hand.x = 12;
+          if (wallet.x > 12) wallet.x = -12;
+          if (wallet.x < -12) wallet.x = 12;
           
-          hand.mesh.position.x = hand.x;
+          wallet.mesh.position.x = wallet.x;
           
-          // Animate hand rotation
-          hand.mesh.rotation.y += 0.02;
+          // Animate wallet rotation
+          wallet.mesh.rotation.y += 0.01;
         });
       });
 
@@ -252,13 +271,15 @@ export default function PennyPasserGame3D({
       // Check collisions
       if (pennyRef.current) {
         const pennyZ = pennyRef.current.position.z;
+        const pennyX = pennyRef.current.position.x;
         const tolerance = 1.5;
 
         lanesRef.current.forEach(lane => {
           if (Math.abs(pennyZ - lane.y) < tolerance) {
-            lane.hands.forEach(hand => {
-              const distance = Math.abs(pennyRef.current!.position.x - hand.x);
-              if (distance < 1.2) {
+            lane.wallets.forEach(wallet => {
+              const distanceX = Math.abs(pennyX - wallet.x);
+              const distanceZ = Math.abs(pennyZ - lane.y);
+              if (distanceX < 1.2 && distanceZ < 1.2) {
                 // Collision!
                 handleCollision();
               }
@@ -321,9 +342,24 @@ export default function PennyPasserGame3D({
     }
   }, []);
 
-  // Move forward
-  const moveForward = useCallback(() => {
-    if (gameState !== 'playing' || isMoving || hearts <= 0) return;
+  // Click-to-move handler
+  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing' || isMoving || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
+
+    // Calculate mouse position in normalized device coordinates
+    const rect = mountRef.current.getBoundingClientRect();
+    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Raycast to find click position on the road plane
+    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+    
+    // Create a plane at y=0 (the road level)
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const intersectPoint = new THREE.Vector3();
+    raycasterRef.current.ray.intersectPlane(plane, intersectPoint);
+
+    if (!intersectPoint) return;
 
     const now = Date.now();
     const timeSinceLastMove = now - lastMoveTime;
@@ -333,43 +369,49 @@ export default function PennyPasserGame3D({
     setMoveCount(prev => prev + 1);
     setLastMoveTime(now);
 
-    if (pennyRef.current) {
-      const targetZ = pennyRef.current.position.z + 2.5;
-      
-      // Smooth animation
-      const startZ = pennyRef.current.position.z;
-      const duration = 200; // ms
-      const startTime = Date.now();
+    // Calculate target position (snap to lanes)
+    const targetX = Math.round(intersectPoint.x / 4) * 4; // Snap to lane centers
+    const targetZ = Math.max(intersectPoint.z, pennyRef.current.position.z + 1); // Can only move forward or stay
 
-      const animateMove = () => {
-        if (!pennyRef.current) return;
+    const startX = pennyRef.current.position.x;
+    const startZ = pennyRef.current.position.z;
+    const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
+
+    // Smooth animation
+    const duration = 200; // ms
+    const startTime = Date.now();
+
+    const animateMove = () => {
+      if (!pennyRef.current) return;
+      
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+      
+      pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
+      pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateMove);
+      } else {
+        setIsMoving(false);
         
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-        
-        pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateMove);
-        } else {
-          setIsMoving(false);
-          
-          // Update position and score
-          setPennyPosition(prev => prev + 1);
+        // Update position and score
+        if (distanceMoved > 0) {
+          setPennyPosition(prev => prev + distanceMoved);
           
           // Speed bonus: faster moves = more points
           const speedBonus = Math.max(0, 1 - (timeSinceLastMove / 2000));
-          const basePoints = 10;
+          const basePoints = 10 * distanceMoved;
           const points = basePoints * (1 + speedBonus);
           setScore(prev => prev + points);
           
           playSound(400 + (progress * 200), 0.1);
         }
-      };
-      
-      animateMove();
-    }
+      }
+    };
+    
+    animateMove();
   }, [gameState, isMoving, hearts, lastMoveTime]);
 
   // End game
@@ -449,32 +491,12 @@ export default function PennyPasserGame3D({
     }, 1500);
   }, [score, hearts, timeRemaining, pennyPosition, moveCount, gameMode, rngSeed, competitionId, onGameEnd]);
 
-  // Click handler
-  const handleClick = useCallback(() => {
-    if (gameState === 'playing') {
-      moveForward();
-    }
-  }, [gameState, moveForward]);
-
-  // Keyboard handler
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
-        e.preventDefault();
-        moveForward();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [moveForward]);
-
   return (
     <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
       {/* Game Canvas */}
       <div
         ref={mountRef}
-        className="w-full h-full cursor-pointer"
+        className="w-full h-full cursor-crosshair"
         onClick={handleClick}
         style={{ minHeight: '600px' }}
       />
@@ -507,7 +529,7 @@ export default function PennyPasserGame3D({
               {score.toFixed(1)}
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              Distance: {pennyPosition}
+              Distance: {pennyPosition.toFixed(0)}
             </div>
           </div>
         </div>
@@ -515,17 +537,17 @@ export default function PennyPasserGame3D({
 
       {/* Instructions */}
       {gameState === 'playing' && timeRemaining > 55 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/50 animate-pulse">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/50 animate-pulse pointer-events-none">
           <div className="text-white text-center">
-            <div className="text-xl font-bold mb-2">🪙 Click or Press SPACE to move forward!</div>
-            <div className="text-sm text-gray-300">Avoid the hands • Keep your hearts • Speed matters!</div>
+            <div className="text-xl font-bold mb-2">🪙 Click anywhere to move the penny!</div>
+            <div className="text-sm text-gray-300">Avoid wallets 💰 • Keep your hearts • Move smart!</div>
           </div>
         </div>
       )}
 
       {/* Game Over Screen */}
       {gameState === 'ended' && !isSubmitting && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/90 flex items-center justify-center pointer-events-auto">
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 max-w-md border-2 border-yellow-400/50 shadow-2xl">
             <div className="text-center">
               <div className="text-6xl mb-4">🪙</div>
@@ -539,7 +561,7 @@ export default function PennyPasserGame3D({
                 
                 <div className="bg-black/30 rounded-lg p-3">
                   <div className="text-sm text-gray-400">Distance Traveled</div>
-                  <div className="text-2xl font-bold text-white">{pennyPosition} rows</div>
+                  <div className="text-2xl font-bold text-white">{pennyPosition.toFixed(0)}</div>
                 </div>
                 
                 <div className="bg-black/30 rounded-lg p-3">
@@ -563,7 +585,7 @@ export default function PennyPasserGame3D({
 
       {/* Submitting Overlay */}
       {isSubmitting && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mb-4"></div>
             <div className="text-white text-xl">Recording Score...</div>
@@ -573,9 +595,8 @@ export default function PennyPasserGame3D({
 
       {/* Version Tag */}
       <div className="absolute bottom-2 right-2 text-xs text-gray-500 pointer-events-none">
-        v1.1 - BUILD 20251204 - Penny Passer
+        v2.0 - BUILD 20251204 - Penny Passer (Click-to-Move)
       </div>
     </div>
   );
 }
-
