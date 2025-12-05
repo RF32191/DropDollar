@@ -477,7 +477,7 @@ export default function PennyPasserGame3D({
     }
   }, [lastMoveTime]);
 
-  // Mouse move handler - Show directional arrows
+  // Mouse move handler - Show directional arrows AROUND THE COIN
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
 
@@ -509,11 +509,18 @@ export default function PennyPasserGame3D({
       }
     }
 
-    // Show arrow at cursor position
+    // Project penny position to screen coordinates to show arrow AROUND THE COIN
+    const pennyScreenPos = pennyRef.current.position.clone();
+    pennyScreenPos.project(cameraRef.current);
+    
+    const screenX = (pennyScreenPos.x * 0.5 + 0.5) * rect.width;
+    const screenY = (-pennyScreenPos.y * 0.5 + 0.5) * rect.height;
+
+    // Show arrow around the penny position
     setShowArrow({
       direction,
-      x: event.clientX,
-      y: event.clientY
+      x: screenX,
+      y: screenY
     });
   }, [gameState]);
 
@@ -537,8 +544,13 @@ export default function PennyPasserGame3D({
     const timeSinceLastClick = now - lastClickTimeRef.current;
     
     // DOUBLE-CLICK DETECTION (< 300ms = jump!)
-    const isDoubleClick = timeSinceLastClick < 300;
+    const isDoubleClick = timeSinceLastClick < 300 && timeSinceLastClick > 0;
     const jumpMultiplier = isDoubleClick ? 2 : 1;
+    
+    // Debug log for double-click
+    if (isDoubleClick) {
+      console.log('🦘 JUMP DETECTED! Time between clicks:', timeSinceLastClick, 'ms');
+    }
     
     lastClickTimeRef.current = now;
     moveTimingsRef.current.push(timeSinceLastMove);
@@ -585,6 +597,17 @@ export default function PennyPasserGame3D({
     // Play jump sound if double-click
     if (isDoubleClick) {
       playSound(700, 0.2, 'sine');
+      // Flash penny bright for jump
+      if (pennyRef.current) {
+        const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
+        (pennyMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.0;
+        setTimeout(() => {
+          if (pennyRef.current) {
+            const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
+            (pennyMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.3;
+          }
+        }, duration);
+      }
     }
 
     const animateMove = () => {
@@ -596,6 +619,12 @@ export default function PennyPasserGame3D({
       
       pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
       pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
+      
+      // Add higher hop during jump
+      if (isDoubleClick) {
+        const extraHop = Math.sin(progress * Math.PI) * 1.5;
+        pennyRef.current.position.y = 0.8 + hopAnimationRef.current + extraHop;
+      }
       
       if (progress < 1) {
         requestAnimationFrame(animateMove);
@@ -674,94 +703,98 @@ export default function PennyPasserGame3D({
   }, [score, hearts, timeRemaining, pennyPosition, moveCount, gameMode, rngSeed, competitionId, onGameEnd]);
 
   return (
-    <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
+    <div className="fixed inset-0 bg-black overflow-hidden z-50">
       <div
         ref={mountRef}
         className="w-full h-full cursor-crosshair"
         onClick={handleClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setShowArrow(null)}
-        style={{ minHeight: '600px' }}
       />
 
       {gameState === 'playing' && (
         <>
-          {/* HUD - Left side: Hearts, Right side: Score & Timer */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+          {/* HUD - Hearts on LEFT, Timer/Score on RIGHT */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-50">
             {/* Left: Hearts */}
-            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+            <div className="bg-black/80 backdrop-blur-sm rounded-xl p-3 border border-white/20 shadow-xl">
               <div className="flex gap-2">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className={`text-2xl ${i < hearts ? 'opacity-100' : 'opacity-20'}`}>
+                  <div key={i} className={`text-3xl ${i < hearts ? 'opacity-100' : 'opacity-20'}`}>
                     ❤️
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Right: Score and Timer stacked */}
-            <div className="flex flex-col gap-2">
-              {/* Timer - TOP RIGHT */}
-              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                <div className="text-2xl font-bold text-white text-center">
+            {/* Right: Timer and Score - SEPARATE, NON-OVERLAPPING */}
+            <div className="flex flex-col gap-3 items-end">
+              {/* Timer - TOP RIGHT CORNER */}
+              <div className="bg-black/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-yellow-400/50 shadow-xl">
+                <div className="text-3xl font-black text-yellow-400 text-center min-w-[100px]">
                   ⏱️ {timeRemaining}s
                 </div>
               </div>
               
-              {/* Score */}
-              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20 text-right">
-                <div className="text-sm text-gray-300">Score</div>
-                <div className="text-2xl font-bold text-yellow-400">
+              {/* Score - Below timer */}
+              <div className="bg-black/80 backdrop-blur-sm rounded-xl p-3 border border-white/20 shadow-xl">
+                <div className="text-sm text-gray-300 text-right">Score</div>
+                <div className="text-2xl font-bold text-green-400 text-right">
                   {score.toFixed(1)}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  Distance: {pennyPosition.toFixed(0)}
+                <div className="text-xs text-gray-400 mt-1 text-right">
+                  Dist: {pennyPosition.toFixed(0)}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Directional Arrow Indicator */}
+          {/* Directional Arrows AROUND THE COIN */}
           {showArrow && (
             <div 
               className="absolute pointer-events-none"
               style={{
-                left: showArrow.x - 30,
-                top: showArrow.y - 30,
-                width: '60px',
-                height: '60px',
-                zIndex: 100
+                left: showArrow.x,
+                top: showArrow.y,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 60
               }}
             >
-              <div className="relative w-full h-full">
-                {showArrow.direction === 'forward' && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-5xl animate-pulse text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,1)]">
-                      ⬆️
-                    </div>
+              {/* Forward Arrow - Above coin */}
+              {showArrow.direction === 'forward' && (
+                <div className="absolute" style={{ top: '-80px', left: '50%', transform: 'translateX(-50%)' }}>
+                  <div className="text-6xl animate-bounce text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,1)]">
+                    ⬆️
                   </div>
-                )}
-                {showArrow.direction === 'left' && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-5xl animate-pulse text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,1)]">
-                      ⬅️
-                    </div>
-                  </div>
-                )}
-                {showArrow.direction === 'right' && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-5xl animate-pulse text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,1)]">
-                      ➡️
-                    </div>
-                  </div>
-                )}
-                {/* Jump indicator for double-click */}
-                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                  <div className="text-xs font-bold text-yellow-300 bg-black/80 px-2 py-1 rounded-full">
+                  <div className="text-xs font-bold text-yellow-300 bg-black/90 px-2 py-1 rounded-full text-center mt-2 whitespace-nowrap">
                     Double-click = JUMP!
                   </div>
                 </div>
-              </div>
+              )}
+              
+              {/* Left Arrow - Left of coin */}
+              {showArrow.direction === 'left' && (
+                <div className="absolute" style={{ left: '-100px', top: '50%', transform: 'translateY(-50%)' }}>
+                  <div className="text-6xl animate-bounce text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,1)]">
+                    ⬅️
+                  </div>
+                  <div className="text-xs font-bold text-yellow-300 bg-black/90 px-2 py-1 rounded-full text-center mt-2 whitespace-nowrap">
+                    Double-click = JUMP!
+                  </div>
+                </div>
+              )}
+              
+              {/* Right Arrow - Right of coin */}
+              {showArrow.direction === 'right' && (
+                <div className="absolute" style={{ left: '100px', top: '50%', transform: 'translateY(-50%)' }}>
+                  <div className="text-6xl animate-bounce text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,1)]">
+                    ➡️
+                  </div>
+                  <div className="text-xs font-bold text-yellow-300 bg-black/90 px-2 py-1 rounded-full text-center mt-2 whitespace-nowrap">
+                    Double-click = JUMP!
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
@@ -817,8 +850,8 @@ export default function PennyPasserGame3D({
         </div>
       )}
 
-      <div className="absolute bottom-2 right-2 text-xs text-gray-500 pointer-events-none">
-        v3.1 - BUILD 20251205 - Penny Passer (Jump + Arrows)
+      <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
+        v3.2 - FULLSCREEN - Jump + Arrows Around Coin
       </div>
     </div>
   );
