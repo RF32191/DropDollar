@@ -25,6 +25,13 @@ interface Car {
   color: number;
 }
 
+interface CollectibleCoin {
+  x: number;
+  y: number;
+  mesh: THREE.Group;
+  collected: boolean;
+}
+
 // Car colors (varied palette)
 const CAR_COLORS = [
   0xFF0000, // Red
@@ -98,11 +105,14 @@ export default function PennyPasserGame3D({
   const animationIdRef = useRef<number | undefined>(undefined);
   const pennyRef = useRef<THREE.Group | null>(null);
   const lanesRef = useRef<Lane[]>([]);
+  const collectibleCoinsRef = useRef<CollectibleCoin[]>([]);
   const rngRef = useRef<SeededRandom>(new SeededRandom(rngSeed || Date.now()));
   const hasEndedRef = useRef(false);
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
   const hopAnimationRef = useRef(0);
+  const lastClickTimeRef = useRef(0);
+  const clickDirectionRef = useRef<{ x: number; z: number } | null>(null);
 
   const [gameState, setGameState] = useState<'playing' | 'ended'>('playing');
   const [score, setScore] = useState(0);
@@ -113,6 +123,8 @@ export default function PennyPasserGame3D({
   const [moveCount, setMoveCount] = useState(0);
   const [lastMoveTime, setLastMoveTime] = useState(Date.now());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [collectedCoins, setCollectedCoins] = useState(0);
+  const [showArrow, setShowArrow] = useState<{ direction: string; x: number; y: number } | null>(null);
 
   // Anti-cheat tracking
   const moveTimingsRef = useRef<number[]>([]);
