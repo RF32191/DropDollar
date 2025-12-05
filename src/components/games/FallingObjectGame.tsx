@@ -753,35 +753,37 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* Scoring Zone Indicators - EXACT COLLISION MATCH */}
+              {/* CATCH RADIUS LINE - Moves with suitcase, shows EXACT catch area */}
               <div
-                className="absolute opacity-50"
+                className="absolute"
                 style={{
                   left: `${paddleX}%`,
-                  top: '83%',
-                  width: '1%', // TINY gold zone (≤0.5% each side = 1% total)
-                  height: '6px',
+                  top: '84%', // Positioned ON the suitcase
+                  width: '12%', // Total catch radius (±6% = 12%)
+                  height: '8px',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#FFD700', // Bright gold for perfect center
-                  borderRadius: '3px',
-                  boxShadow: '0 0 15px rgba(255,215,0,1), 0 0 8px rgba(255,215,0,0.8)',
-                  zIndex: 15
+                  zIndex: 25, // Above suitcase
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(to right, rgba(59,130,246,0.6) 0%, rgba(59,130,246,0.8) 45%, rgba(255,215,0,1) 50%, rgba(59,130,246,0.8) 55%, rgba(59,130,246,0.6) 100%)',
+                  borderRadius: '4px',
+                  boxShadow: '0 0 12px rgba(255,255,255,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
+                  border: '1px solid rgba(255,255,255,0.4)'
                 }}
-              />
-              <div
-                className="absolute opacity-30"
-                style={{
-                  left: `${paddleX}%`,
-                  top: '83%',
-                  width: '12%', // Tight collision width (±6% = 12% total)
-                  height: '4px',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#3B82F6', // Blue for edge catches
-                  borderRadius: '2px',
-                  boxShadow: '0 0 8px rgba(59,130,246,0.6)',
-                  zIndex: 13
-                }}
-              />
+              >
+                {/* Gold center marker */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    width: '1%', // Tiny gold zone (≤0.5% each side)
+                    height: '100%',
+                    backgroundColor: '#FFD700',
+                    boxShadow: '0 0 8px rgba(255,215,0,1)',
+                    borderRadius: '2px'
+                  }}
+                />
+              </div>
             </div>
             
             {/* Score & Timer Overlay - Top Right */}
