@@ -168,15 +168,15 @@ export default function PennyPasserGame3D({
     scene.fog = new THREE.Fog(0x0f0f1e, 30, 60); // Atmospheric depth
     sceneRef.current = scene;
 
-    // Camera - OPTIMIZED TOP-DOWN VIEW
+    // Camera - CLEAR TOP-DOWN VIEW
     const camera = new THREE.PerspectiveCamera(
       55,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 28, -8); // Clear overhead view
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 28, -5); // Clear view of starting area
+    camera.lookAt(0, 0, 5); // Look slightly ahead
     cameraRef.current = camera;
 
     // Renderer - OPTIMIZED for performance
@@ -314,7 +314,8 @@ export default function PennyPasserGame3D({
     const rng = rngRef.current;
 
     for (let i = 0; i < numLanes; i++) {
-      const yPos = -15 + (i * 2.5);
+      // START LANES AT -2.5 (coin is at -8, safe zone from -8 to -2.5)
+      const yPos = -2.5 + (i * 2.5);
       
       // PROGRESSIVE DIFFICULTY: Use easier patterns at start, harder patterns later
       const progressRatio = i / numLanes; // 0.0 to 1.0
@@ -526,9 +527,9 @@ export default function PennyPasserGame3D({
         const pennyProgress = pennyRef.current.position.z;
         if (pennyProgress > 10) {
           // Smoothly move camera forward as player advances
-          const cameraOffset = (pennyProgress - 10) * 0.3;
-          cameraRef.current.position.z = -8 + cameraOffset;
-          cameraRef.current.lookAt(0, 0, pennyProgress * 0.5);
+          const cameraOffset = (pennyProgress - 10) * 0.4;
+          cameraRef.current.position.z = -5 + cameraOffset;
+          cameraRef.current.lookAt(0, 0, 5 + pennyProgress * 0.5);
         }
       }
 
@@ -972,14 +973,14 @@ export default function PennyPasserGame3D({
       )}
 
       {gameState === 'playing' && timeRemaining > 55 && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-gradient-to-r from-black/90 via-purple-900/50 to-black/90 backdrop-blur-md rounded-2xl p-5 border-2 border-yellow-400/70 shadow-2xl animate-pulse pointer-events-none">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gradient-to-r from-black/90 via-purple-900/50 to-black/90 backdrop-blur-md rounded-xl p-4 border-2 border-yellow-400/70 shadow-2xl pointer-events-none z-40">
           <div className="text-white text-center">
-            <div className="text-2xl font-black mb-3 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+            <div className="text-xl font-black mb-2 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
               🪙 Click = Hop • Double-Click = JUMP! 🦘
             </div>
-            <div className="text-sm text-gray-200 space-y-1">
+            <div className="text-xs text-gray-200">
               <div>⬆️⬅️➡️ Arrows show direction • Faster moves = More points 💰</div>
-              <div>Avoid cars 🚗 • Jump over obstacles • Keep your hearts ❤️</div>
+              <div>🚗 Avoid cars • 🦘 Jump over obstacles • ❤️ Keep your hearts</div>
             </div>
           </div>
         </div>
