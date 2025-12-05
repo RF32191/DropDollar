@@ -242,9 +242,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           newBounces++;
         }
 
-        // Check briefcase paddle collision (extra wide paddle for more diverse scoring)
-        const paddleLeft = paddleX - 20; // Extra wide briefcase paddle for better scoring zones
-        const paddleRight = paddleX + 20;
+        // Check briefcase paddle collision (ULTRA WIDE - 3X SIZE!)
+        const paddleLeft = paddleX - 60; // 3X WIDER briefcase for easier catching!
+        const paddleRight = paddleX + 60;
         const paddleTop = 82; // Adjusted for taller view
         const paddleBottom = 95;
 
@@ -254,38 +254,38 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             newX <= paddleRight &&
             obj.velocityY > 0) { // Only catch if falling
           
-          // Calculate location-based bonus with wider paddle for more scoring diversity
+          // Calculate location-based bonus with ULTRA WIDE paddle (3x)
           const paddleCenter = paddleX;
           const catchPosition = newX;
           const distanceFromCenter = Math.abs(catchPosition - paddleCenter);
-          const maxDistance = 20; // Paddle half-width (extra wide)
+          const maxDistance = 60; // Paddle half-width (3X wider!)
           
-          // More granular location scoring zones
+          // More granular location scoring zones (scaled for 3X width)
           let locationMultiplier = 0;
           let zoneDescription = '';
           
-          if (distanceFromCenter <= 4) {
-            // Perfect center zone (within 4 units) - GOLD GLOW
+          if (distanceFromCenter <= 12) {
+            // Perfect center zone (within 12 units, 3X scaled) - GOLD GLOW
             locationMultiplier = 1.0; // 100% bonus
             zoneDescription = 'perfect-center';
             setSuitcaseGlow('gold');
             // GOLD sound - perfect catch
             playPerfectCatchSound();
-          } else if (distanceFromCenter <= 9) {
-            // Good center zone (4-9 units) - GREEN GLOW
+          } else if (distanceFromCenter <= 27) {
+            // Good center zone (12-27 units, 3X scaled) - GREEN GLOW
             locationMultiplier = 0.7; // 70% bonus
             zoneDescription = 'good-center';
             setSuitcaseGlow('green');
             // GREEN sound - good catch
             playGoodCatchSound();
-          } else if (distanceFromCenter <= 15) {
-            // Decent catch zone (9-15 units) - BLUE GLOW
+          } else if (distanceFromCenter <= 45) {
+            // Decent catch zone (27-45 units, 3X scaled) - BLUE GLOW
             locationMultiplier = 0.4; // 40% bonus
             zoneDescription = 'decent';
             setSuitcaseGlow('blue');
             // BLUE sound - normal catch (no extra audio call)
           } else {
-            // Edge catch zone (15-20 units) - BLUE GLOW
+            // Edge catch zone (45-60 units, 3X scaled) - BLUE GLOW
             locationMultiplier = 0.1; // 10% bonus
             zoneDescription = 'edge';
             setSuitcaseGlow('blue');
@@ -413,7 +413,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     });
   }, []);
 
-  // Handle mouse/touch movement for iPhone support
+  // Handle mouse/touch movement - INSTANT, SMOOTH, EXACT
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing') return;
     
@@ -424,8 +424,10 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     const x = event.clientX - rect.left;
     const percentage = (x / rect.width) * 100;
     
-    // Keep paddle within bounds
-    const boundedX = Math.max(10, Math.min(90, percentage));
+    // Keep paddle within bounds (wider boundaries for 3X width)
+    const boundedX = Math.max(5, Math.min(95, percentage));
+    
+    // INSTANT UPDATE - no lag!
     setPaddleX(boundedX);
   }, [gameState]);
 
@@ -441,24 +443,26 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     const x = touch.clientX - rect.left;
     const percentage = (x / rect.width) * 100;
     
-    // Keep paddle within bounds
-    const boundedX = Math.max(10, Math.min(90, percentage));
+    // Keep paddle within bounds (wider boundaries for 3X width)
+    const boundedX = Math.max(5, Math.min(95, percentage));
+    
+    // INSTANT UPDATE - no lag!
     setPaddleX(boundedX);
   }, [gameState]);
 
-  // Handle paddle movement (keyboard)
+  // Handle paddle movement (keyboard) - FASTER for 3X width
   useEffect(() => {
     let moveSpeed = 0;
     if (keysPressed.has('ArrowLeft') || keysPressed.has('a')) {
-      moveSpeed -= 1.5; // Slightly slower movement
+      moveSpeed -= 2.5; // Faster movement for wider paddle
     }
     if (keysPressed.has('ArrowRight') || keysPressed.has('d')) {
-      moveSpeed += 1.5;
+      moveSpeed += 2.5;
     }
 
     if (moveSpeed !== 0) {
       const interval = setInterval(() => {
-        setPaddleX(prev => Math.max(10, Math.min(90, prev + moveSpeed))); // Adjusted bounds
+        setPaddleX(prev => Math.max(5, Math.min(95, prev + moveSpeed))); // Wider bounds for 3X width
       }, 16); // ~60fps
 
       return () => clearInterval(interval);
@@ -724,16 +728,16 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 );
               })}
               
-              {/* Cash Case Paddle - GLOWING based on catch quality */}
+              {/* Cash Case Paddle - ULTRA WIDE 3X SIZE - GLOWING based on catch quality */}
               <div
-                className={`absolute flex items-center justify-center transition-all duration-300 ${
+                className={`absolute flex items-center justify-center transition-all duration-150 ${
                   suitcaseGlow === 'gold' ? 'scale-110' : suitcaseGlow === 'green' ? 'scale-105' : ''
                 }`}
                 style={{
                   left: `${paddleX}%`,
                   top: '85%',
-                  width: '200px',
-                  height: '45px',
+                  width: '600px', // 3X WIDER!
+                  height: '60px', // Slightly taller for proportion
                   transform: 'translateX(-50%)',
                   filter: suitcaseGlow === 'gold' 
                     ? 'drop-shadow(0 0 30px rgba(255,215,0,1)) drop-shadow(0 0 15px rgba(255,215,0,1))' 
@@ -749,8 +753,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                   src="/CashCase.PNG" 
                   alt="Cash Case" 
                   style={{
-                    width: '80px',
-                    height: '45px',
+                    width: '240px', // 3X WIDER (80px → 240px)
+                    height: '60px',
                     objectFit: 'contain',
                     filter: suitcaseGlow === 'gold'
                       ? 'brightness(1.5) saturate(1.5) drop-shadow(2px 2px 8px rgba(255,215,0,0.8))'
@@ -763,14 +767,14 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* Scoring Zone Indicators (subtle visual guides) */}
+              {/* Scoring Zone Indicators (3X WIDER - subtle visual guides) */}
               <div
                 className="absolute opacity-20"
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '40px', // Perfect center zone (wider)
-                  height: '2px',
+                  width: '120px', // Perfect center zone (3X wider: 40px → 120px)
+                  height: '3px',
                   transform: 'translateX(-50%)',
                   backgroundColor: '#10B981', // Green for perfect center
                   zIndex: 15
@@ -781,8 +785,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '90px', // Good center zone (wider)
-                  height: '1px',
+                  width: '270px', // Good center zone (3X wider: 90px → 270px)
+                  height: '2px',
                   transform: 'translateX(-50%)',
                   backgroundColor: '#F59E0B', // Yellow for good zone
                   zIndex: 14
@@ -793,7 +797,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '150px', // Decent zone indicator
+                  width: '450px', // Decent zone indicator (3X wider: 150px → 450px)
                   height: '1px',
                   transform: 'translateX(-50%)',
                   backgroundColor: '#3B82F6', // Blue for decent zone
