@@ -169,15 +169,15 @@ export default function PennyPasserGame3D({
     scene.fog = new THREE.Fog(0x0f0f1e, 30, 60); // Atmospheric depth
     sceneRef.current = scene;
 
-    // Camera - CLEAR TOP-DOWN VIEW
+    // Camera - TOP-DOWN VIEW of bottom spawn
     const camera = new THREE.PerspectiveCamera(
       55,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 28, -5); // Clear view of starting area
-    camera.lookAt(0, 0, 5); // Look slightly ahead
+    camera.position.set(0, 30, -15); // View coin at bottom, lanes ahead
+    camera.lookAt(0, 0, 0); // Look at center
     cameraRef.current = camera;
 
     // Renderer - OPTIMIZED for performance
@@ -210,8 +210,8 @@ export default function PennyPasserGame3D({
     rightAccent.position.set(13, 2, 0);
     scene.add(rightAccent);
 
-    // Ground/Road - BETTER VISUALS (extended for new lane layout)
-    const roadGeometry = new THREE.PlaneGeometry(24, 80);
+    // Ground/Road - Extended from spawn to lanes
+    const roadGeometry = new THREE.PlaneGeometry(24, 90);
     const roadMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x2a2a2a,
       roughness: 0.9,
@@ -221,25 +221,25 @@ export default function PennyPasserGame3D({
     });
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.rotation.x = -Math.PI / 2;
-    road.position.z = 10; // Centered for new lane positions (2.5 to 37.5)
+    road.position.z = 0; // Centered from -20 (spawn) to +40 (end lanes)
     scene.add(road);
     
-    // Side barriers (neon glow effect) - adjusted
+    // Side barriers (neon glow effect)
     for (let side of [-13, 13]) {
-      const barrierGeo = new THREE.BoxGeometry(0.3, 1.2, 80);
+      const barrierGeo = new THREE.BoxGeometry(0.3, 1.2, 90);
       const barrierMat = new THREE.MeshStandardMaterial({
         color: side < 0 ? 0xff3366 : 0x00ffff,
         emissive: side < 0 ? 0xff3366 : 0x00ffff,
         emissiveIntensity: 0.6
       });
       const barrier = new THREE.Mesh(barrierGeo, barrierMat);
-      barrier.position.set(side, 0.6, 10);
+      barrier.position.set(side, 0.6, 0);
       scene.add(barrier);
     }
 
-    // Lane dividers - GLOWING (adjusted for new layout)
+    // Lane dividers - GLOWING (full road coverage)
     for (let i = -2; i <= 2; i++) {
-      for (let j = -25; j < 45; j += 4) {
+      for (let j = -35; j < 45; j += 4) {
         const dividerGeometry = new THREE.BoxGeometry(0.2, 0.12, 2);
         const dividerMaterial = new THREE.MeshStandardMaterial({ 
           color: 0xffff00,
@@ -252,16 +252,16 @@ export default function PennyPasserGame3D({
       }
     }
 
-    // Road edge lines - BRIGHT WHITE (adjusted)
+    // Road edge lines - BRIGHT WHITE
     for (let side of [-12, 12]) {
-      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.12, 80);
+      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.12, 90);
       const edgeMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xffffff,
         emissive: 0xffffff,
         emissiveIntensity: 0.3
       });
       const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-      edge.position.set(side, 0.06, 10);
+      edge.position.set(side, 0.06, 0);
       scene.add(edge);
     }
 
@@ -305,7 +305,7 @@ export default function PennyPasserGame3D({
     ring.rotation.x = Math.PI / 2;
     pennyGroup.add(ring);
     
-    pennyGroup.position.set(0, 0.8, -8); // START VISIBLE - close to camera
+    pennyGroup.position.set(0, 0.8, -20); // START at BOTTOM - all cars ahead/above
     scene.add(pennyGroup);
     pennyRef.current = pennyGroup;
 
@@ -315,14 +315,8 @@ export default function PennyPasserGame3D({
     const rng = rngRef.current;
 
     for (let i = 0; i < numLanes; i++) {
-      // START LANES AT +2.5 (coin is at -8, LARGE safe zone from -8 to +2.5 = 10.5 units / 4 lane moves)
-      const yPos = 2.5 + (i * 2.5);
-      
-      // SKIP if this lane is near the coin's starting position (ensure empty lane at spawn)
-      if (Math.abs(yPos - (-8)) < 2.5) {
-        // This lane is too close to coin spawn, skip it
-        continue;
-      }
+      // START LANES AT 0 (coin is at -20, HUGE safe zone from -20 to 0 = 20 units / 8 lane moves)
+      const yPos = 0 + (i * 2.5);
       
       // PROGRESSIVE DIFFICULTY: Use easier patterns at start, harder patterns later
       const progressRatio = i / numLanes; // 0.0 to 1.0
@@ -531,14 +525,14 @@ export default function PennyPasserGame3D({
         }
       }
       
-      // CAMERA FOLLOWS PLAYER - Adjust forward when halfway
+      // CAMERA FOLLOWS PLAYER - Adjust forward as they progress
       if (pennyRef.current && cameraRef.current) {
         const pennyProgress = pennyRef.current.position.z;
-        if (pennyProgress > 10) {
-          // Smoothly move camera forward as player advances
-          const cameraOffset = (pennyProgress - 10) * 0.4;
-          cameraRef.current.position.z = -5 + cameraOffset;
-          cameraRef.current.lookAt(0, 0, 5 + pennyProgress * 0.5);
+        if (pennyProgress > -5) {
+          // Smoothly move camera forward as player advances from -20 start
+          const cameraOffset = (pennyProgress + 5) * 0.4;
+          cameraRef.current.position.z = -15 + cameraOffset;
+          cameraRef.current.lookAt(0, 0, pennyProgress * 0.6);
         }
       }
 
@@ -1060,7 +1054,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.6.3 - DECIMAL SCORING + Empty Starting Lane
+        v3.7 - BOTTOM SPAWN - Cars at Top
       </div>
     </div>
   );
