@@ -140,7 +140,7 @@ export default function PennyPasserGame3D({
   const collisionCountRef = useRef(0);
 
   // Audio feedback
-  const playSound = (frequency: number, duration: number, type: OscillatorType = 'sine') => {
+  const playSound = (frequency: number, duration: number, type: OscillatorType = 'sine', volume: number = 0.3) => {
     if (typeof window === 'undefined') return;
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -150,12 +150,32 @@ export default function PennyPasserGame3D({
       gainNode.connect(audioContext.destination);
       oscillator.frequency.value = frequency;
       oscillator.type = type;
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + duration);
     } catch (e) {
       console.warn('Audio not available:', e);
+    }
+  };
+
+  // Car ambient sound
+  const playCarSound = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = 80 + Math.random() * 40; // Low rumble
+      oscillator.type = 'sawtooth';
+      gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (e) {
+      // Silent fail
     }
   };
 
@@ -442,6 +462,34 @@ export default function PennyPasserGame3D({
     }
     lanesRef.current = lanes;
 
+    // Create collectible coins scattered on the road
+    const collectibleCoins: CollectibleCoin[] = [];
+    for (let i = 0; i < 20; i++) {
+      const coinGroup = new THREE.Group();
+      
+      // Small gold coin
+      const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 16);
+      const coinMat = new THREE.MeshStandardMaterial({
+        color: 0xFFD700,
+        metalness: 1,
+        roughness: 0.1,
+        emissive: 0xFFAA00,
+        emissiveIntensity: 0.8
+      });
+      const coin = new THREE.Mesh(coinGeo, coinMat);
+      coin.rotation.x = Math.PI / 2;
+      coinGroup.add(coin);
+      
+      // Position randomly on road, avoiding starting area
+      const coinX = (rng.range(0, 1) < 0.5 ? -8 : -4) + rng.range(0, 12);
+      const coinZ = rng.range(5, 35); // After starting area
+      coinGroup.position.set(coinX, 0.5, coinZ);
+      
+      scene.add(coinGroup);
+      collectibleCoins.push({ x: coinX, y: coinZ, mesh: coinGroup, collected: false });
+    }
+    collectibleCoinsRef.current = collectibleCoins;
+
     // Handle window resize
     const handleResize = () => {
       if (!mountRef.current || !camera || !renderer) return;
@@ -484,7 +532,15 @@ export default function PennyPasserGame3D({
         pennyRef.current.children[2].scale.set(pulseFactor, pulseFactor, pulseFactor);
       }
 
-      // Move cars - OPTIMIZED (no bounce, no material recreation)
+      // Rotate collectible coins for visibility
+      collectibleCoinsRef.current.forEach(coin => {
+        if (!coin.collected) {
+          coin.mesh.rotation.y += 0.05;
+          coin.mesh.position.y = 0.5 + Math.sin(Date.now() * 0.003 + coin.x) * 0.2;
+        }
+      });
+
+      // Move cars - WITH AMBIENT SOUND
       lanesRef.current.forEach(lane => {
         lane.cars.forEach(car => {
           car.x += lane.speed * lane.direction;
@@ -494,7 +550,14 @@ export default function PennyPasserGame3D({
           if (car.x < -12) car.x = 12;
           
           car.mesh.position.x = car.x;
-          car.mesh.position.y = 0.3; // Fixed height for performance
+          car.mesh.position.y = 0.3;
+          
+          // Play car sound when passing near penny
+          if (pennyRef.current && Math.abs(car.mesh.position.z - pennyRef.current.position.z) < 3) {
+            if (Math.abs(car.x - pennyRef.current.position.x) < 5 && Math.random() < 0.01) {
+              playCarSound();
+            }
+          }
         });
       });
 
@@ -523,6 +586,30 @@ export default function PennyPasserGame3D({
             }
           });
         }
+        
+        // Check collectible coin collisions
+        collectibleCoinsRef.current.forEach(coin => {
+          if (!coin.collected) {
+            const distX = Math.abs(pennyX - coin.x);
+            const distZ = Math.abs(pennyZ - coin.y);
+            if (distX < 1.5 && distZ < 1.5) {
+              // Collect coin!
+              coin.collected = true;
+              coin.mesh.visible = false;
+              setCollectedCoins(prev => prev + 1);
+              
+              // Grow main penny
+              const newScale = 1 + (collectedCoins + 1) * 0.15;
+              pennyRef.current.scale.set(newScale, newScale, newScale);
+              
+              // Play collect sound
+              playSound(800, 0.2, 'sine', 0.4);
+              playSound(1000, 0.15, 'sine', 0.3);
+              
+              console.log(`🪙 Collected coin! Total: ${collectedCoins + 1} | Size: ${newScale.toFixed(2)}x`);
+            }
+          }
+        });
       }
       
       // CAMERA FOLLOWS PLAYER - Adjust forward as they progress
@@ -655,7 +742,7 @@ export default function PennyPasserGame3D({
     
     // Debug log for double-click
     if (isDoubleClick) {
-      console.log('🦘 JUMP DETECTED! Time between clicks:', timeSinceLastClick, 'ms');
+      console.log('🦘 JUMP DETECTED! Time between clicks:', timeSinceLastClick, 'ms - SKIPPING 2 POSITIONS');
     }
     
     lastClickTimeRef.current = now;
@@ -672,7 +759,7 @@ export default function PennyPasserGame3D({
     if (!intersectPoint) return;
 
     const timeSinceLastMove = now - lastMoveTime;
-    const jumpMultiplier = isDoubleClick ? 2 : 1;
+    const jumpMultiplier = isDoubleClick ? 3 : 1; // JUMP = 3x distance (skip 2 positions)
     
     moveTimingsRef.current.push(timeSinceLastMove);
 
@@ -772,40 +859,50 @@ export default function PennyPasserGame3D({
         setIsMoving(false);
         
         if (distanceMoved > 0) {
-          setPennyPosition(prev => prev + distanceMoved);
+          const forwardDistance = Math.abs(targetZ - startZ);
+          const lateralDistance = Math.abs(targetX - startX);
           
-          // ADVANCED DECIMAL SCORING based on precise timing
-          const basePoints = 10 * (distanceMoved / 2.5);
+          setPennyPosition(prev => prev + forwardDistance);
           
-          // Speed bonus (more precise decimal calculation)
-          const perfectMoveTime = 500; // 500ms = perfect
-          const speedRatio = Math.min(1, perfectMoveTime / Math.max(timeSinceLastMove, 100));
-          const speedBonus = speedRatio * speedRatio; // Squared for exponential reward
-          
-          // Jump bonus
-          const jumpBonus = isDoubleClick ? 1.5 : 1.0;
-          
-          // Risk bonus (closer to cars = more points)
-          const riskBonus = 1.0;
-          
-          // Final calculation with PRECISE decimals
-          const points = basePoints * (1 + speedBonus) * jumpBonus * riskBonus;
-          
-          setScore(prev => prev + points);
-          
-          // Show floating score indicator
-          setFloatingScore({ points, show: true });
-          setTimeout(() => setFloatingScore({ points: 0, show: false }), 800);
-          
-          // Visual feedback for good timing
-          if (speedBonus > 0.8) {
-            playSound(600 + (progress * 300), 0.15, 'sine');
-          } else {
-            playSound(500 + (progress * 200), 0.15, 'sine');
+          // ONLY SCORE FORWARD MOVEMENT (not lateral)
+          if (forwardDistance > 0) {
+            // ADVANCED DECIMAL SCORING based on precise timing
+            const basePoints = 10 * (forwardDistance / 2.5);
+            
+            // Speed bonus (more precise decimal calculation)
+            const perfectMoveTime = 500; // 500ms = perfect
+            const speedRatio = Math.min(1, perfectMoveTime / Math.max(timeSinceLastMove, 100));
+            const speedBonus = speedRatio * speedRatio; // Squared for exponential reward
+            
+            // Jump bonus
+            const jumpBonus = isDoubleClick ? 1.5 : 1.0;
+            
+            // Risk bonus (closer to cars = more points)
+            const riskBonus = 1.0;
+            
+            // Final calculation with PRECISE decimals
+            const points = basePoints * (1 + speedBonus) * jumpBonus * riskBonus;
+            
+            setScore(prev => prev + points);
+            
+            // Show floating score indicator
+            setFloatingScore({ points, show: true });
+            setTimeout(() => setFloatingScore({ points: 0, show: false }), 800);
+            
+            // Visual feedback for good timing
+            if (speedBonus > 0.8) {
+              playSound(600 + (progress * 300), 0.15, 'sine');
+            } else {
+              playSound(500 + (progress * 200), 0.15, 'sine');
+            }
+            
+            // Detailed decimal scoring log
+            console.log(`💰 +${points.toFixed(2)} pts | Speed: ${(speedBonus * 100).toFixed(1)}% | ${isDoubleClick ? '🦘 JUMP x1.5' : 'Hop'} | Total: ${(score + points).toFixed(2)}`);
+          } else if (lateralDistance > 0) {
+            // Lateral movement - no points, just sound
+            playSound(400, 0.1, 'sine');
+            console.log('⬅️➡️ Lane change - no points');
           }
-          
-          // Detailed decimal scoring log
-          console.log(`💰 +${points.toFixed(2)} pts | Speed: ${(speedBonus * 100).toFixed(1)}% | ${isDoubleClick ? '🦘 JUMP x1.5' : 'Hop'} | Total: ${(score + points).toFixed(2)}`);
         }
       }
     };
@@ -975,10 +1072,10 @@ export default function PennyPasserGame3D({
             </div>
           )}
           
-          {/* FLOATING SCORE INDICATOR - Shows decimal points earned */}
+          {/* FLOATING SCORE INDICATOR - TOP RIGHT (away from coin) */}
           {floatingScore.show && (
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 pointer-events-none z-50 animate-bounce">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-4xl font-black px-6 py-3 rounded-xl border-2 border-yellow-400 shadow-2xl">
+            <div className="absolute top-32 right-8 pointer-events-none z-50 animate-bounce">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-3xl font-black px-5 py-2 rounded-xl border-2 border-yellow-400 shadow-2xl">
                 +{floatingScore.points.toFixed(2)} 💰
               </div>
             </div>
@@ -1054,7 +1151,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.7 - BOTTOM SPAWN - Cars at Top
+        v3.8 - Collectible Coins + Jump 3x + Car Audio
       </div>
     </div>
   );
