@@ -155,98 +155,98 @@ export default function PennyPasserGame3D({
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // Scene
+    // Scene - Professional dark background
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb);
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.Fog(0x1a1a2e, 25, 50); // Depth fog
     sceneRef.current = scene;
 
-    // Camera - TRUE TOP-DOWN 3D VIEW
+    // Camera - OPTIMIZED TOP-DOWN VIEW
     const camera = new THREE.PerspectiveCamera(
-      60,
+      55,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 35, -10); // HIGH overhead, centered over playing field
-    camera.lookAt(0, 0, 0); // Look straight down at center
+    camera.position.set(0, 28, -8); // Clear overhead view
+    camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Renderer - OPTIMIZED for performance
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      powerPreference: 'high-performance',
+      stencil: false,
+      depth: true
+    });
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
+    renderer.shadowMap.enabled = false; // Disable shadows for performance
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lights - OPTIMIZED (brighter ambient, no shadows)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 10, 5);
-    directionalLight.castShadow = true;
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(0, 20, 0);
     scene.add(directionalLight);
 
-    // Ground/Road - Extended for top-down view
-    const roadGeometry = new THREE.PlaneGeometry(22, 80);
+    // Ground/Road - OPTIMIZED
+    const roadGeometry = new THREE.PlaneGeometry(24, 60);
     const roadMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a,
-      roughness: 0.9,
-      metalness: 0.1
+      color: 0x1a1a1a,
+      roughness: 0.8,
+      metalness: 0.05
     });
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.rotation.x = -Math.PI / 2;
-    road.position.z = -5; // Centered for top-down view
-    road.receiveShadow = true;
+    road.position.z = 0;
     scene.add(road);
 
-    // Lane dividers - Dashed yellow lines (centered for top-down)
+    // Lane dividers - OPTIMIZED (fewer, simpler)
     for (let i = -2; i <= 2; i++) {
-      for (let j = -40; j < 30; j += 3) {
-        const dividerGeometry = new THREE.BoxGeometry(0.15, 0.12, 1.5);
-        const dividerMaterial = new THREE.MeshStandardMaterial({ 
-          color: 0xffff00,
-          emissive: 0xaaaa00,
-          emissiveIntensity: 0.3
+      for (let j = -25; j < 25; j += 4) {
+        const dividerGeometry = new THREE.BoxGeometry(0.2, 0.1, 1.8);
+        const dividerMaterial = new THREE.MeshBasicMaterial({ 
+          color: 0xffff00
         });
         const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
-        divider.position.set(i * 4, 0.06, j);
+        divider.position.set(i * 4, 0.05, j);
         scene.add(divider);
       }
     }
 
-    // Add road edge markers (white lines) - centered
-    for (let side of [-11, 11]) {
-      const edgeGeometry = new THREE.BoxGeometry(0.3, 0.15, 80);
-      const edgeMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0xffffff,
-        emissive: 0xcccccc,
-        emissiveIntensity: 0.2
+    // Road edge markers - OPTIMIZED
+    for (let side of [-12, 12]) {
+      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.1, 60);
+      const edgeMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xffffff
       });
       const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-      edge.position.set(side, 0.07, -5);
+      edge.position.set(side, 0.05, 0);
       scene.add(edge);
     }
 
-    // Create GOLDEN PENNY (player) - GORGEOUS and PROMINENT
+    // Create GOLDEN PENNY (player) - OPTIMIZED and PROFESSIONAL
     const pennyGroup = new THREE.Group();
     
-    // Main penny body - BIGGER with high detail
-    const pennyGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.35, 64);
+    // Main penny body - Optimized geometry (32 segments instead of 64)
+    const pennyGeometry = new THREE.CylinderGeometry(1.3, 1.3, 0.4, 32);
     const pennyMaterial = new THREE.MeshStandardMaterial({ 
       color: 0xFFD700,
-      metalness: 0.98,
-      roughness: 0.02,
+      metalness: 0.95,
+      roughness: 0.05,
       emissive: 0xFFAA00,
-      emissiveIntensity: 0.4
+      emissiveIntensity: 0.5
     });
     const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
     penny.rotation.x = Math.PI / 2;
-    penny.castShadow = true;
     pennyGroup.add(penny);
     
-    // Inner circle detail (darker gold)
-    const innerCircleGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.36, 64);
+    // Inner circle detail - Optimized
+    const innerCircleGeo = new THREE.CylinderGeometry(0.9, 0.9, 0.41, 32);
     const innerCircleMat = new THREE.MeshStandardMaterial({
       color: 0xCC9900,
       metalness: 0.9,
@@ -256,35 +256,20 @@ export default function PennyPasserGame3D({
     innerCircle.rotation.x = Math.PI / 2;
     pennyGroup.add(innerCircle);
     
-    // Outer glowing ring
-    const ringGeometry = new THREE.TorusGeometry(1.3, 0.12, 16, 64);
+    // Single glowing ring - Simplified for performance
+    const ringGeometry = new THREE.TorusGeometry(1.4, 0.15, 8, 24);
     const ringMaterial = new THREE.MeshStandardMaterial({
-      color: 0xFFFFAA,
+      color: 0xFFFF00,
       metalness: 1,
       roughness: 0,
       emissive: 0xFFFF00,
-      emissiveIntensity: 0.8
+      emissiveIntensity: 0.9
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
     ring.rotation.x = Math.PI / 2;
     pennyGroup.add(ring);
     
-    // Particle effect ring (smaller, brighter)
-    const particleRingGeo = new THREE.TorusGeometry(1.5, 0.08, 8, 32);
-    const particleRingMat = new THREE.MeshStandardMaterial({
-      color: 0xFFFFFF,
-      metalness: 1,
-      roughness: 0,
-      emissive: 0xFFFFFF,
-      emissiveIntensity: 1.0,
-      transparent: true,
-      opacity: 0.6
-    });
-    const particleRing = new THREE.Mesh(particleRingGeo, particleRingMat);
-    particleRing.rotation.x = Math.PI / 2;
-    pennyGroup.add(particleRing);
-    
-    pennyGroup.position.set(0, 0.8, -30); // Start at BOTTOM of screen (top-down view)
+    pennyGroup.position.set(0, 0.8, -15); // Start VISIBLE at bottom (not too far)
     scene.add(pennyGroup);
     pennyRef.current = pennyGroup;
 
@@ -434,24 +419,19 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // Animate hopping penny with gorgeous effects
-      hopAnimationRef.current += 0.15;
-      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.4;
+      // SMOOTH hopping animation
+      hopAnimationRef.current += 0.1;
+      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.3;
       pennyRef.current.position.y = 0.8 + hopHeight;
-      pennyRef.current.rotation.y += 0.08;
+      pennyRef.current.rotation.y += 0.05; // Slower spin
 
-      // Pulse the outer rings
-      const pulseFactor = Math.sin(hopAnimationRef.current * 2) * 0.2 + 1;
+      // Smooth pulse on ring
+      const pulseFactor = Math.sin(hopAnimationRef.current * 1.5) * 0.15 + 1;
       if (pennyRef.current.children[2]) {
         pennyRef.current.children[2].scale.set(pulseFactor, pulseFactor, pulseFactor);
       }
-      if (pennyRef.current.children[3]) {
-        const particleRing = pennyRef.current.children[3];
-        particleRing.rotation.z += 0.05;
-        (particleRing.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8 + Math.sin(hopAnimationRef.current * 3) * 0.3;
-      }
 
-      // Move cars in lanes with smooth animation
+      // Move cars - OPTIMIZED (no bounce, no material recreation)
       lanesRef.current.forEach(lane => {
         lane.cars.forEach(car => {
           car.x += lane.speed * lane.direction;
@@ -461,25 +441,7 @@ export default function PennyPasserGame3D({
           if (car.x < -12) car.x = 12;
           
           car.mesh.position.x = car.x;
-          
-          // Subtle bounce for cars
-          const carBounce = Math.sin(Date.now() * 0.005 + car.x) * 0.05;
-          car.mesh.position.y = carBounce;
-          
-          // Headlight pulse
-          if (car.mesh.children[4] && car.mesh.children[5]) {
-            const headlightIntensity = 0.5 + Math.sin(Date.now() * 0.003) * 0.3;
-            (car.mesh.children[4] as THREE.Mesh).material = new THREE.MeshStandardMaterial({
-              color: 0xFFFFAA,
-              emissive: 0xFFFF00,
-              emissiveIntensity: headlightIntensity
-            });
-            (car.mesh.children[5] as THREE.Mesh).material = new THREE.MeshStandardMaterial({
-              color: 0xFFFFAA,
-              emissive: 0xFFFF00,
-              emissiveIntensity: headlightIntensity
-            });
-          }
+          car.mesh.position.y = 0.3; // Fixed height for performance
         });
       });
 
@@ -678,7 +640,7 @@ export default function PennyPasserGame3D({
     const startX = currentX;
     const startZ = currentZ;
     const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
-    const duration = isDoubleClick ? 400 : 300; // Longer for jumps
+    const duration = isDoubleClick ? 350 : 250; // FASTER, smoother
     const startTime = Date.now();
 
     // GORGEOUS JUMP ANIMATION - Super obvious visual feedback!
@@ -689,36 +651,23 @@ export default function PennyPasserGame3D({
         scoreBonus: '50%'
       });
       
-      // Show jump indicator on screen
+      // Show jump indicator on screen - BRIEF flash
       setShowJumpIndicator(true);
-      setTimeout(() => setShowJumpIndicator(false), duration);
+      setTimeout(() => setShowJumpIndicator(false), 200); // Only 200ms!
       
-      playSound(700, 0.3, 'sine'); // Longer jump sound
-      playSound(900, 0.15, 'sine'); // Higher harmonic
-      playSound(600, 0.1, 'square'); // Third harmonic for emphasis
+      playSound(700, 0.2, 'sine'); // Jump sound (reduced volume)
       
-      // Flash all penny components SUPER bright for jump
-      if (pennyRef.current) {
-        pennyRef.current.children.forEach((child, idx) => {
-          if (child instanceof THREE.Mesh) {
-            const mat = child.material as THREE.MeshStandardMaterial;
-            const originalIntensity = mat.emissiveIntensity || 0.4;
-            mat.emissiveIntensity = 2.5; // VERY BRIGHT
-            setTimeout(() => {
-              if (child instanceof THREE.Mesh) {
-                (child.material as THREE.MeshStandardMaterial).emissiveIntensity = originalIntensity;
-              }
-            }, duration);
-          }
-        });
-        
-        // Scale up penny briefly for emphasis
-        pennyRef.current.scale.set(1.3, 1.3, 1.3);
+      // Flash penny bright for jump - OPTIMIZED
+      if (pennyRef.current && pennyRef.current.children[0]) {
+        const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
+        const mat = pennyMesh.material as THREE.MeshStandardMaterial;
+        const originalIntensity = mat.emissiveIntensity || 0.5;
+        mat.emissiveIntensity = 2.0;
         setTimeout(() => {
-          if (pennyRef.current) {
-            pennyRef.current.scale.set(1, 1, 1);
+          if (pennyRef.current && pennyRef.current.children[0]) {
+            ((pennyRef.current.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = originalIntensity;
           }
-        }, duration / 2);
+        }, 200);
       }
     }
 
@@ -736,15 +685,12 @@ export default function PennyPasserGame3D({
       pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
       pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
       
-      // GORGEOUS JUMP ARC - parabolic motion
+      // SMOOTH JUMP ARC
       if (isDoubleClick) {
-        const jumpArc = Math.sin(progress * Math.PI) * 2.5; // High dramatic arc
+        const jumpArc = Math.sin(progress * Math.PI) * 2.0; // Smooth arc
         pennyRef.current.position.y = 0.8 + jumpArc;
-        
-        // Rotate during jump
-        pennyRef.current.rotation.z = progress * Math.PI * 0.5;
+        pennyRef.current.rotation.z = progress * Math.PI * 0.3; // Less rotation
       } else {
-        // Reset rotation for normal hop
         pennyRef.current.rotation.z = 0;
       }
       
@@ -782,8 +728,10 @@ export default function PennyPasserGame3D({
             playSound(500 + (progress * 200), 0.15, 'sine');
           }
           
-          // Console log for debugging scoring
-          console.log(`💰 Score: +${points.toFixed(2)} | Speed: ${speedBonus.toFixed(2)}x | Jump: ${isDoubleClick ? '🦘 YES' : 'no'}`);
+          // Simplified console log
+          if (isDoubleClick) {
+            console.log(`💰 JUMP! +${points.toFixed(1)} pts`);
+          }
         }
       }
     };
@@ -944,14 +892,11 @@ export default function PennyPasserGame3D({
             </div>
           )}
           
-          {/* JUMP INDICATOR - Shows when double-click activated */}
+          {/* JUMP INDICATOR - TOP of screen, brief flash */}
           {showJumpIndicator && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
-              <div className="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-5xl font-black px-8 py-4 rounded-2xl border-4 border-white shadow-2xl animate-bounce">
-                🦘 JUMP! 🦘
-              </div>
-              <div className="text-center mt-2 text-2xl font-bold text-yellow-300 bg-black/80 px-4 py-2 rounded-xl">
-                2X DISTANCE + 50% BONUS!
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none z-50 animate-pulse">
+              <div className="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-3xl font-black px-6 py-2 rounded-xl border-2 border-white shadow-2xl">
+                🦘 JUMP! +50% 🦘
               </div>
             </div>
           )}
@@ -1026,7 +971,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.4 - TOP-DOWN 3D - Double Jump Fixed
+        v3.5 - OPTIMIZED - Smooth & Professional
       </div>
     </div>
   );
