@@ -242,9 +242,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           newBounces++;
         }
 
-        // Check briefcase paddle collision (MEGA WIDE - 5X SIZE!)
-        const paddleLeft = paddleX - 100; // 5X WIDER briefcase for super easy catching!
-        const paddleRight = paddleX + 100;
+        // Check briefcase paddle collision - ONLY CATCH WHAT'S OVER SUITCASE!
+        // Suitcase is 480px wide, which is ~24% of typical fullscreen width
+        const paddleHalfWidth = 12; // ±12% for 480px suitcase (24% total)
+        const paddleLeft = paddleX - paddleHalfWidth;
+        const paddleRight = paddleX + paddleHalfWidth;
         const paddleTop = 82; // Adjusted for taller view
         const paddleBottom = 95;
 
@@ -254,29 +256,28 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             newX <= paddleRight &&
             obj.velocityY > 0) { // Only catch if falling
           
-          // Calculate location-based bonus with MEGA WIDE paddle (5x)
+          // Calculate distance from center of suitcase
           const paddleCenter = paddleX;
           const catchPosition = newX;
           const distanceFromCenter = Math.abs(catchPosition - paddleCenter);
-          const maxDistance = 100; // Paddle half-width (5X wider!)
           
-          // SIMPLIFIED: Gold for perfect center, Blue for off-center
+          // SIMPLIFIED: Gold for perfect center, Blue for edges
           let locationMultiplier = 0;
           let zoneDescription = '';
           
-          if (distanceFromCenter <= 8) {
-            // PERFECT CENTER - GOLD GLOW (much tighter for skill)
+          if (distanceFromCenter <= 0.8) {
+            // PERFECT CENTER - GOLD GLOW (≤0.8% = ~16px on fullscreen)
             locationMultiplier = 1.0; // 100% bonus
             zoneDescription = 'perfect-center';
             setSuitcaseGlow('gold');
             // GOLD sound - perfect catch
             playPerfectCatchSound();
           } else {
-            // OFF-CENTER - BLUE GLOW (everything else)
-            // Scale bonus based on distance (closer = better)
-            const distanceRatio = distanceFromCenter / 100; // 0 to 1
+            // EDGES OF SUITCASE - BLUE GLOW (0.8% to 12% from center)
+            // Scale bonus based on distance (closer to center = better)
+            const distanceRatio = distanceFromCenter / paddleHalfWidth; // 0 to 1
             locationMultiplier = Math.max(0.1, 0.5 - (distanceRatio * 0.4)); // 50% to 10% bonus
-            zoneDescription = 'off-center';
+            zoneDescription = 'edge';
             setSuitcaseGlow('blue');
             // Edge catch sound
             playEdgeCatchSound();
@@ -752,29 +753,31 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* Scoring Zone Indicators - ONLY OVER SUITCASE */}
+              {/* Scoring Zone Indicators - MATCHES ACTUAL COLLISION */}
               <div
-                className="absolute opacity-30"
+                className="absolute opacity-40"
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '16px', // TINY gold zone for perfect center (8 units each side)
+                  width: '1.6%', // TINY gold zone for perfect center (≤0.8% each side)
                   height: '5px',
                   transform: 'translateX(-50%)',
                   backgroundColor: '#FFD700', // Bright gold for perfect center
                   borderRadius: '2px',
+                  boxShadow: '0 0 10px rgba(255,215,0,0.8)',
                   zIndex: 15
                 }}
               />
               <div
-                className="absolute opacity-20"
+                className="absolute opacity-25"
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '480px', // Suitcase width indicator (blue = off-center)
-                  height: '2px',
+                  width: '24%', // Full suitcase collision width (±12% = 24% total)
+                  height: '3px',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#3B82F6', // Blue for off-center zone
+                  backgroundColor: '#3B82F6', // Blue for edge catches
+                  borderRadius: '1px',
                   zIndex: 13
                 }}
               />
