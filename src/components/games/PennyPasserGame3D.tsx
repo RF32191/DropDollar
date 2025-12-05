@@ -46,28 +46,35 @@ const CAR_COLORS = [
   0x808080  // Gray
 ];
 
-// 20 pre-defined fair patterns (RNG-seeded)
+// 20 pre-defined fair patterns - PROGRESSIVE DIFFICULTY (fewer cars at start, more later)
 const PATTERN_CONFIGS = [
-  { numCars: 2, spacing: 10, speed: 0.03, direction: 1 },
-  { numCars: 3, spacing: 7, speed: 0.04, direction: -1 },
-  { numCars: 2, spacing: 12, speed: 0.05, direction: 1 },
-  { numCars: 4, spacing: 5, speed: 0.03, direction: -1 },
-  { numCars: 3, spacing: 8, speed: 0.06, direction: 1 },
-  { numCars: 2, spacing: 15, speed: 0.04, direction: -1 },
-  { numCars: 3, spacing: 6, speed: 0.05, direction: 1 },
-  { numCars: 4, spacing: 6, speed: 0.04, direction: -1 },
-  { numCars: 2, spacing: 11, speed: 0.07, direction: 1 },
-  { numCars: 3, spacing: 9, speed: 0.05, direction: -1 },
-  { numCars: 4, spacing: 7, speed: 0.03, direction: 1 },
-  { numCars: 2, spacing: 14, speed: 0.06, direction: -1 },
+  // EASY patterns (0-4): 1-2 cars, slow, wide spacing
+  { numCars: 1, spacing: 15, speed: 0.02, direction: 1 },
+  { numCars: 1, spacing: 18, speed: 0.015, direction: -1 },
+  { numCars: 2, spacing: 12, speed: 0.02, direction: 1 },
+  { numCars: 2, spacing: 14, speed: 0.025, direction: -1 },
+  { numCars: 1, spacing: 20, speed: 0.02, direction: 1 },
+  
+  // MEDIUM patterns (5-9): 2-3 cars, moderate speed
+  { numCars: 2, spacing: 10, speed: 0.03, direction: -1 },
+  { numCars: 2, spacing: 11, speed: 0.035, direction: 1 },
+  { numCars: 3, spacing: 9, speed: 0.03, direction: -1 },
+  { numCars: 2, spacing: 12, speed: 0.04, direction: 1 },
+  { numCars: 3, spacing: 8, speed: 0.035, direction: -1 },
+  
+  // HARD patterns (10-14): 3-4 cars, faster
   { numCars: 3, spacing: 7, speed: 0.04, direction: 1 },
-  { numCars: 4, spacing: 5, speed: 0.05, direction: -1 },
-  { numCars: 2, spacing: 13, speed: 0.04, direction: 1 },
-  { numCars: 3, spacing: 10, speed: 0.06, direction: -1 },
+  { numCars: 3, spacing: 8, speed: 0.045, direction: -1 },
   { numCars: 4, spacing: 6, speed: 0.04, direction: 1 },
-  { numCars: 2, spacing: 16, speed: 0.05, direction: -1 },
-  { numCars: 3, spacing: 8, speed: 0.07, direction: 1 },
-  { numCars: 4, spacing: 8, speed: 0.04, direction: -1 }
+  { numCars: 3, spacing: 9, speed: 0.05, direction: -1 },
+  { numCars: 4, spacing: 7, speed: 0.045, direction: 1 },
+  
+  // EXPERT patterns (15-19): 4-5 cars, fast, tight spacing
+  { numCars: 4, spacing: 5, speed: 0.05, direction: -1 },
+  { numCars: 4, spacing: 6, speed: 0.055, direction: 1 },
+  { numCars: 5, spacing: 5, speed: 0.05, direction: -1 },
+  { numCars: 4, spacing: 7, speed: 0.06, direction: 1 },
+  { numCars: 5, spacing: 6, speed: 0.055, direction: -1 }
 ];
 
 // Seeded RNG for deterministic patterns in competition mode
@@ -155,10 +162,10 @@ export default function PennyPasserGame3D({
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // Scene - Professional dark background
+    // Scene - BEAUTIFUL gradient background
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
-    scene.fog = new THREE.Fog(0x1a1a2e, 25, 50); // Depth fog
+    scene.background = new THREE.Color(0x0f0f1e);
+    scene.fog = new THREE.Fog(0x0f0f1e, 30, 60); // Atmospheric depth
     sceneRef.current = scene;
 
     // Camera - OPTIMIZED TOP-DOWN VIEW
@@ -185,47 +192,75 @@ export default function PennyPasserGame3D({
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Lights - OPTIMIZED (brighter ambient, no shadows)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // Lights - ATMOSPHERIC
+    const ambientLight = new THREE.AmbientLight(0x6666ff, 0.5);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    directionalLight.position.set(0, 20, 0);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(0, 25, 0);
     scene.add(directionalLight);
+    
+    // Add colored accent lights for atmosphere
+    const leftAccent = new THREE.PointLight(0xff3366, 0.8, 20);
+    leftAccent.position.set(-13, 2, 0);
+    scene.add(leftAccent);
+    
+    const rightAccent = new THREE.PointLight(0x00ffff, 0.8, 20);
+    rightAccent.position.set(13, 2, 0);
+    scene.add(rightAccent);
 
-    // Ground/Road - OPTIMIZED
-    const roadGeometry = new THREE.PlaneGeometry(24, 60);
+    // Ground/Road - BETTER VISUALS
+    const roadGeometry = new THREE.PlaneGeometry(24, 70);
     const roadMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a,
-      roughness: 0.8,
-      metalness: 0.05
+      color: 0x2a2a2a,
+      roughness: 0.9,
+      metalness: 0.02,
+      emissive: 0x0a0a0a,
+      emissiveIntensity: 0.1
     });
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.rotation.x = -Math.PI / 2;
-    road.position.z = 0;
+    road.position.z = 5;
     scene.add(road);
+    
+    // Side barriers (neon glow effect)
+    for (let side of [-13, 13]) {
+      const barrierGeo = new THREE.BoxGeometry(0.3, 1.2, 70);
+      const barrierMat = new THREE.MeshStandardMaterial({
+        color: side < 0 ? 0xff3366 : 0x00ffff,
+        emissive: side < 0 ? 0xff3366 : 0x00ffff,
+        emissiveIntensity: 0.6
+      });
+      const barrier = new THREE.Mesh(barrierGeo, barrierMat);
+      barrier.position.set(side, 0.6, 5);
+      scene.add(barrier);
+    }
 
-    // Lane dividers - OPTIMIZED (fewer, simpler)
+    // Lane dividers - GLOWING
     for (let i = -2; i <= 2; i++) {
-      for (let j = -25; j < 25; j += 4) {
-        const dividerGeometry = new THREE.BoxGeometry(0.2, 0.1, 1.8);
-        const dividerMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0xffff00
+      for (let j = -30; j < 40; j += 4) {
+        const dividerGeometry = new THREE.BoxGeometry(0.2, 0.12, 2);
+        const dividerMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0xffff00,
+          emissive: 0xffff00,
+          emissiveIntensity: 0.5
         });
         const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
-        divider.position.set(i * 4, 0.05, j);
+        divider.position.set(i * 4, 0.06, j);
         scene.add(divider);
       }
     }
 
-    // Road edge markers - OPTIMIZED
+    // Road edge lines - BRIGHT WHITE
     for (let side of [-12, 12]) {
-      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.1, 60);
-      const edgeMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xffffff
+      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.12, 70);
+      const edgeMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.3
       });
       const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-      edge.position.set(side, 0.05, 0);
+      edge.position.set(side, 0.06, 5);
       scene.add(edge);
     }
 
@@ -269,7 +304,7 @@ export default function PennyPasserGame3D({
     ring.rotation.x = Math.PI / 2;
     pennyGroup.add(ring);
     
-    pennyGroup.position.set(0, 0.8, -15); // Start VISIBLE at bottom (not too far)
+    pennyGroup.position.set(0, 0.8, -8); // START VISIBLE - close to camera
     scene.add(pennyGroup);
     pennyRef.current = pennyGroup;
 
@@ -281,8 +316,24 @@ export default function PennyPasserGame3D({
     for (let i = 0; i < numLanes; i++) {
       const yPos = -15 + (i * 2.5);
       
-      // Select pattern from 20 predefined patterns using RNG
-      const patternIndex = rng.integer(0, 19);
+      // PROGRESSIVE DIFFICULTY: Use easier patterns at start, harder patterns later
+      const progressRatio = i / numLanes; // 0.0 to 1.0
+      let patternIndex;
+      
+      if (progressRatio < 0.25) {
+        // First 25%: Easy patterns (0-4)
+        patternIndex = rng.integer(0, 4);
+      } else if (progressRatio < 0.5) {
+        // 25-50%: Medium patterns (5-9)
+        patternIndex = rng.integer(5, 9);
+      } else if (progressRatio < 0.75) {
+        // 50-75%: Hard patterns (10-14)
+        patternIndex = rng.integer(10, 14);
+      } else {
+        // Last 25%: Expert patterns (15-19)
+        patternIndex = rng.integer(15, 19);
+      }
+      
       const pattern = PATTERN_CONFIGS[patternIndex];
       
       const cars: Car[] = [];
@@ -445,23 +496,40 @@ export default function PennyPasserGame3D({
         });
       });
 
-      // Check collisions
+      // Check collisions - DOUBLE JUMP AVOIDS CARS!
       if (pennyRef.current) {
         const pennyZ = pennyRef.current.position.z;
         const pennyX = pennyRef.current.position.x;
-        const tolerance = 1.8; // Bigger penny = bigger hitbox
+        const pennyY = pennyRef.current.position.y; // Check height for jump
+        const tolerance = 1.8;
 
-        lanesRef.current.forEach(lane => {
-          if (Math.abs(pennyZ - lane.y) < tolerance) {
-            lane.cars.forEach(car => {
-              const distanceX = Math.abs(pennyX - car.x);
-              const distanceZ = Math.abs(pennyZ - lane.y);
-              if (distanceX < 2 && distanceZ < 1.5) {
-                handleCollision();
-              }
-            });
-          }
-        });
+        // If penny is jumping high (Y > 1.5), avoid collision!
+        const isJumpingHigh = pennyY > 1.8;
+
+        if (!isJumpingHigh) {
+          lanesRef.current.forEach(lane => {
+            if (Math.abs(pennyZ - lane.y) < tolerance) {
+              lane.cars.forEach(car => {
+                const distanceX = Math.abs(pennyX - car.x);
+                const distanceZ = Math.abs(pennyZ - lane.y);
+                if (distanceX < 2 && distanceZ < 1.5) {
+                  handleCollision();
+                }
+              });
+            }
+          });
+        }
+      }
+      
+      // CAMERA FOLLOWS PLAYER - Adjust forward when halfway
+      if (pennyRef.current && cameraRef.current) {
+        const pennyProgress = pennyRef.current.position.z;
+        if (pennyProgress > 10) {
+          // Smoothly move camera forward as player advances
+          const cameraOffset = (pennyProgress - 10) * 0.3;
+          cameraRef.current.position.z = -8 + cameraOffset;
+          cameraRef.current.lookAt(0, 0, pennyProgress * 0.5);
+        }
       }
 
       rendererRef.current.render(sceneRef.current, cameraRef.current);
@@ -971,7 +1039,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.5 - OPTIMIZED - Smooth & Professional
+        v3.6 - PROGRESSIVE - Better Environment & Gameplay
       </div>
     </div>
   );
