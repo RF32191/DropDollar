@@ -13,13 +13,55 @@ interface PennyPasserGameProps {
 
 interface Lane {
   y: number;
-  wallets: Wallet[];
+  direction: 1 | -1;
+  speed: number;
+  cars: Car[];
+  pattern: number; // Pattern ID (0-19)
 }
 
-interface Wallet {
+interface Car {
   x: number;
-  mesh: THREE.Mesh;
+  mesh: THREE.Group;
+  color: number;
 }
+
+// Car colors (varied palette)
+const CAR_COLORS = [
+  0xFF0000, // Red
+  0x0000FF, // Blue
+  0x00FF00, // Green
+  0xFFFF00, // Yellow
+  0xFF00FF, // Magenta
+  0x00FFFF, // Cyan
+  0xFF8800, // Orange
+  0x8800FF, // Purple
+  0xFFFFFF, // White
+  0x808080  // Gray
+];
+
+// 20 pre-defined fair patterns (RNG-seeded)
+const PATTERN_CONFIGS = [
+  { numCars: 2, spacing: 10, speed: 0.03, direction: 1 },
+  { numCars: 3, spacing: 7, speed: 0.04, direction: -1 },
+  { numCars: 2, spacing: 12, speed: 0.05, direction: 1 },
+  { numCars: 4, spacing: 5, speed: 0.03, direction: -1 },
+  { numCars: 3, spacing: 8, speed: 0.06, direction: 1 },
+  { numCars: 2, spacing: 15, speed: 0.04, direction: -1 },
+  { numCars: 3, spacing: 6, speed: 0.05, direction: 1 },
+  { numCars: 4, spacing: 6, speed: 0.04, direction: -1 },
+  { numCars: 2, spacing: 11, speed: 0.07, direction: 1 },
+  { numCars: 3, spacing: 9, speed: 0.05, direction: -1 },
+  { numCars: 4, spacing: 7, speed: 0.03, direction: 1 },
+  { numCars: 2, spacing: 14, speed: 0.06, direction: -1 },
+  { numCars: 3, spacing: 7, speed: 0.04, direction: 1 },
+  { numCars: 4, spacing: 5, speed: 0.05, direction: -1 },
+  { numCars: 2, spacing: 13, speed: 0.04, direction: 1 },
+  { numCars: 3, spacing: 10, speed: 0.06, direction: -1 },
+  { numCars: 4, spacing: 6, speed: 0.04, direction: 1 },
+  { numCars: 2, spacing: 16, speed: 0.05, direction: -1 },
+  { numCars: 3, spacing: 8, speed: 0.07, direction: 1 },
+  { numCars: 4, spacing: 8, speed: 0.04, direction: -1 }
+];
 
 // Seeded RNG for deterministic patterns in competition mode
 class SeededRandom {
@@ -37,6 +79,10 @@ class SeededRandom {
   range(min: number, max: number): number {
     return min + this.next() * (max - min);
   }
+
+  integer(min: number, max: number): number {
+    return Math.floor(this.range(min, max + 1));
+  }
 }
 
 export default function PennyPasserGame3D({
@@ -50,18 +96,19 @@ export default function PennyPasserGame3D({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationIdRef = useRef<number | undefined>(undefined);
-  const pennyRef = useRef<THREE.Mesh | null>(null);
+  const pennyRef = useRef<THREE.Group | null>(null);
   const lanesRef = useRef<Lane[]>([]);
   const rngRef = useRef<SeededRandom>(new SeededRandom(rngSeed || Date.now()));
   const hasEndedRef = useRef(false);
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
+  const hopAnimationRef = useRef(0);
 
   const [gameState, setGameState] = useState<'playing' | 'ended'>('playing');
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
   const [timeRemaining, setTimeRemaining] = useState(60);
-  const [pennyPosition, setPennyPosition] = useState(0); // Distance traveled
+  const [pennyPosition, setPennyPosition] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
   const [moveCount, setMoveCount] = useState(0);
   const [lastMoveTime, setLastMoveTime] = useState(Date.now());
@@ -97,7 +144,7 @@ export default function PennyPasserGame3D({
 
     // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87ceeb); // Sky blue
+    scene.background = new THREE.Color(0x87ceeb);
     sceneRef.current = scene;
 
     // Camera
@@ -144,82 +191,152 @@ export default function PennyPasserGame3D({
       scene.add(divider);
     }
 
-    // Create penny (player) - BIGGER and more prominent
-    const pennyGeometry = new THREE.CylinderGeometry(0.75, 0.75, 0.2, 32);
+    // Create GOLDEN PENNY (player) - BIGGER and PROMINENT
+    const pennyGroup = new THREE.Group();
+    
+    const pennyGeometry = new THREE.CylinderGeometry(1, 1, 0.3, 32);
     const pennyMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xFFD700, // Bright gold color (more visible)
-      metalness: 0.9,
-      roughness: 0.1,
-      emissive: 0xFFD700,
-      emissiveIntensity: 0.2
+      color: 0xFFD700,
+      metalness: 0.95,
+      roughness: 0.05,
+      emissive: 0xFFAA00,
+      emissiveIntensity: 0.3
     });
     const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
-    penny.position.set(0, 0.7, -20); // Start at bottom center, slightly higher
     penny.rotation.x = Math.PI / 2;
     penny.castShadow = true;
-    scene.add(penny);
-    pennyRef.current = penny;
+    pennyGroup.add(penny);
+    
+    // Add shiny ring around penny for extra visibility
+    const ringGeometry = new THREE.TorusGeometry(1.1, 0.1, 16, 32);
+    const ringMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFFFAA,
+      metalness: 1,
+      roughness: 0,
+      emissive: 0xFFFFAA,
+      emissiveIntensity: 0.5
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    pennyGroup.add(ring);
+    
+    pennyGroup.position.set(0, 0.8, -20);
+    scene.add(pennyGroup);
+    pennyRef.current = pennyGroup;
 
-    // Create lanes with STATIONARY wallets
+    // Create lanes with CARS using 20 RNG patterns
     const lanes: Lane[] = [];
     const numLanes = 15;
     const rng = rngRef.current;
 
     for (let i = 0; i < numLanes; i++) {
       const yPos = -15 + (i * 2.5);
-      const numWallets = Math.floor(rng.range(2, 4)); // 2-3 wallets per lane
-      const wallets: Wallet[] = [];
+      
+      // Select pattern from 20 predefined patterns using RNG
+      const patternIndex = rng.integer(0, 19);
+      const pattern = PATTERN_CONFIGS[patternIndex];
+      
+      const cars: Car[] = [];
+      const numCars = pattern.numCars;
+      const spacing = pattern.spacing;
 
-      for (let j = 0; j < numWallets; j++) {
-        // Create wallet (rectangular box with texture-like appearance)
-        const walletGroup = new THREE.Group();
+      for (let j = 0; j < numCars; j++) {
+        // Create 3D car
+        const carGroup = new THREE.Group();
         
-        // Main wallet body
-        const walletGeometry = new THREE.BoxGeometry(1.5, 0.2, 1);
-        const walletMaterial = new THREE.MeshStandardMaterial({ 
-          color: 0x8B4513, // Brown leather color
-          metalness: 0.2,
-          roughness: 0.8
+        // Car body (main box)
+        const carColor = CAR_COLORS[rng.integer(0, CAR_COLORS.length - 1)];
+        const bodyGeometry = new THREE.BoxGeometry(2, 0.6, 1);
+        const bodyMaterial = new THREE.MeshStandardMaterial({ 
+          color: carColor,
+          metalness: 0.7,
+          roughness: 0.3
         });
-        const walletMesh = new THREE.Mesh(walletGeometry, walletMaterial);
-        walletGroup.add(walletMesh);
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.3;
+        carGroup.add(body);
         
-        // Wallet clasp (gold accent)
-        const claspGeometry = new THREE.BoxGeometry(0.3, 0.25, 1.05);
-        const claspMaterial = new THREE.MeshStandardMaterial({ 
-          color: 0xFFD700, // Gold
+        // Car cabin (smaller box on top)
+        const cabinGeometry = new THREE.BoxGeometry(1, 0.5, 0.8);
+        const cabinMaterial = new THREE.MeshStandardMaterial({
+          color: carColor,
+          metalness: 0.6,
+          roughness: 0.4
+        });
+        const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
+        cabin.position.set(0, 0.8, 0);
+        carGroup.add(cabin);
+        
+        // Windows (dark blue transparent)
+        const windowMaterial = new THREE.MeshStandardMaterial({
+          color: 0x2222AA,
+          transparent: true,
+          opacity: 0.6,
           metalness: 0.9,
           roughness: 0.1
         });
-        const clasp = new THREE.Mesh(claspGeometry, claspMaterial);
-        clasp.position.y = 0.1;
-        walletGroup.add(clasp);
         
-        // Add stitching details (small lines)
-        const stitchMaterial = new THREE.MeshStandardMaterial({ color: 0x654321 });
-        for (let s = 0; s < 4; s++) {
-          const stitchGeometry = new THREE.BoxGeometry(0.05, 0.25, 0.05);
-          const stitch = new THREE.Mesh(stitchGeometry, stitchMaterial);
-          stitch.position.set(-0.5 + (s * 0.33), 0.1, 0.4);
-          walletGroup.add(stitch);
+        const frontWindowGeo = new THREE.PlaneGeometry(0.8, 0.4);
+        const frontWindow = new THREE.Mesh(frontWindowGeo, windowMaterial);
+        frontWindow.position.set(0, 0.8, 0.41);
+        carGroup.add(frontWindow);
+        
+        const backWindowGeo = new THREE.PlaneGeometry(0.8, 0.4);
+        const backWindow = new THREE.Mesh(backWindowGeo, windowMaterial);
+        backWindow.position.set(0, 0.8, -0.41);
+        backWindow.rotation.y = Math.PI;
+        carGroup.add(backWindow);
+        
+        // Wheels (black cylinders)
+        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const wheelGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16);
+        
+        for (let w = 0; w < 4; w++) {
+          const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+          wheel.rotation.z = Math.PI / 2;
+          const xPos = w < 2 ? 0.6 : -0.6;
+          const zPos = w % 2 === 0 ? 0.4 : -0.4;
+          wheel.position.set(xPos, 0.25, zPos);
+          carGroup.add(wheel);
         }
         
-        // Place wallets at fixed positions using RNG seed
-        const lanePositions = [-8, -4, 0, 4, 8]; // Lane centers
-        const availablePositions = lanePositions.filter((_, idx) => {
-          // Use RNG to decide if this lane position has a wallet
-          return rng.next() > 0.5;
+        // Headlights (yellow emissive)
+        const headlightMaterial = new THREE.MeshStandardMaterial({
+          color: 0xFFFFAA,
+          emissive: 0xFFFF00,
+          emissiveIntensity: 0.8
         });
+        const headlightGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
         
-        const xPos = availablePositions[j % availablePositions.length] || (rng.next() > 0.5 ? -4 : 4);
-        walletGroup.position.set(xPos, 0.6, yPos);
-        walletGroup.castShadow = true;
-        scene.add(walletGroup);
+        const leftHeadlight = new THREE.Mesh(headlightGeo, headlightMaterial);
+        leftHeadlight.position.set(0.5, 0.3, 0.51);
+        carGroup.add(leftHeadlight);
+        
+        const rightHeadlight = new THREE.Mesh(headlightGeo, headlightMaterial);
+        rightHeadlight.position.set(-0.5, 0.3, 0.51);
+        carGroup.add(rightHeadlight);
+        
+        const xPos = -10 + (j * spacing) + rng.range(-1, 1);
+        carGroup.position.set(xPos, 0, yPos);
+        carGroup.castShadow = true;
+        
+        // Rotate car based on direction
+        if (pattern.direction === -1) {
+          carGroup.rotation.y = Math.PI;
+        }
+        
+        scene.add(carGroup);
 
-        wallets.push({ x: xPos, mesh: walletGroup });
+        cars.push({ x: xPos, mesh: carGroup, color: carColor });
       }
 
-      lanes.push({ y: yPos, wallets });
+      lanes.push({ 
+        y: yPos, 
+        direction: pattern.direction as 1 | -1,
+        speed: pattern.speed,
+        cars,
+        pattern: patternIndex
+      });
     }
     lanesRef.current = lanes;
 
@@ -253,29 +370,37 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // Wallets stay stationary - only rotate slightly for visual effect
+      // Animate hopping penny
+      hopAnimationRef.current += 0.15;
+      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.3;
+      pennyRef.current.position.y = 0.8 + hopHeight;
+      pennyRef.current.rotation.y += 0.08;
+
+      // Move cars in lanes
       lanesRef.current.forEach(lane => {
-        lane.wallets.forEach(wallet => {
-          wallet.mesh.rotation.y += 0.005; // Slow rotation
+        lane.cars.forEach(car => {
+          car.x += lane.speed * lane.direction;
+          
+          // Wrap around
+          if (car.x > 12) car.x = -12;
+          if (car.x < -12) car.x = 12;
+          
+          car.mesh.position.x = car.x;
         });
       });
-
-      // Rotate penny more prominently
-      pennyRef.current.rotation.y += 0.08;
 
       // Check collisions
       if (pennyRef.current) {
         const pennyZ = pennyRef.current.position.z;
         const pennyX = pennyRef.current.position.x;
-        const tolerance = 1.5;
+        const tolerance = 1.8; // Bigger penny = bigger hitbox
 
         lanesRef.current.forEach(lane => {
           if (Math.abs(pennyZ - lane.y) < tolerance) {
-            lane.wallets.forEach(wallet => {
-              const distanceX = Math.abs(pennyX - wallet.x);
+            lane.cars.forEach(car => {
+              const distanceX = Math.abs(pennyX - car.x);
               const distanceZ = Math.abs(pennyZ - lane.y);
-              if (distanceX < 1.2 && distanceZ < 1.2) {
-                // Collision!
+              if (distanceX < 2 && distanceZ < 1.5) {
                 handleCollision();
               }
             });
@@ -315,41 +440,40 @@ export default function PennyPasserGame3D({
 
   // Collision handler
   const handleCollision = useCallback(() => {
-    collisionCountRef.current++;
-    setHearts(prev => {
-      const newHearts = prev - 1;
-      if (newHearts <= 0) {
-        endGame();
-      }
-      return Math.max(0, newHearts);
-    });
-    playSound(200, 0.2, 'sawtooth');
-
-    // Flash penny red
-    if (pennyRef.current) {
-      const originalColor = (pennyRef.current.material as THREE.MeshStandardMaterial).color.getHex();
-      (pennyRef.current.material as THREE.MeshStandardMaterial).color.setHex(0xff0000);
-      setTimeout(() => {
-        if (pennyRef.current) {
-          (pennyRef.current.material as THREE.MeshStandardMaterial).color.setHex(originalColor);
+    if (collisionCountRef.current === 0 || Date.now() - lastMoveTime > 500) {
+      collisionCountRef.current++;
+      setHearts(prev => {
+        const newHearts = prev - 1;
+        if (newHearts <= 0) {
+          endGame();
         }
-      }, 200);
-    }
-  }, []);
+        return Math.max(0, newHearts);
+      });
+      playSound(200, 0.2, 'sawtooth');
 
-  // Click-to-move handler - STEP-BASED movement
+      // Flash penny red
+      if (pennyRef.current) {
+        const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
+        const originalColor = (pennyMesh.material as THREE.MeshStandardMaterial).color.getHex();
+        (pennyMesh.material as THREE.MeshStandardMaterial).color.setHex(0xff0000);
+        setTimeout(() => {
+          if (pennyRef.current) {
+            (pennyMesh.material as THREE.MeshStandardMaterial).color.setHex(originalColor);
+          }
+        }, 200);
+      }
+    }
+  }, [lastMoveTime]);
+
+  // Click-to-move handler - STEP-BASED with hopping
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' || isMoving || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
 
-    // Calculate mouse position in normalized device coordinates
     const rect = mountRef.current.getBoundingClientRect();
     mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    // Raycast to find click position on the road plane
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-    
-    // Create a plane at y=0 (the road level)
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const intersectPoint = new THREE.Vector3();
     raycasterRef.current.ray.intersectPlane(plane, intersectPoint);
@@ -366,49 +490,37 @@ export default function PennyPasserGame3D({
 
     const currentX = pennyRef.current.position.x;
     const currentZ = pennyRef.current.position.z;
+    const deltaX = intersectPoint.x - currentX;
+    const deltaZ = intersectPoint.z - currentZ;
 
-    // Calculate click direction relative to penny
-    const clickX = intersectPoint.x;
-    const clickZ = intersectPoint.z;
-    const deltaX = clickX - currentX;
-    const deltaZ = clickZ - currentZ;
-
-    // Determine step direction (ONE STEP at a time: 2.5 units)
     let targetX = currentX;
     let targetZ = currentZ;
 
-    // Prioritize forward/backward movement if clicking significantly ahead/behind
+    // Determine movement direction
     if (Math.abs(deltaZ) > Math.abs(deltaX)) {
       if (deltaZ > 0.5) {
-        targetZ = currentZ + 2.5; // Move forward one step
-      } else if (deltaZ < -0.5) {
-        targetZ = currentZ - 2.5; // Move backward one step (if allowed)
+        targetZ = currentZ + 2.5;
       }
     } else {
-      // Horizontal movement (snap to nearest lane)
       if (Math.abs(deltaX) > 0.5) {
         if (deltaX > 0) {
-          targetX = Math.min(currentX + 4, 8); // Move right one lane
+          targetX = Math.min(currentX + 4, 8);
         } else {
-          targetX = Math.max(currentX - 4, -8); // Move left one lane
+          targetX = Math.max(currentX - 4, -8);
         }
       } else {
-        // If clicking very close, move forward
         targetZ = currentZ + 2.5;
       }
     }
 
-    // Can only move forward in Z (no backward)
     if (targetZ < currentZ) {
-      targetZ = currentZ + 2.5; // Force forward instead
+      targetZ = currentZ + 2.5;
     }
 
     const startX = currentX;
     const startZ = currentZ;
     const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
-
-    // Smooth animation
-    const duration = 250; // ms - slightly slower for visibility
+    const duration = 300;
     const startTime = Date.now();
 
     const animateMove = () => {
@@ -416,7 +528,7 @@ export default function PennyPasserGame3D({
       
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
       
       pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
       pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
@@ -426,16 +538,12 @@ export default function PennyPasserGame3D({
       } else {
         setIsMoving(false);
         
-        // Update position and score
         if (distanceMoved > 0) {
           setPennyPosition(prev => prev + distanceMoved);
-          
-          // Speed bonus: faster moves = more points
           const speedBonus = Math.max(0, 1 - (timeSinceLastMove / 2000));
-          const basePoints = 10 * (distanceMoved / 2.5); // Normalize per step
+          const basePoints = 10 * (distanceMoved / 2.5);
           const points = basePoints * (1 + speedBonus);
           setScore(prev => prev + points);
-          
           playSound(500 + (progress * 200), 0.15);
         }
       }
@@ -451,35 +559,27 @@ export default function PennyPasserGame3D({
     setGameState('ended');
     setIsSubmitting(true);
 
-    // Calculate final score
     let finalScore = score;
-    
-    // Heart bonus: 50 points per remaining heart
     const heartBonus = hearts * 50;
     finalScore += heartBonus;
 
-    // Time bonus: points for time efficiency
     const timeUsed = 60 - timeRemaining;
     const timeEfficiency = pennyPosition / Math.max(1, timeUsed);
     const timeBonus = Math.floor(timeEfficiency * 10);
     finalScore += timeBonus;
 
-    // Calculate accuracy (avoiding collisions)
-    const totalPossibleCollisions = pennyPosition * 3; // Rough estimate
+    const totalPossibleCollisions = pennyPosition * 3;
     const accuracy = Math.min(100, Math.max(0, 100 - (collisionCountRef.current / Math.max(1, totalPossibleCollisions)) * 100));
 
-    // Anti-cheat: Check for suspicious patterns
     const avgMoveTime = moveTimingsRef.current.reduce((a, b) => a + b, 0) / Math.max(1, moveTimingsRef.current.length);
-    const isSuspicious = avgMoveTime < 50 || moveCount > 100; // Too fast or too many moves
+    const isSuspicious = avgMoveTime < 50 || moveCount > 100;
 
     if (isSuspicious) {
-      console.warn('⚠️ Suspicious game pattern detected');
-      finalScore = Math.floor(finalScore * 0.5); // Penalty
+      finalScore = Math.floor(finalScore * 0.5);
     }
 
     playSound(600, 0.5, 'sine');
 
-    // Log to audit system
     logGameCompletion({
       gameType: GAME_TYPES.PENNY_PASSER,
       gameMode: gameMode === 'competition' ? GAME_MODES.COMPETITION : GAME_MODES.PRACTICE,
@@ -499,31 +599,18 @@ export default function PennyPasserGame3D({
       }
     }).catch(err => console.warn('[PennyPasser] Audit log failed:', err));
 
-    // Stop animation
     if (animationIdRef.current) {
       cancelAnimationFrame(animationIdRef.current);
     }
 
-    console.log('🎯 [PennyPasser] Game ended:', {
-      finalScore,
-      accuracy: accuracy.toFixed(2),
-      moves: moveCount,
-      position: pennyPosition,
-      heartsLeft: hearts
-    });
-
     setTimeout(() => {
-      onGameEnd({
-        score: finalScore,
-        accuracy: accuracy
-      });
+      onGameEnd({ score: finalScore, accuracy: accuracy });
       setIsSubmitting(false);
     }, 1500);
   }, [score, hearts, timeRemaining, pennyPosition, moveCount, gameMode, rngSeed, competitionId, onGameEnd]);
 
   return (
     <div className="relative w-full h-full bg-black rounded-xl overflow-hidden">
-      {/* Game Canvas */}
       <div
         ref={mountRef}
         className="w-full h-full cursor-crosshair"
@@ -531,10 +618,8 @@ export default function PennyPasserGame3D({
         style={{ minHeight: '600px' }}
       />
 
-      {/* HUD Overlay */}
       {gameState === 'playing' && (
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-          {/* Left: Hearts */}
           <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
             <div className="flex gap-2">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -545,14 +630,12 @@ export default function PennyPasserGame3D({
             </div>
           </div>
 
-          {/* Center: Timer */}
           <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
             <div className="text-2xl font-bold text-white">
               ⏱️ {timeRemaining}s
             </div>
           </div>
 
-          {/* Right: Score */}
           <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20 text-right">
             <div className="text-sm text-gray-300">Score</div>
             <div className="text-2xl font-bold text-yellow-400">
@@ -565,17 +648,15 @@ export default function PennyPasserGame3D({
         </div>
       )}
 
-      {/* Instructions */}
       {gameState === 'playing' && timeRemaining > 55 && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/50 animate-pulse pointer-events-none">
           <div className="text-white text-center">
-            <div className="text-xl font-bold mb-2">🪙 Click direction to move penny one step!</div>
-            <div className="text-sm text-gray-300">Forward/Back/Left/Right • Avoid wallets 💰 • Keep your hearts!</div>
+            <div className="text-xl font-bold mb-2">🪙 Click direction to hop across!</div>
+            <div className="text-sm text-gray-300">Avoid cars 🚗 • Keep your hearts • 20 fair patterns!</div>
           </div>
         </div>
       )}
 
-      {/* Game Over Screen */}
       {gameState === 'ended' && !isSubmitting && (
         <div className="absolute inset-0 bg-black/90 flex items-center justify-center pointer-events-auto">
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 max-w-md border-2 border-yellow-400/50 shadow-2xl">
@@ -598,11 +679,6 @@ export default function PennyPasserGame3D({
                   <div className="text-sm text-gray-400">Hearts Remaining</div>
                   <div className="text-2xl font-bold text-red-400">{hearts} ❤️</div>
                 </div>
-                
-                <div className="bg-black/30 rounded-lg p-3">
-                  <div className="text-sm text-gray-400">Total Moves</div>
-                  <div className="text-2xl font-bold text-blue-400">{moveCount}</div>
-                </div>
               </div>
               
               <div className="text-sm text-gray-400">
@@ -613,7 +689,6 @@ export default function PennyPasserGame3D({
         </div>
       )}
 
-      {/* Submitting Overlay */}
       {isSubmitting && (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto">
           <div className="text-center">
@@ -623,9 +698,8 @@ export default function PennyPasserGame3D({
         </div>
       )}
 
-      {/* Version Tag */}
       <div className="absolute bottom-2 right-2 text-xs text-gray-500 pointer-events-none">
-        v2.1 - BUILD 20251204 - Penny Passer (Step-Based, Stationary Wallets)
+        v3.0 - BUILD 20251204 - Penny Passer (Cars + 20 RNG Patterns)
       </div>
     </div>
   );
