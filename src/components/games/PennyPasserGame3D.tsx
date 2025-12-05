@@ -477,7 +477,47 @@ export default function PennyPasserGame3D({
     }
   }, [lastMoveTime]);
 
-  // Click-to-move handler - STEP-BASED with hopping
+  // Mouse move handler - Show directional arrows
+  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (gameState !== 'playing' || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
+
+    const rect = mountRef.current.getBoundingClientRect();
+    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const intersectPoint = new THREE.Vector3();
+    raycasterRef.current.ray.intersectPlane(plane, intersectPoint);
+
+    if (!intersectPoint) return;
+
+    const currentX = pennyRef.current.position.x;
+    const currentZ = pennyRef.current.position.z;
+    const deltaX = intersectPoint.x - currentX;
+    const deltaZ = intersectPoint.z - currentZ;
+
+    // Determine direction for arrow
+    let direction = '';
+    if (Math.abs(deltaZ) > Math.abs(deltaX)) {
+      direction = deltaZ > 0.5 ? 'forward' : 'forward'; // Always forward
+    } else {
+      if (Math.abs(deltaX) > 0.5) {
+        direction = deltaX > 0 ? 'right' : 'left';
+      } else {
+        direction = 'forward';
+      }
+    }
+
+    // Show arrow at cursor position
+    setShowArrow({
+      direction,
+      x: event.clientX,
+      y: event.clientY
+    });
+  }, [gameState]);
+
+  // Click-to-move handler - STEP-BASED with DOUBLE-CLICK JUMP
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' || isMoving || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
 
@@ -494,6 +534,13 @@ export default function PennyPasserGame3D({
 
     const now = Date.now();
     const timeSinceLastMove = now - lastMoveTime;
+    const timeSinceLastClick = now - lastClickTimeRef.current;
+    
+    // DOUBLE-CLICK DETECTION (< 300ms = jump!)
+    const isDoubleClick = timeSinceLastClick < 300;
+    const jumpMultiplier = isDoubleClick ? 2 : 1;
+    
+    lastClickTimeRef.current = now;
     moveTimingsRef.current.push(timeSinceLastMove);
 
     setIsMoving(true);
@@ -508,32 +555,37 @@ export default function PennyPasserGame3D({
     let targetX = currentX;
     let targetZ = currentZ;
 
-    // Determine movement direction
+    // Determine movement direction (with jump multiplier)
     if (Math.abs(deltaZ) > Math.abs(deltaX)) {
       if (deltaZ > 0.5) {
-        targetZ = currentZ + 2.5;
+        targetZ = currentZ + (2.5 * jumpMultiplier);
       }
     } else {
       if (Math.abs(deltaX) > 0.5) {
         if (deltaX > 0) {
-          targetX = Math.min(currentX + 4, 8);
+          targetX = Math.min(currentX + (4 * jumpMultiplier), 8);
         } else {
-          targetX = Math.max(currentX - 4, -8);
+          targetX = Math.max(currentX - (4 * jumpMultiplier), -8);
         }
       } else {
-        targetZ = currentZ + 2.5;
+        targetZ = currentZ + (2.5 * jumpMultiplier);
       }
     }
 
     if (targetZ < currentZ) {
-      targetZ = currentZ + 2.5;
+      targetZ = currentZ + (2.5 * jumpMultiplier);
     }
 
     const startX = currentX;
     const startZ = currentZ;
     const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
-    const duration = 300;
+    const duration = isDoubleClick ? 400 : 300; // Longer for jumps
     const startTime = Date.now();
+
+    // Play jump sound if double-click
+    if (isDoubleClick) {
+      playSound(700, 0.2, 'sine');
+    }
 
     const animateMove = () => {
       if (!pennyRef.current) return;
@@ -554,7 +606,7 @@ export default function PennyPasserGame3D({
           setPennyPosition(prev => prev + distanceMoved);
           const speedBonus = Math.max(0, 1 - (timeSinceLastMove / 2000));
           const basePoints = 10 * (distanceMoved / 2.5);
-          const points = basePoints * (1 + speedBonus);
+          const points = basePoints * (1 + speedBonus) * (isDoubleClick ? 1.5 : 1); // Bonus for jumping!
           setScore(prev => prev + points);
           playSound(500 + (progress * 200), 0.15);
         }
@@ -627,44 +679,99 @@ export default function PennyPasserGame3D({
         ref={mountRef}
         className="w-full h-full cursor-crosshair"
         onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setShowArrow(null)}
         style={{ minHeight: '600px' }}
       />
 
       {gameState === 'playing' && (
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-            <div className="flex gap-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className={`text-2xl ${i < hearts ? 'opacity-100' : 'opacity-20'}`}>
-                  ❤️
+        <>
+          {/* HUD - Left side: Hearts, Right side: Score & Timer */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+            {/* Left: Hearts */}
+            <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+              <div className="flex gap-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className={`text-2xl ${i < hearts ? 'opacity-100' : 'opacity-20'}`}>
+                    ❤️
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Score and Timer stacked */}
+            <div className="flex flex-col gap-2">
+              {/* Timer - TOP RIGHT */}
+              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                <div className="text-2xl font-bold text-white text-center">
+                  ⏱️ {timeRemaining}s
                 </div>
-              ))}
+              </div>
+              
+              {/* Score */}
+              <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20 text-right">
+                <div className="text-sm text-gray-300">Score</div>
+                <div className="text-2xl font-bold text-yellow-400">
+                  {score.toFixed(1)}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Distance: {pennyPosition.toFixed(0)}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-            <div className="text-2xl font-bold text-white">
-              ⏱️ {timeRemaining}s
+          {/* Directional Arrow Indicator */}
+          {showArrow && (
+            <div 
+              className="absolute pointer-events-none"
+              style={{
+                left: showArrow.x - 30,
+                top: showArrow.y - 30,
+                width: '60px',
+                height: '60px',
+                zIndex: 100
+              }}
+            >
+              <div className="relative w-full h-full">
+                {showArrow.direction === 'forward' && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-5xl animate-pulse text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,1)]">
+                      ⬆️
+                    </div>
+                  </div>
+                )}
+                {showArrow.direction === 'left' && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-5xl animate-pulse text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,1)]">
+                      ⬅️
+                    </div>
+                  </div>
+                )}
+                {showArrow.direction === 'right' && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-5xl animate-pulse text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,1)]">
+                      ➡️
+                    </div>
+                  </div>
+                )}
+                {/* Jump indicator for double-click */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                  <div className="text-xs font-bold text-yellow-300 bg-black/80 px-2 py-1 rounded-full">
+                    Double-click = JUMP!
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-white/20 text-right">
-            <div className="text-sm text-gray-300">Score</div>
-            <div className="text-2xl font-bold text-yellow-400">
-              {score.toFixed(1)}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">
-              Distance: {pennyPosition.toFixed(0)}
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       {gameState === 'playing' && timeRemaining > 55 && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/50 animate-pulse pointer-events-none">
           <div className="text-white text-center">
-            <div className="text-xl font-bold mb-2">🪙 Click direction to hop across!</div>
-            <div className="text-sm text-gray-300">Avoid cars 🚗 • Keep your hearts • 20 fair patterns!</div>
+            <div className="text-xl font-bold mb-2">🪙 Click to hop • Double-click to JUMP!</div>
+            <div className="text-sm text-gray-300">Avoid cars 🚗 • Follow arrows ➡️ • Keep your hearts ❤️</div>
           </div>
         </div>
       )}
@@ -711,7 +818,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-2 right-2 text-xs text-gray-500 pointer-events-none">
-        v3.0 - BUILD 20251204 - Penny Passer (Cars + 20 RNG Patterns)
+        v3.1 - BUILD 20251205 - Penny Passer (Jump + Arrows)
       </div>
     </div>
   );
