@@ -260,34 +260,23 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           const distanceFromCenter = Math.abs(catchPosition - paddleCenter);
           const maxDistance = 100; // Paddle half-width (5X wider!)
           
-          // More granular location scoring zones (scaled for 5X width)
+          // SIMPLIFIED: Gold for perfect center, Blue for off-center
           let locationMultiplier = 0;
           let zoneDescription = '';
           
-          if (distanceFromCenter <= 20) {
-            // Perfect center zone (within 20 units, 5X scaled) - GOLD GLOW
+          if (distanceFromCenter <= 8) {
+            // PERFECT CENTER - GOLD GLOW (much tighter for skill)
             locationMultiplier = 1.0; // 100% bonus
             zoneDescription = 'perfect-center';
             setSuitcaseGlow('gold');
             // GOLD sound - perfect catch
             playPerfectCatchSound();
-          } else if (distanceFromCenter <= 45) {
-            // Good center zone (20-45 units, 5X scaled) - GREEN GLOW
-            locationMultiplier = 0.7; // 70% bonus
-            zoneDescription = 'good-center';
-            setSuitcaseGlow('green');
-            // GREEN sound - good catch
-            playGoodCatchSound();
-          } else if (distanceFromCenter <= 75) {
-            // Decent catch zone (45-75 units, 5X scaled) - BLUE GLOW
-            locationMultiplier = 0.4; // 40% bonus
-            zoneDescription = 'decent';
-            setSuitcaseGlow('blue');
-            // BLUE sound - normal catch (no extra audio call)
           } else {
-            // Edge catch zone (75-100 units, 5X scaled) - BLUE GLOW
-            locationMultiplier = 0.1; // 10% bonus
-            zoneDescription = 'edge';
+            // OFF-CENTER - BLUE GLOW (everything else)
+            // Scale bonus based on distance (closer = better)
+            const distanceRatio = distanceFromCenter / 100; // 0 to 1
+            locationMultiplier = Math.max(0.1, 0.5 - (distanceRatio * 0.4)); // 50% to 10% bonus
+            zoneDescription = 'off-center';
             setSuitcaseGlow('blue');
             // Edge catch sound
             playEdgeCatchSound();
@@ -690,9 +679,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 </div>
                 <div className="w-px h-6 bg-white/30"></div>
                 <div className="flex gap-4">
-                  <span>🎯 <span className="text-yellow-400">+60%</span></span>
-                  <span>🟡 <span className="text-green-400">+42%</span></span>
-                  <span>🔵 <span className="text-blue-400">+24%</span></span>
+                  <span>🟡 <span className="text-yellow-400 font-bold">CENTER +60%</span></span>
+                  <span>🔵 <span className="text-blue-400">OFF-CENTER +10-50%</span></span>
                 </div>
               </div>
             </div>
@@ -728,22 +716,20 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 );
               })}
               
-              {/* Cash Case Paddle - 5X WIDER - INSTANT MOVEMENT - GLOWING based on catch quality */}
+              {/* Cash Case Paddle - LARGER - INSTANT MOVEMENT - GLOWING (Gold center, Blue off-center) */}
               <div
                 className={`absolute flex items-center justify-center ${
-                  suitcaseGlow === 'gold' ? 'scale-110' : suitcaseGlow === 'green' ? 'scale-105' : ''
+                  suitcaseGlow === 'gold' ? 'scale-110' : ''
                 }`}
                 style={{
                   left: `${paddleX}%`,
                   top: '85%',
-                  width: '1000px', // 5X WIDER!
-                  height: '80px',
+                  width: '1100px', // Slightly bigger container
+                  height: '90px',
                   transform: 'translateX(-50%)',
                   transition: 'transform 0.15s, filter 0.15s', // ONLY animate glow, NOT position!
                   filter: suitcaseGlow === 'gold' 
-                    ? 'drop-shadow(0 0 30px rgba(255,215,0,1)) drop-shadow(0 0 15px rgba(255,215,0,1))' 
-                    : suitcaseGlow === 'green'
-                    ? 'drop-shadow(0 0 25px rgba(16,185,129,1)) drop-shadow(0 0 12px rgba(16,185,129,1))'
+                    ? 'drop-shadow(0 0 40px rgba(255,215,0,1)) drop-shadow(0 0 20px rgba(255,215,0,1))' 
                     : suitcaseGlow === 'blue'
                     ? 'drop-shadow(0 0 20px rgba(59,130,246,1)) drop-shadow(0 0 10px rgba(59,130,246,1))'
                     : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
@@ -754,13 +740,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                   src="/CashCase.PNG" 
                   alt="Cash Case" 
                   style={{
-                    width: '400px', // 5X WIDER (80px → 400px)
-                    height: '80px',
+                    width: '480px', // Slightly bigger suitcase (400px → 480px)
+                    height: '90px',
                     objectFit: 'contain',
                     filter: suitcaseGlow === 'gold'
-                      ? 'brightness(1.5) saturate(1.5) drop-shadow(2px 2px 8px rgba(255,215,0,0.8))'
-                      : suitcaseGlow === 'green'
-                      ? 'brightness(1.3) saturate(1.3) drop-shadow(2px 2px 6px rgba(16,185,129,0.7))'
+                      ? 'brightness(1.6) saturate(1.6) drop-shadow(2px 2px 10px rgba(255,215,0,0.9))'
                       : suitcaseGlow === 'blue'
                       ? 'brightness(1.2) saturate(1.2) drop-shadow(2px 2px 4px rgba(59,130,246,0.6))'
                       : 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))'
@@ -768,40 +752,29 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* Scoring Zone Indicators (5X WIDER - subtle visual guides) */}
+              {/* Scoring Zone Indicators - ONLY OVER SUITCASE */}
+              <div
+                className="absolute opacity-30"
+                style={{
+                  left: `${paddleX}%`,
+                  top: '83%',
+                  width: '16px', // TINY gold zone for perfect center (8 units each side)
+                  height: '5px',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#FFD700', // Bright gold for perfect center
+                  borderRadius: '2px',
+                  zIndex: 15
+                }}
+              />
               <div
                 className="absolute opacity-20"
                 style={{
                   left: `${paddleX}%`,
                   top: '83%',
-                  width: '200px', // Perfect center zone (5X wider: 40px → 200px)
-                  height: '4px',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#10B981', // Green for perfect center
-                  zIndex: 15
-                }}
-              />
-              <div
-                className="absolute opacity-15"
-                style={{
-                  left: `${paddleX}%`,
-                  top: '83%',
-                  width: '450px', // Good center zone (5X wider: 90px → 450px)
-                  height: '3px',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#F59E0B', // Yellow for good zone
-                  zIndex: 14
-                }}
-              />
-              <div
-                className="absolute opacity-10"
-                style={{
-                  left: `${paddleX}%`,
-                  top: '83%',
-                  width: '750px', // Decent zone indicator (5X wider: 150px → 750px)
+                  width: '480px', // Suitcase width indicator (blue = off-center)
                   height: '2px',
                   transform: 'translateX(-50%)',
-                  backgroundColor: '#3B82F6', // Blue for decent zone
+                  backgroundColor: '#3B82F6', // Blue for off-center zone
                   zIndex: 13
                 }}
               />
@@ -818,7 +791,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             
             {/* Instructions Overlay - Bottom */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg text-white text-sm">
-              ⌨️ Arrow Keys or A/D to move • 🎯 Catch in center for bonus!
+              ⌨️ Arrow Keys or A/D to move • 🟡 GOLD = Perfect Center • 🔵 BLUE = Off-Center
             </div>
           </div>
         )}
