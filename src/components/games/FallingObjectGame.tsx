@@ -67,6 +67,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const currentScoreRef = useRef(0); // Track current score for accurate game end reporting
+  const glowTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track glow timeout
+  const lastFrameTimeRef = useRef<number>(Date.now()); // Track frame timing for smoothness
 
   // Audio feedback for catches
   const playPerfectCatchSound = () => {
@@ -217,12 +219,18 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const updateGame = useCallback(() => {
     if (gameState !== 'playing') return;
 
+    // FRAME-INDEPENDENT MOVEMENT for smooth gameplay on all devices
+    const now = Date.now();
+    const delta = (now - lastFrameTimeRef.current) / 1000; // Time since last frame in seconds
+    lastFrameTimeRef.current = now;
+    const frameMultiplier = delta * 60; // Normalize to 60 FPS
+
     setObjects(prevObjects => {
       let caughtThisFrame = 0;
       
       const updatedObjects = prevObjects.map(obj => {
-        let newX = obj.x + obj.velocityX * 0.3; // Even slower horizontal movement
-        let newY = obj.y + obj.velocityY * 0.6; // Much slower vertical movement
+        let newX = obj.x + obj.velocityX * 0.3 * frameMultiplier; // SMOOTH horizontal movement
+        let newY = obj.y + obj.velocityY * 0.6 * frameMultiplier; // SMOOTH vertical movement
         let newVelocityX = obj.velocityX;
         let newVelocityY = obj.velocityY;
         let newBounces = obj.bounces;
@@ -262,7 +270,6 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             zoneDescription = 'perfect-center';
             setSuitcaseGlow('gold');
             // GOLD sound - perfect catch
-            GameAudio.playCoinCatch();
             playPerfectCatchSound();
           } else if (distanceFromCenter <= 9) {
             // Good center zone (4-9 units) - GREEN GLOW
@@ -270,15 +277,13 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             zoneDescription = 'good-center';
             setSuitcaseGlow('green');
             // GREEN sound - good catch
-            GameAudio.playCoinCatch();
             playGoodCatchSound();
           } else if (distanceFromCenter <= 15) {
             // Decent catch zone (9-15 units) - BLUE GLOW
             locationMultiplier = 0.4; // 40% bonus
             zoneDescription = 'decent';
             setSuitcaseGlow('blue');
-            // BLUE sound - normal catch
-            GameAudio.playDollarCatch();
+            // BLUE sound - normal catch (no extra audio call)
           } else {
             // Edge catch zone (15-20 units) - BLUE GLOW
             locationMultiplier = 0.1; // 10% bonus
@@ -288,8 +293,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             playEdgeCatchSound();
           }
           
-          // Clear glow after animation
-          setTimeout(() => setSuitcaseGlow('none'), 300);
+          // Clear glow after animation (prevent memory leaks)
+          if (glowTimeoutRef.current) clearTimeout(glowTimeoutRef.current);
+          glowTimeoutRef.current = setTimeout(() => setSuitcaseGlow('none'), 300);
           
           const locationBonus = Math.floor(obj.value * locationMultiplier * 0.6); // Up to 60% bonus
           
@@ -304,25 +310,12 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           
           caughtThisFrame += totalPoints;
           
-          console.log('Object caught!', {
-            type: obj.type,
-            baseValue: obj.value,
-            locationBonus,
-            timingBonus: timingBonus.toFixed(1),
-            randomBonus: randomBonus.toFixed(1),
-            totalPoints: totalPoints.toFixed(1),
-            zone: zoneDescription,
-            distanceFromCenter: distanceFromCenter.toFixed(1),
-            multiplier: `${(locationMultiplier * 100).toFixed(0)}%`
-          });
-          
           return null; // Will be filtered out
         }
 
-        // Gravity and air resistance (FIXED constants for fair competition)
-        // These values are frame-rate independent and deterministic
-        newVelocityY += 0.1; // Very reduced gravity for slower acceleration
-        newVelocityX *= 0.998; // Minimal air resistance
+        // Gravity and air resistance (FRAME-INDEPENDENT for smooth gameplay)
+        newVelocityY += 0.1 * frameMultiplier; // Smooth gravity acceleration
+        newVelocityX *= Math.pow(0.998, frameMultiplier); // Frame-independent air resistance
 
         return {
           ...obj,
@@ -344,11 +337,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
 
       // Update score immediately after processing objects
       if (caughtThisFrame > 0) {
-        console.log('Updating score! Adding', caughtThisFrame, 'points');
         setScore(prev => {
           const newScore = prev + caughtThisFrame;
           currentScoreRef.current = newScore; // Update ref for accurate game end reporting
-          console.log('Score before:', prev, 'Score after:', newScore);
           return newScore;
         });
         setCaughtObjects(prev => prev + caughtThisFrame);
@@ -393,16 +384,15 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           
           setObjects(prev => [...prev, newObject]);
           setTotalObjects(prev => prev + 1);
-          
-          console.log(`Spawned RNG object at ${gameTime}s:`, spawnConfig);
         }
       });
     } else {
-      // Practice mode: use original random spawning
+      // Practice mode: use original random spawning (CAP MAX OBJECTS for performance)
+      const MAX_OBJECTS = 12; // Cap max objects on screen at once
       const timeElapsed = 60 - timer.timeLeft;
       const spawnMultiplier = 1 + (timeElapsed * 0.06); // Increases 6% every second
       const spawnRate = Math.min(0.1, 0.025 * spawnMultiplier); // Max 10% spawn rate, starts at 2.5%
-      if (engine.random() < spawnRate) {
+      if (objects.length < MAX_OBJECTS && engine.random() < spawnRate) {
         setObjects(prev => [...prev, createRandomObject()]);
         setTotalObjects(prev => prev + 1);
       }

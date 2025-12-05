@@ -1219,14 +1219,17 @@ export default function BladeBounce3D({
       const currentFireballRate = fireballRate * extremeMultiplier;
       const currentSwordRate = swordRate * extremeMultiplier;
       
+      // CAP MAX ENEMIES for performance (prevent spawn spam)
+      const maxEnemies = 15; // Max enemies on screen at once
+      
       // Spawn fireballs with progressive difficulty
-      if (now - lastFireballSpawnRef.current > currentFireballRate) {
+      if (enemiesRef.current.length < maxEnemies && now - lastFireballSpawnRef.current > currentFireballRate) {
         createEnemy('fireball');
         lastFireballSpawnRef.current = now;
       }
       
       // Spawn enemy swords with progressive difficulty
-      if (now - lastEnemySwordSpawnRef.current > currentSwordRate) {
+      if (enemiesRef.current.length < maxEnemies && now - lastEnemySwordSpawnRef.current > currentSwordRate) {
         createEnemy('enemy_sword');
         lastEnemySwordSpawnRef.current = now;
       }
@@ -1257,15 +1260,16 @@ export default function BladeBounce3D({
           return false;
         }
         
-        enemy.x += enemy.velocityX;
-        enemy.y += enemy.velocityY;
+        // FRAME-INDEPENDENT movement for smooth gameplay
+        enemy.x += enemy.velocityX * (delta * 60);
+        enemy.y += enemy.velocityY * (delta * 60);
         
-        // Rotate enemy swords faster as difficulty increases
+        // Rotate enemy swords faster as difficulty increases (FRAME-INDEPENDENT)
         if (enemy.type === 'enemy_sword') {
           const rotationSpeed = ENEMY_SWORD_ROTATION_BASE + (difficultyTier * ENEMY_SWORD_ROTATION_INCREASE);
-          enemy.rotation += rotationSpeed;
+          enemy.rotation += rotationSpeed * (delta * 60);
         } else {
-          enemy.rotation += 0.05;
+          enemy.rotation += 0.05 * (delta * 60);
         }
         
         enemy.mesh.position.set(enemy.x, enemy.y, 0);
@@ -1285,8 +1289,8 @@ export default function BladeBounce3D({
         
         // NEON BRIGHT FLASHING FIRE EFFECTS!
         if (enemy.type === 'fireball' && enemy.pulsePhase !== undefined) {
-          // INTENSE flashing effect + fast flickering
-          enemy.pulsePhase += 0.35; // Faster animation!
+          // INTENSE flashing effect + fast flickering (FRAME-INDEPENDENT)
+          enemy.pulsePhase += 0.35 * (delta * 60);
           const flash = Math.sin(enemy.pulsePhase * 2.0) * 0.3 + 0.7; // BRIGHT flashing 0.7 to 1.0
           const flicker = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
           const microFlicker = Math.sin(enemy.pulsePhase * 4.0) * 0.2; // Faster micro-flicker
@@ -1319,8 +1323,8 @@ export default function BladeBounce3D({
             enemy.glowMesh.scale.set(scale * 1.3, scale * 1.4, scale * 1.3);
           }
           
-          // Create fire trail particles (20% chance per frame for denser trail)
-          if (Math.random() < 0.2 && sceneRef.current) {
+          // Create fire trail particles (5% chance per frame - OPTIMIZED for performance)
+          if (Math.random() < 0.05 && sceneRef.current) {
             const trailSize = 0.1 + Math.random() * 0.15;
             const trailGeometry = new THREE.SphereGeometry(trailSize, 6, 6);
             // Randomize colors based on fireball type
@@ -1364,8 +1368,8 @@ export default function BladeBounce3D({
             fadeTrail();
           }
         } else if (enemy.type === 'enemy_sword' && enemy.pulsePhase !== undefined) {
-          // Enemy sword RED FLASHING effect (menacing)
-          enemy.pulsePhase += 0.2; // Fast flash
+          // Enemy sword RED FLASHING effect (menacing, FRAME-INDEPENDENT)
+          enemy.pulsePhase += 0.2 * (delta * 60);
           const flash = Math.sin(enemy.pulsePhase) * 0.5 + 0.5; // 0 to 1
           
           // Access sword group and flash the blade
