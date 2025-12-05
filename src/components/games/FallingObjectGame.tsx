@@ -753,36 +753,73 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* CATCH RADIUS LINE - Moves with suitcase, shows EXACT catch area */}
+              {/* CATCH RADIUS LINE - SUPER VISIBLE - Moves with suitcase */}
               <div
                 className="absolute"
                 style={{
                   left: `${paddleX}%`,
-                  top: '84%', // Positioned ON the suitcase
+                  top: '81%', // ABOVE suitcase for visibility
                   width: '12%', // Total catch radius (±6% = 12%)
-                  height: '8px',
+                  height: '15px', // MUCH TALLER
                   transform: 'translateX(-50%)',
-                  zIndex: 25, // Above suitcase
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'linear-gradient(to right, rgba(59,130,246,0.6) 0%, rgba(59,130,246,0.8) 45%, rgba(255,215,0,1) 50%, rgba(59,130,246,0.8) 55%, rgba(59,130,246,0.6) 100%)',
-                  borderRadius: '4px',
-                  boxShadow: '0 0 12px rgba(255,255,255,0.5), inset 0 1px 0 rgba(255,255,255,0.3)',
-                  border: '1px solid rgba(255,255,255,0.4)'
+                  zIndex: 30, // Above everything
+                  pointerEvents: 'none'
                 }}
               >
-                {/* Gold center marker */}
+                {/* Main catch line with gradient */}
                 <div
                   style={{
-                    position: 'absolute',
-                    width: '1%', // Tiny gold zone (≤0.5% each side)
+                    width: '100%',
                     height: '100%',
-                    backgroundColor: '#FFD700',
-                    boxShadow: '0 0 8px rgba(255,215,0,1)',
-                    borderRadius: '2px'
+                    background: 'linear-gradient(to right, rgba(59,130,246,0.9) 0%, rgba(59,130,246,1) 40%, rgba(255,215,0,1) 50%, rgba(59,130,246,1) 60%, rgba(59,130,246,0.9) 100%)',
+                    borderRadius: '8px',
+                    boxShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 10px rgba(59,130,246,0.8), inset 0 2px 0 rgba(255,255,255,0.5)',
+                    border: '2px solid rgba(255,255,255,0.9)',
+                    position: 'relative'
                   }}
-                />
+                >
+                  {/* Gold center marker - BRIGHT */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '0',
+                      width: '8%', // Slightly wider for visibility
+                      height: '100%',
+                      backgroundColor: '#FFD700',
+                      boxShadow: '0 0 15px rgba(255,215,0,1), 0 0 8px rgba(255,215,0,1)',
+                      borderRadius: '4px',
+                      transform: 'translateX(-50%)',
+                      border: '1px solid rgba(255,255,255,0.8)'
+                    }}
+                  />
+                  
+                  {/* Left edge marker */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '0',
+                      top: '0',
+                      width: '3px',
+                      height: '100%',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 0 5px rgba(255,255,255,1)'
+                    }}
+                  />
+                  
+                  {/* Right edge marker */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: '0',
+                      top: '0',
+                      width: '3px',
+                      height: '100%',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 0 5px rgba(255,255,255,1)'
+                    }}
+                  />
+                </div>
               </div>
             </div>
             
