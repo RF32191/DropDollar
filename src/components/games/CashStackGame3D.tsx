@@ -1079,8 +1079,17 @@ export default function CashStackGame3D({
 
   // Keyboard/Click control
   useEffect(() => {
+    let lastInteractionTime = 0;
+    
     const handleInteraction = (e: KeyboardEvent | MouseEvent) => {
       if (e instanceof KeyboardEvent && e.code !== 'Space') return;
+      
+      // DEBOUNCE - Prevent rapid click/key spam (60ms minimum between interactions)
+      const now = Date.now();
+      if (now - lastInteractionTime < 60) {
+        return; // Ignore too-fast inputs
+      }
+      lastInteractionTime = now;
       
       if (gameState === 'ready') {
         startGame();

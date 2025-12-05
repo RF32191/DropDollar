@@ -129,6 +129,7 @@ export default function BladeBounce3D({
   const gameStartTimeRef = useRef<number>(0);
   const isValidatingRef = useRef<boolean>(false);
   const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const lastClickTimeRef = useRef<number>(0); // For click debouncing
   
   // In competition mode, skip ready screen and countdown - start playing immediately
   const initialGameState = isCompetitionMode ? 'playing' : 'ready';
@@ -977,6 +978,8 @@ export default function BladeBounce3D({
 
     console.log('🖱️ [BladeBounce3D] Attaching mouse events to WINDOW for full tracking');
     
+    let lastMoveRecordTime = 0;
+    
     const handleMouseMove = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       
@@ -990,27 +993,30 @@ export default function BladeBounce3D({
       const mouseY = e.clientY - rect.top;
       
       // BLADE FOLLOWS CURSOR EXACTLY - Clamp to playable area but track anywhere
-      const normalizedX = Math.max(-1, Math.min(1, (mouseX - centerX) / centerX)); // Clamp to -1 to 1
-      const normalizedY = Math.max(-1, Math.min(1, (mouseY - centerY) / centerY)); // Clamp to -1 to 1
-      const newTargetX = normalizedX * SWORD_X_RANGE; // Horizontal movement
-      const newTargetY = -normalizedY * SWORD_Y_RANGE; // Invert for intuitive control
+      const normalizedX = Math.max(-1, Math.min(1, (mouseX - centerX) / centerX));
+      const normalizedY = Math.max(-1, Math.min(1, (mouseY - centerY) / centerY));
+      const newTargetX = normalizedX * SWORD_X_RANGE;
+      const newTargetY = -normalizedY * SWORD_Y_RANGE;
       
-      // Record input for server-side validation
-      if (gameSession && gameStartTimeRef.current > 0) {
+      // THROTTLE input recording (every 16ms = ~60fps) to reduce data overhead
+      const now = Date.now();
+      if (gameSession && gameStartTimeRef.current > 0 && now - lastMoveRecordTime > 16) {
+        lastMoveRecordTime = now;
         inputsRef.current.push({
-          timestamp: Date.now() - gameStartTimeRef.current,
+          timestamp: now - gameStartTimeRef.current,
           type: 'move',
           data: {
-            x: normalizedX * 100, // Normalize to 0-100 range
+            x: normalizedX * 100,
             y: normalizedY * 100
           }
         });
       }
       
-      // Update sword position IMMEDIATELY for direct cursor tracking
+      // Update sword position with SMOOTH interpolation
       if (swordGroupRef.current) {
-        swordGroupRef.current.position.x = newTargetX;
-        swordGroupRef.current.position.y = newTargetY;
+        const lerpFactor = 0.25; // Smooth following
+        swordGroupRef.current.position.x += (newTargetX - swordGroupRef.current.position.x) * lerpFactor;
+        swordGroupRef.current.position.y += (newTargetY - swordGroupRef.current.position.y) * lerpFactor;
       }
       
       setTargetX(newTargetX);
@@ -1020,6 +1026,14 @@ export default function BladeBounce3D({
     const handleClick = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       e.preventDefault();
+      
+      // DEBOUNCE - Prevent rapid click glitches (50ms minimum between rotations)
+      const now = Date.now();
+      if (now - lastClickTimeRef.current < 50) {
+        console.log('🚫 Click ignored - too fast (debounced)');
+        return;
+      }
+      lastClickTimeRef.current = now;
       
       // Record input for server-side validation
       if (gameSession && gameStartTimeRef.current > 0) {
