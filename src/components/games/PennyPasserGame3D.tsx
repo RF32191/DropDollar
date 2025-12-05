@@ -125,6 +125,7 @@ export default function PennyPasserGame3D({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [collectedCoins, setCollectedCoins] = useState(0);
   const [showArrow, setShowArrow] = useState<{ direction: string; x: number; y: number } | null>(null);
+  const [showJumpIndicator, setShowJumpIndicator] = useState(false);
 
   // Anti-cheat tracking
   const moveTimingsRef = useRef<number[]>([]);
@@ -159,15 +160,15 @@ export default function PennyPasserGame3D({
     scene.background = new THREE.Color(0x87ceeb);
     sceneRef.current = scene;
 
-    // Camera - Slight overhead angle for better view
+    // Camera - TRUE TOP-DOWN 3D VIEW
     const camera = new THREE.PerspectiveCamera(
-      65,
+      60,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 18, 5); // Higher, closer to overhead
-    camera.lookAt(0, 0, -10); // Look slightly ahead
+    camera.position.set(0, 35, -10); // HIGH overhead, centered over playing field
+    camera.lookAt(0, 0, 0); // Look straight down at center
     cameraRef.current = camera;
 
     // Renderer
@@ -186,8 +187,8 @@ export default function PennyPasserGame3D({
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // Ground/Road - Extended for better view
-    const roadGeometry = new THREE.PlaneGeometry(20, 70);
+    // Ground/Road - Extended for top-down view
+    const roadGeometry = new THREE.PlaneGeometry(22, 80);
     const roadMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x2a2a2a,
       roughness: 0.9,
@@ -195,13 +196,13 @@ export default function PennyPasserGame3D({
     });
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.rotation.x = -Math.PI / 2;
-    road.position.z = 5; // Shift road to center view
+    road.position.z = -5; // Centered for top-down view
     road.receiveShadow = true;
     scene.add(road);
 
-    // Lane dividers - Dashed yellow lines
+    // Lane dividers - Dashed yellow lines (centered for top-down)
     for (let i = -2; i <= 2; i++) {
-      for (let j = -30; j < 40; j += 3) {
+      for (let j = -40; j < 30; j += 3) {
         const dividerGeometry = new THREE.BoxGeometry(0.15, 0.12, 1.5);
         const dividerMaterial = new THREE.MeshStandardMaterial({ 
           color: 0xffff00,
@@ -214,16 +215,16 @@ export default function PennyPasserGame3D({
       }
     }
 
-    // Add road edge markers (white lines)
-    for (let side of [-10, 10]) {
-      const edgeGeometry = new THREE.BoxGeometry(0.3, 0.15, 70);
+    // Add road edge markers (white lines) - centered
+    for (let side of [-11, 11]) {
+      const edgeGeometry = new THREE.BoxGeometry(0.3, 0.15, 80);
       const edgeMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xffffff,
         emissive: 0xcccccc,
         emissiveIntensity: 0.2
       });
       const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-      edge.position.set(side, 0.07, 5);
+      edge.position.set(side, 0.07, -5);
       scene.add(edge);
     }
 
@@ -283,7 +284,7 @@ export default function PennyPasserGame3D({
     particleRing.rotation.x = Math.PI / 2;
     pennyGroup.add(particleRing);
     
-    pennyGroup.position.set(0, 0.8, -25); // Start at BOTTOM of screen
+    pennyGroup.position.set(0, 0.8, -30); // Start at BOTTOM of screen (top-down view)
     scene.add(pennyGroup);
     pennyRef.current = pennyGroup;
 
@@ -607,7 +608,23 @@ export default function PennyPasserGame3D({
 
   // Click-to-move handler - STEP-BASED with DOUBLE-CLICK JUMP
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (gameState !== 'playing' || isMoving || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
+    if (gameState !== 'playing' || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
+
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTimeRef.current;
+    
+    // DOUBLE-CLICK DETECTION (< 300ms = jump!) - Check BEFORE isMoving
+    const isDoubleClick = timeSinceLastClick < 300 && timeSinceLastClick > 10;
+    
+    // If already moving and NOT a double-click, ignore
+    if (isMoving && !isDoubleClick) return;
+    
+    // Debug log for double-click
+    if (isDoubleClick) {
+      console.log('🦘 JUMP DETECTED! Time between clicks:', timeSinceLastClick, 'ms');
+    }
+    
+    lastClickTimeRef.current = now;
 
     const rect = mountRef.current.getBoundingClientRect();
     mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -620,20 +637,9 @@ export default function PennyPasserGame3D({
 
     if (!intersectPoint) return;
 
-    const now = Date.now();
     const timeSinceLastMove = now - lastMoveTime;
-    const timeSinceLastClick = now - lastClickTimeRef.current;
-    
-    // DOUBLE-CLICK DETECTION (< 300ms = jump!)
-    const isDoubleClick = timeSinceLastClick < 300 && timeSinceLastClick > 0;
     const jumpMultiplier = isDoubleClick ? 2 : 1;
     
-    // Debug log for double-click
-    if (isDoubleClick) {
-      console.log('🦘 JUMP DETECTED! Time between clicks:', timeSinceLastClick, 'ms');
-    }
-    
-    lastClickTimeRef.current = now;
     moveTimingsRef.current.push(timeSinceLastMove);
 
     setIsMoving(true);
@@ -675,18 +681,29 @@ export default function PennyPasserGame3D({
     const duration = isDoubleClick ? 400 : 300; // Longer for jumps
     const startTime = Date.now();
 
-    // GORGEOUS JUMP ANIMATION
+    // GORGEOUS JUMP ANIMATION - Super obvious visual feedback!
     if (isDoubleClick) {
+      console.log('✅ DOUBLE-CLICK JUMP ACTIVATED!', {
+        jumpDistance: `${jumpMultiplier}x`,
+        duration: `${duration}ms`,
+        scoreBonus: '50%'
+      });
+      
+      // Show jump indicator on screen
+      setShowJumpIndicator(true);
+      setTimeout(() => setShowJumpIndicator(false), duration);
+      
       playSound(700, 0.3, 'sine'); // Longer jump sound
       playSound(900, 0.15, 'sine'); // Higher harmonic
+      playSound(600, 0.1, 'square'); // Third harmonic for emphasis
       
-      // Flash all penny components bright for jump
+      // Flash all penny components SUPER bright for jump
       if (pennyRef.current) {
         pennyRef.current.children.forEach((child, idx) => {
           if (child instanceof THREE.Mesh) {
             const mat = child.material as THREE.MeshStandardMaterial;
-            const originalIntensity = mat.emissiveIntensity;
-            mat.emissiveIntensity = 1.5;
+            const originalIntensity = mat.emissiveIntensity || 0.4;
+            mat.emissiveIntensity = 2.5; // VERY BRIGHT
             setTimeout(() => {
               if (child instanceof THREE.Mesh) {
                 (child.material as THREE.MeshStandardMaterial).emissiveIntensity = originalIntensity;
@@ -694,6 +711,14 @@ export default function PennyPasserGame3D({
             }, duration);
           }
         });
+        
+        // Scale up penny briefly for emphasis
+        pennyRef.current.scale.set(1.3, 1.3, 1.3);
+        setTimeout(() => {
+          if (pennyRef.current) {
+            pennyRef.current.scale.set(1, 1, 1);
+          }
+        }, duration / 2);
       }
     }
 
@@ -918,6 +943,18 @@ export default function PennyPasserGame3D({
               )}
             </div>
           )}
+          
+          {/* JUMP INDICATOR - Shows when double-click activated */}
+          {showJumpIndicator && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50">
+              <div className="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-5xl font-black px-8 py-4 rounded-2xl border-4 border-white shadow-2xl animate-bounce">
+                🦘 JUMP! 🦘
+              </div>
+              <div className="text-center mt-2 text-2xl font-bold text-yellow-300 bg-black/80 px-4 py-2 rounded-xl">
+                2X DISTANCE + 50% BONUS!
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -989,7 +1026,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.3 - GORGEOUS - Overhead View + Advanced Scoring
+        v3.4 - TOP-DOWN 3D - Double Jump Fixed
       </div>
     </div>
   );
