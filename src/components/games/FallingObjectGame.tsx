@@ -62,10 +62,72 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const [totalObjects, setTotalObjects] = useState(0);
   const [caughtObjects, setCaughtObjects] = useState(0);
   const [keysPressed, setKeysPressed] = useState<Set<string>>(new Set());
+  const [suitcaseGlow, setSuitcaseGlow] = useState<'none' | 'blue' | 'green' | 'gold'>('none');
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const currentScoreRef = useRef(0); // Track current score for accurate game end reporting
+
+  // Audio feedback for catches
+  const playPerfectCatchSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Perfect = high pitched "ding"
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 1200;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+      // Harmonic
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 1600;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+      osc2.start();
+      osc2.stop(ctx.currentTime + 0.25);
+    } catch (e) {}
+  };
+
+  const playGoodCatchSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 900;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    } catch (e) {}
+  };
+
+  const playEdgeCatchSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 600;
+      osc.type = 'triangle';
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    } catch (e) {}
+  };
 
   // Game engine with proper timer and RNG
   const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
@@ -195,22 +257,39 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           let zoneDescription = '';
           
           if (distanceFromCenter <= 4) {
-            // Perfect center zone (within 4 units)
+            // Perfect center zone (within 4 units) - GOLD GLOW
             locationMultiplier = 1.0; // 100% bonus
             zoneDescription = 'perfect-center';
+            setSuitcaseGlow('gold');
+            // GOLD sound - perfect catch
+            GameAudio.playCoinCatch();
+            playPerfectCatchSound();
           } else if (distanceFromCenter <= 9) {
-            // Good center zone (4-9 units)
+            // Good center zone (4-9 units) - GREEN GLOW
             locationMultiplier = 0.7; // 70% bonus
             zoneDescription = 'good-center';
+            setSuitcaseGlow('green');
+            // GREEN sound - good catch
+            GameAudio.playCoinCatch();
+            playGoodCatchSound();
           } else if (distanceFromCenter <= 15) {
-            // Decent catch zone (9-15 units)
+            // Decent catch zone (9-15 units) - BLUE GLOW
             locationMultiplier = 0.4; // 40% bonus
             zoneDescription = 'decent';
+            setSuitcaseGlow('blue');
+            // BLUE sound - normal catch
+            GameAudio.playDollarCatch();
           } else {
-            // Edge catch zone (15-20 units)
+            // Edge catch zone (15-20 units) - BLUE GLOW
             locationMultiplier = 0.1; // 10% bonus
             zoneDescription = 'edge';
+            setSuitcaseGlow('blue');
+            // Edge catch sound
+            playEdgeCatchSound();
           }
+          
+          // Clear glow after animation
+          setTimeout(() => setSuitcaseGlow('none'), 300);
           
           const locationBonus = Math.floor(obj.value * locationMultiplier * 0.6); // Up to 60% bonus
           
@@ -219,13 +298,6 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           
           // Random variability to prevent ties
           const randomBonus = engine.randomFloat(0.1, 4.9);
-          
-          // Play catch sound based on object type
-          if (obj.type === 'coin') {
-            GameAudio.playCoinCatch();
-          } else if (obj.type === 'dollar') {
-            GameAudio.playDollarCatch();
-          }
           
           // Calculate total score for this catch
           const totalPoints = obj.value + locationBonus + timingBonus + randomBonus;
@@ -672,16 +744,24 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 );
               })}
               
-              {/* Cash Case Paddle - Extra Wide for better scoring zones */}
+              {/* Cash Case Paddle - GLOWING based on catch quality */}
               <div
-                className="absolute flex items-center justify-center"
+                className={`absolute flex items-center justify-center transition-all duration-300 ${
+                  suitcaseGlow === 'gold' ? 'scale-110' : suitcaseGlow === 'green' ? 'scale-105' : ''
+                }`}
                 style={{
                   left: `${paddleX}%`,
                   top: '85%',
-                  width: '200px', // Extra wide to match collision detection
+                  width: '200px',
                   height: '45px',
                   transform: 'translateX(-50%)',
-                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
+                  filter: suitcaseGlow === 'gold' 
+                    ? 'drop-shadow(0 0 30px rgba(255,215,0,1)) drop-shadow(0 0 15px rgba(255,215,0,1))' 
+                    : suitcaseGlow === 'green'
+                    ? 'drop-shadow(0 0 25px rgba(16,185,129,1)) drop-shadow(0 0 12px rgba(16,185,129,1))'
+                    : suitcaseGlow === 'blue'
+                    ? 'drop-shadow(0 0 20px rgba(59,130,246,1)) drop-shadow(0 0 10px rgba(59,130,246,1))'
+                    : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
                   zIndex: 20
                 }}
               >
@@ -692,7 +772,13 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                     width: '80px',
                     height: '45px',
                     objectFit: 'contain',
-                    filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))'
+                    filter: suitcaseGlow === 'gold'
+                      ? 'brightness(1.5) saturate(1.5) drop-shadow(2px 2px 8px rgba(255,215,0,0.8))'
+                      : suitcaseGlow === 'green'
+                      ? 'brightness(1.3) saturate(1.3) drop-shadow(2px 2px 6px rgba(16,185,129,0.7))'
+                      : suitcaseGlow === 'blue'
+                      ? 'brightness(1.2) saturate(1.2) drop-shadow(2px 2px 4px rgba(59,130,246,0.6))'
+                      : 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))'
                   }}
                 />
               </div>

@@ -880,7 +880,8 @@ export default function CashStackGame3D({
       const delta = clockRef.current.getDelta();
       const elapsedTime = (Date.now() - gameStartTimeRef.current) / 1000;
       const baseSpeed = Math.min(MAX_SPEED, INITIAL_SPEED + (elapsedTime * SPEED_INCREMENT));
-      const currentSpeed = baseSpeed * currentSpeedMultiplierRef.current * currentVariation.speedMod; // Apply variation speed mod
+      // FRAME-INDEPENDENT movement: multiply speed by delta and 60fps reference
+      const currentSpeed = baseSpeed * currentSpeedMultiplierRef.current * currentVariation.speedMod * (delta * 60);
       
       // Update current block - use ref for direction (no React state lag)
       if (currentBlockRef.current && !currentBlockRef.current.isDropping) {
