@@ -753,74 +753,23 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 />
               </div>
               
-              {/* CATCH RADIUS LINE - SUPER VISIBLE - Moves with suitcase */}
+              {/* CATCH RADIUS LINE - OPTIMIZED FOR PERFORMANCE */}
               <div
                 className="absolute"
                 style={{
                   left: `${paddleX}%`,
-                  top: '81%', // ABOVE suitcase for visibility
-                  width: '12%', // Total catch radius (±6% = 12%)
-                  height: '15px', // MUCH TALLER
+                  top: '81%',
+                  width: '12%',
+                  height: '12px',
                   transform: 'translateX(-50%)',
-                  zIndex: 30, // Above everything
-                  pointerEvents: 'none'
+                  zIndex: 30,
+                  pointerEvents: 'none',
+                  background: 'linear-gradient(to right, #3B82F6 0%, #3B82F6 40%, #FFD700 50%, #3B82F6 60%, #3B82F6 100%)',
+                  borderRadius: '6px',
+                  border: '2px solid white',
+                  willChange: 'left'
                 }}
-              >
-                {/* Main catch line with gradient */}
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(to right, rgba(59,130,246,0.9) 0%, rgba(59,130,246,1) 40%, rgba(255,215,0,1) 50%, rgba(59,130,246,1) 60%, rgba(59,130,246,0.9) 100%)',
-                    borderRadius: '8px',
-                    boxShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 10px rgba(59,130,246,0.8), inset 0 2px 0 rgba(255,255,255,0.5)',
-                    border: '2px solid rgba(255,255,255,0.9)',
-                    position: 'relative'
-                  }}
-                >
-                  {/* Gold center marker - BRIGHT */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '50%',
-                      top: '0',
-                      width: '8%', // Slightly wider for visibility
-                      height: '100%',
-                      backgroundColor: '#FFD700',
-                      boxShadow: '0 0 15px rgba(255,215,0,1), 0 0 8px rgba(255,215,0,1)',
-                      borderRadius: '4px',
-                      transform: 'translateX(-50%)',
-                      border: '1px solid rgba(255,255,255,0.8)'
-                    }}
-                  />
-                  
-                  {/* Left edge marker */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '0',
-                      width: '3px',
-                      height: '100%',
-                      backgroundColor: '#FFFFFF',
-                      boxShadow: '0 0 5px rgba(255,255,255,1)'
-                    }}
-                  />
-                  
-                  {/* Right edge marker */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      right: '0',
-                      top: '0',
-                      width: '3px',
-                      height: '100%',
-                      backgroundColor: '#FFFFFF',
-                      boxShadow: '0 0 5px rgba(255,255,255,1)'
-                    }}
-                  />
-                </div>
-              </div>
+              />
             </div>
             
             {/* Score & Timer Overlay - Top Right */}
