@@ -881,7 +881,7 @@ export default function BladeBounce3D({
         isDangerous: false, // Starts as blue (safe)
       });
       
-      console.log(`⚡ Laser spawned at (${x.toFixed(1)}, ${y.toFixed(1)}) - ${isVertical ? 'Vertical' : 'Horizontal'}`);
+      // Laser spawned (log removed for performance)
     }
   }, [playSound]);
 

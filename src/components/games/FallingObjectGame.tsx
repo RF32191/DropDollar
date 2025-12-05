@@ -519,6 +519,16 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const handleCountdownComplete = () => {
     console.log('Countdown complete, starting game...');
     
+    // Request pointer lock for fullscreen mouse control
+    if (gameAreaRef.current) {
+      gameAreaRef.current.requestPointerLock = gameAreaRef.current.requestPointerLock ||
+                                                (gameAreaRef.current as any).mozRequestPointerLock ||
+                                                (gameAreaRef.current as any).webkitRequestPointerLock;
+      if (gameAreaRef.current.requestPointerLock) {
+        gameAreaRef.current.requestPointerLock();
+      }
+    }
+    
     // Generate initial objects BEFORE starting timer
     const initialObjects: FallingObject[] = [];
     for (let i = 0; i < 3; i++) { // Start with 3 objects
@@ -665,49 +675,29 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         )}
 
         {gameState === 'playing' && (
-          <div className="space-y-6">
-            <div className="text-xl font-bold text-gray-900">
-              💰 Catch the coins and dollars with your cash case!
-            </div>
-            
-            {/* Score Info */}
-            <div className="bg-green-50 p-3 rounded-lg text-sm">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex justify-between">
-                  <span>🪙 Coins:</span>
-                  <span className="font-bold">10pts</span>
+          <div className="fixed inset-0 w-screen h-screen">
+            {/* HUD Overlay - Top of screen */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/70 backdrop-blur-sm px-6 py-3 rounded-xl text-white text-sm">
+              <div className="flex gap-8 items-center">
+                <div className="flex gap-4">
+                  <span>🪙 10pts</span>
+                  <span>💵 25pts</span>
+                  <span>🏆 50pts</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>💵 Dollars:</span>
-                  <span className="font-bold">25pts</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🏆 Bonus:</span>
-                  <span className="font-bold">50pts</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🎯 Perfect Center:</span>
-                  <span className="font-bold text-green-600">+60%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🟡 Good Zone:</span>
-                  <span className="font-bold text-yellow-600">+42%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🔵 Decent Zone:</span>
-                  <span className="font-bold text-blue-600">+24%</span>
+                <div className="w-px h-6 bg-white/30"></div>
+                <div className="flex gap-4">
+                  <span>🎯 <span className="text-yellow-400">+60%</span></span>
+                  <span>🟡 <span className="text-green-400">+42%</span></span>
+                  <span>🔵 <span className="text-blue-400">+24%</span></span>
                 </div>
               </div>
             </div>
             
-            {/* Game Area - Much Larger and Taller */}
+            {/* FULLSCREEN Game Area */}
             <div 
               ref={gameAreaRef}
-              className="relative rounded-xl border-4 border-gray-300 overflow-hidden mx-auto cursor-none"
+              className="relative w-full h-full overflow-hidden cursor-none"
               style={{ 
-                height: '450px', 
-                width: '800px', 
-                maxWidth: '90vw', 
                 touchAction: 'none',
                 background: `
                   radial-gradient(circle at 30% 20%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
@@ -811,9 +801,19 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 }}
               />
             </div>
-
-            <div className="text-sm text-gray-600">
-              Use Arrow Keys or A/D to move your briefcase • Catch in the center for bonus points!
+            
+            {/* Score & Timer Overlay - Top Right */}
+            <div className="absolute top-20 right-4 z-50 bg-black/70 backdrop-blur-sm px-6 py-4 rounded-xl text-white">
+              <div className="text-3xl font-bold text-yellow-400 mb-2">💰 {score.toFixed(0)}</div>
+              <div className="text-lg">⏱️ {timer.timeLeft}s</div>
+              <div className="text-sm text-gray-300 mt-2">
+                Caught: {caughtObjects}/{totalObjects}
+              </div>
+            </div>
+            
+            {/* Instructions Overlay - Bottom */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-lg text-white text-sm">
+              ⌨️ Arrow Keys or A/D to move • 🎯 Catch in center for bonus!
             </div>
           </div>
         )}
