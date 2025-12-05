@@ -13,8 +13,6 @@ interface PennyPasserGameProps {
 
 interface Lane {
   y: number;
-  direction: 1 | -1; // 1 = right, -1 = left
-  speed: number;
   wallets: Wallet[];
 }
 
@@ -146,30 +144,30 @@ export default function PennyPasserGame3D({
       scene.add(divider);
     }
 
-    // Create penny (player)
-    const pennyGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 32);
+    // Create penny (player) - BIGGER and more prominent
+    const pennyGeometry = new THREE.CylinderGeometry(0.75, 0.75, 0.2, 32);
     const pennyMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xb87333, // Copper color
-      metalness: 0.7,
-      roughness: 0.3
+      color: 0xFFD700, // Bright gold color (more visible)
+      metalness: 0.9,
+      roughness: 0.1,
+      emissive: 0xFFD700,
+      emissiveIntensity: 0.2
     });
     const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
-    penny.position.set(0, 0.5, -20); // Start at bottom center
+    penny.position.set(0, 0.7, -20); // Start at bottom center, slightly higher
     penny.rotation.x = Math.PI / 2;
     penny.castShadow = true;
     scene.add(penny);
     pennyRef.current = penny;
 
-    // Create lanes with wallets
+    // Create lanes with STATIONARY wallets
     const lanes: Lane[] = [];
     const numLanes = 15;
     const rng = rngRef.current;
 
     for (let i = 0; i < numLanes; i++) {
       const yPos = -15 + (i * 2.5);
-      const direction = rng.next() > 0.5 ? 1 : -1;
-      const speed = rng.range(0.02, 0.08);
-      const numWallets = Math.floor(rng.range(2, 5));
+      const numWallets = Math.floor(rng.range(2, 4)); // 2-3 wallets per lane
       const wallets: Wallet[] = [];
 
       for (let j = 0; j < numWallets; j++) {
@@ -206,8 +204,14 @@ export default function PennyPasserGame3D({
           walletGroup.add(stitch);
         }
         
-        const spacing = 20 / numWallets;
-        const xPos = -10 + (j * spacing) + rng.range(-2, 2);
+        // Place wallets at fixed positions using RNG seed
+        const lanePositions = [-8, -4, 0, 4, 8]; // Lane centers
+        const availablePositions = lanePositions.filter((_, idx) => {
+          // Use RNG to decide if this lane position has a wallet
+          return rng.next() > 0.5;
+        });
+        
+        const xPos = availablePositions[j % availablePositions.length] || (rng.next() > 0.5 ? -4 : 4);
         walletGroup.position.set(xPos, 0.6, yPos);
         walletGroup.castShadow = true;
         scene.add(walletGroup);
@@ -215,7 +219,7 @@ export default function PennyPasserGame3D({
         wallets.push({ x: xPos, mesh: walletGroup });
       }
 
-      lanes.push({ y: yPos, direction, speed, wallets });
+      lanes.push({ y: yPos, wallets });
     }
     lanesRef.current = lanes;
 
@@ -249,24 +253,15 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // Move wallets in lanes
+      // Wallets stay stationary - only rotate slightly for visual effect
       lanesRef.current.forEach(lane => {
         lane.wallets.forEach(wallet => {
-          wallet.x += lane.speed * lane.direction;
-          
-          // Wrap around
-          if (wallet.x > 12) wallet.x = -12;
-          if (wallet.x < -12) wallet.x = 12;
-          
-          wallet.mesh.position.x = wallet.x;
-          
-          // Animate wallet rotation
-          wallet.mesh.rotation.y += 0.01;
+          wallet.mesh.rotation.y += 0.005; // Slow rotation
         });
       });
 
-      // Rotate penny
-      pennyRef.current.rotation.y += 0.05;
+      // Rotate penny more prominently
+      pennyRef.current.rotation.y += 0.08;
 
       // Check collisions
       if (pennyRef.current) {
@@ -342,7 +337,7 @@ export default function PennyPasserGame3D({
     }
   }, []);
 
-  // Click-to-move handler
+  // Click-to-move handler - STEP-BASED movement
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState !== 'playing' || isMoving || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
 
@@ -369,16 +364,51 @@ export default function PennyPasserGame3D({
     setMoveCount(prev => prev + 1);
     setLastMoveTime(now);
 
-    // Calculate target position (snap to lanes)
-    const targetX = Math.round(intersectPoint.x / 4) * 4; // Snap to lane centers
-    const targetZ = Math.max(intersectPoint.z, pennyRef.current.position.z + 1); // Can only move forward or stay
+    const currentX = pennyRef.current.position.x;
+    const currentZ = pennyRef.current.position.z;
 
-    const startX = pennyRef.current.position.x;
-    const startZ = pennyRef.current.position.z;
+    // Calculate click direction relative to penny
+    const clickX = intersectPoint.x;
+    const clickZ = intersectPoint.z;
+    const deltaX = clickX - currentX;
+    const deltaZ = clickZ - currentZ;
+
+    // Determine step direction (ONE STEP at a time: 2.5 units)
+    let targetX = currentX;
+    let targetZ = currentZ;
+
+    // Prioritize forward/backward movement if clicking significantly ahead/behind
+    if (Math.abs(deltaZ) > Math.abs(deltaX)) {
+      if (deltaZ > 0.5) {
+        targetZ = currentZ + 2.5; // Move forward one step
+      } else if (deltaZ < -0.5) {
+        targetZ = currentZ - 2.5; // Move backward one step (if allowed)
+      }
+    } else {
+      // Horizontal movement (snap to nearest lane)
+      if (Math.abs(deltaX) > 0.5) {
+        if (deltaX > 0) {
+          targetX = Math.min(currentX + 4, 8); // Move right one lane
+        } else {
+          targetX = Math.max(currentX - 4, -8); // Move left one lane
+        }
+      } else {
+        // If clicking very close, move forward
+        targetZ = currentZ + 2.5;
+      }
+    }
+
+    // Can only move forward in Z (no backward)
+    if (targetZ < currentZ) {
+      targetZ = currentZ + 2.5; // Force forward instead
+    }
+
+    const startX = currentX;
+    const startZ = currentZ;
     const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
 
     // Smooth animation
-    const duration = 200; // ms
+    const duration = 250; // ms - slightly slower for visibility
     const startTime = Date.now();
 
     const animateMove = () => {
@@ -402,11 +432,11 @@ export default function PennyPasserGame3D({
           
           // Speed bonus: faster moves = more points
           const speedBonus = Math.max(0, 1 - (timeSinceLastMove / 2000));
-          const basePoints = 10 * distanceMoved;
+          const basePoints = 10 * (distanceMoved / 2.5); // Normalize per step
           const points = basePoints * (1 + speedBonus);
           setScore(prev => prev + points);
           
-          playSound(400 + (progress * 200), 0.1);
+          playSound(500 + (progress * 200), 0.15);
         }
       }
     };
@@ -539,8 +569,8 @@ export default function PennyPasserGame3D({
       {gameState === 'playing' && timeRemaining > 55 && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/50 animate-pulse pointer-events-none">
           <div className="text-white text-center">
-            <div className="text-xl font-bold mb-2">🪙 Click anywhere to move the penny!</div>
-            <div className="text-sm text-gray-300">Avoid wallets 💰 • Keep your hearts • Move smart!</div>
+            <div className="text-xl font-bold mb-2">🪙 Click direction to move penny one step!</div>
+            <div className="text-sm text-gray-300">Forward/Back/Left/Right • Avoid wallets 💰 • Keep your hearts!</div>
           </div>
         </div>
       )}
@@ -595,7 +625,7 @@ export default function PennyPasserGame3D({
 
       {/* Version Tag */}
       <div className="absolute bottom-2 right-2 text-xs text-gray-500 pointer-events-none">
-        v2.0 - BUILD 20251204 - Penny Passer (Click-to-Move)
+        v2.1 - BUILD 20251204 - Penny Passer (Step-Based, Stationary Wallets)
       </div>
     </div>
   );
