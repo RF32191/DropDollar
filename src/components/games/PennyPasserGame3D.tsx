@@ -288,44 +288,47 @@ export default function PennyPasserGame3D({
     // Create GOLDEN PENNY (player) - OPTIMIZED and PROFESSIONAL
     const pennyGroup = new THREE.Group();
     
-    // Main penny body - Optimized geometry (32 segments instead of 64)
-    const pennyGeometry = new THREE.CylinderGeometry(1.3, 1.3, 0.4, 32);
+    // Main coin body - SPHERE for rolling effect
+    const pennyGeometry = new THREE.SphereGeometry(1.3, 32, 32);
     const pennyMaterial = new THREE.MeshStandardMaterial({ 
       color: 0xFFD700,
-      metalness: 0.95,
-      roughness: 0.05,
+      metalness: 0.98,
+      roughness: 0.02,
       emissive: 0xFFAA00,
-      emissiveIntensity: 0.5
+      emissiveIntensity: 0.6
     });
     const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
-    penny.rotation.x = Math.PI / 2;
     pennyGroup.add(penny);
     
-    // Inner circle detail - Optimized
-    const innerCircleGeo = new THREE.CylinderGeometry(0.9, 0.9, 0.41, 32);
-    const innerCircleMat = new THREE.MeshStandardMaterial({
+    // Add surface details for rolling visibility
+    const detailGeo = new THREE.TorusGeometry(0.8, 0.08, 8, 24);
+    const detailMat = new THREE.MeshStandardMaterial({
       color: 0xCC9900,
-      metalness: 0.9,
-      roughness: 0.1
+      metalness: 0.95,
+      roughness: 0.05
     });
-    const innerCircle = new THREE.Mesh(innerCircleGeo, innerCircleMat);
-    innerCircle.rotation.x = Math.PI / 2;
-    pennyGroup.add(innerCircle);
+    const detail1 = new THREE.Mesh(detailGeo, detailMat);
+    detail1.rotation.y = Math.PI / 2;
+    pennyGroup.add(detail1);
     
-    // Single glowing ring - Simplified for performance
-    const ringGeometry = new THREE.TorusGeometry(1.4, 0.15, 8, 24);
+    const detail2 = new THREE.Mesh(detailGeo, detailMat);
+    pennyGroup.add(detail2);
+    
+    // Glowing outer ring
+    const ringGeometry = new THREE.TorusGeometry(1.5, 0.12, 8, 32);
     const ringMaterial = new THREE.MeshStandardMaterial({
       color: 0xFFFF00,
       metalness: 1,
       roughness: 0,
       emissive: 0xFFFF00,
-      emissiveIntensity: 0.9
+      emissiveIntensity: 1.0,
+      transparent: true,
+      opacity: 0.8
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = Math.PI / 2;
     pennyGroup.add(ring);
     
-    pennyGroup.position.set(0, 0.8, -20); // START at BOTTOM - all cars ahead/above
+    pennyGroup.position.set(0, 1.3, -20); // START at BOTTOM
     scene.add(pennyGroup);
     pennyRef.current = pennyGroup;
 
@@ -520,16 +523,22 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // SMOOTH hopping animation
-      hopAnimationRef.current += 0.1;
-      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.3;
-      pennyRef.current.position.y = 0.8 + hopHeight;
-      pennyRef.current.rotation.y += 0.05; // Slower spin
+      // ROLLING ANIMATION - coin rolls as it moves
+      hopAnimationRef.current += 0.08;
+      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.2;
+      pennyRef.current.position.y = 1.3 + hopHeight;
+      
+      // Roll the coin (rotate on X axis for forward rolling)
+      if (pennyRef.current.children[0]) {
+        pennyRef.current.children[0].rotation.x += 0.03;
+        pennyRef.current.children[1].rotation.x += 0.03;
+        pennyRef.current.children[2].rotation.x += 0.03;
+      }
 
-      // Smooth pulse on ring
-      const pulseFactor = Math.sin(hopAnimationRef.current * 1.5) * 0.15 + 1;
-      if (pennyRef.current.children[2]) {
-        pennyRef.current.children[2].scale.set(pulseFactor, pulseFactor, pulseFactor);
+      // Smooth pulse on outer ring
+      const pulseFactor = Math.sin(hopAnimationRef.current * 1.2) * 0.1 + 1;
+      if (pennyRef.current.children[3]) {
+        pennyRef.current.children[3].scale.set(pulseFactor, pulseFactor, pulseFactor);
       }
 
       // Rotate collectible coins for visibility
@@ -562,24 +571,23 @@ export default function PennyPasserGame3D({
       });
 
       // Check collisions - DOUBLE JUMP AVOIDS CARS!
-      if (pennyRef.current) {
+      if (pennyRef.current && !isMoving) {
         const pennyZ = pennyRef.current.position.z;
         const pennyX = pennyRef.current.position.x;
         const pennyY = pennyRef.current.position.y; // Check height for jump
-        const tolerance = 1.5; // Tighter tolerance
+        const tolerance = 1.5;
 
-        // If penny is jumping high (Y > 2.0), avoid collision!
-        const isJumpingHigh = pennyY > 2.0;
+        // If penny is jumping high (Y > 2.5), COMPLETELY avoid collision!
+        const isJumpingHigh = pennyY > 2.5;
 
         if (!isJumpingHigh) {
           lanesRef.current.forEach(lane => {
-            // Only check lanes that have cars AND are close to penny
             if (Math.abs(pennyZ - lane.y) < tolerance) {
               lane.cars.forEach(car => {
                 const distanceX = Math.abs(pennyX - car.x);
                 const distanceZ = Math.abs(pennyZ - lane.y);
-                // Tighter hitbox - must be really close
-                if (distanceX < 1.8 && distanceZ < 1.3) {
+                // Only collide if really close and NOT moving
+                if (distanceX < 1.6 && distanceZ < 1.2) {
                   handleCollision();
                 }
               });
@@ -799,7 +807,7 @@ export default function PennyPasserGame3D({
     const startX = currentX;
     const startZ = currentZ;
     const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
-    const duration = isDoubleClick ? 350 : 250; // FASTER, smoother
+    const duration = isDoubleClick ? 450 : 300; // SMOOTHER timing
     const startTime = Date.now();
 
     // GORGEOUS JUMP ANIMATION - Super obvious visual feedback!
@@ -836,21 +844,27 @@ export default function PennyPasserGame3D({
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
-      // Smoother easing for movement
-      const easeProgress = progress < 0.5 
-        ? 2 * progress * progress 
-        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      // ULTRA SMOOTH easing (cubic ease-in-out)
+      const easeProgress = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
       
       pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
       pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
       
-      // SMOOTH JUMP ARC
+      // SMOOTH JUMP ARC - Higher for double jump
       if (isDoubleClick) {
-        const jumpArc = Math.sin(progress * Math.PI) * 2.0; // Smooth arc
-        pennyRef.current.position.y = 0.8 + jumpArc;
-        pennyRef.current.rotation.z = progress * Math.PI * 0.3; // Less rotation
+        const jumpArc = Math.sin(progress * Math.PI) * 3.5; // HIGH arc to clear cars
+        pennyRef.current.position.y = 1.3 + jumpArc;
+        
+        // Rolling rotation during jump
+        pennyRef.current.children[0].rotation.x += 0.15;
+        pennyRef.current.children[1].rotation.x += 0.15;
+        pennyRef.current.children[2].rotation.x += 0.15;
       } else {
-        pennyRef.current.rotation.z = 0;
+        // Normal hop - smaller arc
+        const hopArc = Math.sin(progress * Math.PI) * 0.8;
+        pennyRef.current.position.y = 1.3 + hopArc;
       }
       
       if (progress < 1) {
@@ -1151,7 +1165,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.8 - Collectible Coins + Jump 3x + Car Audio
+        v3.9 - Rolling Coin + Smooth Movement
       </div>
     </div>
   );

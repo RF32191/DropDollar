@@ -888,24 +888,28 @@ export default function CashStackGame3D({
         const dir = directionRef.current;
         
         if (block.direction === 'x') {
-          block.x += currentSpeed * dir;
-          // Clamp and reverse direction at boundaries
-          if (block.x <= -10) {
-            block.x = -10;
+          const nextX = block.x + (currentSpeed * dir);
+          // SMOOTH boundaries with cushioning
+          if (nextX <= -10 && dir === -1) {
+            block.x = -9.95; // Slight cushion
             directionRef.current = 1;
-          } else if (block.x >= 10) {
-            block.x = 10;
+          } else if (nextX >= 10 && dir === 1) {
+            block.x = 9.95; // Slight cushion
             directionRef.current = -1;
+          } else {
+            block.x = nextX;
           }
         } else {
-          block.z += currentSpeed * dir;
-          // Clamp and reverse direction at boundaries
-          if (block.z <= -10) {
-            block.z = -10;
+          const nextZ = block.z + (currentSpeed * dir);
+          // SMOOTH boundaries with cushioning
+          if (nextZ <= -10 && dir === -1) {
+            block.z = -9.95; // Slight cushion
             directionRef.current = 1;
-          } else if (block.z >= 10) {
-            block.z = 10;
+          } else if (nextZ >= 10 && dir === 1) {
+            block.z = 9.95; // Slight cushion
             directionRef.current = -1;
+          } else {
+            block.z = nextZ;
           }
         }
         
