@@ -159,15 +159,15 @@ export default function PennyPasserGame3D({
     scene.background = new THREE.Color(0x87ceeb);
     sceneRef.current = scene;
 
-    // Camera
+    // Camera - Slight overhead angle for better view
     const camera = new THREE.PerspectiveCamera(
-      75,
+      65,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 15, 10);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 18, 5); // Higher, closer to overhead
+    camera.lookAt(0, 0, -10); // Look slightly ahead
     cameraRef.current = camera;
 
     // Renderer
@@ -186,53 +186,104 @@ export default function PennyPasserGame3D({
     directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // Ground/Road
-    const roadGeometry = new THREE.PlaneGeometry(20, 50);
-    const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    // Ground/Road - Extended for better view
+    const roadGeometry = new THREE.PlaneGeometry(20, 70);
+    const roadMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x2a2a2a,
+      roughness: 0.9,
+      metalness: 0.1
+    });
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.rotation.x = -Math.PI / 2;
+    road.position.z = 5; // Shift road to center view
     road.receiveShadow = true;
     scene.add(road);
 
-    // Lane dividers
+    // Lane dividers - Dashed yellow lines
     for (let i = -2; i <= 2; i++) {
-      const dividerGeometry = new THREE.BoxGeometry(0.1, 0.1, 50);
-      const dividerMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-      const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
-      divider.position.set(i * 4, 0.05, 0);
-      scene.add(divider);
+      for (let j = -30; j < 40; j += 3) {
+        const dividerGeometry = new THREE.BoxGeometry(0.15, 0.12, 1.5);
+        const dividerMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0xffff00,
+          emissive: 0xaaaa00,
+          emissiveIntensity: 0.3
+        });
+        const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
+        divider.position.set(i * 4, 0.06, j);
+        scene.add(divider);
+      }
     }
 
-    // Create GOLDEN PENNY (player) - BIGGER and PROMINENT
+    // Add road edge markers (white lines)
+    for (let side of [-10, 10]) {
+      const edgeGeometry = new THREE.BoxGeometry(0.3, 0.15, 70);
+      const edgeMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff,
+        emissive: 0xcccccc,
+        emissiveIntensity: 0.2
+      });
+      const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+      edge.position.set(side, 0.07, 5);
+      scene.add(edge);
+    }
+
+    // Create GOLDEN PENNY (player) - GORGEOUS and PROMINENT
     const pennyGroup = new THREE.Group();
     
-    const pennyGeometry = new THREE.CylinderGeometry(1, 1, 0.3, 32);
+    // Main penny body - BIGGER with high detail
+    const pennyGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.35, 64);
     const pennyMaterial = new THREE.MeshStandardMaterial({ 
       color: 0xFFD700,
-      metalness: 0.95,
-      roughness: 0.05,
+      metalness: 0.98,
+      roughness: 0.02,
       emissive: 0xFFAA00,
-      emissiveIntensity: 0.3
+      emissiveIntensity: 0.4
     });
     const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
     penny.rotation.x = Math.PI / 2;
     penny.castShadow = true;
     pennyGroup.add(penny);
     
-    // Add shiny ring around penny for extra visibility
-    const ringGeometry = new THREE.TorusGeometry(1.1, 0.1, 16, 32);
+    // Inner circle detail (darker gold)
+    const innerCircleGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.36, 64);
+    const innerCircleMat = new THREE.MeshStandardMaterial({
+      color: 0xCC9900,
+      metalness: 0.9,
+      roughness: 0.1
+    });
+    const innerCircle = new THREE.Mesh(innerCircleGeo, innerCircleMat);
+    innerCircle.rotation.x = Math.PI / 2;
+    pennyGroup.add(innerCircle);
+    
+    // Outer glowing ring
+    const ringGeometry = new THREE.TorusGeometry(1.3, 0.12, 16, 64);
     const ringMaterial = new THREE.MeshStandardMaterial({
       color: 0xFFFFAA,
       metalness: 1,
       roughness: 0,
-      emissive: 0xFFFFAA,
-      emissiveIntensity: 0.5
+      emissive: 0xFFFF00,
+      emissiveIntensity: 0.8
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
     ring.rotation.x = Math.PI / 2;
     pennyGroup.add(ring);
     
-    pennyGroup.position.set(0, 0.8, -20);
+    // Particle effect ring (smaller, brighter)
+    const particleRingGeo = new THREE.TorusGeometry(1.5, 0.08, 8, 32);
+    const particleRingMat = new THREE.MeshStandardMaterial({
+      color: 0xFFFFFF,
+      metalness: 1,
+      roughness: 0,
+      emissive: 0xFFFFFF,
+      emissiveIntensity: 1.0,
+      transparent: true,
+      opacity: 0.6
+    });
+    const particleRing = new THREE.Mesh(particleRingGeo, particleRingMat);
+    particleRing.rotation.x = Math.PI / 2;
+    pennyGroup.add(particleRing);
+    
+    pennyGroup.position.set(0, 0.8, -25); // Start at BOTTOM of screen
     scene.add(pennyGroup);
     pennyRef.current = pennyGroup;
 
@@ -382,13 +433,24 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // Animate hopping penny
+      // Animate hopping penny with gorgeous effects
       hopAnimationRef.current += 0.15;
-      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.3;
+      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.4;
       pennyRef.current.position.y = 0.8 + hopHeight;
       pennyRef.current.rotation.y += 0.08;
 
-      // Move cars in lanes
+      // Pulse the outer rings
+      const pulseFactor = Math.sin(hopAnimationRef.current * 2) * 0.2 + 1;
+      if (pennyRef.current.children[2]) {
+        pennyRef.current.children[2].scale.set(pulseFactor, pulseFactor, pulseFactor);
+      }
+      if (pennyRef.current.children[3]) {
+        const particleRing = pennyRef.current.children[3];
+        particleRing.rotation.z += 0.05;
+        (particleRing.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8 + Math.sin(hopAnimationRef.current * 3) * 0.3;
+      }
+
+      // Move cars in lanes with smooth animation
       lanesRef.current.forEach(lane => {
         lane.cars.forEach(car => {
           car.x += lane.speed * lane.direction;
@@ -398,6 +460,25 @@ export default function PennyPasserGame3D({
           if (car.x < -12) car.x = 12;
           
           car.mesh.position.x = car.x;
+          
+          // Subtle bounce for cars
+          const carBounce = Math.sin(Date.now() * 0.005 + car.x) * 0.05;
+          car.mesh.position.y = carBounce;
+          
+          // Headlight pulse
+          if (car.mesh.children[4] && car.mesh.children[5]) {
+            const headlightIntensity = 0.5 + Math.sin(Date.now() * 0.003) * 0.3;
+            (car.mesh.children[4] as THREE.Mesh).material = new THREE.MeshStandardMaterial({
+              color: 0xFFFFAA,
+              emissive: 0xFFFF00,
+              emissiveIntensity: headlightIntensity
+            });
+            (car.mesh.children[5] as THREE.Mesh).material = new THREE.MeshStandardMaterial({
+              color: 0xFFFFAA,
+              emissive: 0xFFFF00,
+              emissiveIntensity: headlightIntensity
+            });
+          }
         });
       });
 
@@ -594,19 +675,25 @@ export default function PennyPasserGame3D({
     const duration = isDoubleClick ? 400 : 300; // Longer for jumps
     const startTime = Date.now();
 
-    // Play jump sound if double-click
+    // GORGEOUS JUMP ANIMATION
     if (isDoubleClick) {
-      playSound(700, 0.2, 'sine');
-      // Flash penny bright for jump
+      playSound(700, 0.3, 'sine'); // Longer jump sound
+      playSound(900, 0.15, 'sine'); // Higher harmonic
+      
+      // Flash all penny components bright for jump
       if (pennyRef.current) {
-        const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
-        (pennyMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.0;
-        setTimeout(() => {
-          if (pennyRef.current) {
-            const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
-            (pennyMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.3;
+        pennyRef.current.children.forEach((child, idx) => {
+          if (child instanceof THREE.Mesh) {
+            const mat = child.material as THREE.MeshStandardMaterial;
+            const originalIntensity = mat.emissiveIntensity;
+            mat.emissiveIntensity = 1.5;
+            setTimeout(() => {
+              if (child instanceof THREE.Mesh) {
+                (child.material as THREE.MeshStandardMaterial).emissiveIntensity = originalIntensity;
+              }
+            }, duration);
           }
-        }, duration);
+        });
       }
     }
 
@@ -615,15 +702,25 @@ export default function PennyPasserGame3D({
       
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      
+      // Smoother easing for movement
+      const easeProgress = progress < 0.5 
+        ? 2 * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
       
       pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
       pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
       
-      // Add higher hop during jump
+      // GORGEOUS JUMP ARC - parabolic motion
       if (isDoubleClick) {
-        const extraHop = Math.sin(progress * Math.PI) * 1.5;
-        pennyRef.current.position.y = 0.8 + hopAnimationRef.current + extraHop;
+        const jumpArc = Math.sin(progress * Math.PI) * 2.5; // High dramatic arc
+        pennyRef.current.position.y = 0.8 + jumpArc;
+        
+        // Rotate during jump
+        pennyRef.current.rotation.z = progress * Math.PI * 0.5;
+      } else {
+        // Reset rotation for normal hop
+        pennyRef.current.rotation.z = 0;
       }
       
       if (progress < 1) {
@@ -633,11 +730,35 @@ export default function PennyPasserGame3D({
         
         if (distanceMoved > 0) {
           setPennyPosition(prev => prev + distanceMoved);
-          const speedBonus = Math.max(0, 1 - (timeSinceLastMove / 2000));
+          
+          // ADVANCED DECIMAL SCORING based on precise timing
           const basePoints = 10 * (distanceMoved / 2.5);
-          const points = basePoints * (1 + speedBonus) * (isDoubleClick ? 1.5 : 1); // Bonus for jumping!
+          
+          // Speed bonus (more precise decimal calculation)
+          const perfectMoveTime = 500; // 500ms = perfect
+          const speedRatio = Math.min(1, perfectMoveTime / Math.max(timeSinceLastMove, 100));
+          const speedBonus = speedRatio * speedRatio; // Squared for exponential reward
+          
+          // Jump bonus
+          const jumpBonus = isDoubleClick ? 1.5 : 1.0;
+          
+          // Risk bonus (closer to cars = more points)
+          const riskBonus = 1.0; // TODO: Could add proximity detection
+          
+          // Final calculation with decimals
+          const points = basePoints * (1 + speedBonus) * jumpBonus * riskBonus;
+          
           setScore(prev => prev + points);
-          playSound(500 + (progress * 200), 0.15);
+          
+          // Visual feedback for good timing
+          if (speedBonus > 0.8) {
+            playSound(600 + (progress * 300), 0.15, 'sine');
+          } else {
+            playSound(500 + (progress * 200), 0.15, 'sine');
+          }
+          
+          // Console log for debugging scoring
+          console.log(`💰 Score: +${points.toFixed(2)} | Speed: ${speedBonus.toFixed(2)}x | Jump: ${isDoubleClick ? '🦘 YES' : 'no'}`);
         }
       }
     };
@@ -736,14 +857,14 @@ export default function PennyPasserGame3D({
                 </div>
               </div>
               
-              {/* Score - Below timer */}
+              {/* Score - Below timer with precise decimals */}
               <div className="bg-black/80 backdrop-blur-sm rounded-xl p-3 border border-white/20 shadow-xl">
                 <div className="text-sm text-gray-300 text-right">Score</div>
                 <div className="text-2xl font-bold text-green-400 text-right">
-                  {score.toFixed(1)}
+                  {score.toFixed(2)}
                 </div>
                 <div className="text-xs text-gray-400 mt-1 text-right">
-                  Dist: {pennyPosition.toFixed(0)}
+                  Dist: {pennyPosition.toFixed(1)}
                 </div>
               </div>
             </div>
@@ -801,10 +922,15 @@ export default function PennyPasserGame3D({
       )}
 
       {gameState === 'playing' && timeRemaining > 55 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-400/50 animate-pulse pointer-events-none">
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-gradient-to-r from-black/90 via-purple-900/50 to-black/90 backdrop-blur-md rounded-2xl p-5 border-2 border-yellow-400/70 shadow-2xl animate-pulse pointer-events-none">
           <div className="text-white text-center">
-            <div className="text-xl font-bold mb-2">🪙 Click to hop • Double-click to JUMP!</div>
-            <div className="text-sm text-gray-300">Avoid cars 🚗 • Follow arrows ➡️ • Keep your hearts ❤️</div>
+            <div className="text-2xl font-black mb-3 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              🪙 Click = Hop • Double-Click = JUMP! 🦘
+            </div>
+            <div className="text-sm text-gray-200 space-y-1">
+              <div>⬆️⬅️➡️ Arrows show direction • Faster moves = More points 💰</div>
+              <div>Avoid cars 🚗 • Jump over obstacles • Keep your hearts ❤️</div>
+            </div>
           </div>
         </div>
       )}
@@ -817,19 +943,31 @@ export default function PennyPasserGame3D({
               <h2 className="text-3xl font-bold text-white mb-4">Game Over!</h2>
               
               <div className="space-y-3 mb-6">
-                <div className="bg-black/30 rounded-lg p-3">
-                  <div className="text-sm text-gray-400">Final Score</div>
-                  <div className="text-3xl font-bold text-yellow-400">{score.toFixed(1)}</div>
+                <div className="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 rounded-lg p-4 border border-yellow-500/30">
+                  <div className="text-sm text-yellow-300">Final Score</div>
+                  <div className="text-4xl font-black text-yellow-400">{score.toFixed(2)}</div>
                 </div>
                 
-                <div className="bg-black/30 rounded-lg p-3">
-                  <div className="text-sm text-gray-400">Distance Traveled</div>
-                  <div className="text-2xl font-bold text-white">{pennyPosition.toFixed(0)}</div>
-                </div>
-                
-                <div className="bg-black/30 rounded-lg p-3">
-                  <div className="text-sm text-gray-400">Hearts Remaining</div>
-                  <div className="text-2xl font-bold text-red-400">{hearts} ❤️</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <div className="text-xs text-gray-400">Distance</div>
+                    <div className="text-xl font-bold text-white">{pennyPosition.toFixed(1)}</div>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <div className="text-xs text-gray-400">Hearts</div>
+                    <div className="text-xl font-bold text-red-400">{hearts} ❤️</div>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <div className="text-xs text-gray-400">Moves</div>
+                    <div className="text-xl font-bold text-blue-400">{moveCount}</div>
+                  </div>
+                  
+                  <div className="bg-black/30 rounded-lg p-3">
+                    <div className="text-xs text-gray-400">Time</div>
+                    <div className="text-xl font-bold text-purple-400">{60 - timeRemaining}s</div>
+                  </div>
                 </div>
               </div>
               
@@ -851,7 +989,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.2 - FULLSCREEN - Jump + Arrows Around Coin
+        v3.3 - GORGEOUS - Overhead View + Advanced Scoring
       </div>
     </div>
   );
