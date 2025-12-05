@@ -209,8 +209,8 @@ export default function PennyPasserGame3D({
     rightAccent.position.set(13, 2, 0);
     scene.add(rightAccent);
 
-    // Ground/Road - BETTER VISUALS
-    const roadGeometry = new THREE.PlaneGeometry(24, 70);
+    // Ground/Road - BETTER VISUALS (extended for new lane layout)
+    const roadGeometry = new THREE.PlaneGeometry(24, 80);
     const roadMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x2a2a2a,
       roughness: 0.9,
@@ -220,25 +220,25 @@ export default function PennyPasserGame3D({
     });
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.rotation.x = -Math.PI / 2;
-    road.position.z = 5;
+    road.position.z = 10; // Centered for new lane positions (2.5 to 37.5)
     scene.add(road);
     
-    // Side barriers (neon glow effect)
+    // Side barriers (neon glow effect) - adjusted
     for (let side of [-13, 13]) {
-      const barrierGeo = new THREE.BoxGeometry(0.3, 1.2, 70);
+      const barrierGeo = new THREE.BoxGeometry(0.3, 1.2, 80);
       const barrierMat = new THREE.MeshStandardMaterial({
         color: side < 0 ? 0xff3366 : 0x00ffff,
         emissive: side < 0 ? 0xff3366 : 0x00ffff,
         emissiveIntensity: 0.6
       });
       const barrier = new THREE.Mesh(barrierGeo, barrierMat);
-      barrier.position.set(side, 0.6, 5);
+      barrier.position.set(side, 0.6, 10);
       scene.add(barrier);
     }
 
-    // Lane dividers - GLOWING
+    // Lane dividers - GLOWING (adjusted for new layout)
     for (let i = -2; i <= 2; i++) {
-      for (let j = -30; j < 40; j += 4) {
+      for (let j = -25; j < 45; j += 4) {
         const dividerGeometry = new THREE.BoxGeometry(0.2, 0.12, 2);
         const dividerMaterial = new THREE.MeshStandardMaterial({ 
           color: 0xffff00,
@@ -251,16 +251,16 @@ export default function PennyPasserGame3D({
       }
     }
 
-    // Road edge lines - BRIGHT WHITE
+    // Road edge lines - BRIGHT WHITE (adjusted)
     for (let side of [-12, 12]) {
-      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.12, 70);
+      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.12, 80);
       const edgeMaterial = new THREE.MeshStandardMaterial({ 
         color: 0xffffff,
         emissive: 0xffffff,
         emissiveIntensity: 0.3
       });
       const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-      edge.position.set(side, 0.06, 5);
+      edge.position.set(side, 0.06, 10);
       scene.add(edge);
     }
 
@@ -314,8 +314,8 @@ export default function PennyPasserGame3D({
     const rng = rngRef.current;
 
     for (let i = 0; i < numLanes; i++) {
-      // START LANES AT -2.5 (coin is at -8, safe zone from -8 to -2.5)
-      const yPos = -2.5 + (i * 2.5);
+      // START LANES AT +2.5 (coin is at -8, LARGE safe zone from -8 to +2.5 = 10.5 units / 4 lane moves)
+      const yPos = 2.5 + (i * 2.5);
       
       // PROGRESSIVE DIFFICULTY: Use easier patterns at start, harder patterns later
       const progressRatio = i / numLanes; // 0.0 to 1.0
@@ -502,18 +502,20 @@ export default function PennyPasserGame3D({
         const pennyZ = pennyRef.current.position.z;
         const pennyX = pennyRef.current.position.x;
         const pennyY = pennyRef.current.position.y; // Check height for jump
-        const tolerance = 1.8;
+        const tolerance = 1.5; // Tighter tolerance
 
-        // If penny is jumping high (Y > 1.5), avoid collision!
-        const isJumpingHigh = pennyY > 1.8;
+        // If penny is jumping high (Y > 2.0), avoid collision!
+        const isJumpingHigh = pennyY > 2.0;
 
         if (!isJumpingHigh) {
           lanesRef.current.forEach(lane => {
+            // Only check lanes that have cars AND are close to penny
             if (Math.abs(pennyZ - lane.y) < tolerance) {
               lane.cars.forEach(car => {
                 const distanceX = Math.abs(pennyX - car.x);
                 const distanceZ = Math.abs(pennyZ - lane.y);
-                if (distanceX < 2 && distanceZ < 1.5) {
+                // Tighter hitbox - must be really close
+                if (distanceX < 1.8 && distanceZ < 1.3) {
                   handleCollision();
                 }
               });
@@ -1040,7 +1042,7 @@ export default function PennyPasserGame3D({
       )}
 
       <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.6 - PROGRESSIVE - Better Environment & Gameplay
+        v3.6.2 - LARGE SAFE ZONE - 4+ Lane Moves
       </div>
     </div>
   );
