@@ -69,6 +69,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const currentScoreRef = useRef(0); // Track current score for accurate game end reporting
   const glowTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track glow timeout
   const lastFrameTimeRef = useRef<number>(Date.now()); // Track frame timing for smoothness
+  const paddleXRef = useRef<number>(50); // Track paddle position for animation loop (avoid re-renders)
 
   // Audio feedback for catches
   const playPerfectCatchSound = () => {
@@ -221,7 +222,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
 
     // FRAME-INDEPENDENT MOVEMENT for smooth gameplay on all devices
     const now = Date.now();
-    const delta = (now - lastFrameTimeRef.current) / 1000; // Time since last frame in seconds
+    const delta = Math.min((now - lastFrameTimeRef.current) / 1000, 0.1); // Cap delta to prevent huge jumps
     lastFrameTimeRef.current = now;
     const frameMultiplier = delta * 60; // Normalize to 60 FPS
 
@@ -243,10 +244,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         }
 
         // Check briefcase paddle collision - EXACT SUITCASE SIZE ONLY!
-        // Suitcase is 480px wide - make collision MUCH TIGHTER than visual
+        // Use ref for instant collision detection (no render lag)
+        const currentPaddleX = paddleXRef.current;
         const paddleHalfWidth = 6; // ±6% (12% total = tight catch area)
-        const paddleLeft = paddleX - paddleHalfWidth;
-        const paddleRight = paddleX + paddleHalfWidth;
+        const paddleLeft = currentPaddleX - paddleHalfWidth;
+        const paddleRight = currentPaddleX + paddleHalfWidth;
         const paddleTop = 82; // Adjusted for taller view
         const paddleBottom = 95;
 
@@ -257,7 +259,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             obj.velocityY > 0) { // Only catch if falling
           
           // Calculate distance from center of suitcase
-          const paddleCenter = paddleX;
+          const paddleCenter = currentPaddleX;
           const catchPosition = newX;
           const distanceFromCenter = Math.abs(catchPosition - paddleCenter);
           
@@ -389,7 +391,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     }
 
     animationRef.current = requestAnimationFrame(updateGame);
-  }, [gameState, paddleX, timer.timeLeft, createRandomObject, engine, rngConfig, objects]);
+  }, [gameState, timer.timeLeft, createRandomObject, engine, rngConfig, objects]);
 
   const handleKeyPress = useCallback((key: string, pressed: boolean) => {
     setKeysPressed(prev => {
@@ -417,7 +419,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     // Keep paddle within bounds (wider boundaries for 5X width)
     const boundedX = Math.max(2, Math.min(98, percentage));
     
-    // INSTANT UPDATE - absolutely no lag!
+    // INSTANT UPDATE - update both state and ref
+    paddleXRef.current = boundedX;
     setPaddleX(boundedX);
   }, [gameState]);
 
@@ -436,7 +439,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     // Keep paddle within bounds (wider boundaries for 5X width)
     const boundedX = Math.max(2, Math.min(98, percentage));
     
-    // INSTANT UPDATE - absolutely no lag!
+    // INSTANT UPDATE - update both state and ref
+    paddleXRef.current = boundedX;
     setPaddleX(boundedX);
   }, [gameState]);
 
@@ -452,7 +456,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
 
     if (moveSpeed !== 0) {
       const interval = setInterval(() => {
-        setPaddleX(prev => Math.max(2, Math.min(98, prev + moveSpeed))); // Wider bounds for 5X width
+        setPaddleX(prev => {
+          const newVal = Math.max(2, Math.min(98, prev + moveSpeed));
+          paddleXRef.current = newVal; // Update ref too
+          return newVal;
+        });
       }, 16); // ~60fps
 
       return () => clearInterval(interval);
