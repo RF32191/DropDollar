@@ -329,6 +329,13 @@ export default function CoinPlayPage() {
       <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
         <CleanNavigation showUsername={true} />
         
+        {/* Location Verification Modal */}
+        <LocationVerificationModal
+          isOpen={showLocationModal}
+          onLocationGranted={handleLocationGranted}
+          onLocationDenied={handleLocationDenied}
+        />
+
         {/* Location Banner */}
         {!locationLoading && !locationVerified && (
           <LocationBanner 
