@@ -309,7 +309,7 @@ export default function CoinPlayPage() {
     return (
       <ErrorBoundary>
         <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
-          <CleanNavigation showUsername={true} />
+          <CleanNavigation currentPage="coin-play" showUsername={true} />
           <CompetitionGameFlow
             gameType={selectedGameFlow.gameType}
             listingId={selectedGameFlow.sessionId}
@@ -325,19 +325,20 @@ export default function CoinPlayPage() {
   }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
-        <CleanNavigation showUsername={true} />
+    <>
+      {/* Location Verification Modal */}
+      <LocationVerificationModal
+        isOpen={showLocationModal}
+        onLocationGranted={handleLocationGranted}
+        onLocationDenied={handleLocationDenied}
+      />
+
+      <ErrorBoundary>
+        <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
+        <CleanNavigation currentPage="coin-play" showUsername={true} />
         
         {/* Wallet Display */}
         <PageWalletDisplay />
-
-        {/* Location Verification Modal */}
-        <LocationVerificationModal
-          isOpen={showLocationModal}
-          onLocationGranted={handleLocationGranted}
-          onLocationDenied={handleLocationDenied}
-        />
 
         {/* Location Verification Banner */}
         {isAuthenticated && (
@@ -562,16 +563,9 @@ export default function CoinPlayPage() {
             </div>
           </div>
         </div>
-
-        {/* Location Modal */}
-        {showLocationModal && (
-          <LocationVerificationModal
-            onGranted={handleLocationGranted}
-            onDenied={handleLocationDenied}
-          />
-        )}
       </div>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </>
   );
 }
 
