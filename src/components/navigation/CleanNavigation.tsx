@@ -21,6 +21,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
     { href: '/tournaments', label: 'Tournaments', emoji: '🏆' },
     { href: '/hot-sell', label: 'Hot Sell', emoji: '🔥' },
     { href: '/winner-takes-all', label: 'Winner Takes It All', emoji: '👑' },
+    { href: '/coin-play', label: 'CP', emoji: '🪙' },
     { href: '/tournaments/1v1', label: '1v1', emoji: '⚔️' },
     { href: '/categories', label: 'Categories', emoji: '📦' },
     { href: '/buy-tokens', label: 'Buy Tokens', emoji: '💰' },
@@ -49,6 +50,8 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
           return 'bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 shadow-2xl animate-gradient-x'; // Red and gold animated transition
         case 'winner-takes-all':
           return 'bg-gradient-to-r from-yellow-700 via-yellow-400 to-amber-700 shadow-2xl animate-gradient-x'; // Dark gold to light gold animated
+        case 'coin-play':
+          return 'bg-gradient-to-r from-amber-800 via-orange-600 to-amber-800 shadow-2xl animate-gradient-x'; // Copper penny theme
         case 'games':
           return 'bg-gradient-to-r from-purple-700 via-blue-600 to-purple-700 shadow-2xl animate-gradient-x'; // Purple to blue animated
         case 'buy-tokens':
