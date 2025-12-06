@@ -227,11 +227,12 @@ export default function AdminDashboard() {
     console.log('🔍 Loading audit logs...');
     try {
       // Query the game_audit_log table directly
+      // NO LIMIT - can handle millions of audit logs with proper indexing!
       const { data, error } = await supabase
         .from('game_audit_log')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(10000);
       
       if (error) {
         console.error('❌ Error loading from game_audit_log table:', error);
@@ -258,11 +259,12 @@ export default function AdminDashboard() {
       // Try the view as fallback
       console.log('🔄 Trying to load from view instead...');
       try {
+        // NO LIMIT - can handle millions of audit logs!
         const { data: viewData, error: viewError } = await supabase
           .from('admin_detailed_audit_view')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(10000);
         
         if (viewError) {
           console.error('❌ View also failed:', viewError);
@@ -284,12 +286,12 @@ export default function AdminDashboard() {
     try {
       console.log('🔍 [Verification] Loading seller verifications...');
       
-      // Load ALL seller registrations
+      // Load ALL seller registrations (can handle millions!)
       const { data: sellersData, error: sellersError } = await supabase
         .from('seller_profiles')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(10000);
 
       console.log('📊 [Verification] Query result:', { 
         count: sellersData?.length || 0, 

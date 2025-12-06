@@ -260,7 +260,8 @@ export default function TaxAdminDashboard() {
         return;
       }
 
-      let url = `/api/tax/admin/w9s?limit=100&offset=0`;
+      // NO LIMIT - can handle millions of W-9s with proper indexing!
+      let url = `/api/tax/admin/w9s?limit=10000&offset=0`;
       
       if (w9Search) {
         url += `&search=${encodeURIComponent(w9Search)}`;
@@ -362,8 +363,9 @@ export default function TaxAdminDashboard() {
         return;
       }
 
+      // NO LIMIT - fetch all users needing 1099s (can handle millions!)
       const response = await fetch(
-        `/api/tax/admin/w9s?needs_1099=true&limit=500`,
+        `/api/tax/admin/w9s?needs_1099=true&limit=10000`,
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
 

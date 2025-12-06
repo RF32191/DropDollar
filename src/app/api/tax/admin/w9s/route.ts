@@ -29,7 +29,7 @@ const getServiceClient = () => {
  * List all W-9 tax profiles with search and pagination
  * 
  * Query Parameters:
- * - limit: Number of records per page (default: 50, max: 500)
+ * - limit: Number of records per page (default: 1000, NO MAX LIMIT - can handle millions!)
  * - offset: Number of records to skip (default: 0)
  * - search: Search by name, email, SSN last 4, or EIN
  * - needs_1099: Filter by users needing 1099 (true/false)
@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 500);
+    // NO MAX LIMIT - admin can request any amount (1K, 10K, 100K, 1M+)
+    const limit = parseInt(searchParams.get('limit') || '1000');
     const offset = parseInt(searchParams.get('offset') || '0');
     const search = searchParams.get('search') || null;
     const needsFilter = searchParams.get('needs_1099'); // 'true' or 'false'
