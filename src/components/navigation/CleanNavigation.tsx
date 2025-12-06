@@ -108,6 +108,19 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
             </span>
           </Link>
 
+          {/* COIN PLAY BUTTON - Prominent with Entry Fee */}
+          <Link 
+            href="/coin-play"
+            className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border-2 border-amber-400/50"
+            onClick={() => handleNavClick('/coin-play', 'Coin Play')}
+          >
+            <span className="text-2xl animate-pulse">🪙</span>
+            <div className="flex flex-col items-start">
+              <span className="text-white font-black text-sm leading-none">COIN PLAY</span>
+              <span className="text-amber-100 font-bold text-xs leading-none">25¢ Entry!</span>
+            </div>
+          </Link>
+
           {/* Desktop Navigation - Left aligned */}
           <nav className="hidden lg:flex items-center space-x-2 flex-1">
             {navLinks.map((link) => {
@@ -166,6 +179,22 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
           <div className={`lg:hidden py-6 border-t ${variant === 'light' ? 'border-gray-200' : 'border-white/10'} animate-fade-in`}>
+            {/* COIN PLAY BUTTON - Mobile */}
+            <Link 
+              href="/coin-play"
+              className="flex items-center justify-between mx-6 mb-4 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl shadow-lg border-2 border-amber-400/50"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-3xl animate-pulse">🪙</span>
+                <div className="flex flex-col items-start">
+                  <span className="text-white font-black text-lg leading-tight">COIN PLAY</span>
+                  <span className="text-amber-100 font-bold text-sm leading-tight">25¢ Entry Fee!</span>
+                </div>
+              </div>
+              <span className="text-white text-2xl">→</span>
+            </Link>
+
             <nav className="flex flex-col space-y-4">
               {navLinks.map((link) => {
                 const isActive = currentPage === link.href;
