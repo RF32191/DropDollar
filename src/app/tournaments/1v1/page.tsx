@@ -96,6 +96,7 @@ export default function OneVOnePage() {
     rngSeed: number;
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<string>('all');
   const [payoutTimers, setPayoutTimers] = useState<Record<string, number>>({});
   const [countdownIntervals, setCountdownIntervals] = useState<Record<string, NodeJS.Timeout>>({});
 
@@ -576,6 +577,11 @@ export default function OneVOnePage() {
 
   // Group configs by game type
   const gameTypes = Array.from(new Set(configs.map(c => c.game_type)));
+  
+  // Filter game types based on selection
+  const filteredGameTypes = selectedGame === 'all' 
+    ? gameTypes 
+    : gameTypes.filter(g => g === selectedGame);
 
   const getGameInfo = (type: string) => {
     switch(type) {
@@ -677,8 +683,41 @@ export default function OneVOnePage() {
             </div>
           )}
 
+          {/* Game Filter */}
+          {!loadingConfigs && configs.length > 0 && (
+            <div className="mb-8 flex flex-wrap gap-3 justify-center">
+              <button
+                onClick={() => setSelectedGame('all')}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                  selectedGame === 'all'
+                    ? 'bg-blue-500 text-white shadow-lg scale-105'
+                    : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
+                }`}
+              >
+                All Games ({configs.length})
+              </button>
+              {gameTypes.map(gameType => {
+                const gameInfo = getGameInfo(gameType);
+                const count = configs.filter(c => c.game_type === gameType).length;
+                return (
+                  <button
+                    key={gameType}
+                    onClick={() => setSelectedGame(gameType)}
+                    className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                      selectedGame === gameType
+                        ? 'bg-blue-500 text-white shadow-lg scale-105'
+                        : 'bg-blue-800/50 text-blue-200 hover:bg-blue-700/50'
+                    }`}
+                  >
+                    {gameInfo.emoji} {gameInfo.name} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* 1v1 Games - Organized by Game Type */}
-          {!loadingConfigs && configs.length > 0 && gameTypes.map(gameType => {
+          {!loadingConfigs && configs.length > 0 && filteredGameTypes.map(gameType => {
             const gameConfigs = configs.filter(c => c.game_type === gameType);
             if (gameConfigs.length === 0) return null;
 
