@@ -62,7 +62,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const [totalObjects, setTotalObjects] = useState(0);
   const [caughtObjects, setCaughtObjects] = useState(0);
   const [keysPressed, setKeysPressed] = useState<Set<string>>(new Set());
-  const [suitcaseGlow, setSuitcaseGlow] = useState<'none' | 'blue' | 'green' | 'gold'>('none');
+  const [suitcaseGlow, setSuitcaseGlow] = useState<'none' | 'blue' | 'gold'>('none'); // Removed 'green' for performance
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
@@ -145,8 +145,6 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       setGameState('ended');
       const accuracy = totalObjects > 0 ? (caughtObjects / totalObjects) * 100 : 0;
       
-      console.log('Game ending! Final score:', currentScoreRef.current, 'State score:', score);
-      
       // Always pass the full result object (both competition and practice modes)
       const gameResult = {
         score: currentScoreRef.current, // Use ref for most up-to-date score
@@ -155,11 +153,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       };
       
       // 🔒 AUTO-AUDIT: Log to admin audit system (required for fair skill-based gaming)
-      console.log('🎯 [FallingObject] Game ended, preparing to log audit...');
-      console.log('🎯 [FallingObject] Final score:', currentScoreRef.current, 'Accuracy:', accuracy);
       
       try {
-        const auditResult = await logGameCompletion({
+        await logGameCompletion({
           gameType: GAME_TYPES.FALLING_OBJECT,
           gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
           score: currentScoreRef.current,
@@ -173,12 +169,10 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
             totalObjects
           }
         });
-        console.log('🎯 [FallingObject] Audit result:', auditResult);
       } catch (error) {
         console.error('🎯 [FallingObject] Audit logging failed:', error);
       }
       
-      console.log('FallingObjectGame calling onGameEnd with:', gameResult);
       onGameEnd(gameResult);
     }
   });
@@ -327,13 +321,10 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         return true;
       });
 
-      // Update score immediately after processing objects
+      // Update score ref immediately (visual update batched with React)
       if (caughtThisFrame > 0) {
-        setScore(prev => {
-          const newScore = prev + caughtThisFrame;
-          currentScoreRef.current = newScore; // Update ref for accurate game end reporting
-          return newScore;
-        });
+        currentScoreRef.current += caughtThisFrame;
+        setScore(currentScoreRef.current);
         setCaughtObjects(prev => prev + caughtThisFrame);
       }
 
@@ -504,8 +495,6 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   }, [gameState, updateGame]);
 
   const handleStartGame = () => {
-    console.log('Starting FallingObjectGame countdown...');
-    
     // Reset game state
     setScore(0);
     currentScoreRef.current = 0; // Reset score ref
@@ -519,8 +508,6 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   };
 
   const handleCountdownComplete = () => {
-    console.log('Countdown complete, starting game...');
-    
     // Request pointer lock for fullscreen mouse control
     if (gameAreaRef.current) {
       gameAreaRef.current.requestPointerLock = gameAreaRef.current.requestPointerLock ||
@@ -550,7 +537,6 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   };
 
   const handleCountdownCancel = () => {
-    console.log('Countdown cancelled');
     setGameState('ready');
   };
 

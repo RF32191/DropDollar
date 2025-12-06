@@ -818,12 +818,8 @@ export default function GamesPage() {
               accuracy: gameResults?.accuracy || 100
             }));
             
-            // Force dashboard reload
-            localStorage.setItem('forceDashboardReload', 'true');
-            localStorage.setItem('hasNewGameScore', 'true');
-            
-            // Redirect to dashboard
-            router.push('/dashboard');
+            // Reload games page to play again
+            window.location.href = '/games';
           }, 500);
         }}
       />

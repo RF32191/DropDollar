@@ -115,6 +115,7 @@ export default function PennyPasserGame3D({
   const collectibleCoinsRef = useRef<CollectibleCoin[]>([]);
   const rngRef = useRef<SeededRandom>(new SeededRandom(rngSeed || Date.now()));
   const hasEndedRef = useRef(false);
+  const clockRef = useRef<THREE.Clock>(new THREE.Clock()); // For frame-independent animation
   const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
   const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
   const hopAnimationRef = useRef(0);
@@ -523,36 +524,42 @@ export default function PennyPasserGame3D({
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
 
-      // ROLLING ANIMATION - coin rolls as it moves
-      hopAnimationRef.current += 0.08;
+      // FRAME-INDEPENDENT animation with delta timing
+      const delta = Math.min(clockRef.current.getDelta(), 0.1); // Cap to prevent jumps
+      const frameMultiplier = delta * 60; // Normalize to 60 FPS
+
+      // ROLLING ANIMATION - coin rolls as it moves (SMOOTH on all devices)
+      hopAnimationRef.current += 0.08 * frameMultiplier;
       const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.2;
       pennyRef.current.position.y = 1.3 + hopHeight;
       
-      // Roll the coin (rotate on X axis for forward rolling)
+      // Roll the coin (rotate on X axis for forward rolling, FRAME-INDEPENDENT)
+      const rollSpeed = 0.03 * frameMultiplier;
       if (pennyRef.current.children[0]) {
-        pennyRef.current.children[0].rotation.x += 0.03;
-        pennyRef.current.children[1].rotation.x += 0.03;
-        pennyRef.current.children[2].rotation.x += 0.03;
+        pennyRef.current.children[0].rotation.x += rollSpeed;
+        pennyRef.current.children[1].rotation.x += rollSpeed;
+        pennyRef.current.children[2].rotation.x += rollSpeed;
       }
 
-      // Smooth pulse on outer ring
+      // Smooth pulse on outer ring (FRAME-INDEPENDENT)
       const pulseFactor = Math.sin(hopAnimationRef.current * 1.2) * 0.1 + 1;
       if (pennyRef.current.children[3]) {
         pennyRef.current.children[3].scale.set(pulseFactor, pulseFactor, pulseFactor);
       }
 
-      // Rotate collectible coins for visibility
+      // Rotate collectible coins for visibility (FRAME-INDEPENDENT)
+      const now = Date.now();
       collectibleCoinsRef.current.forEach(coin => {
         if (!coin.collected) {
-          coin.mesh.rotation.y += 0.05;
-          coin.mesh.position.y = 0.5 + Math.sin(Date.now() * 0.003 + coin.x) * 0.2;
+          coin.mesh.rotation.y += 0.05 * frameMultiplier;
+          coin.mesh.position.y = 0.5 + Math.sin(now * 0.003 + coin.x) * 0.2;
         }
       });
 
-      // Move cars - WITH AMBIENT SOUND
+      // Move cars - FRAME-INDEPENDENT for smooth movement
       lanesRef.current.forEach(lane => {
         lane.cars.forEach(car => {
-          car.x += lane.speed * lane.direction;
+          car.x += lane.speed * lane.direction * frameMultiplier;
           
           // Wrap around
           if (car.x > 12) car.x = -12;
@@ -561,9 +568,9 @@ export default function PennyPasserGame3D({
           car.mesh.position.x = car.x;
           car.mesh.position.y = 0.3;
           
-          // Play car sound when passing near penny
+          // Play car sound when passing near penny (reduced frequency for performance)
           if (pennyRef.current && Math.abs(car.mesh.position.z - pennyRef.current.position.z) < 3) {
-            if (Math.abs(car.x - pennyRef.current.position.x) < 5 && Math.random() < 0.01) {
+            if (Math.abs(car.x - pennyRef.current.position.x) < 5 && Math.random() < 0.005) {
               playCarSound();
             }
           }
