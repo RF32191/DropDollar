@@ -57,18 +57,39 @@ export default function AdCampaignManagement() {
   const loadCampaigns = async () => {
     try {
       setIsLoading(true);
+      console.log('📊 [AdCampaignManagement] Loading campaigns...');
+      
       const { data, error } = await supabase
         .from('ad_campaigns')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [AdCampaignManagement] Error loading campaigns:', error);
+        throw error;
+      }
+      
+      console.log('✅ [AdCampaignManagement] Loaded campaigns:', data?.length);
+      console.log('📋 [AdCampaignManagement] Campaign details:', data);
+      
+      // Log campaign status breakdown
+      if (data && data.length > 0) {
+        const statusCounts = data.reduce((acc: any, c: any) => {
+          const key = `${c.campaign_status} (approved: ${c.admin_approved})`;
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('📊 [AdCampaignManagement] Status breakdown:', statusCounts);
+      } else {
+        console.warn('⚠️ [AdCampaignManagement] No campaigns found! This might be an RLS policy issue.');
+        console.log('💡 [AdCampaignManagement] Check if you are logged in as admin (rf32191@gmail.com)');
+      }
+      
       setCampaigns(data || []);
       setLastUpdated(new Date());
-      console.log('📊 [AdCampaignManagement] Loaded campaigns:', data?.length, 'at', new Date().toLocaleTimeString());
     } catch (error) {
-      console.error('Error loading campaigns:', error);
-      alert('Failed to load campaigns');
+      console.error('❌ [AdCampaignManagement] Error loading campaigns:', error);
+      alert('Failed to load campaigns. Check console for details.');
     } finally {
       setIsLoading(false);
     }
@@ -190,6 +211,8 @@ export default function AdCampaignManagement() {
     if (filter === 'pending') return !c.admin_approved && c.campaign_status === 'pending';
     return c.campaign_status === filter;
   });
+  
+  console.log(`🔍 [AdCampaignManagement] Filter: ${filter}, Showing: ${filteredCampaigns.length} of ${campaigns.length} total`);
 
   const stats = {
     total: campaigns.length,
@@ -266,8 +289,25 @@ export default function AdCampaignManagement() {
       {/* Campaigns List */}
       <div className="space-y-4">
         {filteredCampaigns.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            No campaigns found
+          <div className="text-center py-12">
+            {campaigns.length === 0 ? (
+              <div>
+                <p className="text-gray-400 text-lg mb-2">📭 No campaigns in database</p>
+                <p className="text-gray-500 text-sm">
+                  Create a campaign at <a href="/advertising/register" className="text-purple-400 hover:underline">/advertising/register</a>
+                </p>
+                <p className="text-red-400 text-xs mt-4">
+                  ⚠️ If campaigns exist but aren't showing, check RLS policies in database
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-gray-400 text-lg">No campaigns match filter: <span className="text-white font-bold">{filter}</span></p>
+                <p className="text-gray-500 text-sm mt-2">
+                  Total campaigns in database: {campaigns.length}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           filteredCampaigns.map((campaign) => (
