@@ -456,11 +456,10 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'User not in this session');
     END IF;
 
-    -- Update score
+    -- Update score (removed accuracy as column doesn't exist)
     UPDATE public.coin_play_participants
     SET 
         score = score_param,
-        accuracy = accuracy_param,
         completed_at = NOW()
     WHERE session_id = session_id_param AND user_id = user_id_param;
 

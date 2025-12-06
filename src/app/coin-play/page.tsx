@@ -89,15 +89,21 @@ export default function CoinPlayPage() {
   const loadSessions = useCallback(async () => {
     try {
       setIsLoading(true);
+      console.log('🪙 [Coin Play] Loading sessions...');
       const { data, error } = await supabase.rpc('get_coin_play_sessions');
       
-      if (error) throw error;
+      if (error) {
+        console.error('🪙 [Coin Play] RPC Error:', error);
+        throw error;
+      }
       
       console.log('🪙 [Coin Play] Loaded sessions:', data?.length);
       setSessions(data || []);
     } catch (error) {
-      console.error('Error loading Coin Play sessions:', error);
-      setMessage({ type: 'error', text: 'Failed to load Coin Play sessions' });
+      console.error('🪙 [Coin Play] Error loading sessions:', error);
+      setMessage({ type: 'error', text: 'Failed to load Coin Play sessions. Please refresh.' });
+      // Don't block the page, just show empty sessions
+      setSessions([]);
     } finally {
       setIsLoading(false);
     }
@@ -106,6 +112,9 @@ export default function CoinPlayPage() {
   useEffect(() => {
     if (isAuthenticated) {
       loadSessions();
+    } else {
+      // If not authenticated, stop loading
+      setIsLoading(false);
     }
   }, [isAuthenticated, loadSessions]);
 
