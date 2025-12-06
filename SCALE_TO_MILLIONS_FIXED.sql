@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCALE TO MILLIONS OF USERS - UNLIMITED STORAGE FOR AUDIT & W-9 DATA
+-- SCALE TO MILLIONS OF USERS - UNLIMITED STORAGE (FIXED VERSION)
 -- ============================================================================
 -- This script ensures ALL admin tables can store MILLIONS of records
 -- with NO limits and FAST performance through proper indexing
@@ -357,25 +357,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- PART 6: ADD PARTITIONING FOR EXTREME SCALE (OPTIONAL - FOR 100M+ RECORDS)
--- ============================================================================
-
-DO $$
-BEGIN
-    RAISE NOTICE '📦 PARTITIONING SETUP (OPTIONAL - FOR EXTREME SCALE)...';
-    RAISE NOTICE '';
-    RAISE NOTICE '   Note: Current tables can handle millions without partitioning.';
-    RAISE NOTICE '   If you reach 100M+ records, consider partitioning by date.';
-    RAISE NOTICE '';
-    RAISE NOTICE '   Example partitioning strategy:';
-    RAISE NOTICE '   - game_audit_log: Partition by month (created_at)';
-    RAISE NOTICE '   - tax_profiles: No partitioning needed (1 per user)';
-    RAISE NOTICE '   - form_1099_records: Partition by tax_year';
-    RAISE NOTICE '';
-END $$;
-
--- ============================================================================
--- PART 7: VERIFY SETUP
+-- PART 6: VERIFY SETUP
 -- ============================================================================
 
 DO $$
@@ -412,34 +394,6 @@ BEGIN
     RAISE NOTICE '🚀 READY FOR MILLIONS OF USERS!';
     RAISE NOTICE '';
 END $$;
-
--- ============================================================================
--- PART 8: TEST QUERIES (Run these to verify performance)
--- ============================================================================
-
--- Check current record counts
--- SELECT * FROM get_table_record_counts();
-
--- Get first 1000 audit logs (fast)
--- SELECT * FROM get_audit_logs_unlimited(1000, 0);
-
--- Get 10,000 audit logs (still fast with indexes)
--- SELECT * FROM get_audit_logs_unlimited(10000, 0);
-
--- Get all W-9 submissions (no limit)
--- SELECT * FROM get_tax_profiles_unlimited(999999, 0);
-
--- Check index usage
--- SELECT 
---     schemaname,
---     tablename,
---     indexname,
---     idx_scan as times_used,
---     idx_tup_read as rows_read
--- FROM pg_stat_user_indexes
--- WHERE schemaname = 'public'
---   AND tablename IN ('game_audit_log', 'tax_profiles', 'form_1099_records')
--- ORDER BY idx_scan DESC;
 
 -- ============================================================================
 -- DEPLOYMENT COMPLETE
