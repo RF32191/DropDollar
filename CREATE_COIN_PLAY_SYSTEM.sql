@@ -396,9 +396,11 @@ BEGIN
         WHERE id = p_user;
     END IF;
 
-    -- Add participant
-    INSERT INTO public.coin_play_participants (session_id, user_id, entry_fee)
-    VALUES (p_session, p_user, p_fee);
+    -- Add participant (username will be fetched from users table via trigger or set to email)
+    INSERT INTO public.coin_play_participants (session_id, user_id, username)
+    SELECT p_session, p_user, COALESCE(u.username, u.email, 'Player')
+    FROM public.users u
+    WHERE u.id = p_user;
 
     -- Update session counts and prize pool
     UPDATE public.coin_play_sessions
