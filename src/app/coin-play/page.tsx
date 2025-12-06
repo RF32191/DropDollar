@@ -74,7 +74,6 @@ export default function CoinPlayPage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('all');
-  const [showLocationBanner, setShowLocationBanner] = useState(true);
   
   // Location verification
   const {
@@ -85,16 +84,6 @@ export default function CoinPlayPage() {
     handleLocationGranted,
     handleLocationDenied
   } = useLocationVerification(isAuthenticated);
-
-  // Auto-hide banner after location is verified
-  useEffect(() => {
-    if (locationVerified && improvedLocation) {
-      const timer = setTimeout(() => {
-        setShowLocationBanner(false);
-      }, 3000); // Hide after 3 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [locationVerified, improvedLocation]);
 
   // Load sessions
   const loadSessions = useCallback(async () => {
@@ -340,6 +329,9 @@ export default function CoinPlayPage() {
       <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
         <CleanNavigation showUsername={true} />
         
+        {/* Wallet Display */}
+        <PageWalletDisplay />
+
         {/* Location Verification Modal */}
         <LocationVerificationModal
           isOpen={showLocationModal}
@@ -347,32 +339,17 @@ export default function CoinPlayPage() {
           onLocationDenied={handleLocationDenied}
         />
 
-        {/* Location Banner - Auto-dismisses after verification */}
-        {showLocationBanner && improvedLocation && (
-          <div className="relative max-w-7xl mx-auto px-4 pt-4">
-            <LocationBanner 
-              isLoading={locationLoading}
-              isVerified={locationVerified}
-              location={improvedLocation}
-            />
-            {locationVerified && (
-              <button
-                onClick={() => setShowLocationBanner(false)}
-                className="absolute top-6 right-6 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow-lg transition-all duration-300 hover:scale-105"
-              >
-                Continue ✓
-              </button>
-            )}
-          </div>
+        {/* Location Verification Banner */}
+        {isAuthenticated && (
+          <LocationBanner
+            isLoading={locationLoading}
+            location={improvedLocation}
+            isVerified={locationVerified}
+          />
         )}
 
-        {/* Wallet Display */}
-        <PageWalletDisplay />
-
         {/* Ad Banner */}
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <AdBanner pageLocation="coin-play" position="top" />
-        </div>
+        <AdBanner pageLocation="coin-play" position="top" />
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 py-8 pb-24">
