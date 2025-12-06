@@ -98,6 +98,13 @@ export default function CoinPlayPage() {
       }
       
       console.log('🪙 [Coin Play] Loaded sessions:', data?.length);
+      console.log('🪙 [Coin Play] Session data:', data);
+      
+      if (!data || data.length === 0) {
+        console.warn('⚠️ [Coin Play] No sessions returned from RPC!');
+        console.warn('⚠️ [Coin Play] Run CREATE_COIN_PLAY_SYSTEM.sql in Supabase');
+      }
+      
       setSessions(data || []);
     } catch (error) {
       console.error('🪙 [Coin Play] Error loading sessions:', error);
@@ -429,11 +436,31 @@ export default function CoinPlayPage() {
           </div>
 
           {/* Games List */}
-          {filteredGames.length === 0 ? (
+          {sessions.length === 0 ? (
+            <div className="text-center py-16 bg-amber-900/30 rounded-3xl p-12 border-2 border-amber-500/30">
+              <CurrencyDollarIcon className="w-24 h-24 mx-auto text-amber-400/50 mb-6" />
+              <p className="text-3xl text-amber-300 font-black mb-4">No Coin Play Sessions Found</p>
+              <p className="text-xl text-amber-200/90 mb-6">The Coin Play system needs to be set up in the database.</p>
+              <div className="bg-red-900/30 border-2 border-red-500/50 rounded-xl p-6 max-w-2xl mx-auto">
+                <p className="text-red-300 font-bold mb-3">⚠️ Setup Required</p>
+                <p className="text-red-200 text-sm mb-4">Please run these SQL scripts in Supabase:</p>
+                <ol className="text-left text-red-200 text-sm space-y-2">
+                  <li className="flex items-start">
+                    <span className="font-mono bg-black/30 px-2 py-1 rounded mr-2">1.</span>
+                    <span><code className="bg-black/30 px-2 py-1 rounded">CREATE_COIN_PLAY_SYSTEM.sql</code> - Creates tables and 81 listings</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="font-mono bg-black/30 px-2 py-1 rounded mr-2">2.</span>
+                    <span><code className="bg-black/30 px-2 py-1 rounded">DEBUG_COIN_PLAY.sql</code> - Diagnoses any issues</span>
+                  </li>
+                </ol>
+              </div>
+            </div>
+          ) : filteredGames.length === 0 ? (
             <div className="text-center py-16">
               <CurrencyDollarIcon className="w-24 h-24 mx-auto text-amber-400/30 mb-4" />
-              <p className="text-2xl text-amber-300 font-bold">No sessions available</p>
-              <p className="text-amber-200/70 mt-2">Check back soon!</p>
+              <p className="text-2xl text-amber-300 font-bold">No games match your filter</p>
+              <p className="text-amber-200/70 mt-2">Try selecting "All Games"</p>
             </div>
           ) : (
             <div className="space-y-12">
