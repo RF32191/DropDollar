@@ -74,6 +74,7 @@ export default function CoinPlayPage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('all');
+  const [showLocationBanner, setShowLocationBanner] = useState(true);
   
   // Location verification
   const {
@@ -84,6 +85,16 @@ export default function CoinPlayPage() {
     handleLocationGranted,
     handleLocationDenied
   } = useLocationVerification(isAuthenticated);
+
+  // Auto-hide banner after location is verified
+  useEffect(() => {
+    if (locationVerified && improvedLocation) {
+      const timer = setTimeout(() => {
+        setShowLocationBanner(false);
+      }, 3000); // Hide after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [locationVerified, improvedLocation]);
 
   // Load sessions
   const loadSessions = useCallback(async () => {
@@ -336,12 +347,23 @@ export default function CoinPlayPage() {
           onLocationDenied={handleLocationDenied}
         />
 
-        {/* Location Banner */}
-        {!locationLoading && !locationVerified && (
-          <LocationBanner 
-            isVerified={locationVerified}
-            location={improvedLocation}
-          />
+        {/* Location Banner - Auto-dismisses after verification */}
+        {showLocationBanner && improvedLocation && (
+          <div className="relative max-w-7xl mx-auto px-4 pt-4">
+            <LocationBanner 
+              isLoading={locationLoading}
+              isVerified={locationVerified}
+              location={improvedLocation}
+            />
+            {locationVerified && (
+              <button
+                onClick={() => setShowLocationBanner(false)}
+                className="absolute top-6 right-6 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow-lg transition-all duration-300 hover:scale-105"
+              >
+                Continue ✓
+              </button>
+            )}
+          </div>
         )}
 
         {/* Wallet Display */}

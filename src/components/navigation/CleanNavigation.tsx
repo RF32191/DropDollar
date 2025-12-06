@@ -107,16 +107,15 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
             </span>
           </Link>
 
-          {/* COIN PLAY BUTTON - Prominent with Entry Fee */}
+          {/* COIN PLAY BUTTON - Compact */}
           <Link 
             href="/coin-play"
-            className="hidden lg:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border-2 border-amber-400/50"
+            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group border border-amber-400/50"
             onClick={() => handleNavClick('/coin-play', 'Coin Play')}
           >
-            <span className="text-2xl animate-pulse">🪙</span>
+            <span className="text-xl">🪙</span>
             <div className="flex flex-col items-start">
-              <span className="text-white font-black text-sm leading-none">COIN PLAY</span>
-              <span className="text-amber-100 font-bold text-xs leading-none">25¢ Entry!</span>
+              <span className="text-white font-bold text-xs leading-tight">25¢</span>
             </div>
           </Link>
 
