@@ -85,6 +85,7 @@ export default function WinnerTakesAllPage() {
     entryFee: number;
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<string>('all');
   
   // Location verification hook
   const {
@@ -773,6 +774,35 @@ export default function WinnerTakesAllPage() {
     );
   }
 
+  // Group configs by game type
+  const configsByGame = configs.reduce((acc, config) => {
+    if (!acc[config.game_type]) {
+      acc[config.game_type] = [];
+    }
+    acc[config.game_type].push(config);
+    return acc;
+  }, {} as { [key: string]: WinnerTakesAllConfig[] });
+
+  // Sort games alphabetically
+  const sortedGames = Object.keys(configsByGame).sort();
+
+  // Filter games
+  const filteredGames = selectedGame === 'all' 
+    ? sortedGames 
+    : sortedGames.filter(g => g === selectedGame);
+
+  const GAME_NAMES: { [key: string]: string } = {
+    'multi_target': 'Multi-Target Reaction',
+    'falling_object': 'Falling Objects',
+    'color_sequence': 'Color Sequence',
+    'laser_dodge': 'Laser Dodge',
+    'quick_click': 'Quick Click',
+    'sword_parry': 'Sword Parry',
+    'blade_bounce': 'Blade Bounce',
+    'cash_stack': 'Cash Stack',
+    'penny_passer': 'Penny Passer'
+  };
+
   return (
     <>
       {/* Location Verification Modal */}
@@ -852,9 +882,42 @@ export default function WinnerTakesAllPage() {
           </div>
         )}
 
+        {/* Game Filter */}
+        <div className="mb-8 flex flex-wrap gap-3 justify-center">
+          <button
+            onClick={() => setSelectedGame('all')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              selectedGame === 'all'
+                ? 'bg-yellow-500 text-white shadow-lg scale-105'
+                : 'bg-yellow-800/50 text-yellow-200 hover:bg-yellow-700/50'
+            }`}
+          >
+            All Games ({configs.length})
+          </button>
+          {sortedGames.map(gameType => (
+            <button
+              key={gameType}
+              onClick={() => setSelectedGame(gameType)}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                selectedGame === gameType
+                  ? 'bg-yellow-500 text-white shadow-lg scale-105'
+                  : 'bg-yellow-800/50 text-yellow-200 hover:bg-yellow-700/50'
+              }`}
+            >
+              {GAME_NAMES[gameType]} ({configsByGame[gameType].length})
+            </button>
+          ))}
+        </div>
+
         {/* Winner Takes It All Games */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {configs.map((config) => {
+        {filteredGames.map(gameType => (
+          <div key={gameType} className="mb-12">
+            <h2 className="text-4xl font-black text-yellow-200 mb-6 flex items-center gap-4">
+              <TrophyIcon className="w-10 h-10 text-yellow-400" />
+              {GAME_NAMES[gameType]}
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {configsByGame[gameType].map((config) => {
             const session = sessions.find(s => s.config_id === config.id);
             const timeRemaining = session ? calculateTimeRemaining(session) : null;
             const canJoin = userTokens >= config.entry_fee;
@@ -1123,7 +1186,9 @@ export default function WinnerTakesAllPage() {
               </div>
             );
           })}
-        </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
     </>

@@ -104,12 +104,10 @@ export default function CoinPlayPage() {
   }, []);
 
   useEffect(() => {
-    loadSessions();
-    
-    // Auto-refresh every 5 seconds
-    const interval = setInterval(loadSessions, 5000);
-    return () => clearInterval(interval);
-  }, [loadSessions]);
+    if (isAuthenticated) {
+      loadSessions();
+    }
+  }, [isAuthenticated, loadSessions]);
 
   // Join session (matching WTA logic)
   const handleJoinSession = async (configId: string) => {
