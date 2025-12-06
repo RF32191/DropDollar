@@ -315,9 +315,277 @@ BEGIN
 END;
 $$;
 
+-- Join Coin Play session (similar to wta_join_v2)
+CREATE OR REPLACE FUNCTION public.coin_play_join_v2(
+    p_session UUID,
+    p_user UUID,
+    p_fee NUMERIC
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_config_id TEXT;
+    v_purchased_tokens NUMERIC;
+    v_won_tokens NUMERIC;
+    v_total_tokens NUMERIC;
+    v_participants_count INTEGER;
+    v_max_participants INTEGER;
+    v_session_status TEXT;
+BEGIN
+    -- Get session details
+    SELECT config_id, participants_count, status
+    INTO v_config_id, v_participants_count, v_session_status
+    FROM public.coin_play_sessions
+    WHERE id = p_session;
+
+    -- Check if session exists
+    IF v_config_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session not found');
+    END IF;
+
+    -- Check if session is still waiting
+    IF v_session_status != 'waiting' THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session is no longer accepting participants');
+    END IF;
+
+    -- Get max participants from config
+    SELECT max_participants INTO v_max_participants
+    FROM public.coin_play_configs
+    WHERE id = v_config_id;
+
+    -- Check if session is full
+    IF v_participants_count >= v_max_participants THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session is full');
+    END IF;
+
+    -- Check if user already joined
+    IF EXISTS (
+        SELECT 1 FROM public.coin_play_participants
+        WHERE session_id = p_session AND user_id = p_user
+    ) THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Already joined this session');
+    END IF;
+
+    -- Get user's token balance
+    SELECT 
+        COALESCE(purchased_tokens, 0),
+        COALESCE(won_tokens, 0)
+    INTO v_purchased_tokens, v_won_tokens
+    FROM public.users
+    WHERE id = p_user;
+
+    v_total_tokens := v_purchased_tokens + v_won_tokens;
+
+    -- Check if user has enough tokens
+    IF v_total_tokens < p_fee THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Insufficient tokens');
+    END IF;
+
+    -- Deduct entry fee (prioritize won_tokens)
+    IF v_won_tokens >= p_fee THEN
+        UPDATE public.users
+        SET won_tokens = won_tokens - p_fee
+        WHERE id = p_user;
+    ELSE
+        UPDATE public.users
+        SET 
+            won_tokens = 0,
+            purchased_tokens = purchased_tokens - (p_fee - v_won_tokens)
+        WHERE id = p_user;
+    END IF;
+
+    -- Add participant
+    INSERT INTO public.coin_play_participants (session_id, user_id, entry_fee)
+    VALUES (p_session, p_user, p_fee);
+
+    -- Update session counts and prize pool
+    UPDATE public.coin_play_sessions
+    SET 
+        participants_count = participants_count + 1,
+        prize_pool = prize_pool + p_fee
+    WHERE id = p_session;
+
+    -- Check if session should start
+    UPDATE public.coin_play_sessions
+    SET 
+        status = 'active',
+        timer_started_at = NOW()
+    WHERE id = p_session
+    AND participants_count >= (SELECT min_participants FROM public.coin_play_configs WHERE id = v_config_id);
+
+    RETURN jsonb_build_object('success', true, 'message', 'Successfully joined session');
+END;
+$$;
+
+-- Update Coin Play score
+CREATE OR REPLACE FUNCTION public.update_coin_play_score(
+    session_id_param UUID,
+    user_id_param UUID,
+    score_param NUMERIC,
+    accuracy_param NUMERIC DEFAULT 95.0
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_session_status TEXT;
+BEGIN
+    -- Check if session exists and is active
+    SELECT status INTO v_session_status
+    FROM public.coin_play_sessions
+    WHERE id = session_id_param;
+
+    IF v_session_status IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session not found');
+    END IF;
+
+    IF v_session_status != 'active' THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session is not active');
+    END IF;
+
+    -- Check if user is a participant
+    IF NOT EXISTS (
+        SELECT 1 FROM public.coin_play_participants
+        WHERE session_id = session_id_param AND user_id = user_id_param
+    ) THEN
+        RETURN jsonb_build_object('success', false, 'message', 'User not in this session');
+    END IF;
+
+    -- Update score
+    UPDATE public.coin_play_participants
+    SET 
+        score = score_param,
+        accuracy = accuracy_param,
+        completed_at = NOW()
+    WHERE session_id = session_id_param AND user_id = user_id_param;
+
+    RETURN jsonb_build_object('success', true, 'message', 'Score updated successfully');
+END;
+$$;
+
+-- Process Coin Play payout
+CREATE OR REPLACE FUNCTION public.process_coin_play_payout(config_id_param TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_session_id UUID;
+    v_session_status TEXT;
+    v_timer_started_at TIMESTAMPTZ;
+    v_timer_duration INTEGER;
+    v_winner_id UUID;
+    v_winner_username TEXT;
+    v_winner_score NUMERIC;
+    v_prize_pool NUMERIC;
+    v_participants_count INTEGER;
+    v_min_participants INTEGER;
+BEGIN
+    -- Get active session for this config
+    SELECT id, status, timer_started_at, timer_duration, prize_pool, participants_count
+    INTO v_session_id, v_session_status, v_timer_started_at, v_timer_duration, v_prize_pool, v_participants_count
+    FROM public.coin_play_sessions
+    WHERE config_id = config_id_param AND status = 'active'
+    LIMIT 1;
+
+    -- Check if session exists
+    IF v_session_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'No active session found');
+    END IF;
+
+    -- Check if timer has expired
+    IF v_timer_started_at IS NULL OR (NOW() - v_timer_started_at) < (v_timer_duration || ' seconds')::INTERVAL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Timer has not expired yet');
+    END IF;
+
+    -- Check if already paid out
+    IF v_session_status = 'completed' THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Session already paid out');
+    END IF;
+
+    -- Get minimum participants requirement
+    SELECT min_participants INTO v_min_participants
+    FROM public.coin_play_configs
+    WHERE id = config_id_param;
+
+    -- If no scores submitted, refund all participants
+    IF NOT EXISTS (
+        SELECT 1 FROM public.coin_play_participants
+        WHERE session_id = v_session_id AND score IS NOT NULL
+    ) THEN
+        -- Refund all participants
+        UPDATE public.users u
+        SET won_tokens = won_tokens + p.entry_fee
+        FROM public.coin_play_participants p
+        WHERE p.session_id = v_session_id AND p.user_id = u.id;
+
+        -- Mark session as completed
+        UPDATE public.coin_play_sessions
+        SET status = 'completed'
+        WHERE id = v_session_id;
+
+        -- Create new waiting session
+        INSERT INTO public.coin_play_sessions (config_id, status, timer_duration)
+        SELECT config_id, 'waiting', timer_duration
+        FROM public.coin_play_sessions
+        WHERE id = v_session_id;
+
+        RETURN jsonb_build_object(
+            'success', true,
+            'message', 'No scores submitted - all participants refunded',
+            'refunded', v_participants_count
+        );
+    END IF;
+
+    -- Get winner (highest score)
+    SELECT p.user_id, u.username, p.score
+    INTO v_winner_id, v_winner_username, v_winner_score
+    FROM public.coin_play_participants p
+    JOIN public.users u ON p.user_id = u.id
+    WHERE p.session_id = v_session_id AND p.score IS NOT NULL
+    ORDER BY p.score DESC, p.completed_at ASC
+    LIMIT 1;
+
+    -- Award prize to winner
+    UPDATE public.users
+    SET won_tokens = won_tokens + v_prize_pool
+    WHERE id = v_winner_id;
+
+    -- Mark session as completed
+    UPDATE public.coin_play_sessions
+    SET 
+        status = 'completed',
+        winner_user_id = v_winner_id,
+        winner_prize = v_prize_pool
+    WHERE id = v_session_id;
+
+    -- Create new waiting session
+    INSERT INTO public.coin_play_sessions (config_id, status, timer_duration)
+    SELECT config_id, 'waiting', timer_duration
+    FROM public.coin_play_sessions
+    WHERE id = v_session_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'message', 'Payout successful',
+        'winner_id', v_winner_id,
+        'winner_username', v_winner_username,
+        'winner_score', v_winner_score,
+        'payout_amount', v_prize_pool
+    );
+END;
+$$;
+
 DO $$
 BEGIN
     RAISE NOTICE '✅ RPC functions created!';
+    RAISE NOTICE '   - get_coin_play_sessions()';
+    RAISE NOTICE '   - coin_play_join_v2()';
+    RAISE NOTICE '   - update_coin_play_score()';
+    RAISE NOTICE '   - process_coin_play_payout()';
     RAISE NOTICE '';
 END $$;
 

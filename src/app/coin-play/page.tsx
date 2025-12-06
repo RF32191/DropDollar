@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
+import { executeRpcWithSession } from '@/lib/supabase/rpcHelpers';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
@@ -110,95 +111,162 @@ export default function CoinPlayPage() {
     return () => clearInterval(interval);
   }, [loadSessions]);
 
-  // Join session
-  const handleJoinSession = async (session: CoinPlaySession) => {
+  // Join session (matching WTA logic)
+  const handleJoinSession = async (configId: string) => {
+    console.log('🪙 [Coin Play] Join clicked for config:', configId);
+
     if (!user || !isAuthenticated) {
+      console.log('❌ [Coin Play] Not authenticated');
       setMessage({ type: 'error', text: 'Please log in to join' });
       return;
     }
 
-    if (!locationVerified) {
-      setMessage({ type: 'error', text: 'Location verification required' });
+    // Find session for this config
+    const session = sessions.find(s => s.config_id === configId);
+    if (!session) {
+      console.log('❌ [Coin Play] Session not found for config:', configId);
+      setMessage({ type: 'error', text: 'Session not found!' });
       return;
     }
 
+    console.log('✅ [Coin Play] Found session:', session);
+
+    // Check if user has enough tokens
+    console.log('💰 [Coin Play] Token check:', { userTokens, entryFee: session.entry_fee });
     if (userTokens < session.entry_fee) {
-      setMessage({ type: 'error', text: 'Insufficient tokens' });
+      console.log('❌ [Coin Play] Insufficient tokens');
+      setMessage({ type: 'error', text: `You need ${session.entry_fee} tokens to join` });
+      return;
+    }
+
+    // Location verification
+    console.log('🌍 [Coin Play] Location check:', { locationVerified });
+    if (!locationVerified) {
+      console.log('❌ [Coin Play] Location not allowed');
+      setMessage({ type: 'error', text: 'Gaming not allowed in your location. Please check our terms and conditions.' });
+      return;
+    }
+
+    setJoiningSession(true);
+
+    try {
+      console.log('🔄 [Coin Play] Calling coin_play_join_v2...');
+      // Call the SQL function to join session with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('coin_play_join_v2', {
+        p_session: session.id,
+        p_user: user.id,
+        p_fee: session.entry_fee
+      });
+
+      console.log('📊 [Coin Play] SQL response:', { data, error, isSessionValid });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
+
+      if (error) {
+        console.error('❌ [Coin Play] Error joining session:', error);
+        setMessage({ type: 'error', text: error.message || 'Failed to join session' });
+        return;
+      }
+
+      if (!data.success) {
+        console.log('❌ [Coin Play] SQL returned failure:', data.message);
+        setMessage({ type: 'error', text: data.message });
+        return;
+      }
+
+      console.log('✅ [Coin Play] Successfully joined session, refreshing data...');
+      // Refresh token balance
+      refreshTokens();
+      
+      // Reload sessions to get updated data
+      loadSessions();
+
+      setMessage({ type: 'success', text: 'Successfully joined tournament! Starting game...' });
+
+      console.log('🎮 [Coin Play] Starting game with config:', {
+        gameType: session.game_type,
+        sessionId: session.id,
+        configId: configId,
+        entryFee: session.entry_fee
+      });
+
+      // Start the game
+      setSelectedGameFlow({
+        gameType: session.game_type,
+        sessionId: session.id,
+        configId: configId,
+        entryFee: session.entry_fee
+      });
+      setCurrentView('game');
+
+    } catch (error) {
+      console.error('❌ [Coin Play] Error joining session:', error);
+      setMessage({ type: 'error', text: 'Failed to join tournament. Please try again.' });
+    } finally {
+      setJoiningSession(false);
+    }
+  };
+
+  // Handle game completion
+  const handleGameComplete = async (score: number) => {
+    console.log('🎮 [Coin Play] Game completed with score:', score);
+    console.log('👤 [Coin Play] Current user:', user);
+    console.log('🎯 [Coin Play] Selected game flow:', selectedGameFlow);
+    
+    if (!user || !selectedGameFlow) {
+      console.error('❌ [Coin Play] Missing user or game flow data');
+      setMessage({ type: 'error', text: 'Missing user or game data. Please try again.' });
       return;
     }
 
     try {
-      setJoiningSession(true);
-      
-      // Deduct entry fee
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ 
-          gameplay_tokens: userTokens - session.entry_fee,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      // Add participant
-      const { error: participantError } = await supabase
-        .from('coin_play_participants')
-        .insert({
-          session_id: session.id,
-          user_id: user.id,
-          username: user.email?.split('@')[0] || 'Player'
-        });
-
-      if (participantError) {
-        // Refund on error
-        await supabase
-          .from('users')
-          .update({ gameplay_tokens: userTokens })
-          .eq('id', user.id);
-        throw participantError;
-      }
-
-      // Update session
-      const newParticipants = session.participants_count + 1;
-      const newPrizePool = session.prize_pool + session.entry_fee;
-      const shouldStartTimer = newParticipants >= session.max_participants;
-
-      const updateData: any = {
-        participants_count: newParticipants,
-        prize_pool: newPrizePool,
-        updated_at: new Date().toISOString()
-      };
-
-      if (shouldStartTimer && !session.timer_started_at) {
-        updateData.status = 'active';
-        updateData.timer_started_at = new Date().toISOString();
-      }
-
-      await supabase
-        .from('coin_play_sessions')
-        .update(updateData)
-        .eq('id', session.id);
-
-      // Enter game
-      setSelectedGameFlow({
-        gameType: session.game_type,
-        sessionId: session.id,
-        configId: session.config_id,
-        entryFee: session.entry_fee
+      console.log('🔄 [Coin Play] Calling update_coin_play_score with:', {
+        session_id_param: selectedGameFlow.sessionId,
+        user_id_param: user.id,
+        score_param: score,
+        accuracy_param: 95.0
       });
-      setCurrentView('game');
-      
-      refreshTokens();
-      await loadSessions();
-      
-      setMessage({ type: 'success', text: 'Joined successfully! Good luck!' });
-    } catch (error: any) {
-      console.error('Error joining session:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to join session' });
-    } finally {
-      setJoiningSession(false);
+
+      // Update score in database with session guard
+      const { data, error, isSessionValid } = await executeRpcWithSession('update_coin_play_score', {
+        session_id_param: selectedGameFlow.sessionId,
+        user_id_param: user.id,
+        score_param: score,
+        accuracy_param: 95.0 // Default accuracy
+      });
+
+      console.log('📊 [Coin Play] Score save response:', { data, error, isSessionValid });
+
+      if (!isSessionValid) {
+        setMessage({ type: 'error', text: 'Your session has expired. Score not saved.' });
+        return;
+      }
+
+      if (error) {
+        console.error('❌ [Coin Play] Error updating score:', error);
+        setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
+      } else if (data && !data.success) {
+        console.error('❌ [Coin Play] Score save failed:', data.message);
+        setMessage({ type: 'error', text: `Score save failed: ${data.message}` });
+      } else {
+        console.log('✅ [Coin Play] Score recorded successfully:', data);
+        setMessage({ type: 'success', text: `Game completed! Your score: ${score}` });
+      }
+
+      // Reload sessions to get updated data
+      loadSessions();
+
+    } catch (error) {
+      console.error('❌ [Coin Play] Error recording score:', error);
+      setMessage({ type: 'error', text: 'Game completed but there was an error saving your score.' });
     }
+
+    // Return to list view
+    setCurrentView('list');
+    setSelectedGameFlow(null);
   };
 
   // Exit game
@@ -248,6 +316,7 @@ export default function CoinPlayPage() {
             entryNumber={1}
             isCompetitionMode={true}
             onExit={handleExitGame}
+            onGameEnd={handleGameComplete}
             gameId={selectedGameFlow.configId}
           />
         </div>
@@ -421,7 +490,7 @@ export default function CoinPlayPage() {
 
                             {/* Join Button */}
                             <button
-                              onClick={() => handleJoinSession(session)}
+                              onClick={() => handleJoinSession(session.config_id)}
                               disabled={joiningSession || !locationVerified || session.status === 'completed'}
                               className={`w-full py-3 rounded-xl font-black text-lg transition-all ${
                                 joiningSession || !locationVerified || session.status === 'completed'
