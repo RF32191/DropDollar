@@ -74,6 +74,8 @@ export default function CoinPlayPage() {
   } | null>(null);
   const [joiningSession, setJoiningSession] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string>('all');
+  const [expandedScoreboards, setExpandedScoreboards] = useState<Record<string, boolean>>({});
+  const [participants, setParticipants] = useState<Record<string, any[]>>({});
   
   // Location verification
   const {
@@ -130,6 +132,17 @@ export default function CoinPlayPage() {
       setIsLoading(false);
     }
   }, [isAuthenticated, loadSessions]);
+
+  // Auto-refresh sessions every 10 seconds to update progress bars
+  useEffect(() => {
+    if (currentView === 'list') {
+      const interval = setInterval(() => {
+        loadSessions();
+      }, 10000); // Refresh every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [currentView, loadSessions]);
 
   // Join session (matching WTA logic)
   const handleJoinSession = async (configId: string) => {
@@ -296,6 +309,35 @@ export default function CoinPlayPage() {
     loadSessions();
     refreshTokens();
   }, [loadSessions, refreshTokens]);
+
+  // Toggle scoreboard visibility
+  const toggleScoreboard = async (sessionId: string) => {
+    const isExpanded = expandedScoreboards[sessionId];
+    
+    // Toggle expanded state
+    setExpandedScoreboards(prev => ({
+      ...prev,
+      [sessionId]: !isExpanded
+    }));
+
+    // Fetch participants if expanding and not already loaded
+    if (!isExpanded && !participants[sessionId]) {
+      try {
+        const { data, error } = await supabase.rpc('get_coin_play_participants', {
+          p_session_id: sessionId
+        });
+
+        if (error) throw error;
+
+        setParticipants(prev => ({
+          ...prev,
+          [sessionId]: data || []
+        }));
+      } catch (error) {
+        console.error('Error loading participants:', error);
+      }
+    }
+  };
 
   // Group sessions by game
   const sessionsByGame = sessions.reduce((acc, session) => {
@@ -558,6 +600,73 @@ export default function CoinPlayPage() {
                                 `JOIN FOR 25¢`
                               )}
                             </button>
+
+                            {/* Scoreboard Dropdown */}
+                            {session.participants_count > 0 && (
+                              <div className="mt-4">
+                                <button
+                                  onClick={() => toggleScoreboard(session.id)}
+                                  className="w-full flex items-center justify-between px-4 py-2 bg-amber-900/50 hover:bg-amber-900/70 rounded-lg transition-all"
+                                >
+                                  <span className="text-amber-200 font-bold text-sm flex items-center gap-2">
+                                    <TrophyIcon className="w-4 h-4" />
+                                    Leaderboard ({session.participants_count})
+                                  </span>
+                                  <span className={`text-amber-300 transform transition-transform ${expandedScoreboards[session.id] ? 'rotate-180' : ''}`}>
+                                    ▼
+                                  </span>
+                                </button>
+
+                                {expandedScoreboards[session.id] && (
+                                  <div className="mt-2 bg-amber-950/60 rounded-lg p-3 border border-amber-600/30">
+                                    {participants[session.id]?.length > 0 ? (
+                                      <div className="space-y-1">
+                                        {participants[session.id].map((participant: any, index: number) => (
+                                          <div
+                                            key={participant.user_id}
+                                            className={`flex items-center justify-between px-3 py-2 rounded ${
+                                              index === 0 ? 'bg-yellow-500/20 border border-yellow-500/40' :
+                                              index === 1 ? 'bg-gray-400/10 border border-gray-400/30' :
+                                              index === 2 ? 'bg-orange-700/10 border border-orange-700/30' :
+                                              'bg-amber-900/20'
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <span className={`font-black text-sm ${
+                                                index === 0 ? 'text-yellow-300' :
+                                                index === 1 ? 'text-gray-300' :
+                                                index === 2 ? 'text-orange-400' :
+                                                'text-amber-400'
+                                              }`}>
+                                                #{index + 1}
+                                              </span>
+                                              <span className="text-amber-100 text-sm truncate max-w-[120px]">
+                                                {participant.username}
+                                              </span>
+                                            </div>
+                                            <div className="text-right">
+                                              {participant.score !== null ? (
+                                                <span className="text-amber-200 font-bold text-sm">
+                                                  {participant.score}
+                                                </span>
+                                              ) : (
+                                                <span className="text-amber-400/60 text-xs italic">
+                                                  Playing...
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-amber-300/60 text-sm text-center py-2">
+                                        No scores yet
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
