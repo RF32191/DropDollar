@@ -374,12 +374,11 @@ export default function CoinPlayPage() {
           <CleanNavigation currentPage="coin-play" showUsername={true} />
           <CompetitionGameFlow
             gameType={selectedGameFlow.gameType}
-            listingId={selectedGameFlow.sessionId}
-            entryNumber={1}
-            isCompetitionMode={true}
-            onExit={handleExitGame}
-            onGameEnd={handleGameComplete}
-            gameId={selectedGameFlow.configId}
+            sessionId={selectedGameFlow.sessionId}
+            configId={selectedGameFlow.configId}
+            rngSeed={1}
+            onComplete={(score: number) => handleGameComplete(score)}
+            onCancel={handleExitGame}
           />
         </div>
       </ErrorBoundary>
