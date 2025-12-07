@@ -124,25 +124,45 @@ export default function CoinPlayPage() {
     }
   }, []);
 
+  // Load sessions regardless of auth status (everyone can view)
   useEffect(() => {
-    if (isAuthenticated) {
-      loadSessions();
-    } else {
-      // If not authenticated, stop loading
-      setIsLoading(false);
-    }
-  }, [isAuthenticated, loadSessions]);
+    loadSessions();
+  }, [loadSessions]);
 
   // Auto-refresh sessions every 10 seconds to update progress bars
   useEffect(() => {
     if (currentView === 'list') {
       const interval = setInterval(() => {
         loadSessions();
+        // Also reload expanded scoreboards
+        Object.keys(expandedScoreboards).forEach(sessionId => {
+          if (expandedScoreboards[sessionId]) {
+            loadParticipants(sessionId);
+          }
+        });
       }, 10000); // Refresh every 10 seconds
 
       return () => clearInterval(interval);
     }
-  }, [currentView, loadSessions]);
+  }, [currentView, loadSessions, expandedScoreboards]);
+
+  // Load participants for a session
+  const loadParticipants = async (sessionId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_coin_play_participants', {
+        p_session_id: sessionId
+      });
+
+      if (error) throw error;
+
+      setParticipants(prev => ({
+        ...prev,
+        [sessionId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error loading participants:', error);
+    }
+  };
 
   // Join session (matching WTA logic)
   const handleJoinSession = async (configId: string) => {
@@ -320,22 +340,9 @@ export default function CoinPlayPage() {
       [sessionId]: !isExpanded
     }));
 
-    // Fetch participants if expanding and not already loaded
-    if (!isExpanded && !participants[sessionId]) {
-      try {
-        const { data, error } = await supabase.rpc('get_coin_play_participants', {
-          p_session_id: sessionId
-        });
-
-        if (error) throw error;
-
-        setParticipants(prev => ({
-          ...prev,
-          [sessionId]: data || []
-        }));
-      } catch (error) {
-        console.error('Error loading participants:', error);
-      }
+    // Fetch participants if expanding
+    if (!isExpanded) {
+      await loadParticipants(sessionId);
     }
   };
 
@@ -356,7 +363,8 @@ export default function CoinPlayPage() {
     ? sortedGames 
     : sortedGames.filter(g => g === selectedGame);
 
-  if (authLoading || tokensLoading || isLoading) {
+  // Only show loading if sessions are being loaded (not waiting for auth)
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900 flex items-center justify-center">
         <div className="text-center">
@@ -531,18 +539,32 @@ export default function CoinPlayPage() {
                           timeRemaining = Math.max(0, session.timer_duration - elapsed);
                         }
 
+                        // Calculate prize pool from config
+                        const configPrize = parseInt(session.config_id.split('-').pop() || '0');
+                        const currentPrize = session.prize_pool > 0 ? session.prize_pool : configPrize;
+
                         return (
                           <div
                             key={session.id}
                             className="bg-gradient-to-br from-amber-700/60 to-orange-800/60 rounded-2xl p-6 border-2 border-amber-500/40 hover:border-amber-400/80 transition-all hover:scale-105 shadow-xl"
                           >
-                            {/* Prize Amount */}
-                            <div className="text-center mb-4">
-                              <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-300">
-                                ${session.prize_pool.toFixed(0)}
+                            {/* Title: Prize Amount */}
+                            <div className="text-center mb-4 border-b-2 border-amber-500/30 pb-4">
+                              <h3 className="text-2xl font-black text-amber-200 mb-2">
+                                ${configPrize} Prize Pool
+                              </h3>
+                              <div className="text-sm text-amber-300/80">
+                                Winner gets ${(configPrize * 0.85).toFixed(2)}
                               </div>
-                              <div className="text-sm text-amber-200/80 mt-1">
-                                Winner gets ${(session.prize_pool * 0.85).toFixed(2)}
+                            </div>
+
+                            {/* Current Pool */}
+                            <div className="text-center mb-4">
+                              <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-300">
+                                ${currentPrize.toFixed(2)}
+                              </div>
+                              <div className="text-xs text-amber-200/60">
+                                Current Pool
                               </div>
                             </div>
 
@@ -620,46 +642,54 @@ export default function CoinPlayPage() {
                                   <div className="mt-2 bg-amber-950/60 rounded-lg p-3 border border-amber-600/30">
                                     {participants[session.id]?.length > 0 ? (
                                       <div className="space-y-1">
-                                        {participants[session.id].map((participant: any, index: number) => (
-                                          <div
-                                            key={participant.user_id}
-                                            className={`flex items-center justify-between px-3 py-2 rounded ${
-                                              index === 0 ? 'bg-yellow-500/20 border border-yellow-500/40' :
-                                              index === 1 ? 'bg-gray-400/10 border border-gray-400/30' :
-                                              index === 2 ? 'bg-orange-700/10 border border-orange-700/30' :
-                                              'bg-amber-900/20'
-                                            }`}
-                                          >
-                                            <div className="flex items-center gap-2">
-                                              <span className={`font-black text-sm ${
-                                                index === 0 ? 'text-yellow-300' :
-                                                index === 1 ? 'text-gray-300' :
-                                                index === 2 ? 'text-orange-400' :
-                                                'text-amber-400'
-                                              }`}>
-                                                #{index + 1}
-                                              </span>
-                                              <span className="text-amber-100 text-sm truncate max-w-[120px]">
-                                                {participant.username}
-                                              </span>
-                                            </div>
-                                            <div className="text-right">
-                                              {participant.score !== null ? (
-                                                <span className="text-amber-200 font-bold text-sm">
-                                                  {participant.score}
+                                        {participants[session.id].map((participant: any, index: number) => {
+                                          const hasScore = participant.score !== null && participant.score !== undefined;
+                                          const isCurrentUser = user && participant.user_id === user.id;
+                                          
+                                          return (
+                                            <div
+                                              key={participant.user_id}
+                                              className={`flex items-center justify-between px-3 py-2 rounded ${
+                                                index === 0 && hasScore ? 'bg-yellow-500/20 border border-yellow-500/40' :
+                                                index === 1 && hasScore ? 'bg-gray-400/10 border border-gray-400/30' :
+                                                index === 2 && hasScore ? 'bg-orange-700/10 border border-orange-700/30' :
+                                                isCurrentUser ? 'bg-amber-600/20 border border-amber-500/40' :
+                                                'bg-amber-900/20'
+                                              }`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <span className={`font-black text-sm ${
+                                                  index === 0 && hasScore ? 'text-yellow-300' :
+                                                  index === 1 && hasScore ? 'text-gray-300' :
+                                                  index === 2 && hasScore ? 'text-orange-400' :
+                                                  'text-amber-400'
+                                                }`}>
+                                                  {hasScore ? `#${index + 1}` : '—'}
                                                 </span>
-                                              ) : (
-                                                <span className="text-amber-400/60 text-xs italic">
-                                                  Playing...
+                                                <span className={`text-sm truncate max-w-[120px] ${
+                                                  isCurrentUser ? 'text-amber-100 font-bold' : 'text-amber-200'
+                                                }`}>
+                                                  {participant.username} {isCurrentUser ? '(You)' : ''}
                                                 </span>
-                                              )}
+                                              </div>
+                                              <div className="text-right">
+                                                {hasScore ? (
+                                                  <span className="text-amber-100 font-black text-sm">
+                                                    {Number(participant.score).toLocaleString()}
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-amber-400/60 text-xs italic">
+                                                    Playing...
+                                                  </span>
+                                                )}
+                                              </div>
                                             </div>
-                                          </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     ) : (
                                       <p className="text-amber-300/60 text-sm text-center py-2">
-                                        No scores yet
+                                        Loading scoreboard...
                                       </p>
                                     )}
                                   </div>
