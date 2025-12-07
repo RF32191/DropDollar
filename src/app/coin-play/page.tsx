@@ -98,11 +98,17 @@ export default function CoinPlayPage() {
       }
       
       console.log('🪙 [Coin Play] Loaded sessions:', data?.length);
-      console.log('🪙 [Coin Play] Session data:', data);
+      console.log('🪙 [Coin Play] Full session data:', JSON.stringify(data?.slice(0, 3), null, 2));
       
       if (!data || data.length === 0) {
-        console.warn('⚠️ [Coin Play] No sessions returned from RPC!');
-        console.warn('⚠️ [Coin Play] Run CREATE_COIN_PLAY_SYSTEM.sql in Supabase');
+        console.error('❌ [Coin Play] NO SESSIONS RETURNED FROM RPC!');
+        console.error('❌ [Coin Play] This means:');
+        console.error('   1. Tables not created (run CREATE_COIN_PLAY_SYSTEM.sql)');
+        console.error('   2. Sessions not created (run DEBUG_COIN_PLAY.sql)');
+        console.error('   3. RLS blocking access (run QUICK_FIX_COIN_PLAY.sql)');
+      } else {
+        console.log('✅ [Coin Play] Successfully loaded', data.length, 'sessions');
+        console.log('✅ [Coin Play] Game types:', [...new Set(data.map((s: any) => s.game_type))]);
       }
       
       setSessions(data || []);
