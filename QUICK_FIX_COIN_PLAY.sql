@@ -52,7 +52,10 @@ CREATE POLICY "Anyone can view Coin Play configs"
 ON public.coin_play_configs FOR SELECT
 USING (true);
 
-RAISE NOTICE '✅ RLS policies updated for public access';
+DO $$
+BEGIN
+    RAISE NOTICE '✅ RLS policies updated for public access';
+END $$;
 
 -- STEP 3: Show sample data to verify
 SELECT 
