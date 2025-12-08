@@ -22,7 +22,8 @@ import {
   StarIcon,
   LockClosedIcon,
   MapPinIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 
 interface CoinPlaySession {
@@ -76,6 +77,7 @@ export default function CoinPlayPage() {
   const [selectedGame, setSelectedGame] = useState<string>('all');
   const [expandedScoreboards, setExpandedScoreboards] = useState<Record<string, boolean>>({});
   const [participants, setParticipants] = useState<Record<string, any[]>>({});
+  const [manualLocationModal, setManualLocationModal] = useState(false);
   
   // Location verification
   const {
@@ -272,6 +274,8 @@ export default function CoinPlayPage() {
     if (!user || !selectedGameFlow) {
       console.error('❌ [Coin Play] Missing user or game flow data');
       setMessage({ type: 'error', text: 'Missing user or game data. Please try again.' });
+      setCurrentView('list');
+      setSelectedGameFlow(null);
       return;
     }
 
@@ -279,7 +283,7 @@ export default function CoinPlayPage() {
       console.log('🔄 [Coin Play] Calling update_coin_play_score with:', {
         session_id_param: selectedGameFlow.sessionId,
         user_id_param: user.id,
-        score_param: score,
+        score_param: Math.floor(score), // Ensure integer
         accuracy_param: 95.0
       });
 
@@ -287,18 +291,16 @@ export default function CoinPlayPage() {
       const { data, error, isSessionValid } = await executeRpcWithSession('update_coin_play_score', {
         session_id_param: selectedGameFlow.sessionId,
         user_id_param: user.id,
-        score_param: score,
-        accuracy_param: 95.0 // Default accuracy
+        score_param: Math.floor(score), // Ensure integer
+        accuracy_param: 95.0
       });
 
       console.log('📊 [Coin Play] Score save response:', { data, error, isSessionValid });
 
       if (!isSessionValid) {
+        console.error('❌ [Coin Play] Session invalid');
         setMessage({ type: 'error', text: 'Your session has expired. Score not saved.' });
-        return;
-      }
-
-      if (error) {
+      } else if (error) {
         console.error('❌ [Coin Play] Error updating score:', error);
         setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
       } else if (data && !data.success) {
@@ -306,11 +308,16 @@ export default function CoinPlayPage() {
         setMessage({ type: 'error', text: `Score save failed: ${data.message}` });
       } else {
         console.log('✅ [Coin Play] Score recorded successfully:', data);
-        setMessage({ type: 'success', text: `Game completed! Your score: ${score}` });
+        setMessage({ type: 'success', text: `Game completed! Your score: ${Math.floor(score)}` });
+        
+        // Reload the specific session's scoreboard immediately
+        if (selectedGameFlow?.sessionId) {
+          await loadParticipants(selectedGameFlow.sessionId);
+        }
       }
 
       // Reload sessions to get updated data
-      loadSessions();
+      await loadSessions();
 
     } catch (error) {
       console.error('❌ [Coin Play] Error recording score:', error);
@@ -397,9 +404,15 @@ export default function CoinPlayPage() {
     <>
       {/* Location Verification Modal */}
       <LocationVerificationModal
-        isOpen={showLocationModal}
-        onLocationGranted={handleLocationGranted}
-        onLocationDenied={handleLocationDenied}
+        isOpen={showLocationModal || manualLocationModal}
+        onLocationGranted={(location) => {
+          handleLocationGranted(location);
+          setManualLocationModal(false);
+        }}
+        onLocationDenied={() => {
+          handleLocationDenied();
+          setManualLocationModal(false);
+        }}
       />
 
       <ErrorBoundary>
@@ -600,23 +613,44 @@ export default function CoinPlayPage() {
 
                             {/* Join Button */}
                             <button
-                              onClick={() => handleJoinSession(session.config_id)}
-                              disabled={joiningSession || !locationVerified || session.status === 'completed'}
+                              onClick={() => {
+                                if (!isAuthenticated) {
+                                  window.location.href = '/auth/login';
+                                } else if (!locationVerified) {
+                                  // Trigger location modal
+                                  setManualLocationModal(true);
+                                } else {
+                                  handleJoinSession(session.config_id);
+                                }
+                              }}
+                              disabled={joiningSession || session.status === 'completed' || (isAuthenticated && locationVerified && userTokens < session.entry_fee)}
                               className={`w-full py-3 rounded-xl font-black text-lg transition-all ${
-                                joiningSession || !locationVerified || session.status === 'completed'
+                                joiningSession || session.status === 'completed' || (isAuthenticated && locationVerified && userTokens < session.entry_fee)
                                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                  : 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white hover:from-amber-400 hover:to-yellow-500 shadow-lg hover:scale-105'
+                                  : isAuthenticated && locationVerified
+                                    ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white hover:from-amber-400 hover:to-yellow-500 shadow-lg hover:scale-105'
+                                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-400 hover:to-purple-500 shadow-lg hover:scale-105'
                               }`}
                             >
                               {joiningSession ? (
                                 'Joining...'
-                              ) : !locationVerified ? (
-                                <span className="flex items-center justify-center gap-2">
-                                  <LockClosedIcon className="w-5 h-5" />
-                                  Location Required
-                                </span>
                               ) : session.status === 'completed' ? (
                                 'Completed'
+                              ) : !isAuthenticated ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <UserIcon className="w-5 h-5" />
+                                  Sign In to Play
+                                </span>
+                              ) : !locationVerified ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <MapPinIcon className="w-5 h-5" />
+                                  Verify Location
+                                </span>
+                              ) : userTokens < session.entry_fee ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <LockClosedIcon className="w-5 h-5" />
+                                  Need {session.entry_fee} Tokens
+                                </span>
                               ) : (
                                 `JOIN FOR 25¢`
                               )}
