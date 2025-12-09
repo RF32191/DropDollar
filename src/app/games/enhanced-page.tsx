@@ -144,6 +144,10 @@ export default function EnhancedGamesPage() {
             await XPService.updateDailyChallengeProgress(user.id, 'play_practice', 1);
             await XPService.updateDailyChallengeProgress(user.id, 'games_count', 1);
             
+            // Update weekly challenge progress
+            await XPService.updateWeeklyChallengeProgress(user.id, 'play_practice', 1);
+            await XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1);
+            
             // Check score threshold challenge (1000+ points)
             if (result.score >= 1000) {
               await XPService.updateDailyChallengeProgress(user.id, 'score_threshold', 1);
