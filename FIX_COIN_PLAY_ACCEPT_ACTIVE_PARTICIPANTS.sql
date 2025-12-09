@@ -57,7 +57,12 @@ BEGIN
     FROM public.coin_play_configs
     WHERE id = v_config_id;
 
-    -- Check if session is full
+    -- Recalculate actual participant count to ensure accuracy
+    SELECT COUNT(*) INTO v_participants_count
+    FROM public.coin_play_participants
+    WHERE session_id = p_session;
+
+    -- Check if session is full (using actual count, not stored count)
     IF v_participants_count >= v_max_participants THEN
         RETURN jsonb_build_object('success', false, 'message', 'Session is full');
     END IF;

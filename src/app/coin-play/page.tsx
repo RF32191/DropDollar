@@ -91,9 +91,11 @@ export default function CoinPlayPage() {
   } = useLocationVerification(isAuthenticated);
 
   // Load sessions
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (silent: boolean = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       console.log('🪙 [Coin Play] Loading sessions...');
       const { data, error } = await supabase.rpc('get_coin_play_sessions');
       
@@ -116,14 +118,28 @@ export default function CoinPlayPage() {
         console.log('✅ [Coin Play] Game types:', [...new Set(data.map((s: any) => s.game_type))]);
       }
       
+      // Save scroll position before updating state
+      const scrollY = window.scrollY;
+      
       setSessions(data || []);
+      
+      // Restore scroll position after state update (use requestAnimationFrame to ensure DOM has updated)
+      if (silent && scrollY > 0) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, scrollY);
+        });
+      }
     } catch (error) {
       console.error('🪙 [Coin Play] Error loading sessions:', error);
-      setMessage({ type: 'error', text: 'Failed to load Coin Play sessions. Please refresh.' });
+      if (!silent) {
+        setMessage({ type: 'error', text: 'Failed to load Coin Play sessions. Please refresh.' });
+      }
       // Don't block the page, just show empty sessions
       setSessions([]);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -132,11 +148,11 @@ export default function CoinPlayPage() {
     loadSessions();
   }, [loadSessions]);
 
-  // Auto-refresh sessions every 10 seconds to update progress bars
+  // Auto-refresh sessions every 10 seconds to update progress bars (silent refresh to prevent scroll)
   useEffect(() => {
     if (currentView === 'list') {
       const interval = setInterval(() => {
-        loadSessions();
+        loadSessions(true); // Silent refresh - won't scroll to top
         // Also reload expanded scoreboards
         Object.keys(expandedScoreboards).forEach(sessionId => {
           if (expandedScoreboards[sessionId]) {
