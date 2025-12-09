@@ -22,113 +22,120 @@ export default function HomePage() {
     let hasPlayed = false;
     let audio: HTMLAudioElement | null = null;
     
-    console.log('🎵 Attempting to load audio:', audioFile);
-    
-    // Create audio element
-    audio = new Audio(audioFile);
-    audioRef.current = audio;
-    audio.volume = 0.7; // Slightly higher volume
-    audio.loop = false;
-    
-    // Error handlers
-    audio.addEventListener('error', (e) => {
-      console.error('❌ Audio error:', e);
-      console.error('Audio error details:', {
-        code: audio?.error?.code,
-        message: audio?.error?.message,
-        networkState: audio?.networkState,
-        readyState: audio?.readyState
-      });
-    });
-    
-    audio.addEventListener('loadstart', () => {
-      console.log('📥 Audio loading started');
-    });
-    
-    audio.addEventListener('loadeddata', () => {
-      console.log('📦 Audio data loaded');
-    });
-    
-    audio.addEventListener('canplay', () => {
-      console.log('▶️ Audio can play');
-    });
-    
-    const playAudio = async () => {
-      if (hasPlayed || !audio) return;
-      
+    // First check if file exists
+    const checkAndPlayAudio = async () => {
       try {
-        console.log('🎯 Attempting to play audio...');
-        console.log('Audio state:', {
-          readyState: audio.readyState,
-          networkState: audio.networkState,
-          paused: audio.paused,
-          src: audio.src
+        const response = await fetch(audioFile, { method: 'HEAD' });
+        if (!response.ok) {
+          console.log('ℹ️ Audio file not found:', audioFile, '- Skipping audio playback');
+          return;
+        }
+        
+        console.log('🎵 Audio file found, loading:', audioFile);
+        
+        // Create audio element
+        audio = new Audio(audioFile);
+        audioRef.current = audio;
+        audio.volume = 0.7;
+        audio.loop = false;
+        
+        // Error handlers - silent fail for 404
+        audio.addEventListener('error', (e) => {
+          const errorCode = audio?.error?.code;
+          if (errorCode === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED or file not found
+            console.log('ℹ️ Audio file not available:', audioFile);
+          } else {
+            console.error('❌ Audio error:', errorCode, audio?.error?.message);
+          }
+        });
+    
+        audio.addEventListener('loadstart', () => {
+          console.log('📥 Audio loading started');
         });
         
-        const playPromise = audio.play();
+        audio.addEventListener('loadeddata', () => {
+          console.log('📦 Audio data loaded');
+        });
         
-        if (playPromise !== undefined) {
-          await playPromise;
-          hasPlayed = true;
-          console.log('✅ HomePage audio is now playing!');
-        }
-      } catch (error: any) {
-        console.warn('⚠️ Autoplay blocked:', error.name, error.message);
-        console.log('💡 Audio will play on first user interaction');
+        audio.addEventListener('canplay', () => {
+          console.log('▶️ Audio can play');
+        });
         
-        // Play on first user interaction
-        const playOnInteraction = async () => {
-          if (!hasPlayed && audio) {
-            try {
-              await audio.play();
+        const playAudio = async () => {
+          if (hasPlayed || !audio) return;
+          
+          try {
+            console.log('🎯 Attempting to play audio...');
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+              await playPromise;
               hasPlayed = true;
-              console.log('✅ HomePage audio playing after user interaction');
-            } catch (err) {
-              console.error('❌ Error playing audio after interaction:', err);
+              console.log('✅ HomePage audio is now playing!');
             }
-            document.removeEventListener('click', playOnInteraction);
-            document.removeEventListener('touchstart', playOnInteraction);
-            document.removeEventListener('keydown', playOnInteraction);
+          } catch (error: any) {
+            console.warn('⚠️ Autoplay blocked:', error.name);
+            console.log('💡 Audio will play on first user interaction');
+            
+            // Play on first user interaction
+            const playOnInteraction = async () => {
+              if (!hasPlayed && audio) {
+                try {
+                  await audio.play();
+                  hasPlayed = true;
+                  console.log('✅ HomePage audio playing after user interaction');
+                } catch (err) {
+                  console.error('❌ Error playing audio:', err);
+                }
+                document.removeEventListener('click', playOnInteraction);
+                document.removeEventListener('touchstart', playOnInteraction);
+                document.removeEventListener('keydown', playOnInteraction);
+              }
+            };
+            
+            document.addEventListener('click', playOnInteraction, { once: true });
+            document.addEventListener('touchstart', playOnInteraction, { once: true });
+            document.addEventListener('keydown', playOnInteraction, { once: true });
           }
         };
         
-        document.addEventListener('click', playOnInteraction, { once: true });
-        document.addEventListener('touchstart', playOnInteraction, { once: true });
-        document.addEventListener('keydown', playOnInteraction, { once: true });
-      }
-    };
-    
-    // Try multiple approaches to play
-    audio.addEventListener('canplaythrough', () => {
-      console.log('✅ Audio ready to play');
-      playAudio();
-    }, { once: true });
-    
-    // Immediate attempt after load
-    audio.addEventListener('loadeddata', () => {
-      setTimeout(() => playAudio(), 100);
-    }, { once: true });
-    
-    // Fallback timer
-    const fallbackTimer = setTimeout(() => {
-      if (!hasPlayed) {
-        console.log('⏰ Fallback: attempting to play audio');
-        playAudio();
-      }
-    }, 1000);
-    
-    // Start loading
-    audio.load();
-    console.log('🚀 Audio load() called');
+        // Try multiple approaches to play
+        audio.addEventListener('canplaythrough', () => {
+          console.log('✅ Audio ready to play');
+          playAudio();
+        }, { once: true });
+        
+        // Immediate attempt after load
+        audio.addEventListener('loadeddata', () => {
+          setTimeout(() => playAudio(), 100);
+        }, { once: true });
+        
+        // Fallback timer
+        const fallbackTimer = setTimeout(() => {
+          if (!hasPlayed && audio) {
+            console.log('⏰ Fallback: attempting to play audio');
+            playAudio();
+          }
+        }, 1000);
+        
+        // Start loading
+        audio.load();
+        console.log('🚀 Audio load() called');
 
-    return () => {
-      clearTimeout(fallbackTimer);
-      if (audio) {
-        audio.pause();
-        audio = null;
+        return () => {
+          clearTimeout(fallbackTimer);
+          if (audio) {
+            audio.pause();
+            audio = null;
+          }
+          audioRef.current = null;
+        };
+      } catch (error) {
+        console.log('ℹ️ Could not check audio file:', error);
       }
-      audioRef.current = null;
     };
+    
+    checkAndPlayAudio();
   }, []);
 
   return (
