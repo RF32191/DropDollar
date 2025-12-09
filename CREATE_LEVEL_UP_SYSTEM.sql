@@ -318,12 +318,9 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    v_xp_amount INTEGER;
+    v_xp_amount INTEGER := 5; -- Fixed 5 XP for practice games, no reward points
 BEGIN
-    -- Small XP for practice: 1-5 XP based on score
-    -- Base: 1 XP, bonus: +1 XP per 500 score points (max 5 XP total)
-    v_xp_amount := 1 + LEAST(FLOOR(p_score / 500), 4);
-    
+    -- Fixed 5 XP for practice games (no reward points)
     RETURN public.award_xp(
         p_user_id,
         v_xp_amount,
