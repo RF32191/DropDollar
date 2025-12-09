@@ -190,50 +190,7 @@ export default function CoinPlayPage() {
     }, 1000); // Check every second
 
     return () => clearInterval(checkInterval);
-  }, [sessions, autoPayoutTriggered, handleManualPayout]);
-
-  // AUTO-PAYOUT: Automatically trigger payout when timer expires
-  useEffect(() => {
-    const checkInterval = setInterval(() => {
-      sessions.forEach((session) => {
-        if (session.status === 'active' && session.timer_started_at) {
-          const timeRemaining = calculateTimeRemaining(session);
-          
-          // Check if timer has expired and payout hasn't been triggered yet
-          if (timeRemaining && timeRemaining.total <= 0) {
-            const sessionKey = session.config_id;
-            
-            // Only trigger if not already triggered for this session
-            if (!autoPayoutTriggered.has(sessionKey)) {
-              console.log(`⏰ [Coin Play Auto-Payout] Timer expired for ${sessionKey}`);
-              console.log(`💰 [Coin Play Auto-Payout] Triggering payout...`);
-              
-              // Mark as triggered immediately to prevent duplicates
-              setAutoPayoutTriggered(prev => new Set(prev).add(sessionKey));
-              
-              // Trigger payout after a short delay to ensure timer is fully expired
-              setTimeout(async () => {
-                try {
-                  await handleManualPayout(sessionKey);
-                  console.log(`✅ [Coin Play Auto-Payout] Payout completed for ${sessionKey}`);
-                } catch (error) {
-                  console.error(`❌ [Coin Play Auto-Payout] Error for ${sessionKey}:`, error);
-                  // Remove from triggered set so it can retry
-                  setAutoPayoutTriggered(prev => {
-                    const newSet = new Set(prev);
-                    newSet.delete(sessionKey);
-                    return newSet;
-                  });
-                }
-              }, 2000); // 2 second delay to ensure timer is fully expired
-            }
-          }
-        }
-      });
-    }, 1000); // Check every second
-
-    return () => clearInterval(checkInterval);
-  }, [sessions, autoPayoutTriggered]);
+  }, [sessions, autoPayoutTriggered, calculateTimeRemaining, handleManualPayout]);
 
   // Load participants for a session
   const loadParticipants = async (sessionId: string) => {
@@ -467,16 +424,8 @@ export default function CoinPlayPage() {
     setSelectedGameFlow(null);
   };
 
-  // Exit game
-  const handleExitGame = useCallback(() => {
-    setCurrentView('list');
-    setSelectedGameFlow(null);
-    loadSessions();
-    refreshTokens();
-  }, [loadSessions, refreshTokens]);
-
   // Calculate time remaining for a session
-  const calculateTimeRemaining = (session: CoinPlaySession) => {
+  const calculateTimeRemaining = useCallback((session: CoinPlaySession) => {
     if (!session.timer_started_at || session.status !== 'active') {
       return null;
     }
@@ -489,7 +438,7 @@ export default function CoinPlayPage() {
       minutes: Math.floor(remaining / 60),
       seconds: remaining % 60
     };
-  };
+  }, []);
 
   // Trigger payout for a session
   const handleManualPayout = useCallback(async (configId: string) => {
@@ -530,6 +479,14 @@ export default function CoinPlayPage() {
       console.error('❌ [Coin Play] Error triggering payout:', error);
       setMessage({ type: 'error', text: 'Failed to trigger payout' });
     }
+  }, [loadSessions, refreshTokens]);
+
+  // Exit game
+  const handleExitGame = useCallback(() => {
+    setCurrentView('list');
+    setSelectedGameFlow(null);
+    loadSessions();
+    refreshTokens();
   }, [loadSessions, refreshTokens]);
 
   // Toggle scoreboard visibility
