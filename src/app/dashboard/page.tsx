@@ -565,6 +565,11 @@ export default function TriumphStyleDashboard() {
     if (!user || isRefreshing) return;
     
     try {
+      // Refresh XP data when refreshing dashboard
+      const xpData = await XPService.getUserXP(user.id).catch(() => null);
+      if (xpData) {
+        setUserXP(xpData);
+      }
       setIsRefreshing(true);
       console.log('🔄 [Dashboard] Refreshing all data...');
       
