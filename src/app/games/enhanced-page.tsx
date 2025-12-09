@@ -136,8 +136,17 @@ export default function EnhancedGamesPage() {
               result.score
             );
             
+            console.log('📊 [Games] XP Result:', xpResult);
             if (xpResult?.leveled_up) {
               console.log('🎉 [Games] Level up! New level:', xpResult.new_level);
+              // Show level up notification
+              setTimeout(() => {
+                alert(`🎉 LEVEL UP!\n\nYou reached Level ${xpResult.new_level}!\n\nKeep playing to level up more!`);
+              }, 500);
+            } else if (xpResult?.success) {
+              console.log('✅ [Games] XP awarded successfully. Current level:', xpResult.new_level || 'unknown');
+            } else {
+              console.warn('⚠️ [Games] XP award returned:', xpResult);
             }
             
             // Update daily challenge progress
