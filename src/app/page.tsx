@@ -21,6 +21,7 @@ export default function HomePage() {
     const audioFile = '/HomePage.mp3';
     let hasPlayed = false;
     let audio: HTMLAudioElement | null = null;
+    let fileCheckComplete = false;
     
     // Check if file exists BEFORE creating audio element
     const checkAndPlayAudio = async () => {
@@ -28,29 +29,33 @@ export default function HomePage() {
         // Try HEAD request to check if file exists
         const response = await fetch(audioFile, { 
           method: 'HEAD',
-          cache: 'no-cache',
-          signal: AbortSignal.timeout(3000) // 3 second timeout
+          cache: 'no-cache'
         });
         
         // If file doesn't exist (404 or any non-ok status), don't create audio
-        if (!response.ok) {
+        if (!response.ok || response.status === 404) {
           console.log('ℹ️ Audio file not found:', audioFile, '- Audio playback disabled');
+          fileCheckComplete = true;
           return; // Exit early - don't create Audio element
         }
         
+        fileCheckComplete = true;
         console.log('✅ Audio file found:', audioFile);
         
-        // Only create audio element if file exists
+        // Only create audio element if file exists and check is complete
+        if (!fileCheckComplete) return;
+        
         audio = new Audio(audioFile);
         audioRef.current = audio;
         audio.volume = 0.7;
         audio.loop = false;
         
-        // Error handler as backup
+        // Error handler as backup - if audio fails to load, clean up immediately
         audio.addEventListener('error', (e) => {
-          console.log('ℹ️ Audio error - cleaning up');
+          console.log('ℹ️ Audio failed to load - cleaning up');
           if (audioRef.current) {
             audioRef.current.pause();
+            audioRef.current.src = ''; // Clear src to stop loading
             audioRef.current = null;
           }
           audio = null;
