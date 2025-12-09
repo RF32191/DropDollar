@@ -128,26 +128,30 @@ BEGIN
     DELETE FROM public.coin_play_participants
     WHERE session_id = v_session_id;
 
-    -- Create new waiting session (only if one doesn't already exist)
-    IF NOT EXISTS (
-        SELECT 1 FROM public.coin_play_sessions
-        WHERE config_id = config_id_param AND status = 'waiting'
-    ) THEN
-        INSERT INTO public.coin_play_sessions (
-            config_id, 
-            status, 
-            prize_pool, 
-            participants_count,
-            timer_duration
-        )
-        VALUES (
-            config_id_param, 
-            'waiting', 
-            0, 
-            0,
-            120
-        );
-    END IF;
+    -- Wait 5 seconds before creating new session (to show payout message)
+    -- Then create new waiting session (only if one doesn't already exist)
+    -- Use a background job or trigger, but for now create immediately
+    -- The frontend will show the completed session for 5 seconds
+    
+    -- Delete any existing waiting session for this config (cleanup)
+    DELETE FROM public.coin_play_sessions
+    WHERE config_id = config_id_param AND status = 'waiting';
+    
+    -- Create fresh waiting session
+    INSERT INTO public.coin_play_sessions (
+        config_id, 
+        status, 
+        prize_pool, 
+        participants_count,
+        timer_duration
+    )
+    VALUES (
+        config_id_param, 
+        'waiting', 
+        0, 
+        0,
+        120
+    );
 
     RETURN jsonb_build_object(
         'success', true,
