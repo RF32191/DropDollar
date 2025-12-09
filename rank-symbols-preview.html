@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rank Symbols Preview - All 100 Levels</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e3a8a 100%);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
+        }
+        .filters {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .filter-btn.active {
+            background: #9333ea;
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.5);
+        }
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .filter-btn.active:hover {
+            background: #a855f7;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        .rank-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 2px solid;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .rank-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        .symbol {
+            font-size: 4rem;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+        }
+        .level-info {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.5rem;
+        }
+        .description {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-style: italic;
+            margin-top: 0.5rem;
+        }
+        .color-code {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎖️ Rank Symbols Preview - All 100 Levels</h1>
+        
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterRanks('all')">All Ranks (100)</button>
+            <button class="filter-btn" onclick="filterRanks('early')">Early (1-30)</button>
+            <button class="filter-btn" onclick="filterRanks('mid')">Mid (31-60)</button>
+            <button class="filter-btn" onclick="filterRanks('late')">Late (61-100)</button>
+        </div>
+
+        <div class="grid" id="ranksGrid">
+            <!-- Ranks will be inserted here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        const ranks = [
+            // Levels 1-10
+            {tier: 1, level: '1', title: 'Stardust', symbol: '◉', color: '#60A5FA', desc: 'Tiny particles'},
+            {tier: 2, level: '2', title: 'Nebula Seed', symbol: '◈', color: '#60A5FA', desc: 'Star forming'},
+            {tier: 3, level: '3', title: 'Cosmic Spark', symbol: '◊', color: '#34D399', desc: 'Bright flash'},
+            {tier: 4, level: '4', title: 'Stellar Core', symbol: '◆', color: '#34D399', desc: 'Star heart'},
+            {tier: 5, level: '5', title: 'Star Cluster', symbol: '◇', color: '#FBBF24', desc: 'Star group'},
+            {tier: 6, level: '6', title: 'Constellation', symbol: '◐', color: '#FBBF24', desc: 'Star pattern'},
+            {tier: 7, level: '7', title: 'Galaxy Seed', symbol: '◑', color: '#FBBF24', desc: 'Galaxy birth'},
+            {tier: 8, level: '8', title: 'Nebula', symbol: '◒', color: '#F87171', desc: 'Star nursery'},
+            {tier: 9, level: '9', title: 'Stellar', symbol: '◓', color: '#F87171', desc: 'Star power'},
+            {tier: 10, level: '10', title: 'Luminous', symbol: '◔', color: '#A78BFA', desc: 'Radiant light'},
+            
+            // Levels 11-20
+            {tier: 11, level: '11', title: 'Planetoid', symbol: '◕', color: '#A78BFA', desc: 'Small planet'},
+            {tier: 12, level: '12', title: 'Moon', symbol: '◖', color: '#A78BFA', desc: 'Lunar body'},
+            {tier: 13, level: '13', title: 'Planet', symbol: '◗', color: '#A78BFA', desc: 'World'},
+            {tier: 14, level: '14', title: 'Gas Giant', symbol: '◘', color: '#FB7185', desc: 'Massive planet'},
+            {tier: 15, level: '15', title: 'Star System', symbol: '◙', color: '#FB7185', desc: 'Solar system'},
+            {tier: 16, level: '16', title: 'Binary Star', symbol: '◚', color: '#FB7185', desc: 'Twin stars'},
+            {tier: 17, level: '17', title: 'Trinary', symbol: '◛', color: '#FCD34D', desc: 'Triple stars'},
+            {tier: 18, level: '18', title: 'Quasar', symbol: '◜', color: '#FCD34D', desc: 'Brightest object'},
+            {tier: 19, level: '19', title: 'Pulsar', symbol: '◝', color: '#FCD34D', desc: 'Radiating'},
+            {tier: 20, level: '20', title: 'Supernova', symbol: '◞', color: '#EC4899', desc: 'Star explosion'},
+            
+            // Levels 21-30
+            {tier: 21, level: '21', title: 'Spiral Galaxy', symbol: '◟', color: '#EC4899', desc: 'Spiral arms'},
+            {tier: 22, level: '22', title: 'Elliptical', symbol: '◠', color: '#EC4899', desc: 'Oval galaxy'},
+            {tier: 23, level: '23', title: 'Galactic Core', symbol: '◡', color: '#8B5CF6', desc: 'Center'},
+            {tier: 24, level: '24', title: 'Galaxy Cluster', symbol: '☀', color: '#8B5CF6', desc: 'Many galaxies'},
+            {tier: 25, level: '25', title: 'Supercluster', symbol: '☁', color: '#8B5CF6', desc: 'Galaxy groups'},
+            {tier: 26, level: '26', title: 'Cosmic Web', symbol: '☂', color: '#06B6D4', desc: 'Universe structure'},
+            {tier: 27, level: '27', title: 'Void', symbol: '☃', color: '#06B6D4', desc: 'Empty space'},
+            {tier: 28, level: '28', title: 'Dark Matter', symbol: '☄', color: '#3B82F6', desc: 'Invisible mass'},
+            {tier: 29, level: '29', title: 'Dark Energy', symbol: '★', color: '#3B82F6', desc: 'Cosmic force'},
+            {tier: 30, level: '30', title: 'Universe', symbol: '☆', color: '#3B82F6', desc: 'All space'},
+            
+            // Levels 31-40
+            {tier: 31, level: '31', title: 'Quantum', symbol: '☇', color: '#F59E0B', desc: 'Quantum power'},
+            {tier: 32, level: '32', title: 'Plasma', symbol: '☈', color: '#F59E0B', desc: 'Ionized matter'},
+            {tier: 33, level: '33', title: 'Magnetic', symbol: '☉', color: '#F59E0B', desc: 'Field force'},
+            {tier: 34, level: '34', title: 'Gravitational', symbol: '☊', color: '#8B5CF6', desc: 'Gravity well'},
+            {tier: 35, level: '35', title: 'Electromagnetic', symbol: '☋', color: '#8B5CF6', desc: 'EM field'},
+            {tier: 36, level: '36', title: 'Singularity', symbol: '☌', color: '#EC4899', desc: 'Point of infinity'},
+            {tier: 37, level: '37', title: 'Black Hole', symbol: '☍', color: '#EC4899', desc: 'Event horizon'},
+            {tier: 38, level: '38', title: 'Wormhole', symbol: '☎', color: '#EC4899', desc: 'Space tunnel'},
+            {tier: 39, level: '39', title: 'White Hole', symbol: '☏', color: '#EC4899', desc: 'Reverse black hole'},
+            {tier: 40, level: '40', title: 'Einstein Ring', symbol: '☐', color: '#6366F1', desc: 'Gravitational lens'},
+            
+            // Levels 41-50
+            {tier: 41, level: '41', title: 'Asteroid', symbol: '☑', color: '#6366F1', desc: 'Space rock'},
+            {tier: 42, level: '42', title: 'Comet', symbol: '☒', color: '#6366F1', desc: 'Icy body'},
+            {tier: 43, level: '43', title: 'Meteor', symbol: '☓', color: '#A855F7', desc: 'Shooting star'},
+            {tier: 44, level: '44', title: 'Meteorite', symbol: '☔', color: '#A855F7', desc: 'Impact body'},
+            {tier: 45, level: '45', title: 'Asteroid Belt', symbol: '☕', color: '#A855F7', desc: 'Rock field'},
+            {tier: 46, level: '46', title: 'Kuiper Belt', symbol: '☖', color: '#10B981', desc: 'Ice field'},
+            {tier: 47, level: '47', title: 'Oort Cloud', symbol: '☗', color: '#10B981', desc: 'Distant cloud'},
+            {tier: 48, level: '48', title: 'Protoplanet', symbol: '☘', color: '#F59E0B', desc: 'Planet forming'},
+            {tier: 49, level: '49', title: 'Exoplanet', symbol: '☙', color: '#F59E0B', desc: 'Alien world'},
+            {tier: 50, level: '50', title: 'Rogue Planet', symbol: '☚', color: '#F59E0B', desc: 'Orphan planet'},
+            
+            // Levels 51-60
+            {tier: 51, level: '51', title: 'Solar Flare', symbol: '☛', color: '#EF4444', desc: 'Star burst'},
+            {tier: 52, level: '52', title: 'Corona', symbol: '☜', color: '#EF4444', desc: 'Star atmosphere'},
+            {tier: 53, level: '53', title: 'Solar Wind', symbol: '☝', color: '#EF4444', desc: 'Particle stream'},
+            {tier: 54, level: '54', title: 'Magnetosphere', symbol: '☞', color: '#EF4444', desc: 'Magnetic field'},
+            {tier: 55, level: '55', title: 'Heliosphere', symbol: '☟', color: '#DC2626', desc: 'Solar bubble'},
+            {tier: 56, level: '56', title: 'Aurora', symbol: '☠', color: '#DC2626', desc: 'Northern lights'},
+            {tier: 57, level: '57', title: 'Cosmic Ray', symbol: '☡', color: '#DC2626', desc: 'High energy'},
+            {tier: 58, level: '58', title: 'Gamma Burst', symbol: '☢', color: '#DC2626', desc: 'Explosive energy'},
+            {tier: 59, level: '59', title: 'X-Ray Binary', symbol: '☣', color: '#DC2626', desc: 'X-ray source'},
+            {tier: 60, level: '60', title: 'Gamma Source', symbol: '☤', color: '#991B1B', desc: 'Gamma emitter'},
+            
+            // Levels 61-70
+            {tier: 61, level: '61', title: 'Parallel', symbol: '☥', color: '#991B1B', desc: 'Alternate reality'},
+            {tier: 62, level: '62', title: 'Multiverse', symbol: '☦', color: '#991B1B', desc: 'Many realities'},
+            {tier: 63, level: '63', title: 'Megaverse', symbol: '☧', color: '#991B1B', desc: 'Reality cluster'},
+            {tier: 64, level: '64', title: 'Omniverse', symbol: '☨', color: '#7C2D12', desc: 'All realities'},
+            {tier: 65, level: '65', title: 'Hyperverse', symbol: '☩', color: '#7C2D12', desc: 'Beyond multiverse'},
+            {tier: 66, level: '66', title: 'Dimension', symbol: '☪', color: '#7C2D12', desc: 'Spatial dimension'},
+            {tier: 67, level: '67', title: 'Hyperspace', symbol: '☫', color: '#7C2D12', desc: 'Higher dimension'},
+            {tier: 68, level: '68', title: 'Brane', symbol: '☬', color: '#7C2D12', desc: 'Membrane theory'},
+            {tier: 69, level: '69', title: 'Bulk', symbol: '☭', color: '#78350F', desc: 'Higher space'},
+            {tier: 70, level: '70', title: 'Bulk Space', symbol: '☮', color: '#78350F', desc: 'Ultimate dimension'},
+            
+            // Levels 71-80
+            {tier: 71, level: '71', title: 'Star Forge', symbol: '☯', color: '#78350F', desc: 'Star creator'},
+            {tier: 72, level: '72', title: 'Galaxy Forge', symbol: '☰', color: '#78350F', desc: 'Galaxy creator'},
+            {tier: 73, level: '73', title: 'Universe Forge', symbol: '☱', color: '#92400E', desc: 'Universe creator'},
+            {tier: 74, level: '74', title: 'Cosmic Forge', symbol: '☲', color: '#92400E', desc: 'Cosmos creator'},
+            {tier: 75, level: '75', title: 'Reality Forge', symbol: '☳', color: '#92400E', desc: 'Reality creator'},
+            {tier: 76, level: '76', title: 'Star Eater', symbol: '☴', color: '#92400E', desc: 'Consumes stars'},
+            {tier: 77, level: '77', title: 'Galaxy Eater', symbol: '☵', color: '#92400E', desc: 'Consumes galaxies'},
+            {tier: 78, level: '78', title: 'Universe Eater', symbol: '☶', color: '#92400E', desc: 'Consumes universes'},
+            {tier: 79, level: '79', title: 'Void Eater', symbol: '☷', color: '#92400E', desc: 'Consumes void'},
+            {tier: 80, level: '80', title: 'Reality Eater', symbol: '☸', color: '#92400E', desc: 'Consumes reality'},
+            
+            // Levels 81-90
+            {tier: 81, level: '81', title: 'Big Bang', symbol: '☹', color: '#78350F', desc: 'Origin point'},
+            {tier: 82, level: '82', title: 'Inflation', symbol: '☺', color: '#78350F', desc: 'Rapid expansion'},
+            {tier: 83, level: '83', title: 'Recombination', symbol: '☻', color: '#78350F', desc: 'Matter formation'},
+            {tier: 84, level: '84', title: 'Structure', symbol: '☼', color: '#78350F', desc: 'Cosmic structure'},
+            {tier: 85, level: '85', title: 'Formation', symbol: '☽', color: '#78350F', desc: 'Everything forms'},
+            {tier: 86, level: '86', title: 'Primordial', symbol: '☾', color: '#92400E', desc: 'First being'},
+            {tier: 87, level: '87', title: 'Alpha', symbol: '☿', color: '#92400E', desc: 'First letter'},
+            {tier: 88, level: '88', title: 'Omega', symbol: '♀', color: '#92400E', desc: 'Last letter'},
+            {tier: 89, level: '89', title: 'Infinity', symbol: '♁', color: '#92400E', desc: 'Endless'},
+            {tier: 90, level: '90', title: 'Eternity', symbol: '♂', color: '#92400E', desc: 'Forever'},
+            
+            // Levels 91-100
+            {tier: 91, level: '91', title: 'Cosmic', symbol: '♃', color: '#F59E0B', desc: 'Universe power'},
+            {tier: 92, level: '92', title: 'Stellar', symbol: '♄', color: '#F59E0B', desc: 'Star power'},
+            {tier: 93, level: '93', title: 'Galactic', symbol: '♅', color: '#F59E0B', desc: 'Galaxy power'},
+            {tier: 94, level: '94', title: 'Universal', symbol: '♆', color: '#F59E0B', desc: 'Universe power'},
+            {tier: 95, level: '95', title: 'Multiversal', symbol: '♇', color: '#F59E0B', desc: 'Multiverse power'},
+            {tier: 96, level: '96', title: 'Omniversal', symbol: '♈', color: '#EF4444', desc: 'All universes'},
+            {tier: 97, level: '97', title: 'Omnipotent', symbol: '♉', color: '#EF4444', desc: 'All powerful'},
+            {tier: 98, level: '98', title: 'Omniscient', symbol: '♊', color: '#EF4444', desc: 'All knowing'},
+            {tier: 99, level: '99', title: 'Omnipresent', symbol: '♋', color: '#EF4444', desc: 'Everywhere'},
+            {tier: 100, level: '100', title: 'Omniverse', symbol: '♌', color: '#EF4444', desc: 'All that exists'}
+        ];
+
+        function renderRanks(filter = 'all') {
+            const grid = document.getElementById('ranksGrid');
+            let filtered = ranks;
+            
+            if (filter === 'early') filtered = ranks.filter(r => r.tier <= 30);
+            else if (filter === 'mid') filtered = ranks.filter(r => r.tier > 30 && r.tier <= 60);
+            else if (filter === 'late') filtered = ranks.filter(r => r.tier > 60);
+            
+            grid.innerHTML = filtered.map(rank => `
+                <div class="rank-card" style="border-color: ${rank.color}80; background: ${rank.color}15;">
+                    <div class="symbol" style="color: ${rank.color}">${rank.symbol}</div>
+                    <div class="title" style="color: ${rank.color}">${rank.title}</div>
+                    <div class="level-info">Level ${rank.level} • Tier ${rank.tier}</div>
+                    <div class="description">${rank.desc}</div>
+                    <div class="color-code">${rank.color}</div>
+                </div>
+            `).join('');
+        }
+
+        function filterRanks(type) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderRanks(type);
+        }
+
+        renderRanks('all');
+    </script>
+</body>
+</html>
+
