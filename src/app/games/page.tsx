@@ -193,65 +193,114 @@ export default function GamesPage() {
   useEffect(() => {
     const audioFile = '/GamesPage.mp3';
     let hasPlayed = false;
+    let audio: HTMLAudioElement | null = null;
     
-    const audio = new Audio(audioFile);
+    console.log('🎵 Attempting to load audio:', audioFile);
+    
+    // Create audio element
+    audio = new Audio(audioFile);
     audioRef.current = audio;
-    audio.volume = 0.5;
+    audio.volume = 0.7; // Slightly higher volume
     audio.loop = false;
-    audio.preload = 'auto';
     
-    const playAudio = () => {
-      if (hasPlayed) return;
+    // Error handlers
+    audio.addEventListener('error', (e) => {
+      console.error('❌ Audio error:', e);
+      console.error('Audio error details:', {
+        code: audio?.error?.code,
+        message: audio?.error?.message,
+        networkState: audio?.networkState,
+        readyState: audio?.readyState
+      });
+    });
+    
+    audio.addEventListener('loadstart', () => {
+      console.log('📥 Audio loading started');
+    });
+    
+    audio.addEventListener('loadeddata', () => {
+      console.log('📦 Audio data loaded');
+    });
+    
+    audio.addEventListener('canplay', () => {
+      console.log('▶️ Audio can play');
+    });
+    
+    const playAudio = async () => {
+      if (hasPlayed || !audio) return;
       
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            hasPlayed = true;
-            console.log('✅ GamesPage audio playing');
-          })
-          .catch((error) => {
-            console.log('⚠️ Audio autoplay blocked, will play on user interaction');
-            // Play on first user interaction
-            const playOnInteraction = () => {
-              if (!hasPlayed) {
-                audio.play()
-                  .then(() => {
-                    hasPlayed = true;
-                    console.log('✅ GamesPage audio playing after user interaction');
-                  })
-                  .catch(err => console.error('Error playing audio:', err));
-                document.removeEventListener('click', playOnInteraction);
-                document.removeEventListener('touchstart', playOnInteraction);
-              }
-            };
-            document.addEventListener('click', playOnInteraction, { once: true });
-            document.addEventListener('touchstart', playOnInteraction, { once: true });
-          });
+      try {
+        console.log('🎯 Attempting to play audio...');
+        console.log('Audio state:', {
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+          paused: audio.paused,
+          src: audio.src
+        });
+        
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          await playPromise;
+          hasPlayed = true;
+          console.log('✅ GamesPage audio is now playing!');
+        }
+      } catch (error: any) {
+        console.warn('⚠️ Autoplay blocked:', error.name, error.message);
+        console.log('💡 Audio will play on first user interaction');
+        
+        // Play on first user interaction
+        const playOnInteraction = async () => {
+          if (!hasPlayed && audio) {
+            try {
+              await audio.play();
+              hasPlayed = true;
+              console.log('✅ GamesPage audio playing after user interaction');
+            } catch (err) {
+              console.error('❌ Error playing audio after interaction:', err);
+            }
+            document.removeEventListener('click', playOnInteraction);
+            document.removeEventListener('touchstart', playOnInteraction);
+            document.removeEventListener('keydown', playOnInteraction);
+          }
+        };
+        
+        document.addEventListener('click', playOnInteraction, { once: true });
+        document.addEventListener('touchstart', playOnInteraction, { once: true });
+        document.addEventListener('keydown', playOnInteraction, { once: true });
       }
     };
     
-    // Wait for audio to be ready, then play
+    // Try multiple approaches to play
     audio.addEventListener('canplaythrough', () => {
+      console.log('✅ Audio ready to play');
       playAudio();
     }, { once: true });
     
-    // Fallback: try to play after a short delay even if canplaythrough hasn't fired
+    // Immediate attempt after load
+    audio.addEventListener('loadeddata', () => {
+      setTimeout(() => playAudio(), 100);
+    }, { once: true });
+    
+    // Fallback timer
     const fallbackTimer = setTimeout(() => {
-      if (!hasPlayed && audio.readyState >= 2) {
+      if (!hasPlayed) {
+        console.log('⏰ Fallback: attempting to play audio');
         playAudio();
       }
-    }, 500);
+    }, 1000);
     
-    // Load the audio
+    // Start loading
     audio.load();
+    console.log('🚀 Audio load() called');
 
     return () => {
       clearTimeout(fallbackTimer);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+      if (audio) {
+        audio.pause();
+        audio = null;
       }
+      audioRef.current = null;
     };
   }, []);
   
