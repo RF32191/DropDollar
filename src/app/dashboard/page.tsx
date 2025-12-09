@@ -776,17 +776,19 @@ export default function TriumphStyleDashboard() {
               </div>
             </div>
 
-        {/* Level & XP Display */}
-        {userXP && (
+        {/* Level & XP Display - Always show, even for new users */}
+        {!isLoading && userXP && (
           <div className="mb-8">
             <LevelDisplay xpData={userXP} showFullDetails={true} size="lg" />
           </div>
         )}
 
-        {/* Daily Challenges */}
-        <div className="mb-8">
-          <DailyChallenges />
-        </div>
+        {/* Daily Challenges - Only show when not loading */}
+        {!isLoading && user && (
+          <div className="mb-8">
+            <DailyChallenges userId={user.id} />
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="mb-6">

@@ -56,8 +56,24 @@ export class XPService {
       });
 
       if (error) {
-        console.error('❌ [XPService] Error fetching user XP:', error);
-        return null;
+        // If function doesn't exist or user has no XP record, return defaults
+        // This ensures new users always have XP data
+        if (error.code === '42883' || error.message?.includes('does not exist')) {
+          console.warn('⚠️ [XPService] XP function not available, returning defaults');
+        } else {
+          console.error('❌ [XPService] Error fetching user XP:', error);
+        }
+        
+        // Return defaults for new users or if system not set up yet
+        return {
+          total_xp: 0,
+          current_level: 1,
+          xp_to_next_level: 100,
+          reward_points: 0,
+          rank_title: 'Novice',
+          rank_tier: 1,
+          rank_image_url: null
+        };
       }
 
       if (!data || data.length === 0) {
@@ -76,7 +92,16 @@ export class XPService {
       return data[0];
     } catch (error) {
       console.error('❌ [XPService] Exception fetching user XP:', error);
-      return null;
+      // Always return defaults on error to prevent crashes
+      return {
+        total_xp: 0,
+        current_level: 1,
+        xp_to_next_level: 100,
+        reward_points: 0,
+        rank_title: 'Novice',
+        rank_tier: 1,
+        rank_image_url: null
+      };
     }
   }
 
@@ -117,6 +142,11 @@ export class XPService {
       });
 
       if (error) {
+        // If function doesn't exist, return empty array (system not set up yet)
+        if (error.code === '42883' || error.message?.includes('does not exist')) {
+          console.warn('⚠️ [XPService] Daily challenges function not available');
+          return [];
+        }
         console.error('❌ [XPService] Error fetching daily challenges:', error);
         return [];
       }
@@ -165,6 +195,11 @@ export class XPService {
       });
 
       if (error) {
+        // If function doesn't exist, return empty array (system not set up yet)
+        if (error.code === '42883' || error.message?.includes('does not exist')) {
+          console.warn('⚠️ [XPService] Weekly challenges function not available');
+          return [];
+        }
         console.error('❌ [XPService] Error fetching weekly challenges:', error);
         return [];
       }

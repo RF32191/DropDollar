@@ -6,31 +6,38 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CheckCircleIcon, ClockIcon, FireIcon, TrophyIcon, CalendarIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { SparklesIcon as SparklesOutline } from '@heroicons/react/24/outline';
 
-export default function DailyChallenges() {
-  const { user } = useAuth();
+interface DailyChallengesProps {
+  userId: string;
+  initialLoading?: boolean;
+}
+
+export default function DailyChallenges({ userId, initialLoading = false }: DailyChallengesProps) {
   const [dailyChallenges, setDailyChallenges] = useState<DailyChallenge[]>([]);
   const [weeklyChallenges, setWeeklyChallenges] = useState<WeeklyChallenge[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialLoading);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       loadChallenges();
     }
-  }, [user]);
+  }, [userId]);
 
   const loadChallenges = async () => {
-    if (!user) return;
+    if (!userId) return;
     
     setIsLoading(true);
     try {
       const [daily, weekly] = await Promise.all([
-        XPService.getDailyChallenges(user.id),
-        XPService.getWeeklyChallenges(user.id)
+        XPService.getDailyChallenges(userId).catch(() => []),
+        XPService.getWeeklyChallenges(userId).catch(() => [])
       ]);
-      setDailyChallenges(daily);
-      setWeeklyChallenges(weekly);
+      setDailyChallenges(daily || []);
+      setWeeklyChallenges(weekly || []);
     } catch (error) {
       console.error('Error loading challenges:', error);
+      // Set empty arrays on error to prevent crashes
+      setDailyChallenges([]);
+      setWeeklyChallenges([]);
     } finally {
       setIsLoading(false);
     }

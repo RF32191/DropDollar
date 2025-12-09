@@ -380,7 +380,7 @@ BEGIN
 END;
 $$;
 
--- Function to get user XP and level
+-- Function to get user XP and level (creates record if doesn't exist for new users)
 CREATE OR REPLACE FUNCTION public.get_user_xp(p_user_id UUID)
 RETURNS TABLE (
     total_xp INTEGER,
@@ -395,12 +395,22 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+    -- Create XP record if it doesn't exist (for new users)
+    INSERT INTO public.user_xp (user_id, total_xp, current_level, xp_to_next_level, reward_points)
+    VALUES (p_user_id, 0, 1, 100, 0)
+    ON CONFLICT (user_id) DO NOTHING;
+    
+    -- Create ranking record if it doesn't exist
+    INSERT INTO public.user_rankings (user_id, rank_title, rank_tier)
+    VALUES (p_user_id, 'Novice', 1)
+    ON CONFLICT (user_id) DO NOTHING;
+    
     RETURN QUERY
     SELECT 
-        ux.total_xp,
-        ux.current_level,
-        ux.xp_to_next_level,
-        ux.reward_points,
+        COALESCE(ux.total_xp, 0),
+        COALESCE(ux.current_level, 1),
+        COALESCE(ux.xp_to_next_level, 100),
+        COALESCE(ux.reward_points, 0),
         COALESCE(ur.rank_title, 'Novice')::TEXT,
         COALESCE(ur.rank_tier, 1),
         ur.rank_image_url
