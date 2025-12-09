@@ -770,6 +770,24 @@ ALTER TABLE public.daily_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_daily_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reward_points_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ranking_tiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.weekly_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_weekly_challenges ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (prevents conflicts on re-run)
+DROP POLICY IF EXISTS "Users can view own XP" ON public.user_xp;
+DROP POLICY IF EXISTS "Users can update own XP" ON public.user_xp;
+DROP POLICY IF EXISTS "Users can view own XP transactions" ON public.xp_transactions;
+DROP POLICY IF EXISTS "Users can view own rankings" ON public.user_rankings;
+DROP POLICY IF EXISTS "Anyone can view daily challenges" ON public.daily_challenges;
+DROP POLICY IF EXISTS "Users can view own challenge progress" ON public.user_daily_challenges;
+DROP POLICY IF EXISTS "Users can update own challenge progress" ON public.user_daily_challenges;
+DROP POLICY IF EXISTS "Users can insert own challenge progress" ON public.user_daily_challenges;
+DROP POLICY IF EXISTS "Users can view own reward points" ON public.reward_points_transactions;
+DROP POLICY IF EXISTS "Anyone can view ranking tiers" ON public.ranking_tiers;
+DROP POLICY IF EXISTS "Anyone can view weekly challenges" ON public.weekly_challenges;
+DROP POLICY IF EXISTS "Users can view own weekly challenge progress" ON public.user_weekly_challenges;
+DROP POLICY IF EXISTS "Users can update own weekly challenge progress" ON public.user_weekly_challenges;
+DROP POLICY IF EXISTS "Users can insert own weekly challenge progress" ON public.user_weekly_challenges;
 
 -- Users can view their own XP
 CREATE POLICY "Users can view own XP" ON public.user_xp FOR SELECT USING (auth.uid() = user_id);
@@ -796,9 +814,6 @@ CREATE POLICY "Anyone can view weekly challenges" ON public.weekly_challenges FO
 CREATE POLICY "Users can view own weekly challenge progress" ON public.user_weekly_challenges FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own weekly challenge progress" ON public.user_weekly_challenges FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own weekly challenge progress" ON public.user_weekly_challenges FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-ALTER TABLE public.weekly_challenges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_weekly_challenges ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own reward points transactions
 CREATE POLICY "Users can view own reward points" ON public.reward_points_transactions FOR SELECT USING (auth.uid() = user_id);
