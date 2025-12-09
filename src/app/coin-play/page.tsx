@@ -473,29 +473,40 @@ export default function CoinPlayPage() {
           if (timeRemaining && timeRemaining.total <= 0) {
             const sessionKey = session.config_id;
             
-            // Only trigger if not already triggered for this session
-            if (!autoPayoutTriggered.has(sessionKey)) {
+            // Only trigger if not already triggered for this session and not already completed
+            if (!autoPayoutTriggered.has(sessionKey) && session.status === 'active') {
               console.log(`⏰ [Coin Play Auto-Payout] Timer expired for ${sessionKey}`);
+              console.log(`📊 [Coin Play Auto-Payout] Session details:`, {
+                configId: sessionKey,
+                status: session.status,
+                participants: session.participants_count,
+                prizePool: session.prize_pool
+              });
               console.log(`💰 [Coin Play Auto-Payout] Triggering payout...`);
               
               // Mark as triggered immediately to prevent duplicates
               setAutoPayoutTriggered(prev => new Set(prev).add(sessionKey));
               
-              // Trigger payout after a short delay to ensure timer is fully expired
-              setTimeout(async () => {
-                try {
-                  await handleManualPayout(sessionKey);
-                  console.log(`✅ [Coin Play Auto-Payout] Payout completed for ${sessionKey}`);
-                } catch (error) {
-                  console.error(`❌ [Coin Play Auto-Payout] Error for ${sessionKey}:`, error);
-                  // Remove from triggered set so it can retry
+              // Trigger payout immediately (timer is already expired)
+              handleManualPayout(sessionKey).then(() => {
+                console.log(`✅ [Coin Play Auto-Payout] Payout completed for ${sessionKey}`);
+                // Clear the triggered flag after successful payout so page refresh doesn't block
+                setTimeout(() => {
                   setAutoPayoutTriggered(prev => {
                     const newSet = new Set(prev);
                     newSet.delete(sessionKey);
                     return newSet;
                   });
-                }
-              }, 2000); // 2 second delay to ensure timer is fully expired
+                }, 5000); // Clear after 5 seconds
+              }).catch((error) => {
+                console.error(`❌ [Coin Play Auto-Payout] Error for ${sessionKey}:`, error);
+                // Remove from triggered set so it can retry
+                setAutoPayoutTriggered(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(sessionKey);
+                  return newSet;
+                });
+              });
             }
           }
         }
