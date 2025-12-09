@@ -39,6 +39,8 @@ interface CoinPlaySession {
   timer_started_at: string | null;
   winner_user_id: string | null;
   winner_prize: number | null;
+  winner_username?: string | null;
+  completed_at?: string | null;
   created_at: string;
 }
 
@@ -532,8 +534,35 @@ export default function CoinPlayPage() {
     }
   };
 
+  // Group sessions by game (filter out completed sessions after 5 seconds)
+  const [completedSessionsVisible, setCompletedSessionsVisible] = useState<Set<string>>(new Set());
+  
+  // Track completed sessions and hide them after 5 seconds
+  useEffect(() => {
+    sessions.forEach(session => {
+      if (session.status === 'completed' && session.winner_user_id) {
+        // Add to visible set
+        setCompletedSessionsVisible(prev => new Set(prev).add(session.id));
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+          setCompletedSessionsVisible(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(session.id);
+            return newSet;
+          });
+        }, 5000);
+      }
+    });
+  }, [sessions]);
+
+  // Filter sessions: show waiting/active, or completed if still visible
+  const visibleSessions = sessions.filter(session => 
+    session.status !== 'completed' || completedSessionsVisible.has(session.id)
+  );
+
   // Group sessions by game
-  const sessionsByGame = sessions.reduce((acc, session) => {
+  const sessionsByGame = visibleSessions.reduce((acc, session) => {
     if (!acc[session.game_type]) {
       acc[session.game_type] = [];
     }
@@ -667,7 +696,7 @@ export default function CoinPlayPage() {
                   : 'bg-amber-800/50 text-amber-200 hover:bg-amber-700/50'
               }`}
             >
-              All Games ({sessions.length})
+              All Games ({visibleSessions.length})
             </button>
             {sortedGames.map(gameType => (
               <button
@@ -795,6 +824,27 @@ export default function CoinPlayPage() {
                                 <span className="text-xl font-black text-red-200">
                                   {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
                                 </span>
+                              </div>
+                            )}
+
+                            {/* Payout Message - Show when timer expires and session is completed */}
+                            {session.status === 'completed' && session.winner_user_id && session.winner_prize && (
+                              <div className="mb-4 bg-gradient-to-r from-green-900/60 to-emerald-900/60 border-2 border-green-500/50 rounded-lg p-4">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                  <TrophyIcon className="w-6 h-6 text-yellow-400" />
+                                  <span className="text-lg font-black text-green-200">Payout Complete!</span>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-sm text-green-300/90 mb-1">
+                                    Winner: <span className="font-bold text-green-200">{session.winner_username || 'Player'}</span>
+                                  </div>
+                                  <div className="text-lg font-black text-yellow-300">
+                                    ${session.winner_prize.toFixed(2)} Paid
+                                  </div>
+                                  <div className="text-xs text-green-200/70 mt-1">
+                                    Listing reset - Ready for new game
+                                  </div>
+                                </div>
                               </div>
                             )}
 
