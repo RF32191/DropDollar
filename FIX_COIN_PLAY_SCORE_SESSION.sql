@@ -49,12 +49,15 @@ BEGIN
         );
     END IF;
 
-    -- Allow score submission even if session is 'completed' (grace period)
-    -- This handles cases where session ended during gameplay
-    IF v_session_status NOT IN ('active', 'completed') THEN
+    -- Allow score submission for 'waiting', 'active', or 'completed' sessions
+    -- This handles cases where:
+    -- 1. User starts playing while session is 'waiting' (before it becomes 'active')
+    -- 2. Session transitions to 'active' or 'completed' during gameplay
+    -- 3. Session ends but user is still submitting score (grace period)
+    IF v_session_status NOT IN ('waiting', 'active', 'completed') THEN
         RETURN jsonb_build_object(
             'success', false, 
-            'message', 'Session is not active or completed',
+            'message', 'Session status is invalid: ' || COALESCE(v_session_status, 'NULL'),
             'error_code', 'SESSION_INVALID_STATUS'
         );
     END IF;
