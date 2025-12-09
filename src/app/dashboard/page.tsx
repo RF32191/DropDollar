@@ -285,6 +285,16 @@ export default function TriumphStyleDashboard() {
       setGameHistory(gameHistory);
       setHighScores(highScores);
       setUserStats(userStats);
+      // Set XP data with fallback for new users (always show something)
+      setUserXP(userXPData || {
+        total_xp: 0,
+        current_level: 1,
+        xp_to_next_level: 100,
+        reward_points: 0,
+        rank_title: 'Novice',
+        rank_tier: 1,
+        rank_image_url: null
+      });
 
       console.log('✅ [Dashboard] All data loaded successfully');
       console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
@@ -780,6 +790,13 @@ export default function TriumphStyleDashboard() {
         {!isLoading && userXP && (
           <div className="mb-8">
             <LevelDisplay xpData={userXP} showFullDetails={true} size="lg" />
+          </div>
+        )}
+        
+        {/* Show loading placeholder for XP while loading */}
+        {isLoading && (
+          <div className="mb-8 bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700/50 animate-pulse">
+            <div className="h-32 bg-gray-700/30 rounded-lg"></div>
           </div>
         )}
 
