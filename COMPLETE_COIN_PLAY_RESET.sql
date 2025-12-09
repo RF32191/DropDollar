@@ -228,10 +228,10 @@ BEGIN
         RAISE NOTICE '';
         RAISE NOTICE '⚠️  Reset completed but verification shows issues:';
         IF v_session_count != v_config_count THEN
-            RAISE NOTICE '   ⚠️  Session count (%%) does not match config count (%%)', v_session_count, v_config_count;
+            RAISE NOTICE '   ⚠️  Session count (%) does not match config count (%)', v_session_count, v_config_count;
         END IF;
         IF v_waiting_count != v_config_count THEN
-            RAISE NOTICE '   ⚠️  Not all sessions are waiting (%% waiting, %% configs)', v_waiting_count, v_config_count;
+            RAISE NOTICE '   ⚠️  Not all sessions are waiting (%) waiting, (%) configs', v_waiting_count, v_config_count;
         END IF;
         IF v_participant_count > 0 THEN
             RAISE NOTICE '   ⚠️  % participants still exist', v_participant_count;
