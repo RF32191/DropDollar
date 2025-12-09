@@ -2,6 +2,8 @@
 -- LEVEL UP SYSTEM - COMPLETE SCHEMA
 -- ============================================================================
 -- Creates XP, levels, daily challenges, rankings, and reward points system
+-- GitHub: https://github.com/RF32191/DropDollar/blob/main/CREATE_LEVEL_UP_SYSTEM.sql
+-- Raw: https://raw.githubusercontent.com/RF32191/DropDollar/main/CREATE_LEVEL_UP_SYSTEM.sql
 -- ============================================================================
 
 DO $$
