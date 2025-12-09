@@ -6,8 +6,11 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { UserService } from '@/lib/supabase/userService';
+import { XPService, UserXPData } from '@/lib/supabase/xpService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
+import LevelDisplay from '@/components/xp/LevelDisplay';
+import DailyChallenges from '@/components/xp/DailyChallenges';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
@@ -68,6 +71,7 @@ export default function TriumphStyleDashboard() {
   const [gameHistory, setGameHistory] = useState<GameHistoryRecord[]>([]);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [userXP, setUserXP] = useState<UserXPData | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0,
     practiceGames: 0,
@@ -244,7 +248,7 @@ export default function TriumphStyleDashboard() {
       // Token balance is now handled by useTokenSync hook
 
       // Load game data in parallel
-      const [gameHistory, highScores, userStats] = await Promise.all([
+      const [gameHistory, highScores, userStats, userXPData] = await Promise.all([
         loadGameHistory(user.id).catch(err => {
           console.error('❌ [Dashboard] Game history load failed:', err);
           return [];
@@ -264,6 +268,10 @@ export default function TriumphStyleDashboard() {
             totalPrizeMoney: 0,
             averageScore: 0
           };
+        }),
+        XPService.getUserXP(user.id).catch(err => {
+          console.error('❌ [Dashboard] XP load failed:', err);
+          return null;
         })
       ]);
 
@@ -767,6 +775,18 @@ export default function TriumphStyleDashboard() {
             </div>
               </div>
             </div>
+
+        {/* Level & XP Display */}
+        {userXP && (
+          <div className="mb-8">
+            <LevelDisplay xpData={userXP} showFullDetails={true} size="lg" />
+          </div>
+        )}
+
+        {/* Daily Challenges */}
+        <div className="mb-8">
+          <DailyChallenges />
+        </div>
 
         {/* Tab Navigation */}
         <div className="mb-6">

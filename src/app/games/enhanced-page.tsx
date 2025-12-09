@@ -116,7 +116,7 @@ export default function EnhancedGamesPage() {
 
       if (isPracticeMode) {
         // Practice mode - save score using simple service
-        await SimpleGameService.saveGameHistory({
+        const gameHistory = await SimpleGameService.saveGameHistory({
           user_id: user.id,
           game_type: currentGame,
           score: result.score,
@@ -125,6 +125,34 @@ export default function EnhancedGamesPage() {
           is_practice: true,
           game_duration: result.gameDuration
         });
+
+        // Award XP for practice game
+        if (gameHistory?.id) {
+          try {
+            const { XPService } = await import('@/lib/supabase/xpService');
+            const xpResult = await XPService.awardPracticeGameXP(
+              user.id,
+              gameHistory.id,
+              result.score
+            );
+            
+            if (xpResult?.leveled_up) {
+              console.log('🎉 [Games] Level up! New level:', xpResult.new_level);
+            }
+            
+            // Update daily challenge progress
+            await XPService.updateDailyChallengeProgress(user.id, 'play_practice', 1);
+            await XPService.updateDailyChallengeProgress(user.id, 'games_count', 1);
+            
+            // Check score threshold challenge (1000+ points)
+            if (result.score >= 1000) {
+              await XPService.updateDailyChallengeProgress(user.id, 'score_threshold', 1);
+            }
+          } catch (error) {
+            console.error('❌ [Games] Error awarding XP:', error);
+            // Don't block game completion if XP fails
+          }
+        }
 
         // Show victory animation for practice
         setShowVictoryAnimation(true);
