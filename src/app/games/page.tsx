@@ -191,40 +191,63 @@ export default function GamesPage() {
   
   // Play audio when page loads
   useEffect(() => {
-    // Primary audio file - GamesPage.mp3 in public folder
     const audioFile = '/GamesPage.mp3';
+    let hasPlayed = false;
+    
+    const audio = new Audio(audioFile);
+    audioRef.current = audio;
+    audio.volume = 0.5;
+    audio.loop = false;
+    audio.preload = 'auto';
     
     const playAudio = () => {
-      try {
-        const audio = new Audio(audioFile);
-        audioRef.current = audio;
-        audio.volume = 0.5; // 50% volume
-        audio.loop = false; // Play once
-        
-        // Try to play audio
-        const playPromise = audio.play();
-        
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log('GamesPage audio playing');
-            })
-            .catch((error) => {
-              // Autoplay was blocked - browser requires user interaction
-              console.log('Audio autoplay blocked. User interaction required to play.');
-              // Store audio ref so it can be played on user interaction
-            });
-        }
-      } catch (error) {
-        console.error('Error loading GamesPage audio:', error);
+      if (hasPlayed) return;
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            hasPlayed = true;
+            console.log('✅ GamesPage audio playing');
+          })
+          .catch((error) => {
+            console.log('⚠️ Audio autoplay blocked, will play on user interaction');
+            // Play on first user interaction
+            const playOnInteraction = () => {
+              if (!hasPlayed) {
+                audio.play()
+                  .then(() => {
+                    hasPlayed = true;
+                    console.log('✅ GamesPage audio playing after user interaction');
+                  })
+                  .catch(err => console.error('Error playing audio:', err));
+                document.removeEventListener('click', playOnInteraction);
+                document.removeEventListener('touchstart', playOnInteraction);
+              }
+            };
+            document.addEventListener('click', playOnInteraction, { once: true });
+            document.addEventListener('touchstart', playOnInteraction, { once: true });
+          });
       }
     };
-
-    // Small delay to ensure page is loaded
-    const timer = setTimeout(playAudio, 100);
+    
+    // Wait for audio to be ready, then play
+    audio.addEventListener('canplaythrough', () => {
+      playAudio();
+    }, { once: true });
+    
+    // Fallback: try to play after a short delay even if canplaythrough hasn't fired
+    const fallbackTimer = setTimeout(() => {
+      if (!hasPlayed && audio.readyState >= 2) {
+        playAudio();
+      }
+    }, 500);
+    
+    // Load the audio
+    audio.load();
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
