@@ -1,7 +1,7 @@
 -- ============================================================================
--- 100 LEVEL RANK SYSTEM WITH CUSTOM UNIQUE SYMBOLS
+-- 100 LEVEL RANK SYSTEM WITH HALO/COD STYLE MILITARY SYMBOLS
 -- ============================================================================
--- Creates comprehensive ranking system for levels 1-100 with custom symbols
+-- Creates comprehensive ranking system for levels 1-100 with military-style symbols
 -- GitHub: https://github.com/RF32191/DropDollar/blob/main/CREATE_100_LEVEL_RANK_SYSTEM.sql
 -- ============================================================================
 
@@ -20,144 +20,144 @@ CREATE TABLE public.ranking_tiers (
     min_level INTEGER NOT NULL,
     max_level INTEGER NOT NULL,
     title TEXT NOT NULL,
-    symbol TEXT NOT NULL, -- Custom unique symbol
+    symbol TEXT NOT NULL, -- Military-style symbol
     color_hex TEXT NOT NULL,
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Insert 100 levels with custom unique symbols
--- Using Unicode symbols, geometric shapes, and special characters
+-- Insert 100 levels with Halo 3 / Call of Duty style military rank symbols
+-- Using Unicode characters that look like military insignia
 INSERT INTO public.ranking_tiers (tier, level_range, min_level, max_level, title, symbol, color_hex, description) VALUES
--- Levels 1-10: Foundation (Basic shapes and simple symbols)
-(1, '1-1', 1, 1, 'Seedling', '◉', '#9CA3AF', 'Just planted'),
-(2, '2-2', 2, 2, 'Sprout', '◈', '#9CA3AF', 'Growing strong'),
-(3, '3-3', 3, 3, 'Sapling', '◊', '#9CA3AF', 'Taking root'),
-(4, '4-4', 4, 4, 'Tree', '◆', '#9CA3AF', 'Standing tall'),
-(5, '5-5', 5, 5, 'Forest', '◇', '#60A5FA', 'Forest guardian'),
+-- Levels 1-10: Recruit to Private (Basic ranks)
+(1, '1-1', 1, 1, 'Recruit', '▱', '#9CA3AF', 'Just enlisted'),
+(2, '2-2', 2, 2, 'Private', '▰', '#9CA3AF', 'Basic training complete'),
+(3, '3-3', 3, 3, 'Private First Class', '▱▱', '#9CA3AF', 'First promotion'),
+(4, '4-4', 4, 4, 'Specialist', '▰▰', '#9CA3AF', 'Specialized training'),
+(5, '5-5', 5, 5, 'Corporal', '▱▱▱', '#60A5FA', 'Junior NCO'),
 
-(6, '6-6', 6, 6, 'Star', '✦', '#60A5FA', 'Shining bright'),
-(7, '7-7', 7, 7, 'Constellation', '✧', '#60A5FA', 'Pattern forming'),
-(8, '8-8', 8, 8, 'Nebula', '✩', '#60A5FA', 'Star nursery'),
-(9, '9-9', 9, 9, 'Galaxy', '✪', '#34D399', 'Galactic core'),
-(10, '10-10', 10, 10, 'Universe', '✫', '#34D399', 'Universal force'),
+(6, '6-6', 6, 6, 'Sergeant', '▲', '#60A5FA', 'First NCO rank'),
+(7, '7-7', 7, 7, 'Staff Sergeant', '▲▲', '#60A5FA', 'Experienced NCO'),
+(8, '8-8', 8, 8, 'Sergeant First Class', '▲▲▲', '#60A5FA', 'Senior NCO'),
+(9, '9-9', 9, 9, 'Master Sergeant', '▲▲▲▲', '#34D399', 'Master NCO'),
+(10, '10-10', 10, 10, 'First Sergeant', '▲▲▲▲▲', '#34D399', 'Top NCO'),
 
--- Levels 11-20: Warrior Path (Weapons and combat symbols)
-(11, '11-11', 11, 11, 'Archer', '➶', '#34D399', 'Precise aim'),
-(12, '12-12', 12, 12, 'Hunter', '➹', '#34D399', 'Expert tracker'),
-(13, '13-13', 13, 13, 'Ranger', '➺', '#34D399', 'Wild guardian'),
-(14, '14-14', 14, 14, 'Scout', '➻', '#FBBF24', 'Eagle eye'),
-(15, '15-15', 15, 15, 'Pathfinder', '➼', '#FBBF24', 'Trail blazer'),
+-- Levels 11-20: Officer Ranks (Warrant Officers and Lieutenants)
+(11, '11-11', 11, 11, 'Warrant Officer', '◄', '#34D399', 'Technical expert'),
+(12, '12-12', 12, 12, 'Chief Warrant Officer', '◄◄', '#34D399', 'Senior technical'),
+(13, '13-13', 13, 13, 'Second Lieutenant', '▬', '#34D399', 'Junior officer'),
+(14, '14-14', 14, 14, 'First Lieutenant', '▬▬', '#FBBF24', 'Experienced officer'),
+(15, '15-15', 15, 15, 'Captain', '▬▬▬', '#FBBF24', 'Company commander'),
 
-(16, '16-16', 16, 16, 'Swordsman', '⚔', '#FBBF24', 'Blade master'),
-(17, '17-17', 17, 17, 'Knight', '⚖', '#FBBF24', 'Noble warrior'),
-(18, '18-18', 18, 18, 'Paladin', '⚛', '#FBBF24', 'Holy warrior'),
-(19, '19-19', 19, 19, 'Crusader', '⚜', '#F87171', 'Righteous fighter'),
-(20, '20-20', 20, 20, 'Champion', '⚝', '#F87171', 'Victory seeker'),
+(16, '16-16', 16, 16, 'Major', '■', '#FBBF24', 'Battalion officer'),
+(17, '17-17', 17, 17, 'Lieutenant Colonel', '■■', '#FBBF24', 'Regiment officer'),
+(18, '18-18', 18, 18, 'Colonel', '■■■', '#FBBF24', 'Regiment commander'),
+(19, '19-19', 19, 19, 'Brigadier General', '★', '#F87171', 'Brigade commander'),
+(20, '20-20', 20, 20, 'Major General', '★★', '#F87171', 'Division commander'),
 
--- Levels 21-30: Mastery (Advanced symbols)
-(21, '21-21', 21, 21, 'Veteran', '⛤', '#F87171', 'Battle tested'),
-(22, '22-22', 22, 22, 'Elite', '⛥', '#F87171', 'Rare gem'),
-(23, '23-23', 23, 23, 'Expert', '⛦', '#A78BFA', 'Knowledge master'),
-(24, '24-24', 24, 24, 'Specialist', '⛧', '#A78BFA', 'Field expert'),
-(25, '25-25', 25, 25, 'Adept', '⛨', '#A78BFA', 'Magic wielder'),
+-- Levels 21-30: High Command (Generals and Admirals)
+(21, '21-21', 21, 21, 'Lieutenant General', '★★★', '#F87171', 'Corps commander'),
+(22, '22-22', 22, 22, 'General', '★★★★', '#F87171', 'Army commander'),
+(23, '23-23', 23, 23, 'General of the Army', '★★★★★', '#A78BFA', 'Supreme commander'),
+(24, '24-24', 24, 24, 'Field Marshal', '⚡', '#A78BFA', 'Battlefield master'),
+(25, '25-25', 25, 25, 'War Hero', '⚡⚡', '#A78BFA', 'Legendary warrior'),
 
-(26, '26-26', 26, 26, 'Master', '⛩', '#A78BFA', 'Crown bearer'),
-(27, '27-27', 27, 27, 'Grandmaster', '⛪', '#A78BFA', 'Ultimate master'),
-(28, '28-28', 28, 28, 'Legend', '⛫', '#FB7185', 'Storied hero'),
-(29, '29-29', 29, 29, 'Myth', '⛬', '#FB7185', 'Legendary tale'),
-(30, '30-30', 30, 30, 'Icon', '⛭', '#FB7185', 'Cultural icon'),
+(26, '26-26', 26, 26, 'Elite', '◆', '#A78BFA', 'Elite forces'),
+(27, '27-27', 27, 27, 'Spartan', '◆◆', '#A78BFA', 'Spartan warrior'),
+(28, '28-28', 28, 28, 'Legend', '◆◆◆', '#FB7185', 'Living legend'),
+(29, '29-29', 29, 29, 'Mythic', '◆◆◆◆', '#FB7185', 'Mythical status'),
+(30, '30-30', 30, 30, 'Immortal', '◆◆◆◆◆', '#FB7185', 'Immortal warrior'),
 
--- Levels 31-40: Divine (Sacred symbols)
-(31, '31-31', 31, 31, 'Immortal', '⛮', '#FB7185', 'Eternal being'),
-(32, '32-32', 32, 32, 'Deity', '⛯', '#FCD34D', 'Worshipped'),
-(33, '33-33', 33, 33, 'Titan', '⛰', '#FCD34D', 'Colossal power'),
-(34, '34-34', 34, 34, 'God', '⛱', '#FCD34D', 'Divine entity'),
-(35, '35-35', 35, 35, 'Archon', '⛲', '#FCD34D', 'Ruling power'),
+-- Levels 31-40: Special Forces (Advanced military symbols)
+(31, '31-31', 31, 31, 'Ghost', '◈', '#FB7185', 'Unseen operative'),
+(32, '32-32', 32, 32, 'Spectre', '◈◈', '#FCD34D', 'Shadow warrior'),
+(33, '33-33', 33, 33, 'Phantom', '◈◈◈', '#FCD34D', 'Elite operative'),
+(34, '34-34', 34, 34, 'Reaper', '◈◈◈◈', '#FCD34D', 'Death dealer'),
+(35, '35-35', 35, 35, 'Wraith', '◈◈◈◈◈', '#FCD34D', 'Unstoppable force'),
 
-(36, '36-36', 36, 36, 'Phoenix', '⛳', '#EC4899', 'Reborn from ashes'),
-(37, '37-37', 37, 37, 'Dragon', '⛴', '#EC4899', 'Ancient power'),
-(38, '38-38', 38, 38, 'Leviathan', '⛵', '#EC4899', 'Ocean ruler'),
-(39, '39-39', 39, 39, 'Behemoth', '⛶', '#EC4899', 'Massive force'),
-(40, '40-40', 40, 40, 'Colossus', '⛷', '#8B5CF6', 'Giant statue'),
+(36, '36-36', 36, 36, 'Demon', '◉', '#EC4899', 'Hellish warrior'),
+(37, '37-37', 37, 37, 'Titan', '◉◉', '#EC4899', 'Colossal power'),
+(38, '38-38', 38, 38, 'Behemoth', '◉◉◉', '#EC4899', 'Massive force'),
+(39, '39-39', 39, 39, 'Leviathan', '◉◉◉◉', '#EC4899', 'Ocean ruler'),
+(40, '40-40', 40, 40, 'Colossus', '◉◉◉◉◉', '#8B5CF6', 'Giant warrior'),
 
--- Levels 41-50: Transcendent (Geometric and abstract)
-(41, '41-41', 41, 41, 'Titan', '⛸', '#8B5CF6', 'Primordial force'),
-(42, '42-42', 42, 42, 'Elder', '⛹', '#8B5CF6', 'Ancient wisdom'),
-(43, '43-43', 43, 43, 'Sage', '⛺', '#8B5CF6', 'Wise teacher'),
-(44, '44-44', 44, 44, 'Oracle', '⛻', '#8B5CF6', 'Future seer'),
-(45, '45-45', 45, 45, 'Prophet', '⛼', '#06B6D4', 'Divine messenger'),
+-- Levels 41-50: Advanced Combat (Shield and Cross symbols)
+(41, '41-41', 41, 41, 'Guardian', '◊', '#8B5CF6', 'Protector'),
+(42, '42-42', 42, 42, 'Sentinel', '◊◊', '#8B5CF6', 'Watchful guard'),
+(43, '43-43', 43, 43, 'Defender', '◊◊◊', '#8B5CF6', 'Fortress defender'),
+(44, '44-44', 44, 44, 'Protector', '◊◊◊◊', '#8B5CF6', 'Shield bearer'),
+(45, '45-45', 45, 45, 'Aegis', '◊◊◊◊◊', '#06B6D4', 'Divine shield'),
 
-(46, '46-46', 46, 46, 'Ascended', '⛽', '#06B6D4', 'Transcended form'),
-(47, '47-47', 47, 47, 'Enlightened', '⛾', '#06B6D4', 'Awakened mind'),
-(48, '48-48', 48, 48, 'Celestial', '⛿', '#3B82F6', 'Heavenly being'),
-(49, '49-49', 49, 49, 'Seraphim', '✁', '#3B82F6', 'Highest angel'),
-(50, '50-50', 50, 50, 'Cherubim', '✂', '#3B82F6', 'Divine guardian'),
+(46, '46-46', 46, 46, 'Crusader', '✚', '#06B6D4', 'Holy warrior'),
+(47, '47-47', 47, 47, 'Paladin', '✚✚', '#06B6D4', 'Righteous fighter'),
+(48, '48-48', 48, 48, 'Templar', '✚✚✚', '#3B82F6', 'Order member'),
+(49, '49-49', 49, 49, 'Inquisitor', '✚✚✚✚', '#3B82F6', 'Truth seeker'),
+(50, '50-50', 50, 50, 'Archon', '✚✚✚✚✚', '#3B82F6', 'Ruling power'),
 
--- Levels 51-60: Cosmic (Star and space symbols)
-(51, '51-51', 51, 51, 'Archangel', '✃', '#F59E0B', 'Heavenly commander'),
-(52, '52-52', 52, 52, 'Divine', '✄', '#F59E0B', 'Godlike power'),
-(53, '53-53', 53, 53, 'Sacred', '✆', '#F59E0B', 'Holy ground'),
-(54, '54-54', 54, 54, 'Hallowed', '✇', '#F59E0B', 'Blessed one'),
-(55, '55-55', 55, 55, 'Sanctified', '✈', '#8B5CF6', 'Made holy'),
+-- Levels 51-60: Elite Specialists (Diamond and Star patterns)
+(51, '51-51', 51, 51, 'Vanguard', '◐', '#F59E0B', 'Front line'),
+(52, '52-52', 52, 52, 'Veteran', '◐◐', '#F59E0B', 'Battle tested'),
+(53, '53-53', 53, 53, 'Champion', '◐◐◐', '#F59E0B', 'Victory seeker'),
+(54, '54-54', 54, 54, 'Hero', '◐◐◐◐', '#F59E0B', 'Heroic warrior'),
+(55, '55-55', 55, 55, 'Legend', '◐◐◐◐◐', '#8B5CF6', 'Legendary hero'),
 
-(56, '56-56', 56, 56, 'Eternal', '✉', '#8B5CF6', 'Never ending'),
-(57, '57-57', 57, 57, 'Infinite', '✊', '#8B5CF6', 'Without limit'),
-(58, '58-58', 58, 58, 'Timeless', '✋', '#EC4899', 'Beyond time'),
-(59, '59-59', 59, 59, 'Transcendent', '✌', '#EC4899', 'Beyond reality'),
-(60, '60-60', 60, 60, 'Supreme', '✍', '#EC4899', 'Highest rank'),
+(56, '56-56', 56, 56, 'Master', '◑', '#8B5CF6', 'Master warrior'),
+(57, '57-57', 57, 57, 'Grandmaster', '◑◑', '#8B5CF6', 'Ultimate master'),
+(58, '58-58', 58, 58, 'Elite', '◑◑◑', '#EC4899', 'Elite forces'),
+(59, '59-59', 59, 59, 'Apex', '◑◑◑◑', '#EC4899', 'Peak warrior'),
+(60, '60-60', 60, 60, 'Supreme', '◑◑◑◑◑', '#EC4899', 'Supreme warrior'),
 
--- Levels 61-70: Universal (Planetary and cosmic)
-(61, '61-61', 61, 61, 'Cosmic', '✎', '#6366F1', 'Universe power'),
-(62, '62-62', 62, 62, 'Stellar', '✏', '#6366F1', 'Star power'),
-(63, '63-63', 63, 63, 'Nebular', '✐', '#A855F7', 'Star birth'),
-(64, '64-64', 64, 64, 'Quasar', '✑', '#A855F7', 'Brightest object'),
-(65, '65-65', 65, 65, 'Pulsar', '✒', '#A855F7', 'Radiating energy'),
+-- Levels 61-70: Command Structure (Complex geometric patterns)
+(61, '61-61', 61, 61, 'Commander', '◒', '#6366F1', 'Field commander'),
+(62, '62-62', 62, 62, 'General', '◒◒', '#6366F1', 'Army general'),
+(63, '63-63', 63, 63, 'Marshal', '◒◒◒', '#A855F7', 'Battle marshal'),
+(64, '64-64', 64, 64, 'Admiral', '◒◒◒◒', '#A855F7', 'Fleet admiral'),
+(65, '65-65', 65, 65, 'Fleet Admiral', '◒◒◒◒◒', '#A855F7', 'Supreme admiral'),
 
-(66, '66-66', 66, 66, 'Galactic', '✓', '#10B981', 'Galaxy ruler'),
-(67, '67-67', 67, 67, 'Interstellar', '✔', '#10B981', 'Between stars'),
-(68, '68-68', 68, 68, 'Universal', '✕', '#F59E0B', 'All encompassing'),
-(69, '69-69', 69, 69, 'Multiversal', '✖', '#F59E0B', 'Multiple realities'),
-(70, '70-70', 70, 70, 'Omniversal', '✗', '#F59E0B', 'All universes'),
+(66, '66-66', 66, 66, 'Warlord', '◓', '#10B981', 'War leader'),
+(67, '67-67', 67, 67, 'Overlord', '◓◓', '#10B981', 'Domain ruler'),
+(68, '68-68', 68, 68, 'Conqueror', '◓◓◓', '#F59E0B', 'World conqueror'),
+(69, '69-69', 69, 69, 'Emperor', '◓◓◓◓', '#F59E0B', 'Empire ruler'),
+(70, '70-70', 70, 70, 'Imperator', '◓◓◓◓◓', '#F59E0B', 'Supreme emperor'),
 
--- Levels 71-80: Omnipotent (Power symbols)
-(71, '71-71', 71, 71, 'Omnipotent', '✘', '#EF4444', 'All powerful'),
-(72, '72-72', 72, 72, 'Omniscient', '✙', '#EF4444', 'All knowing'),
-(73, '73-73', 73, 73, 'Omnipresent', '✚', '#EF4444', 'Everywhere'),
-(74, '74-74', 74, 74, 'Absolute', '✛', '#EF4444', 'Without limit'),
-(75, '75-75', 75, 75, 'Ultimate', '✜', '#EF4444', 'Final form'),
+-- Levels 71-80: Mythical Ranks (Advanced symbols)
+(71, '71-71', 71, 71, 'Titan', '◔', '#EF4444', 'Primordial force'),
+(72, '72-72', 72, 72, 'Deity', '◔◔', '#EF4444', 'Divine being'),
+(73, '73-73', 73, 73, 'God', '◔◔◔', '#EF4444', 'Divine entity'),
+(74, '74-74', 74, 74, 'Celestial', '◔◔◔◔', '#EF4444', 'Heavenly being'),
+(75, '75-75', 75, 75, 'Divine', '◔◔◔◔◔', '#EF4444', 'Godlike power'),
 
-(76, '76-76', 76, 76, 'Primordial', '✝', '#DC2626', 'First being'),
-(77, '77-77', 77, 77, 'Alpha', '✞', '#DC2626', 'First letter'),
-(78, '78-78', 78, 78, 'Omega', '✟', '#DC2626', 'Last letter'),
-(79, '79-79', 79, 79, 'Infinity', '✠', '#DC2626', 'Endless'),
-(80, '80-80', 80, 80, 'Eternity', '✡', '#DC2626', 'Forever'),
+(76, '76-76', 76, 76, 'Eternal', '◕', '#DC2626', 'Never ending'),
+(77, '77-77', 77, 77, 'Infinite', '◕◕', '#DC2626', 'Without limit'),
+(78, '78-78', 78, 78, 'Transcendent', '◕◕◕', '#DC2626', 'Beyond reality'),
+(79, '79-79', 79, 79, 'Omnipotent', '◕◕◕◕', '#DC2626', 'All powerful'),
+(80, '80-80', 80, 80, 'Absolute', '◕◕◕◕◕', '#DC2626', 'Without limit'),
 
--- Levels 81-90: Beyond (Abstract and mystical)
-(81, '81-81', 81, 81, 'Void', '✢', '#991B1B', 'Empty space'),
-(82, '82-82', 82, 82, 'Abyss', '✣', '#991B1B', 'Bottomless pit'),
-(83, '83-83', 83, 83, 'Chaos', '✤', '#991B1B', 'Disorder'),
-(84, '84-84', 84, 84, 'Order', '✥', '#991B1B', 'Perfect structure'),
-(85, '85-85', 85, 85, 'Balance', '✦', '#991B1B', 'Harmony'),
+-- Levels 81-90: Cosmic Ranks (Space and universal symbols)
+(81, '81-81', 81, 81, 'Stellar', '◖', '#991B1B', 'Star power'),
+(82, '82-82', 82, 82, 'Nebular', '◖◖', '#991B1B', 'Star birth'),
+(83, '83-83', 83, 83, 'Galactic', '◖◖◖', '#991B1B', 'Galaxy ruler'),
+(84, '84-84', 84, 84, 'Universal', '◖◖◖◖', '#991B1B', 'All encompassing'),
+(85, '85-85', 85, 85, 'Cosmic', '◖◖◖◖◖', '#991B1B', 'Universe power'),
 
-(86, '86-86', 86, 86, 'Unity', '✧', '#7C2D12', 'One with all'),
-(87, '87-87', 87, 87, 'Singularity', '✨', '#7C2D12', 'Point of infinity'),
-(88, '88-88', 88, 88, 'Nexus', '✩', '#7C2D12', 'Connection point'),
-(89, '89-89', 89, 89, 'Convergence', '✪', '#7C2D12', 'All paths meet'),
-(90, '90-90', 90, 90, 'Transcendence', '✫', '#7C2D12', 'Beyond all'),
+(86, '86-86', 86, 86, 'Multiversal', '◗', '#7C2D12', 'Multiple realities'),
+(87, '87-87', 87, 87, 'Omniversal', '◗◗', '#7C2D12', 'All universes'),
+(88, '88-88', 88, 88, 'Singularity', '◗◗◗', '#7C2D12', 'Point of infinity'),
+(89, '89-89', 89, 89, 'Nexus', '◗◗◗◗', '#7C2D12', 'Connection point'),
+(90, '90-90', 90, 90, 'Convergence', '◗◗◗◗◗', '#7C2D12', 'All paths meet'),
 
--- Levels 91-100: Ultimate (Final symbols)
-(91, '91-91', 91, 91, 'Paragon', '✬', '#78350F', 'Perfect example'),
-(92, '92-92', 92, 92, 'Apex', '✭', '#78350F', 'Highest point'),
-(93, '93-93', 93, 93, 'Zenith', '✮', '#78350F', 'Peak achievement'),
-(94, '94-94', 94, 94, 'Pinnacle', '✯', '#78350F', 'Ultimate height'),
-(95, '95-95', 95, 95, 'Summit', '✰', '#78350F', 'Mountain top'),
+-- Levels 91-100: Ultimate Ranks (Final military symbols)
+(91, '91-91', 91, 91, 'Paragon', '◘', '#78350F', 'Perfect example'),
+(92, '92-92', 92, 92, 'Apex', '◘◘', '#78350F', 'Highest point'),
+(93, '93-93', 93, 93, 'Zenith', '◘◘◘', '#78350F', 'Peak achievement'),
+(94, '94-94', 94, 94, 'Pinnacle', '◘◘◘◘', '#78350F', 'Ultimate height'),
+(95, '95-95', 95, 95, 'Summit', '◘◘◘◘◘', '#78350F', 'Mountain top'),
 
-(96, '96-96', 96, 96, 'Crown', '✱', '#92400E', 'Royalty'),
-(97, '97-97', 97, 97, 'Throne', '✲', '#92400E', 'Ruler seat'),
-(98, '98-98', 98, 98, 'Empire', '✳', '#92400E', 'Vast domain'),
-(99, '99-99', 99, 99, 'Realm', '✴', '#92400E', 'Complete domain'),
-(100, '100-100', 100, 100, 'Omniverse', '✵', '#92400E', 'All that exists');
+(96, '96-96', 96, 96, 'Crown', '◙', '#92400E', 'Royalty'),
+(97, '97-97', 97, 97, 'Throne', '◙◙', '#92400E', 'Ruler seat'),
+(98, '98-98', 98, 98, 'Empire', '◙◙◙', '#92400E', 'Vast domain'),
+(99, '99-99', 99, 99, 'Realm', '◙◙◙◙', '#92400E', 'Complete domain'),
+(100, '100-100', 100, 100, 'Omniverse', '◙◙◙◙◙', '#92400E', 'All that exists');
 
 -- Update the update_user_ranking function to use the new tier system
 CREATE OR REPLACE FUNCTION public.update_user_ranking(p_user_id UUID)
@@ -210,9 +210,9 @@ BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE '';
     RAISE NOTICE '📊 Created 100 ranking tiers';
-    RAISE NOTICE '🎖️ Each level has unique custom symbol';
+    RAISE NOTICE '🎖️ Military-style symbols (Halo/COD inspired)';
     RAISE NOTICE '🌈 Color-coded progression system';
     RAISE NOTICE '';
 END $$;
 
-SELECT '✅ 100 Level Rank System with Custom Symbols Created Successfully!' as status;
+SELECT '✅ 100 Level Rank System with Military Symbols Created Successfully!' as status;
