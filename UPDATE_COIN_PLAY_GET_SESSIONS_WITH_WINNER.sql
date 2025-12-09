@@ -55,7 +55,7 @@ BEGIN
         s.timer_started_at,
         s.winner_user_id,
         s.winner_prize,
-        COALESCE(u.username, SPLIT_PART(u.email, '@', 1), 'Player') as winner_username,
+        COALESCE(u.username::TEXT, SPLIT_PART(u.email, '@', 1)::TEXT, 'Player'::TEXT) as winner_username,
         s.completed_at,
         s.created_at
     FROM public.coin_play_sessions s
