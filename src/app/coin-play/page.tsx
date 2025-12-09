@@ -607,7 +607,11 @@ export default function CoinPlayPage() {
 
                         // Calculate prize pool from config
                         const configPrize = parseInt(session.config_id.split('-').pop() || '0');
+                        // Use actual pool if it exists, otherwise use config prize
                         const currentPrize = session.prize_pool > 0 ? session.prize_pool : configPrize;
+                        // Calculate actual payout (85% of pool, 15% platform fee)
+                        const winnerPayout = currentPrize * 0.85;
+                        const platformFee = currentPrize * 0.15;
 
                         return (
                           <div
@@ -617,20 +621,28 @@ export default function CoinPlayPage() {
                             {/* Title: Prize Amount */}
                             <div className="text-center mb-4 border-b-2 border-amber-500/30 pb-4">
                               <h3 className="text-2xl font-black text-amber-200 mb-2">
-                                ${configPrize} Prize Pool
+                                ${configPrize} Target Pool
                               </h3>
                               <div className="text-sm text-amber-300/80">
-                                Winner gets ${(configPrize * 0.85).toFixed(2)}
+                                Winner gets ${winnerPayout.toFixed(2)} (85%)
                               </div>
                             </div>
 
-                            {/* Current Pool */}
+                            {/* Current Pool & Actual Payout */}
                             <div className="text-center mb-4">
                               <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-300">
                                 ${currentPrize.toFixed(2)}
                               </div>
-                              <div className="text-xs text-amber-200/60">
+                              <div className="text-xs text-amber-200/60 mb-2">
                                 Current Pool
+                              </div>
+                              <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-2 mt-2">
+                                <div className="text-lg font-bold text-green-300">
+                                  ${winnerPayout.toFixed(2)}
+                                </div>
+                                <div className="text-xs text-green-200/80">
+                                  Winner Payout (85%)
+                                </div>
                               </div>
                             </div>
 
