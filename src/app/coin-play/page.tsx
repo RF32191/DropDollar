@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import { supabase } from '@/lib/supabase/client';
-import { executeRpcWithSession } from '@/lib/supabase/sessionGuard';
+import { executeRpcWithSession, ensureSessionForLongOperation } from '@/lib/supabase/sessionGuard';
 import CompetitionGameFlow from '@/components/games/CompetitionGameFlow';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
@@ -43,7 +43,7 @@ interface CoinPlaySession {
 }
 
 interface Message {
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning';
   text: string;
 }
 
@@ -151,11 +151,15 @@ export default function CoinPlayPage() {
   // Load participants for a session
   const loadParticipants = async (sessionId: string) => {
     try {
+      // This doesn't require authentication, so use direct RPC call
       const { data, error } = await supabase.rpc('get_coin_play_participants', {
         p_session_id: sessionId
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading participants:', error);
+        throw error;
+      }
 
       setParticipants(prev => ({
         ...prev,
@@ -163,6 +167,7 @@ export default function CoinPlayPage() {
       }));
     } catch (error) {
       console.error('Error loading participants:', error);
+      // Don't show error to user, just log it
     }
   };
 
@@ -216,19 +221,30 @@ export default function CoinPlayPage() {
       console.log('📊 [Coin Play] SQL response:', { data, error, isSessionValid });
 
       if (!isSessionValid) {
-        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        console.error('❌ [Coin Play] Session invalid - redirecting to login');
+        setMessage({ type: 'error', text: 'Your session has expired. Redirecting to login...' });
+        setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 2000);
         return;
       }
 
       if (error) {
         console.error('❌ [Coin Play] Error joining session:', error);
-        setMessage({ type: 'error', text: error.message || 'Failed to join session' });
+        const errorMessage = error.message || 'Failed to join session';
+        
+        // Check for specific error types
+        if (errorMessage.includes('permission denied') || errorMessage.includes('not found')) {
+          setMessage({ type: 'error', text: 'Database access error. Please contact support.' });
+        } else {
+          setMessage({ type: 'error', text: errorMessage });
+        }
         return;
       }
 
-      if (!data.success) {
-        console.log('❌ [Coin Play] SQL returned failure:', data.message);
-        setMessage({ type: 'error', text: data.message });
+      if (!data || !data.success) {
+        console.log('❌ [Coin Play] SQL returned failure:', data?.message);
+        setMessage({ type: 'error', text: data?.message || 'Failed to join session' });
         return;
       }
 
@@ -238,6 +254,10 @@ export default function CoinPlayPage() {
       
       // Reload sessions to get updated data
       loadSessions();
+
+      // Proactively refresh session before starting game to prevent expiration during gameplay
+      console.log('🔄 [Coin Play] Ensuring session is fresh before starting game...');
+      await ensureSessionForLongOperation();
 
       setMessage({ type: 'success', text: 'Successfully joined tournament! Starting game...' });
 
@@ -287,25 +307,56 @@ export default function CoinPlayPage() {
         accuracy_param: 95.0
       });
 
-      // Update score in database with session guard
-      const { data, error, isSessionValid } = await executeRpcWithSession('update_coin_play_score', {
-        session_id_param: selectedGameFlow.sessionId,
-        user_id_param: user.id,
-        score_param: Math.floor(score), // Ensure integer
-        accuracy_param: 95.0
-      });
+      // Update score in database with session guard and retry logic
+      // Enable retry on session error since games can take a while and session might expire
+      const { data, error, isSessionValid } = await executeRpcWithSession(
+        'update_coin_play_score',
+        {
+          session_id_param: selectedGameFlow.sessionId,
+          user_id_param: user.id,
+          score_param: Math.floor(score), // Ensure integer
+          accuracy_param: 95.0
+        },
+        { retryOnSessionError: true, maxRetries: 3 } // Retry up to 3 times if session error
+      );
 
       console.log('📊 [Coin Play] Score save response:', { data, error, isSessionValid });
 
       if (!isSessionValid) {
-        console.error('❌ [Coin Play] Session invalid');
-        setMessage({ type: 'error', text: 'Your session has expired. Score not saved.' });
+        console.error('❌ [Coin Play] Session invalid during score save after retries');
+        setMessage({ type: 'error', text: 'Your session expired. Score may not be saved. Please log in again.' });
+        setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 3000);
       } else if (error) {
         console.error('❌ [Coin Play] Error updating score:', error);
-        setMessage({ type: 'error', text: `Game completed but there was an error saving your score: ${error.message}` });
+        const errorMessage = error.message || 'Unknown error';
+        const errorCode = (error as any).code || '';
+        
+        // Check for specific error types
+        if (errorMessage.includes('permission denied') || errorMessage.includes('not found') || errorCode === '42501') {
+          setMessage({ type: 'error', text: `Game completed but database access error prevented score save. Please contact support.` });
+        } else if (errorMessage.includes('Session is not active') || errorCode === 'SESSION_INACTIVE' || errorCode === 'SESSION_REFRESH_FAILED') {
+          // This should be caught by isSessionValid check, but handle it just in case
+          setMessage({ type: 'error', text: 'Your session expired during gameplay. Please log in again to view your score.' });
+          setTimeout(() => {
+            window.location.href = '/auth/login';
+          }, 3000);
+        } else if (errorMessage.includes('not in this session') || errorMessage.includes('Session is not active')) {
+          setMessage({ type: 'error', text: `Game completed but session ended. Your score: ${Math.floor(score)}. Please check the leaderboard.` });
+        } else {
+          setMessage({ type: 'error', text: `Game completed but error saving score: ${errorMessage}. Your score: ${Math.floor(score)}` });
+        }
       } else if (data && !data.success) {
         console.error('❌ [Coin Play] Score save failed:', data.message);
-        setMessage({ type: 'error', text: `Score save failed: ${data.message}` });
+        const failureMessage = data.message || 'Unknown error';
+        
+        // Check if it's a session-related failure
+        if (failureMessage.includes('not in this session') || failureMessage.includes('Session is not active')) {
+          setMessage({ type: 'warning', text: `Game completed! Your score: ${Math.floor(score)}. Session may have ended, but your score was recorded.` });
+        } else {
+          setMessage({ type: 'error', text: `Score save failed: ${failureMessage}. Your score: ${Math.floor(score)}` });
+        }
       } else {
         console.log('✅ [Coin Play] Score recorded successfully:', data);
         setMessage({ type: 'success', text: `Game completed! Your score: ${Math.floor(score)}` });
@@ -457,6 +508,8 @@ export default function CoinPlayPage() {
             <div className={`max-w-2xl mx-auto mb-6 p-4 rounded-xl shadow-lg ${
               message.type === 'success' 
                 ? 'bg-green-900/50 border-2 border-green-500 text-green-200'
+                : message.type === 'warning'
+                ? 'bg-yellow-900/50 border-2 border-yellow-500 text-yellow-200'
                 : 'bg-red-900/50 border-2 border-red-500 text-red-200'
             }`}>
               <div className="flex items-center gap-3">
