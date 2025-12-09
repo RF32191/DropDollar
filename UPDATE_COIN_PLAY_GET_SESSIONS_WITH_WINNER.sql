@@ -15,6 +15,9 @@ END $$;
 -- UPDATE FUNCTION
 -- ============================================================================
 
+-- Drop existing function first (required when changing return type)
+DROP FUNCTION IF EXISTS public.get_coin_play_sessions() CASCADE;
+
 CREATE OR REPLACE FUNCTION public.get_coin_play_sessions()
 RETURNS TABLE (
     id UUID,
