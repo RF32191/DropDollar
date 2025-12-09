@@ -22,6 +22,19 @@ export interface DailyChallenge {
   is_completed: boolean;
 }
 
+export interface WeeklyChallenge {
+  challenge_id: string;
+  challenge_name: string;
+  challenge_description: string;
+  challenge_type: string;
+  target_value: number;
+  progress: number;
+  xp_reward: number;
+  reward_points: number;
+  is_completed: boolean;
+  week_start_date: string;
+}
+
 export interface XPTransaction {
   id: string;
   user_id: string;
@@ -138,6 +151,54 @@ export class XPService {
       return data;
     } catch (error) {
       console.error('❌ [XPService] Exception updating challenge progress:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get weekly challenges for user
+   */
+  static async getWeeklyChallenges(userId: string): Promise<WeeklyChallenge[]> {
+    try {
+      const { data, error } = await supabase.rpc('get_weekly_challenges', {
+        p_user_id: userId
+      });
+
+      if (error) {
+        console.error('❌ [XPService] Error fetching weekly challenges:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ [XPService] Exception fetching weekly challenges:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Update weekly challenge progress
+   */
+  static async updateWeeklyChallengeProgress(
+    userId: string,
+    challengeType: string,
+    increment: number = 1
+  ): Promise<{ success: boolean; is_completed?: boolean; xp_awarded?: number } | null> {
+    try {
+      const { data, error } = await supabase.rpc('update_weekly_challenge_progress', {
+        p_user_id: userId,
+        p_challenge_type: challengeType,
+        p_progress_increment: increment
+      });
+
+      if (error) {
+        console.error('❌ [XPService] Error updating weekly challenge progress:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ [XPService] Exception updating weekly challenge progress:', error);
       return null;
     }
   }
