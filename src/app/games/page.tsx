@@ -194,34 +194,48 @@ export default function GamesPage() {
     const audioFile = '/GamesPage.mp3';
     let hasPlayed = false;
     let audio: HTMLAudioElement | null = null;
+    let fileExists = false;
     
-    // First check if file exists
+    // First check if file exists - more robust check
     const checkAndPlayAudio = async () => {
       try {
-        const response = await fetch(audioFile, { method: 'HEAD' });
-        if (!response.ok) {
-          console.log('ℹ️ Audio file not found:', audioFile, '- Skipping audio playback');
+        // Try HEAD request first
+        const response = await fetch(audioFile, { 
+          method: 'HEAD',
+          cache: 'no-cache'
+        });
+        
+        if (!response.ok || response.status === 404) {
+          console.log('ℹ️ Audio file not found:', audioFile, '- Audio playback disabled');
           return;
         }
         
-        console.log('🎵 Audio file found, loading:', audioFile);
+        fileExists = true;
+        console.log('✅ Audio file found:', audioFile);
         
-        // Create audio element
+        // Create audio element only if file exists
         audio = new Audio(audioFile);
         audioRef.current = audio;
         audio.volume = 0.7;
         audio.loop = false;
         
-        // Error handlers - silent fail for 404
+        // Error handlers - prevent console errors for missing files
         audio.addEventListener('error', (e) => {
           const errorCode = audio?.error?.code;
-          if (errorCode === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED or file not found
-            console.log('ℹ️ Audio file not available:', audioFile);
-          } else {
-            console.error('❌ Audio error:', errorCode, audio?.error?.message);
+          // Error code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED (file not found/invalid)
+          if (errorCode === 4 || errorCode === 2) {
+            console.log('ℹ️ Audio file could not be loaded:', audioFile);
+            // Clean up
+            if (audioRef.current) {
+              audioRef.current = null;
+            }
+            audio = null;
           }
-        });
+        }, { once: true });
     
+        // Only proceed if file exists
+        if (!fileExists || !audio) return;
+        
         audio.addEventListener('loadstart', () => {
           console.log('📥 Audio loading started');
         });
@@ -291,7 +305,7 @@ export default function GamesPage() {
           }
         }, 1000);
         
-        // Start loading
+        // Start loading only if file exists
         audio.load();
         console.log('🚀 Audio load() called');
 
@@ -303,8 +317,13 @@ export default function GamesPage() {
           }
           audioRef.current = null;
         };
-      } catch (error) {
-        console.log('ℹ️ Could not check audio file:', error);
+      } catch (error: any) {
+        // If fetch fails, file doesn't exist - don't create audio element
+        if (error.name === 'TypeError' || error.message?.includes('Failed to fetch')) {
+          console.log('ℹ️ Audio file not found:', audioFile, '- Audio playback disabled');
+        } else {
+          console.log('ℹ️ Could not check audio file:', error);
+        }
       }
     };
     
