@@ -49,7 +49,13 @@ BEGIN
     END IF;
 
     -- Check if timer has expired
-    IF v_timer_started_at IS NULL OR (NOW() - v_timer_started_at) < (v_timer_duration || ' seconds')::INTERVAL THEN
+    -- Timer expires when: timer_started_at + timer_duration seconds < NOW()
+    IF v_timer_started_at IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Timer has not started yet');
+    END IF;
+    
+    -- Calculate elapsed time in seconds
+    IF EXTRACT(EPOCH FROM (NOW() - v_timer_started_at)) < v_timer_duration THEN
         RETURN jsonb_build_object('success', false, 'message', 'Timer has not expired yet');
     END IF;
 
@@ -118,9 +124,30 @@ BEGIN
         completed_at = NOW()
     WHERE id = v_session_id;
 
-    -- Create new waiting session
-    INSERT INTO public.coin_play_sessions (config_id, status, prize_pool, timer_duration)
-    VALUES (config_id_param, 'waiting', 0, 120);
+    -- Clear participants from completed session (cleanup)
+    DELETE FROM public.coin_play_participants
+    WHERE session_id = v_session_id;
+
+    -- Create new waiting session (only if one doesn't already exist)
+    IF NOT EXISTS (
+        SELECT 1 FROM public.coin_play_sessions
+        WHERE config_id = config_id_param AND status = 'waiting'
+    ) THEN
+        INSERT INTO public.coin_play_sessions (
+            config_id, 
+            status, 
+            prize_pool, 
+            participants_count,
+            timer_duration
+        )
+        VALUES (
+            config_id_param, 
+            'waiting', 
+            0, 
+            0,
+            120
+        );
+    END IF;
 
     RETURN jsonb_build_object(
         'success', true,
