@@ -21,47 +21,40 @@ export default function HomePage() {
     const audioFile = '/HomePage.mp3';
     let hasPlayed = false;
     let audio: HTMLAudioElement | null = null;
-    let fileExists = false;
     
-    // First check if file exists - more robust check
+    // Check if file exists BEFORE creating audio element
     const checkAndPlayAudio = async () => {
       try {
-        // Try HEAD request first
+        // Try HEAD request to check if file exists
         const response = await fetch(audioFile, { 
           method: 'HEAD',
-          cache: 'no-cache'
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
         });
         
-        if (!response.ok || response.status === 404) {
+        // If file doesn't exist (404 or any non-ok status), don't create audio
+        if (!response.ok) {
           console.log('ℹ️ Audio file not found:', audioFile, '- Audio playback disabled');
-          return;
+          return; // Exit early - don't create Audio element
         }
         
-        fileExists = true;
         console.log('✅ Audio file found:', audioFile);
         
-        // Create audio element only if file exists
+        // Only create audio element if file exists
         audio = new Audio(audioFile);
         audioRef.current = audio;
         audio.volume = 0.7;
         audio.loop = false;
         
-        // Error handlers - prevent console errors for missing files
+        // Error handler as backup
         audio.addEventListener('error', (e) => {
-          const errorCode = audio?.error?.code;
-          // Error code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED (file not found/invalid)
-          if (errorCode === 4 || errorCode === 2) {
-            console.log('ℹ️ Audio file could not be loaded:', audioFile);
-            // Clean up
-            if (audioRef.current) {
-              audioRef.current = null;
-            }
-            audio = null;
+          console.log('ℹ️ Audio error - cleaning up');
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
           }
+          audio = null;
         }, { once: true });
-    
-        // Only proceed if file exists
-        if (!fileExists || !audio) return;
         
         audio.addEventListener('loadstart', () => {
           console.log('📥 Audio loading started');
