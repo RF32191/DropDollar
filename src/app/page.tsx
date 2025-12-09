@@ -26,17 +26,23 @@ export default function HomePage() {
     // Check if file exists BEFORE creating audio element
     const checkAndPlayAudio = async () => {
       try {
-        // Try HEAD request to check if file exists
+        // Try HEAD request to check if file exists - catch errors silently
         const response = await fetch(audioFile, { 
           method: 'HEAD',
           cache: 'no-cache'
-        });
+        }).catch(() => null); // Silently catch network errors
         
-        // If file doesn't exist (404 or any non-ok status), don't create audio
-        if (!response.ok || response.status === 404) {
-          console.log('ℹ️ Audio file not found:', audioFile, '- Audio playback disabled');
+        // If fetch failed or file doesn't exist, don't create audio
+        if (!response || !response.ok || response.status === 404) {
+          // File doesn't exist - silently skip (no console errors)
           fileCheckComplete = true;
           return; // Exit early - don't create Audio element
+        }
+        
+        // Double check - only proceed if status is 200
+        if (response.status !== 200) {
+          fileCheckComplete = true;
+          return;
         }
         
         fileCheckComplete = true;
