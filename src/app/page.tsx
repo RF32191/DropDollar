@@ -1,18 +1,61 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 export default function HomePage() {
   const [scrollY, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Play audio when page loads
+  useEffect(() => {
+    const audioFiles = [
+      '/HomePage.mp3',
+      '/HomePage.wav',
+      '/HomePage.ogg',
+      '/homepage.mp3',
+      '/homepage.wav',
+      '/homepage.ogg'
+    ];
+
+    const tryLoadAudio = async () => {
+      for (const file of audioFiles) {
+        try {
+          const response = await fetch(file, { method: 'HEAD' });
+          if (response.ok) {
+            const audio = new Audio(file);
+            audioRef.current = audio;
+            audio.volume = 0.5;
+            audio.loop = false;
+            
+            audio.play().catch((error) => {
+              console.log('Audio autoplay blocked. User interaction required to play.');
+            });
+            return;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    };
+
+    tryLoadAudio();
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
   }, []);
 
   return (

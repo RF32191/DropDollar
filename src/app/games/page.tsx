@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
@@ -167,6 +167,7 @@ export default function GamesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, isAuthenticated } = useAuth(); // Use useAuth context instead of localStorage
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // Location verification hook
   const {
@@ -187,6 +188,48 @@ export default function GamesPage() {
   const globalLocation = useGlobalLocation();
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
+  
+  // Play audio when page loads
+  useEffect(() => {
+    const audioFiles = [
+      '/GamesPage.mp3',
+      '/GamesPage.wav',
+      '/GamesPage.ogg',
+      '/gamespage.mp3',
+      '/gamespage.wav',
+      '/gamespage.ogg'
+    ];
+
+    const tryLoadAudio = async () => {
+      for (const file of audioFiles) {
+        try {
+          const response = await fetch(file, { method: 'HEAD' });
+          if (response.ok) {
+            const audio = new Audio(file);
+            audioRef.current = audio;
+            audio.volume = 0.5;
+            audio.loop = false;
+            
+            audio.play().catch((error) => {
+              console.log('Audio autoplay blocked. User interaction required to play.');
+            });
+            return;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    };
+
+    tryLoadAudio();
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
   
   // 10-minute inactivity timeout
   useInactivityTimeout({
