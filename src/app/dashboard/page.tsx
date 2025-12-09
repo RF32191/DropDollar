@@ -794,6 +794,16 @@ export default function TriumphStyleDashboard() {
         {/* Level & XP Display - Always show, even for new users */}
         {!isLoading && userXP && (
           <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-black text-white">Your Rank & Progress</h2>
+              <Link 
+                href="/ranks" 
+                className="text-purple-300 hover:text-white font-semibold flex items-center gap-2 transition-all hover:scale-105"
+              >
+                View All Ranks
+                <TrophyIcon className="w-5 h-5" />
+              </Link>
+            </div>
             <LevelDisplay xpData={userXP} showFullDetails={true} size="lg" />
           </div>
         )}
