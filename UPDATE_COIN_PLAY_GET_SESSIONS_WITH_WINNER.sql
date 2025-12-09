@@ -2,6 +2,7 @@
 -- UPDATE GET_COIN_PLAY_SESSIONS TO INCLUDE WINNER USERNAME
 -- ============================================================================
 -- Updates get_coin_play_sessions to include winner_username for display
+-- GitHub: https://github.com/RF32191/DropDollar/blob/main/UPDATE_COIN_PLAY_GET_SESSIONS_WITH_WINNER.sql
 -- ============================================================================
 
 DO $$
