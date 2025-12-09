@@ -18,39 +18,40 @@ export default function HomePage() {
 
   // Play audio when page loads
   useEffect(() => {
-    const audioFiles = [
-      '/HomePage.mp3',
-      '/HomePage.wav',
-      '/HomePage.ogg',
-      '/homepage.mp3',
-      '/homepage.wav',
-      '/homepage.ogg'
-    ];
-
-    const tryLoadAudio = async () => {
-      for (const file of audioFiles) {
-        try {
-          const response = await fetch(file, { method: 'HEAD' });
-          if (response.ok) {
-            const audio = new Audio(file);
-            audioRef.current = audio;
-            audio.volume = 0.5;
-            audio.loop = false;
-            
-            audio.play().catch((error) => {
+    // Primary audio file - HomePage.mp3 in public folder
+    const audioFile = '/HomePage.mp3';
+    
+    const playAudio = () => {
+      try {
+        const audio = new Audio(audioFile);
+        audioRef.current = audio;
+        audio.volume = 0.5; // 50% volume
+        audio.loop = false; // Play once
+        
+        // Try to play audio
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('HomePage audio playing');
+            })
+            .catch((error) => {
+              // Autoplay was blocked - browser requires user interaction
               console.log('Audio autoplay blocked. User interaction required to play.');
+              // Store audio ref so it can be played on user interaction
             });
-            return;
-          }
-        } catch (e) {
-          continue;
         }
+      } catch (error) {
+        console.error('Error loading HomePage audio:', error);
       }
     };
 
-    tryLoadAudio();
+    // Small delay to ensure page is loaded
+    const timer = setTimeout(playAudio, 100);
 
     return () => {
+      clearTimeout(timer);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
