@@ -72,6 +72,19 @@ BEGIN
 END $$;
 
 -- ============================================================================
+-- GRANT PERMISSIONS (Required after DROP FUNCTION CASCADE)
+-- ============================================================================
+
+-- Grant execute permission to everyone (anon + authenticated)
+GRANT EXECUTE ON FUNCTION public.get_coin_play_sessions() TO anon;
+GRANT EXECUTE ON FUNCTION public.get_coin_play_sessions() TO authenticated;
+
+DO $$
+BEGIN
+    RAISE NOTICE '✅ Permissions granted to anon and authenticated';
+END $$;
+
+-- ============================================================================
 -- VERIFY
 -- ============================================================================
 
