@@ -62,10 +62,16 @@ BEGIN
     FROM public.coin_play_participants
     WHERE session_id = p_session;
 
-    -- Check if session is full (using actual count, not stored count)
-    IF v_participants_count >= v_max_participants THEN
+    -- Check if session is full (using actual count + 1 for this user)
+    -- We check BEFORE adding, so if current count + 1 would exceed max, it's full
+    IF (v_participants_count + 1) > v_max_participants THEN
         RETURN jsonb_build_object('success', false, 'message', 'Session is full');
     END IF;
+    
+    -- Also sync the stored count with actual count before proceeding
+    UPDATE public.coin_play_sessions
+    SET participants_count = v_participants_count
+    WHERE id = p_session AND participants_count != v_participants_count;
 
     -- Check if user already joined
     IF EXISTS (
