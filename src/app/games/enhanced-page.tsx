@@ -14,6 +14,7 @@ import VictoryAnimation from '@/components/VictoryAnimation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { TriumphMatchmakingService } from '@/lib/supabase/triumphMatchmaking';
+import { XPService } from '@/lib/supabase/xpService';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   StarIcon, 
@@ -129,7 +130,6 @@ export default function EnhancedGamesPage() {
         // Award XP for practice game
         if (gameHistory?.id) {
           try {
-            const { XPService } = await import('@/lib/supabase/xpService');
             const xpResult = await XPService.awardPracticeGameXP(
               user.id,
               gameHistory.id,
