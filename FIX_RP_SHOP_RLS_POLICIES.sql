@@ -12,12 +12,9 @@ DROP POLICY IF EXISTS "Admins can update RP shop listings" ON public.rp_shop_lis
 DROP POLICY IF EXISTS "Admins can delete RP shop listings" ON public.rp_shop_listings;
 
 -- Anyone can view active listings (needed for the function to work)
+-- This policy allows anonymous and authenticated users to see active listings
 CREATE POLICY "Anyone can view active RP shop listings" ON public.rp_shop_listings
-    FOR SELECT USING (is_active = true);
-
--- Also allow authenticated users to view all listings (for admin function)
-CREATE POLICY "Authenticated can view all RP shop listings" ON public.rp_shop_listings
-    FOR SELECT TO authenticated USING (true);
+    FOR SELECT TO authenticated, anon USING (is_active = true);
 
 -- Admins can insert listings
 CREATE POLICY "Admins can insert RP shop listings" ON public.rp_shop_listings
