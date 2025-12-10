@@ -22,8 +22,10 @@ import {
   DocumentTextIcon,
   IdentificationIcon,
   DocumentDuplicateIcon,
-  TrashIcon
+  TrashIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
 // Dynamically import admin tax dashboard
@@ -124,7 +126,7 @@ export default function AdminDashboard() {
   const [sensitivePasswordError, setSensitivePasswordError] = useState('');
   const SENSITIVE_TABS_PASSWORD = '124816SnoopDog';
   
-  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax' | 'verification' | 'ads'>('sellers');
+  const [activeTab, setActiveTab] = useState<'sellers' | 'audits' | 'notifications' | 'tracking' | 'listings' | 'tax' | 'verification' | 'ads' | 'rp-shop'>('sellers');
   const [pendingSellers, setPendingSellers] = useState<PendingSeller[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -688,6 +690,19 @@ export default function AdminDashboard() {
               <ChartBarIcon className="inline h-5 w-5 mr-2" />
               Ad Campaigns
             </button>
+            {user?.email === 'rf32191@gmail.com' && (
+              <button
+                onClick={() => setActiveTab('rp-shop')}
+                className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                  activeTab === 'rp-shop'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                <SparklesIcon className="inline h-5 w-5 mr-2" />
+                RP Shop
+              </button>
+            )}
           </div>
         </div>
 
@@ -1299,6 +1314,47 @@ export default function AdminDashboard() {
             </div>
 
             <AdCampaignManagement />
+          </div>
+        )}
+
+        {/* ====================================================================== */}
+        {/* RP SHOP TAB - Only for rf32191@gmail.com */}
+        {/* ====================================================================== */}
+        {activeTab === 'rp-shop' && user?.email === 'rf32191@gmail.com' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center text-white">
+                  <SparklesIcon className="w-6 h-6 mr-2 text-yellow-400" />
+                  RP Shop Management
+                </h2>
+                <p className="text-gray-400 mt-2">Create and manage Reward Points shop listings</p>
+              </div>
+              <Link
+                href="/admin/rp-shop"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg transition-all flex items-center gap-2"
+              >
+                <SparklesIcon className="w-5 h-5" />
+                Open RP Shop Manager
+              </Link>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
+              <div className="text-center">
+                <SparklesIcon className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">RP Shop Management</h3>
+                <p className="text-gray-300 mb-6">
+                  Manage Reward Points shop listings, create new items, and track purchases.
+                </p>
+                <Link
+                  href="/admin/rp-shop"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-lg transition-all"
+                >
+                  <SparklesIcon className="w-5 h-5" />
+                  Go to RP Shop Manager
+                </Link>
+              </div>
+            </div>
           </div>
         )}
       </div>
