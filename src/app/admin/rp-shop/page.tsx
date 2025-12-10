@@ -80,17 +80,30 @@ export default function AdminRPShopPage() {
   const loadListings = async () => {
     try {
       setIsLoading(true);
+      console.log('📥 Loading RP shop listings...');
+      
       const { data, error } = await supabase
         .from('rp_shop_listings')
         .select('*')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading listings:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details
+        });
+        throw error;
+      }
+      
+      console.log('✅ Loaded listings:', data?.length || 0);
       setListings(data || []);
-    } catch (error) {
-      console.error('Error loading listings:', error);
-      alert('Error loading listings: ' + (error as any).message);
+    } catch (error: any) {
+      console.error('❌ Exception loading listings:', error);
+      alert('Error loading listings: ' + (error.message || 'Please try again.'));
+      setListings([]);
     } finally {
       setIsLoading(false);
     }

@@ -16,6 +16,16 @@ DROP POLICY IF EXISTS "Admins can delete RP shop listings" ON public.rp_shop_lis
 CREATE POLICY "Anyone can view active RP shop listings" ON public.rp_shop_listings
     FOR SELECT TO authenticated, anon USING (is_active = true);
 
+-- Admins can view ALL listings (including inactive ones) for management
+CREATE POLICY "Admins can view all RP shop listings" ON public.rp_shop_listings
+    FOR SELECT TO authenticated USING (
+        EXISTS (
+            SELECT 1 FROM public.users 
+            WHERE id = auth.uid() 
+            AND (role = 'admin' OR email = 'rf32191@gmail.com' OR email = 'rf32191@yahoo.com')
+        )
+    );
+
 -- Admins can insert listings
 CREATE POLICY "Admins can insert RP shop listings" ON public.rp_shop_listings
     FOR INSERT WITH CHECK (
