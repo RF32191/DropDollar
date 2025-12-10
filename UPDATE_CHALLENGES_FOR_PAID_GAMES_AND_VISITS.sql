@@ -356,13 +356,13 @@ BEGIN
             v_competition_rp, 
             true
         ),
-        -- Score threshold (competition games)
+        -- Score threshold (competition games) - Fixed at 100,000 points
         (
             p_week_start, 
             'score_threshold', 
             'Weekly Score Master', 
-            'Score ' || (5000 + FLOOR(RANDOM() * 3000))::TEXT || '+ points total in competition games this week', 
-            5000 + FLOOR(RANDOM() * 3000), 
+            'Score 100,000 total points in competition games this week', 
+            100000, 
             300 + FLOOR(RANDOM() * 200), 
             v_score_rp, 
             true
