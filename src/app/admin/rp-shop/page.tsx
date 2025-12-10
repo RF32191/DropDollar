@@ -51,6 +51,15 @@ export default function AdminRPShopPage() {
     if (!user) return;
     
     try {
+      // Check if user is rf32191@gmail.com (master admin)
+      const isMasterAdmin = user.email === 'rf32191@gmail.com' || user.email === 'rf32191@yahoo.com';
+      
+      if (isMasterAdmin) {
+        setIsAdmin(true);
+        return;
+      }
+      
+      // Check database role for other admins
       const { data, error } = await supabase
         .from('users')
         .select('role')
