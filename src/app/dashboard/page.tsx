@@ -19,7 +19,7 @@ import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlac
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 import TaxNotifications from '@/components/notifications/TaxNotifications';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -812,6 +812,37 @@ export default function TriumphStyleDashboard() {
         {isLoading && (
           <div className="mb-8 bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700/50 animate-pulse">
             <div className="h-32 bg-gray-700/30 rounded-lg"></div>
+          </div>
+        )}
+
+        {/* RP Wallet Display */}
+        {!isLoading && userXP && (
+          <div className="mb-8 bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-xl rounded-xl p-6 border-2 border-purple-500/50">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <SparklesIcon className="w-8 h-8 text-yellow-400" />
+                <div>
+                  <h3 className="text-xl font-black text-white">Reward Points Wallet</h3>
+                  <p className="text-sm text-gray-300">Earn RP by completing challenges</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-black text-yellow-400">
+                  {userXP.reward_points?.toLocaleString() || 0}
+                </div>
+                <div className="text-sm text-purple-200 font-bold">RP</div>
+              </div>
+            </div>
+            <Link
+              href="/rewards"
+              className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg p-4 text-white font-bold flex items-center justify-between transition-all hover:scale-105"
+            >
+              <div className="flex items-center gap-3">
+                <GiftIcon className="w-6 h-6" />
+                <span>Claim Rewards & View Shop</span>
+              </div>
+              <ArrowRightIcon className="w-5 h-5" />
+            </Link>
           </div>
         )}
 
