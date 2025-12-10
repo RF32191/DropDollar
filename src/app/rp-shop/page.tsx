@@ -48,11 +48,21 @@ export default function RPShopPage() {
         setUserRP(xpData.reward_points);
       }
 
-      if (listingsData.data) {
-        setListings(listingsData.data);
+      if (listingsData.error) {
+        console.error('Error loading listings:', listingsData.error);
+        alert('Error loading shop items: ' + listingsData.error.message);
       }
-    } catch (error) {
+
+      if (listingsData.data) {
+        console.log('Loaded listings:', listingsData.data);
+        setListings(listingsData.data);
+      } else {
+        console.log('No listings data returned');
+        setListings([]);
+      }
+    } catch (error: any) {
       console.error('Error loading RP shop data:', error);
+      alert('Error loading shop: ' + (error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
