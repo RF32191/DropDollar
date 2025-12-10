@@ -340,51 +340,70 @@ CREATE POLICY "Users can insert own purchases" ON public.rp_shop_purchases
 -- 6. SAMPLE DATA (Optional - can be removed)
 -- ============================================================================
 
--- Insert sample listings (only if table is empty)
+-- Insert sample listings (only if table is empty and admin user exists)
 DO $$
+DECLARE
+    v_admin_id UUID;
 BEGIN
+    -- Check if table is empty
     IF NOT EXISTS (SELECT 1 FROM public.rp_shop_listings LIMIT 1) THEN
-        INSERT INTO public.rp_shop_listings (
-            created_by,
-            title,
-            description,
-            rp_cost,
-            item_type,
-            item_value,
-            is_active,
-            sort_order
-        ) VALUES
-        (
-            (SELECT id FROM public.users WHERE role = 'admin' LIMIT 1),
-            'Token Bonus Pack',
-            'Get 50 bonus tokens!',
-            100,
-            'token_bonus',
-            50,
-            true,
-            1
-        ),
-        (
-            (SELECT id FROM public.users WHERE role = 'admin' LIMIT 1),
-            'Premium Badge',
-            'Show off your dedication with this exclusive badge',
-            250,
-            'badge',
-            NULL,
-            true,
-            2
-        ),
-        (
-            (SELECT id FROM public.users WHERE role = 'admin' LIMIT 1),
-            'Score Boost',
-            'Double your score for your next 5 games',
-            150,
-            'boost',
-            2,
-            true,
-            3
-        )
-        ON CONFLICT DO NOTHING;
+        -- Try to get admin user first
+        SELECT id INTO v_admin_id 
+        FROM public.users 
+        WHERE role = 'admin' 
+        LIMIT 1;
+        
+        -- If no admin, try to get any user
+        IF v_admin_id IS NULL THEN
+            SELECT id INTO v_admin_id 
+            FROM public.users 
+            LIMIT 1;
+        END IF;
+        
+        -- Only insert if we found a user
+        IF v_admin_id IS NOT NULL THEN
+            INSERT INTO public.rp_shop_listings (
+                created_by,
+                title,
+                description,
+                rp_cost,
+                item_type,
+                item_value,
+                is_active,
+                sort_order
+            ) VALUES
+            (
+                v_admin_id,
+                'Token Bonus Pack',
+                'Get 50 bonus tokens!',
+                100,
+                'token_bonus',
+                50,
+                true,
+                1
+            ),
+            (
+                v_admin_id,
+                'Premium Badge',
+                'Show off your dedication with this exclusive badge',
+                250,
+                'badge',
+                NULL,
+                true,
+                2
+            ),
+            (
+                v_admin_id,
+                'Score Boost',
+                'Double your score for your next 5 games',
+                150,
+                'boost',
+                2,
+                true,
+                3
+            )
+            ON CONFLICT DO NOTHING;
+        END IF;
     END IF;
 END $$;
 
