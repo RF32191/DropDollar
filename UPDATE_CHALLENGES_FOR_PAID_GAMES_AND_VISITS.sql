@@ -36,7 +36,10 @@ CHECK (challenge_type IN (
 -- 2. CREATE PAGE VISIT TRACKING TABLE
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS public.user_page_visits (
+-- Drop table if exists and recreate (to handle schema changes)
+DROP TABLE IF EXISTS public.user_page_visits CASCADE;
+
+CREATE TABLE public.user_page_visits (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     page_path TEXT NOT NULL,
@@ -48,12 +51,12 @@ CREATE TABLE IF NOT EXISTS public.user_page_visits (
 );
 
 -- Create unique index on user_id, page_path, and visit_date
-CREATE UNIQUE INDEX IF NOT EXISTS idx_user_page_visits_unique 
+CREATE UNIQUE INDEX idx_user_page_visits_unique 
 ON public.user_page_visits(user_id, page_path, visit_date);
 
-CREATE INDEX IF NOT EXISTS idx_user_page_visits_user_id ON public.user_page_visits(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_page_visits_date ON public.user_page_visits(visit_date);
-CREATE INDEX IF NOT EXISTS idx_user_page_visits_type ON public.user_page_visits(page_type);
+CREATE INDEX idx_user_page_visits_user_id ON public.user_page_visits(user_id);
+CREATE INDEX idx_user_page_visits_date ON public.user_page_visits(visit_date);
+CREATE INDEX idx_user_page_visits_type ON public.user_page_visits(page_type);
 
 -- ============================================================================
 -- 3. FUNCTION TO TRACK PAGE VISITS
