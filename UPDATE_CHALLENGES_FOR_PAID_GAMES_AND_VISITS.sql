@@ -44,11 +44,15 @@ CREATE TABLE IF NOT EXISTS public.user_page_visits (
     category_id TEXT, -- For category pages
     game_type TEXT, -- For game pages
     visited_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, page_path, DATE(visited_at))
+    visit_date DATE GENERATED ALWAYS AS (DATE(visited_at)) STORED
 );
 
+-- Create unique index on user_id, page_path, and visit_date
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_page_visits_unique 
+ON public.user_page_visits(user_id, page_path, visit_date);
+
 CREATE INDEX IF NOT EXISTS idx_user_page_visits_user_id ON public.user_page_visits(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_page_visits_date ON public.user_page_visits(DATE(visited_at));
+CREATE INDEX IF NOT EXISTS idx_user_page_visits_date ON public.user_page_visits(visit_date);
 CREATE INDEX IF NOT EXISTS idx_user_page_visits_type ON public.user_page_visits(page_type);
 
 -- ============================================================================
@@ -84,7 +88,7 @@ BEGIN
         p_category_id,
         p_game_type
     )
-    ON CONFLICT (user_id, page_path, DATE(visited_at)) DO NOTHING;
+    ON CONFLICT (user_id, page_path, visit_date) DO NOTHING;
     
     -- Update daily challenge progress for page visit challenges
     PERFORM public.update_daily_challenge_progress(
