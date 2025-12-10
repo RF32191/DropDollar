@@ -513,39 +513,170 @@ DECLARE
 BEGIN
     -- Only process if this is a new game record
     IF TG_OP = 'INSERT' THEN
-        -- Detect coin play games by checking if session_id references coin_play_sessions
-        -- OR by checking metadata for coin_play flag
-        -- OR by checking if listing_id/session_id matches coin play pattern
+        -- Detect coin play games
         v_is_coin_play := false;
         
-        -- Check if this is a coin play game
-        -- Method 1: Check metadata
-        IF NEW.metadata IS NOT NULL AND (NEW.metadata->>'is_coin_play')::BOOLEAN = true THEN
-            v_is_coin_play := true;
+        -- Method 1: Check metadata for coin_play flag (most reliable)
+        IF NEW.metadata IS NOT NULL THEN
+            IF (NEW.metadata->>'is_coin_play')::BOOLEAN = true THEN
+                v_is_coin_play := true;
+            END IF;
         END IF;
         
-        -- Method 2: Check if session_id exists in coin_play_sessions
-        IF NEW.session_id IS NOT NULL THEN
+        -- Method 2: Check if listing_id matches coin play pattern (starts with 'cp-')
+        IF NOT v_is_coin_play AND NEW.listing_id IS NOT NULL THEN
+            IF NEW.listing_id::TEXT LIKE 'cp-%' THEN
+                v_is_coin_play := true;
+            END IF;
+        END IF;
+        
+        -- Method 3: Check if user has a recent coin_play_participants record (within last 5 minutes)
+        -- This catches coin play games that were saved to game_history separately
+        IF NOT v_is_coin_play THEN
             SELECT EXISTS (
-                SELECT 1 FROM public.coin_play_sessions 
-                WHERE id::TEXT = NEW.session_id
+                SELECT 1 FROM public.coin_play_participants cp
+                JOIN public.coin_play_sessions cs ON cp.session_id = cs.id
+                WHERE cp.user_id = NEW.user_id
+                AND cp.completed_at IS NOT NULL
+                AND cp.completed_at > NOW() - INTERVAL '5 minutes'
+                AND cs.game_type = NEW.game_type
             ) INTO v_is_coin_play;
         END IF;
-        
-        -- Method 3: Check if listing_id references coin play (if coin play uses listing_id)
-        -- This would need to be adjusted based on your actual coin play implementation
         
         -- Update challenges based on game completion
         PERFORM public.update_challenges_on_game_complete(
             NEW.user_id,
             NEW.game_type,
             COALESCE(NEW.score, 0)::INTEGER,
-            COALESCE(NEW.session_type = 'practice', false),
+            COALESCE(NEW.is_practice, false),
             v_is_coin_play
         );
     END IF;
     
     RETURN NEW;
+END;
+$$;
+
+-- ============================================================================
+-- 6. UPDATE COIN PLAY SCORE FUNCTION TO SAVE TO GAME_HISTORY
+-- ============================================================================
+-- Modify update_coin_play_score to also save to game_history with coin play flag
+
+CREATE OR REPLACE FUNCTION public.update_coin_play_score(
+    session_id_param UUID,
+    user_id_param UUID,
+    score_param NUMERIC,
+    accuracy_param NUMERIC DEFAULT 95.0
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_session_status TEXT;
+    v_participant_exists BOOLEAN;
+    v_game_type TEXT;
+    v_config_id TEXT;
+BEGIN
+    -- Check if session exists and get status
+    SELECT status, config_id INTO v_session_status, v_config_id
+    FROM public.coin_play_sessions
+    WHERE id = session_id_param;
+
+    IF v_session_status IS NULL THEN
+        RETURN jsonb_build_object(
+            'success', false, 
+            'message', 'Session not found',
+            'error_code', 'SESSION_NOT_FOUND'
+        );
+    END IF;
+
+    -- Allow score submission for 'waiting', 'active', or 'completed' sessions
+    IF v_session_status NOT IN ('waiting', 'active', 'completed') THEN
+        RETURN jsonb_build_object(
+            'success', false, 
+            'message', 'Session status is invalid: ' || COALESCE(v_session_status, 'NULL'),
+            'error_code', 'SESSION_INVALID_STATUS'
+        );
+    END IF;
+
+    -- Check if user is a participant
+    SELECT EXISTS (
+        SELECT 1 FROM public.coin_play_participants
+        WHERE session_id = session_id_param AND user_id = user_id_param
+    ) INTO v_participant_exists;
+
+    IF NOT v_participant_exists THEN
+        RETURN jsonb_build_object(
+            'success', false, 
+            'message', 'User not in this session',
+            'error_code', 'USER_NOT_PARTICIPANT'
+        );
+    END IF;
+
+    -- Get game type from config
+    SELECT game_type INTO v_game_type
+    FROM public.coin_play_configs
+    WHERE id = v_config_id;
+
+    -- Update score in coin_play_participants
+    UPDATE public.coin_play_participants
+    SET 
+        score = score_param,
+        completed_at = COALESCE(completed_at, NOW())
+    WHERE session_id = session_id_param AND user_id = user_id_param;
+
+    -- Verify update succeeded
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object(
+            'success', false, 
+            'message', 'Failed to update score',
+            'error_code', 'UPDATE_FAILED'
+        );
+    END IF;
+
+    -- Save to game_history with coin play flag (if table exists and has required columns)
+    BEGIN
+        INSERT INTO public.game_history (
+            user_id,
+            game_type,
+            score,
+            accuracy,
+            is_practice,
+            is_competition,
+            tokens_wagered,
+            metadata,
+            created_at
+        )
+        VALUES (
+            user_id_param,
+            v_game_type,
+            score_param,
+            accuracy_param,
+            false, -- Coin play is competition, not practice
+            true,  -- Coin play is competition
+            0.25,  -- Entry fee is 0.25 tokens
+            jsonb_build_object('is_coin_play', true, 'session_id', session_id_param::TEXT, 'config_id', v_config_id),
+            NOW()
+        )
+        ON CONFLICT DO NOTHING; -- Don't fail if there's a conflict
+    EXCEPTION WHEN OTHERS THEN
+        -- If game_history doesn't exist or has different schema, just log and continue
+        RAISE NOTICE 'Could not save to game_history: %', SQLERRM;
+    END;
+
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'Score updated successfully',
+        'score', score_param
+    );
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN jsonb_build_object(
+            'success', false, 
+            'message', 'Database error: ' || SQLERRM,
+            'error_code', 'DATABASE_ERROR'
+        );
 END;
 $$;
 
