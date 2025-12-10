@@ -348,6 +348,13 @@ export default function AdminRPShopPage() {
                   listing.is_active ? 'border-green-500/50' : 'border-gray-500/50'
                 }`}
               >
+                {listing.image_url && (
+                  <img
+                    src={listing.image_url}
+                    alt={listing.title}
+                    className="w-full h-48 object-cover rounded-lg mb-4"
+                  />
+                )}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-2">{listing.title}</h3>
