@@ -124,6 +124,7 @@ BEGIN
     -- Only process if this is a new game record
     IF TG_OP = 'INSERT' THEN
         -- Update challenges based on game completion
+        -- Check if it's practice or competition based on session_type
         PERFORM public.update_challenges_on_game_complete(
             NEW.user_id,
             NEW.game_type,
