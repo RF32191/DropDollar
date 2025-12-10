@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.user_page_visits (
     category_id TEXT, -- For category pages
     game_type TEXT, -- For game pages
     visited_at TIMESTAMPTZ DEFAULT NOW(),
-    visit_date DATE GENERATED ALWAYS AS (DATE(visited_at)) STORED
+    visit_date DATE DEFAULT CURRENT_DATE
 );
 
 -- Create unique index on user_id, page_path, and visit_date
@@ -79,14 +79,16 @@ BEGIN
         page_path, 
         page_type, 
         category_id, 
-        game_type
+        game_type,
+        visit_date
     )
     VALUES (
         p_user_id,
         p_page_path,
         p_page_type,
         p_category_id,
-        p_game_type
+        p_game_type,
+        v_today
     )
     ON CONFLICT (user_id, page_path, visit_date) DO NOTHING;
     
