@@ -41,6 +41,9 @@ export default function AdminRPShopPage() {
     purchase_limit_per_user: 1,
     sort_order: 0
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     checkAdminStatus();
@@ -76,6 +79,7 @@ export default function AdminRPShopPage() {
 
   const loadListings = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('rp_shop_listings')
         .select('*')
@@ -86,9 +90,66 @@ export default function AdminRPShopPage() {
       setListings(data || []);
     } catch (error) {
       console.error('Error loading listings:', error);
+      alert('Error loading listings: ' + (error as any).message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const uploadImageToSupabase = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploadingImage(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `rp-shop/${user?.id}/${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      const { data, error } = await supabase.storage
+        .from('marketplace-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('marketplace-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Error uploading image: ' + (error as any).message);
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    setImageFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,12 +157,30 @@ export default function AdminRPShopPage() {
     if (!user) return;
 
     try {
+      let imageUrl = formData.image_url;
+
+      // Upload image if a new file was selected
+      if (imageFile) {
+        const uploadedUrl = await uploadImageToSupabase(imageFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          alert('Failed to upload image. Please try again.');
+          return;
+        }
+      }
+
+      const listingData = {
+        ...formData,
+        image_url: imageUrl || null
+      };
+
       if (editingListing) {
         // Update existing listing
         const { error } = await supabase
           .from('rp_shop_listings')
           .update({
-            ...formData,
+            ...listingData,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingListing.id);
@@ -112,7 +191,7 @@ export default function AdminRPShopPage() {
         const { error } = await supabase
           .from('rp_shop_listings')
           .insert({
-            ...formData,
+            ...listingData,
             created_by: user.id
           });
 
@@ -122,10 +201,11 @@ export default function AdminRPShopPage() {
       setShowCreateModal(false);
       setEditingListing(null);
       resetForm();
-      loadListings();
-    } catch (error) {
+      await loadListings();
+      alert('Listing saved successfully!');
+    } catch (error: any) {
       console.error('Error saving listing:', error);
-      alert('Error saving listing. Please try again.');
+      alert('Error saving listing: ' + (error.message || 'Please try again.'));
     }
   };
 
@@ -143,11 +223,13 @@ export default function AdminRPShopPage() {
       purchase_limit_per_user: listing.purchase_limit_per_user,
       sort_order: listing.sort_order
     });
+    setImageFile(null);
+    setImagePreview(listing.image_url || null);
     setShowCreateModal(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this listing?')) return;
+    if (!confirm('Are you sure you want to delete this listing? This action cannot be undone.')) return;
 
     try {
       const { error } = await supabase
@@ -155,11 +237,23 @@ export default function AdminRPShopPage() {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
-      loadListings();
-    } catch (error) {
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
+
+      // Remove from local state immediately for better UX
+      setListings(prev => prev.filter(listing => listing.id !== id));
+      
+      // Reload to ensure consistency
+      await loadListings();
+      
+      alert('Listing deleted successfully!');
+    } catch (error: any) {
       console.error('Error deleting listing:', error);
-      alert('Error deleting listing. Please try again.');
+      alert('Error deleting listing: ' + (error.message || 'Please try again.'));
+      // Reload listings even on error to refresh state
+      await loadListings();
     }
   };
 
@@ -191,6 +285,8 @@ export default function AdminRPShopPage() {
       sort_order: 0
     });
     setEditingListing(null);
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   if (!isAdmin) {
@@ -407,14 +503,58 @@ export default function AdminRPShopPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-white mb-2">Image URL (optional)</label>
-                  <input
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg"
-                    placeholder="https://..."
-                  />
+                  <label className="block text-white mb-2">Image</label>
+                  <div className="space-y-2">
+                    {/* Image Upload */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                    />
+                    {isUploadingImage && (
+                      <p className="text-yellow-400 text-sm">Uploading image...</p>
+                    )}
+                    
+                    {/* Image Preview */}
+                    {(imagePreview || formData.image_url) && (
+                      <div className="mt-2">
+                        <img
+                          src={imagePreview || formData.image_url || ''}
+                          alt="Preview"
+                          className="w-full h-48 object-cover rounded-lg border border-gray-600"
+                        />
+                        {imageFile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImageFile(null);
+                              setImagePreview(formData.image_url || null);
+                            }}
+                            className="mt-2 text-sm text-red-400 hover:text-red-300"
+                          >
+                            Remove uploaded image
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Or use URL */}
+                    <div className="text-sm text-gray-400 mt-2">OR</div>
+                    <input
+                      type="url"
+                      value={formData.image_url}
+                      onChange={(e) => {
+                        setFormData({ ...formData, image_url: e.target.value });
+                        if (!imageFile) {
+                          setImagePreview(e.target.value || null);
+                        }
+                      }}
+                      className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg"
+                      placeholder="Enter image URL instead..."
+                      disabled={!!imageFile}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
