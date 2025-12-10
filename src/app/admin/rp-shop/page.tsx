@@ -229,28 +229,49 @@ export default function AdminRPShopPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this listing? This action cannot be undone.')) return;
+    const listingTitle = listings.find(l => l.id === id)?.title || 'this listing';
+    if (!confirm(`Are you sure you want to delete "${listingTitle}"? This action cannot be undone.`)) return;
 
     try {
-      const { error } = await supabase
+      console.log('🗑️ Attempting to delete listing:', id);
+      
+      const { data, error } = await supabase
         .from('rp_shop_listings')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) {
-        console.error('Delete error:', error);
-        throw error;
+        console.error('❌ Delete error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Check if it's an RLS error
+        if (error.code === '42501' || error.message?.includes('policy')) {
+          alert('Permission denied. Make sure you have admin access. Error: ' + error.message);
+        } else {
+          alert('Error deleting listing: ' + error.message);
+        }
+        return;
       }
+
+      console.log('✅ Delete successful, data:', data);
 
       // Remove from local state immediately for better UX
       setListings(prev => prev.filter(listing => listing.id !== id));
       
-      // Reload to ensure consistency
-      await loadListings();
+      // Force reload to ensure consistency
+      setTimeout(async () => {
+        await loadListings();
+      }, 100);
       
-      alert('Listing deleted successfully!');
+      alert(`"${listingTitle}" deleted successfully!`);
     } catch (error: any) {
-      console.error('Error deleting listing:', error);
+      console.error('❌ Exception deleting listing:', error);
       alert('Error deleting listing: ' + (error.message || 'Please try again.'));
       // Reload listings even on error to refresh state
       await loadListings();
