@@ -187,7 +187,7 @@ BEGIN
     -- Generate random target values
     v_practice_games := 2 + FLOOR(RANDOM() * 3); -- 2-4 games
     v_competition_games := 1 + FLOOR(RANDOM() * 3); -- 1-3 games (paid)
-    v_target_score := 800 + FLOOR(RANDOM() * 400); -- 800-1200
+    v_target_score := 10000; -- Fixed at 10,000 points for daily challenge
     v_total_games := 3 + FLOOR(RANDOM() * 4); -- 3-6 games
     v_pages_to_visit := 2 + FLOOR(RANDOM() * 3); -- 2-4 pages
     v_categories_to_visit := 1 + FLOOR(RANDOM() * 2); -- 1-2 categories
@@ -221,13 +221,13 @@ BEGIN
             v_competition_rp, 
             true
         ),
-        -- Score challenge
+        -- Score challenge (cumulative - tracks total score for the day)
         (
             v_today, 
             'score_threshold', 
             'Score Master', 
-            'Score ' || v_target_score::TEXT || '+ points in any competition game', 
-            1, 
+            'Score ' || v_target_score::TEXT || ' total points in competition games today', 
+            v_target_score, 
             40 + FLOOR(RANDOM() * 30), 
             v_score_rp, 
             true
