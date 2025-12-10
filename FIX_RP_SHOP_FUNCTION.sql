@@ -40,32 +40,32 @@ BEGIN
 
     RETURN QUERY
     SELECT 
-        l.id,
-        l.title,
-        l.description,
-        l.rp_cost,
-        l.item_type,
-        l.item_value,
-        l.image_url,
-        l.stock_quantity,
-        l.purchase_limit_per_user,
-        CASE 
+        l.id::UUID,
+        l.title::TEXT,
+        l.description::TEXT,
+        l.rp_cost::INTEGER,
+        l.item_type::TEXT,
+        l.item_value::INTEGER,
+        l.image_url::TEXT,
+        l.stock_quantity::INTEGER,
+        l.purchase_limit_per_user::INTEGER,
+        (CASE 
             WHEN v_user_rp >= l.rp_cost THEN true
             ELSE false
-        END as can_purchase,
+        END)::BOOLEAN as can_purchase,
         COALESCE((
             SELECT COUNT(*)::INTEGER
             FROM public.rp_shop_purchases 
             WHERE user_id = p_user_id AND listing_id = l.id
-        ), 0) as purchase_count,
-        CASE 
-            WHEN l.stock_quantity IS NULL THEN NULL::INTEGER
+        ), 0)::INTEGER as purchase_count,
+        (CASE 
+            WHEN l.stock_quantity IS NULL THEN NULL
             ELSE GREATEST(0, l.stock_quantity - COALESCE((
                 SELECT COUNT(*)::INTEGER
                 FROM public.rp_shop_purchases 
                 WHERE listing_id = l.id
-            ), 0))::INTEGER
-        END as stock_remaining
+            ), 0))
+        END)::INTEGER as stock_remaining
     FROM public.rp_shop_listings l
     WHERE l.is_active = true
     ORDER BY l.sort_order, l.created_at DESC;
