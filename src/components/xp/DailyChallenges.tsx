@@ -18,12 +18,13 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
 
   useEffect(() => {
     if (userId) {
+      // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 5 seconds to show progress updates
+      // Auto-refresh challenges every 3 seconds to show progress updates (reduced from 5s)
       const refreshInterval = setInterval(() => {
         loadChallenges();
-      }, 5000); // Refresh every 5 seconds
+      }, 3000); // Refresh every 3 seconds
       
       // Also refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {
@@ -31,9 +32,18 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       };
       window.addEventListener('focus', handleFocus);
       
+      // Refresh when page becomes visible (user switches tabs back)
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          loadChallenges();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
       return () => {
         clearInterval(refreshInterval);
         window.removeEventListener('focus', handleFocus);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
   }, [userId]);

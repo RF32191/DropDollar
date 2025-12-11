@@ -846,10 +846,10 @@ export default function TriumphStyleDashboard() {
           </div>
         )}
 
-        {/* Daily Challenges - Only show when not loading */}
-        {!isLoading && user && (
+        {/* Daily Challenges - Only show when user is loaded */}
+        {user && (
           <div className="mb-8">
-            <DailyChallenges userId={user.id} />
+            <DailyChallenges userId={user.id} initialLoading={isLoading} />
           </div>
         )}
 
