@@ -1,8 +1,9 @@
 -- ============================================================================
 -- UPDATE CHALLENGES FOR COIN PLAY GAMES
 -- ============================================================================
--- Adds coin play requirements and adjusts RP payouts for profitability
--- Coin play games count double and generate revenue ($0.25 per game)
+-- Adds coin play requirements for daily challenges only
+-- 4 coin play games count as 1 competitive game (not double)
+-- Lower RP rewards for coin play (separate from other challenges)
 -- ============================================================================
 
 -- ============================================================================
@@ -22,7 +23,8 @@ CHECK (challenge_type IN (
     'play_coin_play'
 ));
 
--- Update weekly_challenges table to allow coin_play challenge type
+-- Weekly challenges do NOT include coin play (separate daily-only challenge)
+-- Keep existing constraint without coin_play
 ALTER TABLE public.weekly_challenges 
 DROP CONSTRAINT IF EXISTS weekly_challenges_challenge_type_check;
 
@@ -31,8 +33,7 @@ ADD CONSTRAINT weekly_challenges_challenge_type_check
 CHECK (challenge_type IN (
     'play_practice', 'play_competition', 'score_threshold', 
     'games_count', 'win_competition', 'perfect_score', 'total_xp', 'level_up',
-    'visit_page', 'visit_category', 'play_specific_game',
-    'play_coin_play'
+    'visit_page', 'visit_category', 'play_specific_game'
 ));
 
 -- ============================================================================
@@ -70,7 +71,7 @@ BEGIN
     -- Generate varied RP rewards
     -- Practice: 5-15 RP (LOWER - free games)
     -- Competition: 30-60 RP (HIGHER - paid games)
-    -- Coin Play: 40-80 RP (HIGHEST - generates $0.25 revenue per game, so we can afford more RP)
+    -- Coin Play: 10-20 RP (LOWER - separate challenge, less RP)
     -- Score: 25-45 RP (skill-based)
     -- Games count: 20-40 RP (engagement)
     -- Page visits: 10-20 RP (engagement)
@@ -79,7 +80,7 @@ BEGIN
     
     v_practice_rp := 5 + FLOOR(RANDOM() * 11); -- 5-15 RP (LOWER)
     v_competition_rp := 30 + FLOOR(RANDOM() * 31); -- 30-60 RP (HIGHER)
-    v_coin_play_rp := 40 + FLOOR(RANDOM() * 41); -- 40-80 RP (HIGHEST - coin play generates revenue)
+    v_coin_play_rp := 10 + FLOOR(RANDOM() * 11); -- 10-20 RP (LOWER - separate daily challenge)
     v_score_rp := 25 + FLOOR(RANDOM() * 21); -- 25-45 RP
     v_games_rp := 20 + FLOOR(RANDOM() * 21); -- 20-40 RP
     v_visit_page_rp := 10 + FLOOR(RANDOM() * 11); -- 10-20 RP
@@ -123,14 +124,14 @@ BEGIN
             v_competition_rp, 
             true
         ),
-        -- Coin Play games (HIGHEST RP - generates revenue, counts double)
+        -- Coin Play games (LOWER RP - separate daily challenge, 4 games = 1 competitive game)
         (
             v_today, 
             'play_coin_play', 
             'Coin Play Master', 
-            'Play ' || v_coin_play_games::TEXT || ' coin play games today (counts double for other challenges)', 
+            'Play ' || v_coin_play_games::TEXT || ' coin play games today (4 games = 1 competitive game)', 
             v_coin_play_games, 
-            100 + FLOOR(RANDOM() * 50), 
+            50 + FLOOR(RANDOM() * 30), 
             v_coin_play_rp, 
             true
         ),
@@ -220,10 +221,9 @@ BEGIN
     -- Delete old challenges for this week (to regenerate)
     DELETE FROM public.weekly_challenges WHERE week_start_date = p_week_start;
 
-    -- Generate varied RP rewards
+    -- Generate varied RP rewards (NO COIN PLAY in weekly challenges)
     -- Practice: 30-60 RP (LOWER - free games)
     -- Competition: 100-200 RP (HIGHER - paid games)
-    -- Coin Play: 150-300 RP (HIGHEST - generates revenue, so we can afford more RP)
     -- Score: 80-120 RP
     -- Games count: 120-180 RP
     -- Win competition: 150-250 RP (HIGHEST - paid wins)
@@ -234,7 +234,6 @@ BEGIN
     
     v_practice_rp := 30 + FLOOR(RANDOM() * 31); -- 30-60 RP (LOWER)
     v_competition_rp := 100 + FLOOR(RANDOM() * 101); -- 100-200 RP (HIGHER)
-    v_coin_play_rp := 150 + FLOOR(RANDOM() * 151); -- 150-300 RP (HIGHEST - coin play generates revenue)
     v_score_rp := 80 + FLOOR(RANDOM() * 41); -- 80-120 RP
     v_games_rp := 120 + FLOOR(RANDOM() * 61); -- 120-180 RP
     v_win_rp := 150 + FLOOR(RANDOM() * 101); -- 150-250 RP (HIGHEST)
@@ -269,17 +268,6 @@ BEGIN
             5 + FLOOR(RANDOM() * 6), 
             400 + FLOOR(RANDOM() * 200), 
             v_competition_rp, 
-            true
-        ),
-        -- Coin Play games (HIGHEST RP - generates revenue, counts double)
-        (
-            p_week_start, 
-            'play_coin_play', 
-            'Weekly Coin Play Champion', 
-            'Play 4 coin play games this week (counts double for other challenges)', 
-            4, 
-            500 + FLOOR(RANDOM() * 300), 
-            v_coin_play_rp, 
             true
         ),
         -- Score threshold (competition games) - Fixed at 100,000 points
@@ -369,7 +357,7 @@ $$;
 -- 4. UPDATE CHALLENGE PROGRESS FUNCTIONS TO HANDLE COIN PLAY
 -- ============================================================================
 
--- Update the function to detect coin play games and count them double
+-- Update the function: 4 coin play games = 1 competitive game (not double)
 CREATE OR REPLACE FUNCTION public.update_challenges_on_game_complete(
     p_user_id UUID,
     p_game_type TEXT,
@@ -384,6 +372,9 @@ AS $$
 DECLARE
     v_challenge_type TEXT;
     v_increment INTEGER;
+    v_coin_play_progress INTEGER;
+    v_coin_play_target INTEGER;
+    v_coin_play_challenge_id UUID;
 BEGIN
     -- Determine challenge type and increment amount
     IF p_is_coin_play THEN
@@ -397,46 +388,66 @@ BEGIN
         v_increment := 1;
     END IF;
     
-    -- Update coin play challenge if it's a coin play game
+    -- Update coin play challenge if it's a coin play game (DAILY ONLY)
     IF p_is_coin_play THEN
+        -- Get current coin play progress BEFORE updating
+        SELECT udc.progress, dc.target_value, dc.id 
+        INTO v_coin_play_progress, v_coin_play_target, v_coin_play_challenge_id
+        FROM public.user_daily_challenges udc
+        JOIN public.daily_challenges dc ON udc.challenge_id = dc.id
+        WHERE udc.user_id = p_user_id
+        AND dc.challenge_date = CURRENT_DATE
+        AND dc.challenge_type = 'play_coin_play'
+        AND dc.is_active = true
+        LIMIT 1;
+        
+        -- Update coin play progress
         PERFORM public.update_daily_challenge_progress(
             p_user_id,
             'play_coin_play',
             1
         );
         
+        -- If coin play challenge exists and progress will be divisible by 4, count as 1 competitive game
+        -- After update, progress will be (v_coin_play_progress + 1)
+        IF v_coin_play_challenge_id IS NOT NULL AND (COALESCE(v_coin_play_progress, 0) + 1) % 4 = 0 THEN
+            PERFORM public.update_daily_challenge_progress(
+                p_user_id,
+                'play_competition',
+                1 -- 4 coin play games = 1 competitive game
+            );
+        END IF;
+        
+        -- NO weekly coin play challenge
+    END IF;
+    
+    -- Update practice or competition game challenges (only if NOT coin play, since coin play is handled above)
+    IF NOT p_is_coin_play THEN
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            v_challenge_type,
+            v_increment
+        );
+        
         PERFORM public.update_weekly_challenge_progress(
             p_user_id,
-            'play_coin_play',
-            1
+            v_challenge_type,
+            v_increment
         );
     END IF;
     
-    -- Update practice or competition game challenges
-    PERFORM public.update_daily_challenge_progress(
-        p_user_id,
-        v_challenge_type,
-        v_increment
-    );
-    
-    PERFORM public.update_weekly_challenge_progress(
-        p_user_id,
-        v_challenge_type,
-        v_increment
-    );
-    
-    -- Update games_count challenge (coin play counts double)
+    -- Update games_count challenge (coin play counts as 1 game, not double)
     IF p_is_coin_play THEN
         PERFORM public.update_daily_challenge_progress(
             p_user_id,
             'games_count',
-            2 -- Coin play counts double
+            1 -- Coin play counts as 1 game
         );
         
         PERFORM public.update_weekly_challenge_progress(
             p_user_id,
             'games_count',
-            2 -- Coin play counts double
+            1 -- Coin play counts as 1 game
         );
     ELSE
         PERFORM public.update_daily_challenge_progress(
@@ -469,18 +480,18 @@ BEGIN
         );
     END IF;
     
-    -- Update play_specific_game challenge (coin play counts double)
+    -- Update play_specific_game challenge (coin play counts as 1, not double)
     IF p_is_coin_play THEN
         PERFORM public.update_daily_challenge_progress(
             p_user_id,
             'play_specific_game',
-            2 -- Coin play counts double
+            1 -- Coin play counts as 1 game
         );
         
         PERFORM public.update_weekly_challenge_progress(
             p_user_id,
             'play_specific_game',
-            2 -- Coin play counts double
+            1 -- Coin play counts as 1 game
         );
     ELSE
         PERFORM public.update_daily_challenge_progress(
@@ -692,18 +703,19 @@ BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE '';
     RAISE NOTICE '🪙 COIN PLAY CHALLENGES:';
-    RAISE NOTICE '   Daily: Play 4 coin play games (40-80 RP)';
-    RAISE NOTICE '   Weekly: Play 4 coin play games (150-300 RP)';
-    RAISE NOTICE '   Coin play games count DOUBLE for other challenges';
+    RAISE NOTICE '   Daily: Play 4 coin play games (10-20 RP) - SEPARATE CHALLENGE';
+    RAISE NOTICE '   Weekly: NO coin play challenges (removed)';
+    RAISE NOTICE '   4 coin play games = 1 competitive game (not double)';
     RAISE NOTICE '';
     RAISE NOTICE '💰 RP ECONOMICS:';
     RAISE NOTICE '   Coin play generates $0.25 per game';
     RAISE NOTICE '   4 games = $1.00 revenue';
-    RAISE NOTICE '   Higher RP payouts justified by revenue';
+    RAISE NOTICE '   Lower RP rewards (10-20 RP) for separate daily challenge';
     RAISE NOTICE '';
     RAISE NOTICE '📊 CHALLENGE UPDATES:';
-    RAISE NOTICE '   Coin play games count 2x for games_count';
-    RAISE NOTICE '   Coin play games count 2x for play_specific_game';
+    RAISE NOTICE '   Coin play games count as 1 for games_count (not double)';
+    RAISE NOTICE '   Coin play games count as 1 for play_specific_game (not double)';
+    RAISE NOTICE '   4 coin play games = 1 competitive game';
     RAISE NOTICE '   Coin play scores count toward score_threshold';
     RAISE NOTICE '';
 END $$;
