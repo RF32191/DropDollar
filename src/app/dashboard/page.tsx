@@ -292,16 +292,45 @@ export default function TriumphStyleDashboard() {
       setGameHistory(gameHistory);
       setHighScores(highScores);
       setUserStats(userStats);
-      // Set XP data with fallback for new users (always show something)
-      setUserXP(userXPData || {
-        total_xp: 0,
-        current_level: 1,
-        xp_to_next_level: 100,
-        reward_points: 0,
-        rank_title: 'Novice',
-        rank_tier: 1,
-        rank_image_url: null
-      });
+      
+      // Set XP data (CRITICAL for level progress bar - always refresh)
+      if (userXPData) {
+        setUserXP(userXPData);
+        console.log('✅ [Dashboard] XP data loaded:', userXPData);
+        console.log('📊 [Dashboard] Level:', userXPData.current_level, 'XP:', userXPData.total_xp, 'Progress:', userXPData.xp_to_next_level);
+      } else {
+        // If XP data failed to load, try again
+        console.warn('⚠️ [Dashboard] XP data not loaded, retrying...');
+        XPService.getUserXP(user.id).then(xpData => {
+          if (xpData) {
+            setUserXP(xpData);
+            console.log('✅ [Dashboard] XP data loaded on retry:', xpData);
+          } else {
+            // Fallback for new users
+            setUserXP({
+              total_xp: 0,
+              current_level: 1,
+              xp_to_next_level: 100,
+              reward_points: 0,
+              rank_title: 'Novice',
+              rank_tier: 1,
+              rank_image_url: null
+            });
+          }
+        }).catch(err => {
+          console.error('❌ [Dashboard] XP retry failed:', err);
+          // Fallback for new users
+          setUserXP({
+            total_xp: 0,
+            current_level: 1,
+            xp_to_next_level: 100,
+            reward_points: 0,
+            rank_title: 'Novice',
+            rank_tier: 1,
+            rank_image_url: null
+          });
+        });
+      }
 
       console.log('✅ [Dashboard] All data loaded successfully');
       console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
