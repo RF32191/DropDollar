@@ -193,9 +193,16 @@ export default function TriumphStyleDashboard() {
     if (hasNewScore === 'true') {
       console.log('🎉 New game score detected in localStorage! Refreshing dashboard...');
       localStorage.removeItem('hasNewGameScore'); // Clear the flag
-      // Reload dashboard data
+      // Reload dashboard data including XP
       if (user && isAuthenticated) {
         loadDashboardData();
+        // Also refresh XP data specifically to update level progress bar
+        XPService.getUserXP(user.id).then(xpData => {
+          if (xpData) {
+            setUserXP(xpData);
+            console.log('✅ [Dashboard] XP refreshed after game:', xpData);
+          }
+        }).catch(err => console.error('Error refreshing XP:', err));
       }
     }
     
