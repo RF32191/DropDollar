@@ -36,133 +36,139 @@ BEGIN
         RAISE NOTICE '   Function signature: %', v_function_signature;
     ELSE
         RAISE NOTICE '❌ update_challenges_on_game_complete function DOES NOT EXIST';
-        RAISE NOTICE '   Creating it now...';
-        
-        -- Create a basic version if it doesn't exist
-        CREATE OR REPLACE FUNCTION public.update_challenges_on_game_complete(
-            p_user_id UUID,
-            p_game_type TEXT,
-            p_score INTEGER,
-            p_is_practice BOOLEAN,
-            p_is_coin_play BOOLEAN DEFAULT false
-        )
-        RETURNS VOID
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        DECLARE
-            v_challenge_type TEXT;
-            v_increment INTEGER;
-            v_coin_play_progress INTEGER;
-            v_coin_play_target INTEGER;
-            v_coin_play_challenge_id UUID;
-        BEGIN
-            -- Determine challenge type and increment amount
-            IF p_is_coin_play THEN
-                v_challenge_type := 'play_coin_play';
-                v_increment := 1;
-            ELSIF p_is_practice THEN
-                v_challenge_type := 'play_practice';
-                v_increment := 1;
-            ELSE
-                v_challenge_type := 'play_competition';
-                v_increment := 1;
-            END IF;
-            
-            -- Update coin play challenge if it's a coin play game (DAILY ONLY)
-            IF p_is_coin_play THEN
-                -- Get current coin play progress BEFORE updating
-                SELECT udc.progress, dc.target_value, dc.id 
-                INTO v_coin_play_progress, v_coin_play_target, v_coin_play_challenge_id
-                FROM public.user_daily_challenges udc
-                JOIN public.daily_challenges dc ON udc.challenge_id = dc.id
-                WHERE udc.user_id = p_user_id
-                AND dc.challenge_date = CURRENT_DATE
-                AND dc.challenge_type = 'play_coin_play'
-                AND dc.is_active = true
-                LIMIT 1;
-                
-                -- Update coin play progress
-                PERFORM public.update_daily_challenge_progress(
-                    p_user_id,
-                    'play_coin_play',
-                    1
-                );
-                
-                -- If coin play challenge exists and progress will be divisible by 4, count as 1 competitive game
-                IF v_coin_play_challenge_id IS NOT NULL AND (COALESCE(v_coin_play_progress, 0) + 1) % 4 = 0 THEN
-                    PERFORM public.update_daily_challenge_progress(
-                        p_user_id,
-                        'play_competition',
-                        1
-                    );
-                END IF;
-            END IF;
-            
-            -- Update practice or competition game challenges (only if NOT coin play, since coin play is handled above)
-            IF NOT p_is_coin_play THEN
-                PERFORM public.update_daily_challenge_progress(
-                    p_user_id,
-                    v_challenge_type,
-                    v_increment
-                );
-                
-                PERFORM public.update_weekly_challenge_progress(
-                    p_user_id,
-                    v_challenge_type,
-                    v_increment
-                );
-            END IF;
-            
-            -- Update games_count challenge (coin play counts as 1 game)
-            PERFORM public.update_daily_challenge_progress(
-                p_user_id,
-                'games_count',
-                1
-            );
-            
-            PERFORM public.update_weekly_challenge_progress(
-                p_user_id,
-                'games_count',
-                1
-            );
-            
-            -- Update score_threshold challenge (cumulative score) - only for competition/coin play games
-            IF NOT p_is_practice THEN
-                PERFORM public.update_daily_challenge_progress(
-                    p_user_id,
-                    'score_threshold',
-                    p_score
-                );
-                
-                PERFORM public.update_weekly_challenge_progress(
-                    p_user_id,
-                    'score_threshold',
-                    p_score
-                );
-            END IF;
-            
-            -- Update play_specific_game challenge (coin play counts as 1 game)
-            PERFORM public.update_daily_challenge_progress(
-                p_user_id,
-                'play_specific_game',
-                1
-            );
-            
-            PERFORM public.update_weekly_challenge_progress(
-                p_user_id,
-                'play_specific_game',
-                1
-            );
-        END;
-        $$;
-        
-        RAISE NOTICE '✅ Function created';
+        RAISE NOTICE '   Will be created below...';
     END IF;
 END $$;
 
 -- ============================================================================
--- 2. VERIFY TRIGGER EXISTS AND IS ACTIVE
+-- 2. CREATE/UPDATE update_challenges_on_game_complete FUNCTION
+-- ============================================================================
+-- Create function outside DO block (can't CREATE FUNCTION inside DO block)
+
+CREATE OR REPLACE FUNCTION public.update_challenges_on_game_complete(
+    p_user_id UUID,
+    p_game_type TEXT,
+    p_score INTEGER,
+    p_is_practice BOOLEAN,
+    p_is_coin_play BOOLEAN DEFAULT false
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_challenge_type TEXT;
+    v_increment INTEGER;
+    v_coin_play_progress INTEGER;
+    v_coin_play_target INTEGER;
+    v_coin_play_challenge_id UUID;
+BEGIN
+    -- Determine challenge type and increment amount
+    IF p_is_coin_play THEN
+        v_challenge_type := 'play_coin_play';
+        v_increment := 1;
+    ELSIF p_is_practice THEN
+        v_challenge_type := 'play_practice';
+        v_increment := 1;
+    ELSE
+        v_challenge_type := 'play_competition';
+        v_increment := 1;
+    END IF;
+    
+    -- Update coin play challenge if it's a coin play game (DAILY ONLY)
+    IF p_is_coin_play THEN
+        -- Get current coin play progress BEFORE updating
+        SELECT udc.progress, dc.target_value, dc.id 
+        INTO v_coin_play_progress, v_coin_play_target, v_coin_play_challenge_id
+        FROM public.user_daily_challenges udc
+        JOIN public.daily_challenges dc ON udc.challenge_id = dc.id
+        WHERE udc.user_id = p_user_id
+        AND dc.challenge_date = CURRENT_DATE
+        AND dc.challenge_type = 'play_coin_play'
+        AND dc.is_active = true
+        LIMIT 1;
+        
+        -- Update coin play progress
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            'play_coin_play',
+            1
+        );
+        
+        -- If coin play challenge exists and progress will be divisible by 4, count as 1 competitive game
+        IF v_coin_play_challenge_id IS NOT NULL AND (COALESCE(v_coin_play_progress, 0) + 1) % 4 = 0 THEN
+            PERFORM public.update_daily_challenge_progress(
+                p_user_id,
+                'play_competition',
+                1
+            );
+        END IF;
+    END IF;
+    
+    -- Update practice or competition game challenges (only if NOT coin play, since coin play is handled above)
+    IF NOT p_is_coin_play THEN
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            v_challenge_type,
+            v_increment
+        );
+        
+        PERFORM public.update_weekly_challenge_progress(
+            p_user_id,
+            v_challenge_type,
+            v_increment
+        );
+    END IF;
+    
+    -- Update games_count challenge (coin play counts as 1 game)
+    PERFORM public.update_daily_challenge_progress(
+        p_user_id,
+        'games_count',
+        1
+    );
+    
+    PERFORM public.update_weekly_challenge_progress(
+        p_user_id,
+        'games_count',
+        1
+    );
+    
+    -- Update score_threshold challenge (cumulative score) - only for competition/coin play games
+    IF NOT p_is_practice THEN
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            'score_threshold',
+            p_score
+        );
+        
+        PERFORM public.update_weekly_challenge_progress(
+            p_user_id,
+            'score_threshold',
+            p_score
+        );
+    END IF;
+    
+    -- Update play_specific_game challenge (coin play counts as 1 game)
+    PERFORM public.update_daily_challenge_progress(
+        p_user_id,
+        'play_specific_game',
+        1
+    );
+    
+    PERFORM public.update_weekly_challenge_progress(
+        p_user_id,
+        'play_specific_game',
+        1
+    );
+END;
+$$;
+
+-- ============================================================================
+-- 3. VERIFY TRIGGER EXISTS AND IS ACTIVE
+-- ============================================================================
+
+-- ============================================================================
+-- 4. VERIFY TRIGGER EXISTS AND IS ACTIVE
 -- ============================================================================
 
 DO $$
@@ -203,7 +209,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 3. TEST THE SYSTEM WITH A SAMPLE GAME
+-- 5. TEST THE SYSTEM WITH A SAMPLE GAME
 -- ============================================================================
 
 DO $$
@@ -283,14 +289,14 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 4. GRANT PERMISSIONS
+-- 6. GRANT PERMISSIONS
 -- ============================================================================
 
 GRANT EXECUTE ON FUNCTION public.update_challenges_on_game_complete(UUID, TEXT, INTEGER, BOOLEAN, BOOLEAN) TO authenticated, service_role, anon;
 GRANT EXECUTE ON FUNCTION public.trigger_update_challenges_on_game_history() TO authenticated, service_role, anon;
 
 -- ============================================================================
--- SUMMARY
+-- 7. SUMMARY
 -- ============================================================================
 
 DO $$
