@@ -254,7 +254,7 @@ export default function TriumphStyleDashboard() {
 
       // Token balance is now handled by useTokenSync hook
 
-      // Load game data in parallel
+      // Load game data in parallel (including XP for level progress bar)
       const [gameHistory, highScores, userStats, userXPData] = await Promise.all([
         loadGameHistory(user.id).catch(err => {
           console.error('❌ [Dashboard] Game history load failed:', err);
