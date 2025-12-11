@@ -17,7 +17,7 @@ DROP CONSTRAINT IF EXISTS daily_challenges_challenge_type_check;
 ALTER TABLE public.daily_challenges
 ADD CONSTRAINT daily_challenges_challenge_type_check 
 CHECK (challenge_type IN (
-    'play_practice', 'play_competition', 'play_1v1', 'play_winner_takes_all',
+    'play_practice', 'play_competition', 'play_1v1', 'play_winner_takes_all', 'play_hot_sell',
     'score_threshold', 'games_count', 'win_competition', 'perfect_score',
     'visit_page', 'visit_category', 'play_specific_game', 'play_coin_play'
 ));
@@ -60,6 +60,7 @@ BEGIN
     -- Practice: 4-12 RP (LOWER - free games, reduced from 5-15)
     -- 1v1: 20-40 RP (MEDIUM - paid games, reduced from 30-60)
     -- Winner Takes All: 25-45 RP (MEDIUM-HIGH - paid games, reduced from 30-60)
+    -- Hot Sell: 25-45 RP (MEDIUM-HIGH - paid games, forces players to other pages)
     -- Coin Play: 8-16 RP (LOWER - separate challenge, reduced from 10-20)
     -- Score: 20-35 RP (skill-based, reduced from 25-45)
     -- Games count: 15-30 RP (engagement, reduced from 20-40)
@@ -121,6 +122,17 @@ BEGIN
             1, 
             60 + FLOOR(RANDOM() * 30), 
             25 + FLOOR(RANDOM() * 21), -- 25-45 RP (slightly higher than 1v1)
+            true
+        ),
+        -- Hot Sell games (MEDIUM-HIGH RP - paid, fixed at 1 game, forces players to other pages)
+        (
+            v_today, 
+            'play_hot_sell', 
+            'Hot Sell Challenge', 
+            'Play 1 Hot Sell game today', 
+            1, 
+            60 + FLOOR(RANDOM() * 30), 
+            25 + FLOOR(RANDOM() * 21), -- 25-45 RP (same as Winner Takes All)
             true
         ),
         -- Coin Play games (LOWER RP - separate daily challenge, 4 games = 1 competitive game)
@@ -395,6 +407,9 @@ BEGIN
     ELSIF v_is_wta THEN
         v_challenge_type := 'play_winner_takes_all';
         v_increment := 1;
+    ELSIF p_tournament_type = 'hot_sell' THEN
+        v_challenge_type := 'play_hot_sell';
+        v_increment := 1;
     ELSE
         v_challenge_type := 'play_competition';
         v_increment := 1;
@@ -605,14 +620,17 @@ BEGIN
     RAISE NOTICE '   - Removed DELETE statement that was regenerating challenges';
     RAISE NOTICE '   - Added check to only generate if challenges don''t exist';
     RAISE NOTICE '   - Challenges now stay consistent throughout the day';
-    RAISE NOTICE '   - Changed competition challenge to "Play 1 1v1 game"';
+    RAISE NOTICE '   - Replaced general competition with specific game challenges';
+    RAISE NOTICE '   - Added "Play 1 1v1 game" challenge';
     RAISE NOTICE '   - Added "Play 1 Winner Takes All game" challenge';
+    RAISE NOTICE '   - Added "Play 1 Hot Sell game" challenge (forces players to other pages)';
     RAISE NOTICE '   - Reduced RP payouts slightly across all challenges';
     RAISE NOTICE '';
     RAISE NOTICE '📊 NEW DAILY CHALLENGES:';
     RAISE NOTICE '   - Practice games: 4-12 RP (reduced from 5-15)';
     RAISE NOTICE '   - 1v1 game: 20-40 RP (reduced, fixed at 1 game)';
     RAISE NOTICE '   - Winner Takes All: 25-45 RP (reduced, fixed at 1 game)';
+    RAISE NOTICE '   - Hot Sell: 25-45 RP (reduced, fixed at 1 game)';
     RAISE NOTICE '   - Coin Play: 8-16 RP (reduced from 10-20)';
     RAISE NOTICE '   - Score: 20-35 RP (reduced from 25-45)';
     RAISE NOTICE '   - Games count: 15-30 RP (reduced from 20-40)';
@@ -624,5 +642,5 @@ BEGIN
     RAISE NOTICE '';
 END $$;
 
-SELECT '✅ Challenge Regeneration Fixed! 1v1 and WTA challenges added, RP payouts reduced.' as status;
+SELECT '✅ Challenge Regeneration Fixed! 1v1, WTA, and Hot Sell challenges added, RP payouts reduced.' as status;
 
