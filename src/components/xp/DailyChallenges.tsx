@@ -21,10 +21,10 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 3 seconds to show progress updates (reduced from 5s)
+      // Auto-refresh challenges every 15 seconds to show progress updates (reduced from 3s to prevent scroll disruption)
       const refreshInterval = setInterval(() => {
         loadChallenges();
-      }, 3000); // Refresh every 3 seconds
+      }, 15000); // Refresh every 15 seconds
       
       // Also refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {

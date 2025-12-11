@@ -106,7 +106,7 @@ export class XPService {
   }
 
   /**
-   * Award XP for practice game
+   * Award XP for practice game (5 XP)
    */
   static async awardPracticeGameXP(
     userId: string,
@@ -128,6 +128,33 @@ export class XPService {
       return data;
     } catch (error) {
       console.error('❌ [XPService] Exception awarding practice game XP:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Award XP for competition game (10 XP) - 1v1, WTA, Hot Sell, etc.
+   */
+  static async awardCompetitionGameXP(
+    userId: string,
+    gameHistoryId: string,
+    score: number = 0
+  ): Promise<{ success: boolean; leveled_up?: boolean; new_level?: number } | null> {
+    try {
+      const { data, error } = await supabase.rpc('award_competition_game_xp', {
+        p_user_id: userId,
+        p_game_history_id: gameHistoryId,
+        p_score: Math.floor(score)
+      });
+
+      if (error) {
+        console.error('❌ [XPService] Error awarding competition game XP:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ [XPService] Exception awarding competition game XP:', error);
       return null;
     }
   }
