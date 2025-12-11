@@ -23,7 +23,16 @@ CHECK (challenge_type IN (
 ));
 
 -- ============================================================================
--- 1. FIX generate_daily_challenges TO NOT REGENERATE
+-- 1. CLEANUP OLD COMPETITION CHALLENGES
+-- ============================================================================
+
+-- Delete any old general "play_competition" challenges (replaced with specific challenges)
+DELETE FROM public.daily_challenges 
+WHERE challenge_type = 'play_competition' 
+AND challenge_date >= CURRENT_DATE - INTERVAL '7 days';
+
+-- ============================================================================
+-- 2. FIX generate_daily_challenges TO NOT REGENERATE
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.generate_daily_challenges()
