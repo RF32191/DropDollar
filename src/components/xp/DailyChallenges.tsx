@@ -19,6 +19,22 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
   useEffect(() => {
     if (userId) {
       loadChallenges();
+      
+      // Auto-refresh challenges every 5 seconds to show progress updates
+      const refreshInterval = setInterval(() => {
+        loadChallenges();
+      }, 5000); // Refresh every 5 seconds
+      
+      // Also refresh when window gains focus (user comes back to tab)
+      const handleFocus = () => {
+        loadChallenges();
+      };
+      window.addEventListener('focus', handleFocus);
+      
+      return () => {
+        clearInterval(refreshInterval);
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [userId]);
 
