@@ -59,6 +59,11 @@ DECLARE
     v_categories_to_visit INTEGER;
     v_games_to_play INTEGER;
 BEGIN
+    -- Clean up any old general competition challenges for today (replaced with specific challenges)
+    DELETE FROM public.daily_challenges 
+    WHERE challenge_date = v_today 
+    AND challenge_type = 'play_competition';
+    
     -- ONLY generate if challenges don't exist for today
     -- This prevents regeneration on every refresh
     IF EXISTS (SELECT 1 FROM public.daily_challenges WHERE challenge_date = v_today AND is_active = true) THEN
