@@ -1,9 +1,26 @@
 -- ============================================================================
--- FIX CHALLENGE REGENERATION ISSUE
+-- FIX CHALLENGE REGENERATION ISSUE + UPDATE DAILY CHALLENGES
 -- ============================================================================
 -- Prevents challenges from regenerating on every refresh
 -- Only generates challenges if they don't exist for today
+-- Updates: 1v1 challenge, Winner Takes All challenge, Lower RP payouts
 -- ============================================================================
+
+-- ============================================================================
+-- 0. ADD NEW CHALLENGE TYPES
+-- ============================================================================
+
+-- Update daily_challenges table to allow new challenge types
+ALTER TABLE public.daily_challenges 
+DROP CONSTRAINT IF EXISTS daily_challenges_challenge_type_check;
+
+ALTER TABLE public.daily_challenges
+ADD CONSTRAINT daily_challenges_challenge_type_check 
+CHECK (challenge_type IN (
+    'play_practice', 'play_competition', 'play_1v1', 'play_winner_takes_all',
+    'score_threshold', 'games_count', 'win_competition', 'perfect_score',
+    'visit_page', 'visit_category', 'play_specific_game', 'play_coin_play'
+));
 
 -- ============================================================================
 -- 1. FIX generate_daily_challenges TO NOT REGENERATE
@@ -39,28 +56,28 @@ BEGIN
         RETURN; -- Challenges already exist, don't regenerate
     END IF;
 
-    -- Generate varied RP rewards
-    -- Practice: 5-15 RP (LOWER - free games)
-    -- Competition: 30-60 RP (HIGHER - paid games)
-    -- Coin Play: 10-20 RP (LOWER - separate challenge, less RP)
-    -- Score: 25-45 RP (skill-based)
-    -- Games count: 20-40 RP (engagement)
-    -- Page visits: 10-20 RP (engagement)
-    -- Category visits: 15-25 RP (discovery)
-    -- Specific game: 20-35 RP (targeted engagement)
+    -- Generate varied RP rewards (SLIGHTLY LOWER)
+    -- Practice: 4-12 RP (LOWER - free games, reduced from 5-15)
+    -- 1v1: 20-40 RP (MEDIUM - paid games, reduced from 30-60)
+    -- Winner Takes All: 25-45 RP (MEDIUM-HIGH - paid games, reduced from 30-60)
+    -- Coin Play: 8-16 RP (LOWER - separate challenge, reduced from 10-20)
+    -- Score: 20-35 RP (skill-based, reduced from 25-45)
+    -- Games count: 15-30 RP (engagement, reduced from 20-40)
+    -- Page visits: 8-15 RP (engagement, reduced from 10-20)
+    -- Category visits: 12-20 RP (discovery, reduced from 15-25)
+    -- Specific game: 15-28 RP (targeted engagement, reduced from 20-35)
     
-    v_practice_rp := 5 + FLOOR(RANDOM() * 11); -- 5-15 RP (LOWER)
-    v_competition_rp := 30 + FLOOR(RANDOM() * 31); -- 30-60 RP (HIGHER)
-    v_coin_play_rp := 10 + FLOOR(RANDOM() * 11); -- 10-20 RP (LOWER - separate daily challenge)
-    v_score_rp := 25 + FLOOR(RANDOM() * 21); -- 25-45 RP
-    v_games_rp := 20 + FLOOR(RANDOM() * 21); -- 20-40 RP
-    v_visit_page_rp := 10 + FLOOR(RANDOM() * 11); -- 10-20 RP
-    v_visit_category_rp := 15 + FLOOR(RANDOM() * 11); -- 15-25 RP
-    v_specific_game_rp := 20 + FLOOR(RANDOM() * 16); -- 20-35 RP
+    v_practice_rp := 4 + FLOOR(RANDOM() * 9); -- 4-12 RP (LOWER, reduced)
+    v_competition_rp := 20 + FLOOR(RANDOM() * 21); -- 20-40 RP (MEDIUM, reduced) - for 1v1
+    v_coin_play_rp := 8 + FLOOR(RANDOM() * 9); -- 8-16 RP (LOWER, reduced)
+    v_score_rp := 20 + FLOOR(RANDOM() * 16); -- 20-35 RP (reduced)
+    v_games_rp := 15 + FLOOR(RANDOM() * 16); -- 15-30 RP (reduced)
+    v_visit_page_rp := 8 + FLOOR(RANDOM() * 8); -- 8-15 RP (reduced)
+    v_visit_category_rp := 12 + FLOOR(RANDOM() * 9); -- 12-20 RP (reduced)
+    v_specific_game_rp := 15 + FLOOR(RANDOM() * 14); -- 15-28 RP (reduced)
     
     -- Generate random target values (only once per day)
     v_practice_games := 2 + FLOOR(RANDOM() * 3); -- 2-4 games
-    v_competition_games := 1 + FLOOR(RANDOM() * 3); -- 1-3 games (paid)
     v_target_score := 10000; -- Fixed at 10,000 points for daily challenge
     v_total_games := 3 + FLOOR(RANDOM() * 4); -- 3-6 games
     v_pages_to_visit := 2 + FLOOR(RANDOM() * 3); -- 2-4 pages
@@ -84,15 +101,26 @@ BEGIN
             v_practice_rp, 
             true
         ),
-        -- Competition games (HIGHER RP - paid)
+        -- 1v1 games (MEDIUM RP - paid, fixed at 1 game)
         (
             v_today, 
-            'play_competition', 
-            'Competition Champion', 
-            'Play ' || v_competition_games::TEXT || ' competition games today (paid games)', 
-            v_competition_games, 
-            75 + FLOOR(RANDOM() * 50), 
+            'play_1v1', 
+            '1v1 Battle', 
+            'Play 1 1v1 game today', 
+            1, 
+            50 + FLOOR(RANDOM() * 30), 
             v_competition_rp, 
+            true
+        ),
+        -- Winner Takes All games (MEDIUM-HIGH RP - paid, fixed at 1 game)
+        (
+            v_today, 
+            'play_winner_takes_all', 
+            'Winner Takes All', 
+            'Play 1 Winner Takes All game today', 
+            1, 
+            60 + FLOOR(RANDOM() * 30), 
+            25 + FLOOR(RANDOM() * 21), -- 25-45 RP (slightly higher than 1v1)
             true
         ),
         -- Coin Play games (LOWER RP - separate daily challenge, 4 games = 1 competitive game)
@@ -322,6 +350,243 @@ BEGIN
     ON CONFLICT (week_start_date, challenge_type) DO NOTHING; -- Don't overwrite if exists
     
     RAISE NOTICE '✅ Weekly challenges generated for week starting %', p_week_start;
+END;
+$$;
+
+-- ============================================================================
+-- 3. UPDATE update_challenges_on_game_complete TO DETECT 1V1 AND WTA GAMES
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.update_challenges_on_game_complete(
+    p_user_id UUID,
+    p_game_type TEXT,
+    p_score INTEGER,
+    p_is_practice BOOLEAN,
+    p_is_coin_play BOOLEAN DEFAULT false,
+    p_tournament_type TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_challenge_type TEXT;
+    v_increment INTEGER;
+    v_coin_play_progress INTEGER;
+    v_coin_play_target INTEGER;
+    v_coin_play_challenge_id UUID;
+    v_is_1v1 BOOLEAN;
+    v_is_wta BOOLEAN;
+BEGIN
+    -- Detect game type from tournament_type parameter
+    v_is_1v1 := (p_tournament_type = '1v1' OR p_tournament_type = 'one_v_one');
+    v_is_wta := (p_tournament_type = 'winner_takes_all' OR p_tournament_type = 'wta');
+    
+    -- Determine challenge type and increment amount
+    IF p_is_coin_play THEN
+        v_challenge_type := 'play_coin_play';
+        v_increment := 1;
+    ELSIF p_is_practice THEN
+        v_challenge_type := 'play_practice';
+        v_increment := 1;
+    ELSIF v_is_1v1 THEN
+        v_challenge_type := 'play_1v1';
+        v_increment := 1;
+    ELSIF v_is_wta THEN
+        v_challenge_type := 'play_winner_takes_all';
+        v_increment := 1;
+    ELSE
+        v_challenge_type := 'play_competition';
+        v_increment := 1;
+    END IF;
+    
+    -- Update coin play challenge if it's a coin play game (DAILY ONLY)
+    IF p_is_coin_play THEN
+        -- Get current coin play progress BEFORE updating
+        SELECT udc.progress, dc.target_value, dc.id 
+        INTO v_coin_play_progress, v_coin_play_target, v_coin_play_challenge_id
+        FROM public.user_daily_challenges udc
+        JOIN public.daily_challenges dc ON udc.challenge_id = dc.id
+        WHERE udc.user_id = p_user_id
+        AND dc.challenge_date = CURRENT_DATE
+        AND dc.challenge_type = 'play_coin_play'
+        AND dc.is_active = true
+        LIMIT 1;
+        
+        -- Update coin play progress
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            'play_coin_play',
+            1
+        );
+        
+        -- If coin play challenge exists and progress will be divisible by 4, count as 1 competitive game
+        IF v_coin_play_challenge_id IS NOT NULL AND (COALESCE(v_coin_play_progress, 0) + 1) % 4 = 0 THEN
+            PERFORM public.update_daily_challenge_progress(
+                p_user_id,
+                'play_competition',
+                1
+            );
+        END IF;
+    END IF;
+    
+    -- Update specific challenge type (practice, 1v1, WTA, or general competition)
+    IF NOT p_is_coin_play THEN
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            v_challenge_type,
+            v_increment
+        );
+        
+        PERFORM public.update_weekly_challenge_progress(
+            p_user_id,
+            v_challenge_type,
+            v_increment
+        );
+    END IF;
+    
+    -- Update games_count challenge
+    PERFORM public.update_daily_challenge_progress(
+        p_user_id,
+        'games_count',
+        1
+    );
+    
+    PERFORM public.update_weekly_challenge_progress(
+        p_user_id,
+        'games_count',
+        1
+    );
+    
+    -- Update score_threshold challenge (cumulative score) - only for competition/coin play/1v1/WTA games
+    IF NOT p_is_practice THEN
+        PERFORM public.update_daily_challenge_progress(
+            p_user_id,
+            'score_threshold',
+            p_score
+        );
+        
+        PERFORM public.update_weekly_challenge_progress(
+            p_user_id,
+            'score_threshold',
+            p_score
+        );
+    END IF;
+    
+    -- Update play_specific_game challenge
+    PERFORM public.update_daily_challenge_progress(
+        p_user_id,
+        'play_specific_game',
+        1
+    );
+    
+    PERFORM public.update_weekly_challenge_progress(
+        p_user_id,
+        'play_specific_game',
+        1
+    );
+END;
+$$;
+
+-- ============================================================================
+-- 4. UPDATE TRIGGER TO DETECT 1V1 AND WTA GAMES
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.trigger_update_challenges_on_game_history()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_is_coin_play BOOLEAN;
+    v_is_practice BOOLEAN;
+    v_tournament_type TEXT;
+    v_error_message TEXT;
+BEGIN
+    -- Only process if this is a new game record
+    IF TG_OP = 'INSERT' THEN
+        BEGIN
+            -- Determine if it's practice (use is_practice column)
+            v_is_practice := COALESCE(NEW.is_practice, false);
+            
+            -- Get tournament type from metadata or tournament_type column
+            v_tournament_type := NULL;
+            
+            -- Check tournament_type column if it exists
+            BEGIN
+                SELECT NEW.tournament_type INTO v_tournament_type;
+            EXCEPTION WHEN OTHERS THEN
+                NULL;
+            END;
+            
+            -- If not in column, check metadata
+            IF v_tournament_type IS NULL AND NEW.metadata IS NOT NULL THEN
+                BEGIN
+                    v_tournament_type := NEW.metadata->>'tournament_type';
+                EXCEPTION WHEN OTHERS THEN
+                    NULL;
+                END;
+            END IF;
+            
+            -- Detect coin play games
+            v_is_coin_play := false;
+            
+            -- Method 1: Check metadata for coin_play flag
+            IF NEW.metadata IS NOT NULL THEN
+                BEGIN
+                    IF (NEW.metadata->>'is_coin_play')::BOOLEAN = true THEN
+                        v_is_coin_play := true;
+                    END IF;
+                EXCEPTION WHEN OTHERS THEN
+                    NULL;
+                END;
+            END IF;
+            
+            -- Method 2: Check if listing_id matches coin play pattern
+            IF NOT v_is_coin_play AND NEW.listing_id IS NOT NULL THEN
+                BEGIN
+                    IF NEW.listing_id::TEXT LIKE 'cp-%' THEN
+                        v_is_coin_play := true;
+                    END IF;
+                EXCEPTION WHEN OTHERS THEN
+                    NULL;
+                END;
+            END IF;
+            
+            -- Method 3: Check coin_play_participants table
+            IF NOT v_is_coin_play THEN
+                BEGIN
+                    SELECT EXISTS (
+                        SELECT 1 FROM public.coin_play_participants cp
+                        JOIN public.coin_play_sessions cs ON cp.session_id = cs.id
+                        WHERE cp.user_id = NEW.user_id
+                        AND cp.completed_at IS NOT NULL
+                        AND cp.completed_at > NOW() - INTERVAL '5 minutes'
+                        AND cs.game_type = NEW.game_type
+                    ) INTO v_is_coin_play;
+                EXCEPTION WHEN OTHERS THEN
+                    NULL;
+                END;
+            END IF;
+            
+            -- Update challenges based on game completion
+            PERFORM public.update_challenges_on_game_complete(
+                NEW.user_id,
+                COALESCE(NEW.game_type, 'unknown'),
+                COALESCE(NEW.score, 0)::INTEGER,
+                v_is_practice,
+                v_is_coin_play,
+                v_tournament_type
+            );
+            
+        EXCEPTION WHEN OTHERS THEN
+            -- Log error but don't fail the insert
+            v_error_message := SQLERRM;
+            RAISE WARNING 'Error updating challenges for game_history id %: %', NEW.id, v_error_message;
+        END;
+    END IF;
+    
+    RETURN NEW;
 END;
 $$;
 
