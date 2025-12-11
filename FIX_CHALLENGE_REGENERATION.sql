@@ -605,6 +605,17 @@ BEGIN
     RAISE NOTICE '   - Removed DELETE statement that was regenerating challenges';
     RAISE NOTICE '   - Added check to only generate if challenges don''t exist';
     RAISE NOTICE '   - Challenges now stay consistent throughout the day';
+    RAISE NOTICE '   - Changed competition challenge to "Play 1 1v1 game"';
+    RAISE NOTICE '   - Added "Play 1 Winner Takes All game" challenge';
+    RAISE NOTICE '   - Reduced RP payouts slightly across all challenges';
+    RAISE NOTICE '';
+    RAISE NOTICE '📊 NEW DAILY CHALLENGES:';
+    RAISE NOTICE '   - Practice games: 4-12 RP (reduced from 5-15)';
+    RAISE NOTICE '   - 1v1 game: 20-40 RP (reduced, fixed at 1 game)';
+    RAISE NOTICE '   - Winner Takes All: 25-45 RP (reduced, fixed at 1 game)';
+    RAISE NOTICE '   - Coin Play: 8-16 RP (reduced from 10-20)';
+    RAISE NOTICE '   - Score: 20-35 RP (reduced from 25-45)';
+    RAISE NOTICE '   - Games count: 15-30 RP (reduced from 20-40)';
     RAISE NOTICE '';
     RAISE NOTICE '📊 BEHAVIOR:';
     RAISE NOTICE '   - Daily challenges: Generated once per day, stay the same';
@@ -613,5 +624,5 @@ BEGIN
     RAISE NOTICE '';
 END $$;
 
-SELECT '✅ Challenge Regeneration Fixed! Challenges will no longer change on refresh.' as status;
+SELECT '✅ Challenge Regeneration Fixed! 1v1 and WTA challenges added, RP payouts reduced.' as status;
 
