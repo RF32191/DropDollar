@@ -21,10 +21,11 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 15 seconds to show progress updates (reduced from 3s to prevent scroll disruption)
+      // Auto-refresh challenges every 10 seconds to show progress updates
+      // Reduced frequency to prevent scroll disruption but still update regularly
       const refreshInterval = setInterval(() => {
         loadChallenges();
-      }, 15000); // Refresh every 15 seconds
+      }, 10000); // Refresh every 10 seconds
       
       // Also refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {
@@ -40,9 +41,27 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);
       
+      // Refresh when localStorage indicates a new game was completed
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'hasNewGameScore') {
+          loadChallenges();
+        }
+      };
+      window.addEventListener('storage', handleStorageChange);
+      
+      // Also check localStorage periodically (in case storage event doesn't fire)
+      const checkStorageInterval = setInterval(() => {
+        if (localStorage.getItem('hasNewGameScore')) {
+          localStorage.removeItem('hasNewGameScore');
+          loadChallenges();
+        }
+      }, 2000); // Check every 2 seconds
+      
       return () => {
         clearInterval(refreshInterval);
+        clearInterval(checkStorageInterval);
         window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('storage', handleStorageChange);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
