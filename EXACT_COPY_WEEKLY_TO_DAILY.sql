@@ -59,7 +59,7 @@ BEGIN
     v_new_progress := v_current_progress + p_progress_increment;
     v_is_completed := v_new_progress >= v_target_value;
     
-    -- EXACT COPY: Fast upsert with index (same pattern as weekly)
+    -- EXACT COPY: Fast upsert with index (same pattern as weekly - NO target_value in INSERT)
     INSERT INTO public.user_daily_challenges (user_id, challenge_id, progress, is_completed, updated_at)
     VALUES (p_user_id, v_challenge_id, v_new_progress, v_is_completed, NOW())
     ON CONFLICT (user_id, challenge_id)
