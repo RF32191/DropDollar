@@ -131,7 +131,7 @@ BEGIN
     -- EXACT COPY: Ensure challenges exist (same pattern as weekly)
     PERFORM public.generate_daily_challenges();
     
-    -- EXACT COPY: Return challenges with user progress (same pattern as weekly)
+    -- EXACT COPY: Return challenges with user progress (EXACT same as weekly - no casts)
     RETURN QUERY
     SELECT 
         dc.id,
@@ -139,10 +139,10 @@ BEGIN
         dc.challenge_description,
         dc.challenge_type,
         dc.target_value,
-        COALESCE(udc.progress, 0), -- EXACT COPY: Same as weekly
+        COALESCE(udc.progress, 0), -- EXACT COPY: Same as weekly (no cast)
         dc.xp_reward,
         dc.reward_points,
-        COALESCE(udc.is_completed, false) -- EXACT COPY: Same as weekly
+        COALESCE(udc.is_completed, false) -- EXACT COPY: Same as weekly (no cast)
     FROM public.daily_challenges dc
     LEFT JOIN public.user_daily_challenges udc ON dc.id = udc.challenge_id AND udc.user_id = p_user_id
     WHERE dc.challenge_date = v_today -- Changed from week_start_date but same pattern
