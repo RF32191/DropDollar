@@ -206,14 +206,39 @@ export default function TriumphStyleDashboard() {
             console.log('✅ [Dashboard] XP refreshed after game:', xpData);
           }
         }).catch(err => console.error('Error refreshing XP:', err));
+        }, 1500); // 1.5 second delay to ensure database trigger has completed
       }
     }
+    
+    // Periodic refresh of XP data every 10 seconds (to catch any missed updates)
+    const xpRefreshInterval = setInterval(() => {
+      if (user && isAuthenticated) {
+        XPService.getUserXP(user.id).then(xpData => {
+          if (xpData) {
+            // Only update if XP actually changed to prevent unnecessary re-renders
+            setUserXP(prevXP => {
+              if (!prevXP || prevXP.total_xp !== xpData.total_xp || prevXP.current_level !== xpData.current_level) {
+                console.log('🔄 [Dashboard] XP data auto-refreshed:', xpData);
+                return xpData;
+              }
+              return prevXP;
+            });
+          }
+        }).catch(err => {
+          console.error('❌ [Dashboard] XP auto-refresh failed:', err);
+        });
+      }
+    }, 10000); // Refresh every 10 seconds
     
     // Only load data if user is authenticated AND auth is not loading
     if (user && isAuthenticated && !authLoading) {
       console.log('🎮 [Dashboard] User authenticated, loading data immediately...');
       loadDashboardData();
     }
+    
+    return () => {
+      clearInterval(xpRefreshInterval);
+    };
   }, [searchParams, user?.id, isAuthenticated, authLoading]);
 
   // Separate useEffect for seller status check to prevent flashing
