@@ -15,11 +15,19 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
   const [dailyChallenges, setDailyChallenges] = useState<DailyChallenge[]>([]);
   const [weeklyChallenges, setWeeklyChallenges] = useState<WeeklyChallenge[]>([]);
   const [isLoading, setIsLoading] = useState(!initialLoading);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (userId) {
-      // Initial load
-      loadChallenges();
+    if (!userId) {
+      console.warn('⚠️ [DailyChallenges] No userId provided');
+      setError('User not loaded');
+      return;
+    }
+    
+    console.log('✅ [DailyChallenges] Component mounted with userId:', userId);
+    
+    // Initial load
+    loadChallenges();
       
       // Auto-refresh challenges every 10 seconds to show progress updates
       // More frequent to catch updates faster
@@ -138,6 +146,7 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       }
     } catch (error) {
       console.error('❌ [DailyChallenges] Error loading challenges:', error);
+      setError('Failed to load challenges. Please refresh.');
       // Don't clear existing data on error, just log it
     } finally {
       if (isInitialLoad) {
@@ -282,7 +291,17 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
           </button>
         </div>
         
-        {dailyChallenges.length === 0 ? (
+        {error ? (
+          <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
+            <p className="text-red-400">{error}</p>
+            <button
+              onClick={handleManualRefresh}
+              className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
+            >
+              Retry
+            </button>
+          </div>
+        ) : dailyChallenges.length === 0 ? (
           <p className="text-gray-400">No daily challenges available. They will be generated automatically!</p>
         ) : (
           <div className="space-y-3">
