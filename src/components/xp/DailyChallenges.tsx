@@ -21,11 +21,12 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 20 seconds to show progress updates
-      // Reduced frequency to prevent flash loading and scroll disruption
+      // Auto-refresh challenges every 15 seconds to show progress updates
+      // Balanced frequency to catch updates without being too disruptive
       const refreshInterval = setInterval(() => {
+        console.log('🔄 [DailyChallenges] Auto-refreshing challenges...');
         loadChallenges();
-      }, 20000); // Refresh every 20 seconds (reduced from 15s)
+      }, 15000); // Refresh every 15 seconds
       
       // Refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {
@@ -53,12 +54,13 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       const checkStorageInterval = setInterval(() => {
         if (localStorage.getItem('hasNewGameScore')) {
           localStorage.removeItem('hasNewGameScore');
-          // Small delay to ensure database has updated
+          // Longer delay to ensure database trigger has completed
           setTimeout(() => {
+            console.log('🔄 [DailyChallenges] Refreshing after game completion...');
             loadChallenges();
-          }, 1000);
+          }, 2000); // 2 second delay for database updates
         }
-      }, 8000); // Check every 8 seconds (reduced from 5s)
+      }, 5000); // Check every 5 seconds (increased frequency for better updates)
       
       return () => {
         clearInterval(refreshInterval);
@@ -85,8 +87,8 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
         XPService.getWeeklyChallenges(userId).catch(() => [])
       ]);
       
-      // Only update if data actually changed to prevent flash
-      // Compare progress values specifically, not entire objects
+      // Always update to ensure we show latest progress
+      // Compare progress values to detect changes for logging
       const dailyChanged = daily.some((challenge, index) => {
         const existing = dailyChallenges[index];
         return !existing || 
@@ -101,12 +103,18 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
                existing.is_completed !== challenge.is_completed;
       }) || weekly.length !== weeklyChallenges.length;
       
-      // Only update state if something actually changed
-      if (dailyChanged || isInitialLoad) {
+      // Always update state to ensure latest data is shown
+      if (dailyChanged || isInitialLoad || daily.length > 0) {
         setDailyChallenges(daily || []);
+        if (dailyChanged) {
+          console.log('✅ [DailyChallenges] Daily challenges updated');
+        }
       }
-      if (weeklyChanged || isInitialLoad) {
+      if (weeklyChanged || isInitialLoad || weekly.length > 0) {
         setWeeklyChallenges(weekly || []);
+        if (weeklyChanged) {
+          console.log('✅ [DailyChallenges] Weekly challenges updated');
+        }
       }
     } catch (error) {
       console.error('Error loading challenges:', error);
