@@ -770,6 +770,19 @@ export default function GamesPage() {
           isPractice: !isCompetitionMode
         });
 
+        // Determine tournament type for competition games
+        let tournamentType: string | undefined = undefined;
+        if (isCompetitionMode) {
+          // Map game types to tournament types
+          if (currentGame === '1v1' || currentGame === 'one_v_one') {
+            tournamentType = '1v1';
+          } else if (currentGame === 'winner_takes_all' || currentGame === 'wta') {
+            tournamentType = 'winner_takes_all';
+          } else if (currentGame === 'hot_sell') {
+            tournamentType = 'hot_sell';
+          }
+        }
+        
         // Save complete game history with SimpleGameService
         const gameHistory = await SimpleGameService.saveGameHistory({
           user_id: user.id,
@@ -780,7 +793,11 @@ export default function GamesPage() {
           is_practice: !isCompetitionMode,
           listing_id: listingId || undefined,
           entry_number: isCompetitionMode ? entryNumber : undefined,
-          game_duration: 60
+          game_duration: 60,
+          metadata: {
+            tournament_type: tournamentType,
+            is_coin_play: listingId?.startsWith('cp-') || false
+          }
         });
         console.log('✅ [Games] Game history saved to game_history table:', gameHistory);
         
@@ -810,15 +827,27 @@ export default function GamesPage() {
               }
             });
           } else {
-            // Competition game - update competition challenges
-            const results = await Promise.allSettled([
+            // Competition game - update competition challenges based on tournament type
+            const challengeUpdates: Promise<any>[] = [
               XPService.updateDailyChallengeProgress(user.id, 'games_count', 1),
               XPService.updateDailyChallengeProgress(user.id, 'score_threshold', result.score),
               XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1),
               XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1),
               XPService.updateWeeklyChallengeProgress(user.id, 'score_threshold', result.score),
-              XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1)
-            ]);
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_competition', 1)
+            ];
+            
+            // Add specific tournament type challenges
+            if (tournamentType === '1v1') {
+              challengeUpdates.push(XPService.updateDailyChallengeProgress(user.id, 'play_1v1', 1));
+            } else if (tournamentType === 'winner_takes_all') {
+              challengeUpdates.push(XPService.updateDailyChallengeProgress(user.id, 'play_winner_takes_all', 1));
+            } else if (tournamentType === 'hot_sell') {
+              challengeUpdates.push(XPService.updateDailyChallengeProgress(user.id, 'play_hot_sell', 1));
+            }
+            
+            const results = await Promise.allSettled(challengeUpdates);
             
             const successes = results.filter(r => r.status === 'fulfilled').length;
             console.log(`✅ [Games] Challenge updates: ${successes}/${results.length} succeeded`);
