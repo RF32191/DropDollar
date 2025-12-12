@@ -55,8 +55,9 @@ BEGIN
     v_is_completed := v_new_progress >= v_target_value;
     
     -- CRITICAL: Use INSERT ... ON CONFLICT exactly like weekly does
-    INSERT INTO public.user_daily_challenges (user_id, challenge_id, progress, is_completed, updated_at)
-    VALUES (p_user_id, v_challenge_id, v_new_progress, v_is_completed, NOW())
+    -- Include target_value because it's NOT NULL in the table
+    INSERT INTO public.user_daily_challenges (user_id, challenge_id, progress, target_value, is_completed, updated_at)
+    VALUES (p_user_id, v_challenge_id, v_new_progress, v_target_value, v_is_completed, NOW())
     ON CONFLICT (user_id, challenge_id)
     DO UPDATE SET
         progress = EXCLUDED.progress,
