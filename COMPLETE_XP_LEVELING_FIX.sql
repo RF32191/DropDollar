@@ -29,6 +29,8 @@ DECLARE
     v_cumulative_xp INTEGER := 0;
     v_temp_level INTEGER;
     v_leveled_up BOOLEAN := false;
+    v_cumulative_for_new_level INTEGER := 0;
+    v_temp INTEGER;
 BEGIN
     -- Ensure user_xp record exists
     INSERT INTO public.user_xp (user_id, total_xp, current_level, xp_to_next_level, reward_points)
@@ -248,7 +250,7 @@ BEGIN
     RAISE NOTICE 'XP earned in current level: %', v_xp_earned_in_level;
     RAISE NOTICE 'XP needed for current level: %', v_xp_for_current_level;
     RAISE NOTICE 'XP to next level: %', v_xp_to_next;
-    RAISE NOTICE 'Progress: %%', v_progress_percent;
+    RAISE NOTICE 'Progress: % percent', v_progress_percent;
     RAISE NOTICE '';
     
     -- Test get_user_xp function
