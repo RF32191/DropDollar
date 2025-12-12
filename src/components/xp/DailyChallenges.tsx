@@ -21,12 +21,12 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 15 seconds to show progress updates
-      // Balanced frequency to catch updates without being too disruptive
+      // Auto-refresh challenges every 10 seconds to show progress updates
+      // More frequent to catch updates faster
       const refreshInterval = setInterval(() => {
         console.log('🔄 [DailyChallenges] Auto-refreshing challenges...');
         loadChallenges();
-      }, 15000); // Refresh every 15 seconds
+      }, 10000); // Refresh every 10 seconds (more frequent)
       
       // Refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {
@@ -50,7 +50,7 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       };
       window.addEventListener('storage', handleStorageChange);
       
-      // Check localStorage periodically for new games (less frequent to reduce flash)
+      // Check localStorage periodically for new games (more frequent for better updates)
       const checkStorageInterval = setInterval(() => {
         if (localStorage.getItem('hasNewGameScore')) {
           localStorage.removeItem('hasNewGameScore');
@@ -58,9 +58,9 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
           setTimeout(() => {
             console.log('🔄 [DailyChallenges] Refreshing after game completion...');
             loadChallenges();
-          }, 2000); // 2 second delay for database updates
+          }, 3000); // 3 second delay for database updates
         }
-      }, 5000); // Check every 5 seconds (increased frequency for better updates)
+      }, 3000); // Check every 3 seconds for faster updates
       
       return () => {
         clearInterval(refreshInterval);
@@ -82,42 +82,62 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
     }
     
     try {
+      console.log('🔄 [DailyChallenges] Loading challenges for user:', userId);
       const [daily, weekly] = await Promise.all([
-        XPService.getDailyChallenges(userId).catch(() => []),
-        XPService.getWeeklyChallenges(userId).catch(() => [])
+        XPService.getDailyChallenges(userId).catch((err) => {
+          console.error('❌ [DailyChallenges] Error fetching daily:', err);
+          return [];
+        }),
+        XPService.getWeeklyChallenges(userId).catch((err) => {
+          console.error('❌ [DailyChallenges] Error fetching weekly:', err);
+          return [];
+        })
       ]);
       
-      // Always update to ensure we show latest progress
-      // Compare progress values to detect changes for logging
-      const dailyChanged = daily.some((challenge, index) => {
-        const existing = dailyChallenges[index];
-        return !existing || 
-               existing.progress !== challenge.progress ||
-               existing.is_completed !== challenge.is_completed;
-      }) || daily.length !== dailyChallenges.length;
+      console.log('📊 [DailyChallenges] Received data:', {
+        daily: daily.length,
+        weekly: weekly.length,
+        dailyProgress: daily.map(c => ({ name: c.challenge_name, progress: c.progress, target: c.target_value })),
+        weeklyProgress: weekly.map(c => ({ name: c.challenge_name, progress: c.progress, target: c.target_value }))
+      });
       
-      const weeklyChanged = weekly.some((challenge, index) => {
-        const existing = weeklyChallenges[index];
-        return !existing || 
-               existing.progress !== challenge.progress ||
-               existing.is_completed !== challenge.is_completed;
-      }) || weekly.length !== weeklyChallenges.length;
+      // Compare by challenge_id, not index (more reliable)
+      const dailyChanged = daily.length !== dailyChallenges.length || 
+        daily.some((challenge) => {
+          const existing = dailyChallenges.find(c => c.challenge_id === challenge.challenge_id);
+          return !existing || 
+                 existing.progress !== challenge.progress ||
+                 existing.is_completed !== challenge.is_completed;
+        });
       
-      // Always update state to ensure latest data is shown
-      if (dailyChanged || isInitialLoad || daily.length > 0) {
+      const weeklyChanged = weekly.length !== weeklyChallenges.length ||
+        weekly.some((challenge) => {
+          const existing = weeklyChallenges.find(c => c.challenge_id === challenge.challenge_id);
+          return !existing || 
+                 existing.progress !== challenge.progress ||
+                 existing.is_completed !== challenge.is_completed;
+        });
+      
+      // ALWAYS update state to ensure latest data is shown (force update)
+      if (daily.length > 0 || isInitialLoad) {
         setDailyChallenges(daily || []);
         if (dailyChanged) {
-          console.log('✅ [DailyChallenges] Daily challenges updated');
+          console.log('✅ [DailyChallenges] Daily challenges updated - progress changed');
+        } else if (daily.length > 0) {
+          console.log('🔄 [DailyChallenges] Daily challenges refreshed (same data)');
         }
       }
-      if (weeklyChanged || isInitialLoad || weekly.length > 0) {
+      
+      if (weekly.length > 0 || isInitialLoad) {
         setWeeklyChallenges(weekly || []);
         if (weeklyChanged) {
-          console.log('✅ [DailyChallenges] Weekly challenges updated');
+          console.log('✅ [DailyChallenges] Weekly challenges updated - progress changed');
+        } else if (weekly.length > 0) {
+          console.log('🔄 [DailyChallenges] Weekly challenges refreshed (same data)');
         }
       }
     } catch (error) {
-      console.error('Error loading challenges:', error);
+      console.error('❌ [DailyChallenges] Error loading challenges:', error);
       // Don't clear existing data on error, just log it
     } finally {
       if (isInitialLoad) {

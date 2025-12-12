@@ -164,6 +164,7 @@ export class XPService {
    */
   static async getDailyChallenges(userId: string): Promise<DailyChallenge[]> {
     try {
+      console.log('📊 [XPService] Fetching daily challenges for user:', userId);
       const { data, error } = await supabase.rpc('get_daily_challenges', {
         p_user_id: userId
       });
@@ -175,9 +176,19 @@ export class XPService {
           return [];
         }
         console.error('❌ [XPService] Error fetching daily challenges:', error);
+        console.error('❌ [XPService] Error details:', JSON.stringify(error, null, 2));
         return [];
       }
 
+      console.log('✅ [XPService] Daily challenges fetched:', data?.length || 0, 'challenges');
+      if (data && data.length > 0) {
+        console.log('📊 [XPService] Sample challenge:', {
+          name: data[0].challenge_name,
+          progress: data[0].progress,
+          target: data[0].target_value,
+          type: data[0].challenge_type
+        });
+      }
       return data || [];
     } catch (error) {
       console.error('❌ [XPService] Exception fetching daily challenges:', error);
@@ -217,6 +228,7 @@ export class XPService {
    */
   static async getWeeklyChallenges(userId: string): Promise<WeeklyChallenge[]> {
     try {
+      console.log('📊 [XPService] Fetching weekly challenges for user:', userId);
       const { data, error } = await supabase.rpc('get_weekly_challenges', {
         p_user_id: userId
       });
@@ -228,9 +240,19 @@ export class XPService {
           return [];
         }
         console.error('❌ [XPService] Error fetching weekly challenges:', error);
+        console.error('❌ [XPService] Error details:', JSON.stringify(error, null, 2));
         return [];
       }
 
+      console.log('✅ [XPService] Weekly challenges fetched:', data?.length || 0, 'challenges');
+      if (data && data.length > 0) {
+        console.log('📊 [XPService] Sample challenge:', {
+          name: data[0].challenge_name,
+          progress: data[0].progress,
+          target: data[0].target_value,
+          type: data[0].challenge_type
+        });
+      }
       return data || [];
     } catch (error) {
       console.error('❌ [XPService] Exception fetching weekly challenges:', error);
