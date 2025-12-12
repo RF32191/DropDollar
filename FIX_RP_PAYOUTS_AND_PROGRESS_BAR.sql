@@ -87,9 +87,9 @@ BEGIN
                 updated_at = NOW()
             WHERE user_id = p_user_id;
             
-            -- Log XP transaction
+            -- Log XP transaction (use 'daily_challenge' as transaction_type)
             INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
-            VALUES (p_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Daily challenge: ' || p_challenge_type)
+            VALUES (p_user_id, v_xp_reward, 'daily_challenge', v_challenge_id, 'Daily challenge: ' || p_challenge_type)
             ON CONFLICT DO NOTHING;
             
             -- Log RP transaction
@@ -191,9 +191,9 @@ BEGIN
                 updated_at = NOW()
             WHERE user_id = p_user_id;
             
-            -- Log XP transaction
+            -- Log XP transaction (use 'daily_challenge' as transaction_type - weekly challenges use same type)
             INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
-            VALUES (p_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Weekly challenge: ' || p_challenge_type)
+            VALUES (p_user_id, v_xp_reward, 'daily_challenge', v_challenge_id, 'Weekly challenge: ' || p_challenge_type)
             ON CONFLICT DO NOTHING;
             
             -- Log RP transaction
@@ -351,7 +351,7 @@ BEGIN
         WHERE user_id = v_user_id;
         
         INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
-        VALUES (v_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Daily challenge: retroactive reward')
+        VALUES (v_user_id, v_xp_reward, 'daily_challenge', v_challenge_id, 'Daily challenge: retroactive reward')
         ON CONFLICT DO NOTHING;
         
         INSERT INTO public.reward_points_transactions (user_id, points_amount, transaction_type, source_id, description)
@@ -382,7 +382,7 @@ BEGIN
         WHERE user_id = v_user_id;
         
         INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
-        VALUES (v_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Weekly challenge: retroactive reward')
+        VALUES (v_user_id, v_xp_reward, 'daily_challenge', v_challenge_id, 'Weekly challenge: retroactive reward')
         ON CONFLICT DO NOTHING;
         
         INSERT INTO public.reward_points_transactions (user_id, points_amount, transaction_type, source_id, description)

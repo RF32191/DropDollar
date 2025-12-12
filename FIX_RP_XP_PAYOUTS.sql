@@ -86,7 +86,7 @@ BEGIN
             
             -- Log XP transaction
             INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
-            VALUES (p_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Daily challenge: ' || p_challenge_type)
+            VALUES (p_user_id, v_xp_reward, 'daily_challenge', v_challenge_id, 'Daily challenge: ' || p_challenge_type)
             ON CONFLICT DO NOTHING;
             
             -- Log RP transaction
@@ -189,7 +189,7 @@ BEGIN
             
             -- Log XP transaction
             INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
-            VALUES (p_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Weekly challenge: ' || p_challenge_type)
+            VALUES (p_user_id, v_xp_reward, 'daily_challenge', v_challenge_id, 'Weekly challenge: ' || p_challenge_type)
             ON CONFLICT DO NOTHING;
             
             -- Log RP transaction
