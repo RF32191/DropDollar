@@ -233,6 +233,7 @@ export default function TriumphStyleDashboard() {
             setUserXP(prevXP => {
               if (!prevXP || prevXP.total_xp !== xpData.total_xp || prevXP.current_level !== xpData.current_level) {
                 console.log('🔄 [Dashboard] XP data auto-refreshed:', xpData);
+                console.log('📊 [Dashboard] Previous:', prevXP, 'New:', xpData);
                 
                 // Check for level up
                 if (prevXP && xpData.current_level > prevXP.current_level) {
