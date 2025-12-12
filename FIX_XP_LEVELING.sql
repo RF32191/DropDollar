@@ -27,6 +27,8 @@ DECLARE
     v_old_level INTEGER;
     v_xp_for_current_level INTEGER;
     v_xp_earned_in_level INTEGER;
+    v_cumulative_xp INTEGER := 0;
+    v_temp_level INTEGER := 1;
 BEGIN
     -- Ensure user_xp record exists
     INSERT INTO public.user_xp (user_id, total_xp, current_level, xp_to_next_level, reward_points)
@@ -46,19 +48,16 @@ BEGIN
     -- Calculate XP needed for current level
     v_xp_for_current_level := FLOOR(100 * POWER(v_current_level, 1.5))::INTEGER;
     
+    -- Calculate cumulative XP for all previous levels
+    v_cumulative_xp := 0;
+    v_temp_level := 1;
+    WHILE v_temp_level < v_current_level LOOP
+        v_cumulative_xp := v_cumulative_xp + FLOOR(100 * POWER(v_temp_level, 1.5))::INTEGER;
+        v_temp_level := v_temp_level + 1;
+    END LOOP;
+    
     -- Calculate XP earned in current level
-    -- First, calculate cumulative XP for all previous levels
-    DECLARE
-        v_cumulative_xp INTEGER := 0;
-        v_temp_level INTEGER := 1;
-    BEGIN
-        WHILE v_temp_level < v_current_level LOOP
-            v_cumulative_xp := v_cumulative_xp + FLOOR(100 * POWER(v_temp_level, 1.5))::INTEGER;
-            v_temp_level := v_temp_level + 1;
-        END LOOP;
-        
-        v_xp_earned_in_level := v_current_xp - v_cumulative_xp;
-    END;
+    v_xp_earned_in_level := v_current_xp - v_cumulative_xp;
 
     -- Add new XP to current level progress
     v_xp_earned_in_level := v_xp_earned_in_level + p_xp_amount;
@@ -197,16 +196,13 @@ $$;
 
 DO $$
 BEGIN
-    RAISE NOTICE '';
     RAISE NOTICE '========================================';
     RAISE NOTICE '✅ XP LEVELING FIXED';
     RAISE NOTICE '========================================';
-    RAISE NOTICE '';
     RAISE NOTICE '🔧 FIXES:';
     RAISE NOTICE '   - award_xp now correctly calculates level progression';
     RAISE NOTICE '   - get_user_xp returns correct xp_to_next_level';
-    RAISE NOTICE '   - Progress will now go to 100% before leveling up';
-    RAISE NOTICE '';
+    RAISE NOTICE '   - Progress will now go to 100%% before leveling up';
 END $$;
 
 SELECT '✅ XP leveling fixed! Progress will now correctly reach 100% before leveling up.' as status;
