@@ -65,28 +65,25 @@ BEGIN
     -- Calculate XP for current level
     v_xp_for_current_level := FLOOR(100 * POWER(v_new_level, 1.5))::INTEGER;
     
-    -- Calculate XP earned in current level
-    DECLARE
-        v_cumulative_for_new_level INTEGER := 0;
-        v_temp INTEGER := 1;
-    BEGIN
-        WHILE v_temp < v_new_level LOOP
-            v_cumulative_for_new_level := v_cumulative_for_new_level + FLOOR(100 * POWER(v_temp, 1.5))::INTEGER;
-            v_temp := v_temp + 1;
-        END LOOP;
-        
-        -- Calculate XP to next level
-        v_xp_for_next_level := v_xp_for_current_level - (v_new_xp - v_cumulative_for_new_level);
-        
-        -- Update user_xp
-        UPDATE public.user_xp
-        SET 
-            total_xp = v_new_xp,
-            current_level = v_new_level,
-            xp_to_next_level = GREATEST(0, v_xp_for_next_level),
-            updated_at = NOW()
-        WHERE user_id = p_user_id;
-    END;
+    -- Calculate cumulative XP for new level
+    v_cumulative_for_new_level := 0;
+    v_temp := 1;
+    WHILE v_temp < v_new_level LOOP
+        v_cumulative_for_new_level := v_cumulative_for_new_level + FLOOR(100 * POWER(v_temp, 1.5))::INTEGER;
+        v_temp := v_temp + 1;
+    END LOOP;
+    
+    -- Calculate XP to next level
+    v_xp_for_next_level := v_xp_for_current_level - (v_new_xp - v_cumulative_for_new_level);
+    
+    -- Update user_xp
+    UPDATE public.user_xp
+    SET 
+        total_xp = v_new_xp,
+        current_level = v_new_level,
+        xp_to_next_level = GREATEST(0, v_xp_for_next_level),
+        updated_at = NOW()
+    WHERE user_id = p_user_id;
     
     -- Log transaction
     INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
