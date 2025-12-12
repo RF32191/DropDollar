@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTokenSync } from '@/hooks/useTokenSync';
 import LevelDisplay from '@/components/xp/LevelDisplay';
 import DailyChallenges from '@/components/xp/DailyChallenges';
+import LevelUpAnimation from '@/components/xp/LevelUpAnimation';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 import PageWalletDisplay from '@/components/wallet/PageWalletDisplay';
 import AdvancedSellerRegistration from '@/components/seller/AdvancedSellerRegistration';
@@ -72,6 +73,8 @@ export default function TriumphStyleDashboard() {
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [userXP, setUserXP] = useState<UserXPData | null>(null);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState<{ oldLevel: number; newLevel: number } | null>(null);
   const [userStats, setUserStats] = useState<UserStats>({
     totalGames: 0,
     practiceGames: 0,
@@ -202,7 +205,18 @@ export default function TriumphStyleDashboard() {
           // Also refresh XP data specifically to update level progress bar
           XPService.getUserXP(user.id).then(xpData => {
           if (xpData) {
-            setUserXP(xpData);
+            setUserXP(prevXP => {
+              // Check for level up
+              if (prevXP && xpData.current_level > prevXP.current_level) {
+                console.log('🎉 [Dashboard] LEVEL UP DETECTED!', prevXP.current_level, '->', xpData.current_level);
+                setLevelUpData({
+                  oldLevel: prevXP.current_level,
+                  newLevel: xpData.current_level
+                });
+                setShowLevelUp(true);
+              }
+              return xpData;
+            });
             console.log('✅ [Dashboard] XP refreshed after game:', xpData);
           }
         }).catch(err => console.error('Error refreshing XP:', err));
@@ -219,6 +233,17 @@ export default function TriumphStyleDashboard() {
             setUserXP(prevXP => {
               if (!prevXP || prevXP.total_xp !== xpData.total_xp || prevXP.current_level !== xpData.current_level) {
                 console.log('🔄 [Dashboard] XP data auto-refreshed:', xpData);
+                
+                // Check for level up
+                if (prevXP && xpData.current_level > prevXP.current_level) {
+                  console.log('🎉 [Dashboard] LEVEL UP DETECTED!', prevXP.current_level, '->', xpData.current_level);
+                  setLevelUpData({
+                    oldLevel: prevXP.current_level,
+                    newLevel: xpData.current_level
+                  });
+                  setShowLevelUp(true);
+                }
+                
                 return xpData;
               }
               return prevXP;
