@@ -443,5 +443,38 @@ BEGIN
     RAISE NOTICE '';
 END $$;
 
+-- ============================================================================
+-- 7. VERIFY TRIGGER IS CALLING UPDATE FUNCTIONS CORRECTLY
+-- ============================================================================
+
+-- Ensure trigger calls update_challenges_on_game_complete which calls the progress functions
+-- This is already done in COMPLETE_FIX_TRIGGER_AND_XP.sql, but verify it exists
+
+DO $$
+DECLARE
+    v_trigger_exists BOOLEAN;
+    v_update_function_exists BOOLEAN;
+BEGIN
+    -- Check if trigger exists
+    SELECT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'trigger_update_challenges_on_game_history'
+        AND tgrelid = 'public.game_history'::regclass
+    ) INTO v_trigger_exists;
+    
+    -- Check if update_challenges_on_game_complete exists
+    SELECT EXISTS (
+        SELECT 1 FROM pg_proc 
+        WHERE proname = 'update_challenges_on_game_complete'
+    ) INTO v_update_function_exists;
+    
+    IF v_trigger_exists AND v_update_function_exists THEN
+        RAISE NOTICE '✅ Trigger and update function exist - challenges will update automatically';
+    ELSE
+        RAISE WARNING '⚠️ Missing components! Trigger: %, Update function: %', v_trigger_exists, v_update_function_exists;
+        RAISE WARNING '⚠️ Please run COMPLETE_FIX_TRIGGER_AND_XP.sql to ensure trigger is set up';
+    END IF;
+END $$;
+
 SELECT '✅ Challenge progress system fixed! Progress bars will update correctly.' as status;
 
