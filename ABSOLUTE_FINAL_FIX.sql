@@ -1,216 +1,348 @@
 -- ============================================================================
--- ABSOLUTE FINAL FIX - Pure TEXT everywhere, no UUID comparisons possible
+-- ABSOLUTE FINAL FIX - ENSURES TRIGGER FIRES AND PROGRESS UPDATES
+-- ============================================================================
+-- This is the definitive fix that ensures everything works
 -- ============================================================================
 
--- Step 1: Drop views
-DROP VIEW IF EXISTS public.user_activity_stats CASCADE;
-DROP VIEW IF EXISTS public.user_game_stats CASCADE;
-DROP VIEW IF EXISTS public.user_statistics CASCADE;
+-- ============================================================================
+-- STEP 1: DROP AND RECREATE TRIGGER (ENSURES IT'S ATTACHED)
+-- ============================================================================
 
--- Step 2: Drop policies
-DROP POLICY IF EXISTS "users_view_own_games" ON public.game_history;
-DROP POLICY IF EXISTS "users_insert_own_games" ON public.game_history;
-DROP POLICY IF EXISTS "Users can view their own game history" ON public.game_history;
-DROP POLICY IF EXISTS "Users can view their own games" ON public.game_history;
-DROP POLICY IF EXISTS "Users can insert their own games" ON public.game_history;
-DROP POLICY IF EXISTS "Public can view all games" ON public.game_history;
-DROP POLICY IF EXISTS "Anyone can view game history" ON public.game_history;
-DROP POLICY IF EXISTS "Service role can insert" ON public.game_history;
-DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.game_history;
+-- Drop trigger if exists
+DROP TRIGGER IF EXISTS trigger_update_challenges_on_game_history ON public.game_history;
 
--- Step 3: Convert game_history.user_id to TEXT
-ALTER TABLE public.game_history ALTER COLUMN user_id TYPE TEXT;
-
--- Step 4: Recreate policies
-CREATE POLICY "users_view_own_games" ON public.game_history FOR SELECT TO authenticated USING (auth.uid()::text = user_id);
-CREATE POLICY "users_insert_own_games" ON public.game_history FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = user_id);
-CREATE POLICY "Public can view all games" ON public.game_history FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Service role can insert" ON public.game_history FOR INSERT TO service_role WITH CHECK (true);
-
--- Step 5: Recreate views
-CREATE OR REPLACE VIEW public.user_activity_stats AS
-SELECT user_id, COUNT(*) as total_games, AVG(score) as avg_score, MAX(score) as best_score, SUM(tokens_won) as total_earnings
-FROM public.game_history GROUP BY user_id;
-
-CREATE OR REPLACE VIEW public.user_game_stats AS
-SELECT user_id, game_type, COUNT(*) as games_played, AVG(score) as avg_score, MAX(score) as best_score
-FROM public.game_history GROUP BY user_id, game_type;
-
--- Step 6: Recreate payout function with ZERO UUID comparisons
-DROP FUNCTION IF EXISTS public.process_hot_sell_payout(text);
-
-CREATE OR REPLACE FUNCTION public.process_hot_sell_payout(config_id_param text)
-RETURNS json
+-- Recreate trigger function
+CREATE OR REPLACE FUNCTION public.trigger_update_challenges_on_game_history()
+RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    v_session_id TEXT;  -- Store as TEXT, not UUID
-    v_current_pot NUMERIC;
-    v_config_game_type TEXT;
-    v_config_base_price NUMERIC;
-    v_config_max_participants INTEGER;
-    v_config_platform_fee_percent NUMERIC;
-    v_config_first_place_percent NUMERIC;
-    v_config_second_place_percent NUMERIC;
-    v_config_third_place_percent NUMERIC;
-    v_platform_fee NUMERIC;
-    v_first_prize NUMERIC;
-    v_second_prize NUMERIC;
-    v_third_prize NUMERIC;
-    v_winner1_id TEXT;  -- TEXT, not UUID
-    v_winner1_score NUMERIC;
-    v_winner1_name TEXT;
-    v_winner2_id TEXT;  -- TEXT, not UUID
-    v_winner2_score NUMERIC;
-    v_winner2_name TEXT;
-    v_winner3_id TEXT;  -- TEXT, not UUID
-    v_winner3_score NUMERIC;
-    v_winner3_name TEXT;
+    v_is_practice BOOLEAN;
+    v_is_coin_play BOOLEAN := false;
+    v_tournament_type TEXT;
 BEGIN
-    RAISE NOTICE '🎯 PAYOUT START: %', config_id_param;
-    
-    -- Get config
-    SELECT game_type, base_price, max_participants, platform_fee_percent, 
-           first_place_percent, second_place_percent, third_place_percent
-    INTO v_config_game_type, v_config_base_price, v_config_max_participants,
-         v_config_platform_fee_percent, v_config_first_place_percent,
-         v_config_second_place_percent, v_config_third_place_percent
-    FROM public.hot_sell_configs WHERE id = config_id_param;
-    
-    IF v_config_game_type IS NULL THEN
-        RETURN json_build_object('success', false, 'message', 'Config not found');
+    IF TG_OP = 'INSERT' THEN
+        -- Get is_practice (CRITICAL)
+        v_is_practice := COALESCE(NEW.is_practice, false);
+        
+        -- Get tournament type
+        IF NEW.metadata IS NOT NULL THEN
+            v_tournament_type := NEW.metadata->>'tournament_type';
+        END IF;
+        
+        -- Detect coin play
+        IF NEW.metadata IS NOT NULL AND (NEW.metadata->>'is_coin_play')::BOOLEAN = true THEN
+            v_is_coin_play := true;
+        ELSIF NEW.listing_id IS NOT NULL AND NEW.listing_id::TEXT LIKE 'cp-%' THEN
+            v_is_coin_play := true;
+        END IF;
+        
+        -- Award XP
+        IF v_is_practice THEN
+            PERFORM public.award_practice_game_xp(NEW.user_id, NEW.id, COALESCE(NEW.score, 0)::INTEGER);
+        ELSE
+            PERFORM public.award_competition_game_xp(NEW.user_id, NEW.id, COALESCE(NEW.score, 0)::INTEGER);
+        END IF;
+        
+        -- CRITICAL: Update challenges
+        PERFORM public.update_challenges_on_game_complete(
+            NEW.user_id,
+            COALESCE(NEW.game_type, 'unknown'),
+            COALESCE(NEW.score, 0)::INTEGER,
+            v_is_practice,
+            v_is_coin_play,
+            v_tournament_type
+        );
     END IF;
     
-    -- Get active session - convert UUID to TEXT immediately
-    SELECT id::text, current_pot INTO v_session_id, v_current_pot
-    FROM public.hot_sell_sessions 
-    WHERE config_id = config_id_param AND status != 'completed'
-    ORDER BY created_at DESC LIMIT 1;
-    
-    IF v_session_id IS NULL THEN
-        RETURN json_build_object('success', false, 'message', 'No active session');
-    END IF;
-    
-    RAISE NOTICE '✅ Session: % | Pot: %', v_session_id, v_current_pot;
-    
-    -- Calculate prizes
-    v_platform_fee := v_current_pot * (v_config_platform_fee_percent / 100.0);
-    v_first_prize := (v_current_pot - v_platform_fee) * (v_config_first_place_percent / 100.0);
-    v_second_prize := (v_current_pot - v_platform_fee) * (v_config_second_place_percent / 100.0);
-    v_third_prize := (v_current_pot - v_platform_fee) * (v_config_third_place_percent / 100.0);
-    
-    RAISE NOTICE '💰 Prizes: 1st=% | 2nd=% | 3rd=%', v_first_prize, v_second_prize, v_third_prize;
-    
-    -- Get 1st place - convert user_id to TEXT immediately
-    SELECT user_id::text, score INTO v_winner1_id, v_winner1_score
-    FROM public.hot_sell_participants
-    WHERE session_id::text = v_session_id AND score IS NOT NULL
-    ORDER BY score DESC LIMIT 1;
-    
-    IF v_winner1_id IS NOT NULL THEN
-        RAISE NOTICE '🥇 Winner 1 ID (TEXT): %', v_winner1_id;
-        
-        -- Get username using TEXT comparison
-        SELECT COALESCE(username, email, 'Player 1') INTO v_winner1_name 
-        FROM public.users WHERE id::text = v_winner1_id;
-        
-        -- Pay winner using TEXT comparison
-        UPDATE public.users SET tokens = tokens + v_first_prize WHERE id::text = v_winner1_id;
-        RAISE NOTICE '💵 Paid %: % tokens', v_winner1_name, v_first_prize;
-        
-        -- Save to game_history (user_id is already TEXT)
-        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
-        VALUES (v_winner1_id, v_config_game_type, v_winner1_score, v_first_prize, 'hot_sell', NOW());
-        RAISE NOTICE '✅ Saved to analytics';
-    END IF;
-    
-    -- Get 2nd place - TEXT only
-    SELECT user_id::text, score INTO v_winner2_id, v_winner2_score
-    FROM public.hot_sell_participants
-    WHERE session_id::text = v_session_id AND score IS NOT NULL 
-    AND user_id::text != v_winner1_id
-    ORDER BY score DESC LIMIT 1;
-    
-    IF v_winner2_id IS NOT NULL THEN
-        RAISE NOTICE '🥈 Winner 2 ID (TEXT): %', v_winner2_id;
-        SELECT COALESCE(username, email, 'Player 2') INTO v_winner2_name FROM public.users WHERE id::text = v_winner2_id;
-        UPDATE public.users SET tokens = tokens + v_second_prize WHERE id::text = v_winner2_id;
-        RAISE NOTICE '💵 Paid %: % tokens', v_winner2_name, v_second_prize;
-        
-        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
-        VALUES (v_winner2_id, v_config_game_type, v_winner2_score, v_second_prize, 'hot_sell', NOW());
-    END IF;
-    
-    -- Get 3rd place - TEXT only
-    SELECT user_id::text, score INTO v_winner3_id, v_winner3_score
-    FROM public.hot_sell_participants
-    WHERE session_id::text = v_session_id AND score IS NOT NULL 
-    AND user_id::text != v_winner1_id 
-    AND (v_winner2_id IS NULL OR user_id::text != v_winner2_id)
-    ORDER BY score DESC LIMIT 1;
-    
-    IF v_winner3_id IS NOT NULL THEN
-        RAISE NOTICE '🥉 Winner 3 ID (TEXT): %', v_winner3_id;
-        SELECT COALESCE(username, email, 'Player 3') INTO v_winner3_name FROM public.users WHERE id::text = v_winner3_id;
-        UPDATE public.users SET tokens = tokens + v_third_prize WHERE id::text = v_winner3_id;
-        RAISE NOTICE '💵 Paid %: % tokens', v_winner3_name, v_third_prize;
-        
-        INSERT INTO public.game_history (user_id, game_type, score, tokens_won, tournament_type, created_at)
-        VALUES (v_winner3_id, v_config_game_type, v_winner3_score, v_third_prize, 'hot_sell', NOW());
-    END IF;
-    
-    -- Mark session completed
-    UPDATE public.hot_sell_sessions
-    SET status = 'completed', first_place_prize = v_first_prize,
-        second_place_prize = v_second_prize, third_place_prize = v_third_prize,
-        platform_fee = v_platform_fee, completed_at = NOW(), updated_at = NOW()
-    WHERE id::text = v_session_id;
-    
-    RAISE NOTICE '✅ Session marked completed';
-    
-    -- Clean up using TEXT
-    DELETE FROM public.hot_sell_participants WHERE session_id::text = v_session_id;
-    DELETE FROM public.hot_sell_sessions WHERE id::text = v_session_id;
-    
-    RAISE NOTICE '🗑️ Deleted old session';
-    
-    -- Create new session
-    INSERT INTO public.hot_sell_sessions (
-        config_id, current_pot, base_price, max_participants, 
-        participants_count, status, created_at, updated_at
-    ) VALUES (
-        config_id_param, 0, v_config_base_price, v_config_max_participants, 
-        0, 'waiting', NOW(), NOW()
-    );
-    
-    RAISE NOTICE '✨ New session created';
-    RAISE NOTICE '🎉 PAYOUT COMPLETE!';
-    
-    RETURN json_build_object(
-        'success', true, 'message', 'Payout successful',
-        'first_place_winner', COALESCE(v_winner1_name, 'N/A'),
-        'first_place_amount', v_first_prize,
-        'second_place_winner', COALESCE(v_winner2_name, 'N/A'),
-        'second_place_amount', v_second_prize,
-        'third_place_winner', COALESCE(v_winner3_name, 'N/A'),
-        'third_place_amount', v_third_prize,
-        'total_pot', v_current_pot,
-        'platform_fee', v_platform_fee
-    );
+    RETURN NEW;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.process_hot_sell_payout(text) TO authenticated, anon;
+-- Create trigger
+CREATE TRIGGER trigger_update_challenges_on_game_history
+AFTER INSERT ON public.game_history
+FOR EACH ROW
+EXECUTE FUNCTION public.trigger_update_challenges_on_game_history();
+
+-- ============================================================================
+-- STEP 2: VERIFY TRIGGER IS ATTACHED
+-- ============================================================================
+
+DO $$
+DECLARE
+    v_trigger_exists BOOLEAN;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'trigger_update_challenges_on_game_history'
+        AND tgrelid = 'public.game_history'::regclass
+    ) INTO v_trigger_exists;
+    
+    IF v_trigger_exists THEN
+        RAISE NOTICE '✅ Trigger is attached to game_history table';
+    ELSE
+        RAISE WARNING '❌ Trigger is NOT attached!';
+    END IF;
+END $$;
+
+-- ============================================================================
+-- STEP 3: ENSURE ALL FUNCTIONS EXIST AND WORK
+-- ============================================================================
+
+-- update_challenges_on_game_complete
+CREATE OR REPLACE FUNCTION public.update_challenges_on_game_complete(
+    p_user_id UUID,
+    p_game_type TEXT,
+    p_score INTEGER,
+    p_is_practice BOOLEAN,
+    p_is_coin_play BOOLEAN DEFAULT false,
+    p_tournament_type TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_challenge_type TEXT;
+BEGIN
+    -- Determine challenge type
+    IF p_is_coin_play THEN
+        v_challenge_type := 'play_coin_play';
+    ELSIF p_is_practice THEN
+        v_challenge_type := 'play_practice';
+    ELSIF p_tournament_type = '1v1' OR p_tournament_type = 'one_v_one' THEN
+        v_challenge_type := 'play_1v1';
+    ELSIF p_tournament_type = 'winner_takes_all' OR p_tournament_type = 'wta' THEN
+        v_challenge_type := 'play_winner_takes_all';
+    ELSIF p_tournament_type = 'hot_sell' THEN
+        v_challenge_type := 'play_hot_sell';
+    ELSE
+        v_challenge_type := 'play_competition';
+    END IF;
+    
+    -- Update challenges
+    IF p_is_coin_play THEN
+        PERFORM public.update_daily_challenge_progress(p_user_id, 'play_coin_play', 1);
+    END IF;
+    
+    IF NOT p_is_coin_play THEN
+        PERFORM public.update_daily_challenge_progress(p_user_id, v_challenge_type, 1);
+        PERFORM public.update_weekly_challenge_progress(p_user_id, v_challenge_type, 1);
+    END IF;
+    
+    PERFORM public.update_daily_challenge_progress(p_user_id, 'games_count', 1);
+    PERFORM public.update_weekly_challenge_progress(p_user_id, 'games_count', 1);
+    
+    IF NOT p_is_practice THEN
+        PERFORM public.update_daily_challenge_progress(p_user_id, 'score_threshold', p_score);
+        PERFORM public.update_weekly_challenge_progress(p_user_id, 'score_threshold', p_score);
+    END IF;
+    
+    PERFORM public.update_daily_challenge_progress(p_user_id, 'play_specific_game', 1);
+    PERFORM public.update_weekly_challenge_progress(p_user_id, 'play_specific_game', 1);
+END;
+$$;
+
+-- update_daily_challenge_progress (from COMPLETE_END_TO_END_FIX.sql)
+CREATE OR REPLACE FUNCTION public.update_daily_challenge_progress(
+    p_user_id UUID,
+    p_challenge_type TEXT,
+    p_progress_increment INTEGER DEFAULT 1
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_challenge_id UUID;
+    v_target_value INTEGER;
+    v_current_progress INTEGER := 0;
+    v_new_progress INTEGER;
+    v_is_completed BOOLEAN;
+    v_xp_reward INTEGER;
+    v_reward_points INTEGER;
+    v_today DATE := CURRENT_DATE;
+BEGIN
+    -- Ensure challenges exist
+    IF NOT EXISTS (
+        SELECT 1 FROM public.daily_challenges 
+        WHERE challenge_date = v_today AND is_active = true LIMIT 1
+    ) THEN
+        PERFORM public.generate_daily_challenges();
+    END IF;
+    
+    -- Find challenge
+    SELECT dc.id, dc.target_value, COALESCE(udc.progress, 0), dc.xp_reward, dc.reward_points
+    INTO v_challenge_id, v_target_value, v_current_progress, v_xp_reward, v_reward_points
+    FROM public.daily_challenges dc
+    LEFT JOIN public.user_daily_challenges udc ON dc.id = udc.challenge_id AND udc.user_id = p_user_id
+    WHERE dc.challenge_date = v_today
+    AND dc.challenge_type = p_challenge_type
+    AND dc.is_active = true
+    LIMIT 1;
+    
+    IF v_challenge_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Challenge not found');
+    END IF;
+    
+    -- Calculate progress
+    v_new_progress := v_current_progress + p_progress_increment;
+    v_is_completed := v_new_progress >= v_target_value;
+    
+    -- Save progress
+    INSERT INTO public.user_daily_challenges (user_id, challenge_id, progress, is_completed)
+    VALUES (p_user_id, v_challenge_id, v_new_progress, v_is_completed)
+    ON CONFLICT (user_id, challenge_id)
+    DO UPDATE SET
+        progress = EXCLUDED.progress,
+        is_completed = EXCLUDED.is_completed,
+        updated_at = NOW();
+    
+    -- Award rewards if completed
+    IF v_is_completed THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.user_daily_challenges
+            WHERE user_id = p_user_id AND challenge_id = v_challenge_id AND xp_awarded IS NOT NULL
+        ) THEN
+            UPDATE public.user_xp
+            SET total_xp = total_xp + v_xp_reward,
+                reward_points = reward_points + v_reward_points,
+                updated_at = NOW()
+            WHERE user_id = p_user_id;
+            
+            INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
+            VALUES (p_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Daily challenge: ' || p_challenge_type)
+            ON CONFLICT DO NOTHING;
+            
+            INSERT INTO public.reward_points_transactions (user_id, points_amount, transaction_type, source_id, description)
+            VALUES (p_user_id, v_reward_points, 'earned', v_challenge_id, 'Daily challenge reward')
+            ON CONFLICT DO NOTHING;
+            
+            UPDATE public.user_daily_challenges
+            SET xp_awarded = v_xp_reward, reward_points_awarded = v_reward_points
+            WHERE user_id = p_user_id AND challenge_id = v_challenge_id;
+        END IF;
+    END IF;
+    
+    RETURN jsonb_build_object('success', true, 'progress', v_new_progress, 'target', v_target_value);
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+-- update_weekly_challenge_progress (from COMPLETE_END_TO_END_FIX.sql)
+CREATE OR REPLACE FUNCTION public.update_weekly_challenge_progress(
+    p_user_id UUID,
+    p_challenge_type TEXT,
+    p_progress_increment INTEGER DEFAULT 1
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_week_start DATE;
+    v_challenge_id UUID;
+    v_target_value INTEGER;
+    v_current_progress INTEGER := 0;
+    v_new_progress INTEGER;
+    v_is_completed BOOLEAN;
+    v_xp_reward INTEGER;
+    v_reward_points INTEGER;
+BEGIN
+    v_week_start := DATE_TRUNC('week', CURRENT_DATE)::DATE;
+    
+    -- Ensure challenges exist
+    IF NOT EXISTS (
+        SELECT 1 FROM public.weekly_challenges 
+        WHERE week_start_date = v_week_start AND is_active = true LIMIT 1
+    ) THEN
+        PERFORM public.generate_weekly_challenges(v_week_start);
+    END IF;
+    
+    -- Find challenge
+    SELECT wc.id, wc.target_value, COALESCE(uwc.progress, 0), wc.xp_reward, wc.reward_points
+    INTO v_challenge_id, v_target_value, v_current_progress, v_xp_reward, v_reward_points
+    FROM public.weekly_challenges wc
+    LEFT JOIN public.user_weekly_challenges uwc ON wc.id = uwc.challenge_id AND uwc.user_id = p_user_id
+    WHERE wc.week_start_date = v_week_start
+    AND wc.challenge_type = p_challenge_type
+    AND wc.is_active = true
+    LIMIT 1;
+    
+    IF v_challenge_id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Challenge not found');
+    END IF;
+    
+    -- Calculate progress
+    v_new_progress := v_current_progress + p_progress_increment;
+    v_is_completed := v_new_progress >= v_target_value;
+    
+    -- Save progress
+    INSERT INTO public.user_weekly_challenges (user_id, challenge_id, progress, is_completed)
+    VALUES (p_user_id, v_challenge_id, v_new_progress, v_is_completed)
+    ON CONFLICT (user_id, challenge_id)
+    DO UPDATE SET
+        progress = EXCLUDED.progress,
+        is_completed = EXCLUDED.is_completed,
+        updated_at = NOW();
+    
+    -- Award rewards if completed
+    IF v_is_completed THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.user_weekly_challenges
+            WHERE user_id = p_user_id AND challenge_id = v_challenge_id AND xp_awarded IS NOT NULL
+        ) THEN
+            UPDATE public.user_xp
+            SET total_xp = total_xp + v_xp_reward,
+                reward_points = reward_points + v_reward_points,
+                updated_at = NOW()
+            WHERE user_id = p_user_id;
+            
+            INSERT INTO public.xp_transactions (user_id, xp_amount, transaction_type, source_id, description)
+            VALUES (p_user_id, v_xp_reward, 'challenge', v_challenge_id, 'Weekly challenge: ' || p_challenge_type)
+            ON CONFLICT DO NOTHING;
+            
+            INSERT INTO public.reward_points_transactions (user_id, points_amount, transaction_type, source_id, description)
+            VALUES (p_user_id, v_reward_points, 'earned', v_challenge_id, 'Weekly challenge reward')
+            ON CONFLICT DO NOTHING;
+            
+            UPDATE public.user_weekly_challenges
+            SET xp_awarded = v_xp_reward, reward_points_awarded = v_reward_points
+            WHERE user_id = p_user_id AND challenge_id = v_challenge_id;
+        END IF;
+    END IF;
+    
+    RETURN jsonb_build_object('success', true, 'progress', v_new_progress, 'target', v_target_value);
+EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+-- ============================================================================
+-- FINAL VERIFICATION
+-- ============================================================================
 
 DO $$
 BEGIN
+    RAISE NOTICE '';
     RAISE NOTICE '========================================';
-    RAISE NOTICE '✅ ABSOLUTE FINAL FIX COMPLETE!';
+    RAISE NOTICE '✅ ABSOLUTE FINAL FIX APPLIED';
     RAISE NOTICE '========================================';
-    RAISE NOTICE '✅ ALL variables are TEXT';
-    RAISE NOTICE '✅ ALL comparisons use ::text';
-    RAISE NOTICE '✅ NO UUID operations anywhere';
-    RAISE NOTICE '========================================';
+    RAISE NOTICE '';
+    RAISE NOTICE '🔧 WHAT WAS DONE:';
+    RAISE NOTICE '   1. Trigger dropped and recreated';
+    RAISE NOTICE '   2. All functions recreated';
+    RAISE NOTICE '   3. Trigger verified as attached';
+    RAISE NOTICE '';
+    RAISE NOTICE '📊 NEXT STEPS:';
+    RAISE NOTICE '   1. Play a practice game';
+    RAISE NOTICE '   2. Check browser console for logs';
+    RAISE NOTICE '   3. Click refresh button on challenges';
+    RAISE NOTICE '   4. Progress should update immediately';
+    RAISE NOTICE '';
 END $$;
 
+SELECT '✅ Absolute final fix applied! Trigger is attached and functions are ready.' as status;
