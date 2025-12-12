@@ -105,8 +105,22 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       console.log('📊 [DailyChallenges] Received data:', {
         daily: daily.length,
         weekly: weekly.length,
-        dailyProgress: daily.map(c => ({ name: c.challenge_name, progress: c.progress, target: c.target_value })),
-        weeklyProgress: weekly.map(c => ({ name: c.challenge_name, progress: c.progress, target: c.target_value }))
+        dailyProgress: daily.map(c => ({ 
+          id: c.challenge_id?.substring(0, 8), 
+          name: c.challenge_name, 
+          progress: c.progress, 
+          target: c.target_value,
+          type: c.challenge_type,
+          completed: c.is_completed
+        })),
+        weeklyProgress: weekly.map(c => ({ 
+          id: c.challenge_id?.substring(0, 8), 
+          name: c.challenge_name, 
+          progress: c.progress, 
+          target: c.target_value,
+          type: c.challenge_type,
+          completed: c.is_completed
+        }))
       });
       
       // Compare by challenge_id, not index (more reliable)
