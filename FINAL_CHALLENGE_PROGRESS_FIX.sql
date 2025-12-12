@@ -340,5 +340,82 @@ BEGIN
     RAISE NOTICE '';
 END $$;
 
+-- ============================================================================
+-- 8. FIX WEEKLY CHALLENGES TO MATCH DESCRIPTIONS
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.generate_weekly_challenges(p_week_start DATE)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_practice_rp INTEGER;
+    v_competition_rp INTEGER;
+    v_score_rp INTEGER;
+    v_games_rp INTEGER;
+    v_win_rp INTEGER;
+    v_xp_rp INTEGER;
+    v_visit_page_rp INTEGER;
+    v_visit_category_rp INTEGER;
+    v_specific_game_rp INTEGER;
+    -- Store target values in variables to use in descriptions
+    v_practice_games INTEGER;
+    v_competition_games INTEGER;
+    v_target_score INTEGER := 100000;
+    v_total_games INTEGER;
+    v_win_games INTEGER;
+    v_total_xp INTEGER;
+    v_pages_to_visit INTEGER;
+    v_categories_to_visit INTEGER;
+    v_games_to_play INTEGER;
+BEGIN
+    -- ONLY generate if challenges don't exist for this week
+    IF EXISTS (SELECT 1 FROM public.weekly_challenges WHERE week_start_date = p_week_start AND is_active = true) THEN
+        RETURN;
+    END IF;
+
+    -- Generate RP rewards
+    v_practice_rp := 30 + FLOOR(RANDOM() * 31);
+    v_competition_rp := 100 + FLOOR(RANDOM() * 101);
+    v_score_rp := 80 + FLOOR(RANDOM() * 41);
+    v_games_rp := 120 + FLOOR(RANDOM() * 61);
+    v_win_rp := 150 + FLOOR(RANDOM() * 101);
+    v_xp_rp := 100 + FLOOR(RANDOM() * 51);
+    v_visit_page_rp := 50 + FLOOR(RANDOM() * 31);
+    v_visit_category_rp := 60 + FLOOR(RANDOM() * 41);
+    v_specific_game_rp := 80 + FLOOR(RANDOM() * 41);
+    
+    -- Generate target values ONCE and store in variables
+    v_practice_games := 10 + FLOOR(RANDOM() * 10);
+    v_competition_games := 5 + FLOOR(RANDOM() * 6);
+    v_total_games := 15 + FLOOR(RANDOM() * 10);
+    v_win_games := 2 + FLOOR(RANDOM() * 4);
+    v_total_xp := 1000 + FLOOR(RANDOM() * 500);
+    v_pages_to_visit := 5 + FLOOR(RANDOM() * 5);
+    v_categories_to_visit := 3 + FLOOR(RANDOM() * 3);
+    v_games_to_play := 3 + FLOOR(RANDOM() * 3);
+
+    -- Generate weekly challenges with matching descriptions and target values
+    INSERT INTO public.weekly_challenges (
+        week_start_date, challenge_type, challenge_name, challenge_description, 
+        target_value, xp_reward, reward_points, is_active
+    )
+    VALUES
+        (p_week_start, 'play_practice', 'Weekly Practice', 'Play ' || v_practice_games::TEXT || ' practice games this week', v_practice_games, 150 + FLOOR(RANDOM() * 100), v_practice_rp, true),
+        (p_week_start, 'play_competition', 'Weekly Competitor', 'Play ' || v_competition_games::TEXT || ' competition games this week (paid games)', v_competition_games, 400 + FLOOR(RANDOM() * 200), v_competition_rp, true),
+        (p_week_start, 'score_threshold', 'Weekly Score Master', 'Score 100,000 total points in competition games this week', v_target_score, 300 + FLOOR(RANDOM() * 200), v_score_rp, true),
+        (p_week_start, 'games_count', 'Weekly Game Marathon', 'Play ' || v_total_games::TEXT || ' games total this week', v_total_games, 350 + FLOOR(RANDOM() * 200), v_games_rp, true),
+        (p_week_start, 'win_competition', 'Weekly Winner', 'Win ' || v_win_games::TEXT || ' competition games this week', v_win_games, 500 + FLOOR(RANDOM() * 300), v_win_rp, true),
+        (p_week_start, 'total_xp', 'Weekly XP Grinder', 'Earn ' || v_total_xp::TEXT || ' total XP this week', v_total_xp, 400 + FLOOR(RANDOM() * 300), v_xp_rp, true),
+        (p_week_start, 'visit_page', 'Weekly Explorer', 'Visit ' || v_pages_to_visit::TEXT || ' different pages this week', v_pages_to_visit, 100 + FLOOR(RANDOM() * 50), v_visit_page_rp, true),
+        (p_week_start, 'visit_category', 'Weekly Category Browser', 'Visit ' || v_categories_to_visit::TEXT || ' different category pages this week', v_categories_to_visit, 120 + FLOOR(RANDOM() * 60), v_visit_category_rp, true),
+        (p_week_start, 'play_specific_game', 'Weekly Game Specialist', 'Play ' || v_games_to_play::TEXT || ' different game types this week', v_games_to_play, 150 + FLOOR(RANDOM() * 100), v_specific_game_rp, true)
+    ON CONFLICT (week_start_date, challenge_type) DO NOTHING;
+    
+    RAISE NOTICE '✅ Weekly challenges generated for week starting %', p_week_start;
+END;
+$$;
+
 SELECT '✅ Final challenge progress fix applied! Progress bars will update correctly.' as status;
 
