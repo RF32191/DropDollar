@@ -21,11 +21,11 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 15 seconds to show progress updates
+      // Auto-refresh challenges every 20 seconds to show progress updates
       // Reduced frequency to prevent flash loading and scroll disruption
       const refreshInterval = setInterval(() => {
         loadChallenges();
-      }, 15000); // Refresh every 15 seconds
+      }, 20000); // Refresh every 20 seconds (reduced from 15s)
       
       // Refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {
@@ -53,9 +53,12 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       const checkStorageInterval = setInterval(() => {
         if (localStorage.getItem('hasNewGameScore')) {
           localStorage.removeItem('hasNewGameScore');
-          loadChallenges();
+          // Small delay to ensure database has updated
+          setTimeout(() => {
+            loadChallenges();
+          }, 1000);
         }
-      }, 5000); // Check every 5 seconds (reduced from 2s)
+      }, 8000); // Check every 8 seconds (reduced from 5s)
       
       return () => {
         clearInterval(refreshInterval);
@@ -83,10 +86,26 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       ]);
       
       // Only update if data actually changed to prevent flash
-      if (JSON.stringify(daily) !== JSON.stringify(dailyChallenges)) {
+      // Compare progress values specifically, not entire objects
+      const dailyChanged = daily.some((challenge, index) => {
+        const existing = dailyChallenges[index];
+        return !existing || 
+               existing.progress !== challenge.progress ||
+               existing.is_completed !== challenge.is_completed;
+      }) || daily.length !== dailyChallenges.length;
+      
+      const weeklyChanged = weekly.some((challenge, index) => {
+        const existing = weeklyChallenges[index];
+        return !existing || 
+               existing.progress !== challenge.progress ||
+               existing.is_completed !== challenge.is_completed;
+      }) || weekly.length !== weeklyChallenges.length;
+      
+      // Only update state if something actually changed
+      if (dailyChanged || isInitialLoad) {
         setDailyChallenges(daily || []);
       }
-      if (JSON.stringify(weekly) !== JSON.stringify(weeklyChallenges)) {
+      if (weeklyChanged || isInitialLoad) {
         setWeeklyChallenges(weekly || []);
       }
     } catch (error) {
