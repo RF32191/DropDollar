@@ -29,6 +29,7 @@ import LocationBanner from '@/components/location/LocationBanner';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
+import { XPService } from '@/lib/supabase/xpService';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
 import { useAuth } from '@/contexts/AuthContext';
