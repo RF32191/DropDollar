@@ -21,13 +21,13 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       // Initial load
       loadChallenges();
       
-      // Auto-refresh challenges every 10 seconds to show progress updates
-      // Reduced frequency to prevent scroll disruption but still update regularly
+      // Auto-refresh challenges every 15 seconds to show progress updates
+      // Reduced frequency to prevent flash loading and scroll disruption
       const refreshInterval = setInterval(() => {
         loadChallenges();
-      }, 10000); // Refresh every 10 seconds
+      }, 15000); // Refresh every 15 seconds
       
-      // Also refresh when window gains focus (user comes back to tab)
+      // Refresh when window gains focus (user comes back to tab)
       const handleFocus = () => {
         loadChallenges();
       };
@@ -49,13 +49,13 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
       };
       window.addEventListener('storage', handleStorageChange);
       
-      // Also check localStorage periodically (in case storage event doesn't fire)
+      // Check localStorage periodically for new games (less frequent to reduce flash)
       const checkStorageInterval = setInterval(() => {
         if (localStorage.getItem('hasNewGameScore')) {
           localStorage.removeItem('hasNewGameScore');
           loadChallenges();
         }
-      }, 2000); // Check every 2 seconds
+      }, 5000); // Check every 5 seconds (reduced from 2s)
       
       return () => {
         clearInterval(refreshInterval);
@@ -70,21 +70,32 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
   const loadChallenges = async () => {
     if (!userId) return;
     
-    setIsLoading(true);
+    // Only show loading on initial load, not on refreshes
+    const isInitialLoad = dailyChallenges.length === 0 && weeklyChallenges.length === 0;
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
+    
     try {
       const [daily, weekly] = await Promise.all([
         XPService.getDailyChallenges(userId).catch(() => []),
         XPService.getWeeklyChallenges(userId).catch(() => [])
       ]);
-      setDailyChallenges(daily || []);
-      setWeeklyChallenges(weekly || []);
+      
+      // Only update if data actually changed to prevent flash
+      if (JSON.stringify(daily) !== JSON.stringify(dailyChallenges)) {
+        setDailyChallenges(daily || []);
+      }
+      if (JSON.stringify(weekly) !== JSON.stringify(weeklyChallenges)) {
+        setWeeklyChallenges(weekly || []);
+      }
     } catch (error) {
       console.error('Error loading challenges:', error);
-      // Set empty arrays on error to prevent crashes
-      setDailyChallenges([]);
-      setWeeklyChallenges([]);
+      // Don't clear existing data on error, just log it
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        setIsLoading(false);
+      }
     }
   };
 
