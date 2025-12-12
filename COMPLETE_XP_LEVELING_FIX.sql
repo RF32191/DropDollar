@@ -141,11 +141,11 @@ BEGIN
     VALUES (p_user_id, 'Novice', 1)
     ON CONFLICT (user_id) DO NOTHING;
     
-    -- Get current values
-    SELECT total_xp, current_level, reward_points
+    -- Get current values (qualify column names to avoid ambiguity)
+    SELECT ux.total_xp, ux.current_level, ux.reward_points
     INTO v_total_xp, v_current_level, v_reward_points
-    FROM public.user_xp
-    WHERE user_id = p_user_id;
+    FROM public.user_xp ux
+    WHERE ux.user_id = p_user_id;
     
     -- CRITICAL: Calculate cumulative XP for all previous levels
     v_cumulative_xp := 0;
@@ -169,11 +169,11 @@ BEGIN
         v_xp_to_next := 0;
     END IF;
     
-    -- Get rank info
-    SELECT rank_title, rank_tier, rank_image_url
+    -- Get rank info (qualify column names to avoid ambiguity)
+    SELECT ur.rank_title, ur.rank_tier, ur.rank_image_url
     INTO v_rank_title, v_rank_tier, v_rank_image_url
-    FROM public.user_rankings
-    WHERE user_id = p_user_id;
+    FROM public.user_rankings ur
+    WHERE ur.user_id = p_user_id;
     
     -- CRITICAL: Return single row directly (not from a table query)
     RETURN QUERY
