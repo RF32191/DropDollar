@@ -224,16 +224,26 @@ export default function TriumphStyleDashboard() {
       }
     }
     
-    // Periodic refresh of XP data every 10 seconds (to catch any missed updates)
+    // Periodic refresh of XP data every 5 seconds (more frequent to catch updates)
     const xpRefreshInterval = setInterval(() => {
       if (user && isAuthenticated) {
         XPService.getUserXP(user.id).then(xpData => {
           if (xpData) {
-            // Only update if XP actually changed to prevent unnecessary re-renders
+            // ALWAYS update to ensure progress bar reflects latest data
             setUserXP(prevXP => {
-              if (!prevXP || prevXP.total_xp !== xpData.total_xp || prevXP.current_level !== xpData.current_level) {
-                console.log('🔄 [Dashboard] XP data auto-refreshed:', xpData);
-                console.log('📊 [Dashboard] Previous:', prevXP, 'New:', xpData);
+              const hasChanged = !prevXP || 
+                prevXP.total_xp !== xpData.total_xp || 
+                prevXP.current_level !== xpData.current_level ||
+                prevXP.xp_to_next_level !== xpData.xp_to_next_level;
+              
+              if (hasChanged) {
+                console.log('🔄 [Dashboard] XP data changed:', {
+                  prev: prevXP,
+                  new: xpData,
+                  xpChanged: prevXP ? prevXP.total_xp !== xpData.total_xp : true,
+                  levelChanged: prevXP ? prevXP.current_level !== xpData.current_level : false,
+                  xpToNextChanged: prevXP ? prevXP.xp_to_next_level !== xpData.xp_to_next_level : true
+                });
                 
                 // Check for level up
                 if (prevXP && xpData.current_level > prevXP.current_level) {
@@ -254,7 +264,7 @@ export default function TriumphStyleDashboard() {
           console.error('❌ [Dashboard] XP auto-refresh failed:', err);
         });
       }
-    }, 10000); // Refresh every 10 seconds
+    }, 5000); // Refresh every 5 seconds for faster updates
     
     // Only load data if user is authenticated AND auth is not loading
     if (user && isAuthenticated && !authLoading) {

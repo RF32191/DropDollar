@@ -18,13 +18,23 @@ export default function LevelDisplay({ xpData, showFullDetails = true, size = 'm
   const rankColor = XPService.getRankColor(xpData.rank_tier);
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
-  // Animate progress bar
+  // Animate progress bar - update immediately when progress changes
   useEffect(() => {
+    console.log('📊 [LevelDisplay] Progress changed:', {
+      progress,
+      total_xp: xpData.total_xp,
+      current_level: xpData.current_level,
+      xp_to_next_level: xpData.xp_to_next_level
+    });
+    
+    // Update immediately, then animate
+    setAnimatedProgress(progress);
+    
     const timer = setTimeout(() => {
       setAnimatedProgress(progress);
-    }, 100);
+    }, 50);
     return () => clearTimeout(timer);
-  }, [progress]);
+  }, [progress, xpData.total_xp, xpData.current_level, xpData.xp_to_next_level]);
 
   const sizeClasses = {
     sm: {
