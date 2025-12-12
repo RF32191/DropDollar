@@ -15,9 +15,7 @@ export default function LevelUpAnimation({ oldLevel, newLevel, onComplete }: Lev
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Create audio element with copyright-free level up sound
-    // Using a data URL for a simple beep sound (copyright-free)
-    const audioElement = new Audio();
+    console.log('🎉 [LevelUpAnimation] Showing animation for level', oldLevel, '->', newLevel);
     
     // Generate a simple level-up sound using Web Audio API (copyright-free)
     try {
@@ -37,8 +35,10 @@ export default function LevelUpAnimation({ oldLevel, newLevel, onComplete }: Lev
       
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
+      
+      console.log('🔊 [LevelUpAnimation] Sound played');
     } catch (e) {
-      console.log('Audio context not available');
+      console.log('⚠️ [LevelUpAnimation] Audio context not available:', e);
     }
 
     // Animation sequence
