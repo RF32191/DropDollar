@@ -78,6 +78,7 @@ export class XPService {
 
       if (!data || data.length === 0) {
         // User doesn't have XP record yet, return defaults
+        console.warn('⚠️ [XPService] No XP data returned, using defaults');
         return {
           total_xp: 0,
           current_level: 1,
@@ -89,7 +90,15 @@ export class XPService {
         };
       }
 
-      return data[0];
+      const xpData = data[0];
+      console.log('✅ [XPService] XP data fetched:', {
+        total_xp: xpData.total_xp,
+        current_level: xpData.current_level,
+        xp_to_next_level: xpData.xp_to_next_level,
+        reward_points: xpData.reward_points
+      });
+      
+      return xpData;
     } catch (error) {
       console.error('❌ [XPService] Exception fetching user XP:', error);
       // Always return defaults on error to prevent crashes
@@ -325,7 +334,10 @@ export class XPService {
    * Fixed to correctly calculate progress within current level
    */
   static calculateXPProgress(xpData: UserXPData): number {
-    if (!xpData || xpData.xp_to_next_level === 0) return 0;
+    if (!xpData) {
+      console.warn('⚠️ [XPService] No XP data provided for progress calculation');
+      return 0;
+    }
     
     // Calculate cumulative XP needed for all levels up to current level
     let cumulativeXP = 0;
@@ -341,6 +353,17 @@ export class XPService {
     
     // Calculate progress percentage
     const progress = (xpEarnedInCurrentLevel / xpNeededForCurrentLevel) * 100;
+    
+    // Log for debugging
+    console.log('📊 [XPService] Progress calculation:', {
+      total_xp: xpData.total_xp,
+      current_level: xpData.current_level,
+      cumulative_xp: cumulativeXP,
+      xp_earned_in_level: xpEarnedInCurrentLevel,
+      xp_needed_for_level: xpNeededForCurrentLevel,
+      progress_percentage: progress,
+      xp_to_next_level: xpData.xp_to_next_level
+    });
     
     // Ensure progress is between 0 and 100
     return Math.min(100, Math.max(0, progress));
