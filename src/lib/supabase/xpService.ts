@@ -294,15 +294,27 @@ export class XPService {
 
   /**
    * Calculate XP percentage for progress bar
+   * Fixed to correctly calculate progress within current level
    */
   static calculateXPProgress(xpData: UserXPData): number {
-    if (xpData.xp_to_next_level === 0) return 100;
+    if (!xpData || xpData.xp_to_next_level === 0) return 0;
+    
+    // Calculate cumulative XP needed for all levels up to current level
+    let cumulativeXP = 0;
+    for (let level = 1; level < xpData.current_level; level++) {
+      cumulativeXP += this.calculateXPForLevel(level);
+    }
     
     // Calculate XP earned in current level
-    const xpForCurrentLevel = this.calculateXPForLevel(xpData.current_level);
-    const xpEarnedInLevel = xpData.total_xp - (xpForCurrentLevel - xpData.xp_to_next_level);
-    const progress = (xpEarnedInLevel / xpData.xp_to_next_level) * 100;
+    const xpEarnedInCurrentLevel = xpData.total_xp - cumulativeXP;
     
+    // Calculate XP needed for current level
+    const xpNeededForCurrentLevel = this.calculateXPForLevel(xpData.current_level);
+    
+    // Calculate progress percentage
+    const progress = (xpEarnedInCurrentLevel / xpNeededForCurrentLevel) * 100;
+    
+    // Ensure progress is between 0 and 100
     return Math.min(100, Math.max(0, progress));
   }
 
