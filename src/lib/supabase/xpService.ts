@@ -203,8 +203,9 @@ export class XPService {
     userId: string,
     challengeType: string,
     increment: number = 1
-  ): Promise<{ success: boolean; is_completed?: boolean; xp_awarded?: number } | null> {
+  ): Promise<{ success: boolean; is_completed?: boolean; xp_awarded?: number; progress?: number; target?: number } | null> {
     try {
+      console.log(`🔄 [XPService] Updating daily challenge: type=${challengeType}, increment=${increment}, user=${userId}`);
       const { data, error } = await supabase.rpc('update_daily_challenge_progress', {
         p_user_id: userId,
         p_challenge_type: challengeType,
@@ -213,9 +214,11 @@ export class XPService {
 
       if (error) {
         console.error('❌ [XPService] Error updating challenge progress:', error);
+        console.error('❌ [XPService] Error details:', JSON.stringify(error, null, 2));
         return null;
       }
 
+      console.log(`✅ [XPService] Daily challenge updated:`, data);
       return data;
     } catch (error) {
       console.error('❌ [XPService] Exception updating challenge progress:', error);
@@ -267,8 +270,9 @@ export class XPService {
     userId: string,
     challengeType: string,
     increment: number = 1
-  ): Promise<{ success: boolean; is_completed?: boolean; xp_awarded?: number } | null> {
+  ): Promise<{ success: boolean; is_completed?: boolean; xp_awarded?: number; progress?: number; target?: number } | null> {
     try {
+      console.log(`🔄 [XPService] Updating weekly challenge: type=${challengeType}, increment=${increment}, user=${userId}`);
       const { data, error } = await supabase.rpc('update_weekly_challenge_progress', {
         p_user_id: userId,
         p_challenge_type: challengeType,
@@ -277,9 +281,11 @@ export class XPService {
 
       if (error) {
         console.error('❌ [XPService] Error updating weekly challenge progress:', error);
+        console.error('❌ [XPService] Error details:', JSON.stringify(error, null, 2));
         return null;
       }
 
+      console.log(`✅ [XPService] Weekly challenge updated:`, data);
       return data;
     } catch (error) {
       console.error('❌ [XPService] Exception updating weekly challenge progress:', error);

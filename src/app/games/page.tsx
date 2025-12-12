@@ -784,34 +784,59 @@ export default function GamesPage() {
         });
         console.log('✅ [Games] Game history saved to game_history table:', gameHistory);
         
-        // FALLBACK: Manually update challenges if trigger didn't fire
-        // Wait 2 seconds for trigger to complete, then check and update manually if needed
-        setTimeout(async () => {
-          try {
-            console.log('🔄 [Games] Fallback: Manually updating challenge progress...');
-            if (!isCompetitionMode) {
-              // Practice game - update practice challenges
-              await XPService.updateDailyChallengeProgress(user.id, 'play_practice', 1);
-              await XPService.updateDailyChallengeProgress(user.id, 'games_count', 1);
-              await XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1);
-              await XPService.updateWeeklyChallengeProgress(user.id, 'play_practice', 1);
-              await XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1);
-              await XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1);
-              console.log('✅ [Games] Fallback: Practice challenges updated manually');
-            } else {
-              // Competition game - update competition challenges
-              await XPService.updateDailyChallengeProgress(user.id, 'games_count', 1);
-              await XPService.updateDailyChallengeProgress(user.id, 'score_threshold', result.score);
-              await XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1);
-              await XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1);
-              await XPService.updateWeeklyChallengeProgress(user.id, 'score_threshold', result.score);
-              await XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1);
-              console.log('✅ [Games] Fallback: Competition challenges updated manually');
-            }
-          } catch (error) {
-            console.error('❌ [Games] Fallback: Error updating challenges:', error);
+        // CRITICAL: Immediately update challenges (don't wait for trigger)
+        // This ensures progress updates even if trigger doesn't fire
+        try {
+          console.log('🔄 [Games] Updating challenge progress immediately...');
+          if (!isCompetitionMode) {
+            // Practice game - update practice challenges
+            const results = await Promise.allSettled([
+              XPService.updateDailyChallengeProgress(user.id, 'play_practice', 1),
+              XPService.updateDailyChallengeProgress(user.id, 'games_count', 1),
+              XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_practice', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1)
+            ]);
+            
+            const successes = results.filter(r => r.status === 'fulfilled').length;
+            console.log(`✅ [Games] Challenge updates: ${successes}/${results.length} succeeded`);
+            
+            results.forEach((result, index) => {
+              if (result.status === 'rejected') {
+                console.error(`❌ [Games] Challenge update ${index} failed:`, result.reason);
+              } else if (result.status === 'fulfilled' && result.value) {
+                console.log(`✅ [Games] Challenge update ${index} success:`, result.value);
+              }
+            });
+          } else {
+            // Competition game - update competition challenges
+            const results = await Promise.allSettled([
+              XPService.updateDailyChallengeProgress(user.id, 'games_count', 1),
+              XPService.updateDailyChallengeProgress(user.id, 'score_threshold', result.score),
+              XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'score_threshold', result.score),
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1)
+            ]);
+            
+            const successes = results.filter(r => r.status === 'fulfilled').length;
+            console.log(`✅ [Games] Challenge updates: ${successes}/${results.length} succeeded`);
+            
+            results.forEach((result, index) => {
+              if (result.status === 'rejected') {
+                console.error(`❌ [Games] Challenge update ${index} failed:`, result.reason);
+              } else if (result.status === 'fulfilled' && result.value) {
+                console.log(`✅ [Games] Challenge update ${index} success:`, result.value);
+              }
+            });
           }
-        }, 2000);
+          
+          // Trigger frontend refresh
+          localStorage.setItem('hasNewGameScore', 'true');
+        } catch (error) {
+          console.error('❌ [Games] Error updating challenges:', error);
+        }
 
         // Update best score if this is a new high
         const currentBest = bestScores[currentGame] || 0;
