@@ -70,21 +70,25 @@ export class SimpleGameService {
         console.log('⚠️ [SimpleGameService] RPC function not available, trying direct insert...');
       }
 
-      // Fallback: Direct insert using correct column names (session_type, tokens_spent)
+      // Fallback: Direct insert using is_practice column (required for trigger)
       const { data, error} = await supabase
         .from('game_history')
         .insert([{
           user_id: gameData.user_id,
           game_type: gameData.game_type,
-          session_type: gameData.is_practice ? 'practice' : 'competition', // Map to session_type
-          session_id: gameData.listing_id ? gameData.listing_id : null, // Use listing_id as session_id if available
+          is_practice: gameData.is_practice, // CRITICAL: Use is_practice for trigger
+          is_competition: !gameData.is_practice, // Set is_competition as opposite
           score: Number(gameData.score), // Ensure score is a number
           accuracy: Number(gameData.accuracy), // Ensure accuracy is a number
           avg_reaction_time: gameData.avg_reaction_time || 0,
+          game_duration: gameData.game_duration || 60,
+          listing_id: gameData.listing_id || null,
+          entry_number: gameData.entry_number || null,
+          placement: gameData.placement || null,
+          prize_won: gameData.prize_won || 0,
+          tokens_wagered: gameData.tokens_wagered || 0,
           tokens_won: gameData.tokens_won || gameData.prize_won || 0,
-          tokens_spent: gameData.tokens_wagered || 0, // Map tokens_wagered to tokens_spent
-          result: gameData.placement === 1 ? 'won' : (gameData.placement ? 'lost' : 'participated'),
-          listing_title: null, // Set by marketplace games only
+          metadata: gameData.metadata || {},
           created_at: new Date().toISOString()
         }])
         .select()
