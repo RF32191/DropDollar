@@ -259,15 +259,28 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
     );
   }
 
+  const handleManualRefresh = async () => {
+    console.log('🔄 [DailyChallenges] Manual refresh triggered');
+    await loadChallenges();
+  };
+
   return (
     <div className="space-y-6">
       {/* Daily Challenges */}
       <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700/50">
-        <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-          <ClockIcon className="w-6 h-6 text-blue-400" />
-          Daily Challenges
-          <span className="text-sm font-normal text-gray-400 ml-2">(Resets Daily)</span>
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-black text-white flex items-center gap-2">
+            <ClockIcon className="w-6 h-6 text-blue-400" />
+            Daily Challenges
+            <span className="text-sm font-normal text-gray-400 ml-2">(Resets Daily)</span>
+          </h3>
+          <button
+            onClick={handleManualRefresh}
+            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            🔄 Refresh
+          </button>
+        </div>
         
         {dailyChallenges.length === 0 ? (
           <p className="text-gray-400">No daily challenges available. They will be generated automatically!</p>
@@ -280,11 +293,19 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
 
       {/* Weekly Challenges */}
       <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700/50">
-        <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-          <CalendarIcon className="w-6 h-6 text-purple-400" />
-          Weekly Challenges
-          <span className="text-sm font-normal text-gray-400 ml-2">(Resets Weekly)</span>
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-black text-white flex items-center gap-2">
+            <CalendarIcon className="w-6 h-6 text-purple-400" />
+            Weekly Challenges
+            <span className="text-sm font-normal text-gray-400 ml-2">(Resets Weekly)</span>
+          </h3>
+          <button
+            onClick={handleManualRefresh}
+            className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            🔄 Refresh
+          </button>
+        </div>
         
         {weeklyChallenges.length === 0 ? (
           <p className="text-gray-400">No weekly challenges available. They will be generated automatically!</p>
