@@ -348,7 +348,18 @@ export default function TriumphStyleDashboard() {
       
       // Set XP data (CRITICAL for level progress bar - always refresh)
       if (userXPData) {
-        setUserXP(userXPData);
+        setUserXP(prevXP => {
+          // Check for level up on initial load
+          if (prevXP && userXPData.current_level > prevXP.current_level) {
+            console.log('🎉 [Dashboard] LEVEL UP DETECTED on load!', prevXP.current_level, '->', userXPData.current_level);
+            setLevelUpData({
+              oldLevel: prevXP.current_level,
+              newLevel: userXPData.current_level
+            });
+            setShowLevelUp(true);
+          }
+          return userXPData;
+        });
         console.log('✅ [Dashboard] XP data loaded:', userXPData);
         console.log('📊 [Dashboard] Level:', userXPData.current_level, 'XP:', userXPData.total_xp, 'Progress:', userXPData.xp_to_next_level);
       } else {
