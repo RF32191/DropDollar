@@ -214,11 +214,11 @@ BEGIN
         RETURN;
     END IF;
     
-    -- Get current XP
-    SELECT total_xp, current_level, xp_to_next_level
+    -- Get current XP (qualify column names to avoid ambiguity)
+    SELECT ux.total_xp, ux.current_level, ux.xp_to_next_level
     INTO v_total_xp, v_current_level, v_xp_to_next
-    FROM public.user_xp
-    WHERE user_id = v_user_id;
+    FROM public.user_xp ux
+    WHERE ux.user_id = v_user_id;
     
     -- Calculate cumulative XP for all previous levels
     v_cumulative_xp := 0;
