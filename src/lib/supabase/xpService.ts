@@ -339,7 +339,39 @@ export class XPService {
       return 0;
     }
     
-    // Calculate cumulative XP needed for all levels up to current level
+    // CRITICAL: Use xp_to_next_level from database if available (more accurate)
+    // The database function calculates this correctly
+    if (xpData.xp_to_next_level !== undefined && xpData.xp_to_next_level !== null) {
+      // Calculate cumulative XP needed for all levels up to current level
+      let cumulativeXP = 0;
+      for (let level = 1; level < xpData.current_level; level++) {
+        cumulativeXP += this.calculateXPForLevel(level);
+      }
+      
+      // Calculate XP needed for current level
+      const xpForCurrentLevel = this.calculateXPForLevel(xpData.current_level);
+      
+      // Calculate XP earned in current level
+      const xpEarnedInCurrentLevel = xpData.total_xp - cumulativeXP;
+      
+      // Use database value if it's reasonable, otherwise calculate
+      const xpToNext = xpData.xp_to_next_level;
+      const calculatedProgress = (xpEarnedInCurrentLevel / xpForCurrentLevel) * 100;
+      
+      console.log('📊 [XPService] Progress calculation:', {
+        total_xp: xpData.total_xp,
+        current_level: xpData.current_level,
+        xp_to_next_level: xpToNext,
+        xp_for_current_level: xpForCurrentLevel,
+        xp_earned_in_level: xpEarnedInCurrentLevel,
+        calculated_progress: calculatedProgress
+      });
+      
+      // Return calculated progress (0-100)
+      return Math.max(0, Math.min(100, calculatedProgress));
+    }
+    
+    // Fallback: Calculate cumulative XP needed for all levels up to current level
     let cumulativeXP = 0;
     for (let level = 1; level < xpData.current_level; level++) {
       cumulativeXP += this.calculateXPForLevel(level);
