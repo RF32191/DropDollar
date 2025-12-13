@@ -627,9 +627,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           y = seededRng.nextFloat(5, 95);
           direction = seededRng.next() > 0.5 ? 'left' : (seededRng.next() > 0.5 ? 'up' : 'down');
         } else if (spawnSide < 0.75) {
-          // Bottom
+          // Bottom (but not at the very bottom - keep it visible)
           x = seededRng.nextFloat(5, 95);
-          y = 100;
+          y = seededRng.nextFloat(75, 90); // Spawn between 75-90% instead of exactly 100%
           direction = seededRng.next() > 0.5 ? 'up' : (seededRng.next() > 0.5 ? 'left' : 'right');
         } else {
           // Left
@@ -678,7 +678,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         const newEnemy: EnemyShip = {
           id: now + Math.random(),
           x: direction === 'left' ? 105 : -5, // Start off-screen
-          y: 10 + Math.random() * 70, // Constrain Y to 10-80% to keep ships visible (was Math.random() * 100)
+          y: 15 + Math.random() * 60, // Constrain Y to 15-75% to keep ships well within screen (not at very bottom)
           direction,
           speed,
           createdAt: now
@@ -846,10 +846,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             }
             
             // Award points immediately
-            collisionPoints += 50;
-            currentScoreRef.current += 50; // Update ref immediately
-            setScore(prev => Number((prev + 50).toFixed(2))); // Update state immediately
-            console.log('LaserDodge: Enemy destroyed! +50 points (awarded immediately)');
+            collisionPoints += 100;
+            currentScoreRef.current += 100; // Update ref immediately
+            setScore(prev => Number((prev + 100).toFixed(2))); // Update state immediately
+            console.log('LaserDodge: Enemy destroyed! +100 points (awarded immediately)');
           }
         }
       });
@@ -1615,19 +1615,46 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
               {/* Ship - Using SHIP.png */}
               <div
-                className="absolute w-8 h-8"
+                className="absolute"
                 style={{
                   left: `${ship.x}%`,
                   top: `${ship.y}%`,
                   transform: 'translate(-50%, -50%)',
                   zIndex: 10,
-                  backgroundImage: 'url("/SHIP.png")',
-                  backgroundSize: 'contain',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'center',
-                  filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))' // Green glow effect
                 }}
-              />
+              >
+                {/* Light blue shield/hitbox indicator */}
+                <div
+                  className="absolute rounded-full border-2"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '32px', // 4 units * 8px = 32px (matches collision detection of 4 units)
+                    height: '32px',
+                    borderColor: 'rgba(173, 216, 230, 0.6)', // Light blue
+                    backgroundColor: 'rgba(173, 216, 230, 0.15)', // Light blue with transparency
+                    boxShadow: '0 0 8px rgba(173, 216, 230, 0.5), inset 0 0 8px rgba(173, 216, 230, 0.3)',
+                    pointerEvents: 'none', // Don't interfere with mouse events
+                    zIndex: 9,
+                  }}
+                />
+                {/* Ship sprite */}
+                <div
+                  className="absolute w-8 h-8"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundImage: 'url("/SHIP.png")',
+                    backgroundSize: 'contain',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
+                    filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))', // Green glow effect
+                    zIndex: 10,
+                  }}
+                />
+              </div>
           </div>
         </div>
       )}
