@@ -176,6 +176,7 @@ export default function CashStackGame3D({
 
   // Audio setup
   const audioContextRef = useRef<AudioContext | null>(null);
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   
   const playSound = useCallback((frequency: number, duration: number, type: OscillatorType = 'sine') => {
     if (!audioContextRef.current) {
