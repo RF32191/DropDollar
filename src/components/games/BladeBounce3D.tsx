@@ -130,6 +130,9 @@ export default function BladeBounce3D({
   const isValidatingRef = useRef<boolean>(false);
   const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const lastClickTimeRef = useRef<number>(0); // For click debouncing
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
+  const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
+  const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   
   // In competition mode, skip ready screen and countdown - start playing immediately
   const initialGameState = isCompetitionMode ? 'playing' : 'ready';
@@ -148,6 +151,184 @@ export default function BladeBounce3D({
   const [showSuspicionWarning, setShowSuspicionWarning] = useState(false);
   const [suspicionScore, setSuspicionScore] = useState(0);
   
+  // Audio unlock mechanism for browser autoplay restrictions
+  const unlockAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = audioContextRef.current;
+      
+      // Create a silent buffer and play it to unlock audio context
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      
+      // Also try to unlock HTMLAudioElement
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.play().then(() => {
+          backgroundMusicRef.current?.pause();
+          if (backgroundMusicRef.current) {
+            backgroundMusicRef.current.currentTime = 0;
+          }
+          audioUnlockedRef.current = true;
+          console.log('✅ [BladeBounce3D] Audio unlocked');
+        }).catch(() => {
+          // Ignore - will try again on game start
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }, []);
+
+  // Setup background music for gameplay
+  useEffect(() => {
+    // Create audio element for mouseblade.mp3
+    const audio = new Audio('/mouseblade.mp3');
+    audio.loop = true;
+    audio.volume = 0.7; // Set volume to 70% for better audibility
+    audio.preload = 'auto'; // Preload the audio
+    
+    // Add error handling and logging
+    audio.addEventListener('error', (e) => {
+      console.warn('⚠️ [BladeBounce3D] Audio file error (non-critical):', e);
+    });
+    
+    audio.addEventListener('loadeddata', () => {
+      console.log('✅ [BladeBounce3D] Background music loaded successfully');
+    });
+    
+    audio.addEventListener('canplaythrough', () => {
+      console.log('✅ [BladeBounce3D] Background music ready to play');
+    });
+    
+    backgroundMusicRef.current = audio;
+    
+    // Cleanup on unmount
+    return () => {
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current.src = '';
+        backgroundMusicRef.current = null;
+      }
+    };
+  }, []);
+  
+  // Play background music when game starts (during gameplay)
+  useEffect(() => {
+    if (gameState === 'playing' && backgroundMusicRef.current) {
+      // Unlock audio first if needed
+      if (!audioUnlockedRef.current) {
+        unlockAudio();
+      }
+      
+      // Play music on loop when game starts
+      try {
+        const audio = backgroundMusicRef.current;
+        
+        // Ensure audio is loaded
+        if (audio.readyState < 2) {
+          try {
+            audio.load();
+          } catch (e) {
+            // Ignore load errors
+          }
+        }
+        
+        // Play music on loop when game starts
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('✅ [BladeBounce3D] Background music started playing on game start');
+              audioUnlockedRef.current = true;
+            })
+            .catch((err) => {
+              console.warn('⚠️ [BladeBounce3D] Audio play failed, will retry:', err);
+              // Try again after a short delay
+              setTimeout(() => {
+                if (backgroundMusicRef.current && gameState === 'playing') {
+                  backgroundMusicRef.current.play()
+                    .then(() => {
+                      audioUnlockedRef.current = true;
+                      console.log('✅ [BladeBounce3D] Background music started on retry');
+                    })
+                    .catch(() => {
+                      // Final attempt failed - that's okay
+                    });
+                }
+              }, 500);
+            });
+        }
+      } catch (err) {
+        // Audio failed - game continues normally
+        console.warn('⚠️ [BladeBounce3D] Audio play failed (non-critical)');
+      }
+    } else if (gameState !== 'playing' && backgroundMusicRef.current) {
+      // Stop music when game is not playing
+      try {
+        backgroundMusicRef.current.pause();
+        if (gameState === 'ended') {
+          // Reset to beginning for next game
+          backgroundMusicRef.current.currentTime = 0;
+        }
+      } catch (e) {
+        // Ignore pause errors
+      }
+    }
+  }, [gameState, unlockAudio]);
+  
+  // Play victory sound when game ends
+  useEffect(() => {
+    if (gameState === 'ended') {
+      // Play victory sound effect when game ends
+      try {
+        // Create a victory sound using Web Audio API (copyright-free)
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        
+        const ctx = audioContextRef.current;
+        
+        // Victory fanfare: ascending notes
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C (C major chord)
+        
+        const playNote = (frequency: number, time: number) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(frequency, ctx.currentTime + time);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime + time);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.3);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.start(ctx.currentTime + time);
+          osc.stop(ctx.currentTime + time + 0.3);
+        };
+        
+        // Play victory fanfare
+        notes.forEach((freq, i) => {
+          playNote(freq, i * 0.15);
+        });
+        
+        console.log('🎉 [BladeBounce3D] Victory sound played');
+      } catch (err) {
+        // Victory sound failed - game continues normally
+        console.warn('⚠️ [BladeBounce3D] Victory sound failed (non-critical)');
+      }
+    }
+  }, [gameState]);
+
   // Sync game state to ref for animation loop (MUST be after all state declarations)
   useEffect(() => {
     gameStateRef.current = gameState;
