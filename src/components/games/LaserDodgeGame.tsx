@@ -811,36 +811,38 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               type: 'enemy'
             });
             
-            // Play explosion sound - ensure it plays
+            // Play explosion sound - always create using Web Audio API for reliability
             try {
               playExplosionSound();
               playEnemyHitSound();
               console.log('LaserDodge: 💥 Explosion sound played for enemy ship');
             } catch (e) {
-              console.error('LaserDodge: Explosion sound error (non-critical):', e);
-              // Fallback: create a simple explosion sound using Web Audio API
-              try {
-                if (!audioContextRef.current) {
-                  audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-                }
-                const ctx = audioContextRef.current;
-                // Create explosion sound with multiple frequencies
-                const frequencies = [200, 150, 100];
-                frequencies.forEach((freq, i) => {
-                  const oscillator = ctx.createOscillator();
-                  const gainNode = ctx.createGain();
-                  oscillator.connect(gainNode);
-                  gainNode.connect(ctx.destination);
-                  oscillator.frequency.value = freq;
-                  oscillator.type = 'sawtooth';
-                  gainNode.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.05);
-                  gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.3);
-                  oscillator.start(ctx.currentTime + i * 0.05);
-                  oscillator.stop(ctx.currentTime + i * 0.05 + 0.3);
-                });
-              } catch (fallbackError) {
-                console.error('LaserDodge: Fallback explosion sound also failed:', fallbackError);
+              console.error('LaserDodge: Explosion sound error, using Web Audio fallback:', e);
+            }
+            
+            // Always create explosion sound using Web Audio API
+            try {
+              if (!audioContextRef.current) {
+                audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
               }
+              const ctx = audioContextRef.current;
+              // Create explosion sound with multiple frequencies
+              const frequencies = [200, 150, 100];
+              frequencies.forEach((freq, i) => {
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                oscillator.frequency.value = freq;
+                oscillator.type = 'sawtooth';
+                gainNode.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.3);
+                oscillator.start(ctx.currentTime + i * 0.05);
+                oscillator.stop(ctx.currentTime + i * 0.05 + 0.3);
+              });
+              console.log('LaserDodge: 💥 Web Audio explosion sound created');
+            } catch (fallbackError) {
+              console.error('LaserDodge: Web Audio explosion sound failed:', fallbackError);
             }
             
             // Award points immediately
@@ -929,55 +931,75 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       // Add invincibility period (1 second) to prevent multiple hits
       const timeSinceLastCollision = now - lastCollisionTimeRef.current;
       if (timeSinceLastCollision < 1000) {
-        // Still in invincibility period, ignore collision
-        return;
-      }
-      
-      // Lose a heart instead of immediate game over
-      const currentHearts = heartsRef.current;
-      if (currentHearts <= 0) {
-        // Already dead, don't process more collisions
-        return;
-      }
-      
-      const newHearts = currentHearts - 1;
-      heartsRef.current = newHearts;
-      lastCollisionTimeRef.current = now; // Set collision time for invincibility
-      
-      console.log(`LaserDodge: 💔 Hit! Lost a heart. Remaining: ${newHearts}`);
-      
-      // Create ship explosion animation at exact collision point (using shipRef)
-      const shipExplosion: Explosion = {
-        id: Date.now() + Math.random(),
-        x: currentShipPos.x,
-        y: currentShipPos.y,
-        createdAt: Date.now(),
-        type: 'ship'
-      };
-      setExplosions(prev => [...prev, shipExplosion]);
-      
-      // Play collision/hit sound
-      try {
-        playCollision();
-        playExplosionSound();
-      } catch (e) {
-        console.error('LaserDodge: Sound error (non-critical):', e);
-      }
-      
-      // Update hearts state
-      setHearts(newHearts);
-      
-      // Game over only when hearts reach 0
-      if (newHearts <= 0) {
-        console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
-        // Play final death sound
-        try {
-          playGameEnd();
-        } catch (e) {
-          console.error('LaserDodge: Game end sound error (non-critical):', e);
+        // Still in invincibility period, ignore collision - but continue game loop
+        // Don't return here, let the game continue
+      } else {
+        // Lose a heart instead of immediate game over
+        const currentHearts = heartsRef.current;
+        if (currentHearts > 0) {
+          const newHearts = currentHearts - 1;
+          heartsRef.current = newHearts;
+          lastCollisionTimeRef.current = now; // Set collision time for invincibility
+          
+          console.log(`LaserDodge: 💔 Hit! Lost a heart. Remaining: ${newHearts}`);
+          
+          // Create ship explosion animation at exact collision point (using shipRef)
+          const shipExplosion: Explosion = {
+            id: Date.now() + Math.random(),
+            x: currentShipPos.x,
+            y: currentShipPos.y,
+            createdAt: Date.now(),
+            type: 'ship'
+          };
+          setExplosions(prev => [...prev, shipExplosion]);
+          
+          // Play collision/hit sound - create audio using Web Audio API
+          try {
+            playCollision();
+            playExplosionSound();
+          } catch (e) {
+            console.error('LaserDodge: Sound error, using fallback:', e);
+          }
+          
+          // Fallback: create collision sound using Web Audio API
+          try {
+            if (!audioContextRef.current) {
+              audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+            }
+            const ctx = audioContextRef.current;
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            oscillator.frequency.value = 300;
+            oscillator.type = 'sawtooth';
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+            oscillator.start(ctx.currentTime);
+            oscillator.stop(ctx.currentTime + 0.2);
+          } catch (fallbackError) {
+            console.error('LaserDodge: Fallback collision sound failed:', fallbackError);
+          }
+          
+          // Update hearts state
+          setHearts(newHearts);
+          
+          // Game over only when hearts reach 0
+          if (newHearts <= 0) {
+            console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
+            // Play final death sound
+            try {
+              playGameEnd();
+            } catch (e) {
+              console.error('LaserDodge: Game end sound error (non-critical):', e);
+            }
+            // End game asynchronously to not freeze the loop
+            setTimeout(() => {
+              endGame();
+            }, 100);
+            // Continue loop to show final explosion, then it will stop
+          }
         }
-        endGame();
-        return; // Don't continue loop after game over
       }
     }
 
