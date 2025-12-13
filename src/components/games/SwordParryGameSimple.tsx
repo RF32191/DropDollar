@@ -735,10 +735,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         playBombExplosion();
         
         // Lose a heart - update both ref and state
+        const previousHearts = heartsRef.current;
         heartsRef.current = Math.max(0, heartsRef.current - 1);
         const newHearts = heartsRef.current;
         setHearts(newHearts);
-        console.log(`💣 Bomb exploded! Hearts: ${heartsRef.current + 1} -> ${newHearts}`);
+        console.log(`💣 Bomb exploded! Hearts: ${previousHearts} -> ${newHearts}`);
         
         // End game if no hearts left
         if (newHearts <= 0) {
