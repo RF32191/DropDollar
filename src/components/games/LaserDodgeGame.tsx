@@ -82,6 +82,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(5);
+  const [hearts, setHearts] = useState(3); // Player has 3 hearts
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
@@ -96,6 +97,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const extremeModeTriggeredRef = useRef(false); // Track if extreme mode audio played
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
   const lastShotRef = useRef<number>(0);
+  const heartsRef = useRef(3); // Track hearts for collision detection
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
@@ -792,8 +794,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             playExplosionSound();
             playEnemyHitSound();
             
-            collisionPoints += 10;
-            console.log('LaserDodge: Enemy destroyed! +10 points');
+            collisionPoints += 50;
+            console.log('LaserDodge: Enemy destroyed! +50 points');
           }
         }
       });
@@ -874,7 +876,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
 
     if (collision) {
-      console.log('LaserDodge: ☠️ Collision detected! Game Over!');
+      // Lose a heart instead of immediate game over
+      const currentHearts = heartsRef.current;
+      const newHearts = currentHearts - 1;
+      heartsRef.current = newHearts;
+      
+      console.log(`LaserDodge: 💔 Hit! Lost a heart. Remaining: ${newHearts}`);
       
       // Create ship explosion animation at exact collision point (using shipRef)
       const shipExplosion: Explosion = {
@@ -886,12 +893,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       };
       setExplosions(prev => [...prev, shipExplosion]);
       
-      // Play collision/death sound
+      // Play collision/hit sound
       playCollision();
       playExplosionSound();
       
-      endGame();
-      return; // Don't continue loop after game over
+      // Update hearts state
+      setHearts(newHearts);
+      
+      // Game over only when hearts reach 0
+      if (newHearts <= 0) {
+        console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
+        // Play final death sound
+        playGameEnd();
+        endGame();
+        return; // Don't continue loop after game over
+      }
     }
 
     // Continue loop - MUST happen even if errors occur above
@@ -1054,6 +1070,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setShip(initialShip);
     shipRef.current = initialShip; // Reset ship ref for collision detection
     setTimeLeft(60);
+    setHearts(3); // Reset hearts to 3
+    heartsRef.current = 3; // Reset hearts ref
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
     lastEnemySpawnRef.current = Date.now() - 10000; // Allow immediate enemy spawning
@@ -1173,7 +1191,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +10 points!</p>
+                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +50 points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
@@ -1271,6 +1289,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             🔥 Laser Dodge EXTREME
           </div>
           <div className="flex items-center gap-4 text-base sm:text-xl">
+            <div className="flex items-center gap-1">
+              {[...Array(hearts)].map((_, i) => (
+                <span key={i} className="text-red-400 text-xl sm:text-2xl">❤️</span>
+              ))}
+              {[...Array(3 - hearts)].map((_, i) => (
+                <span key={i} className="text-gray-600 text-xl sm:text-2xl">🤍</span>
+              ))}
+            </div>
             <div className="text-yellow-300 font-bold">⏱️ {timeLeft}s</div>
             <div className="text-green-300 font-bold">🎯 {score.toFixed(0)}</div>
             {!isCompetitionMode && onExit && (
