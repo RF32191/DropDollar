@@ -318,6 +318,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Handle mouse movement and clicking
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    // Unlock audio on first mouse interaction
+    if (!audioUnlockedRef.current) {
+      unlockAudio();
+    }
+    
     if (gameState !== 'playing') return;
     
     const gameArea = gameAreaRef.current;
@@ -333,16 +338,21 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     setMousePos({ x: boundedX, y: boundedY, angle });
     lastMouseAngleRef.current = angle;
-  }, [gameState, calculateAngle]);
+  }, [gameState, calculateAngle, unlockAudio]);
 
   // Handle mouse clicks for slashing
   const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    // Unlock audio on click interaction
+    if (!audioUnlockedRef.current) {
+      unlockAudio();
+    }
+    
     if (gameState !== 'playing') return;
     setIsSlashing(true);
     
     // Update position on click too
     handleMouseMove(event);
-  }, [gameState, handleMouseMove]);
+  }, [gameState, handleMouseMove, unlockAudio]);
 
   const handleMouseUp = useCallback(() => {
     setIsSlashing(false);
