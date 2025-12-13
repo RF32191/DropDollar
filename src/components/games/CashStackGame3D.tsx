@@ -648,6 +648,9 @@ export default function CashStackGame3D({
   // Start game
   const startGame = useCallback(() => {
     if (gameState === 'ready') {
+      // Unlock audio when user starts the game
+      unlockAudio();
+      
       setGameState('countdown');
       let count = 3;
       
