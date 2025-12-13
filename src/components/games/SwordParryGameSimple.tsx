@@ -845,6 +845,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     setScore(0);
     setHearts(3); // Reset hearts to 3
     setBombs([]); // Clear bombs
+    setGoldenSwords([]); // Clear golden swords
     currentScoreRef.current = 0; // Reset score ref
     gameStartTimeRef.current = Date.now(); // Track start time for speed scoring
     setAttacks([]);
