@@ -28,56 +28,55 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
     
     // Initial load
     loadChallenges();
-      
-      // Auto-refresh challenges every 10 seconds to show progress updates
-      // More frequent to catch updates faster
-      const refreshInterval = setInterval(() => {
-        console.log('🔄 [DailyChallenges] Auto-refreshing challenges...');
+    
+    // Auto-refresh challenges every 10 seconds to show progress updates
+    // More frequent to catch updates faster
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 [DailyChallenges] Auto-refreshing challenges...');
+      loadChallenges();
+    }, 10000); // Refresh every 10 seconds (more frequent)
+    
+    // Refresh when window gains focus (user comes back to tab)
+    const handleFocus = () => {
+      loadChallenges();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    // Refresh when page becomes visible (user switches tabs back)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
         loadChallenges();
-      }, 10000); // Refresh every 10 seconds (more frequent)
-      
-      // Refresh when window gains focus (user comes back to tab)
-      const handleFocus = () => {
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Refresh when localStorage indicates a new game was completed
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'hasNewGameScore') {
         loadChallenges();
-      };
-      window.addEventListener('focus', handleFocus);
-      
-      // Refresh when page becomes visible (user switches tabs back)
-      const handleVisibilityChange = () => {
-        if (!document.hidden) {
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Check localStorage periodically for new games (more frequent for better updates)
+    const checkStorageInterval = setInterval(() => {
+      if (localStorage.getItem('hasNewGameScore')) {
+        localStorage.removeItem('hasNewGameScore');
+        // Longer delay to ensure database trigger has completed
+        setTimeout(() => {
+          console.log('🔄 [DailyChallenges] Refreshing after game completion...');
           loadChallenges();
-        }
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Refresh when localStorage indicates a new game was completed
-      const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === 'hasNewGameScore') {
-          loadChallenges();
-        }
-      };
-      window.addEventListener('storage', handleStorageChange);
-      
-      // Check localStorage periodically for new games (more frequent for better updates)
-      const checkStorageInterval = setInterval(() => {
-        if (localStorage.getItem('hasNewGameScore')) {
-          localStorage.removeItem('hasNewGameScore');
-          // Longer delay to ensure database trigger has completed
-          setTimeout(() => {
-            console.log('🔄 [DailyChallenges] Refreshing after game completion...');
-            loadChallenges();
-          }, 3000); // 3 second delay for database updates
-        }
-      }, 3000); // Check every 3 seconds for faster updates
-      
-      return () => {
-        clearInterval(refreshInterval);
-        clearInterval(checkStorageInterval);
-        window.removeEventListener('focus', handleFocus);
-        window.removeEventListener('storage', handleStorageChange);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    }
+        }, 3000); // 3 second delay for database updates
+      }
+    }, 3000); // Check every 3 seconds for faster updates
+    
+    return () => {
+      clearInterval(refreshInterval);
+      clearInterval(checkStorageInterval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [userId]);
 
   const loadChallenges = async () => {

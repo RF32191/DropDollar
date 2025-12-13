@@ -146,7 +146,7 @@ export default function TriumphStyleDashboard() {
         }
         
         console.log('📋 Found', participations.length, 'conversations');
-        const conversationIds = participations.map(p => p.conversation_id);
+        const conversationIds = participations.map((p: any) => p.conversation_id);
         
         // Count unread messages
         const { count, error: countError } = await supabase
@@ -460,7 +460,7 @@ export default function TriumphStyleDashboard() {
         }
 
         // Map the data, checking for both is_practice column and session_type
-        return newHistory.map(game => {
+        return newHistory.map((game: any) => {
           // Use is_practice if it exists (computed column), otherwise calculate from session_type
           const isPractice = game.is_practice !== undefined 
             ? game.is_practice 
