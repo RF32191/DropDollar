@@ -87,6 +87,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const lastMouseAngleRef = useRef<number>(0);
   const timeLeftRef = useRef(60); // Add timeLeft ref to avoid dependency issues
   const attackSpawnIndexRef = useRef<number>(0); // Track which attack to spawn next from RNG config
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
+  const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
+  const audioUnlockedRef = useRef(false); // Track if audio is unlocked
 
   // Update timeLeft ref when state changes
   useEffect(() => {
@@ -512,6 +515,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Start game
   const handleStartGame = () => {
+    // Unlock audio on user interaction (clicking start)
+    unlockAudio();
     setCountdown(3);
     setGameState('countdown');
   };
