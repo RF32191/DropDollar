@@ -98,6 +98,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
   const lastShotRef = useRef<number>(0);
   const heartsRef = useRef(3); // Track hearts for collision detection
+  const lastCollisionTimeRef = useRef<number>(0); // Track last collision time for invincibility
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
@@ -790,12 +791,43 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               type: 'enemy'
             });
             
-            // Play explosion sound
-            playExplosionSound();
-            playEnemyHitSound();
+            // Play explosion sound - ensure it plays
+            try {
+              playExplosionSound();
+              playEnemyHitSound();
+              console.log('LaserDodge: 💥 Explosion sound played for enemy ship');
+            } catch (e) {
+              console.error('LaserDodge: Explosion sound error (non-critical):', e);
+              // Fallback: create a simple explosion sound using Web Audio API
+              try {
+                if (!audioContextRef.current) {
+                  audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+                }
+                const ctx = audioContextRef.current;
+                // Create explosion sound with multiple frequencies
+                const frequencies = [200, 150, 100];
+                frequencies.forEach((freq, i) => {
+                  const oscillator = ctx.createOscillator();
+                  const gainNode = ctx.createGain();
+                  oscillator.connect(gainNode);
+                  gainNode.connect(ctx.destination);
+                  oscillator.frequency.value = freq;
+                  oscillator.type = 'sawtooth';
+                  gainNode.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.05);
+                  gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.3);
+                  oscillator.start(ctx.currentTime + i * 0.05);
+                  oscillator.stop(ctx.currentTime + i * 0.05 + 0.3);
+                });
+              } catch (fallbackError) {
+                console.error('LaserDodge: Fallback explosion sound also failed:', fallbackError);
+              }
+            }
             
+            // Award points immediately
             collisionPoints += 50;
-            console.log('LaserDodge: Enemy destroyed! +50 points');
+            currentScoreRef.current += 50; // Update ref immediately
+            setScore(prev => Number((prev + 50).toFixed(2))); // Update state immediately
+            console.log('LaserDodge: Enemy destroyed! +50 points (awarded immediately)');
           }
         }
       });
@@ -822,10 +854,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       setExplosions(prev => [...prev, ...newExplosions]);
     }
     
-    if (collisionPoints > 0) {
-      currentScoreRef.current += collisionPoints;
-      setScore(prev => Number((prev + collisionPoints).toFixed(2)));
-    }
+    // Points are already awarded immediately when enemy is destroyed above
+    // This section is kept for any other collision points that might be added
 
     // Update explosions - remove old ones
     setExplosions(prev => prev.filter(explosion => {
@@ -876,10 +906,23 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
 
     if (collision) {
+      // Add invincibility period (1 second) to prevent multiple hits
+      const timeSinceLastCollision = now - lastCollisionTimeRef.current;
+      if (timeSinceLastCollision < 1000) {
+        // Still in invincibility period, ignore collision
+        return;
+      }
+      
       // Lose a heart instead of immediate game over
       const currentHearts = heartsRef.current;
+      if (currentHearts <= 0) {
+        // Already dead, don't process more collisions
+        return;
+      }
+      
       const newHearts = currentHearts - 1;
       heartsRef.current = newHearts;
+      lastCollisionTimeRef.current = now; // Set collision time for invincibility
       
       console.log(`LaserDodge: 💔 Hit! Lost a heart. Remaining: ${newHearts}`);
       
@@ -894,8 +937,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       setExplosions(prev => [...prev, shipExplosion]);
       
       // Play collision/hit sound
-      playCollision();
-      playExplosionSound();
+      try {
+        playCollision();
+        playExplosionSound();
+      } catch (e) {
+        console.error('LaserDodge: Sound error (non-critical):', e);
+      }
       
       // Update hearts state
       setHearts(newHearts);
@@ -904,7 +951,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       if (newHearts <= 0) {
         console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
         // Play final death sound
-        playGameEnd();
+        try {
+          playGameEnd();
+        } catch (e) {
+          console.error('LaserDodge: Game end sound error (non-critical):', e);
+        }
         endGame();
         return; // Don't continue loop after game over
       }
@@ -1072,6 +1123,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setTimeLeft(60);
     setHearts(3); // Reset hearts to 3
     heartsRef.current = 3; // Reset hearts ref
+    lastCollisionTimeRef.current = 0; // Reset collision cooldown
     gameStartTimeRef.current = Date.now();
     lastLaserSpawnRef.current = Date.now();
     lastEnemySpawnRef.current = Date.now() - 10000; // Allow immediate enemy spawning
