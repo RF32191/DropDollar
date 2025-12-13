@@ -362,7 +362,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         gainNode.connect(ctx.destination);
         oscillator.frequency.value = 800;
         oscillator.type = 'square';
-        gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.5, ctx.currentTime); // Increased from 0.2 to 0.5 for louder sound
         gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
         oscillator.start(ctx.currentTime);
         oscillator.stop(ctx.currentTime + 0.1);
@@ -603,11 +603,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       let enemySpawnRate;
       if (isCrazyMode) {
-        enemySpawnRate = seededRng.nextInt(800, 2000);
+        enemySpawnRate = seededRng.nextInt(500, 1200); // More frequent: was 800-2000, now 500-1200
       } else if (isExtremeMode) {
-        enemySpawnRate = seededRng.nextInt(1200, 3000);
+        enemySpawnRate = seededRng.nextInt(800, 2000); // More frequent: was 1200-3000, now 800-2000
       } else {
-        enemySpawnRate = seededRng.nextInt(2000, 4000);
+        enemySpawnRate = seededRng.nextInt(1200, 2500); // More frequent: was 2000-4000, now 1200-2500
       }
       
       if (now - lastEnemySpawnRef.current > enemySpawnRate) {
@@ -664,11 +664,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       let enemySpawnRate;
       if (isCrazyMode) {
-        enemySpawnRate = Math.max(800, 2000 - (level * 150)); // 0.8-2 seconds in crazy mode
+        enemySpawnRate = Math.max(500, 1200 - (level * 100)); // More frequent: was 800-2000, now 500-1200
       } else if (isExtremeMode) {
-        enemySpawnRate = Math.max(1200, 3000 - (level * 200)); // 1.2-3 seconds in extreme mode
+        enemySpawnRate = Math.max(800, 2000 - (level * 150)); // More frequent: was 1200-3000, now 800-2000
       } else {
-        enemySpawnRate = Math.max(2000, 5000 - (level * 300)); // 2-5 seconds in normal mode
+        enemySpawnRate = Math.max(1200, 3000 - (level * 200)); // More frequent: was 2000-5000, now 1200-3000
       }
       
       if (now - lastEnemySpawnRef.current > enemySpawnRate) {
@@ -835,7 +835,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 gainNode.connect(ctx.destination);
                 oscillator.frequency.value = freq;
                 oscillator.type = 'sawtooth';
-                gainNode.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.05);
+                gainNode.gain.setValueAtTime(0.6, ctx.currentTime + i * 0.05); // Increased from 0.3 to 0.6 for louder explosion
                 gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.3);
                 oscillator.start(ctx.currentTime + i * 0.05);
                 oscillator.stop(ctx.currentTime + i * 0.05 + 0.3);
