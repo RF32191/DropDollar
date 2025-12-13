@@ -83,6 +83,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
   const heartsRef = useRef(3); // Track hearts with ref for immediate updates
   const goldenSwordSpawnedRef = useRef(false); // Track if golden sword has been spawned
+  const bombsRef = useRef<Bomb[]>([]); // Track bombs with ref for synchronous checking
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   
   // Seeded RNG for deterministic gameplay
@@ -379,7 +380,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               y: seededRng.nextFloat(10, 90),
               destroyed: false
             };
-            setBombs(prev => [...prev, newBomb]);
+            setBombs(prev => {
+              const updated = [...prev, newBomb];
+              bombsRef.current = updated; // Update ref
+              return updated;
+            });
           }
           
           // Spawn golden sword once at 30 seconds (around 30 second mark)
@@ -427,7 +432,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               y: Math.random() * 80 + 10,
               destroyed: false
             };
-            setBombs(prev => [...prev, newBomb]);
+            setBombs(prev => {
+              const updated = [...prev, newBomb];
+              bombsRef.current = updated; // Update ref
+              return updated;
+            });
           }
           
           // Spawn golden sword once at 30 seconds (around 30 second mark)
@@ -461,14 +470,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       }));
       
       // Remove old bombs after 5 seconds (if ignored, they disappear)
-      setBombs(prev => prev.filter(bomb => {
-        const age = now - bomb.id;
-        if (age > 5000 && !bomb.destroyed) {
-          // Bomb expired without being hit - remove it
-          return false;
-        }
-        return age < 6000; // Keep for 1 extra second after destruction
-      }));
+      setBombs(prev => {
+        const filtered = prev.filter(bomb => {
+          const age = now - bomb.id;
+          if (age > 5000 && !bomb.destroyed) {
+            // Bomb expired without being hit - remove it
+            return false;
+          }
+          return age < 6000; // Keep for 1 extra second after destruction
+        });
+        bombsRef.current = filtered; // Update ref
+        return filtered;
+      });
       
       // Remove old golden swords after 5 seconds
       setGoldenSwords(prev => prev.filter(sword => {
@@ -718,36 +731,40 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Unified attack logic for both mouse and touch
   const performAttack = (clickX: number, clickY: number) => {
-    // Check for bombs first - only perfect hits explode bombs
+    // Check for bombs first - use ref for synchronous checking
     let bombHit = false;
     let hitBombId: number | null = null;
     
-    // First pass: detect bomb hit
-    setBombs(prev => {
-      const updatedBombs = prev.map(bomb => {
-        if (bomb.destroyed || bombHit) return bomb;
-        
-        const distance = Math.sqrt(
-          Math.pow(bomb.x - clickX, 2) + Math.pow(bomb.y - clickY, 2)
-        );
-        
-        // Only perfect hits (distance < 3) explode bombs
-        if (distance < 3) {
-          bombHit = true;
-          hitBombId = bomb.id;
-          return { ...bomb, destroyed: true };
-        }
-        
-        return bomb;
-      });
+    // Check bombs synchronously using ref (bombs are 10% width, so hit radius should be ~5%)
+    for (const bomb of bombsRef.current) {
+      if (bomb.destroyed) continue;
       
-      return updatedBombs;
-    });
+      const distance = Math.sqrt(
+        Math.pow(bomb.x - clickX, 2) + Math.pow(bomb.y - clickY, 2)
+      );
+      
+      // Hit radius: bombs are w-10 h-10 (10% width), so 5% hit radius is reasonable
+      if (distance < 5) {
+        bombHit = true;
+        hitBombId = bomb.id;
+        break;
+      }
+    }
     
     // If bomb was hit, process heart and score deduction immediately
     if (bombHit) {
-      // Play bomb explosion sound
-      playBombExplosion();
+      // Play bomb explosion sound IMMEDIATELY
+      try {
+        playBombExplosion();
+        console.log('💣 Bomb explosion sound triggered');
+      } catch (e) {
+        console.error('💣 Error playing bomb sound:', e);
+      }
+      
+      // Update bomb state to destroyed
+      setBombs(prev => prev.map(bomb => 
+        bomb.id === hitBombId ? { ...bomb, destroyed: true } : bomb
+      ));
       
       // Lose a heart - update both ref and state IMMEDIATELY
       const previousHearts = heartsRef.current;
@@ -866,6 +883,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     setHearts(3); // Reset hearts to 3
     heartsRef.current = 3; // Reset hearts ref
     setBombs([]); // Clear bombs
+    bombsRef.current = []; // Clear bombs ref
     setGoldenSwords([]); // Clear golden swords
     goldenSwordSpawnedRef.current = false; // Reset golden sword spawn flag
     currentScoreRef.current = 0; // Reset score ref
