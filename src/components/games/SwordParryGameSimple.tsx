@@ -44,6 +44,16 @@ interface Bomb {
   destroyed: boolean;
 }
 
+interface GoldenSword {
+  id: number;
+  x: number;
+  y: number;
+  angle: number; // Rotation angle in degrees (0-360)
+  destroyed: boolean;
+  cutQuality?: 'PERFECT' | 'EXCELLENT' | 'GOOD' | 'POOR';
+  cutPath?: { x: number; y: number }[]; // Path of the cut
+}
+
 export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: SwordParryGameProps) {
   // DON'T use pre-generated configs - causes gameplay issues (stacking swords)
   // Instead, use rngSeed to initialize engine for runtime generation
@@ -52,6 +62,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [attacks, setAttacks] = useState<Attack[]>([]);
   const [bombs, setBombs] = useState<Bomb[]>([]);
+  const [goldenSwords, setGoldenSwords] = useState<GoldenSword[]>([]);
   const [hearts, setHearts] = useState(3);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [score, setScore] = useState(0);
@@ -60,6 +71,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const [isClicking, setIsClicking] = useState(false);
   const [destroyedCount, setDestroyedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [cutPath, setCutPath] = useState<{ x: number; y: number }[]>([]); // Track mouse drag path
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameRunning = useRef(false);
@@ -368,6 +380,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             setBombs(prev => [...prev, newBomb]);
           }
           
+          // Spawn golden sword occasionally (10% chance per spawn cycle)
+          if (seededRng.next() < 0.10) {
+            const newGoldenSword: GoldenSword = {
+              id: now + seededRng.next() * 1000,
+              x: seededRng.nextFloat(15, 85),
+              y: seededRng.nextFloat(15, 85),
+              angle: seededRng.nextFloat(0, 360), // Random rotation
+              destroyed: false
+            };
+            setGoldenSwords(prev => [...prev, newGoldenSword]);
+          }
+          
           lastSpawn.current = now;
         }
       } else {
@@ -401,6 +425,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             setBombs(prev => [...prev, newBomb]);
           }
           
+          // Spawn golden sword occasionally (10% chance per spawn cycle)
+          if (Math.random() < 0.10) {
+            const newGoldenSword: GoldenSword = {
+              id: now + Math.random() * 1000,
+              x: Math.random() * 70 + 15,
+              y: Math.random() * 70 + 15,
+              angle: Math.random() * 360, // Random rotation
+              destroyed: false
+            };
+            setGoldenSwords(prev => [...prev, newGoldenSword]);
+          }
+          
           lastSpawn.current = now;
         }
       }
@@ -419,6 +455,12 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       // Remove old bombs after 5 seconds
       setBombs(prev => prev.filter(bomb => {
         const age = now - bomb.id;
+        return age < 6000; // Keep for 1 extra second after destruction
+      }));
+      
+      // Remove old golden swords after 5 seconds
+      setGoldenSwords(prev => prev.filter(sword => {
+        const age = now - sword.id;
         return age < 6000; // Keep for 1 extra second after destruction
       }));
 
@@ -452,6 +494,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       x: Math.max(0, Math.min(100, x)), 
       y: Math.max(0, Math.min(100, y)) 
     });
+    
+    // Track cut path when clicking and dragging
+    if (isClicking) {
+      setCutPath(prev => {
+        const newPath = [...prev, { x, y }];
+        // Keep only last 50 points to avoid memory issues
+        return newPath.slice(-50);
+      });
+      
+      // Check if path intersects with golden swords
+      checkGoldenSwordCut(x, y);
+    }
   };
 
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -469,6 +523,17 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       x: Math.max(0, Math.min(100, x)), 
       y: Math.max(0, Math.min(100, y)) 
     });
+    
+    // Track cut path when touching and dragging
+    if (isClicking) {
+      setCutPath(prev => {
+        const newPath = [...prev, { x, y }];
+        return newPath.slice(-50);
+      });
+      
+      // Check if path intersects with golden swords
+      checkGoldenSwordCut(x, y);
+    }
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -485,6 +550,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     const clickX = ((event.clientX - rect.left) / rect.width) * 100;
     const clickY = ((event.clientY - rect.top) / rect.height) * 100;
+    
+    // Start tracking cut path for golden swords
+    setCutPath([{ x: clickX, y: clickY }]);
     
     performAttack(clickX, clickY);
   };
@@ -504,6 +572,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     const touch = event.touches[0];
     const clickX = ((touch.clientX - rect.left) / rect.width) * 100;
     const clickY = ((touch.clientY - rect.top) / rect.height) * 100;
+    
+    // Start tracking cut path for golden swords
+    setCutPath([{ x: clickX, y: clickY }]);
     
     performAttack(clickX, clickY);
   };
@@ -534,6 +605,103 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     } catch (e) {
       console.error('💣 [SwordParryGameSimple] Bomb explosion sound error:', e);
     }
+  };
+
+  // Check if current position intersects with a golden sword
+  const checkGoldenSwordCut = (x: number, y: number) => {
+    setGoldenSwords(prev => prev.map(sword => {
+      if (sword.destroyed) return sword;
+      
+      // Check if point is near the sword (within 8% distance)
+      const distance = Math.sqrt(
+        Math.pow(sword.x - x, 2) + Math.pow(sword.y - y, 2)
+      );
+      
+      if (distance < 8) {
+        // Sword is being cut - mark for processing
+        return { ...sword };
+      }
+      
+      return sword;
+    }));
+  };
+
+  // Process the cut path to determine cut quality and destroy golden sword
+  const processGoldenSwordCut = () => {
+    if (cutPath.length < 2) return; // Need at least 2 points for a cut
+    
+    setGoldenSwords(prev => prev.map(sword => {
+      if (sword.destroyed) return sword;
+      
+      // Check if cut path intersects with sword
+      let pathIntersects = false;
+      let minDistance = Infinity;
+      
+      for (let i = 0; i < cutPath.length; i++) {
+        const distance = Math.sqrt(
+          Math.pow(sword.x - cutPath[i].x, 2) + Math.pow(sword.y - cutPath[i].y, 2)
+        );
+        if (distance < 8) {
+          pathIntersects = true;
+          minDistance = Math.min(minDistance, distance);
+        }
+      }
+      
+      if (!pathIntersects) return sword;
+      
+      // Calculate how straight the cut is
+      // Get the ideal cut line (perpendicular to sword angle)
+      const swordRad = (sword.angle * Math.PI) / 180;
+      const idealCutAngle = swordRad + Math.PI / 2; // Perpendicular to sword
+      
+      // Calculate actual cut angle from first to last point
+      const dx = cutPath[cutPath.length - 1].x - cutPath[0].x;
+      const dy = cutPath[cutPath.length - 1].y - cutPath[0].y;
+      const actualCutAngle = Math.atan2(dy, dx);
+      
+      // Calculate angle difference (how far from ideal)
+      let angleDiff = Math.abs(actualCutAngle - idealCutAngle);
+      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+      angleDiff = Math.abs(angleDiff);
+      
+      // Determine cut quality based on angle difference
+      let cutQuality: 'PERFECT' | 'EXCELLENT' | 'GOOD' | 'POOR' = 'POOR';
+      let points = 0;
+      
+      if (angleDiff < 0.1) { // ~5.7 degrees
+        cutQuality = 'PERFECT';
+        points = 500;
+      } else if (angleDiff < 0.2) { // ~11.5 degrees
+        cutQuality = 'EXCELLENT';
+        points = 300;
+      } else if (angleDiff < 0.35) { // ~20 degrees
+        cutQuality = 'GOOD';
+        points = 150;
+      } else {
+        cutQuality = 'POOR';
+        points = 50;
+      }
+      
+      // Play sword hit sound
+      playSwordHit(cutQuality);
+      
+      // Award points
+      setScore(currentScore => {
+        const newScore = Number((currentScore + points).toFixed(2));
+        currentScoreRef.current = newScore;
+        console.log(`⚔️ Golden sword cut! Quality: ${cutQuality}, Points: +${points}, Score: ${currentScore} + ${points} = ${newScore}`);
+        return newScore;
+      });
+      
+      setDestroyedCount(d => d + 1);
+      
+      return {
+        ...sword,
+        destroyed: true,
+        cutQuality,
+        cutPath: [...cutPath]
+      };
+    }));
   };
 
   // Unified attack logic for both mouse and touch
@@ -656,10 +824,20 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   const handleMouseUp = () => {
     setIsClicking(false);
+    // Process final cut path for golden swords
+    if (cutPath.length > 0) {
+      processGoldenSwordCut();
+    }
+    setCutPath([]); // Clear cut path
   };
 
   const handleTouchEnd = () => {
     setIsClicking(false);
+    // Process final cut path for golden swords
+    if (cutPath.length > 0) {
+      processGoldenSwordCut();
+    }
+    setCutPath([]); // Clear cut path
   };
 
   const startGame = () => {
@@ -934,6 +1112,89 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                 <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white bg-black/50 px-2 py-1 rounded animate-bounce">
                   💥 BOOM! -100 ❤️
                 </div>
+              )}
+            </div>
+          ))}
+          
+          {/* Golden Swords */}
+          {goldenSwords.map((sword) => (
+            <div
+              key={sword.id}
+              className={`absolute w-16 h-16 transition-all duration-300 ${
+                sword.destroyed ? 'opacity-50' : ''
+              }`}
+              style={{
+                left: `${sword.x}%`,
+                top: `${sword.y}%`,
+                transform: `translate(-50%, -50%) rotate(${sword.angle}deg)`,
+                zIndex: 12,
+                filter: sword.destroyed 
+                  ? 'brightness(0.5) contrast(0.8)'
+                  : 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.9)) drop-shadow(0 0 40px rgba(255, 215, 0, 0.6)) brightness(1.3)',
+              }}
+            >
+              {/* Golden sword sprite */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: 'url("/SWORD.png")',
+                  backgroundSize: 'contain',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'center',
+                  filter: sword.destroyed 
+                    ? 'brightness(0.5)'
+                    : 'brightness(1.5) saturate(1.5) hue-rotate(15deg)',
+                }}
+              />
+              
+              {/* Glowing golden effect */}
+              {!sword.destroyed && (
+                <div
+                  className="absolute inset-0 animate-pulse"
+                  style={{
+                    background: 'radial-gradient(circle, rgba(255, 215, 0, 0.4) 0%, transparent 70%)',
+                    borderRadius: '50%',
+                  }}
+                />
+              )}
+              
+              {/* Cut animation - split sword */}
+              {sword.destroyed && sword.cutQuality && (
+                <>
+                  {/* Left half */}
+                  <div
+                    className="absolute inset-0 origin-left transition-all duration-500"
+                    style={{
+                      backgroundImage: 'url("/SWORD.png")',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)',
+                      transform: `rotate(-15deg) translateX(-10px)`,
+                      filter: 'brightness(1.2)',
+                    }}
+                  />
+                  {/* Right half */}
+                  <div
+                    className="absolute inset-0 origin-right transition-all duration-500"
+                    style={{
+                      backgroundImage: 'url("/SWORD.png")',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      clipPath: 'polygon(50% 0, 100% 0, 100% 100%, 50% 100%)',
+                      transform: `rotate(15deg) translateX(10px)`,
+                      filter: 'brightness(1.2)',
+                    }}
+                  />
+                  {/* Quality text */}
+                  <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 text-xs font-bold text-yellow-300 bg-black/70 px-3 py-1 rounded-full animate-bounce whitespace-nowrap">
+                    {sword.cutQuality === 'PERFECT' ? '⚔️ PERFECT CUT! +500' :
+                     sword.cutQuality === 'EXCELLENT' ? '✨ EXCELLENT! +300' :
+                     sword.cutQuality === 'GOOD' ? '👍 GOOD! +150' :
+                     '💫 POOR +50'}
+                  </div>
+                </>
               )}
             </div>
           ))}
