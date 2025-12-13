@@ -344,11 +344,31 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const currentShip = shipRef.current; // Use ref for accurate position
     console.log('LaserDodge: SHOOTING bullet at', currentShip.x, currentShip.y);
     
-    // Play shooting sound
+    // Play shooting sound - ensure it plays
     try {
       playShootSound();
+      console.log('LaserDodge: 🔫 Shooting sound played');
     } catch (e) {
       console.error('LaserDodge: Shoot sound error (non-critical):', e);
+      // Fallback: create a simple shooting sound using Web Audio API
+      try {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        const ctx = audioContextRef.current;
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.frequency.value = 800;
+        oscillator.type = 'square';
+        gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.1);
+      } catch (fallbackError) {
+        console.error('LaserDodge: Fallback shoot sound also failed:', fallbackError);
+      }
     }
     
     const newBullet: Bullet = {
