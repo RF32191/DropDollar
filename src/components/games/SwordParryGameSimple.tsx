@@ -665,6 +665,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const startGame = () => {
     setGameState('playing');
     setScore(0);
+    setHearts(3); // Reset hearts to 3
+    setBombs([]); // Clear bombs
     currentScoreRef.current = 0; // Reset score ref
     gameStartTimeRef.current = Date.now(); // Track start time for speed scoring
     setAttacks([]);
