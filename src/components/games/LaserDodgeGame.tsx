@@ -603,11 +603,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       let enemySpawnRate;
       if (isCrazyMode) {
-        enemySpawnRate = seededRng.nextInt(500, 1200); // More frequent: was 800-2000, now 500-1200
+        enemySpawnRate = seededRng.nextInt(300, 800); // Even more frequent: was 500-1200, now 300-800
       } else if (isExtremeMode) {
-        enemySpawnRate = seededRng.nextInt(800, 2000); // More frequent: was 1200-3000, now 800-2000
+        enemySpawnRate = seededRng.nextInt(500, 1200); // Even more frequent: was 800-2000, now 500-1200
       } else {
-        enemySpawnRate = seededRng.nextInt(1200, 2500); // More frequent: was 2000-4000, now 1200-2500
+        enemySpawnRate = seededRng.nextInt(800, 1800); // Even more frequent: was 1200-2500, now 800-1800
       }
       
       if (now - lastEnemySpawnRef.current > enemySpawnRate) {
@@ -664,11 +664,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       
       let enemySpawnRate;
       if (isCrazyMode) {
-        enemySpawnRate = Math.max(500, 1200 - (level * 100)); // More frequent: was 800-2000, now 500-1200
+        enemySpawnRate = Math.max(300, 800 - (level * 80)); // Even more frequent: was 500-1200, now 300-800
       } else if (isExtremeMode) {
-        enemySpawnRate = Math.max(800, 2000 - (level * 150)); // More frequent: was 1200-3000, now 800-2000
+        enemySpawnRate = Math.max(500, 1200 - (level * 100)); // Even more frequent: was 800-2000, now 500-1200
       } else {
-        enemySpawnRate = Math.max(1200, 3000 - (level * 200)); // More frequent: was 2000-5000, now 1200-3000
+        enemySpawnRate = Math.max(800, 2000 - (level * 150)); // Even more frequent: was 1200-3000, now 800-2000
       }
       
       if (now - lastEnemySpawnRef.current > enemySpawnRate) {
@@ -678,7 +678,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         const newEnemy: EnemyShip = {
           id: now + Math.random(),
           x: direction === 'left' ? 105 : -5, // Start off-screen
-          y: Math.random() * 100,
+          y: 10 + Math.random() * 70, // Constrain Y to 10-80% to keep ships visible (was Math.random() * 100)
           direction,
           speed,
           createdAt: now
@@ -987,20 +987,29 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           // Game over only when hearts reach 0
           if (newHearts <= 0) {
             console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
+            // Stop the game loop immediately
+            isGameRunningRef.current = false;
+            
+            // Cancel any pending animation frames
+            if (animationRef.current) {
+              cancelAnimationFrame(animationRef.current);
+              animationRef.current = undefined;
+            }
+            
             // Play final death sound
             try {
               playGameEnd();
             } catch (e) {
               console.error('LaserDodge: Game end sound error (non-critical):', e);
             }
-            // End game asynchronously to not freeze the loop
-            setTimeout(() => {
-              if (isGameRunningRef.current) {
-                endGame();
-              }
-            }, 500); // Give time for explosion animation
-            // Stop the loop after showing explosion
-            isGameRunningRef.current = false;
+            
+            // End game immediately (don't use setTimeout to avoid freezing)
+            endGame().catch(err => {
+              console.error('LaserDodge: Error ending game:', err);
+            });
+            
+            // Exit early to prevent further loop execution
+            return;
           }
         }
       }
