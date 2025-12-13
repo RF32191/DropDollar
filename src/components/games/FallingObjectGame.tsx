@@ -218,10 +218,12 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         const audio = backgroundMusicRef.current;
         
         // Ensure audio is loaded
-        if (audio.readyState < 2 && audio.load) {
-          audio.load().catch(() => {
+        if (audio.readyState < 2) {
+          try {
+            audio.load();
+          } catch (e) {
             // Ignore load errors
-          });
+          }
         }
         
         // Play music on loop when game starts
@@ -675,6 +677,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   }, [gameState, updateGame]);
 
   const handleStartGame = () => {
+    // Unlock audio on user interaction (clicking start)
+    unlockAudio();
+    
     // Reset game state
     setScore(0);
     currentScoreRef.current = 0; // Reset score ref
