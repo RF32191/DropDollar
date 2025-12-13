@@ -58,6 +58,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const currentScoreRef = useRef(0); // Track current score for endGame
   const gameStartTimeRef = useRef(0); // Track game start time for speed scoring
   const gameEndedRef = useRef(false); // Prevent multiple endGame calls
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
+  const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
+  const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -214,6 +217,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Mouse and Touch handling
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    // Unlock audio on first mouse interaction
+    if (!audioUnlockedRef.current) {
+      unlockAudio();
+    }
+    
     if (gameState !== 'playing') return;
     
     const rect = gameAreaRef.current?.getBoundingClientRect();
@@ -416,6 +424,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   };
 
   const handleStartGame = () => {
+    // Unlock audio on user interaction (clicking start)
+    unlockAudio();
+    
     setCountdown(3);
     setGameState('countdown');
   };
