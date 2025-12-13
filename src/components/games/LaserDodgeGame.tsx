@@ -995,19 +995,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             }
             // End game asynchronously to not freeze the loop
             setTimeout(() => {
-              endGame();
-            }, 100);
-            // Continue loop to show final explosion, then it will stop
+              if (isGameRunningRef.current) {
+                endGame();
+              }
+            }, 500); // Give time for explosion animation
+            // Stop the loop after showing explosion
+            isGameRunningRef.current = false;
           }
         }
       }
     }
 
     // Continue loop - MUST happen even if errors occur above
-    if (isGameRunningRef.current) {
+    // Only continue if game is still running and hearts > 0
+    if (isGameRunningRef.current && heartsRef.current > 0) {
       animationRef.current = requestAnimationFrame(gameLoop);
     } else {
-      console.log('LaserDodge: Game loop ending - isGameRunningRef is false');
+      if (heartsRef.current <= 0) {
+        console.log('LaserDodge: Game loop stopping - all hearts lost');
+      } else {
+        console.log('LaserDodge: Game loop ending - isGameRunningRef is false');
+      }
     }
   };
 
