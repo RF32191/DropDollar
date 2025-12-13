@@ -250,10 +250,10 @@ export default function CashStackGame3D({
     };
   }, []);
   
-  // Play background music DURING the game
+  // Play background music when game starts (during gameplay)
   useEffect(() => {
     if (gameState === 'playing' && backgroundMusicRef.current) {
-      // Play music on loop during gameplay
+      // Play music on loop when game starts
       try {
         const audio = backgroundMusicRef.current;
         
@@ -264,13 +264,13 @@ export default function CashStackGame3D({
           });
         }
         
-        // Play music on loop during game
+        // Play music on loop when game starts
         const playPromise = audio.play();
         
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log('✅ [CashStackGame3D] Background music started playing during game');
+              console.log('✅ [CashStackGame3D] Background music started playing on game start');
             })
             .catch(() => {
               // Silently fail - audio is optional, game continues
