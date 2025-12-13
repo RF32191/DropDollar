@@ -89,7 +89,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const attackSpawnIndexRef = useRef<number>(0); // Track which attack to spawn next from RNG config
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
-  const audioUnlockedRef = useRef = useRef(false); // Track if audio is unlocked
+  const audioUnlockedRef = useRef(false); // Track if audio is unlocked
 
   // Audio unlock mechanism for browser autoplay restrictions
   const unlockAudio = useCallback(() => {
