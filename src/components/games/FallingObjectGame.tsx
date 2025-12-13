@@ -70,6 +70,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const glowTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track glow timeout
   const lastFrameTimeRef = useRef<number>(Date.now()); // Track frame timing for smoothness
   const paddleXRef = useRef<number>(50); // Track paddle position for animation loop (avoid re-renders)
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
+  const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
 
   // Audio feedback for catches
   const playPerfectCatchSound = () => {
@@ -131,6 +133,135 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       osc.stop(ctx.currentTime + 0.2);
     } catch (e) {}
   };
+
+  // Setup background music for gameplay
+  useEffect(() => {
+    // Create audio element for catch-the-money.mp3
+    const audio = new Audio('/catch-the-money.mp3');
+    audio.loop = true;
+    audio.volume = 0.7; // Set volume to 70% for better audibility
+    audio.preload = 'auto'; // Preload the audio
+    
+    // Add error handling and logging
+    audio.addEventListener('error', (e) => {
+      console.warn('⚠️ [FallingObjectGame] Audio file error (non-critical):', e);
+    });
+    
+    audio.addEventListener('loadeddata', () => {
+      console.log('✅ [FallingObjectGame] Background music loaded successfully');
+    });
+    
+    audio.addEventListener('canplaythrough', () => {
+      console.log('✅ [FallingObjectGame] Background music ready to play');
+    });
+    
+    backgroundMusicRef.current = audio;
+    
+    // Cleanup on unmount
+    return () => {
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current.src = '';
+        backgroundMusicRef.current = null;
+      }
+    };
+  }, []);
+  
+  // Play background music when game starts (during gameplay)
+  useEffect(() => {
+    if (gameState === 'playing' && backgroundMusicRef.current) {
+      // Play music on loop when game starts
+      try {
+        const audio = backgroundMusicRef.current;
+        
+        // Ensure audio is loaded
+        if (audio.readyState < 2 && audio.load) {
+          audio.load().catch(() => {
+            // Ignore load errors
+          });
+        }
+        
+        // Play music on loop when game starts
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('✅ [FallingObjectGame] Background music started playing on game start');
+            })
+            .catch(() => {
+              // Silently fail - audio is optional, game continues
+              // Try again after a short delay
+              setTimeout(() => {
+                if (backgroundMusicRef.current && gameState === 'playing') {
+                  backgroundMusicRef.current.play().catch(() => {
+                    // Final attempt failed - that's okay
+                  });
+                }
+              }, 500);
+            });
+        }
+      } catch (err) {
+        // Audio failed - game continues normally
+        console.warn('⚠️ [FallingObjectGame] Audio play failed (non-critical)');
+      }
+    } else if (gameState !== 'playing' && backgroundMusicRef.current) {
+      // Stop music when game is not playing
+      try {
+        backgroundMusicRef.current.pause();
+        if (gameState === 'ended') {
+          // Reset to beginning for next game
+          backgroundMusicRef.current.currentTime = 0;
+        }
+      } catch (e) {
+        // Ignore pause errors
+      }
+    }
+  }, [gameState]);
+  
+  // Play victory sound when game ends
+  useEffect(() => {
+    if (gameState === 'ended') {
+      // Play victory sound effect when game ends
+      try {
+        // Create a victory sound using Web Audio API (copyright-free)
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        
+        const ctx = audioContextRef.current;
+        
+        // Victory fanfare: ascending notes
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C (C major chord)
+        
+        const playNote = (frequency: number, time: number) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(frequency, ctx.currentTime + time);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime + time);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.3);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.start(ctx.currentTime + time);
+          osc.stop(ctx.currentTime + time + 0.3);
+        };
+        
+        // Play victory fanfare
+        notes.forEach((freq, i) => {
+          playNote(freq, i * 0.15);
+        });
+        
+        console.log('🎉 [FallingObjectGame] Victory sound played');
+      } catch (err) {
+        // Victory sound failed - game continues normally
+        console.warn('⚠️ [FallingObjectGame] Victory sound failed (non-critical)');
+      }
+    }
+  }, [gameState]);
 
   // Game engine with proper timer and RNG
   const { engine, timer, startGame, stopGame, resetGame } = useGameEngine({
