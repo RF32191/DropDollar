@@ -134,6 +134,44 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     } catch (e) {}
   };
 
+  // Audio unlock mechanism for browser autoplay restrictions
+  const audioUnlockedRef = useRef(false);
+  
+  const unlockAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = audioContextRef.current;
+      
+      // Create a silent buffer and play it to unlock audio context
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      
+      // Also try to unlock HTMLAudioElement
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.play().then(() => {
+          backgroundMusicRef.current?.pause();
+          if (backgroundMusicRef.current) {
+            backgroundMusicRef.current.currentTime = 0;
+          }
+          audioUnlockedRef.current = true;
+          console.log('✅ [FallingObjectGame] Audio unlocked');
+        }).catch(() => {
+          // Ignore - will try again on game start
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }, []);
+
   // Setup background music for gameplay
   useEffect(() => {
     // Create audio element for catch-the-money.mp3
@@ -170,6 +208,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   // Play background music when game starts (during gameplay)
   useEffect(() => {
     if (gameState === 'playing' && backgroundMusicRef.current) {
+      // Unlock audio first if needed
+      if (!audioUnlockedRef.current) {
+        unlockAudio();
+      }
+      
       // Play music on loop when game starts
       try {
         const audio = backgroundMusicRef.current;
@@ -188,15 +231,21 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           playPromise
             .then(() => {
               console.log('✅ [FallingObjectGame] Background music started playing on game start');
+              audioUnlockedRef.current = true;
             })
-            .catch(() => {
-              // Silently fail - audio is optional, game continues
+            .catch((err) => {
+              console.warn('⚠️ [FallingObjectGame] Audio play failed, will retry:', err);
               // Try again after a short delay
               setTimeout(() => {
                 if (backgroundMusicRef.current && gameState === 'playing') {
-                  backgroundMusicRef.current.play().catch(() => {
-                    // Final attempt failed - that's okay
-                  });
+                  backgroundMusicRef.current.play()
+                    .then(() => {
+                      audioUnlockedRef.current = true;
+                      console.log('✅ [FallingObjectGame] Background music started on retry');
+                    })
+                    .catch(() => {
+                      // Final attempt failed - that's okay
+                    });
                 }
               }, 500);
             });
@@ -217,7 +266,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         // Ignore pause errors
       }
     }
-  }, [gameState]);
+  }, [gameState, unlockAudio]);
   
   // Play victory sound when game ends
   useEffect(() => {
@@ -639,6 +688,9 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   };
 
   const handleCountdownComplete = () => {
+    // Unlock audio again when countdown completes (user interaction)
+    unlockAudio();
+    
     // Request pointer lock for fullscreen mouse control
     if (gameAreaRef.current) {
       gameAreaRef.current.requestPointerLock = gameAreaRef.current.requestPointerLock ||
