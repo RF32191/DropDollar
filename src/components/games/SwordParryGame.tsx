@@ -381,9 +381,13 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
+    // Unlock audio on touch interaction
+    if (!audioUnlockedRef.current) {
+      unlockAudio();
+    }
     setIsSlashing(true);
     handleTouchMove(event);
-  }, [handleTouchMove]);
+  }, [handleTouchMove, unlockAudio]);
 
   const handleTouchEnd = useCallback(() => {
     setIsSlashing(false);
