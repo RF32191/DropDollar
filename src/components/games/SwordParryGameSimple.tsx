@@ -720,50 +720,60 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const performAttack = (clickX: number, clickY: number) => {
     // Check for bombs first - only perfect hits explode bombs
     let bombHit = false;
-    setBombs(prev => prev.map(bomb => {
-      if (bomb.destroyed || bombHit) return bomb;
-      
-      const distance = Math.sqrt(
-        Math.pow(bomb.x - clickX, 2) + Math.pow(bomb.y - clickY, 2)
-      );
-      
-      // Only perfect hits (distance < 3) explode bombs
-      if (distance < 3) {
-        bombHit = true;
+    let hitBombId: number | null = null;
+    
+    // First pass: detect bomb hit
+    setBombs(prev => {
+      const updatedBombs = prev.map(bomb => {
+        if (bomb.destroyed || bombHit) return bomb;
         
-        // Play bomb explosion sound
-        playBombExplosion();
+        const distance = Math.sqrt(
+          Math.pow(bomb.x - clickX, 2) + Math.pow(bomb.y - clickY, 2)
+        );
         
-        // Lose a heart - update both ref and state
-        const previousHearts = heartsRef.current;
-        heartsRef.current = Math.max(0, heartsRef.current - 1);
-        const newHearts = heartsRef.current;
-        setHearts(newHearts);
-        console.log(`💣 Bomb exploded! Hearts: ${previousHearts} -> ${newHearts}`);
-        
-        // End game if no hearts left
-        if (newHearts <= 0) {
-          console.log('💣 All hearts lost! Game Over!');
-          setTimeout(() => {
-            endGame();
-          }, 500);
+        // Only perfect hits (distance < 3) explode bombs
+        if (distance < 3) {
+          bombHit = true;
+          hitBombId = bomb.id;
+          return { ...bomb, destroyed: true };
         }
         
-        // Lose 100 points - update both ref and state
-        const currentScore = currentScoreRef.current;
-        const newScore = Math.max(0, Number((currentScore - 100).toFixed(2)));
-        currentScoreRef.current = newScore;
-        setScore(newScore);
-        console.log(`💣 Bomb hit! Score: ${currentScore} - 100 = ${newScore}`);
-        
-        return { ...bomb, destroyed: true };
+        return bomb;
+      });
+      
+      return updatedBombs;
+    });
+    
+    // If bomb was hit, process heart and score deduction immediately
+    if (bombHit) {
+      // Play bomb explosion sound
+      playBombExplosion();
+      
+      // Lose a heart - update both ref and state IMMEDIATELY
+      const previousHearts = heartsRef.current;
+      heartsRef.current = Math.max(0, heartsRef.current - 1);
+      const newHearts = heartsRef.current;
+      
+      // Force immediate state update
+      setHearts(newHearts);
+      console.log(`💣 Bomb exploded! Hearts: ${previousHearts} -> ${newHearts}`);
+      
+      // Lose 100 points - update both ref and state IMMEDIATELY
+      const currentScore = currentScoreRef.current;
+      const newScore = Math.max(0, Number((currentScore - 100).toFixed(2)));
+      currentScoreRef.current = newScore;
+      setScore(newScore);
+      console.log(`💣 Bomb hit! Score: ${currentScore} - 100 = ${newScore}`);
+      
+      // End game if no hearts left
+      if (newHearts <= 0) {
+        console.log('💣 All hearts lost! Game Over!');
+        setTimeout(() => {
+          endGame();
+        }, 500);
       }
       
-      return bomb;
-    }));
-    
-    // If bomb was hit, don't check for attacks
-    if (bombHit) {
+      // Don't check for attacks if bomb was hit
       return;
     }
     
