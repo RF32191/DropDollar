@@ -198,6 +198,37 @@ export default function CashStackGame3D({
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + duration);
   }, []);
+  
+  // Setup background music for completed game
+  useEffect(() => {
+    // Create audio element for cash-stack.mp3
+    const audio = new Audio('/cash-stack.mp3');
+    audio.loop = true;
+    audio.volume = 0.5; // Set volume to 50%
+    backgroundMusicRef.current = audio;
+    
+    // Cleanup on unmount
+    return () => {
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current = null;
+      }
+    };
+  }, []);
+  
+  // Play background music when game is completed
+  useEffect(() => {
+    if (gameState === 'ended' && backgroundMusicRef.current) {
+      // Play music on loop when game ends
+      backgroundMusicRef.current.play().catch(err => {
+        console.warn('⚠️ [CashStackGame3D] Could not play background music:', err);
+      });
+    } else if (gameState !== 'ended' && backgroundMusicRef.current) {
+      // Stop music when game is not ended
+      backgroundMusicRef.current.pause();
+      backgroundMusicRef.current.currentTime = 0; // Reset to beginning
+    }
+  }, [gameState]);
 
   // Initialize Three.js scene
   useEffect(() => {
