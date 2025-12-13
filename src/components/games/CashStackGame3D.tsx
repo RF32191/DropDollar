@@ -686,8 +686,29 @@ export default function CashStackGame3D({
     }
   }, [gameState, createBlock, playSound]);
 
+  // Unlock audio on first user interaction
+  const audioUnlockedRef = useRef(false);
+  const unlockAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    audioUnlockedRef.current = true;
+    
+    // Try to play and immediately pause to unlock audio context
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.play().then(() => {
+        backgroundMusicRef.current?.pause();
+        backgroundMusicRef.current!.currentTime = 0;
+        console.log('✅ [CashStackGame3D] Audio context unlocked');
+      }).catch(err => {
+        console.warn('⚠️ [CashStackGame3D] Could not unlock audio:', err);
+      });
+    }
+  }, []);
+
   // Stack block
   const handleStack = useCallback(() => {
+    // Unlock audio on first stack (user interaction)
+    unlockAudio();
+    
     if (!currentBlockRef.current || gameState !== 'playing') return;
     
     const current = currentBlockRef.current;
