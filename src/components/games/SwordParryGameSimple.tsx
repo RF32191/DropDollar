@@ -81,6 +81,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const gameEndedRef = useRef(false); // Prevent multiple endGame calls
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
+  const heartsRef = useRef(3); // Track hearts with ref for immediate updates
+  const goldenSwordSpawnedRef = useRef(false); // Track if golden sword has been spawned
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   
   // Seeded RNG for deterministic gameplay
@@ -380,8 +382,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             setBombs(prev => [...prev, newBomb]);
           }
           
-          // Spawn golden sword occasionally (10% chance per spawn cycle)
-          if (seededRng.next() < 0.10) {
+          // Spawn golden sword once at 30 seconds (around 30 second mark)
+          const secondsElapsed = Math.floor(timeSinceStart / 1000);
+          if (!goldenSwordSpawnedRef.current && secondsElapsed >= 28 && secondsElapsed <= 32) {
+            goldenSwordSpawnedRef.current = true;
             const newGoldenSword: GoldenSword = {
               id: now + seededRng.next() * 1000,
               x: seededRng.nextFloat(15, 85),
@@ -390,6 +394,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               destroyed: false
             };
             setGoldenSwords(prev => [...prev, newGoldenSword]);
+            console.log('⚔️ Golden sword spawned at ~30 seconds!');
           }
           
           lastSpawn.current = now;
@@ -425,8 +430,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             setBombs(prev => [...prev, newBomb]);
           }
           
-          // Spawn golden sword occasionally (10% chance per spawn cycle)
-          if (Math.random() < 0.10) {
+          // Spawn golden sword once at 30 seconds (around 30 second mark)
+          const secondsElapsed = Math.floor(timeSinceStart / 1000);
+          if (!goldenSwordSpawnedRef.current && secondsElapsed >= 28 && secondsElapsed <= 32) {
+            goldenSwordSpawnedRef.current = true;
             const newGoldenSword: GoldenSword = {
               id: now + Math.random() * 1000,
               x: Math.random() * 70 + 15,
@@ -435,6 +442,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               destroyed: false
             };
             setGoldenSwords(prev => [...prev, newGoldenSword]);
+            console.log('⚔️ Golden sword spawned at ~30 seconds!');
           }
           
           lastSpawn.current = now;
@@ -452,9 +460,13 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         return age < 6000; // Keep for 1 extra second after destruction
       }));
       
-      // Remove old bombs after 5 seconds
+      // Remove old bombs after 5 seconds (if ignored, they disappear)
       setBombs(prev => prev.filter(bomb => {
         const age = now - bomb.id;
+        if (age > 5000 && !bomb.destroyed) {
+          // Bomb expired without being hit - remove it
+          return false;
+        }
         return age < 6000; // Keep for 1 extra second after destruction
       }));
       
@@ -722,29 +734,26 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         // Play bomb explosion sound
         playBombExplosion();
         
-        // Lose a heart
-        setHearts(prevHearts => {
-          const newHearts = Math.max(0, prevHearts - 1);
-          console.log(`💣 Bomb exploded! Hearts: ${prevHearts} -> ${newHearts}`);
-          
-          // End game if no hearts left
-          if (newHearts <= 0) {
-            console.log('💣 All hearts lost! Game Over!');
-            setTimeout(() => {
-              endGame();
-            }, 500);
-          }
-          
-          return newHearts;
-        });
+        // Lose a heart - update both ref and state
+        heartsRef.current = Math.max(0, heartsRef.current - 1);
+        const newHearts = heartsRef.current;
+        setHearts(newHearts);
+        console.log(`💣 Bomb exploded! Hearts: ${heartsRef.current + 1} -> ${newHearts}`);
         
-        // Lose 100 points
-        setScore(currentScore => {
-          const newScore = Math.max(0, Number((currentScore - 100).toFixed(2)));
-          currentScoreRef.current = newScore;
-          console.log(`💣 Bomb hit! Score: ${currentScore} - 100 = ${newScore}`);
-          return newScore;
-        });
+        // End game if no hearts left
+        if (newHearts <= 0) {
+          console.log('💣 All hearts lost! Game Over!');
+          setTimeout(() => {
+            endGame();
+          }, 500);
+        }
+        
+        // Lose 100 points - update both ref and state
+        const currentScore = currentScoreRef.current;
+        const newScore = Math.max(0, Number((currentScore - 100).toFixed(2)));
+        currentScoreRef.current = newScore;
+        setScore(newScore);
+        console.log(`💣 Bomb hit! Score: ${currentScore} - 100 = ${newScore}`);
         
         return { ...bomb, destroyed: true };
       }
@@ -844,8 +853,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     setGameState('playing');
     setScore(0);
     setHearts(3); // Reset hearts to 3
+    heartsRef.current = 3; // Reset hearts ref
     setBombs([]); // Clear bombs
     setGoldenSwords([]); // Clear golden swords
+    goldenSwordSpawnedRef.current = false; // Reset golden sword spawn flag
     currentScoreRef.current = 0; // Reset score ref
     gameStartTimeRef.current = Date.now(); // Track start time for speed scoring
     setAttacks([]);
