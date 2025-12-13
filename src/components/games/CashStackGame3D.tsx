@@ -250,10 +250,10 @@ export default function CashStackGame3D({
     };
   }, []);
   
-  // Play background music when game is completed
+  // Play background music DURING the game
   useEffect(() => {
-    if (gameState === 'ended' && backgroundMusicRef.current) {
-      // Silently try to play music - don't break game if it fails
+    if (gameState === 'playing' && backgroundMusicRef.current) {
+      // Play music on loop during gameplay
       try {
         const audio = backgroundMusicRef.current;
         
@@ -264,19 +264,19 @@ export default function CashStackGame3D({
           });
         }
         
-        // Play music on loop when game ends
+        // Play music on loop during game
         const playPromise = audio.play();
         
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log('✅ [CashStackGame3D] Background music started playing');
+              console.log('✅ [CashStackGame3D] Background music started playing during game');
             })
             .catch(() => {
               // Silently fail - audio is optional, game continues
               // Try again after a short delay
               setTimeout(() => {
-                if (backgroundMusicRef.current && gameState === 'ended') {
+                if (backgroundMusicRef.current && gameState === 'playing') {
                   backgroundMusicRef.current.play().catch(() => {
                     // Final attempt failed - that's okay
                   });
@@ -288,13 +288,65 @@ export default function CashStackGame3D({
         // Audio failed - game continues normally
         console.warn('⚠️ [CashStackGame3D] Audio play failed (non-critical)');
       }
-    } else if (gameState !== 'ended' && backgroundMusicRef.current) {
-      // Stop music when game is not ended
+    } else if (gameState !== 'playing' && backgroundMusicRef.current) {
+      // Stop music when game is not playing
       try {
         backgroundMusicRef.current.pause();
-        backgroundMusicRef.current.currentTime = 0; // Reset to beginning
+        if (gameState === 'ended') {
+          // Reset to beginning for next game
+          backgroundMusicRef.current.currentTime = 0;
+        }
       } catch (e) {
         // Ignore pause errors
+      }
+    }
+  }, [gameState]);
+  
+  // Play victory sound when game ends
+  const victorySoundRef = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    if (gameState === 'ended') {
+      // Play victory sound effect when game ends
+      try {
+        // Create a victory sound using Web Audio API (copyright-free)
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        
+        const ctx = audioContextRef.current;
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        // Victory fanfare: ascending notes
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C (C major chord)
+        let noteIndex = 0;
+        
+        const playNote = (frequency: number, time: number) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(frequency, ctx.currentTime + time);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime + time);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + time + 0.3);
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.start(ctx.currentTime + time);
+          osc.stop(ctx.currentTime + time + 0.3);
+        };
+        
+        // Play victory fanfare
+        notes.forEach((freq, i) => {
+          playNote(freq, i * 0.15);
+        });
+        
+        console.log('🎉 [CashStackGame3D] Victory sound played');
+      } catch (err) {
+        // Victory sound failed - game continues normally
+        console.warn('⚠️ [CashStackGame3D] Victory sound failed (non-critical)');
       }
     }
   }, [gameState]);
