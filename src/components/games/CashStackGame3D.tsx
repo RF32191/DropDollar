@@ -202,42 +202,49 @@ export default function CashStackGame3D({
   // Setup background music for completed game
   useEffect(() => {
     // Create audio element for cash-stack.mp3
-    const audio = new Audio('/cash-stack.mp3');
-    audio.loop = true;
-    audio.volume = 0.7; // Set volume to 70% for better audibility
-    audio.preload = 'auto'; // Preload the audio
-    
-    // Add error handling and logging
-    audio.addEventListener('error', (e) => {
-      console.error('❌ [CashStackGame3D] Audio file error:', e);
-      console.error('❌ [CashStackGame3D] Audio file path: /cash-stack.mp3');
-      console.error('❌ [CashStackGame3D] Audio error details:', {
-        error: audio.error,
-        networkState: audio.networkState,
-        readyState: audio.readyState
+    // Use try-catch to handle any initialization errors gracefully
+    try {
+      const audio = new Audio('/cash-stack.mp3');
+      audio.loop = true;
+      audio.volume = 0.7; // Set volume to 70% for better audibility
+      audio.preload = 'auto'; // Preload the audio
+      
+      // Add error handling and logging
+      audio.addEventListener('error', (e) => {
+        console.warn('⚠️ [CashStackGame3D] Audio file error (non-critical):', e);
+        // Don't break the game if audio fails - just log it
       });
-    });
-    
-    audio.addEventListener('loadeddata', () => {
-      console.log('✅ [CashStackGame3D] Background music loaded successfully');
-    });
-    
-    audio.addEventListener('canplaythrough', () => {
-      console.log('✅ [CashStackGame3D] Background music ready to play');
-    });
-    
-    // Try to load the audio immediately
-    audio.load().catch(err => {
-      console.warn('⚠️ [CashStackGame3D] Audio load failed:', err);
-    });
-    
-    backgroundMusicRef.current = audio;
+      
+      audio.addEventListener('loadeddata', () => {
+        console.log('✅ [CashStackGame3D] Background music loaded successfully');
+      });
+      
+      audio.addEventListener('canplaythrough', () => {
+        console.log('✅ [CashStackGame3D] Background music ready to play');
+      });
+      
+      backgroundMusicRef.current = audio;
+      
+      // Try to load the audio (but don't fail if it doesn't work)
+      if (audio.load) {
+        audio.load().catch(() => {
+          // Silently fail - audio is optional
+        });
+      }
+    } catch (err) {
+      console.warn('⚠️ [CashStackGame3D] Could not initialize audio (non-critical):', err);
+      // Game continues to work without audio
+    }
     
     // Cleanup on unmount
     return () => {
       if (backgroundMusicRef.current) {
-        backgroundMusicRef.current.pause();
-        backgroundMusicRef.current.src = '';
+        try {
+          backgroundMusicRef.current.pause();
+          backgroundMusicRef.current.src = '';
+        } catch (e) {
+          // Ignore cleanup errors
+        }
         backgroundMusicRef.current = null;
       }
     };
@@ -246,52 +253,49 @@ export default function CashStackGame3D({
   // Play background music when game is completed
   useEffect(() => {
     if (gameState === 'ended' && backgroundMusicRef.current) {
-      console.log('🎵 [CashStackGame3D] Game ended - attempting to play background music');
-      console.log('🎵 [CashStackGame3D] Audio state:', {
-        readyState: backgroundMusicRef.current.readyState,
-        networkState: backgroundMusicRef.current.networkState,
-        paused: backgroundMusicRef.current.paused,
-        currentTime: backgroundMusicRef.current.currentTime
-      });
-      
-      // Ensure audio is loaded
-      if (backgroundMusicRef.current.readyState < 2) {
-        console.log('🔄 [CashStackGame3D] Audio not ready, loading...');
-        backgroundMusicRef.current.load();
-      }
-      
-      // Play music on loop when game ends
-      const playPromise = backgroundMusicRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('✅ [CashStackGame3D] Background music started playing');
-            console.log('✅ [CashStackGame3D] Audio is now playing:', !backgroundMusicRef.current?.paused);
-          })
-          .catch(err => {
-            console.error('❌ [CashStackGame3D] Could not play background music:', err);
-            console.error('❌ [CashStackGame3D] Error details:', {
-              name: err.name,
-              message: err.message,
-              code: (err as any).code
-            });
-            
-            // Try again after a short delay (sometimes helps with autoplay policies)
-            setTimeout(() => {
-              if (backgroundMusicRef.current && gameState === 'ended') {
-                console.log('🔄 [CashStackGame3D] Retrying audio play...');
-                backgroundMusicRef.current.play().catch(retryErr => {
-                  console.error('❌ [CashStackGame3D] Retry also failed:', retryErr);
-                });
-              }
-            }, 500);
+      // Silently try to play music - don't break game if it fails
+      try {
+        const audio = backgroundMusicRef.current;
+        
+        // Ensure audio is loaded
+        if (audio.readyState < 2 && audio.load) {
+          audio.load().catch(() => {
+            // Ignore load errors
           });
+        }
+        
+        // Play music on loop when game ends
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('✅ [CashStackGame3D] Background music started playing');
+            })
+            .catch(() => {
+              // Silently fail - audio is optional, game continues
+              // Try again after a short delay
+              setTimeout(() => {
+                if (backgroundMusicRef.current && gameState === 'ended') {
+                  backgroundMusicRef.current.play().catch(() => {
+                    // Final attempt failed - that's okay
+                  });
+                }
+              }, 500);
+            });
+        }
+      } catch (err) {
+        // Audio failed - game continues normally
+        console.warn('⚠️ [CashStackGame3D] Audio play failed (non-critical)');
       }
     } else if (gameState !== 'ended' && backgroundMusicRef.current) {
       // Stop music when game is not ended
-      backgroundMusicRef.current.pause();
-      backgroundMusicRef.current.currentTime = 0; // Reset to beginning
+      try {
+        backgroundMusicRef.current.pause();
+        backgroundMusicRef.current.currentTime = 0; // Reset to beginning
+      } catch (e) {
+        // Ignore pause errors
+      }
     }
   }, [gameState]);
 
@@ -689,21 +693,24 @@ export default function CashStackGame3D({
     }
   }, [gameState, createBlock, playSound]);
 
-  // Unlock audio on first user interaction
+  // Unlock audio on first user interaction (optional - game works without it)
   const audioUnlockedRef = useRef(false);
   const unlockAudio = useCallback(() => {
-    if (audioUnlockedRef.current) return;
+    if (audioUnlockedRef.current || !backgroundMusicRef.current) return;
     audioUnlockedRef.current = true;
     
     // Try to play and immediately pause to unlock audio context
-    if (backgroundMusicRef.current) {
+    try {
       backgroundMusicRef.current.play().then(() => {
-        backgroundMusicRef.current?.pause();
-        backgroundMusicRef.current!.currentTime = 0;
-        console.log('✅ [CashStackGame3D] Audio context unlocked');
-      }).catch(err => {
-        console.warn('⚠️ [CashStackGame3D] Could not unlock audio:', err);
+        if (backgroundMusicRef.current) {
+          backgroundMusicRef.current.pause();
+          backgroundMusicRef.current.currentTime = 0;
+        }
+      }).catch(() => {
+        // Silently fail - audio unlock is optional
       });
+    } catch (e) {
+      // Ignore errors - game continues normally
     }
   }, []);
 
