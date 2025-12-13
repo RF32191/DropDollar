@@ -37,6 +37,13 @@ interface Attack {
   hitType?: string; // Track the type of hit for visual feedback
 }
 
+interface Bomb {
+  id: number;
+  x: number;
+  y: number;
+  destroyed: boolean;
+}
+
 export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: SwordParryGameProps) {
   // DON'T use pre-generated configs - causes gameplay issues (stacking swords)
   // Instead, use rngSeed to initialize engine for runtime generation
@@ -44,6 +51,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [attacks, setAttacks] = useState<Attack[]>([]);
+  const [bombs, setBombs] = useState<Bomb[]>([]);
+  const [hearts, setHearts] = useState(3);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -347,6 +356,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           // Add all attacks at once
           setAttacks(prev => [...prev, ...newAttacks]);
           setTotalCount(prev => prev + newAttacks.length);
+          
+          // Spawn bombs occasionally (15% chance per spawn cycle)
+          if (seededRng.next() < 0.15) {
+            const newBomb: Bomb = {
+              id: now + seededRng.next() * 1000,
+              x: seededRng.nextFloat(10, 90),
+              y: seededRng.nextFloat(10, 90),
+              destroyed: false
+            };
+            setBombs(prev => [...prev, newBomb]);
+          }
+          
           lastSpawn.current = now;
         }
       } else {
@@ -368,6 +389,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             setAttacks(prev => [...prev, newAttack]);
             setTotalCount(prev => prev + 1);
           }
+          
+          // Spawn bombs occasionally (15% chance per spawn cycle)
+          if (Math.random() < 0.15) {
+            const newBomb: Bomb = {
+              id: now + Math.random() * 1000,
+              x: Math.random() * 80 + 10,
+              y: Math.random() * 80 + 10,
+              destroyed: false
+            };
+            setBombs(prev => [...prev, newBomb]);
+          }
+          
           lastSpawn.current = now;
         }
       }
@@ -380,6 +413,12 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           endGame();
           return false;
         }
+        return age < 6000; // Keep for 1 extra second after destruction
+      }));
+      
+      // Remove old bombs after 5 seconds
+      setBombs(prev => prev.filter(bomb => {
+        const age = now - bomb.id;
         return age < 6000; // Keep for 1 extra second after destruction
       }));
 
@@ -469,8 +508,87 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     performAttack(clickX, clickY);
   };
 
+  // Play bomb explosion sound using Web Audio API
+  const playBombExplosion = () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      
+      // Create explosion sound with multiple frequencies (low rumble)
+      const frequencies = [80, 60, 40];
+      frequencies.forEach((freq, i) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.frequency.value = freq;
+        oscillator.type = 'sawtooth';
+        gainNode.gain.setValueAtTime(0.6, ctx.currentTime + i * 0.05); // Louder explosion
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.4);
+        oscillator.start(ctx.currentTime + i * 0.05);
+        oscillator.stop(ctx.currentTime + i * 0.05 + 0.4);
+      });
+      console.log('💣 [SwordParryGameSimple] Bomb explosion sound played');
+    } catch (e) {
+      console.error('💣 [SwordParryGameSimple] Bomb explosion sound error:', e);
+    }
+  };
+
   // Unified attack logic for both mouse and touch
   const performAttack = (clickX: number, clickY: number) => {
+    // Check for bombs first - only perfect hits explode bombs
+    let bombHit = false;
+    setBombs(prev => prev.map(bomb => {
+      if (bomb.destroyed || bombHit) return bomb;
+      
+      const distance = Math.sqrt(
+        Math.pow(bomb.x - clickX, 2) + Math.pow(bomb.y - clickY, 2)
+      );
+      
+      // Only perfect hits (distance < 3) explode bombs
+      if (distance < 3) {
+        bombHit = true;
+        
+        // Play bomb explosion sound
+        playBombExplosion();
+        
+        // Lose a heart
+        setHearts(prevHearts => {
+          const newHearts = Math.max(0, prevHearts - 1);
+          console.log(`💣 Bomb exploded! Hearts: ${prevHearts} -> ${newHearts}`);
+          
+          // End game if no hearts left
+          if (newHearts <= 0) {
+            console.log('💣 All hearts lost! Game Over!');
+            setTimeout(() => {
+              endGame();
+            }, 500);
+          }
+          
+          return newHearts;
+        });
+        
+        // Lose 100 points
+        setScore(currentScore => {
+          const newScore = Math.max(0, Number((currentScore - 100).toFixed(2)));
+          currentScoreRef.current = newScore;
+          console.log(`💣 Bomb hit! Score: ${currentScore} - 100 = ${newScore}`);
+          return newScore;
+        });
+        
+        return { ...bomb, destroyed: true };
+      }
+      
+      return bomb;
+    }));
+    
+    // If bomb was hit, don't check for attacks
+    if (bombHit) {
+      return;
+    }
+    
     // Check for hits with accuracy-based bonus points
     let hitDetected = false;
     setAttacks(prev => prev.map(attack => {
@@ -531,7 +649,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     }));
     
     // Play miss sound if no hit was detected
-    if (!hitDetected) {
+    if (!hitDetected && !bombHit) {
       playSwordMiss();
     }
   };
@@ -748,6 +866,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             <div className="text-green-300 font-bold">🎯 {score.toFixed(0)}</div>
             <div className="text-blue-300 font-bold">{destroyedCount}/{totalCount}</div>
             <div className="text-purple-300 font-bold">Lv {Math.floor((60 - timeLeft) / 10) + 1}/6</div>
+            <div className="text-red-300 font-bold flex items-center gap-1">
+              ❤️ {Array.from({ length: 3 }).map((_, i) => (
+                <span key={i} className={i < hearts ? 'text-red-500' : 'text-gray-500'}>❤️</span>
+              ))}
+            </div>
             {!isCompetitionMode && onExit && (
               <button 
                 onClick={onExit}
@@ -780,6 +903,39 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
+          {/* Bombs */}
+          {bombs.map((bomb) => (
+            <div
+              key={bomb.id}
+              className={`absolute w-10 h-10 rounded-full transition-all duration-200 ${
+                bomb.destroyed 
+                  ? 'bg-gradient-to-br from-orange-400 to-red-600 animate-ping border-4 border-orange-200'
+                  : 'bg-gradient-to-br from-gray-700 to-gray-900 border-2 border-red-500 animate-pulse'
+              }`}
+              style={{
+                left: `${bomb.x}%`,
+                top: `${bomb.y}%`,
+                transform: 'translate(-50%, -50%)',
+                boxShadow: bomb.destroyed 
+                  ? '0 0 50px rgba(255, 100, 0, 1), 0 0 100px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.3)'
+                  : '0 0 30px rgba(239, 68, 68, 1), 0 0 60px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(255, 0, 0, 0.2)',
+                zIndex: 11,
+                filter: bomb.destroyed ? 'brightness(1.5) contrast(1.2)' : 'brightness(1.1)'
+              }}
+            >
+              {!bomb.destroyed && (
+                <div className="absolute inset-0 flex items-center justify-center text-white text-lg font-bold">
+                  💣
+                </div>
+              )}
+              {bomb.destroyed && (
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white bg-black/50 px-2 py-1 rounded animate-bounce">
+                  💥 BOOM! -100 ❤️
+                </div>
+              )}
+            </div>
+          ))}
+          
           {/* Attacks */}
           {attacks.map((attack) => (
             <div
