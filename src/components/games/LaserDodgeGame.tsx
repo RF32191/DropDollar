@@ -1029,6 +1029,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   // Start game
   const handleStartGame = () => {
+    // Unlock audio on user interaction (clicking start)
+    unlockAudio();
+    
     setCountdown(5);
     setGameState('countdown');
   };
