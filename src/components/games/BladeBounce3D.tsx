@@ -131,7 +131,6 @@ export default function BladeBounce3D({
   const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const lastClickTimeRef = useRef<number>(0); // For click debouncing
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
-  const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   
   // In competition mode, skip ready screen and countdown - start playing immediately
@@ -1112,6 +1111,9 @@ export default function BladeBounce3D({
 
   // Start game
   const startGame = useCallback(() => {
+    // Unlock audio on user interaction (clicking start)
+    unlockAudio();
+    
     if (gameState === 'ready') {
       setGameState('countdown');
       let count = 3;
@@ -1136,7 +1138,7 @@ export default function BladeBounce3D({
         }
       }, 1000);
     }
-  }, [gameState, playSound]);
+  }, [gameState, playSound, unlockAudio]);
 
   // Initialize game start time for competition mode (starts immediately in 'playing' state)
   useEffect(() => {
