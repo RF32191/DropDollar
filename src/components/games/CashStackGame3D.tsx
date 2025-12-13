@@ -204,13 +204,18 @@ export default function CashStackGame3D({
     // Create audio element for cash-stack.mp3
     const audio = new Audio('/cash-stack.mp3');
     audio.loop = true;
-    audio.volume = 0.5; // Set volume to 50%
+    audio.volume = 0.7; // Set volume to 70% for better audibility
+    audio.preload = 'auto'; // Preload the audio
     
     // Add error handling and logging
     audio.addEventListener('error', (e) => {
       console.error('❌ [CashStackGame3D] Audio file error:', e);
       console.error('❌ [CashStackGame3D] Audio file path: /cash-stack.mp3');
-      console.error('❌ [CashStackGame3D] Make sure cash-stack.mp3 exists in the public folder');
+      console.error('❌ [CashStackGame3D] Audio error details:', {
+        error: audio.error,
+        networkState: audio.networkState,
+        readyState: audio.readyState
+      });
     });
     
     audio.addEventListener('loadeddata', () => {
@@ -221,12 +226,18 @@ export default function CashStackGame3D({
       console.log('✅ [CashStackGame3D] Background music ready to play');
     });
     
+    // Try to load the audio immediately
+    audio.load().catch(err => {
+      console.warn('⚠️ [CashStackGame3D] Audio load failed:', err);
+    });
+    
     backgroundMusicRef.current = audio;
     
     // Cleanup on unmount
     return () => {
       if (backgroundMusicRef.current) {
         backgroundMusicRef.current.pause();
+        backgroundMusicRef.current.src = '';
         backgroundMusicRef.current = null;
       }
     };
@@ -236,17 +247,47 @@ export default function CashStackGame3D({
   useEffect(() => {
     if (gameState === 'ended' && backgroundMusicRef.current) {
       console.log('🎵 [CashStackGame3D] Game ended - attempting to play background music');
-      // Play music on loop when game ends
-      backgroundMusicRef.current.play().then(() => {
-        console.log('✅ [CashStackGame3D] Background music started playing');
-      }).catch(err => {
-        console.error('❌ [CashStackGame3D] Could not play background music:', err);
-        console.error('❌ [CashStackGame3D] Error details:', {
-          name: err.name,
-          message: err.message,
-          code: (err as any).code
-        });
+      console.log('🎵 [CashStackGame3D] Audio state:', {
+        readyState: backgroundMusicRef.current.readyState,
+        networkState: backgroundMusicRef.current.networkState,
+        paused: backgroundMusicRef.current.paused,
+        currentTime: backgroundMusicRef.current.currentTime
       });
+      
+      // Ensure audio is loaded
+      if (backgroundMusicRef.current.readyState < 2) {
+        console.log('🔄 [CashStackGame3D] Audio not ready, loading...');
+        backgroundMusicRef.current.load();
+      }
+      
+      // Play music on loop when game ends
+      const playPromise = backgroundMusicRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('✅ [CashStackGame3D] Background music started playing');
+            console.log('✅ [CashStackGame3D] Audio is now playing:', !backgroundMusicRef.current?.paused);
+          })
+          .catch(err => {
+            console.error('❌ [CashStackGame3D] Could not play background music:', err);
+            console.error('❌ [CashStackGame3D] Error details:', {
+              name: err.name,
+              message: err.message,
+              code: (err as any).code
+            });
+            
+            // Try again after a short delay (sometimes helps with autoplay policies)
+            setTimeout(() => {
+              if (backgroundMusicRef.current && gameState === 'ended') {
+                console.log('🔄 [CashStackGame3D] Retrying audio play...');
+                backgroundMusicRef.current.play().catch(retryErr => {
+                  console.error('❌ [CashStackGame3D] Retry also failed:', retryErr);
+                });
+              }
+            }, 500);
+          });
+      }
     } else if (gameState !== 'ended' && backgroundMusicRef.current) {
       // Stop music when game is not ended
       backgroundMusicRef.current.pause();
