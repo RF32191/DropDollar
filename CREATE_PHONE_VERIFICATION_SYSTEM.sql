@@ -159,13 +159,18 @@ BEGIN
   
   -- If no code found, increment attempts on most recent code (for security)
   IF code_record IS NULL THEN
+    -- Use subquery to get the most recent code ID, then update it
     UPDATE public.phone_verification_codes
     SET attempts = attempts + 1
-    WHERE phone_normalized = normalized_phone
-      AND verified = FALSE
-      AND expires_at > NOW()
-    ORDER BY created_at DESC
-    LIMIT 1;
+    WHERE id = (
+      SELECT id
+      FROM public.phone_verification_codes
+      WHERE phone_normalized = normalized_phone
+        AND verified = FALSE
+        AND expires_at > NOW()
+      ORDER BY created_at DESC
+      LIMIT 1
+    );
     RETURN FALSE;
   END IF;
   
