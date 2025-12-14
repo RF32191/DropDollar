@@ -9,6 +9,14 @@ export const metadata: Metadata = {
   description: 'Professional gaming marketplace with secure authentication and session management',
 }
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+}
+
 // Force dynamic rendering to prevent build timeouts
 export const dynamic = 'force-dynamic'
 

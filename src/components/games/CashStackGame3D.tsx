@@ -1306,12 +1306,24 @@ export default function CashStackGame3D({
       }
     };
     
+    // Handle touch events for mobile
+    const handleTouchInteraction = (event: TouchEvent) => {
+      event.preventDefault();
+      // Unlock audio on touch (critical for mobile)
+      if (!audioUnlockedRef.current) {
+        unlockAudio();
+      }
+      handleInteraction(event as any);
+    };
+    
     window.addEventListener('keydown', handleInteraction);
     window.addEventListener('click', handleInteraction);
+    window.addEventListener('touchstart', handleTouchInteraction, { passive: false });
     
     return () => {
       window.removeEventListener('keydown', handleInteraction);
       window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleTouchInteraction);
     };
   }, [gameState, startGame, handleStack, createParticles, playSound]);
 

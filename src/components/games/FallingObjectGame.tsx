@@ -599,6 +599,12 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
 
   const handleTouchMove = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault(); // Prevent scrolling
+    
+    // Unlock audio on touch interaction (critical for mobile)
+    if (!audioUnlockedRef.current) {
+      unlockAudio();
+    }
+    
     if (gameState !== 'playing') return;
     
     const gameArea = gameAreaRef.current;
@@ -615,7 +621,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     // INSTANT UPDATE - update both state and ref
     paddleXRef.current = boundedX;
     setPaddleX(boundedX);
-  }, [gameState]);
+  }, [gameState, unlockAudio]);
 
   // Handle paddle movement (keyboard) - SUPER FAST for 5X width
   useEffect(() => {
@@ -874,6 +880,10 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
               className="relative w-full h-full overflow-hidden cursor-none"
               style={{ 
                 touchAction: 'none',
+                WebkitTouchCallout: 'none', // Prevent iOS callout
+                WebkitUserSelect: 'none', // Prevent text selection
+                userSelect: 'none',
+                WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
                 background: `
                   radial-gradient(circle at 30% 20%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
                   radial-gradient(circle at 70% 80%, rgba(0, 255, 0, 0.1) 0%, transparent 50%),

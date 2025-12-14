@@ -1133,6 +1133,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
+    
+    // Unlock audio on touch interaction (critical for mobile)
+    if (!audioUnlockedRef.current) {
+      unlockAudio();
+    }
+    
     if (gameState !== 'playing') return;
     
     // Handle shooting on touch
@@ -1389,7 +1395,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 overflow-hidden"
       style={{ 
         touchAction: 'none',
-        cursor: 'crosshair'
+        cursor: 'crosshair',
+        WebkitTouchCallout: 'none', // Prevent iOS callout
+        WebkitUserSelect: 'none', // Prevent text selection
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
       }}
       onMouseMove={handleMouseMove}
       onClick={handleMouseClick}

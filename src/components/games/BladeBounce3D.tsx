@@ -1280,8 +1280,14 @@ export default function BladeBounce3D({
     };
     
     const handleTouchStart = (e: TouchEvent) => {
-      if (gameState !== 'playing') return;
       e.preventDefault();
+      
+      // Unlock audio on touch interaction (critical for mobile)
+      if (!audioUnlockedRef.current) {
+        unlockAudio();
+      }
+      
+      if (gameState !== 'playing') return;
       
       // Record input for server-side validation
       if (gameSession && gameStartTimeRef.current > 0) {
