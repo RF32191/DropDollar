@@ -93,6 +93,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const countdownRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
   const instantBonusRef = useRef(0); // Track accumulated instant bonuses from blue lasers
+  const enemyDestroyedPointsRef = useRef(0); // Track accumulated points from destroyed enemy ships
   const isGameRunningRef = useRef(false);
   const extremeModeTriggeredRef = useRef(false); // Track if extreme mode audio played
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
@@ -441,11 +442,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     }
     
-    // Add shooting bonus (enemies destroyed)
-    let shootingBonus = 0;
-    // This will be calculated when bullets hit enemies
+    // Add shooting bonus (enemies destroyed) - use ref for immediate persistent points
+    const shootingBonus = enemyDestroyedPointsRef.current;
     
-    // Calculate total score: base + instant bonuses + frame bonuses
+    // Calculate total score: base + instant bonuses + frame bonuses + enemy points
     const newScore = Number((baseScore + instantBonusRef.current + blueBonus + shootingBonus).toFixed(2));
     currentScoreRef.current = newScore;
     setScore(newScore);
@@ -845,11 +845,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               console.error('LaserDodge: Web Audio explosion sound failed:', fallbackError);
             }
             
-            // Award points immediately
-            collisionPoints += 100;
-            currentScoreRef.current += 100; // Update ref immediately
-            setScore(prev => Number((prev + 100).toFixed(2))); // Update state immediately
-            console.log('LaserDodge: Enemy destroyed! +100 points (awarded immediately)');
+            // Award points immediately - add to ref that persists across frames (like blue laser bonus)
+            enemyDestroyedPointsRef.current += 100; // Add 100 points IMMEDIATELY and PERMANENTLY
+            console.log('LaserDodge: 💥 Enemy destroyed! +100 points! Total enemy points:', enemyDestroyedPointsRef.current);
+            
+            // Force immediate score update
+            const currentBaseScore = Number((timeSinceStart / 50).toFixed(2));
+            const immediateScore = Number((currentBaseScore + instantBonusRef.current + enemyDestroyedPointsRef.current).toFixed(2));
+            currentScoreRef.current = immediateScore;
+            setScore(immediateScore);
           }
         }
       });
@@ -1169,6 +1173,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setScore(0);
     currentScoreRef.current = 0;
     instantBonusRef.current = 0; // Reset instant bonuses
+    enemyDestroyedPointsRef.current = 0; // Reset enemy destroyed points
     setLasers([]);
     setEnemyShips([]);
     setBullets([]);
