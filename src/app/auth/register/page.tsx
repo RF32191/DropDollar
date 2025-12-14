@@ -28,10 +28,33 @@ export default function SimpleRegisterPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // Format phone number on input
+    if (name === 'phone' && type === 'tel') {
+      // Allow user to type freely, but format on blur
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+  };
+
+  const handlePhoneBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const phoneValue = e.target.value;
+    if (phoneValue) {
+      const formatted = formatPhoneNumber(phoneValue);
+      if (formatted) {
+        setFormData(prev => ({
+          ...prev,
+          phone: formatted
+        }));
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
