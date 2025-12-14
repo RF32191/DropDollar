@@ -93,11 +93,13 @@ CREATE INDEX IF NOT EXISTS idx_phone_backup_created_at ON public.phone_number_ba
 ALTER TABLE public.phone_number_backup ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Users can view their own phone backups
+DROP POLICY IF EXISTS "Users can view own phone backup" ON public.phone_number_backup;
 CREATE POLICY "Users can view own phone backup" ON public.phone_number_backup
   FOR SELECT
   USING (auth.uid()::text = user_id::text);
 
 -- RLS Policy: Service role can insert/update phone backups
+DROP POLICY IF EXISTS "Service can manage phone backup" ON public.phone_number_backup;
 CREATE POLICY "Service can manage phone backup" ON public.phone_number_backup
   FOR ALL
   USING (true)

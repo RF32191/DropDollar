@@ -33,17 +33,20 @@ CREATE INDEX IF NOT EXISTS idx_phone_verification_expires ON public.phone_verifi
 ALTER TABLE public.phone_verification_codes ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Anyone can insert verification codes (for registration)
+DROP POLICY IF EXISTS "Anyone can create verification codes" ON public.phone_verification_codes;
 CREATE POLICY "Anyone can create verification codes" ON public.phone_verification_codes
   FOR INSERT
   WITH CHECK (true);
 
 -- RLS Policy: Anyone can verify codes (for registration)
+DROP POLICY IF EXISTS "Anyone can verify codes" ON public.phone_verification_codes;
 CREATE POLICY "Anyone can verify codes" ON public.phone_verification_codes
   FOR UPDATE
   USING (true)
   WITH CHECK (true);
 
 -- RLS Policy: Service role can view all codes (for admin/debugging)
+DROP POLICY IF EXISTS "Service can view all codes" ON public.phone_verification_codes;
 CREATE POLICY "Service can view all codes" ON public.phone_verification_codes
   FOR SELECT
   USING (true);
