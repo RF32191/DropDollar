@@ -792,8 +792,6 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const bulletsHitEnemies: Set<string> = new Set();
     const enemiesToRemove: Set<string> = new Set();
     const newExplosions: Explosion[] = [];
-    let collisionPoints = 0;
-    
     // Detect all bullet-enemy collisions using current ref values
     bulletsRef.current.forEach(bullet => {
       enemyShipsRef.current.forEach(enemy => {
