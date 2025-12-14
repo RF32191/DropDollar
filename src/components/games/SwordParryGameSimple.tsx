@@ -612,7 +612,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       }
       const ctx = audioContextRef.current;
       
-      // Create explosion sound with multiple frequencies (low rumble)
+      // Create explosion sound with multiple frequencies (low rumble) - LOUDER
       const frequencies = [80, 60, 40];
       frequencies.forEach((freq, i) => {
         const oscillator = ctx.createOscillator();
@@ -621,10 +621,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
         gainNode.connect(ctx.destination);
         oscillator.frequency.value = freq;
         oscillator.type = 'sawtooth';
-        gainNode.gain.setValueAtTime(0.6, ctx.currentTime + i * 0.05); // Louder explosion
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.4);
+        gainNode.gain.setValueAtTime(0.9, ctx.currentTime + i * 0.05); // Much louder explosion (was 0.6, now 0.9)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.05 + 0.5);
         oscillator.start(ctx.currentTime + i * 0.05);
-        oscillator.stop(ctx.currentTime + i * 0.05 + 0.4);
+        oscillator.stop(ctx.currentTime + i * 0.05 + 0.5);
       });
       console.log('💣 [SwordParryGameSimple] Bomb explosion sound played');
     } catch (e) {
@@ -768,12 +768,15 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       
       // Lose a heart - update both ref and state IMMEDIATELY
       const previousHearts = heartsRef.current;
-      heartsRef.current = Math.max(0, heartsRef.current - 1);
-      const newHearts = heartsRef.current;
+      const newHearts = Math.max(0, previousHearts - 1);
+      heartsRef.current = newHearts;
       
-      // Force immediate state update
+      // Force immediate state update with explicit value
       setHearts(newHearts);
       console.log(`💣 Bomb exploded! Hearts: ${previousHearts} -> ${newHearts}`);
+      
+      // Force a re-render by updating a dummy state if needed
+      // The setHearts should work, but let's ensure it does
       
       // Lose 100 points - update both ref and state IMMEDIATELY
       const currentScore = currentScoreRef.current;
