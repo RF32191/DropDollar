@@ -1121,6 +1121,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
           style={{
             cursor: 'url("/SWORD.png") 32 32, crosshair', // Bigger cursor with larger hotspot
             touchAction: 'none', // Prevent default touch behaviors
+            WebkitTouchCallout: 'none', // Prevent iOS callout
+            WebkitUserSelect: 'none', // Prevent text selection
+            userSelect: 'none',
+            WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
             background: `
               radial-gradient(circle at 20% 20%, rgba(255, 0, 0, 0.1) 0%, transparent 50%),
               radial-gradient(circle at 80% 80%, rgba(255, 165, 0, 0.1) 0%, transparent 50%),
