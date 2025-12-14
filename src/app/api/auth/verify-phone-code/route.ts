@@ -18,6 +18,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate code format
+    if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+      return NextResponse.json(
+        { success: false, message: 'Verification code must be 6 digits' },
+        { status: 400 }
+      );
+    }
+
     // Validate and format phone number
     const validation = validatePhoneNumber(phone);
     if (!validation.valid) {
@@ -29,68 +37,30 @@ export async function POST(request: NextRequest) {
 
     const formattedPhone = validation.formatted!;
 
-    // Use Twilio Verify API if available
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+    // Verify code using database function
+    const { data: verified, error: verifyError } = await supabase
+      .rpc('verify_phone_code', {
+        phone_param: formattedPhone,
+        code_param: code
+      });
 
-    if (accountSid && authToken && serviceSid) {
-      try {
-        const url = `https://verify.twilio.com/v2/Services/${serviceSid}/VerificationCheck`;
-        const body = new URLSearchParams({
-          To: formattedPhone,
-          Code: code
-        });
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body
-        });
-
-        const json = await res.json().catch(() => ({}));
-        
-        if (!res.ok) {
-          return NextResponse.json(
-            { success: false, message: json.message || 'Verification failed' },
-            { status: 400 }
-          );
-        }
-
-        if (json.status === 'approved') {
-          return NextResponse.json({
-            success: true,
-            message: 'Phone number verified successfully',
-            phone: formattedPhone
-          });
-        }
-
-        return NextResponse.json(
-          { success: false, message: 'Invalid verification code' },
-          { status: 400 }
-        );
-      } catch (error: any) {
-        console.error('Twilio verify error:', error);
-        return NextResponse.json(
-          { success: false, message: 'Failed to verify code. Please try again.' },
-          { status: 500 }
-        );
-      }
-    } else {
-      // Development mode - accept any 6-digit code
-      if (code.length === 6 && /^\d+$/.test(code)) {
-        return NextResponse.json({
-          success: true,
-          message: 'Phone number verified (dev mode)',
-          phone: formattedPhone
-        });
-      }
-
+    if (verifyError) {
+      console.error('Verify code error:', verifyError);
       return NextResponse.json(
-        { success: false, message: 'Invalid verification code' },
+        { success: false, message: 'Failed to verify code. Please try again.' },
+        { status: 500 }
+      );
+    }
+
+    if (verified) {
+      return NextResponse.json({
+        success: true,
+        message: 'Phone number verified successfully',
+        phone: formattedPhone
+      });
+    } else {
+      return NextResponse.json(
+        { success: false, message: 'Invalid verification code or code expired. Please request a new code.' },
         { status: 400 }
       );
     }

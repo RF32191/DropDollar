@@ -48,6 +48,20 @@ export async function POST(request: NextRequest) {
     const formattedPhone = phoneValidation.formatted!;
     const normalizedPhone = normalizePhoneNumber(phone);
 
+    // Verify phone number has been verified
+    const { data: phoneVerified, error: verifyCheckError } = await supabase
+      .rpc('is_phone_verified', { phone_param: formattedPhone });
+
+    if (verifyCheckError) {
+      console.error('Phone verification check error:', verifyCheckError);
+      // Continue but log the error
+    } else if (!phoneVerified) {
+      return NextResponse.json(
+        { message: 'Phone number must be verified before creating an account. Please verify your phone number first.' },
+        { status: 400 }
+      );
+    }
+
     // Check if email already exists
     const { data: existingEmail } = await supabase
       .from('users')
