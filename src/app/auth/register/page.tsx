@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { validateDateOfBirth, MINIMUM_AGE } from '@/lib/legalConstants';
+import { formatPhoneNumber, validatePhoneNumber } from '@/lib/utils/phoneFormatter';
 
 export default function SimpleRegisterPage() {
   const [formData, setFormData] = useState({
@@ -368,6 +369,7 @@ export default function SimpleRegisterPage() {
                 type="tel"
                 value={formData.phone}
                 onChange={handleInputChange}
+                onBlur={handlePhoneBlur}
                 required
                 className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
                 placeholder="+1 (555) 123-4567"

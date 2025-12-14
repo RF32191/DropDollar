@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { formatPhoneNumber, validatePhoneNumber, normalizePhoneNumber } from '@/lib/utils/phoneFormatter';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -28,6 +29,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate and format phone number
+    if (!phone || phone.trim() === '') {
+      return NextResponse.json(
+        { message: 'Phone number is required for account security and identity verification' },
+        { status: 400 }
+      );
+    }
+
+    const phoneValidation = validatePhoneNumber(phone);
+    if (!phoneValidation.valid) {
+      return NextResponse.json(
+        { message: phoneValidation.error || 'Invalid phone number format' },
+        { status: 400 }
+      );
+    }
+
+    const formattedPhone = phoneValidation.formatted!;
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    // Check if email already exists
+    const { data: existingEmail } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .single();
+
+    if (existingEmail) {
+      return NextResponse.json(
+        { message: 'An account with this email address already exists. Please use a different email or try signing in.' },
+        { status: 400 }
+      );
+    }
+
     // Check if username is already taken
     const { data: existingUsername } = await supabase
       .from('users')
@@ -40,6 +74,27 @@ export async function POST(request: NextRequest) {
         { message: 'Username is already taken' },
         { status: 400 }
       );
+    }
+
+    // Check if phone number already exists (check normalized version)
+    const { data: existingPhones } = await supabase
+      .from('users')
+      .select('id, phone')
+      .not('phone', 'is', null);
+
+    if (existingPhones) {
+      const phoneExists = existingPhones.some((user: any) => {
+        if (!user.phone) return false;
+        const existingNormalized = normalizePhoneNumber(user.phone);
+        return existingNormalized === normalizedPhone;
+      });
+
+      if (phoneExists) {
+        return NextResponse.json(
+          { message: 'This phone number is already registered. Please use a different phone number or try signing in.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Create user with Supabase Auth
@@ -82,15 +137,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user profile in users table
+    // Create user profile in users table with formatted phone number
     const { error: profileError } = await supabase
       .from('users')
       .insert({
         id: authData.user.id,
-        email,
+        email: email.toLowerCase().trim(),
         username,
         full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
-        phone: phone || null,
+        phone: formattedPhone, // Use formatted phone number
         location: location || null,
         tokens: 10, // Welcome bonus
         is_verified: false,
@@ -101,6 +156,37 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
+      
+      // Check if it's a duplicate phone number error
+      if (profileError.code === '23505' && profileError.message.includes('phone')) {
+        // Clean up auth user since profile creation failed
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup auth user:', cleanupError);
+        }
+        
+        return NextResponse.json(
+          { message: 'This phone number is already registered. Please use a different phone number or try signing in.' },
+          { status: 400 }
+        );
+      }
+      
+      // Check if it's a duplicate email error
+      if (profileError.code === '23505' && profileError.message.includes('email')) {
+        // Clean up auth user since profile creation failed
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup auth user:', cleanupError);
+        }
+        
+        return NextResponse.json(
+          { message: 'An account with this email address already exists. Please use a different email or try signing in.' },
+          { status: 400 }
+        );
+      }
+      
       // Note: Auth user was created but profile failed
       // The trigger might handle this or we can clean up manually
     }
