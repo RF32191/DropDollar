@@ -202,8 +202,14 @@ export default function SimpleRegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col justify-center py-4 sm:py-12 px-4 sm:px-6 lg:px-8"
+      style={{
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation'
+      }}
+    >
+      <div className="mx-auto w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center group">
             <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center mr-3 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
@@ -217,7 +223,7 @@ export default function SimpleRegisterPage() {
           </Link>
         </div>
 
-        <div className="bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-700">
+        <div className="bg-gray-800 py-6 sm:py-8 px-4 sm:px-6 lg:px-10 shadow-2xl rounded-lg border border-gray-700">
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-white text-center">
               Create your account
@@ -233,13 +239,13 @@ export default function SimpleRegisterPage() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="rounded-md bg-red-900 p-4">
-                <div className="flex">
+                <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    <ExclamationTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+                    <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mt-0.5" aria-hidden="true" />
                   </div>
-                  <div className="ml-3">
+                  <div className="ml-3 flex-1">
                     <h3 className="text-sm font-medium text-red-200">Registration failed</h3>
-                    <div className="mt-2 text-sm text-red-300">
+                    <div className="mt-2 text-sm text-red-300 break-words">
                       <p>{error}</p>
                     </div>
                   </div>
@@ -247,35 +253,39 @@ export default function SimpleRegisterPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-300">
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">
                   First name *
                 </label>
                 <input
                   id="firstName"
                   name="firstName"
                   type="text"
+                  autoComplete="given-name"
                   required
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                  className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                  style={{ fontSize: '16px' }} // Prevent zoom on iOS
                   placeholder="John"
                   disabled={isSubmitting}
                 />
               </div>
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-300">
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-300 mb-1">
                   Last name *
                 </label>
                 <input
                   id="lastName"
                   name="lastName"
                   type="text"
+                  autoComplete="family-name"
                   required
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                  className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                  style={{ fontSize: '16px' }} // Prevent zoom on iOS
                   placeholder="Doe"
                   disabled={isSubmitting}
                 />
@@ -283,24 +293,26 @@ export default function SimpleRegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-1">
                 Username *
               </label>
               <input
                 id="username"
                 name="username"
                 type="text"
+                autoComplete="username"
                 required
                 value={formData.username}
                 onChange={handleInputChange}
-                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                style={{ fontSize: '16px' }} // Prevent zoom on iOS
                 placeholder="johndoe"
                 disabled={isSubmitting}
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
                 Email address *
               </label>
               <input
@@ -308,17 +320,19 @@ export default function SimpleRegisterPage() {
                 name="email"
                 type="email"
                 autoComplete="email"
+                inputMode="email"
                 required
                 value={formData.email}
                 onChange={handleInputChange}
-                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                style={{ fontSize: '16px' }} // Prevent zoom on iOS
                 placeholder="you@example.com"
                 disabled={isSubmitting}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
                 Password *
               </label>
               <div className="mt-1 relative">
@@ -330,27 +344,30 @@ export default function SimpleRegisterPage() {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                  className="appearance-none block w-full px-4 py-3 pr-12 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                  style={{ fontSize: '16px' }} // Prevent zoom on iOS
                   placeholder="••••••••"
                   disabled={isSubmitting}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-200 touch-manipulation"
+                  style={{ minWidth: '44px', minHeight: '44px' }} // Mobile touch target
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isSubmitting}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
+                    <EyeSlashIcon className="h-6 w-6" />
                   ) : (
-                    <EyeIcon className="h-5 w-5" />
+                    <EyeIcon className="h-6 w-6" />
                   )}
                 </button>
               </div>
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1">
                 Confirm password *
               </label>
               <div className="mt-1 relative">
@@ -362,20 +379,23 @@ export default function SimpleRegisterPage() {
                   required
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                  className="appearance-none block w-full px-4 py-3 pr-12 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                  style={{ fontSize: '16px' }} // Prevent zoom on iOS
                   placeholder="••••••••"
                   disabled={isSubmitting}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-200 touch-manipulation"
+                  style={{ minWidth: '44px', minHeight: '44px' }} // Mobile touch target
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   disabled={isSubmitting}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
+                    <EyeSlashIcon className="h-6 w-6" />
                   ) : (
-                    <EyeIcon className="h-5 w-5" />
+                    <EyeIcon className="h-6 w-6" />
                   )}
                 </button>
               </div>
@@ -404,7 +424,7 @@ export default function SimpleRegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-300 mb-1">
                 Date of Birth <span className="text-red-400">*</span>
                 <span className="text-xs text-gray-400 ml-2">(Must be 18+ to participate)</span>
               </label>
@@ -416,7 +436,8 @@ export default function SimpleRegisterPage() {
                 onChange={handleInputChange}
                 required
                 max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                style={{ fontSize: '16px' }} // Prevent zoom on iOS
                 disabled={isSubmitting}
               />
               <p className="mt-1 text-xs text-gray-400">
@@ -425,32 +446,35 @@ export default function SimpleRegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-300">
+              <label htmlFor="location" className="block text-sm font-medium text-gray-300 mb-1">
                 Location
               </label>
               <input
                 id="location"
                 name="location"
                 type="text"
+                autoComplete="address-level2"
                 value={formData.location}
                 onChange={handleInputChange}
-                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                style={{ fontSize: '16px' }} // Prevent zoom on iOS
                 placeholder="New York, NY"
                 disabled={isSubmitting}
               />
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-start">
               <input
                 id="marketingConsent"
                 name="marketingConsent"
                 type="checkbox"
                 checked={formData.marketingConsent}
                 onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
+                className="h-5 w-5 mt-0.5 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 flex-shrink-0"
+                style={{ minWidth: '20px', minHeight: '20px' }} // Mobile touch target
                 disabled={isSubmitting}
               />
-              <label htmlFor="marketingConsent" className="ml-2 block text-sm text-gray-300">
+              <label htmlFor="marketingConsent" className="ml-3 block text-sm text-gray-300">
                 I agree to receive marketing emails and updates
               </label>
             </div>
@@ -466,7 +490,8 @@ export default function SimpleRegisterPage() {
                     type="checkbox"
                     checked={formData.agreeToTerms}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1"
+                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1 flex-shrink-0"
+                    style={{ minWidth: '20px', minHeight: '20px' }} // Mobile touch target
                     disabled={isSubmitting}
                     required
                   />
@@ -507,7 +532,8 @@ export default function SimpleRegisterPage() {
                     type="checkbox"
                     checked={formData.agreeToPrivacy}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1"
+                    className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700 mt-1 flex-shrink-0"
+                    style={{ minWidth: '20px', minHeight: '20px' }} // Mobile touch target
                     disabled={isSubmitting}
                     required
                   />
@@ -544,12 +570,13 @@ export default function SimpleRegisterPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-md shadow-sm text-base sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation"
+                style={{ minHeight: '48px' }} // Mobile touch target (48px minimum)
               >
                 {isSubmitting ? (
                   <ArrowPathIcon className="h-5 w-5 animate-spin mr-2" />
                 ) : null}
-                Create account
+                {isSubmitting ? 'Creating account...' : 'Create account'}
               </button>
             </div>
           </form>
