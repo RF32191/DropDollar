@@ -514,11 +514,14 @@ export default function SimpleRegisterPage() {
                 id="phone"
                 name="phone"
                 type="tel"
+                autoComplete="tel"
+                inputMode="tel"
                 value={formData.phone}
                 onChange={handleInputChange}
                 onBlur={handlePhoneBlur}
                 required
-                className="mt-1 appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                className="mt-1 appearance-none block w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                style={{ fontSize: '16px' }} // Prevent zoom on iOS
                 placeholder="+1 (555) 123-4567"
                 disabled={isSubmitting}
               />
