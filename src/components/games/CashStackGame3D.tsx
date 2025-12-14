@@ -1401,7 +1401,16 @@ export default function CashStackGame3D({
   }, [gameState, score, totalStacks, explosions, playSound]);
 
   return (
-    <div className="relative w-full h-screen bg-[#0a1628] overflow-hidden">
+    <div 
+      className="relative w-full h-screen bg-[#0a1628] overflow-hidden"
+      style={{ 
+        touchAction: 'manipulation', // Optimize touch for mobile
+        WebkitTouchCallout: 'none', // Prevent iOS callout
+        WebkitUserSelect: 'none', // Prevent text selection
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
+      }}
+    >
       <div ref={containerRef} className="w-full h-full" />
       
       {/* HUD */}
