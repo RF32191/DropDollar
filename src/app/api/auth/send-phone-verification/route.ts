@@ -65,41 +65,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to send SMS via configured provider (optional)
-    const smsProvider = process.env.SMS_PROVIDER || 'none'; // 'twilio', 'aws', 'vonage', 'none'
+    // Try to send SMS via Twilio (if configured)
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+    const twilioFromNumber = process.env.TWILIO_FROM_NUMBER; // For regular SMS if Verify Service not available
     
-    if (smsProvider !== 'none') {
+    if (accountSid && authToken) {
       try {
-        // You can add your SMS provider here
-        // Example: AWS SNS, Vonage, etc.
-        const smsSent = await sendSMS(formattedPhone, code, smsProvider);
+        const smsSent = await sendTwilioSMS(formattedPhone, code, {
+          accountSid,
+          authToken,
+          verifyServiceSid,
+          fromNumber: twilioFromNumber
+        });
         
-        if (smsSent) {
+        if (smsSent.success) {
           return NextResponse.json({
             success: true,
             message: 'Verification code sent via SMS',
             phone: formattedPhone
           });
+        } else {
+          console.error('Twilio SMS error:', smsSent.error);
+          // Fall through to dev mode if SMS fails
         }
       } catch (smsError: any) {
         console.error('SMS send error:', smsError);
-        // Continue to dev mode fallback
+        // Fall through to dev mode if SMS fails
       }
     }
 
     // Development/fallback mode - return code for testing
-    // In production, you should configure an SMS provider
-    const isDevelopment = process.env.NODE_ENV === 'development' || smsProvider === 'none';
+    const isDevelopment = process.env.NODE_ENV === 'development' || !accountSid || !authToken;
     
     return NextResponse.json({
       success: true,
       message: isDevelopment 
-        ? 'Verification code generated (dev mode - check console/logs)' 
+        ? 'Verification code generated (dev mode - check response for code)' 
         : 'Verification code generated. SMS service not configured.',
       phone: formattedPhone,
       ...(isDevelopment && { 
         code, // Include code in dev mode for testing
-        note: 'In production, configure SMS_PROVIDER environment variable'
+        note: accountSid && authToken 
+          ? 'Twilio configured but SMS send failed. Check logs.' 
+          : 'Configure TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN for SMS delivery.'
       })
     });
   } catch (error: any) {
@@ -111,71 +121,95 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to send SMS via various providers
-async function sendSMS(phone: string, code: string, provider: string): Promise<boolean> {
-  switch (provider) {
-    case 'twilio':
-      // Twilio implementation (if you want to keep it as option)
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken = process.env.TWILIO_AUTH_TOKEN;
-      const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-      
-      if (accountSid && authToken && serviceSid) {
-        try {
-          const url = `https://verify.twilio.com/v2/Services/${serviceSid}/Verifications`;
-          const body = new URLSearchParams({
-            To: phone,
-            Channel: 'sms',
-            CustomCode: code // Use custom code instead of Twilio-generated
-          });
-
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body
-          });
-
-          return res.ok;
-        } catch (error) {
-          console.error('Twilio error:', error);
-          return false;
-        }
-      }
-      return false;
-
-    case 'aws':
-      // AWS SNS implementation (example)
-      // const AWS = require('aws-sdk');
-      // const sns = new AWS.SNS();
-      // await sns.publish({
-      //   PhoneNumber: phone,
-      //   Message: `Your verification code is: ${code}`
-      // }).promise();
-      // return true;
-      console.log('AWS SNS not implemented yet');
-      return false;
-
-    case 'vonage':
-      // Vonage/Nexmo implementation (example)
-      // const Vonage = require('@vonage/server-sdk');
-      // const vonage = new Vonage({
-      //   apiKey: process.env.VONAGE_API_KEY,
-      //   apiSecret: process.env.VONAGE_API_SECRET
-      // });
-      // await vonage.sms.send({
-      //   to: phone,
-      //   from: process.env.VONAGE_FROM_NUMBER,
-      //   text: `Your verification code is: ${code}`
-      // });
-      // return true;
-      console.log('Vonage not implemented yet');
-      return false;
-
-    default:
-      return false;
+// Helper function to send SMS via Twilio
+async function sendTwilioSMS(
+  phone: string, 
+  code: string, 
+  config: {
+    accountSid: string;
+    authToken: string;
+    verifyServiceSid?: string;
+    fromNumber?: string;
   }
+): Promise<{ success: boolean; error?: string }> {
+  const { accountSid, authToken, verifyServiceSid, fromNumber } = config;
+
+  // Option 1: Use Twilio Verify API (if Verify Service SID is configured)
+  if (verifyServiceSid) {
+    try {
+      const url = `https://verify.twilio.com/v2/Services/${verifyServiceSid}/Verifications`;
+      const body = new URLSearchParams({
+        To: phone,
+        Channel: 'sms',
+        CustomCode: code // Use our database-generated code
+      });
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
+      });
+
+      const responseData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.error('Twilio Verify API error:', responseData);
+        return { 
+          success: false, 
+          error: responseData.message || 'Failed to send via Twilio Verify API' 
+        };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Twilio Verify API error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Option 2: Use regular Twilio SMS API (if fromNumber is configured)
+  if (fromNumber) {
+    try {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+      const body = new URLSearchParams({
+        To: phone,
+        From: fromNumber,
+        Body: `Your DropDollar verification code is: ${code}. This code expires in 10 minutes.`
+      });
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
+      });
+
+      const responseData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.error('Twilio SMS API error:', responseData);
+        return { 
+          success: false, 
+          error: responseData.message || 'Failed to send SMS' 
+        };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Twilio SMS API error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Neither Verify Service nor From Number configured
+  return { 
+    success: false, 
+    error: 'Twilio Verify Service SID or From Number required' 
+  };
 }
 

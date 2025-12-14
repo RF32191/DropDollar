@@ -37,6 +37,15 @@ export async function POST(request: NextRequest) {
 
     const formattedPhone = validation.formatted!;
 
+    // If using Twilio Verify API, verify with Twilio first (optional)
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+
+    // If Twilio Verify Service is configured, we can optionally verify with Twilio
+    // But since we're using our own database codes, we'll verify via database
+    // Twilio is only used for sending SMS, not verification
+
     // Verify code using database function
     const { data: verified, error: verifyError } = await supabase
       .rpc('verify_phone_code', {
