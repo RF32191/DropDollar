@@ -1091,9 +1091,18 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             <div className="text-blue-300 font-bold">{destroyedCount}/{totalCount}</div>
             <div className="text-purple-300 font-bold">Lv {Math.floor((60 - timeLeft) / 10) + 1}/6</div>
             <div className="text-red-300 font-bold flex items-center gap-1">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <span key={i} className={i < hearts ? 'text-red-500' : 'text-gray-500'}>❤️</span>
-              ))}
+              {Array.from({ length: 3 }).map((_, i) => {
+                const isActive = i < hearts;
+                return (
+                  <span 
+                    key={`heart-${i}-${hearts}`} 
+                    className={isActive ? 'text-red-500' : 'text-gray-500'}
+                    style={{ opacity: isActive ? 1 : 0.3, transition: 'opacity 0.2s' }}
+                  >
+                    ❤️
+                  </span>
+                );
+              })}
             </div>
             {!isCompetitionMode && onExit && (
               <button 
