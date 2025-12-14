@@ -525,6 +525,93 @@ export default function SimpleRegisterPage() {
               <p className="mt-1 text-xs text-gray-400">
                 🔒 Your phone number is used for identity verification and account security
               </p>
+              
+              {/* Phone Verification Section */}
+              {formData.phone && validatePhoneNumber(formData.phone).valid && (
+                <div className="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                  {!phoneVerified ? (
+                    <>
+                      {!verificationSent ? (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={handleSendVerificationCode}
+                            disabled={isSendingCode || isSubmitting}
+                            className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ minHeight: '48px' }}
+                          >
+                            {isSendingCode ? (
+                              <>
+                                <ArrowPathIcon className="h-5 w-5 animate-spin inline mr-2" />
+                                Sending...
+                              </>
+                            ) : (
+                              '📱 Send Verification Code'
+                            )}
+                          </button>
+                          <p className="mt-2 text-xs text-gray-400 text-center">
+                            We'll send a 6-digit code via SMS to verify your phone number
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <label htmlFor="verificationCode" className="block text-sm font-medium text-gray-300 mb-1">
+                              Enter Verification Code *
+                            </label>
+                            <input
+                              id="verificationCode"
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={verificationCode}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                setVerificationCode(value);
+                              }}
+                              className="w-full px-4 py-3 text-base sm:text-sm border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white text-center text-2xl tracking-widest"
+                              style={{ fontSize: '16px' }}
+                              placeholder="000000"
+                              disabled={isVerifyingCode || isSubmitting}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleVerifyCode}
+                            disabled={isVerifyingCode || verificationCode.length !== 6 || isSubmitting}
+                            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ minHeight: '48px' }}
+                          >
+                            {isVerifyingCode ? (
+                              <>
+                                <ArrowPathIcon className="h-5 w-5 animate-spin inline mr-2" />
+                                Verifying...
+                              </>
+                            ) : (
+                              '✓ Verify Code'
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVerificationSent(false);
+                              setVerificationCode('');
+                            }}
+                            className="w-full py-2 px-4 text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                            disabled={isVerifyingCode || isSubmitting}
+                          >
+                            Resend Code
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center p-2 bg-green-900/30 border border-green-700 rounded-md">
+                      <span className="text-green-400 font-medium">✓ Phone Number Verified</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
