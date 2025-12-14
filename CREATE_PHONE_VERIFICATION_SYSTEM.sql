@@ -264,20 +264,36 @@ END $$;
 
 -- Note: This requires pg_cron extension. If not available, run cleanup manually or via cron job.
 
+-- Optional: Create scheduled cleanup job (requires pg_cron extension)
+-- If pg_cron is not available, this will be skipped gracefully
 DO $$ 
 BEGIN
-  -- Try to create a scheduled job (requires pg_cron extension)
-  BEGIN
-    PERFORM cron.schedule(
-      'cleanup-expired-phone-codes',
-      '0 * * * *', -- Every hour
-      $$SELECT public.cleanup_expired_verification_codes()$$
-    );
-    RAISE NOTICE '✅ Created scheduled cleanup job (requires pg_cron extension)';
-  EXCEPTION
-    WHEN OTHERS THEN
-      RAISE NOTICE '⚠️ Could not create scheduled job (pg_cron not available). Run cleanup manually or via external cron.';
-  END;
+  -- Check if pg_cron extension exists
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    -- Unschedule if exists
+    BEGIN
+      PERFORM cron.unschedule('cleanup-expired-phone-codes');
+    EXCEPTION
+      WHEN OTHERS THEN
+        NULL; -- Job doesn't exist, that's fine
+    END;
+    
+    -- Schedule cleanup job
+    BEGIN
+      PERFORM cron.schedule(
+        'cleanup-expired-phone-codes',
+        '0 * * * *', -- Every hour
+        'SELECT public.cleanup_expired_verification_codes()'
+      );
+      RAISE NOTICE '✅ Created scheduled cleanup job';
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE '⚠️ Could not schedule cleanup job: %', SQLERRM;
+    END;
+  ELSE
+    RAISE NOTICE '⚠️ pg_cron extension not available. Run cleanup manually or via external cron.';
+    RAISE NOTICE '   You can manually run: SELECT public.cleanup_expired_verification_codes();';
+  END IF;
 END $$;
 
 -- ============================================================================
