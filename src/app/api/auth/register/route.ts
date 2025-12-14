@@ -76,25 +76,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if phone number already exists (check normalized version)
-    const { data: existingPhones } = await supabase
-      .from('users')
-      .select('id, phone')
-      .not('phone', 'is', null);
+    // Check if phone number already exists using database function (more reliable)
+    const { data: phoneCheckResult, error: phoneCheckError } = await supabase
+      .rpc('is_phone_available', { phone_param: formattedPhone });
 
-    if (existingPhones) {
-      const phoneExists = existingPhones.some((user: any) => {
-        if (!user.phone) return false;
-        const existingNormalized = normalizePhoneNumber(user.phone);
-        return existingNormalized === normalizedPhone;
-      });
+    if (phoneCheckError) {
+      console.error('Phone check RPC error:', phoneCheckError);
+      // Fallback to manual check
+      const { data: existingPhones } = await supabase
+        .from('users')
+        .select('id, phone')
+        .not('phone', 'is', null)
+        .limit(10000); // Increased limit
 
-      if (phoneExists) {
-        return NextResponse.json(
-          { message: 'This phone number is already registered. Please use a different phone number or try signing in.' },
-          { status: 400 }
-        );
+      if (existingPhones) {
+        const phoneExists = existingPhones.some((user: any) => {
+          if (!user.phone) return false;
+          const existingNormalized = normalizePhoneNumber(user.phone);
+          return existingNormalized === normalizedPhone;
+        });
+
+        if (phoneExists) {
+          return NextResponse.json(
+            { message: 'This phone number is already registered. Please use a different phone number or try signing in.' },
+            { status: 400 }
+          );
+        }
       }
+    } else if (phoneCheckResult === false) {
+      return NextResponse.json(
+        { message: 'This phone number is already registered. Please use a different phone number or try signing in.' },
+        { status: 400 }
+      );
     }
 
     // Create user with Supabase Auth

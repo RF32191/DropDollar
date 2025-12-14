@@ -30,34 +30,31 @@ export async function POST(request: NextRequest) {
     const formattedPhone = validation.formatted!;
     const normalizedPhone = normalizePhoneNumber(phone);
 
-    // Check if phone exists in users table (check both formatted and normalized)
-    // First check with formatted phone
-    const { data: data1, error: error1 } = await supabase
-      .from('users')
-      .select('id')
-      .eq('phone', formattedPhone)
-      .single();
+    // Use database function for more reliable duplicate checking
+    const { data: phoneAvailable, error: rpcError } = await supabase
+      .rpc('is_phone_available', { phone_param: formattedPhone });
 
-    // Also check with normalized phone for any variations
-    const { data: data2, error: error2 } = await supabase
-      .from('users')
-      .select('id, phone')
-      .not('phone', 'is', null)
-      .limit(100); // Get a reasonable number to check
+    let exists = false;
+    
+    if (rpcError) {
+      console.error('Phone check RPC error:', rpcError);
+      // Fallback to manual check
+      const { data: existingPhones } = await supabase
+        .from('users')
+        .select('id, phone')
+        .not('phone', 'is', null)
+        .limit(10000); // Increased limit for better coverage
 
-    // Check if any existing phone matches normalized version
-    let exists = !!data1;
-    if (!exists && data2) {
-      exists = data2.some((user: any) => {
-        if (!user.phone) return false;
-        const existingNormalized = normalizePhoneNumber(user.phone);
-        return existingNormalized === normalizedPhone;
-      });
-    }
-
-    if (error1 && error1.code !== 'PGRST116' && error1.code !== 'PGRST116') {
-      // PGRST116 is "not found" error, which is expected
-      console.error('Phone check error:', error1);
+      if (existingPhones) {
+        exists = existingPhones.some((user: any) => {
+          if (!user.phone) return false;
+          const existingNormalized = normalizePhoneNumber(user.phone);
+          return existingNormalized === normalizedPhone;
+        });
+      }
+    } else {
+      // RPC returns true if available, false if taken
+      exists = phoneAvailable === false;
     }
 
     return NextResponse.json(

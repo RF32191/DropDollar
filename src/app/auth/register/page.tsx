@@ -25,6 +25,11 @@ export default function SimpleRegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -53,7 +58,91 @@ export default function SimpleRegisterPage() {
           ...prev,
           phone: formatted
         }));
+        // Reset verification when phone changes
+        setPhoneVerified(false);
+        setVerificationSent(false);
+        setVerificationCode('');
       }
+    }
+  };
+
+  const handleSendVerificationCode = async () => {
+    if (!formData.phone || formData.phone.trim() === '') {
+      setError('Please enter a phone number first.');
+      return;
+    }
+
+    const phoneValidation = validatePhoneNumber(formData.phone);
+    if (!phoneValidation.valid) {
+      setError(phoneValidation.error || 'Invalid phone number format');
+      return;
+    }
+
+    setIsSendingCode(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/send-phone-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone: formData.phone }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to send verification code');
+      }
+
+      setVerificationSent(true);
+      // In development, show the code
+      if (data.code) {
+        setError(`[DEV MODE] Verification code: ${data.code}`);
+      } else {
+        setError(null);
+      }
+    } catch (error: any) {
+      setError(error.message || 'Failed to send verification code. Please try again.');
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      setError('Please enter a 6-digit verification code');
+      return;
+    }
+
+    setIsVerifyingCode(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/verify-phone-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: formData.phone,
+          code: verificationCode 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Invalid verification code');
+      }
+
+      setPhoneVerified(true);
+      setError(null);
+    } catch (error: any) {
+      setError(error.message || 'Invalid verification code. Please try again.');
+    } finally {
+      setIsVerifyingCode(false);
     }
   };
 
@@ -94,10 +183,25 @@ export default function SimpleRegisterPage() {
       return;
     }
 
-    // Validate phone number format (basic US format)
-    const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
-    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-      setError('Please enter a valid phone number (e.g., 555-123-4567 or (555) 123-4567).');
+    // Validate phone number format using utility function
+    const phoneValidation = validatePhoneNumber(formData.phone);
+    if (!phoneValidation.valid) {
+      setError(phoneValidation.error || 'Please enter a valid phone number (e.g., 555-123-4567 or (555) 123-4567).');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Update form data with formatted phone number
+    if (phoneValidation.formatted) {
+      setFormData(prev => ({
+        ...prev,
+        phone: phoneValidation.formatted!
+      }));
+    }
+
+    // REQUIRE PHONE VERIFICATION before allowing registration
+    if (!phoneVerified) {
+      setError('Please verify your phone number before creating an account. Click "Send Verification Code" below.');
       setIsSubmitting(false);
       return;
     }
