@@ -81,19 +81,22 @@ export async function POST(request: NextRequest) {
         });
         
         if (smsSent.success) {
+          console.log('✅ Twilio SMS sent successfully to', formattedPhone);
           return NextResponse.json({
             success: true,
             message: 'Verification code sent via SMS',
             phone: formattedPhone
           });
         } else {
-          console.error('Twilio SMS error:', smsSent.error);
+          console.error('❌ Twilio SMS error:', smsSent.error);
           // Fall through to dev mode if SMS fails
         }
       } catch (smsError: any) {
-        console.error('SMS send error:', smsError);
+        console.error('❌ SMS send error:', smsError);
         // Fall through to dev mode if SMS fails
       }
+    } else {
+      console.warn('⚠️  Twilio not configured. Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to environment variables.');
     }
 
     // Development/fallback mode - return code for testing
