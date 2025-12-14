@@ -40,18 +40,27 @@ TWILIO_FROM_NUMBER=+1234567890
 
 ### Step 3: Get Twilio Verify Service SID (Recommended)
 
+**📖 Detailed instructions:** See `HOW_TO_FIND_TWILIO_CREDENTIALS.md` for step-by-step guide with screenshots.
+
+**Quick steps:**
 1. Go to: https://console.twilio.com/us1/develop/verify/services
 2. Click "Create new Verify Service" or use existing one
-3. Copy the Service SID (starts with `VA`)
+3. Copy the Service SID (starts with `VA`, followed by 32 characters)
+   - Example: `VA1234567890abcdef1234567890abcdef`
 4. Add it as `TWILIO_VERIFY_SERVICE_SID` in environment variables
 
 **OR**
 
 ### Step 3 Alternative: Get Twilio Phone Number (For Regular SMS)
 
+**📖 Detailed instructions:** See `HOW_TO_FIND_TWILIO_CREDENTIALS.md` for step-by-step guide.
+
+**Quick steps:**
 1. Go to: https://console.twilio.com/us1/develop/phone-numbers/manage/incoming
-2. Get a phone number (or use existing one)
-3. Copy the phone number in E.164 format (e.g., `+15551234567`)
+2. Get a phone number (or use existing one with SMS capability)
+3. Copy the phone number in **E.164 format** (must include `+` and country code)
+   - Example: `+15551234567` (US)
+   - Example: `+442071234567` (UK)
 4. Add it as `TWILIO_FROM_NUMBER` in environment variables
 
 ## How It Works
