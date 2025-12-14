@@ -89,11 +89,20 @@ export async function POST(request: NextRequest) {
           });
         } else {
           console.error('❌ Twilio SMS error:', smsSent.error);
-          // Fall through to dev mode if SMS fails
+          // Return error instead of falling through to dev mode
+          return NextResponse.json({
+            success: false,
+            message: smsSent.error || 'Failed to send SMS. Please check your Twilio configuration.',
+            phone: formattedPhone
+          }, { status: 500 });
         }
       } catch (smsError: any) {
         console.error('❌ SMS send error:', smsError);
-        // Fall through to dev mode if SMS fails
+        return NextResponse.json({
+          success: false,
+          message: `Failed to send SMS: ${smsError.message || 'Unknown error'}`,
+          phone: formattedPhone
+        }, { status: 500 });
       }
     } else {
       console.warn('⚠️  Twilio not configured. Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to environment variables.');
