@@ -1302,7 +1302,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
-                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +50 points!</p>
+                  <p><span className="text-red-300 font-semibold">Enemy Ships:</span> Shoot them for +100 points!</p>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse flex-shrink-0"></div>
