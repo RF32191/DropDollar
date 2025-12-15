@@ -57,6 +57,11 @@ interface SubItem {
   createdAt: number;
 }
 
+interface WhiteDot {
+  mesh: THREE.Mesh;
+  id: number;
+}
+
 interface EnemyProjectile {
   id: number;
   mesh: THREE.Group | THREE.Mesh; // Can be group (amoeba) or mesh
@@ -64,6 +69,7 @@ interface EnemyProjectile {
   vy: number;
   vz: number;
   createdAt: number;
+  whiteDots?: WhiteDot[]; // White dots inside amoeba projectiles
 }
 
 export default function DeadShotGame({ 
@@ -167,6 +173,8 @@ export default function DeadShotGame({
   const mousePosRef = useRef({ x: 0, y: 0 });
   const clockRef = useRef(new THREE.Clock());
   const stringCenterRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
+  const bowVelocityRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0)); // Recoil velocity
+  const bowPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0)); // Current position
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -615,6 +623,8 @@ export default function DeadShotGame({
     
     // Position bow at center of screen (visible)
     bowGroup.position.set(0, 0, 0);
+    bowPositionRef.current.set(0, 0, 0);
+    bowVelocityRef.current.set(0, 0, 0);
     scene.add(bowGroup);
     bowRef.current = bowGroup;
     
@@ -636,6 +646,9 @@ export default function DeadShotGame({
       
       animationIdRef.current = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
+      // Increase game speed by 1.5x
+      const speedMultiplier = 1.5;
+      const adjustedDelta = delta * speedMultiplier;
       frameCount++;
       
       // Log every 60 frames to verify animation is running
@@ -649,6 +662,28 @@ export default function DeadShotGame({
       // Only update game logic when playing
       if (gameStateRef.current !== 'playing') {
         return;
+      }
+      
+      // Update bow position with recoil movement (slow drift back to center)
+      if (bowRef.current) {
+        // Apply velocity to position
+        bowPositionRef.current.x += bowVelocityRef.current.x * adjustedDelta;
+        bowPositionRef.current.y += bowVelocityRef.current.y * adjustedDelta;
+        
+        // Apply damping to gradually slow down movement
+        const damping = 0.95; // Slow down by 5% each frame
+        bowVelocityRef.current.x *= damping;
+        bowVelocityRef.current.y *= damping;
+        
+        // Spring back to center (very gentle)
+        const springStrength = 0.3; // Gentle pull back to center
+        const centerPullX = -bowPositionRef.current.x * springStrength * adjustedDelta;
+        const centerPullY = -bowPositionRef.current.y * springStrength * adjustedDelta;
+        bowPositionRef.current.x += centerPullX;
+        bowPositionRef.current.y += centerPullY;
+        
+        // Update bow position
+        bowRef.current.position.set(bowPositionRef.current.x, bowPositionRef.current.y, 0);
       }
       
       // Update bow animation with charge effects
@@ -787,10 +822,10 @@ export default function DeadShotGame({
       arrowsRef.current = arrowsRef.current.map(arrow => {
         // Realistic gravity - arrows always affected by gravity
         const gravity = 9.8; // Realistic gravity
-        arrow.group.position.x += arrow.vx * delta;
-        arrow.group.position.y += arrow.vy * delta;
-        arrow.group.position.z += arrow.vz * delta;
-        arrow.vy -= gravity * delta; // Gravity always pulls down
+        arrow.group.position.x += arrow.vx * adjustedDelta;
+        arrow.group.position.y += arrow.vy * adjustedDelta;
+        arrow.group.position.z += arrow.vz * adjustedDelta;
+        arrow.vy -= gravity * adjustedDelta; // Gravity always pulls down
         
         // Animate arrow brightness (pulsing effect)
         const time = Date.now() * 0.005;
@@ -955,29 +990,29 @@ export default function DeadShotGame({
         const time = Date.now() * 0.001;
         const directionVariation = Math.sin(time + ship.id) * 0.3; // Vary direction over time
         const currentDirection = ship.direction.clone();
-        currentDirection.x += Math.cos(time + ship.id) * directionVariation * delta;
-        currentDirection.y += Math.sin(time + ship.id) * directionVariation * delta;
+        currentDirection.x += Math.cos(time + ship.id) * directionVariation * adjustedDelta;
+        currentDirection.y += Math.sin(time + ship.id) * directionVariation * adjustedDelta;
         currentDirection.normalize();
         
-        const movement = currentDirection.clone().multiplyScalar(ship.speed * delta);
+        const movement = currentDirection.clone().multiplyScalar(ship.speed * adjustedDelta);
         ship.group.position.add(movement);
         ship.group.position.z = 0; // Force z=0 to keep on same plane
         
         // Enhanced rotation for visual effect - rotate on all axes
-        ship.group.rotation.y += delta * 3; // Faster Y rotation
-        ship.group.rotation.x += delta * 1.5; // Faster X rotation
-        ship.group.rotation.z += delta * 2; // Add Z rotation for tumbling effect
+        ship.group.rotation.y += adjustedDelta * 3; // Faster Y rotation
+        ship.group.rotation.x += adjustedDelta * 1.5; // Faster X rotation
+        ship.group.rotation.z += adjustedDelta * 2; // Add Z rotation for tumbling effect
         
         // Animate legs falling off
         ship.legs.forEach(leg => {
           if (leg.fallingOff && leg.fallVelocity && leg.mesh.parent === sceneRef.current) {
             // Apply physics to falling leg
-            leg.mesh.position.add(leg.fallVelocity.clone().multiplyScalar(delta));
-            leg.fallVelocity.y -= 9.8 * delta; // Gravity
+            leg.mesh.position.add(leg.fallVelocity.clone().multiplyScalar(adjustedDelta));
+            leg.fallVelocity.y -= 9.8 * adjustedDelta; // Gravity
             
             // Rotate leg as it falls
-            leg.mesh.rotation.x += delta * 5;
-            leg.mesh.rotation.z += delta * 3;
+            leg.mesh.rotation.x += adjustedDelta * 5;
+            leg.mesh.rotation.z += adjustedDelta * 3;
             
             // Fade out and remove if out of bounds or too far
             if (leg.mesh.position.y < -10 || 
@@ -991,7 +1026,7 @@ export default function DeadShotGame({
             } else {
               // Fade out over time
               if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
-                leg.mesh.material.opacity = Math.max(0, (leg.mesh.material.opacity || 1) - delta * 0.5);
+                leg.mesh.material.opacity = Math.max(0, (leg.mesh.material.opacity || 1) - adjustedDelta * 0.5);
                 leg.mesh.material.transparent = true;
               }
             }
@@ -1095,6 +1130,32 @@ export default function DeadShotGame({
             amoebaGroup.add(smallBlob);
           }
           
+          // Add white dots inside amoeba for bonus points
+          const whiteDots: WhiteDot[] = [];
+          const numWhiteDots = 2 + Math.floor(Math.random() * 2); // 2-3 white dots
+          for (let i = 0; i < numWhiteDots; i++) {
+            const whiteDotGeometry = new THREE.SphereGeometry(blobSize * 0.15, 8, 8);
+            const whiteDotMaterial = new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+              emissive: 0xffffff,
+              emissiveIntensity: 5.0,
+              transparent: true,
+              opacity: 0.9,
+              blending: THREE.AdditiveBlending
+            });
+            const whiteDot = new THREE.Mesh(whiteDotGeometry, whiteDotMaterial);
+            whiteDot.position.set(
+              (Math.random() - 0.5) * blobSize * 0.6,
+              (Math.random() - 0.5) * blobSize * 0.6,
+              (Math.random() - 0.5) * blobSize * 0.6
+            );
+            amoebaGroup.add(whiteDot);
+            whiteDots.push({
+              mesh: whiteDot,
+              id: Date.now() + Math.random() + i
+            });
+          }
+          
           amoebaGroup.position.copy(ship.group.position);
           sceneRef.current.add(amoebaGroup);
           
@@ -1105,7 +1166,8 @@ export default function DeadShotGame({
             vx: toPlayer.x * 0.5, // Much slower
             vy: toPlayer.y * 0.5, // Much slower
             vz: toPlayer.z * 0.5, // Much slower
-            createdAt: now
+            createdAt: now,
+            whiteDots: whiteDots // Store white dots for collision detection
           };
           
           enemyProjectilesRef.current.push(projectile);
@@ -1128,15 +1190,15 @@ export default function DeadShotGame({
       
       // Update enemy projectiles with animation
       enemyProjectilesRef.current = enemyProjectilesRef.current.map(projectile => {
-        projectile.mesh.position.x += projectile.vx * delta;
-        projectile.mesh.position.y += projectile.vy * delta;
-        projectile.mesh.position.z += projectile.vz * delta;
+        projectile.mesh.position.x += projectile.vx * adjustedDelta;
+        projectile.mesh.position.y += projectile.vy * adjustedDelta;
+        projectile.mesh.position.z += projectile.vz * adjustedDelta;
         
         // Animate amoeba rotation for organic movement
         if (projectile.mesh instanceof THREE.Group) {
-          projectile.mesh.rotation.x += delta * 1.5;
-          projectile.mesh.rotation.y += delta * 2.0;
-          projectile.mesh.rotation.z += delta * 0.8;
+          projectile.mesh.rotation.x += adjustedDelta * 1.5;
+          projectile.mesh.rotation.y += adjustedDelta * 2.0;
+          projectile.mesh.rotation.z += adjustedDelta * 0.8;
           
           // Slight pulsing scale for amoeba effect
           const time = Date.now() * 0.003;
@@ -1212,6 +1274,65 @@ export default function DeadShotGame({
           return null;
         }
         
+          // Check if arrow hits white dots inside amoeba projectiles (extra points!)
+          if (projectile.whiteDots && projectile.whiteDots.length > 0) {
+            let whiteDotHit = false;
+            let hitWhiteDot: WhiteDot | null = null;
+            let hitArrow: Arrow | null = null;
+            
+            // Find collision between arrows and white dots
+            for (const arrow of arrowsRef.current) {
+              for (const whiteDot of projectile.whiteDots) {
+                // Get world position of white dot (relative to projectile group)
+                const whiteDotWorldPos = new THREE.Vector3();
+                whiteDot.mesh.getWorldPosition(whiteDotWorldPos);
+                
+                const dx = arrow.group.position.x - whiteDotWorldPos.x;
+                const dy = arrow.group.position.y - whiteDotWorldPos.y;
+                const dz = arrow.group.position.z - whiteDotWorldPos.z;
+                const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                
+                if (distance < 0.3) { // Hit white dot!
+                  whiteDotHit = true;
+                  hitWhiteDot = whiteDot;
+                  hitArrow = arrow;
+                  break;
+                }
+              }
+              if (whiteDotHit) break;
+            }
+            
+            if (whiteDotHit && hitWhiteDot && hitArrow) {
+              // Give extra points for hitting white dot
+              currentScoreRef.current += 100; // Extra 100 points for white dot!
+              totalHitsRef.current++;
+              setScore(currentScoreRef.current);
+              setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+              
+              // Remove white dot from amoeba
+              if (projectile.mesh instanceof THREE.Group) {
+                projectile.mesh.remove(hitWhiteDot.mesh);
+                sceneRef.current.remove(hitWhiteDot.mesh);
+              }
+              
+              // Remove white dot from array
+              const dotIndex = projectile.whiteDots.indexOf(hitWhiteDot);
+              if (dotIndex > -1) {
+                projectile.whiteDots.splice(dotIndex, 1);
+              }
+              
+              // Remove arrow (will be filtered out in arrow map function)
+              sceneRef.current.remove(hitArrow.group);
+              const arrowIndex = arrowsRef.current.indexOf(hitArrow);
+              if (arrowIndex > -1) {
+                arrowsRef.current.splice(arrowIndex, 1);
+              }
+              
+              // Keep projectile, just removed white dot
+              return projectile;
+            }
+          }
+          
           // Check if arrow hits projectile (can destroy it) - MUCH larger hitbox for larger projectiles
           const arrowHit = arrowsRef.current.find(arrow => {
             const dx = arrow.group.position.x - projectile.mesh.position.x;
@@ -1239,14 +1360,14 @@ export default function DeadShotGame({
       
       // Update sub-items with physics - slower fall
       subItemsRef.current = subItemsRef.current.map(item => {
-        item.mesh.position.x += item.vx * delta;
-        item.mesh.position.y += item.vy * delta;
-        item.mesh.position.z += item.vz * delta;
-        item.vy -= 6.0 * delta; // Reduced gravity from 9.8 to 6.0 for slower fall
+        item.mesh.position.x += item.vx * adjustedDelta;
+        item.mesh.position.y += item.vy * adjustedDelta;
+        item.mesh.position.z += item.vz * adjustedDelta;
+        item.vy -= 6.0 * adjustedDelta; // Reduced gravity from 9.8 to 6.0 for slower fall
         
         // Rotate sub-item
-        item.mesh.rotation.x += delta * 3;
-        item.mesh.rotation.y += delta * 3;
+        item.mesh.rotation.x += adjustedDelta * 3;
+        item.mesh.rotation.y += adjustedDelta * 3;
         
         // Check if arrow hits sub-item
         const arrowHit = arrowsRef.current.find(arrow => {
@@ -1498,11 +1619,19 @@ export default function DeadShotGame({
             vy = Math.sin(aimAngleRad) * baseSpeed;
           } else {
             // PARTIAL CHARGE = ARCH SHOT
-            const upwardAngle = Math.PI / 4 * power;
+            // Apply arch angle in the vertical plane while preserving aim direction
+            const upwardAngle = Math.PI / 4 * power; // 0 to 45 degrees based on power
+            
+            // Calculate horizontal speed in aim direction (reduced due to arch)
             const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
-            const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
+            // Calculate upward arch component (always upward, regardless of aim)
+            const upwardSpeed = baseSpeed * Math.sin(upwardAngle);
+            
+            // Apply aim direction to horizontal plane
             vx = Math.cos(aimAngleRad) * horizontalSpeed;
-            vy = Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed;
+            // Vertical: aim direction component + upward arch component
+            // This ensures consistent behavior at all angles including 45 degrees
+            vy = Math.sin(aimAngleRad) * horizontalSpeed + upwardSpeed;
           }
           
           const arrowGroup = createArrow();
@@ -1523,6 +1652,13 @@ export default function DeadShotGame({
           sceneRef.current.add(arrowGroup);
           arrowsRef.current.push(arrow);
           totalShotsRef.current++;
+          
+          // Apply recoil - move white blood cell in opposite direction of shot (very slowly)
+          const recoilStrength = 0.15; // Very slow recoil movement
+          const recoilVx = -vx * recoilStrength;
+          const recoilVy = -vy * recoilStrength;
+          bowVelocityRef.current.x += recoilVx;
+          bowVelocityRef.current.y += recoilVy;
           
           // Play player shot sound
           playPlayerShotSound();
@@ -1607,12 +1743,19 @@ export default function DeadShotGame({
       // PARTIAL CHARGE = ARCH SHOT with gravity
       // Low power: goes up then falls down
       // Higher power: higher arch
+      // Apply arch angle in the vertical plane while preserving aim direction
       const upwardAngle = Math.PI / 4 * power; // 0 to 45 degrees based on power
-      const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
-      const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
       
+      // Calculate horizontal speed in aim direction (reduced due to arch)
+      const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
+      // Calculate upward arch component (always upward, regardless of aim)
+      const upwardSpeed = baseSpeed * Math.sin(upwardAngle);
+      
+      // Apply aim direction to horizontal plane
       vx = Math.cos(aimAngleRad) * horizontalSpeed;
-      vy = Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed; // Add upward component
+      // Vertical: aim direction component + upward arch component
+      // This ensures consistent behavior at all angles including 45 degrees
+      vy = Math.sin(aimAngleRad) * horizontalSpeed + upwardSpeed;
     }
     
     const arrowGroup = createArrow();
@@ -1637,6 +1780,13 @@ export default function DeadShotGame({
     
     // Play player shot sound
     playPlayerShotSound();
+    
+    // Apply recoil - move white blood cell in opposite direction of shot (very slowly)
+    const recoilStrength = 0.15; // Very slow recoil movement
+    const recoilVx = -vx * recoilStrength;
+    const recoilVy = -vy * recoilStrength;
+    bowVelocityRef.current.x += recoilVx;
+    bowVelocityRef.current.y += recoilVy;
     
     // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
     currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
