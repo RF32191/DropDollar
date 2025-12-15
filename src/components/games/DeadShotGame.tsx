@@ -585,11 +585,12 @@ export default function DeadShotGame({
     const aimPathPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
     const aimPathGeometry = new THREE.BufferGeometry().setFromPoints(aimPathPoints);
     const aimPathMaterial = new THREE.LineBasicMaterial({
-      color: 0x88ccff,
-      linewidth: 3,
+      color: 0x00ffff, // Cyan laser color
+      linewidth: 4, // Thicker line
       transparent: true,
-      opacity: 0.6,
-      dashed: true
+      opacity: 0.8, // More visible
+      emissive: 0x00ffff, // Glowing effect
+      emissiveIntensity: 2.0
     });
     const aimPath = new THREE.Line(aimPathGeometry, aimPathMaterial);
     aimPath.visible = false;
@@ -683,7 +684,7 @@ export default function DeadShotGame({
             vy = Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed;
           }
           
-          // Simulate trajectory path
+          // Simulate trajectory path - GUIDE LASER showing only HALFWAY
           const pathPoints: THREE.Vector3[] = [];
           const localPos = stringCenterRef.current.clone();
           let px = localPos.x;
@@ -693,13 +694,44 @@ export default function DeadShotGame({
           let pvy = vy;
           const gravity = 9.8;
           
-          for (let i = 0; i < 30; i++) {
+          // Calculate total trajectory distance to find halfway point
+          let totalDistance = 0;
+          let tempPx = px;
+          let tempPy = py;
+          let tempPvx = pvx;
+          let tempPvy = pvy;
+          const maxSteps = 100;
+          
+          // First pass: calculate total distance
+          for (let i = 0; i < maxSteps; i++) {
+            const stepDist = Math.sqrt(tempPvx * tempPvx + tempPvy * tempPvy) * 0.1;
+            totalDistance += stepDist;
+            tempPx += tempPvx * 0.1;
+            tempPy += tempPvy * 0.1;
+            tempPvy -= gravity * 0.1;
+            if (tempPy < -10 || Math.abs(tempPx) > 30) break;
+          }
+          
+          // Second pass: only show HALFWAY of trajectory
+          const halfwayDistance = totalDistance / 2;
+          let currentDistance = 0;
+          
+          for (let i = 0; i < maxSteps && currentDistance < halfwayDistance; i++) {
             pathPoints.push(new THREE.Vector3(px, py, pz));
+            const stepDist = Math.sqrt(pvx * pvx + pvy * pvy) * 0.1;
+            currentDistance += stepDist;
             px += pvx * 0.1;
             py += pvy * 0.1;
             pvy -= gravity * 0.1;
             
             if (py < -10 || Math.abs(px) > 30) break;
+          }
+          
+          // Update guide laser appearance - brighter and more visible
+          if (aimPathRef.current.material instanceof THREE.LineBasicMaterial) {
+            aimPathRef.current.material.color.setHex(0x00ffff); // Cyan laser color
+            aimPathRef.current.material.opacity = 0.8; // More visible
+            aimPathRef.current.material.linewidth = 4; // Thicker line
           }
           
           aimPathRef.current.geometry.setFromPoints(pathPoints);
@@ -940,9 +972,17 @@ export default function DeadShotGame({
           (glowMesh as THREE.Mesh).scale.setScalar(1 + Math.sin(time * 3) * 0.2);
         }
         
-        // Enemy shooting - each ship shoots independently at player (center 0,0,0)
+        // Enemy shooting - progressively faster shooting based on game time
         const now = Date.now();
-        if (now - ship.lastShotTime > 2000 && sceneRef.current) { // Each ship shoots every 2 seconds
+        const elapsedTime = gameStartTimeRef.current > 0 ? (now - gameStartTimeRef.current) / 1000 : 0; // Elapsed time in seconds
+        // Progressive shooting: Start at 4 seconds, decrease to 1 second over 60 seconds
+        // Fewer shots overall, but faster as game progresses
+        const baseShootInterval = 4000; // Start at 4 seconds
+        const minShootInterval = 1000; // Minimum 1 second
+        const maxElapsedTime = 60; // 60 seconds to reach minimum interval
+        const shootInterval = Math.max(minShootInterval, baseShootInterval - (elapsedTime / maxElapsedTime) * (baseShootInterval - minShootInterval));
+        
+        if (now - ship.lastShotTime > shootInterval && sceneRef.current) {
           ship.lastShotTime = now;
           
           // Play virus shot sound
@@ -1365,9 +1405,7 @@ export default function DeadShotGame({
           // Play player shot sound
           playPlayerShotSound();
           
-          // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
-          currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
-          setScore(currentScoreRef.current);
+          // NO POINT DEDUCTION - removed penalty for shooting
           
           bowPowerRef.current = 0;
           setBowPower(0);
@@ -1627,8 +1665,8 @@ export default function DeadShotGame({
                 <span><strong>Click and hold</strong> to charge, <strong>release to shoot</strong> - Aim path shows trajectory</span>
               </div>
               <div className="flex items-start">
-                <span className="text-red-400 mr-2">•</span>
-                <span><strong>-20 points</strong> for every arrow shot - Plan your shots carefully!</span>
+                <span className="text-cyan-400 mr-2">•</span>
+                <span><strong>Guide laser</strong> shows arrow trajectory halfway - adjust aim based on charge!</span>
               </div>
               <div className="flex items-start">
                 <span className="text-yellow-400 mr-2">•</span>
