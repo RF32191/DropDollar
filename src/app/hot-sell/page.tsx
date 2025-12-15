@@ -917,7 +917,7 @@ export default function HotSellPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white">
-        <CleanNavigation />
+        <CleanNavigation variant="gradient" currentPage="hot-sell" />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-400"></div>
@@ -956,7 +956,7 @@ export default function HotSellPage() {
     return (
       <ErrorBoundary>
         <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white">
-          <CleanNavigation />
+          <CleanNavigation variant="gradient" currentPage="hot-sell" />
           <div className="container mx-auto px-4 py-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-orange-200 mb-4">Playing: {gameConfig?.title}</h1>
@@ -1027,7 +1027,7 @@ export default function HotSellPage() {
           <div className="absolute bottom-1/2 right-1/6 w-46 h-46 bg-red-500/50 rounded-full blur-2xl fire-flicker-delay-2"></div>
         </div>
       
-      <CleanNavigation />
+      <CleanNavigation variant="gradient" currentPage="hot-sell" />
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Wallet Display */}
