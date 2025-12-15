@@ -21,6 +21,8 @@ interface Arrow {
   createdAt: number;
 }
 
+type ShipType = 'common' | 'rare' | 'epic' | 'legendary';
+
 interface AlienShip {
   id: number;
   group: THREE.Group;
@@ -29,6 +31,8 @@ interface AlienShip {
   createdAt: number;
   center: THREE.Vector3;
   size: number;
+  type: ShipType;
+  basePoints: number;
 }
 
 interface SubItem {
@@ -113,65 +117,90 @@ export default function DeadShotGame({
     return new Mulberry32(rngSeed);
   }, [rngSeed]);
 
-  // Create neon alien ship with proper 3D geometry
-  const createAlienShip = useCallback((x: number, y: number, z: number, size: number): THREE.Group => {
+  // Create neon alien ship with proper 3D geometry - improved design with types
+  const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): THREE.Group => {
     const shipGroup = new THREE.Group();
     
-    // Main body - triangular ship (cone rotated)
-    const bodyGeometry = new THREE.ConeGeometry(size * 0.6, size * 1.2, 6);
+    // Ship colors based on type
+    const shipColors = {
+      common: { body: 0x00ffff, wing: 0x0088ff, glow: 0x00ffff }, // Cyan
+      rare: { body: 0xff00ff, wing: 0xff0088, glow: 0xff00ff }, // Magenta
+      epic: { body: 0xffff00, wing: 0xff8800, glow: 0xffff00 }, // Yellow
+      legendary: { body: 0xff0088, wing: 0xff00ff, glow: 0xff0088 } // Hot Pink
+    };
+    
+    const colors = shipColors[type];
+    
+    // Main body - sleek triangular ship (cone rotated)
+    const bodyGeometry = new THREE.ConeGeometry(size * 0.5, size * 1.4, 8);
     const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff00ff,
-      emissive: 0xff00ff,
-      emissiveIntensity: 0.8,
-      metalness: 0.8,
-      roughness: 0.2
+      color: colors.body,
+      emissive: colors.body,
+      emissiveIntensity: 2.5, // Much brighter neon
+      metalness: 0.9,
+      roughness: 0.1
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.rotation.z = Math.PI;
     body.position.y = size * 0.3;
     shipGroup.add(body);
     
-    // Wings - left and right
-    const wingGeometry = new THREE.BoxGeometry(size * 0.4, size * 0.1, size * 0.8);
+    // Wings - swept back design
+    const wingGeometry = new THREE.BoxGeometry(size * 0.5, size * 0.15, size * 1.0);
     const wingMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ffff,
-      emissive: 0x00ffff,
-      emissiveIntensity: 0.6
+      color: colors.wing,
+      emissive: colors.wing,
+      emissiveIntensity: 2.0
     });
     
     const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    leftWing.position.set(-size * 0.5, size * 0.2, 0);
+    leftWing.position.set(-size * 0.6, size * 0.25, 0);
+    leftWing.rotation.z = -0.2;
     shipGroup.add(leftWing);
     
     const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    rightWing.position.set(size * 0.5, size * 0.2, 0);
+    rightWing.position.set(size * 0.6, size * 0.25, 0);
+    rightWing.rotation.z = 0.2;
     shipGroup.add(rightWing);
     
-    // Glow effect - pulsing sphere
-    const glowGeometry = new THREE.SphereGeometry(size * 0.4, 16, 16);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+    // Cockpit/canopy
+    const canopyGeometry = new THREE.SphereGeometry(size * 0.25, 16, 16);
+    const canopyMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 1.5,
       transparent: true,
-      opacity: 0.4
+      opacity: 0.8
+    });
+    const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
+    canopy.position.y = size * 0.6;
+    shipGroup.add(canopy);
+    
+    // Glow effect - pulsing sphere (brighter)
+    const glowGeometry = new THREE.SphereGeometry(size * 0.5, 16, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: colors.glow,
+      transparent: true,
+      opacity: 0.6
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     glow.position.y = size * 0.5;
     shipGroup.add(glow);
     
-    // Engine trails
-    const trailGeometry = new THREE.ConeGeometry(size * 0.15, size * 0.3, 8);
+    // Engine trails - brighter and more visible
+    const trailGeometry = new THREE.ConeGeometry(size * 0.2, size * 0.4, 8);
     const trailMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+      color: colors.glow,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.8
     });
     const trail1 = new THREE.Mesh(trailGeometry, trailMaterial);
-    trail1.position.set(-size * 0.3, -size * 0.2, 0);
+    trail1.position.set(-size * 0.35, -size * 0.3, 0);
     trail1.rotation.z = Math.PI;
     shipGroup.add(trail1);
     
     const trail2 = new THREE.Mesh(trailGeometry, trailMaterial);
-    trail2.position.set(size * 0.3, -size * 0.2, 0);
+    trail2.position.set(size * 0.35, -size * 0.3, 0);
     trail2.rotation.z = Math.PI;
     shipGroup.add(trail2);
     
@@ -179,57 +208,93 @@ export default function DeadShotGame({
     return shipGroup;
   }, []);
 
-  // Create arrow with proper 3D geometry
+  // Create arrow with proper 3D geometry - more arrow-shaped and neon
   const createArrow = useCallback((): THREE.Group => {
     const arrowGroup = new THREE.Group();
     
-    // Arrow shaft (neon cyan cylinder)
-    const shaftGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8);
+    // Arrow shaft (neon cyan cylinder - longer and thinner)
+    const shaftGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 12);
     const shaftMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 1.0
+      emissiveIntensity: 2.5, // Much brighter
+      metalness: 0.9,
+      roughness: 0.1
     });
     const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
     shaft.rotation.z = Math.PI / 2;
     arrowGroup.add(shaft);
     
-    // Arrow head (pyramid/cone)
-    const headGeometry = new THREE.ConeGeometry(0.06, 0.15, 8);
+    // Arrow head (sharp pyramid - more arrow-like)
+    const headGeometry = new THREE.ConeGeometry(0.08, 0.2, 8);
     const headMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
-      emissiveIntensity: 1.2
+      emissiveIntensity: 3.0, // Very bright
+      metalness: 0.95,
+      roughness: 0.05
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.x = 0.2;
+    head.position.x = 0.25; // Further forward
     arrowGroup.add(head);
     
-    // Fletching (feathers at back)
-    const fletchGeometry = new THREE.BoxGeometry(0.05, 0.1, 0.02);
+    // Arrow tip point (extra sharp tip)
+    const tipGeometry = new THREE.ConeGeometry(0.02, 0.05, 6);
+    const tipMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 4.0
+    });
+    const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+    tip.position.x = 0.35;
+    arrowGroup.add(tip);
+    
+    // Fletching (feathers at back - more visible)
+    const fletchGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.03);
     const fletchMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
-      emissive: 0x00ffff
+      emissive: 0x00ffff,
+      emissiveIntensity: 2.0
     });
     
     const fletch1 = new THREE.Mesh(fletchGeometry, fletchMaterial);
-    fletch1.position.set(-0.15, 0.05, 0);
+    fletch1.position.set(-0.2, 0.06, 0);
+    fletch1.rotation.z = 0.3;
     arrowGroup.add(fletch1);
     
     const fletch2 = new THREE.Mesh(fletchGeometry, fletchMaterial);
-    fletch2.position.set(-0.15, -0.05, 0);
+    fletch2.position.set(-0.2, -0.06, 0);
+    fletch2.rotation.z = -0.3;
     arrowGroup.add(fletch2);
     
-    // Trail effect
-    const trailGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+    const fletch3 = new THREE.Mesh(fletchGeometry, fletchMaterial);
+    fletch3.position.set(-0.2, 0, 0.06);
+    fletch3.rotation.y = Math.PI / 2;
+    arrowGroup.add(fletch3);
+    
+    // Trail effect - brighter glow
+    const trailGeometry = new THREE.SphereGeometry(0.04, 8, 8);
     const trailMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.8
     });
     const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-    trail.position.x = -0.1;
+    trail.position.x = -0.15;
     arrowGroup.add(trail);
+    
+    // Outer glow ring
+    const glowRingGeometry = new THREE.RingGeometry(0.05, 0.08, 16);
+    const glowRingMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide
+    });
+    const glowRing = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
+    glowRing.position.x = -0.15;
+    glowRing.rotation.x = Math.PI / 2;
+    arrowGroup.add(glowRing);
     
     return arrowGroup;
   }, []);
@@ -359,14 +424,14 @@ export default function DeadShotGame({
     // Create laser bow - MAKE IT HUGE AND BRIGHT
     const bowGroup = new THREE.Group();
     
-    // Bow limbs (neon cyan) - MUCH BIGGER
+    // Bow limbs (neon cyan) - MUCH BIGGER AND BRIGHTER
     const limbGeometry = new THREE.BoxGeometry(0.3, 2.0, 0.3);
     const limbMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 2.0,
-      metalness: 0.9,
-      roughness: 0.1
+      emissiveIntensity: 3.0, // Brighter
+      metalness: 0.95,
+      roughness: 0.05
     });
     
     const leftLimb = new THREE.Mesh(limbGeometry, limbMaterial);
@@ -379,12 +444,12 @@ export default function DeadShotGame({
     rightLimb.rotation.z = -0.3;
     bowGroup.add(rightLimb);
     
-    // Bow grip - MUCH BIGGER
+    // Bow grip - MUCH BIGGER AND BRIGHTER
     const gripGeometry = new THREE.BoxGeometry(0.4, 0.8, 0.4);
     const gripMaterial = new THREE.MeshStandardMaterial({
       color: 0x0088ff,
       emissive: 0x0088ff,
-      emissiveIntensity: 1.5
+      emissiveIntensity: 2.5 // Brighter
     });
     const grip = new THREE.Mesh(gripGeometry, gripMaterial);
     grip.position.set(0, 0, 0);
@@ -412,7 +477,7 @@ export default function DeadShotGame({
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.8,
+      opacity: 1.0, // More opaque
       side: THREE.DoubleSide
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -458,7 +523,7 @@ export default function DeadShotGame({
         return;
       }
       
-      // Update bow animation
+      // Update bow animation with charge effects
       if (bowRef.current && bowStringRef.current) {
         const drawProgress = bowPowerRef.current / 100;
         bowRef.current.rotation.z = -aimAngleRef.current * Math.PI / 180;
@@ -471,12 +536,42 @@ export default function DeadShotGame({
         ];
         bowStringRef.current.geometry.setFromPoints(stringPoints);
         
-        // Pulse glow when drawing
+        // Increase string brightness when charging
+        if (bowStringRef.current.material instanceof THREE.LineBasicMaterial) {
+          const intensity = 1.0 + drawProgress * 2.0; // 1.0 to 3.0
+          bowStringRef.current.material.color.setHex(0x00ffff);
+          bowStringRef.current.material.opacity = 0.5 + drawProgress * 0.5;
+        }
+        
+        // Pulse glow when drawing - more intense
         if (bowRef.current) {
           const glowMesh = bowRef.current.children.find(child => child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial && child.geometry instanceof THREE.RingGeometry);
           if (isDrawingRef.current && glowMesh) {
-            (glowMesh as THREE.Mesh).scale.set(1 + drawProgress * 0.5, 1 + drawProgress * 0.5, 1);
+            const scale = 1 + drawProgress * 0.8; // Larger scale
+            (glowMesh as THREE.Mesh).scale.set(scale, scale, 1);
+            if (glowMesh.material instanceof THREE.MeshBasicMaterial) {
+              glowMesh.material.opacity = 0.5 + drawProgress * 0.5;
+              // Color shift based on charge
+              if (drawProgress >= 1.0) {
+                glowMesh.material.color.setHex(0xff00ff); // Pink at max
+              } else if (drawProgress >= 0.7) {
+                glowMesh.material.color.setHex(0x00ffff); // Cyan
+              } else {
+                glowMesh.material.color.setHex(0x0088ff); // Blue
+              }
+            }
           }
+          
+          // Make bow limbs brighter when charging
+          bowRef.current.children.forEach((child) => {
+            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+              const material = child.material;
+              if (material.emissive) {
+                const baseIntensity = material.emissiveIntensity || 2.0;
+                material.emissiveIntensity = baseIntensity + drawProgress * 1.5;
+              }
+            }
+          });
         }
       }
       
@@ -511,12 +606,13 @@ export default function DeadShotGame({
             const distanceFromCenter = Math.sqrt(centerDx * centerDx + centerDy * centerDy + centerDz * centerDz);
             const isCenterShot = distanceFromCenter < ship.size * 0.2;
             
-            // Calculate points (decimal accuracy)
-            let points = 10;
+            // Calculate points based on ship type and accuracy
+            const basePoints = ship.basePoints;
+            let points = basePoints;
             if (isCenterShot) {
-              points = 50 + (1 - distanceFromCenter / (ship.size * 0.2)) * 50; // 50-100 for center shots
+              points = basePoints * 2 + (1 - distanceFromCenter / (ship.size * 0.2)) * basePoints; // 2x-3x for center shots
             } else {
-              points = 10 + (1 - distanceFromCenter / ship.size) * 40; // 10-50 for regular hits
+              points = basePoints + (1 - distanceFromCenter / ship.size) * basePoints * 0.5; // 1x-1.5x for regular hits
             }
             
             currentScoreRef.current += points;
@@ -663,7 +759,7 @@ export default function DeadShotGame({
     };
   }, [createAlienShip, createArrow, createSubItem]);
 
-  // Spawn ships - only when playing
+  // Spawn ships - only when playing - linear directions from different spawn points
   useEffect(() => {
     if (gameState !== 'playing' || !sceneRef.current) {
       return;
@@ -681,38 +777,60 @@ export default function DeadShotGame({
         nextInt: (min: number, max: number) => Math.floor(Math.random() * (max - min)) + min
       };
       
+      // Determine ship type (weighted random)
+      const typeRoll = rng.nextFloat(0, 1);
+      let shipType: ShipType;
+      if (typeRoll < 0.5) {
+        shipType = 'common'; // 50% - 20 base points
+      } else if (typeRoll < 0.8) {
+        shipType = 'rare'; // 30% - 50 base points
+      } else if (typeRoll < 0.95) {
+        shipType = 'epic'; // 15% - 100 base points
+      } else {
+        shipType = 'legendary'; // 5% - 200 base points
+      }
+      
+      const basePoints = {
+        common: 20,
+        rare: 50,
+        epic: 100,
+        legendary: 200
+      }[shipType];
+      
+      // Spawn from different sides but move linearly toward center
       const side = rng.nextInt(0, 4);
       let x, y, z;
+      let direction: THREE.Vector3;
       
       switch (side) {
-        case 0: // Left
+        case 0: // Left - move right toward center
           x = -8;
-          y = rng.nextFloat(-3, 3);
-          z = rng.nextFloat(-3, 3);
+          y = rng.nextFloat(-4, 4);
+          z = rng.nextFloat(-2, 2);
+          direction = new THREE.Vector3(1, rng.nextFloat(-0.2, 0.2), rng.nextFloat(-0.1, 0.1)).normalize();
           break;
-        case 1: // Right
+        case 1: // Right - move left toward center
           x = 8;
-          y = rng.nextFloat(-3, 3);
-          z = rng.nextFloat(-3, 3);
+          y = rng.nextFloat(-4, 4);
+          z = rng.nextFloat(-2, 2);
+          direction = new THREE.Vector3(-1, rng.nextFloat(-0.2, 0.2), rng.nextFloat(-0.1, 0.1)).normalize();
           break;
-        case 2: // Top
-          x = rng.nextFloat(-5, 5);
-          y = 5;
-          z = rng.nextFloat(-3, 3);
+        case 2: // Top - move down toward center
+          x = rng.nextFloat(-4, 4);
+          y = 6;
+          z = rng.nextFloat(-2, 2);
+          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), -1, rng.nextFloat(-0.1, 0.1)).normalize();
           break;
-        default: // Bottom
-          x = rng.nextFloat(-5, 5);
-          y = -5;
-          z = rng.nextFloat(-3, 3);
+        default: // Bottom - move up toward center
+          x = rng.nextFloat(-4, 4);
+          y = -6;
+          z = rng.nextFloat(-2, 2);
+          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), 1, rng.nextFloat(-0.1, 0.1)).normalize();
+          break;
       }
       
       const size = rng.nextFloat(0.8, 1.5);
-      const shipGroup = createAlienShip(x, y, z, size);
-      const direction = new THREE.Vector3(
-        rng.nextFloat(-1, 1),
-        rng.nextFloat(-0.5, 0.5),
-        rng.nextFloat(-1, 1)
-      ).normalize();
+      const shipGroup = createAlienShip(x, y, z, size, shipType);
       
       sceneRef.current.add(shipGroup);
       
@@ -723,7 +841,9 @@ export default function DeadShotGame({
         direction,
         createdAt: now,
         center: new THREE.Vector3(x, y, z),
-        size
+        size,
+        type: shipType,
+        basePoints
       };
       
       shipsRef.current.push(ship);
@@ -737,6 +857,49 @@ export default function DeadShotGame({
       clearInterval(spawnInterval);
     };
   }, [gameState, seededRng, createAlienShip]);
+
+  // Charge up power while holding
+  useEffect(() => {
+    if (gameState !== 'playing' || !isDrawingRef.current) return;
+    
+    const chargeInterval = setInterval(() => {
+      if (isDrawingRef.current && bowPowerRef.current < 100) {
+        bowPowerRef.current = Math.min(100, bowPowerRef.current + 2);
+        setBowPower(bowPowerRef.current);
+        
+        // Auto-shoot at max charge
+        if (bowPowerRef.current >= 100 && sceneRef.current) {
+          isDrawingRef.current = false;
+          
+          // Shoot arrow
+          const power = bowPowerRef.current / 100;
+          const angle = aimAngleRef.current * Math.PI / 180;
+          const speed = 20 + power * 30; // Max speed increased
+          
+          const arrowGroup = createArrow();
+          arrowGroup.position.set(0, 0, 0);
+          
+          const arrow: Arrow = {
+            id: ++lastArrowIdRef.current,
+            group: arrowGroup,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            vz: 0,
+            createdAt: Date.now()
+          };
+          
+          sceneRef.current.add(arrowGroup);
+          arrowsRef.current.push(arrow);
+          totalShotsRef.current++;
+          
+          bowPowerRef.current = 0;
+          setBowPower(0);
+        }
+      }
+    }, 50); // Charge every 50ms
+    
+    return () => clearInterval(chargeInterval);
+  }, [gameState, createArrow]);
 
   // Handle mouse/touch for aiming and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -764,12 +927,6 @@ export default function DeadShotGame({
     const angle = Math.atan2(y, x) * 180 / Math.PI;
     setAimAngle(angle);
     aimAngleRef.current = angle;
-    
-    // Increase bow power while drawing
-    if (isDrawingRef.current && bowPowerRef.current < 100) {
-      bowPowerRef.current = Math.min(100, bowPowerRef.current + 3);
-      setBowPower(bowPowerRef.current);
-    }
   }, [gameState]);
 
   const handleMouseUp = useCallback(() => {
@@ -780,7 +937,7 @@ export default function DeadShotGame({
     // Shoot arrow
     const power = bowPowerRef.current / 100;
     const angle = aimAngleRef.current * Math.PI / 180;
-    const speed = 20 + power * 25;
+    const speed = 20 + power * 30; // Increased max speed
     
     const arrowGroup = createArrow();
     arrowGroup.position.set(0, 0, 0); // Match bow position
@@ -887,16 +1044,44 @@ export default function DeadShotGame({
       
       {/* UI Overlay - Only show when playing */}
       {gameState === 'playing' && (
-        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
-          <div>
-            <div className="text-2xl font-bold">Score: {score.toFixed(2)}</div>
-            <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
+        <>
+          <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
+            <div>
+              <div className="text-2xl font-bold">Score: {score.toFixed(2)}</div>
+              <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold">Time: {timeLeft}s</div>
+              <div className="text-sm">Power: {bowPower.toFixed(0)}%</div>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">Time: {timeLeft}s</div>
-            <div className="text-sm">Power: {bowPower.toFixed(0)}%</div>
+          
+          {/* Charge Bar */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 w-64 pointer-events-none">
+            <div className="text-white text-sm mb-2 text-center font-bold">CHARGE POWER</div>
+            <div className="h-6 bg-black/50 rounded-full border-2 border-cyan-400 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-75 ease-linear rounded-full relative"
+                style={{ width: `${bowPower}%` }}
+              >
+                {/* Glow effect when charging */}
+                {bowPower > 0 && (
+                  <div 
+                    className="absolute inset-0 bg-white/30 animate-pulse"
+                    style={{ width: '100%' }}
+                  />
+                )}
+                {/* Max charge indicator */}
+                {bowPower >= 100 && (
+                  <div className="absolute inset-0 bg-white/50 animate-pulse" />
+                )}
+              </div>
+            </div>
+            <div className="text-white text-xs mt-1 text-center">
+              {bowPower >= 100 ? 'MAX CHARGE - READY!' : 'Hold to charge'}
+            </div>
           </div>
-        </div>
+        </>
       )}
       
       {/* Ready Screen */}
