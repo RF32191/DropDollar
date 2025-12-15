@@ -1447,7 +1447,7 @@ export default function CashStackGame3D({
       
       {/* Ready screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white overflow-y-auto p-4">
+        <div className="absolute inset-0 flex flex-col items-center bg-black/70 text-white overflow-y-auto p-4" style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem' }}>
           <h1 className="text-6xl font-bold mb-4 animate-pulse" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
             💰 CASH STACK 3D
           </h1>

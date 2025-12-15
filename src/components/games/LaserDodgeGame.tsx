@@ -1274,6 +1274,24 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             </h2>
             <p className="text-orange-200 text-sm mb-4 sm:mb-6 font-medium">Ultimate Survival Challenge</p>
             
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-orange-400 shadow-2xl"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/laser-dodge-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Video loops automatically</p>
+            </div>
+            
             <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
               {/* Epilepsy Warning */}
               <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
