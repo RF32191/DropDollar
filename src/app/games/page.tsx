@@ -1401,7 +1401,7 @@ export default function GamesPage() {
                     </div>
                   )}
                   
-                  {game.id === 'falling-object' && (
+                  {game.id === 'falling-objects' && (
                     <div className="absolute inset-0">
                       {/* Falling Object Gameplay Video */}
                       <video
