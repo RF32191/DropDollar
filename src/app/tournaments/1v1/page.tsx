@@ -585,15 +585,15 @@ export default function OneVOnePage() {
 
   const getGameInfo = (type: string) => {
     switch(type) {
-      case 'sword_parry': return { name: '⚔️ Sword Slash', emoji: '⚔️' };
-      case 'blade_bounce': return { name: '🛡️ Blade Bounce', emoji: '🛡️' };
-      case 'laser_dodge': return { name: '🚀 Laser Dodge', emoji: '🚀' };
-      case 'multi_target_reaction': return { name: '🎯 Multi-Target', emoji: '🎯' };
-      case 'falling_object': return { name: '💰 Coin Catch', emoji: '💰' };
-      case 'color_sequence': return { name: '🎨 Color Memory', emoji: '🎨' };
-      case 'cash_stack': return { name: '💵 Cash Stack', emoji: '💵' };
-      case 'quick_click': return { name: '⚡ Quick Click', emoji: '⚡' };
-      default: return { name: type, emoji: '🎮' };
+      case 'sword_parry': return { name: '⚔️ Sword Slash', emoji: '⚔️', video: '/sword-parry-gameplay.mp4' };
+      case 'blade_bounce': return { name: '🛡️ Blade Bounce', emoji: '🛡️', video: '/mouseblade-gameplay.mp4' };
+      case 'laser_dodge': return { name: '🚀 Laser Dodge', emoji: '🚀', video: '/laser-dodge-gameplay.mp4' };
+      case 'multi_target_reaction': return { name: '🎯 Multi-Target', emoji: '🎯', video: '/multi-touch-gameplay.mp4' };
+      case 'falling_object': return { name: '💰 Coin Catch', emoji: '💰', video: '/falling-object-gameplay.mp4' };
+      case 'color_sequence': return { name: '🎨 Color Memory', emoji: '🎨', video: '/color-sequence-gameplay.mp4' };
+      case 'cash_stack': return { name: '💵 Cash Stack', emoji: '💵', video: '/cash-stack-gameplay.mp4' };
+      case 'quick_click': return { name: '⚡ Quick Click', emoji: '⚡', video: '/quick-click-gameplay.mp4' };
+      default: return { name: type, emoji: '🎮', video: null };
     }
   };
 
@@ -742,8 +742,25 @@ export default function OneVOnePage() {
                     
                     // If no session exists, show config but with "No Active Session" message
                     if (!session) {
+                      const gameInfoNoSession = getGameInfo(config.game_type);
+                      
                       return (
                         <div key={config.id} className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/30 shadow-2xl">
+                          {/* Gameplay Video Preview */}
+                          {gameInfoNoSession.video && (
+                            <div className="relative w-full mb-4 rounded-xl overflow-hidden" style={{ aspectRatio: '16/9', maxHeight: '200px' }}>
+                              <video
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                className="w-full h-full object-cover"
+                              >
+                                <source src={gameInfoNoSession.video} type="video/mp4" />
+                              </video>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="text-2xl font-bold text-blue-300">{config.title.replace(' 1v1 - ', ' ')}</h3>
                             <UsersIcon className="w-8 h-8 text-purple-400" />
@@ -781,6 +798,21 @@ export default function OneVOnePage() {
 
                     return (
                       <div key={config.id} className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/30 shadow-2xl hover:shadow-blue-500/20 transition-all duration-300">
+                        {/* Gameplay Video Preview */}
+                        {gameInfo.video && (
+                          <div className="relative w-full mb-4 rounded-xl overflow-hidden" style={{ aspectRatio: '16/9', maxHeight: '200px' }}>
+                            <video
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              className="w-full h-full object-cover"
+                            >
+                              <source src={gameInfo.video} type="video/mp4" />
+                            </video>
+                          </div>
+                        )}
+                        
                         {/* Title */}
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-2xl font-bold text-blue-300">{config.title.replace(' 1v1 - ', ' ')}</h3>

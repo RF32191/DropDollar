@@ -61,6 +61,20 @@ const GAME_NAMES: { [key: string]: string } = {
   'penny_passer': 'Penny Passer'
 };
 
+const getGameVideo = (gameType: string): string | null => {
+  switch (gameType) {
+    case 'laser_dodge': return '/laser-dodge-gameplay.mp4';
+    case 'multi_target': return '/multi-touch-gameplay.mp4';
+    case 'sword_parry': return '/sword-parry-gameplay.mp4';
+    case 'blade_bounce': return '/mouseblade-gameplay.mp4';
+    case 'cash_stack': return '/cash-stack-gameplay.mp4';
+    case 'falling_object': return '/falling-object-gameplay.mp4';
+    case 'color_sequence': return '/color-sequence-gameplay.mp4';
+    case 'quick_click': return '/quick-click-gameplay.mp4';
+    default: return null;
+  }
+};
+
 export default function CoinPlayPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { tokenBalance: userTokens, isLoading: tokensLoading, refreshTokens } = useTokenSync();
@@ -770,11 +784,28 @@ export default function CoinPlayPage() {
                         const winnerPayout = currentPrize * 0.85;
                         const platformFee = currentPrize * 0.15;
 
+                        const gameVideo = getGameVideo(gameType);
+                        
                         return (
                           <div
                             key={session.id}
                             className="bg-gradient-to-br from-amber-700/60 to-orange-800/60 rounded-2xl p-6 border-2 border-amber-500/40 hover:border-amber-400/80 transition-all hover:scale-105 shadow-xl"
                           >
+                            {/* Gameplay Video Preview */}
+                            {gameVideo && (
+                              <div className="relative w-full mb-4 rounded-xl overflow-hidden" style={{ aspectRatio: '16/9', maxHeight: '200px' }}>
+                                <video
+                                  autoPlay
+                                  loop
+                                  muted
+                                  playsInline
+                                  className="w-full h-full object-cover"
+                                >
+                                  <source src={gameVideo} type="video/mp4" />
+                                </video>
+                              </div>
+                            )}
+                            
                             {/* Title: Prize Amount */}
                             <div className="text-center mb-4 border-b-2 border-amber-500/30 pb-4">
                               <h3 className="text-2xl font-black text-amber-200 mb-2">

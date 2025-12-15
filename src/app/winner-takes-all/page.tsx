@@ -700,6 +700,20 @@ export default function WinnerTakesAllPage() {
     }
   };
 
+  const getGameVideo = (gameType: string): string | null => {
+    switch (gameType) {
+      case 'laser_dodge': return '/laser-dodge-gameplay.mp4';
+      case 'multi_target_reaction': return '/multi-touch-gameplay.mp4';
+      case 'sword_parry': return '/sword-parry-gameplay.mp4';
+      case 'blade_bounce': return '/mouseblade-gameplay.mp4';
+      case 'cash_stack': return '/cash-stack-gameplay.mp4';
+      case 'falling_object': return '/falling-object-gameplay.mp4';
+      case 'color_sequence': return '/color-sequence-gameplay.mp4';
+      case 'quick_click': return '/quick-click-gameplay.mp4';
+      default: return null;
+    }
+  };
+
   // Format prize amount
   const formatPrizeAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -929,8 +943,25 @@ export default function WinnerTakesAllPage() {
             const timerTotalSeconds = timeRemaining ? (timeRemaining.hours * 3600 + timeRemaining.minutes * 60 + timeRemaining.seconds) : 0;
             const isTimerLocked = timeRemaining && timerTotalSeconds <= 120; // 2 minutes = 120 seconds
             
+            const gameVideo = getGameVideo(config.game_type);
+            
             return (
               <div key={config.id} className="bg-yellow-500/10 backdrop-blur-xl rounded-3xl p-6 border border-yellow-500/20 hover:bg-yellow-500/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl">
+                {/* Gameplay Video Preview */}
+                {gameVideo && (
+                  <div className="relative w-full mb-4 rounded-xl overflow-hidden" style={{ aspectRatio: '16/9', maxHeight: '200px' }}>
+                    <video
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                    >
+                      <source src={gameVideo} type="video/mp4" />
+                    </video>
+                  </div>
+                )}
+                
                 {/* Game Header */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
