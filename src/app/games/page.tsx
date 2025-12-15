@@ -1404,66 +1404,32 @@ export default function GamesPage() {
                   )}
                   
                   {game.id === 'multi-target' && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {/* Colored circles highlighting on and off like the actual game */}
-                      <div className="relative grid grid-cols-3 gap-3 p-6">
-                        {[
-                          'bg-red-500',
-                          'bg-blue-500',
-                          'bg-green-500',
-                          'bg-yellow-500',
-                          'bg-purple-500',
-                          'bg-pink-500',
-                          'bg-orange-500',
-                          'bg-cyan-500',
-                          'bg-indigo-500'
-                        ].map((color, idx) => (
-                          <div
-                            key={idx}
-                            className={`w-10 h-10 ${color} rounded-full transition-all`}
-                            style={{
-                              animation: 'pulse 2s infinite',
-                              animationDelay: `${idx * 0.2}s`,
-                              opacity: 0.4
-                            }}
-                          />
-                        ))}
-                      </div>
+                    <div className="absolute inset-0">
+                      {/* Multi Touch Gameplay Video */}
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      >
+                        <source src="/multi-touch-gameplay.mp4" type="video/mp4" />
+                      </video>
                     </div>
                   )}
                   
                   {game.id === 'sword-parry' && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {/* Multiple swords appearing and disappearing */}
-                      <div className="relative w-full h-full">
-                        <div className="absolute text-5xl animate-pulse"
-                             style={{
-                               top: '20%',
-                               left: '20%',
-                               animationDelay: '0s'
-                             }}>⚔️</div>
-                        <div className="absolute text-5xl animate-pulse"
-                             style={{
-                               top: '60%',
-                               right: '25%',
-                               animationDelay: '0.4s',
-                               transform: 'rotate(45deg)'
-                             }}>⚔️</div>
-                        <div className="absolute text-5xl animate-pulse"
-                             style={{
-                               top: '40%',
-                               left: '50%',
-                               animationDelay: '0.8s',
-                               transform: 'rotate(-45deg)'
-                             }}>⚔️</div>
-                        <div className="absolute text-5xl animate-pulse"
-                             style={{
-                               top: '25%',
-                               right: '15%',
-                               animationDelay: '1.2s',
-                               transform: 'rotate(90deg)'
-                             }}>⚔️</div>
-                      </div>
+                    <div className="absolute inset-0">
+                      {/* Sword Parry Gameplay Video */}
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      >
+                        <source src="/sword-parry-gameplay.mp4" type="video/mp4" />
+                      </video>
                     </div>
                   )}
                   
