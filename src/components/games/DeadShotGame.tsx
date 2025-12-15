@@ -447,11 +447,11 @@ export default function DeadShotGame({
       
       // Log every 60 frames to verify animation is running
       if (frameCount % 60 === 0) {
-        console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${scene.children.length}`);
+        console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${sceneRef.current.children.length}`);
       }
       
       // ALWAYS render the scene (bow should be visible even when ready)
-      renderer.render(scene, camera);
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
       
       // Only update game logic when playing
       if (gameStateRef.current !== 'playing') {
@@ -472,9 +472,11 @@ export default function DeadShotGame({
         bowStringRef.current.geometry.setFromPoints(stringPoints);
         
         // Pulse glow when drawing
-        const glowMesh = bowGroup.children.find(child => child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial && child.geometry instanceof THREE.RingGeometry);
-        if (isDrawingRef.current && glowMesh) {
-          (glowMesh as THREE.Mesh).scale.set(1 + drawProgress * 0.5, 1 + drawProgress * 0.5, 1);
+        if (bowRef.current) {
+          const glowMesh = bowRef.current.children.find(child => child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial && child.geometry instanceof THREE.RingGeometry);
+          if (isDrawingRef.current && glowMesh) {
+            (glowMesh as THREE.Mesh).scale.set(1 + drawProgress * 0.5, 1 + drawProgress * 0.5, 1);
+          }
         }
       }
       
@@ -538,16 +540,16 @@ export default function DeadShotGame({
                 createdAt: Date.now()
               };
               
-              scene.add(subItemMesh);
+              sceneRef.current.add(subItemMesh);
               subItemsRef.current.push(subItem);
             }
             
             // Remove ship
-            scene.remove(ship.group);
+            sceneRef.current.remove(ship.group);
             shipsRef.current.splice(shipIndex, 1);
             
             // Remove arrow
-            scene.remove(arrow.group);
+            sceneRef.current.remove(arrow.group);
             return null;
           }
         });
@@ -556,7 +558,7 @@ export default function DeadShotGame({
         if (arrow.group.position.y < -10 || 
             Math.abs(arrow.group.position.x) > 30 || 
             Math.abs(arrow.group.position.z) > 30) {
-          scene.remove(arrow.group);
+          sceneRef.current.remove(arrow.group);
           return null;
         }
         
@@ -582,7 +584,7 @@ export default function DeadShotGame({
         if (Math.abs(ship.group.position.x) > 30 || 
             Math.abs(ship.group.position.y) > 30 || 
             Math.abs(ship.group.position.z) > 30) {
-          scene.remove(ship.group);
+          sceneRef.current.remove(ship.group);
           return null;
         }
         
@@ -613,7 +615,7 @@ export default function DeadShotGame({
           const bonusPoints = item.type === 'bonus' ? 25 : item.type === 'multiplier' ? 50 : 10;
           currentScoreRef.current += bonusPoints;
           setScore(currentScoreRef.current);
-          scene.remove(item.mesh);
+          sceneRef.current.remove(item.mesh);
           return null;
         }
         
@@ -621,7 +623,7 @@ export default function DeadShotGame({
         if (item.mesh.position.y < -10 || 
             Math.abs(item.mesh.position.x) > 30 || 
             Math.abs(item.mesh.position.z) > 30) {
-          scene.remove(item.mesh);
+          sceneRef.current.remove(item.mesh);
           return null;
         }
         
@@ -649,10 +651,12 @@ export default function DeadShotGame({
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
-      if (containerRef.current && renderer.domElement.parentNode) {
-        containerRef.current.removeChild(renderer.domElement);
+      if (containerRef.current && rendererRef.current?.domElement.parentNode) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
       }
-      renderer.dispose();
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
       sceneRef.current = null;
       cameraRef.current = null;
       rendererRef.current = null;
@@ -738,7 +742,6 @@ export default function DeadShotGame({
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (gameState !== 'playing') return;
     e.preventDefault();
-    setIsDrawing(true);
     isDrawingRef.current = true;
     bowPowerRef.current = 0;
     setBowPower(0);
@@ -772,7 +775,6 @@ export default function DeadShotGame({
   const handleMouseUp = useCallback(() => {
     if (gameState !== 'playing' || !isDrawingRef.current || !sceneRef.current) return;
     
-    setIsDrawing(false);
     isDrawingRef.current = false;
     
     // Shoot arrow
