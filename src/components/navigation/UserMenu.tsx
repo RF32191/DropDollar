@@ -116,7 +116,7 @@ export default function UserMenu({ className = '', variant = 'default', unreadMe
           // Double-click to go to dashboard
           window.location.href = '/dashboard';
         }}
-        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative max-w-full whitespace-nowrap"
+        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative whitespace-nowrap min-w-0"
         title="Click to open menu, double-click to go to dashboard"
       >
         <UserIcon className="h-5 w-5 flex-shrink-0" />
