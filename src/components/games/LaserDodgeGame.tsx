@@ -1252,12 +1252,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         
         <div 
           className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10"
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="absolute top-4 left-0 right-0 z-50">
-            <div className="text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-2xl sm:text-3xl font-black py-3 px-6 rounded-full inline-block animate-pulse shadow-2xl">
-              🖱️ CLICK ANYWHERE TO START 🖱️
-            </div>
-          </div>
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-orange-500/20 rounded-full blur-xl animate-pulse delay-1000"></div>

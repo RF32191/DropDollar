@@ -1366,11 +1366,24 @@ export default function GamesPage() {
                   )}
                   
                   {game.id === 'laser-dodge' && (
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="absolute h-1 w-full bg-red-600 top-1/4 animate-pulse"></div>
-                      <div className="absolute h-1 w-full bg-red-600 top-1/2 animate-pulse" style={{animationDelay: '0.3s'}}></div>
-                      <div className="absolute h-1 w-full bg-red-600 top-3/4 animate-pulse" style={{animationDelay: '0.6s'}}></div>
-                      <div className="absolute left-8 top-1/2 w-6 h-6 bg-white rounded-full animate-bounce"></div>
+                    <div className="absolute inset-0">
+                      {/* Laser Dodge Gameplay Video */}
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      >
+                        <source src="/laser-dodge-gameplay.mp4" type="video/mp4" />
+                        {/* Fallback animation if video doesn't load */}
+                        <div className="absolute inset-0 overflow-hidden">
+                          <div className="absolute h-1 w-full bg-red-600 top-1/4 animate-pulse"></div>
+                          <div className="absolute h-1 w-full bg-red-600 top-1/2 animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                          <div className="absolute h-1 w-full bg-red-600 top-3/4 animate-pulse" style={{animationDelay: '0.6s'}}></div>
+                          <div className="absolute left-8 top-1/2 w-6 h-6 bg-white rounded-full animate-bounce"></div>
+                        </div>
+                      </video>
                     </div>
                   )}
                   
