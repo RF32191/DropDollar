@@ -135,7 +135,7 @@ export default function DeadShotGame({
     
     const colors = shipColors[type];
     
-    // Main body - sleek futuristic ship design
+    // Main body - sleek futuristic ship design (multi-colored)
     const bodyGeometry = new THREE.OctahedronGeometry(size * 0.6, 0);
     const bodyMaterial = new THREE.MeshStandardMaterial({
       color: colors.body,
@@ -149,11 +149,11 @@ export default function DeadShotGame({
     body.position.y = size * 0.2;
     shipGroup.add(body);
     
-    // Forward hull section
+    // Forward hull section (different color accent)
     const frontGeometry = new THREE.ConeGeometry(size * 0.3, size * 0.8, 8);
     const frontMaterial = new THREE.MeshStandardMaterial({
-      color: colors.body,
-      emissive: colors.body,
+      color: colors.wing, // Use wing color for contrast
+      emissive: colors.wing,
       emissiveIntensity: 3.5
     });
     const front = new THREE.Mesh(frontGeometry, frontMaterial);
@@ -161,7 +161,7 @@ export default function DeadShotGame({
     front.position.y = size * 0.8;
     shipGroup.add(front);
     
-    // Wings - more detailed swept-back design
+    // Wings - more detailed swept-back design (multi-colored)
     const wingGeometry = new THREE.BoxGeometry(size * 0.6, size * 0.2, size * 1.2);
     const wingMaterial = new THREE.MeshStandardMaterial({
       color: colors.wing,
@@ -181,12 +181,12 @@ export default function DeadShotGame({
     rightWing.rotation.x = 0.1;
     shipGroup.add(rightWing);
     
-    // Wing tips (smaller details)
+    // Wing tips (different color - accent)
     const tipGeometry = new THREE.ConeGeometry(size * 0.15, size * 0.4, 6);
     const tipMaterial = new THREE.MeshStandardMaterial({
-      color: colors.wing,
-      emissive: colors.wing,
-      emissiveIntensity: 3.0
+      color: 0xffffff, // White tips for contrast
+      emissive: 0xffffff,
+      emissiveIntensity: 3.5
     });
     
     const leftTip = new THREE.Mesh(tipGeometry, tipMaterial);
@@ -199,7 +199,23 @@ export default function DeadShotGame({
     rightTip.rotation.z = 0.3;
     shipGroup.add(rightTip);
     
-    // Cockpit/canopy - more detailed
+    // Side panels (additional color variation)
+    const panelGeometry = new THREE.BoxGeometry(size * 0.2, size * 0.3, size * 0.4);
+    const panelMaterial = new THREE.MeshStandardMaterial({
+      color: colors.glow, // Use glow color
+      emissive: colors.glow,
+      emissiveIntensity: 2.8
+    });
+    
+    const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    leftPanel.position.set(-size * 0.4, size * 0.1, 0);
+    shipGroup.add(leftPanel);
+    
+    const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    rightPanel.position.set(size * 0.4, size * 0.1, 0);
+    shipGroup.add(rightPanel);
+    
+    // Cockpit/canopy - more detailed (multi-colored)
     const canopyGeometry = new THREE.SphereGeometry(size * 0.3, 16, 16);
     const canopyMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -212,7 +228,7 @@ export default function DeadShotGame({
     canopy.position.y = size * 0.7;
     shipGroup.add(canopy);
     
-    // Canopy frame
+    // Canopy frame (body color)
     const frameGeometry = new THREE.RingGeometry(size * 0.25, size * 0.3, 16);
     const frameMaterial = new THREE.MeshBasicMaterial({
       color: colors.body,
@@ -307,12 +323,12 @@ export default function DeadShotGame({
   const createArrow = useCallback((): THREE.Group => {
     const arrowGroup = new THREE.Group();
     
-    // Arrow shaft (neon cyan cylinder - longer and thinner)
+    // Arrow shaft (neon cyan cylinder - MUCH brighter and animated)
     const shaftGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 12);
     const shaftMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 2.5, // Much brighter
+      emissiveIntensity: 5.0, // MUCH brighter
       metalness: 0.9,
       roughness: 0.1
     });
@@ -320,12 +336,12 @@ export default function DeadShotGame({
     shaft.rotation.z = Math.PI / 2;
     arrowGroup.add(shaft);
     
-    // Arrow head (sharp pyramid - more arrow-like)
+    // Arrow head (sharp pyramid - VERY bright)
     const headGeometry = new THREE.ConeGeometry(0.08, 0.2, 8);
     const headMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
-      emissiveIntensity: 3.0, // Very bright
+      emissiveIntensity: 6.0, // VERY bright
       metalness: 0.95,
       roughness: 0.05
     });
@@ -333,23 +349,23 @@ export default function DeadShotGame({
     head.position.x = 0.25; // Further forward
     arrowGroup.add(head);
     
-    // Arrow tip point (extra sharp tip)
+    // Arrow tip point (extra sharp tip - BRIGHTEST)
     const tipGeometry = new THREE.ConeGeometry(0.02, 0.05, 6);
     const tipMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
-      emissiveIntensity: 4.0
+      emissiveIntensity: 8.0 // BRIGHTEST
     });
     const tip = new THREE.Mesh(tipGeometry, tipMaterial);
     tip.position.x = 0.35;
     arrowGroup.add(tip);
     
-    // Fletching (feathers at back - more visible)
+    // Fletching (feathers at back - brighter)
     const fletchGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.03);
     const fletchMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 2.0
+      emissiveIntensity: 4.0 // Brighter
     });
     
     const fletch1 = new THREE.Mesh(fletchGeometry, fletchMaterial);
@@ -367,29 +383,31 @@ export default function DeadShotGame({
     fletch3.rotation.y = Math.PI / 2;
     arrowGroup.add(fletch3);
     
-    // Trail effect - brighter glow
-    const trailGeometry = new THREE.SphereGeometry(0.04, 8, 8);
+    // Trail effect - MUCH brighter animated glow
+    const trailGeometry = new THREE.SphereGeometry(0.06, 8, 8);
     const trailMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.8
+      opacity: 1.0 // Fully opaque for brightness
     });
     const trail = new THREE.Mesh(trailGeometry, trailMaterial);
     trail.position.x = -0.15;
     arrowGroup.add(trail);
     
-    // Outer glow ring
-    const glowRingGeometry = new THREE.RingGeometry(0.05, 0.08, 16);
-    const glowRingMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide
-    });
-    const glowRing = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
-    glowRing.position.x = -0.15;
-    glowRing.rotation.x = Math.PI / 2;
-    arrowGroup.add(glowRing);
+    // Multiple glow rings for pulsing effect
+    for (let i = 0; i < 3; i++) {
+      const glowRingGeometry = new THREE.RingGeometry(0.05 + i * 0.02, 0.08 + i * 0.02, 16);
+      const glowRingMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.7 - i * 0.2,
+        side: THREE.DoubleSide
+      });
+      const glowRing = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
+      glowRing.position.x = -0.15;
+      glowRing.rotation.x = Math.PI / 2;
+      arrowGroup.add(glowRing);
+    }
     
     return arrowGroup;
   }, []);
@@ -707,7 +725,7 @@ export default function DeadShotGame({
         }
       }
       
-      // Update arrows with smooth arch physics
+      // Update arrows with smooth arch physics and animated brightness
       arrowsRef.current = arrowsRef.current.map(arrow => {
         // Smooth physics with reduced gravity for better arch
         const gravity = 5.0; // Reduced gravity for smoother arch
@@ -715,6 +733,27 @@ export default function DeadShotGame({
         arrow.group.position.y += arrow.vy * delta;
         arrow.group.position.z += arrow.vz * delta;
         arrow.vy -= gravity * delta; // Smoother gravity
+        
+        // Animate arrow brightness (pulsing effect)
+        const time = Date.now() * 0.005;
+        const pulseIntensity = 1.0 + Math.sin(time + arrow.id) * 0.3; // Pulsing brightness
+        
+        arrow.group.children.forEach((child) => {
+          if (child instanceof THREE.Mesh) {
+            const material = child.material;
+            if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshBasicMaterial) {
+              if (material.emissiveIntensity !== undefined) {
+                const baseIntensity = material.emissiveIntensity || 2.0;
+                material.emissiveIntensity = baseIntensity * pulseIntensity;
+              }
+              // Pulse opacity for glow effects
+              if (material.transparent && material.opacity !== undefined) {
+                const baseOpacity = material.opacity || 0.8;
+                material.opacity = Math.min(1.0, baseOpacity * pulseIntensity);
+              }
+            }
+          }
+        });
         
         // Rotate arrow to match velocity direction smoothly
         const velocity = Math.sqrt(arrow.vx * arrow.vx + arrow.vy * arrow.vy + arrow.vz * arrow.vz);
@@ -942,30 +981,33 @@ export default function DeadShotGame({
       let x, y, z;
       let direction: THREE.Vector3;
       
+      // All ships spawn on the same plane (z = 0) so they can be hit
+      const shipZ = 0; // Fixed Z position for all ships
+      
       switch (side) {
         case 0: // Left - move right toward center
           x = -8;
           y = rng.nextFloat(-4, 4);
-          z = rng.nextFloat(-2, 2);
-          direction = new THREE.Vector3(1, rng.nextFloat(-0.2, 0.2), rng.nextFloat(-0.1, 0.1)).normalize();
+          z = shipZ;
+          direction = new THREE.Vector3(1, rng.nextFloat(-0.2, 0.2), 0).normalize();
           break;
         case 1: // Right - move left toward center
           x = 8;
           y = rng.nextFloat(-4, 4);
-          z = rng.nextFloat(-2, 2);
-          direction = new THREE.Vector3(-1, rng.nextFloat(-0.2, 0.2), rng.nextFloat(-0.1, 0.1)).normalize();
+          z = shipZ;
+          direction = new THREE.Vector3(-1, rng.nextFloat(-0.2, 0.2), 0).normalize();
           break;
         case 2: // Top - move down toward center
           x = rng.nextFloat(-4, 4);
           y = 6;
-          z = rng.nextFloat(-2, 2);
-          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), -1, rng.nextFloat(-0.1, 0.1)).normalize();
+          z = shipZ;
+          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), -1, 0).normalize();
           break;
         default: // Bottom - move up toward center
           x = rng.nextFloat(-4, 4);
           y = -6;
-          z = rng.nextFloat(-2, 2);
-          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), 1, rng.nextFloat(-0.1, 0.1)).normalize();
+          z = shipZ;
+          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), 1, 0).normalize();
           break;
       }
       
@@ -999,13 +1041,15 @@ export default function DeadShotGame({
     };
   }, [gameState, seededRng, createAlienShip]);
 
-  // Charge up power while holding
+  // Charge up power while holding - FIXED to properly update state
   useEffect(() => {
-    if (gameState !== 'playing' || !isDrawingRef.current) return;
+    if (gameState !== 'playing') return;
     
     const chargeInterval = setInterval(() => {
+      // Check if drawing and update power
       if (isDrawingRef.current && bowPowerRef.current < 100) {
         bowPowerRef.current = Math.min(100, bowPowerRef.current + 2);
+        // Force state update to show charge bar
         setBowPower(bowPowerRef.current);
         
         // Auto-shoot at max charge
@@ -1016,7 +1060,8 @@ export default function DeadShotGame({
           // Shoot arrow with smooth arch trajectory based on power
           const power = bowPowerRef.current / 100;
           const aimAngleRad = aimAngleRef.current * Math.PI / 180;
-          const baseSpeed = 18 + power * 28; // Speed increases with power
+          // Velocity scales significantly with power (min 15, max 50)
+          const baseSpeed = 15 + power * 35; // Speed increases dramatically with power
           // Add upward component for arch - more power = higher arch (smoother curve)
           const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
           const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
@@ -1046,6 +1091,10 @@ export default function DeadShotGame({
           bowPowerRef.current = 0;
           setBowPower(0);
         }
+      } else if (!isDrawingRef.current && bowPowerRef.current > 0) {
+        // Reset power if not drawing
+        bowPowerRef.current = 0;
+        setBowPower(0);
       }
     }, 50); // Charge every 50ms
     
@@ -1090,7 +1139,8 @@ export default function DeadShotGame({
     // Shoot arrow with smooth arch trajectory based on power
     const power = bowPowerRef.current / 100;
     const aimAngleRad = aimAngleRef.current * Math.PI / 180;
-    const baseSpeed = 18 + power * 28; // Speed increases with power
+    // Velocity scales significantly with power (min 15, max 50)
+    const baseSpeed = 15 + power * 35; // Speed increases dramatically with power
     // Add upward component for arch - more power = higher arch (smoother curve)
     const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
     const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
