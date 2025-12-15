@@ -968,7 +968,7 @@ export default function DeadShotGame({
         return ship;
       }).filter(ship => ship !== null) as AlienShip[];
       
-      // Update enemy projectiles
+      // Update enemy projectiles with animation
       enemyProjectilesRef.current = enemyProjectilesRef.current.map(projectile => {
         projectile.mesh.position.x += projectile.vx * delta;
         projectile.mesh.position.y += projectile.vy * delta;
@@ -1104,7 +1104,7 @@ export default function DeadShotGame({
       cameraRef.current = null;
       rendererRef.current = null;
     };
-  }, [createAlienShip, createArrow, createSubItem]);
+  }, [createAlienShip, createArrow, createSubItem, playVirusShotSound]);
 
   // Spawn ships - only when playing - linear directions from different spawn points
   useEffect(() => {
@@ -1273,7 +1273,7 @@ export default function DeadShotGame({
     }, 50); // Charge every 50ms
     
     return () => clearInterval(chargeInterval);
-  }, [gameState, createArrow]);
+  }, [gameState, createArrow, playPlayerShotSound]);
 
   // Handle mouse/touch for aiming and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -1364,7 +1364,7 @@ export default function DeadShotGame({
     // Reset power after shooting
     bowPowerRef.current = 0;
     setBowPower(0);
-  }, [gameState, createArrow]);
+  }, [gameState, createArrow, playPlayerShotSound]);
 
   // Start game
   const startGame = () => {
