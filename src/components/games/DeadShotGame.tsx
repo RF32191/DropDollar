@@ -50,12 +50,18 @@ export default function DeadShotGame({
   rngSeed 
 }: DeadShotGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(3);
   const [bowPower, setBowPower] = useState(0);
   const [aimAngle, setAimAngle] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
+  
+  // Sync gameState to ref for animation loop
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
   
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
