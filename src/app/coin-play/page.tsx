@@ -663,7 +663,7 @@ export default function CoinPlayPage() {
     return (
       <ErrorBoundary>
         <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-800 to-amber-900">
-          <CleanNavigation currentPage="coin-play" showUsername={true} />
+          <CleanNavigation currentPage="coin-play" />
           <CompetitionGameFlow
             gameType={selectedGameFlow.gameType}
             sessionId={selectedGameFlow.sessionId}
