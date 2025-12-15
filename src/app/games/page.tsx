@@ -1141,6 +1141,8 @@ export default function GamesPage() {
             "Don't drop out, drop a dollar."
           </p>
         </div>
+        
+        <div className="text-center mb-8">
           {isCompetitionMode ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 max-w-3xl mx-auto">
               <p className="text-lg text-red-800 font-bold">

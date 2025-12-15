@@ -1015,7 +1015,7 @@ export default function DeadShotGame({
           
           // Shoot arrow with smooth arch trajectory based on power
           const power = bowPowerRef.current / 100;
-          const angle = aimAngleRef.current * Math.PI / 180;
+          const aimAngleRad = aimAngleRef.current * Math.PI / 180;
           const baseSpeed = 18 + power * 28; // Speed increases with power
           // Add upward component for arch - more power = higher arch (smoother curve)
           const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
@@ -1026,16 +1026,15 @@ export default function DeadShotGame({
           // Spawn arrow at string center position (on the wire)
           // Calculate world position based on bow rotation
           const localPos = stringCenterRef.current.clone();
-          const angle = aimAngleRef.current * Math.PI / 180;
-          const worldX = localPos.x * Math.cos(angle) - localPos.y * Math.sin(angle);
-          const worldY = localPos.x * Math.sin(angle) + localPos.y * Math.cos(angle);
+          const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
+          const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
           arrowGroup.position.set(worldX, worldY, localPos.z);
           
           const arrow: Arrow = {
             id: ++lastArrowIdRef.current,
             group: arrowGroup,
-            vx: Math.cos(angle) * horizontalSpeed,
-            vy: Math.sin(angle) * horizontalSpeed + verticalSpeed, // Add upward component
+            vx: Math.cos(aimAngleRad) * horizontalSpeed,
+            vy: Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed, // Add upward component
             vz: 0,
             createdAt: Date.now()
           };
@@ -1090,7 +1089,7 @@ export default function DeadShotGame({
     
     // Shoot arrow with smooth arch trajectory based on power
     const power = bowPowerRef.current / 100;
-    const angle = aimAngleRef.current * Math.PI / 180;
+    const aimAngleRad = aimAngleRef.current * Math.PI / 180;
     const baseSpeed = 18 + power * 28; // Speed increases with power
     // Add upward component for arch - more power = higher arch (smoother curve)
     const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
@@ -1101,16 +1100,15 @@ export default function DeadShotGame({
     // Spawn arrow at string center position (on the wire)
     // Calculate world position based on bow rotation
     const localPos = stringCenterRef.current.clone();
-    const angle = aimAngleRef.current * Math.PI / 180;
-    const worldX = localPos.x * Math.cos(angle) - localPos.y * Math.sin(angle);
-    const worldY = localPos.x * Math.sin(angle) + localPos.y * Math.cos(angle);
+    const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
+    const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
     arrowGroup.position.set(worldX, worldY, localPos.z);
     
     const arrow: Arrow = {
       id: ++lastArrowIdRef.current,
       group: arrowGroup,
-      vx: Math.cos(angle) * horizontalSpeed,
-      vy: Math.sin(angle) * horizontalSpeed + verticalSpeed, // Add upward component
+      vx: Math.cos(aimAngleRad) * horizontalSpeed,
+      vy: Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed, // Add upward component
       vz: 0,
       createdAt: Date.now()
     };
