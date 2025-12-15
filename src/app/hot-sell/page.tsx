@@ -14,6 +14,7 @@ import LocationBanner from '@/components/location/LocationBanner';
 import LocationVerificationModal from '@/components/modals/LocationVerificationModal';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { ImprovedLocationService } from '@/lib/improvedLocationService';
+import LazyVideo from '@/components/video/LazyVideo';
 import {
   FireIcon,
   TrophyIcon,
@@ -1090,15 +1091,11 @@ export default function HotSellPage() {
                 {/* Gameplay Video Preview */}
                 {gameInfo.video && (
                   <div className="relative w-full mb-4 rounded-xl overflow-hidden" style={{ aspectRatio: '16/9', maxHeight: '200px' }}>
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                    >
-                      <source src={gameInfo.video} type="video/mp4" />
-                    </video>
+                    <LazyVideo
+                      src={gameInfo.video}
+                      className="w-full h-full"
+                      preload="none"
+                    />
                   </div>
                 )}
                 

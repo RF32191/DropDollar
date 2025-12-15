@@ -28,6 +28,7 @@ import CleanNavigation from '@/components/navigation/CleanNavigation';
 import LocationPermissionModal from '@/components/modals/LocationPermissionModal';
 import LocationBanner from '@/components/location/LocationBanner';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
+import LazyVideo from '@/components/video/LazyVideo';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { XPService } from '@/lib/supabase/xpService';
@@ -1356,128 +1357,49 @@ export default function GamesPage() {
                   {/* Game-specific animations */}
                   {game.id === 'quick-click' && (
                     <div className="absolute inset-0">
-                      {/* Quick Click Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/quick-click-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/quick-click-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'color-sequence' && (
                     <div className="absolute inset-0">
-                      {/* Color Sequence Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/color-sequence-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/color-sequence-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'laser-dodge' && (
                     <div className="absolute inset-0">
-                      {/* Laser Dodge Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/laser-dodge-gameplay.mp4" type="video/mp4" />
-                        {/* Fallback animation if video doesn't load */}
-                        <div className="absolute inset-0 overflow-hidden">
-                          <div className="absolute h-1 w-full bg-red-600 top-1/4 animate-pulse"></div>
-                          <div className="absolute h-1 w-full bg-red-600 top-1/2 animate-pulse" style={{animationDelay: '0.3s'}}></div>
-                          <div className="absolute h-1 w-full bg-red-600 top-3/4 animate-pulse" style={{animationDelay: '0.6s'}}></div>
-                          <div className="absolute left-8 top-1/2 w-6 h-6 bg-white rounded-full animate-bounce"></div>
-                        </div>
-                      </video>
+                      <LazyVideo src="/laser-dodge-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'falling-objects' && (
                     <div className="absolute inset-0">
-                      {/* Falling Object Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/falling-object-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/falling-object-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'multi-target' && (
                     <div className="absolute inset-0">
-                      {/* Multi Touch Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/multi-touch-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/multi-touch-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'sword-parry' && (
                     <div className="absolute inset-0">
-                      {/* Sword Parry Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/sword-parry-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/sword-parry-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'blade-bounce' && (
                     <div className="absolute inset-0">
-                      {/* Mouseblade Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/mouseblade-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/mouseblade-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
                   {game.id === 'cash-stack' && (
                     <div className="absolute inset-0">
-                      {/* Cash Stack Gameplay Video */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      >
-                        <source src="/cash-stack-gameplay.mp4" type="video/mp4" />
-                      </video>
+                      <LazyVideo src="/cash-stack-gameplay.mp4" className="w-full h-full" preload="none" />
                     </div>
                   )}
                   
