@@ -259,8 +259,8 @@ export default function DeadShotGame({
     console.log('🎯 [DeadShot] Initializing Three.js scene');
 
     const container = containerRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
 
     console.log('📐 [DeadShot] Container size:', { width, height });
 
@@ -271,8 +271,8 @@ export default function DeadShotGame({
           const retryWidth = containerRef.current.clientWidth || window.innerWidth;
           const retryHeight = containerRef.current.clientHeight || window.innerHeight;
           if (retryWidth > 0 && retryHeight > 0) {
-            // Retry initialization
-            console.log('🔄 [DeadShot] Retrying initialization with dimensions:', { retryWidth, retryHeight });
+            // Trigger re-render to retry initialization
+            setGameState(prev => prev);
           }
         }
       }, 100);
@@ -281,7 +281,6 @@ export default function DeadShotGame({
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000011);
-    scene.fog = new THREE.FogExp2(0x000011, 0.002);
     
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -289,7 +288,7 @@ export default function DeadShotGame({
       0.1,
       1000
     );
-    camera.position.set(0, 2, 8);
+    camera.position.set(0, 0, 10);
     camera.lookAt(0, 0, 0);
     
     const renderer = new THREE.WebGLRenderer({ 
@@ -313,66 +312,74 @@ export default function DeadShotGame({
     
     console.log('✅ [DeadShot] Renderer appended to DOM');
     
-    // Neon lighting
-    const ambientLight = new THREE.AmbientLight(0x444444, 0.5);
+    // Bright lighting to ensure visibility
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     
-    const pointLight1 = new THREE.PointLight(0x00ffff, 3, 50);
+    const pointLight1 = new THREE.PointLight(0x00ffff, 5, 100);
     pointLight1.position.set(5, 5, 5);
     scene.add(pointLight1);
     
-    const pointLight2 = new THREE.PointLight(0xff00ff, 3, 50);
+    const pointLight2 = new THREE.PointLight(0xff00ff, 5, 100);
     pointLight2.position.set(-5, 5, -5);
     scene.add(pointLight2);
     
-    const pointLight3 = new THREE.PointLight(0xffffff, 2, 30);
-    pointLight3.position.set(0, 5, 0);
-    scene.add(pointLight3);
+    // TEST CUBE - Verify rendering works
+    const testCubeGeometry = new THREE.BoxGeometry(2, 2, 2);
+    const testCubeMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xff0000,
+      emissive: 0xff0000,
+      emissiveIntensity: 1.0
+    });
+    const testCube = new THREE.Mesh(testCubeGeometry, testCubeMaterial);
+    testCube.position.set(3, 0, 0);
+    scene.add(testCube);
+    console.log('🧪 [DeadShot] Test cube added at (3, 0, 0)');
     
-    // Create laser bow - MAKE IT LARGE AND VISIBLE
+    // Create laser bow - MAKE IT HUGE AND BRIGHT
     const bowGroup = new THREE.Group();
     
-    // Bow limbs (neon cyan) - MAKE BIGGER
-    const limbGeometry = new THREE.BoxGeometry(0.1, 0.8, 0.1);
+    // Bow limbs (neon cyan) - MUCH BIGGER
+    const limbGeometry = new THREE.BoxGeometry(0.3, 2.0, 0.3);
     const limbMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 1.5,
+      emissiveIntensity: 2.0,
       metalness: 0.9,
       roughness: 0.1
     });
     
     const leftLimb = new THREE.Mesh(limbGeometry, limbMaterial);
-    leftLimb.position.set(-0.4, -1.5, 0);
+    leftLimb.position.set(-0.8, 0, 0);
     leftLimb.rotation.z = 0.3;
     bowGroup.add(leftLimb);
     
     const rightLimb = new THREE.Mesh(limbGeometry, limbMaterial);
-    rightLimb.position.set(0.4, -1.5, 0);
+    rightLimb.position.set(0.8, 0, 0);
     rightLimb.rotation.z = -0.3;
     bowGroup.add(rightLimb);
     
-    // Bow grip - MAKE BIGGER
-    const gripGeometry = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+    // Bow grip - MUCH BIGGER
+    const gripGeometry = new THREE.BoxGeometry(0.4, 0.8, 0.4);
     const gripMaterial = new THREE.MeshStandardMaterial({
       color: 0x0088ff,
       emissive: 0x0088ff,
-      emissiveIntensity: 0.8
+      emissiveIntensity: 1.5
     });
     const grip = new THREE.Mesh(gripGeometry, gripMaterial);
-    grip.position.set(0, -1.5, 0);
+    grip.position.set(0, 0, 0);
     bowGroup.add(grip);
     
-    // Bow string (glowing line) - MAKE THICKER
+    // Bow string (glowing line) - THICKER
     const stringPoints = [
-      new THREE.Vector3(-0.4, -1.2, 0),
-      new THREE.Vector3(0, -1.5, 0),
-      new THREE.Vector3(0.4, -1.2, 0)
+      new THREE.Vector3(-0.8, 0.5, 0),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0.8, 0.5, 0)
     ];
     const stringGeometry = new THREE.BufferGeometry().setFromPoints(stringPoints);
     const stringMaterial = new THREE.LineBasicMaterial({ 
       color: 0x00ffff, 
-      linewidth: 5,
+      linewidth: 10,
       transparent: true,
       opacity: 1.0
     });
@@ -380,21 +387,25 @@ export default function DeadShotGame({
     bowGroup.add(bowString);
     bowStringRef.current = bowString;
     
-    // Energy glow around bow - MAKE BIGGER AND BRIGHTER
-    const glowGeometry = new THREE.RingGeometry(0.3, 0.5, 32);
+    // Energy glow around bow - HUGE AND BRIGHT
+    const glowGeometry = new THREE.RingGeometry(0.5, 1.0, 32);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.8,
       side: THREE.DoubleSide
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.set(0, -1.5, 0);
+    glow.position.set(0, 0, 0);
     glow.rotation.x = Math.PI / 2;
     bowGroup.add(glow);
     
+    // Position bow at center of screen (visible)
+    bowGroup.position.set(0, 0, 0);
     scene.add(bowGroup);
     bowRef.current = bowGroup;
+    
+    console.log('✅ [DeadShot] Bow created and added to scene at (0, 0, 0)');
     
     sceneRef.current = scene;
     cameraRef.current = camera;
@@ -402,7 +413,7 @@ export default function DeadShotGame({
     
     console.log('✅ [DeadShot] Scene initialized, starting animation loop');
     
-    // Start animation loop immediately
+    // Start animation loop immediately - ALWAYS RENDER
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current) {
         console.warn('⚠️ [DeadShot] Scene not ready, stopping animation');
@@ -412,7 +423,7 @@ export default function DeadShotGame({
       animationIdRef.current = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
       
-      // Always render the scene (bow should be visible even when ready)
+      // ALWAYS render the scene (bow should be visible even when ready)
       renderer.render(scene, camera);
       
       // Only update game logic when playing
@@ -427,15 +438,16 @@ export default function DeadShotGame({
         
         // Animate bow string when drawing
         const stringPoints = [
-          new THREE.Vector3(-0.4, -1.2, 0),
-          new THREE.Vector3(0, -1.5 - drawProgress * 0.5, 0),
-          new THREE.Vector3(0.4, -1.2, 0)
+          new THREE.Vector3(-0.8, 0.5, 0),
+          new THREE.Vector3(0, 0 - drawProgress * 0.5, 0),
+          new THREE.Vector3(0.8, 0.5, 0)
         ];
         bowStringRef.current.geometry.setFromPoints(stringPoints);
         
         // Pulse glow when drawing
-        if (isDrawingRef.current && glow) {
-          glow.scale.set(1 + drawProgress * 0.5, 1 + drawProgress * 0.5, 1);
+        const glowMesh = bowGroup.children.find(child => child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial && child.geometry instanceof THREE.RingGeometry);
+        if (isDrawingRef.current && glowMesh) {
+          (glowMesh as THREE.Mesh).scale.set(1 + drawProgress * 0.5, 1 + drawProgress * 0.5, 1);
         }
       }
       
@@ -643,24 +655,24 @@ export default function DeadShotGame({
       
       switch (side) {
         case 0: // Left
-          x = -15;
-          y = rng.nextFloat(-3, 5);
-          z = rng.nextFloat(-8, 8);
+          x = -8;
+          y = rng.nextFloat(-3, 3);
+          z = rng.nextFloat(-3, 3);
           break;
         case 1: // Right
-          x = 15;
-          y = rng.nextFloat(-3, 5);
-          z = rng.nextFloat(-8, 8);
+          x = 8;
+          y = rng.nextFloat(-3, 3);
+          z = rng.nextFloat(-3, 3);
           break;
         case 2: // Top
-          x = rng.nextFloat(-8, 8);
-          y = 10;
-          z = rng.nextFloat(-8, 8);
+          x = rng.nextFloat(-5, 5);
+          y = 5;
+          z = rng.nextFloat(-3, 3);
           break;
         default: // Bottom
-          x = rng.nextFloat(-8, 8);
+          x = rng.nextFloat(-5, 5);
           y = -5;
-          z = rng.nextFloat(-8, 8);
+          z = rng.nextFloat(-3, 3);
       }
       
       const size = rng.nextFloat(0.8, 1.5);
@@ -742,7 +754,7 @@ export default function DeadShotGame({
     const speed = 20 + power * 25;
     
     const arrowGroup = createArrow();
-    arrowGroup.position.set(0, -1, 0);
+    arrowGroup.position.set(0, 0, 0); // Match bow position
     
     const arrow: Arrow = {
       id: ++lastArrowIdRef.current,
