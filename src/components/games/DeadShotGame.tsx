@@ -216,27 +216,42 @@ export default function DeadShotGame({
     return mesh;
   }, []);
 
-  // Initialize Three.js scene
+  // Initialize Three.js scene - Initialize immediately, not just when playing
   useEffect(() => {
-    if (!mountRef.current || gameState !== 'playing') return;
+    if (!mountRef.current || sceneRef.current) return;
+
+    console.log('🎯 [DeadShot] Initializing Three.js scene');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000011);
     scene.fog = new THREE.FogExp2(0x000011, 0.002);
     
+    const width = mountRef.current.clientWidth || window.innerWidth;
+    const height = mountRef.current.clientHeight || window.innerHeight;
+    
+    console.log('📐 [DeadShot] Container size:', { width, height });
+    
     const camera = new THREE.PerspectiveCamera(
       75,
-      mountRef.current.clientWidth / mountRef.current.clientHeight,
+      width / height,
       0.1,
       1000
     );
     camera.position.set(0, 2, 8);
     camera.lookAt(0, 0, 0);
     
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true, 
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     mountRef.current.appendChild(renderer.domElement);
+    
+    console.log('✅ [DeadShot] Renderer appended to DOM');
     
     // Neon lighting
     const ambientLight = new THREE.AmbientLight(0x444444);
@@ -493,9 +508,23 @@ export default function DeadShotGame({
       renderer.render(scene, camera);
     };
     
+    clockRef.current.start();
     animate();
     
+    // Handle window resize
+    const handleResize = () => {
+      if (!mountRef.current || !cameraRef.current || !rendererRef.current) return;
+      const width = mountRef.current.clientWidth || window.innerWidth;
+      const height = mountRef.current.clientHeight || window.innerHeight;
+      cameraRef.current.aspect = width / height;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(width, height);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
     return () => {
+      window.removeEventListener('resize', handleResize);
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
@@ -503,8 +532,11 @@ export default function DeadShotGame({
         mountRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      sceneRef.current = null;
+      cameraRef.current = null;
+      rendererRef.current = null;
     };
-  }, [gameState, createAlienShip, createArrow, createSubItem]);
+  }, [createAlienShip, createArrow, createSubItem]); // Remove gameState dependency
 
   // Spawn ships
   useEffect(() => {
@@ -553,7 +585,7 @@ export default function DeadShotGame({
         rng.nextFloat(-1, 1)
       ).normalize();
       
-      sceneRef.current!.add(shipMesh);
+      sceneRef.current.add(shipMesh);
       
       const ship: AlienShip = {
         id: ++lastShipIdRef.current,
@@ -566,10 +598,17 @@ export default function DeadShotGame({
       };
       
       shipsRef.current.push(ship);
+      console.log('👾 [DeadShot] Spawned ship #' + ship.id, { x, y, z, size });
     };
     
+    // Spawn first ship immediately
+    spawnShip();
+    
     const spawnInterval = setInterval(spawnShip, 2000);
-    return () => clearInterval(spawnInterval);
+    return () => {
+      clearInterval(spawnInterval);
+      console.log('🛑 [DeadShot] Stopped ship spawner');
+    };
   }, [gameState, seededRng, createAlienShip]);
 
   // Handle mouse/touch for aiming and drawing
