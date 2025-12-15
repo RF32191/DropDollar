@@ -306,11 +306,31 @@ export default function DeadShotGame({
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
     renderer.domElement.style.left = '0';
-    renderer.domElement.style.zIndex = '0';
     
     container.appendChild(renderer.domElement);
     
+    // VERIFY: Check if canvas is actually in DOM
     console.log('✅ [DeadShot] Renderer appended to DOM');
+    console.log('🔍 [DeadShot] Canvas element:', renderer.domElement);
+    console.log('🔍 [DeadShot] Canvas parent:', renderer.domElement.parentElement);
+    console.log('🔍 [DeadShot] Canvas dimensions:', {
+      width: renderer.domElement.width,
+      height: renderer.domElement.height,
+      clientWidth: renderer.domElement.clientWidth,
+      clientHeight: renderer.domElement.clientHeight,
+      offsetWidth: renderer.domElement.offsetWidth,
+      offsetHeight: renderer.domElement.offsetHeight
+    });
+    console.log('🔍 [DeadShot] Container dimensions:', {
+      clientWidth: container.clientWidth,
+      clientHeight: container.clientHeight,
+      offsetWidth: container.offsetWidth,
+      offsetHeight: container.offsetHeight
+    });
+    
+    // FORCE a render immediately to verify it works
+    renderer.render(scene, camera);
+    console.log('✅ [DeadShot] Initial render completed');
     
     // Bright lighting to ensure visibility
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
@@ -414,6 +434,7 @@ export default function DeadShotGame({
     console.log('✅ [DeadShot] Scene initialized, starting animation loop');
     
     // Start animation loop immediately - ALWAYS RENDER
+    let frameCount = 0;
     const animate = () => {
       if (!sceneRef.current || !cameraRef.current || !rendererRef.current) {
         console.warn('⚠️ [DeadShot] Scene not ready, stopping animation');
@@ -422,6 +443,12 @@ export default function DeadShotGame({
       
       animationIdRef.current = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
+      frameCount++;
+      
+      // Log every 60 frames to verify animation is running
+      if (frameCount % 60 === 0) {
+        console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${scene.children.length}`);
+      }
       
       // ALWAYS render the scene (bow should be visible even when ready)
       renderer.render(scene, camera);
@@ -834,18 +861,19 @@ export default function DeadShotGame({
   };
 
   return (
-    <div className="w-full h-full relative bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
+    <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900 overflow-hidden" style={{ margin: 0, padding: 0 }}>
       {/* 3D Scene Container - MUST be full size and positioned */}
       <div 
         ref={containerRef}
-        className="absolute inset-0 w-full h-full"
+        className="w-full h-full"
         style={{ 
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 0
+          touchAction: 'none',
+          userSelect: 'none'
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -871,7 +899,7 @@ export default function DeadShotGame({
       
       {/* Ready Screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/30 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/20">
           <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl">
             <h1 className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
               🎯 Dead Shot
