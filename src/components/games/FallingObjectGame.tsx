@@ -879,12 +879,50 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleStartGame}
-              className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-xl text-lg transition-colors"
-            >
-              🚀 Start Game
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+              <button
+                onClick={handleStartGame}
+                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-500 hover:to-blue-500 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl"
+              >
+                🚀 START GAME
+              </button>
+              {onExit && (
+                <button
+                  onClick={onExit}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-lg sm:text-xl"
+                >
+                  ← Back to Menu
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Expanded Video Modal */}
+        {expandedVideo && (
+          <div 
+            className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+            onClick={() => setExpandedVideo(null)}
+          >
+            <div className="relative w-full max-w-6xl" style={{ aspectRatio: '16/9' }}>
+              <button
+                onClick={() => setExpandedVideo(null)}
+                className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-green-400 transition-colors z-10"
+              >
+                ✕ Close
+              </button>
+              <video
+                autoPlay
+                loop
+                controls
+                className="w-full h-full rounded-lg border-4 border-green-400 shadow-2xl"
+                style={{ objectFit: 'contain' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <source src={expandedVideo} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
           </div>
         )}
 

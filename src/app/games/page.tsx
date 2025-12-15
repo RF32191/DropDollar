@@ -1396,10 +1396,17 @@ export default function GamesPage() {
                   )}
                   
                   {game.id === 'falling-object' && (
-                    <div className="absolute inset-0 flex items-center justify-center gap-3">
-                      <div className="text-3xl animate-bounce">💰</div>
-                      <div className="text-3xl animate-bounce" style={{animationDelay: '0.2s'}}>💰</div>
-                      <div className="text-3xl animate-bounce" style={{animationDelay: '0.4s'}}>💰</div>
+                    <div className="absolute inset-0">
+                      {/* Falling Object Gameplay Video */}
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      >
+                        <source src="/falling-object-gameplay.mp4" type="video/mp4" />
+                      </video>
                     </div>
                   )}
                   
