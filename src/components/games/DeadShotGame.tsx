@@ -864,7 +864,7 @@ export default function DeadShotGame({
                 id: ++lastSubItemIdRef.current,
                 mesh: dropMesh,
                 vx: (Math.random() - 0.5) * 3,
-                vy: Math.random() * 2 + 1,
+                vy: Math.random() * 1 + 0.5, // Slower initial upward velocity (was 2 + 1, now 1 + 0.5)
                 vz: (Math.random() - 0.5) * 3,
                 type: dropType,
                 createdAt: Date.now()
@@ -1177,25 +1177,29 @@ export default function DeadShotGame({
             const newHearts = Math.max(0, prev - 1);
             heartsRef.current = newHearts;
             
-            // Make white blood cell glow red when losing a heart
+            // Make white blood cell glow red when losing a heart - Enhanced flash
             if (bowRef.current) {
-              const cellBody = bowRef.current.children.find((child: any) => 
-                child instanceof THREE.Mesh && child.material && child.material.emissive !== undefined
-              ) as THREE.Mesh | undefined;
-              
-              if (cellBody && cellBody.material instanceof THREE.MeshStandardMaterial) {
-                // Flash red glow
-                cellBody.material.emissive.setHex(0xff0000);
-                cellBody.material.emissiveIntensity = 5.0;
-                
-                // Fade back to normal after 0.5 seconds
-                setTimeout(() => {
-                  if (cellBody && cellBody.material instanceof THREE.MeshStandardMaterial) {
-                    cellBody.material.emissive.setHex(0x88ccff);
-                    cellBody.material.emissiveIntensity = 3.0;
+              // Find all parts of the white blood cell to flash red
+              bowRef.current.children.forEach((child: any) => {
+                if (child instanceof THREE.Mesh && child.material) {
+                  if (child.material instanceof THREE.MeshStandardMaterial) {
+                    // Flash red glow on all parts
+                    const originalEmissive = child.material.emissive.getHex();
+                    const originalIntensity = child.material.emissiveIntensity || 3.0;
+                    
+                    child.material.emissive.setHex(0xff0000);
+                    child.material.emissiveIntensity = 8.0; // Very bright red flash
+                    
+                    // Fade back to normal after 0.6 seconds with smooth transition
+                    setTimeout(() => {
+                      if (child && child.material instanceof THREE.MeshStandardMaterial) {
+                        child.material.emissive.setHex(originalEmissive);
+                        child.material.emissiveIntensity = originalIntensity;
+                      }
+                    }, 600);
                   }
-                }, 500);
-              }
+                }
+              });
             }
             
             if (newHearts <= 0) {
@@ -1233,12 +1237,12 @@ export default function DeadShotGame({
         return projectile;
       }).filter(p => p !== null) as EnemyProjectile[];
       
-      // Update sub-items with physics
+      // Update sub-items with physics - slower fall
       subItemsRef.current = subItemsRef.current.map(item => {
         item.mesh.position.x += item.vx * delta;
         item.mesh.position.y += item.vy * delta;
         item.mesh.position.z += item.vz * delta;
-        item.vy -= 9.8 * delta; // Gravity
+        item.vy -= 6.0 * delta; // Reduced gravity from 9.8 to 6.0 for slower fall
         
         // Rotate sub-item
         item.mesh.rotation.x += delta * 3;
@@ -1470,9 +1474,9 @@ export default function DeadShotGame({
     if (gameState !== 'playing') return;
     
     const chargeInterval = setInterval(() => {
-      // Check if drawing and update power
+      // Check if drawing and update power - charge faster
       if (isDrawingRef.current && bowPowerRef.current < 100) {
-        bowPowerRef.current = Math.min(100, bowPowerRef.current + 2);
+        bowPowerRef.current = Math.min(100, bowPowerRef.current + 3.5); // Increased from 2 to 3.5 for faster charging
         // Force state update to show charge bar moving
         setBowPower(bowPowerRef.current);
         
