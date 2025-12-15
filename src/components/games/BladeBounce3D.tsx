@@ -99,6 +99,7 @@ export default function BladeBounce3D({
   gameId,
   gameSession,
 }: BladeBounce3DProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   console.log('🎯 [BladeBounce3D] Component initialized', {
     isCompetitionMode,
     hasOnGameEnd: !!onGameEnd,
@@ -2138,20 +2139,9 @@ export default function BladeBounce3D({
         <div 
           className="absolute inset-0 bg-black/70 text-white overflow-y-auto"
         >
-          {/* Clickable background overlay */}
           <div 
-            className="fixed inset-0 cursor-pointer z-0"
-            onClick={startGame}
-          />
-          
-          <div className="absolute top-8 left-0 right-0 z-50 pointer-events-none">
-            <div className="text-center bg-gradient-to-r from-cyan-400 to-blue-500 text-black text-3xl sm:text-4xl font-black py-4 px-8 rounded-full inline-block animate-pulse shadow-2xl">
-              🖱️ CLICK ANYWHERE TO START 🖱️
-            </div>
-          </div>
-          <div 
-            className="min-h-full flex flex-col items-center justify-start py-12 px-4 relative z-10 cursor-pointer"
-            onClick={startGame}
+            className="min-h-full flex flex-col items-center justify-start py-12 px-4 relative z-10 overflow-y-auto"
+            style={{ maxHeight: '100vh' }}
           >
             <h1 className="text-6xl font-bold mb-8 text-cyan-400 animate-pulse pt-20">
               ⚔️ BLADE BOUNCE 3D
@@ -2160,6 +2150,36 @@ export default function BladeBounce3D({
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Full screen range - move to all edges! Click to rotate 45°</p>
             <p className="text-3xl mb-4 text-pink-400 font-bold">📱 MOBILE: Touch & drag to move sword!</p>
             <p className="text-2xl mb-4 text-pink-400">📱 Tap anywhere to rotate 45°</p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/mouseblade-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-cyan-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/mouseblade-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
+            </div>
             <div className="mb-6 bg-black/40 rounded-lg p-4 max-w-2xl mx-auto">
               <p className="text-lg mb-2">🔥 <span className="text-orange-400 font-bold animate-pulse">NEON BRIGHT Orange Fireballs</span> (10-50 pts) - FLASHING! Tip cuts = 5x!</p>
               <p className="text-lg mb-2">💚 <span className="text-green-400 font-bold animate-pulse">NEON BRIGHT Green Fireballs</span> (25-125 pts!) - RARE! GLOWING!</p>
