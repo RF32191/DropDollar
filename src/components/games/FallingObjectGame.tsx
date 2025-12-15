@@ -50,6 +50,8 @@ const OBJECT_TYPES = [
 ];
 
 export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: FallingObjectGameProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  
   // Get fair RNG configuration based on listing and attempt number
   const rngConfig = listingId && entryNumber 
     ? FairRNGService.getFallingObjectConfig(listingId, entryNumber)
@@ -797,6 +799,36 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           <div className="space-y-6 max-w-4xl mx-auto">
             <div className="text-4xl font-bold text-white text-center mb-6">
               💰 Falling Object Catch
+            </div>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/falling-object-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-green-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/falling-object-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
             </div>
             
             {/* Epilepsy Warning */}
