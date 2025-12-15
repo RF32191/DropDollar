@@ -23,9 +23,16 @@ interface Arrow {
 
 type ShipType = 'common' | 'rare' | 'epic' | 'legendary';
 
+interface VirusLeg {
+  mesh: THREE.Mesh;
+  destroyed: boolean;
+}
+
 interface AlienShip {
   id: number;
   group: THREE.Group;
+  capsid: THREE.Mesh; // Center capsid for 100 points
+  legs: VirusLeg[]; // 4 legs that can be destroyed individually
   speed: number;
   direction: THREE.Vector3;
   createdAt: number;
@@ -33,7 +40,8 @@ interface AlienShip {
   size: number;
   type: ShipType;
   basePoints: number;
-  zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }>; // Colored zones for scoring
+  zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }>;
+  legsDestroyed: number; // Track how many legs are destroyed
 }
 
 interface SubItem {
