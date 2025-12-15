@@ -1244,15 +1244,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       <div 
         className="fixed inset-0 bg-gradient-to-br from-red-900 via-orange-900 to-black bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4"
       >
-        {/* Clickable background overlay */}
-        <div 
-          className="absolute inset-0 cursor-pointer"
-          onClick={handleStartGame}
-        />
-        
         <div 
           className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10"
-          onClick={(e) => e.stopPropagation()}
         >
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
