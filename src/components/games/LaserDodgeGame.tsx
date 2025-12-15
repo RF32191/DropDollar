@@ -1400,6 +1400,34 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             )}
           </div>
         </div>
+
+        {/* Expanded Video Modal */}
+        {expandedVideo && (
+          <div 
+            className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+            onClick={() => setExpandedVideo(null)}
+          >
+            <div className="relative w-full max-w-6xl" style={{ aspectRatio: '16/9' }}>
+              <button
+                onClick={() => setExpandedVideo(null)}
+                className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-orange-400 transition-colors z-10"
+              >
+                ✕ Close
+              </button>
+              <video
+                autoPlay
+                loop
+                controls
+                className="w-full h-full rounded-lg border-4 border-orange-400 shadow-2xl"
+                style={{ objectFit: 'contain' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <source src={expandedVideo} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
