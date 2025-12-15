@@ -714,8 +714,9 @@ export default function DeadShotGame({
           }
           
           // Check if arrow hits any leg (50 points per leg)
-          ship.legs.forEach((leg, legIndex) => {
-            if (leg.destroyed) return;
+          let legHit = false;
+          for (const leg of ship.legs) {
+            if (leg.destroyed) continue;
             
             const legDx = arrow.group.position.x - leg.mesh.position.x - ship.group.position.x;
             const legDy = arrow.group.position.y - leg.mesh.position.y - ship.group.position.y;
@@ -737,9 +738,14 @@ export default function DeadShotGame({
               
               // Remove arrow
               sceneRef.current.remove(arrow.group);
-              return null;
+              legHit = true;
+              break;
             }
-          });
+          }
+          
+          if (legHit) {
+            return null; // Arrow was destroyed by hitting a leg
+          }
         });
         
         // Remove arrows that are out of bounds
