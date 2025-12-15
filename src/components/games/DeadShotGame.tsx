@@ -26,6 +26,8 @@ type ShipType = 'common' | 'rare' | 'epic' | 'legendary';
 interface VirusLeg {
   mesh: THREE.Mesh;
   destroyed: boolean;
+  fallingOff?: boolean;
+  fallVelocity?: THREE.Vector3;
 }
 
 interface AlienShip {
@@ -829,10 +831,28 @@ export default function DeadShotGame({
             if (legDistance < ship.size * 0.1) {
               // Hit leg - destroy it and give 50 points
               leg.destroyed = true;
+              leg.fallingOff = true;
               ship.legsDestroyed++;
               
-              // Hide leg visually
-              leg.mesh.visible = false;
+              // Animate leg falling off - calculate fall direction
+              const legWorldPos = new THREE.Vector3();
+              leg.mesh.getWorldPosition(legWorldPos);
+              const arrowWorldPos = arrow.group.position;
+              const hitDirection = legWorldPos.sub(arrowWorldPos).normalize();
+              
+              // Set fall velocity (leg flies off in hit direction)
+              leg.fallVelocity = new THREE.Vector3(
+                hitDirection.x * 3,
+                hitDirection.y * 3 - 2, // Add downward component
+                hitDirection.z * 3
+              );
+              
+              // Detach leg from ship group for independent animation
+              ship.group.remove(leg.mesh);
+              sceneRef.current.add(leg.mesh);
+              
+              // Update leg position to world coordinates
+              leg.mesh.position.copy(legWorldPos);
               
               currentScoreRef.current += 50;
               totalHitsRef.current++;
@@ -865,11 +885,44 @@ export default function DeadShotGame({
       // Update ships - move omnidirectionally and shoot projectiles
       shipsRef.current = shipsRef.current.map(ship => {
         // Omnidirectional movement (can change direction slightly)
-        ship.group.position.add(ship.direction.clone().multiplyScalar(ship.speed * delta));
+        // Keep on same plane (z=0)
+        const movement = ship.direction.clone().multiplyScalar(ship.speed * delta);
+        ship.group.position.add(movement);
+        ship.group.position.z = 0; // Force z=0 to keep on same plane
         
         // Rotate ship for visual effect
         ship.group.rotation.y += delta * 2;
         ship.group.rotation.x += delta * 0.5;
+        
+        // Animate legs falling off
+        ship.legs.forEach(leg => {
+          if (leg.fallingOff && leg.fallVelocity && leg.mesh.parent === sceneRef.current) {
+            // Apply physics to falling leg
+            leg.mesh.position.add(leg.fallVelocity.clone().multiplyScalar(delta));
+            leg.fallVelocity.y -= 9.8 * delta; // Gravity
+            
+            // Rotate leg as it falls
+            leg.mesh.rotation.x += delta * 5;
+            leg.mesh.rotation.z += delta * 3;
+            
+            // Fade out and remove if out of bounds or too far
+            if (leg.mesh.position.y < -10 || 
+                Math.abs(leg.mesh.position.x) > 30 || 
+                Math.abs(leg.mesh.position.z) > 30) {
+              sceneRef.current.remove(leg.mesh);
+              leg.mesh.geometry.dispose();
+              if (leg.mesh.material instanceof THREE.Material) {
+                leg.mesh.material.dispose();
+              }
+            } else {
+              // Fade out over time
+              if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
+                leg.mesh.material.opacity = Math.max(0, (leg.mesh.material.opacity || 1) - delta * 0.5);
+                leg.mesh.material.transparent = true;
+              }
+            }
+          }
+        });
         
         // Animate glow pulsing
         const glowMesh = ship.group.children.find(child => child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial);
@@ -889,44 +942,67 @@ export default function DeadShotGame({
           // Calculate direction to player
           const toPlayer = new THREE.Vector3(0, 0, 0).sub(ship.group.position).normalize();
           
-          // Create amoeba-like projectile (irregular blob shape)
+          // Create semi-glowing amoeba-like projectile
+          // Size: 1/3 of mid-sized enemy (mid-size ~1.4, so ~0.47)
+          const midSizeEnemy = 1.4; // Average of 0.8-2.0 range
+          const blobSize = midSizeEnemy / 3; // ~0.47 - about 1/3 of mid-sized enemy
+          
           const amoebaGroup = new THREE.Group();
           
-          // Main blob (irregular sphere with noise)
-          const blobSize = 0.3; // Larger size
-          const blobGeometry = new THREE.SphereGeometry(blobSize, 12, 12);
-          // Add noise to vertices for irregular shape
+          // Main blob (irregular sphere with noise) - SEMI-GLOWING
+          const blobGeometry = new THREE.SphereGeometry(blobSize, 16, 16);
+          // Add noise to vertices for irregular amoeba shape
           const positions = blobGeometry.attributes.position;
           for (let i = 0; i < positions.count; i++) {
             const x = positions.getX(i);
             const y = positions.getY(i);
             const z = positions.getZ(i);
-            const noise = 0.1 + Math.random() * 0.2; // Random variation
+            const noise = 0.85 + Math.random() * 0.3; // More variation for amoeba look
             positions.setX(i, x * noise);
             positions.setY(i, y * noise);
             positions.setZ(i, z * noise);
           }
           positions.needsUpdate = true;
           
+          // Semi-glowing material with additive blending
           const blobMaterial = new THREE.MeshBasicMaterial({
             color: 0xff4444,
-            emissive: 0xff4444,
-            emissiveIntensity: 3.0,
+            emissive: 0xff6666,
+            emissiveIntensity: 4.0, // Strong glow
             transparent: true,
-            opacity: 0.8
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending // Semi-glowing effect
           });
           const blobMesh = new THREE.Mesh(blobGeometry, blobMaterial);
           amoebaGroup.add(blobMesh);
+          
+          // Glow rings for semi-glowing effect
+          for (let i = 0; i < 2; i++) {
+            const glowRingGeometry = new THREE.RingGeometry(blobSize * (0.9 + i * 0.1), blobSize * (1.0 + i * 0.1), 16);
+            const glowRingMaterial = new THREE.MeshBasicMaterial({
+              color: 0xff4444,
+              emissive: 0xff8888,
+              emissiveIntensity: 3.0,
+              transparent: true,
+              opacity: 0.6 - i * 0.2,
+              side: THREE.DoubleSide,
+              blending: THREE.AdditiveBlending
+            });
+            const glowRing = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
+            glowRing.rotation.x = Math.PI / 2;
+            amoebaGroup.add(glowRing);
+          }
           
           // Add smaller blobs for amoeba-like appearance
           for (let i = 0; i < 3; i++) {
             const smallBlobGeometry = new THREE.SphereGeometry(blobSize * 0.4, 8, 8);
             const smallBlobMaterial = new THREE.MeshBasicMaterial({
               color: 0xff6666,
-              emissive: 0xff6666,
-              emissiveIntensity: 2.5,
+              emissive: 0xff8888,
+              emissiveIntensity: 3.5,
               transparent: true,
-              opacity: 0.7
+              opacity: 0.8,
+              blending: THREE.AdditiveBlending
             });
             const smallBlob = new THREE.Mesh(smallBlobGeometry, smallBlobMaterial);
             smallBlob.position.set(
@@ -954,9 +1030,9 @@ export default function DeadShotGame({
         }
         
         // Remove ships that are out of bounds - DEDUCT 50 POINTS if ship escapes
+        // Check X and Y only since z is always 0
         if (Math.abs(ship.group.position.x) > 30 || 
-            Math.abs(ship.group.position.y) > 30 || 
-            Math.abs(ship.group.position.z) > 30) {
+            Math.abs(ship.group.position.y) > 30) {
           // Ship escaped - deduct 50 points
           currentScoreRef.current = Math.max(0, currentScoreRef.current - 50);
           setScore(currentScoreRef.current);
@@ -982,9 +1058,28 @@ export default function DeadShotGame({
           
           // Slight pulsing scale for amoeba effect
           const time = Date.now() * 0.003;
-          const pulse = 1.0 + Math.sin(time + projectile.id) * 0.1;
+          const pulse = 1.0 + Math.sin(time + projectile.id) * 0.15;
           projectile.mesh.scale.setScalar(pulse);
+          
+          // Animate glow intensity for semi-glowing effect
+          projectile.mesh.children.forEach((child) => {
+            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+              const material = child.material;
+              if (material.emissiveIntensity !== undefined) {
+                const baseIntensity = material.emissiveIntensity || 3.0;
+                material.emissiveIntensity = baseIntensity + Math.sin(time * 2 + projectile.id) * 0.5;
+              }
+              // Pulse opacity for glow effect
+              if (material.transparent) {
+                const baseOpacity = material.opacity || 0.8;
+                material.opacity = baseOpacity + Math.sin(time * 3 + projectile.id) * 0.1;
+              }
+            }
+          });
         }
+        
+        // Keep projectiles on same plane (z=0)
+        projectile.mesh.position.z = 0;
         
         // Check collision with player (at center 0,0,0) - larger hitbox for larger projectiles
         const dx = projectile.mesh.position.x;
@@ -1145,18 +1240,20 @@ export default function DeadShotGame({
       }[shipType];
       
       // Spawn from random positions around the map - omnidirectional movement
+      // ALL ENEMIES ON SAME PLANE (z=0) so they can all be hit
       const angle = rng.nextFloat(0, Math.PI * 2);
       const distance = rng.nextFloat(8, 12);
       const x = Math.cos(angle) * distance;
       const y = Math.sin(angle) * distance;
-      const z = rng.nextFloat(-2, 2); // Some Z variation but still hittable
+      const z = 0; // All enemies on same plane for consistent hit detection
       
       // Move toward center with some randomness (omnidirectional)
-      const toCenter = new THREE.Vector3(-x, -y, -z).normalize();
+      // Keep movement on same plane (z=0)
+      const toCenter = new THREE.Vector3(-x, -y, 0).normalize();
       const randomOffset = new THREE.Vector3(
         rng.nextFloat(-0.5, 0.5),
         rng.nextFloat(-0.5, 0.5),
-        rng.nextFloat(-0.3, 0.3)
+        0 // No Z variation - keep on same plane
       );
       const direction = toCenter.add(randomOffset).normalize();
       
