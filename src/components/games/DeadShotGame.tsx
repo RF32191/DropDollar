@@ -63,7 +63,7 @@ export default function DeadShotGame({
     gameStateRef.current = gameState;
   }, [gameState]);
   
-  const mountRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -88,7 +88,6 @@ export default function DeadShotGame({
   const lastSubItemIdRef = useRef(0);
   const mousePosRef = useRef({ x: 0, y: 0 });
   const clockRef = useRef(new THREE.Clock());
-  const initializedRef = useRef(false);
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -253,20 +252,36 @@ export default function DeadShotGame({
     return mesh;
   }, []);
 
-  // Initialize Three.js scene - Initialize immediately when component mounts
+  // Initialize Three.js scene - Match working pattern from BladeBounce3D
   useEffect(() => {
-    if (!mountRef.current || initializedRef.current) return;
+    if (!containerRef.current || sceneRef.current) return;
 
     console.log('🎯 [DeadShot] Initializing Three.js scene');
+
+    const container = containerRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    console.log('📐 [DeadShot] Container size:', { width, height });
+
+    if (width === 0 || height === 0) {
+      console.warn('⚠️ [DeadShot] Container has zero dimensions, retrying...');
+      setTimeout(() => {
+        if (containerRef.current && !sceneRef.current) {
+          const retryWidth = containerRef.current.clientWidth || window.innerWidth;
+          const retryHeight = containerRef.current.clientHeight || window.innerHeight;
+          if (retryWidth > 0 && retryHeight > 0) {
+            // Retry initialization
+            console.log('🔄 [DeadShot] Retrying initialization with dimensions:', { retryWidth, retryHeight });
+          }
+        }
+      }, 100);
+      return;
+    }
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000011);
     scene.fog = new THREE.FogExp2(0x000011, 0.002);
-    
-    const width = mountRef.current.clientWidth || window.innerWidth;
-    const height = mountRef.current.clientHeight || window.innerHeight;
-    
-    console.log('📐 [DeadShot] Container size:', { width, height });
     
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -284,10 +299,17 @@ export default function DeadShotGame({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // CRITICAL: Style canvas to ensure visibility (matching BladeBounce3D pattern)
+    renderer.domElement.style.display = 'block';
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-    renderer.domElement.style.display = 'block';
-    mountRef.current.appendChild(renderer.domElement);
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.zIndex = '0';
+    
+    container.appendChild(renderer.domElement);
     
     console.log('✅ [DeadShot] Renderer appended to DOM');
     
@@ -307,67 +329,67 @@ export default function DeadShotGame({
     pointLight3.position.set(0, 5, 0);
     scene.add(pointLight3);
     
-    // Create laser bow
+    // Create laser bow - MAKE IT LARGE AND VISIBLE
     const bowGroup = new THREE.Group();
     
-    // Bow limbs (neon cyan)
-    const limbGeometry = new THREE.BoxGeometry(0.05, 0.4, 0.05);
+    // Bow limbs (neon cyan) - MAKE BIGGER
+    const limbGeometry = new THREE.BoxGeometry(0.1, 0.8, 0.1);
     const limbMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 1.0,
+      emissiveIntensity: 1.5,
       metalness: 0.9,
       roughness: 0.1
     });
     
     const leftLimb = new THREE.Mesh(limbGeometry, limbMaterial);
-    leftLimb.position.set(-0.2, -1, 0);
+    leftLimb.position.set(-0.4, -1.5, 0);
     leftLimb.rotation.z = 0.3;
     bowGroup.add(leftLimb);
     
     const rightLimb = new THREE.Mesh(limbGeometry, limbMaterial);
-    rightLimb.position.set(0.2, -1, 0);
+    rightLimb.position.set(0.4, -1.5, 0);
     rightLimb.rotation.z = -0.3;
     bowGroup.add(rightLimb);
     
-    // Bow grip
-    const gripGeometry = new THREE.BoxGeometry(0.1, 0.2, 0.1);
+    // Bow grip - MAKE BIGGER
+    const gripGeometry = new THREE.BoxGeometry(0.2, 0.4, 0.2);
     const gripMaterial = new THREE.MeshStandardMaterial({
       color: 0x0088ff,
       emissive: 0x0088ff,
-      emissiveIntensity: 0.5
+      emissiveIntensity: 0.8
     });
     const grip = new THREE.Mesh(gripGeometry, gripMaterial);
-    grip.position.set(0, -1, 0);
+    grip.position.set(0, -1.5, 0);
     bowGroup.add(grip);
     
-    // Bow string (glowing line)
+    // Bow string (glowing line) - MAKE THICKER
     const stringPoints = [
-      new THREE.Vector3(-0.2, -0.8, 0),
-      new THREE.Vector3(0, -1, 0),
-      new THREE.Vector3(0.2, -0.8, 0)
+      new THREE.Vector3(-0.4, -1.2, 0),
+      new THREE.Vector3(0, -1.5, 0),
+      new THREE.Vector3(0.4, -1.2, 0)
     ];
     const stringGeometry = new THREE.BufferGeometry().setFromPoints(stringPoints);
     const stringMaterial = new THREE.LineBasicMaterial({ 
       color: 0x00ffff, 
-      linewidth: 3,
+      linewidth: 5,
       transparent: true,
-      opacity: 0.9
+      opacity: 1.0
     });
     const bowString = new THREE.Line(stringGeometry, stringMaterial);
     bowGroup.add(bowString);
     bowStringRef.current = bowString;
     
-    // Energy glow around bow
-    const glowGeometry = new THREE.RingGeometry(0.15, 0.25, 32);
+    // Energy glow around bow - MAKE BIGGER AND BRIGHTER
+    const glowGeometry = new THREE.RingGeometry(0.3, 0.5, 32);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.5,
       side: THREE.DoubleSide
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.set(0, -1, 0);
+    glow.position.set(0, -1.5, 0);
     glow.rotation.x = Math.PI / 2;
     bowGroup.add(glow);
     
@@ -377,7 +399,6 @@ export default function DeadShotGame({
     sceneRef.current = scene;
     cameraRef.current = camera;
     rendererRef.current = renderer;
-    initializedRef.current = true;
     
     console.log('✅ [DeadShot] Scene initialized, starting animation loop');
     
@@ -406,9 +427,9 @@ export default function DeadShotGame({
         
         // Animate bow string when drawing
         const stringPoints = [
-          new THREE.Vector3(-0.2, -0.8, 0),
-          new THREE.Vector3(0, -1 - drawProgress * 0.3, 0),
-          new THREE.Vector3(0.2, -0.8, 0)
+          new THREE.Vector3(-0.4, -1.2, 0),
+          new THREE.Vector3(0, -1.5 - drawProgress * 0.5, 0),
+          new THREE.Vector3(0.4, -1.2, 0)
         ];
         bowStringRef.current.geometry.setFromPoints(stringPoints);
         
@@ -574,9 +595,9 @@ export default function DeadShotGame({
     
     // Handle window resize
     const handleResize = () => {
-      if (!mountRef.current || !cameraRef.current || !rendererRef.current) return;
-      const width = mountRef.current.clientWidth || window.innerWidth;
-      const height = mountRef.current.clientHeight || window.innerHeight;
+      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
+      const width = containerRef.current.clientWidth || window.innerWidth;
+      const height = containerRef.current.clientHeight || window.innerHeight;
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(width, height);
@@ -589,25 +610,21 @@ export default function DeadShotGame({
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
-      if (mountRef.current && renderer.domElement.parentNode) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (containerRef.current && renderer.domElement.parentNode) {
+        containerRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
       sceneRef.current = null;
       cameraRef.current = null;
       rendererRef.current = null;
-      initializedRef.current = false;
     };
   }, [createAlienShip, createArrow, createSubItem]);
 
   // Spawn ships - only when playing
   useEffect(() => {
     if (gameState !== 'playing' || !sceneRef.current) {
-      console.log('⏸️ [DeadShot] Not spawning ships - gameState:', gameState, 'scene:', !!sceneRef.current);
       return;
     }
-    
-    console.log('🚀 [DeadShot] Starting ship spawner');
     
     const spawnShip = () => {
       if (!sceneRef.current) return;
@@ -667,7 +684,6 @@ export default function DeadShotGame({
       };
       
       shipsRef.current.push(ship);
-      console.log('👾 [DeadShot] Spawned ship #' + ship.id, { x, y, z, size });
     };
     
     // Spawn first ship immediately
@@ -676,7 +692,6 @@ export default function DeadShotGame({
     const spawnInterval = setInterval(spawnShip, 2000);
     return () => {
       clearInterval(spawnInterval);
-      console.log('🛑 [DeadShot] Stopped ship spawner');
     };
   }, [gameState, seededRng, createAlienShip]);
 
@@ -694,7 +709,7 @@ export default function DeadShotGame({
     if (gameState !== 'playing' || !isDrawingRef.current) return;
     e.preventDefault();
     
-    const rect = mountRef.current?.getBoundingClientRect();
+    const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -806,115 +821,113 @@ export default function DeadShotGame({
     });
   };
 
-  if (gameState === 'ready') {
-    return (
-      <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
-        {/* 3D Scene Background - Always visible */}
-        <div 
-          ref={mountRef}
-          className="absolute inset-0 w-full h-full"
-          style={{ zIndex: 0 }}
-        />
-        
-        {/* Instructions Overlay */}
-        <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10">
-          <h1 className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            🎯 Dead Shot
-          </h1>
-          <p className="text-white mb-6">
-            Draw your laser bow, aim at alien ships, and hit center shots for maximum points!
-          </p>
-          <div className="space-y-4 text-left text-white/90 mb-6">
-            <div className="flex items-start">
-              <span className="text-cyan-400 mr-2">•</span>
-              <span>Click and hold to draw bow, release to shoot</span>
-            </div>
-            <div className="flex items-start">
-              <span className="text-purple-400 mr-2">•</span>
-              <span>Hit alien ships for 10-50 points</span>
-            </div>
-            <div className="flex items-start">
-              <span className="text-yellow-400 mr-2">•</span>
-              <span>Center shots give 50-100 points!</span>
-            </div>
-            <div className="flex items-start">
-              <span className="text-green-400 mr-2">•</span>
-              <span>Hit sub-items for bonus points</span>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            {onExit && (
-              <button
-                onClick={onExit}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl transition-all"
-              >
-                ← Back
-              </button>
-            )}
-            <button
-              onClick={startGame}
-              className="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-2xl transition-all"
-            >
-              🎯 Start Shooting
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (gameState === 'countdown') {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
-        <div className="text-8xl font-bold text-white animate-pulse">
-          {countdown > 0 ? countdown : 'GO!'}
-        </div>
-      </div>
-    );
-  }
-
-  if (gameState === 'ended') {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
-        <div className="text-center text-white">
-          <h2 className="text-4xl font-bold mb-4">Game Over!</h2>
-          <p className="text-2xl mb-2">Final Score: {score.toFixed(2)}</p>
-          <p className="text-xl">Accuracy: {accuracy.toFixed(1)}%</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full h-full relative bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
-      {/* UI Overlay */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
-        <div>
-          <div className="text-2xl font-bold">Score: {score.toFixed(2)}</div>
-          <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold">Time: {timeLeft}s</div>
-          <div className="text-sm">Power: {bowPower.toFixed(0)}%</div>
-        </div>
-      </div>
-      
-      {/* 3D Game Area */}
+      {/* 3D Scene Container - MUST be full size and positioned */}
       <div 
-        ref={mountRef}
-        className="w-full h-full absolute inset-0"
+        ref={containerRef}
+        className="absolute inset-0 w-full h-full"
+        style={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 0
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onTouchStart={handleMouseDown}
         onTouchMove={handleMouseMove}
         onTouchEnd={handleMouseUp}
-        style={{ touchAction: 'none', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
+      
+      {/* UI Overlay - Only show when playing */}
+      {gameState === 'playing' && (
+        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
+          <div>
+            <div className="text-2xl font-bold">Score: {score.toFixed(2)}</div>
+            <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold">Time: {timeLeft}s</div>
+            <div className="text-sm">Power: {bowPower.toFixed(0)}%</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Ready Screen */}
+      {gameState === 'ready' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/30 backdrop-blur-sm">
+          <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl">
+            <h1 className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              🎯 Dead Shot
+            </h1>
+            <p className="text-white mb-6">
+              Draw your laser bow, aim at alien ships, and hit center shots for maximum points!
+            </p>
+            <div className="space-y-4 text-left text-white/90 mb-6">
+              <div className="flex items-start">
+                <span className="text-cyan-400 mr-2">•</span>
+                <span>Click and hold to draw bow, release to shoot</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-purple-400 mr-2">•</span>
+                <span>Hit alien ships for 10-50 points</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-yellow-400 mr-2">•</span>
+                <span>Center shots give 50-100 points!</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-green-400 mr-2">•</span>
+                <span>Hit sub-items for bonus points</span>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              {onExit && (
+                <button
+                  onClick={onExit}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl transition-all"
+                >
+                  ← Back
+                </button>
+              )}
+              <button
+                onClick={startGame}
+                className="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-2xl transition-all"
+              >
+                🎯 Start Shooting
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Countdown Screen */}
+      {gameState === 'countdown' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/50">
+          <div className="text-8xl font-bold text-white animate-pulse">
+            {countdown > 0 ? countdown : 'GO!'}
+          </div>
+        </div>
+      )}
+
+      {/* End Screen */}
+      {gameState === 'ended' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/70">
+          <div className="text-center text-white">
+            <h2 className="text-4xl font-bold mb-4">Game Over!</h2>
+            <p className="text-2xl mb-2">Final Score: {score.toFixed(2)}</p>
+            <p className="text-xl">Accuracy: {accuracy.toFixed(1)}%</p>
+          </div>
+        </div>
+      )}
       
       {/* Debug info */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="absolute bottom-4 left-4 text-white text-xs bg-black/50 p-2 rounded z-20">
+        <div className="absolute bottom-4 left-4 text-white text-xs bg-black/50 p-2 rounded z-30">
           Ships: {shipsRef.current.length} | Arrows: {arrowsRef.current.length} | SubItems: {subItemsRef.current.length}
         </div>
       )}
