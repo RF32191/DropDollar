@@ -666,8 +666,8 @@ export default function DeadShotGame({
         // Update string center position for arrow spawning
         stringCenterRef.current.set(0, 0 - drawProgress * 0.4, 0);
         
-        // Update aim path preview (trajectory like Peggle)
-        if (aimPathRef.current && isDrawingRef.current) {
+        // Update aim path preview (trajectory like Peggle) - accurately follows mouse
+        if (aimPathRef.current && isDrawingRef.current && cameraRef.current) {
           const power = bowPowerRef.current / 100;
           const aimAngleRad = aimAngleRef.current * Math.PI / 180;
           const baseSpeed = 8 + power * 42;
@@ -685,10 +685,14 @@ export default function DeadShotGame({
           }
           
           // Simulate trajectory path - GUIDE LASER showing only HALFWAY
+          // Start from string center position (where arrow spawns)
           const pathPoints: THREE.Vector3[] = [];
           const localPos = stringCenterRef.current.clone();
-          let px = localPos.x;
-          let py = localPos.y;
+          // Convert local position to world position accounting for bow rotation
+          const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
+          const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
+          let px = worldX;
+          let py = worldY;
           let pz = localPos.z;
           let pvx = vx;
           let pvy = vy;
@@ -840,6 +844,35 @@ export default function DeadShotGame({
             totalHitsRef.current++;
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+            
+            // Create drops when enemy is killed
+            const dropPosition = ship.group.position.clone();
+            const dropTypes: Array<'bonus' | 'multiplier' | 'time'> = ['bonus', 'multiplier', 'time'];
+            
+            // Spawn 2-3 random drops
+            const numDrops = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < numDrops; i++) {
+              const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
+              const dropMesh = createSubItem(dropType);
+              dropMesh.position.set(
+                dropPosition.x + (Math.random() - 0.5) * 2,
+                dropPosition.y + (Math.random() - 0.5) * 2,
+                dropPosition.z
+              );
+              
+              const drop: SubItem = {
+                id: ++lastSubItemIdRef.current,
+                mesh: dropMesh,
+                vx: (Math.random() - 0.5) * 3,
+                vy: Math.random() * 2 + 1,
+                vz: (Math.random() - 0.5) * 3,
+                type: dropType,
+                createdAt: Date.now()
+              };
+              
+              sceneRef.current.add(dropMesh);
+              subItemsRef.current.push(drop);
+            }
             
             // Remove ship completely
             sceneRef.current.remove(ship.group);
@@ -1220,10 +1253,13 @@ export default function DeadShotGame({
         });
         
         if (arrowHit) {
-          // Bonus points for hitting sub-item
-          const bonusPoints = item.type === 'bonus' ? 25 : item.type === 'multiplier' ? 50 : 10;
+          // Increased bonus points for hitting enemy drops (post-kill drops)
+          // These drops come from killed enemies, so give more points
+          const bonusPoints = item.type === 'bonus' ? 75 : item.type === 'multiplier' ? 150 : 50;
           currentScoreRef.current += bonusPoints;
+          totalHitsRef.current++;
           setScore(currentScoreRef.current);
+          setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
           sceneRef.current.remove(item.mesh);
           return null;
         }
@@ -1516,16 +1552,31 @@ export default function DeadShotGame({
     e.preventDefault();
     
     const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    if (!rect || !cameraRef.current) return;
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
+    // Convert mouse position to normalized device coordinates (-1 to +1)
     const x = ((clientX - rect.left) / rect.width) * 2 - 1;
     const y = -((clientY - rect.top) / rect.height) * 2 + 1;
     
-    mousePosRef.current = { x, y };
-    const angle = Math.atan2(y, x) * 180 / Math.PI;
+    // Convert to world coordinates using camera
+    const mouse = new THREE.Vector2(x, y);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current);
+    
+    // Get intersection with z=0 plane (where the game is played)
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const intersectionPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersectionPoint);
+    
+    // Calculate angle from player position (0,0,0) to intersection point
+    const dx = intersectionPoint.x;
+    const dy = intersectionPoint.y;
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    
+    mousePosRef.current = { x: dx, y: dy };
     setAimAngle(angle);
     aimAngleRef.current = angle;
   }, [gameState]);
