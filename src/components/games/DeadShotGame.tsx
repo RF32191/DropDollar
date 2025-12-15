@@ -36,6 +36,7 @@ interface AlienShip {
   speed: number;
   direction: THREE.Vector3;
   createdAt: number;
+  lastShotTime: number; // Track when this ship last shot
   center: THREE.Vector3;
   size: number;
   type: ShipType;
@@ -850,10 +851,10 @@ export default function DeadShotGame({
           (glowMesh as THREE.Mesh).scale.setScalar(1 + Math.sin(time * 3) * 0.2);
         }
         
-        // Enemy shooting - shoot projectiles at player (center 0,0,0)
+        // Enemy shooting - each ship shoots independently at player (center 0,0,0)
         const now = Date.now();
-        if (now - lastEnemyShotRef.current > 2000 && sceneRef.current) { // Shoot every 2 seconds
-          lastEnemyShotRef.current = now;
+        if (now - ship.lastShotTime > 2000 && sceneRef.current) { // Each ship shoots every 2 seconds
+          ship.lastShotTime = now;
           
           // Calculate direction to player
           const toPlayer = new THREE.Vector3(0, 0, 0).sub(ship.group.position).normalize();
@@ -870,7 +871,7 @@ export default function DeadShotGame({
           sceneRef.current.add(projectileMesh);
           
           const projectile: EnemyProjectile = {
-            id: Date.now(),
+            id: Date.now() + Math.random(),
             mesh: projectileMesh,
             vx: toPlayer.x * 5,
             vy: toPlayer.y * 5,
@@ -1093,6 +1094,7 @@ export default function DeadShotGame({
         speed: rng.nextFloat(2, 4),
         direction,
         createdAt: now,
+        lastShotTime: now - 1000, // Allow first shot after 1 second
         center: new THREE.Vector3(x, y, z),
         size: size * 1.5, // Account for scale
         type: shipType,
