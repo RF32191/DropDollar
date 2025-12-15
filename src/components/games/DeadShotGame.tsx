@@ -120,153 +120,122 @@ export default function DeadShotGame({
     return new Mulberry32(rngSeed);
   }, [rngSeed]);
 
-  // Create virus-like enemy ships with capsid top and legs bottom
-  // Returns both the group and zones array with color-coded regions
-  const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): { group: THREE.Group; zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> } => {
+  // Create realistic virus enemy - spherical capsid with protein spikes (like coronavirus)
+  // Returns group, capsid mesh, legs array, and zones
+  const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): { 
+    group: THREE.Group; 
+    capsid: THREE.Mesh;
+    legs: VirusLeg[];
+    zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> 
+  } => {
     const shipGroup = new THREE.Group();
     
-    // Virus colors - Red, Purple, Yellow regions
-    const virusColors = {
-      red: 0xff0000,
-      purple: 0xff00ff,
-      yellow: 0xffff00
-    };
+    // Virus colors
+    const capsidColor = 0x00ffff; // Cyan/white center capsid - 100 points
+    const spikeColor = 0xff4444; // Red protein spikes
+    const bodyColor = 0x8844ff; // Purple body
     
-    // Main capsid (icosahedral top) - RED region
-    const capsidGeometry = new THREE.IcosahedronGeometry(size * 0.5, 0);
+    // Main capsid (spherical center) - CYAN/WHITE - 100 points if hit
+    const capsidGeometry = new THREE.IcosahedronGeometry(size * 0.4, 1); // More detail
     const capsidMaterial = new THREE.MeshStandardMaterial({
-      color: virusColors.red,
-      emissive: virusColors.red,
-      emissiveIntensity: 4.0,
-      metalness: 0.8,
-      roughness: 0.2
+      color: capsidColor,
+      emissive: capsidColor,
+      emissiveIntensity: 5.0,
+      metalness: 0.9,
+      roughness: 0.1
     });
     const capsid = new THREE.Mesh(capsidGeometry, capsidMaterial);
-    capsid.position.y = size * 0.4;
+    capsid.position.set(0, 0, 0);
     shipGroup.add(capsid);
     
-    // Middle body section - PURPLE region
-    const bodyGeometry = new THREE.OctahedronGeometry(size * 0.4, 0);
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: virusColors.purple,
-      emissive: virusColors.purple,
-      emissiveIntensity: 4.0,
-      metalness: 0.8,
-      roughness: 0.2
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = size * 0.1;
-    shipGroup.add(body);
+    // Protein spikes around capsid (like coronavirus) - RED
+    const spikeCount = 20;
+    for (let i = 0; i < spikeCount; i++) {
+      const phi = Math.acos(-1 + (2 * i) / spikeCount);
+      const theta = Math.sqrt(spikeCount * Math.PI) * phi;
+      
+      const spikeGeometry = new THREE.ConeGeometry(size * 0.05, size * 0.3, 6);
+      const spikeMaterial = new THREE.MeshStandardMaterial({
+        color: spikeColor,
+        emissive: spikeColor,
+        emissiveIntensity: 4.0
+      });
+      const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+      
+      const xPos = size * 0.45 * Math.cos(theta) * Math.sin(phi);
+      const yPos = size * 0.45 * Math.sin(theta) * Math.sin(phi);
+      const zPos = size * 0.45 * Math.cos(phi);
+      
+      spike.position.set(xPos, yPos, zPos);
+      spike.lookAt(xPos * 1.5, yPos * 1.5, zPos * 1.5); // Point outward
+      shipGroup.add(spike);
+    }
     
-    // Bottom section - YELLOW region
-    const bottomGeometry = new THREE.OctahedronGeometry(size * 0.3, 0);
-    const bottomMaterial = new THREE.MeshStandardMaterial({
-      color: virusColors.yellow,
-      emissive: virusColors.yellow,
-      emissiveIntensity: 4.0,
-      metalness: 0.8,
-      roughness: 0.2
-    });
-    const bottom = new THREE.Mesh(bottomGeometry, bottomMaterial);
-    bottom.position.y = -size * 0.2;
-    shipGroup.add(bottom);
-    
-    // Virus legs (spikes on bottom) - YELLOW
-    const legCount = 6;
+    // 4 legs on bottom that can be destroyed individually - RED
+    const legCount = 4;
+    const legs: VirusLeg[] = [];
     for (let i = 0; i < legCount; i++) {
       const angle = (Math.PI * 2 * i) / legCount;
-      const legGeometry = new THREE.ConeGeometry(size * 0.08, size * 0.4, 6);
+      const legGeometry = new THREE.CylinderGeometry(size * 0.06, size * 0.08, size * 0.5, 8);
       const legMaterial = new THREE.MeshStandardMaterial({
-        color: virusColors.yellow,
-        emissive: virusColors.yellow,
-        emissiveIntensity: 3.5
+        color: spikeColor,
+        emissive: spikeColor,
+        emissiveIntensity: 4.0
       });
       const leg = new THREE.Mesh(legGeometry, legMaterial);
       leg.position.set(
-        Math.cos(angle) * size * 0.35,
-        -size * 0.4,
-        Math.sin(angle) * size * 0.35
+        Math.cos(angle) * size * 0.3,
+        -size * 0.35,
+        Math.sin(angle) * size * 0.3
       );
-      leg.rotation.z = Math.PI;
+      leg.rotation.z = Math.PI / 2;
+      leg.rotation.y = angle;
       shipGroup.add(leg);
+      legs.push({ mesh: leg, destroyed: false });
     }
     
-    // Additional spikes on capsid - RED
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8;
-      const spikeGeometry = new THREE.ConeGeometry(size * 0.06, size * 0.3, 6);
-      const spikeMaterial = new THREE.MeshStandardMaterial({
-        color: virusColors.red,
-        emissive: virusColors.red,
-        emissiveIntensity: 4.5
-      });
-      const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
-      spike.position.set(
-        Math.cos(angle) * size * 0.4,
-        size * 0.6,
-        Math.sin(angle) * size * 0.4
-      );
-      shipGroup.add(spike);
-    }
+    // Body membrane (purple) - surrounds capsid
+    const bodyGeometry = new THREE.SphereGeometry(size * 0.5, 16, 16);
+    const bodyMaterial = new THREE.MeshStandardMaterial({
+      color: bodyColor,
+      emissive: bodyColor,
+      emissiveIntensity: 2.0,
+      transparent: true,
+      opacity: 0.6,
+      metalness: 0.5,
+      roughness: 0.5
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    shipGroup.add(body);
     
     // Glow effect around virus
     const glowGeometry = new THREE.SphereGeometry(size * 0.6, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: virusColors.purple,
+      color: bodyColor,
       transparent: true,
-      opacity: 0.5
+      opacity: 0.3
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.y = size * 0.1;
     shipGroup.add(glow);
     
-    // Add colored scoring zones based on virus regions
+    // Add colored scoring zones
     const zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> = [];
     
-    // Top zone (RED capsid) - 3x multiplier
-    const redZoneGeometry = new THREE.RingGeometry(0, size * 0.25, 16);
-    const redZoneMaterial = new THREE.MeshBasicMaterial({
-      color: virusColors.red,
+    // Center capsid zone (CYAN) - 100 points
+    const capsidZoneGeometry = new THREE.RingGeometry(0, size * 0.2, 16);
+    const capsidZoneMaterial = new THREE.MeshBasicMaterial({
+      color: capsidColor,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.8,
       side: THREE.DoubleSide
     });
-    const redZone = new THREE.Mesh(redZoneGeometry, redZoneMaterial);
-    redZone.position.y = size * 0.4;
-    redZone.rotation.x = Math.PI / 2;
-    shipGroup.add(redZone);
-    zones.push({ mesh: redZone, radius: size * 0.25, multiplier: 3.0, color: virusColors.red });
-    
-    // Middle zone (PURPLE body) - 2x multiplier
-    const purpleZoneGeometry = new THREE.RingGeometry(size * 0.25, size * 0.45, 16);
-    const purpleZoneMaterial = new THREE.MeshBasicMaterial({
-      color: virusColors.purple,
-      transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide
-    });
-    const purpleZone = new THREE.Mesh(purpleZoneGeometry, purpleZoneMaterial);
-    purpleZone.position.y = size * 0.1;
-    purpleZone.rotation.x = Math.PI / 2;
-    shipGroup.add(purpleZone);
-    zones.push({ mesh: purpleZone, radius: size * 0.45, multiplier: 2.0, color: virusColors.purple });
-    
-    // Bottom zone (YELLOW legs) - 1.5x multiplier
-    const yellowZoneGeometry = new THREE.RingGeometry(size * 0.45, size * 0.7, 16);
-    const yellowZoneMaterial = new THREE.MeshBasicMaterial({
-      color: virusColors.yellow,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide
-    });
-    const yellowZone = new THREE.Mesh(yellowZoneGeometry, yellowZoneMaterial);
-    yellowZone.position.y = -size * 0.2;
-    yellowZone.rotation.x = Math.PI / 2;
-    shipGroup.add(yellowZone);
-    zones.push({ mesh: yellowZone, radius: size * 0.7, multiplier: 1.5, color: virusColors.yellow });
+    const capsidZone = new THREE.Mesh(capsidZoneGeometry, capsidZoneMaterial);
+    capsidZone.rotation.x = Math.PI / 2;
+    shipGroup.add(capsidZone);
+    zones.push({ mesh: capsidZone, radius: size * 0.2, multiplier: 1.0, color: capsidColor });
     
     shipGroup.position.set(x, y, z);
-    return { group: shipGroup, zones };
+    return { group: shipGroup, capsid, legs, zones };
   }, []);
 
   // Create arrow with proper 3D geometry - more arrow-shaped and neon
@@ -665,14 +634,14 @@ export default function DeadShotGame({
         }
       }
       
-      // Update arrows with smooth arch physics and animated brightness
+      // Update arrows with gravity-based physics and animated brightness
       arrowsRef.current = arrowsRef.current.map(arrow => {
-        // Smooth physics with reduced gravity for better arch
-        const gravity = 5.0; // Reduced gravity for smoother arch
+        // Realistic gravity - arrows always affected by gravity
+        const gravity = 9.8; // Realistic gravity
         arrow.group.position.x += arrow.vx * delta;
         arrow.group.position.y += arrow.vy * delta;
         arrow.group.position.z += arrow.vz * delta;
-        arrow.vy -= gravity * delta; // Smoother gravity
+        arrow.vy -= gravity * delta; // Gravity always pulls down
         
         // Animate arrow brightness (pulsing effect)
         const time = Date.now() * 0.005;
@@ -714,52 +683,20 @@ export default function DeadShotGame({
           const dz = arrow.group.position.z - ship.group.position.z;
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
           
-          if (distance < ship.size) {
-            // Hit! Check which colored zone was hit
-            const centerDx = arrow.group.position.x - ship.group.position.x;
-            const centerDy = arrow.group.position.y - ship.group.position.y;
-            const centerDz = arrow.group.position.z - ship.group.position.z;
-            const distanceFromCenter = Math.sqrt(centerDx * centerDx + centerDy * centerDy + centerDz * centerDz);
-            
-            // Find which zone was hit (check from smallest to largest)
-            let zoneMultiplier = 1.0; // Default multiplier
-            for (let i = ship.zones.length - 1; i >= 0; i--) {
-              if (distanceFromCenter <= ship.zones[i].radius) {
-                zoneMultiplier = ship.zones[i].multiplier;
-                break;
-              }
-            }
-            
-            // Calculate points based on ship type and zone hit
-            const basePoints = ship.basePoints;
-            const points = basePoints * zoneMultiplier;
-            
-            currentScoreRef.current += points;
+          // Check if arrow hits center capsid (100 points)
+          const capsidDx = arrow.group.position.x - ship.capsid.position.x - ship.group.position.x;
+          const capsidDy = arrow.group.position.y - ship.capsid.position.y - ship.group.position.y;
+          const capsidDz = arrow.group.position.z - ship.capsid.position.z - ship.group.position.z;
+          const capsidDistance = Math.sqrt(capsidDx * capsidDx + capsidDy * capsidDy + capsidDz * capsidDz);
+          
+          if (capsidDistance < ship.size * 0.2) {
+            // Hit center capsid - 100 points!
+            currentScoreRef.current += 100;
             totalHitsRef.current++;
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
             
-            // Spawn sub-items
-            for (let i = 0; i < 3; i++) {
-              const angle = (Math.PI * 2 * i) / 3;
-              const subItemMesh = createSubItem(['bonus', 'multiplier', 'time'][i] as 'bonus' | 'multiplier' | 'time');
-              subItemMesh.position.copy(ship.group.position);
-              
-              const subItem: SubItem = {
-                id: ++lastSubItemIdRef.current,
-                mesh: subItemMesh,
-                vx: Math.cos(angle) * 2,
-                vy: Math.sin(angle) * 2 + 1,
-                vz: Math.sin(angle) * 2,
-                type: ['bonus', 'multiplier', 'time'][i] as 'bonus' | 'multiplier' | 'time',
-                createdAt: Date.now()
-              };
-              
-              sceneRef.current.add(subItemMesh);
-              subItemsRef.current.push(subItem);
-            }
-            
-            // Remove ship
+            // Remove ship completely
             sceneRef.current.remove(ship.group);
             shipsRef.current.splice(shipIndex, 1);
             
@@ -767,6 +704,34 @@ export default function DeadShotGame({
             sceneRef.current.remove(arrow.group);
             return null;
           }
+          
+          // Check if arrow hits any leg (50 points per leg)
+          ship.legs.forEach((leg, legIndex) => {
+            if (leg.destroyed) return;
+            
+            const legDx = arrow.group.position.x - leg.mesh.position.x - ship.group.position.x;
+            const legDy = arrow.group.position.y - leg.mesh.position.y - ship.group.position.y;
+            const legDz = arrow.group.position.z - leg.mesh.position.z - ship.group.position.z;
+            const legDistance = Math.sqrt(legDx * legDx + legDy * legDy + legDz * legDz);
+            
+            if (legDistance < ship.size * 0.1) {
+              // Hit leg - destroy it and give 50 points
+              leg.destroyed = true;
+              ship.legsDestroyed++;
+              
+              // Hide leg visually
+              leg.mesh.visible = false;
+              
+              currentScoreRef.current += 50;
+              totalHitsRef.current++;
+              setScore(currentScoreRef.current);
+              setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+              
+              // Remove arrow
+              sceneRef.current.remove(arrow.group);
+              return null;
+            }
+          });
         });
         
         // Remove arrows that are out of bounds
@@ -795,10 +760,14 @@ export default function DeadShotGame({
           (glowMesh as THREE.Mesh).scale.setScalar(1 + Math.sin(time * 3) * 0.2);
         }
         
-        // Remove ships that are out of bounds
+        // Remove ships that are out of bounds - DEDUCT 50 POINTS if ship escapes
         if (Math.abs(ship.group.position.x) > 30 || 
             Math.abs(ship.group.position.y) > 30 || 
             Math.abs(ship.group.position.z) > 30) {
+          // Ship escaped - deduct 50 points
+          currentScoreRef.current = Math.max(0, currentScoreRef.current - 50);
+          setScore(currentScoreRef.current);
+          
           sceneRef.current.remove(ship.group);
           return null;
         }
@@ -952,7 +921,7 @@ export default function DeadShotGame({
       }
       
       const size = rng.nextFloat(1.0, 1.8); // Larger ships for visibility
-      const { group: shipGroup, zones } = createAlienShip(x, y, z, size, shipType);
+      const { group: shipGroup, capsid, legs, zones } = createAlienShip(x, y, z, size, shipType);
       
       // Ensure ship is visible - make it larger and brighter
       shipGroup.scale.set(1.5, 1.5, 1.5); // Scale up for visibility
@@ -963,6 +932,8 @@ export default function DeadShotGame({
       const ship: AlienShip = {
         id: ++lastShipIdRef.current,
         group: shipGroup,
+        capsid,
+        legs,
         speed: rng.nextFloat(2, 4),
         direction,
         createdAt: now,
@@ -970,7 +941,8 @@ export default function DeadShotGame({
         size: size * 1.5, // Account for scale
         type: shipType,
         basePoints,
-        zones
+        zones,
+        legsDestroyed: 0
       };
       
       shipsRef.current.push(ship);
@@ -1002,19 +974,27 @@ export default function DeadShotGame({
           isDrawingRef.current = false;
           setIsDrawing(false);
           
-          // Shoot arrow with smooth arch trajectory based on power
+          // Shoot arrow - full charge = straight shot
           const power = bowPowerRef.current / 100;
           const aimAngleRad = aimAngleRef.current * Math.PI / 180;
-          // Velocity scales significantly with power (min 10, max 60)
-          const baseSpeed = 10 + power * 50; // Speed increases dramatically with power
-          // Add upward component for arch - more power = higher arch (smoother curve)
-          const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
-          const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
-          const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
+          const baseSpeed = 8 + power * 42;
+          
+          let vx: number, vy: number;
+          
+          if (power >= 1.0) {
+            // FULL CHARGE = STRAIGHT SHOT
+            vx = Math.cos(aimAngleRad) * baseSpeed;
+            vy = Math.sin(aimAngleRad) * baseSpeed;
+          } else {
+            // PARTIAL CHARGE = ARCH SHOT
+            const upwardAngle = Math.PI / 4 * power;
+            const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
+            const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
+            vx = Math.cos(aimAngleRad) * horizontalSpeed;
+            vy = Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed;
+          }
           
           const arrowGroup = createArrow();
-          // Spawn arrow at string center position (on the wire)
-          // Calculate world position based on bow rotation
           const localPos = stringCenterRef.current.clone();
           const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
           const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
@@ -1023,8 +1003,8 @@ export default function DeadShotGame({
           const arrow: Arrow = {
             id: ++lastArrowIdRef.current,
             group: arrowGroup,
-            vx: Math.cos(aimAngleRad) * horizontalSpeed,
-            vy: Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed, // Add upward component
+            vx,
+            vy,
             vz: 0,
             createdAt: Date.now()
           };
@@ -1077,27 +1057,35 @@ export default function DeadShotGame({
   const handleMouseUp = useCallback(() => {
     if (gameState !== 'playing' || !sceneRef.current) return;
     
-    const wasDrawing = isDrawingRef.current;
     isDrawingRef.current = false;
     setIsDrawing(false);
     
-    // If no charge at all, shoot a weak arch shot
-    const power = Math.max(0.1, bowPowerRef.current / 100); // Minimum 10% power for arch shot
+    const power = bowPowerRef.current / 100;
     const aimAngleRad = aimAngleRef.current * Math.PI / 180;
     
-    // Velocity scales significantly with power (min 10, max 60)
-    // If no hold at all (power < 0.2), make it a weak arch shot
-    const baseSpeed = 10 + power * 50; // Speed increases dramatically with power
+    // Velocity scales with power (min 8, max 50)
+    const baseSpeed = 8 + power * 42;
     
-    // Add upward component for arch - more power = higher arch
-    // Even with no charge, add some upward angle for arch shot
-    const upwardAngle = Math.PI / 8 * Math.max(0.3, power); // Minimum 30% arch even with no charge
-    const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
-    const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
+    let vx: number, vy: number;
+    
+    if (power >= 1.0) {
+      // FULL CHARGE = STRAIGHT SHOT (no arch, just forward)
+      vx = Math.cos(aimAngleRad) * baseSpeed;
+      vy = Math.sin(aimAngleRad) * baseSpeed; // No upward component
+    } else {
+      // PARTIAL CHARGE = ARCH SHOT with gravity
+      // Low power: goes up then falls down
+      // Higher power: higher arch
+      const upwardAngle = Math.PI / 4 * power; // 0 to 45 degrees based on power
+      const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
+      const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
+      
+      vx = Math.cos(aimAngleRad) * horizontalSpeed;
+      vy = Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed; // Add upward component
+    }
     
     const arrowGroup = createArrow();
     // Spawn arrow at string center position (on the wire)
-    // Calculate world position based on bow rotation
     const localPos = stringCenterRef.current.clone();
     const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
     const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
@@ -1106,8 +1094,8 @@ export default function DeadShotGame({
     const arrow: Arrow = {
       id: ++lastArrowIdRef.current,
       group: arrowGroup,
-      vx: Math.cos(aimAngleRad) * horizontalSpeed,
-      vy: Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed, // Add upward component for arch
+      vx,
+      vy,
       vz: 0,
       createdAt: Date.now()
     };
