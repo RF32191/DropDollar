@@ -74,6 +74,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const rngConfig = null; // Disabled - using runtime RNG instead
   
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [enemyShips, setEnemyShips] = useState<EnemyShip[]>([]);
