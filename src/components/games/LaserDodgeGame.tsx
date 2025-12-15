@@ -1374,19 +1374,28 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            {!isCompetitionMode && onExit && (
-              <div className="flex justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartGame();
+                }}
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:scale-105 transform text-lg sm:text-xl pointer-events-auto"
+              >
+                🚀 START GAME
+              </button>
+              {!isCompetitionMode && onExit && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent starting game when clicking exit
+                    e.stopPropagation();
                     onExit();
                   }}
-                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-sm sm:text-base pointer-events-auto"
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-lg sm:text-xl pointer-events-auto"
                 >
                   ← Back to Menu
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
