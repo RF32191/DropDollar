@@ -116,12 +116,14 @@ export default function UserMenu({ className = '', variant = 'default', unreadMe
           // Double-click to go to dashboard
           window.location.href = '/dashboard';
         }}
-        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative"
+        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative max-w-full"
         title="Click to open menu, double-click to go to dashboard"
       >
-        <UserIcon className="h-5 w-5" />
-        <span className="hidden sm:inline">{getUserDisplayName()}</span>
-        <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <UserIcon className="h-5 w-5 flex-shrink-0" />
+        <span className="hidden sm:inline max-w-[120px] md:max-w-[150px] lg:max-w-[180px] truncate" title={getUserDisplayName()}>
+          {getUserDisplayName()}
+        </span>
+        <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
         {/* Unread Message Indicator */}
         {unreadMessageCount > 0 && (
           <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg animate-pulse border-2 border-white">
@@ -136,8 +138,8 @@ export default function UserMenu({ className = '', variant = 'default', unreadMe
           <div className="py-1">
             {/* User Info */}
             <div className="px-4 py-2 border-b border-gray-200">
-              <p className="text-sm font-semibold text-gray-900">{getUserDisplayName()}</p>
-              <p className="text-xs text-gray-500">{user.email}</p>
+              <p className="text-sm font-semibold text-gray-900 truncate" title={getUserDisplayName()}>{getUserDisplayName()}</p>
+              <p className="text-xs text-gray-500 truncate" title={user.email}>{user.email}</p>
             </div>
 
             {/* Dual Wallet Display */}

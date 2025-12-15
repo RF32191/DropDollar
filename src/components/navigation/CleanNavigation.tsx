@@ -92,7 +92,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
   return (
     <header className={`${getHeaderStyles()} relative z-50`}>
       <div className="w-full px-2">
-        <div className="flex items-center justify-start h-16 gap-4">
+        <div className="flex items-center justify-start h-16 gap-4 overflow-hidden">
           {/* Logo - Against left edge */}
           <Link href="/" className="flex items-center space-x-2 flex-shrink-0 group">
             <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:rotate-12 group-hover:animate-pulse">
@@ -148,7 +148,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
           </nav>
 
           {/* Desktop User Menu - Right side */}
-          <div className="hidden lg:flex items-center ml-auto pr-2">
+          <div className="hidden lg:flex items-center ml-auto pr-2 flex-shrink-0 min-w-0">
             <UserMenu 
               variant={variant === 'light' ? 'light' : 'dark'} 
               unreadMessageCount={unreadMessageCount}
@@ -156,7 +156,7 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex lg:hidden items-center space-x-2 ml-auto pr-2">
+          <div className="flex lg:hidden items-center space-x-2 ml-auto pr-2 flex-shrink-0 min-w-0">
             <UserMenu 
               variant={variant === 'light' ? 'light' : 'dark'}
               unreadMessageCount={unreadMessageCount}
