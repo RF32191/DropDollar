@@ -130,7 +130,6 @@ export default function CashStackGame3D({
   gameSession,
 }: CashStackGame3DProps) {
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
-  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
