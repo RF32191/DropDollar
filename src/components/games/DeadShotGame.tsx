@@ -112,7 +112,6 @@ export default function DeadShotGame({
   const enemyProjectilesRef = useRef<EnemyProjectile[]>([]);
   const aimPathRef = useRef<THREE.Line | null>(null);
   const lastSpawnRef = useRef<number>(0);
-  const lastEnemyShotRef = useRef<number>(0);
   const heartsRef = useRef(3);
   const lastHitTimeRef = useRef<number>(0);
   const gameStartTimeRef = useRef<number>(0);
