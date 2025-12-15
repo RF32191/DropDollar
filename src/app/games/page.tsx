@@ -352,8 +352,6 @@ export default function GamesPage() {
   const [lastScores, setLastScores] = useState<{[key: string]: number}>({});
   const [gamePopularity, setGamePopularity] = useState<{[key: string]: GamePopularity}>({});
   const [showPopularityStats, setShowPopularityStats] = useState(false);
-  const [totalGamesPlayed, setTotalGamesPlayed] = useState(0);
-  const [showSponsoredListings, setShowSponsoredListings] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
@@ -609,8 +607,6 @@ export default function GamesPage() {
     
     // Calculate total games played and check if sponsored listings should show
     const totalPlayed = Object.values(currentPopularity).reduce((sum, pop) => sum + pop.timesPlayed, 0);
-    setTotalGamesPlayed(totalPlayed);
-    setShowSponsoredListings(totalPlayed >= 3);
   }, []);
 
   // Cleanup timeout on unmount
@@ -950,8 +946,6 @@ export default function GamesPage() {
       
       // Update total games played counter
       const newTotalPlayed = Object.values(updatedPopularity).reduce((sum, pop) => sum + pop.timesPlayed, 0);
-      setTotalGamesPlayed(newTotalPlayed);
-      setShowSponsoredListings(newTotalPlayed >= 3);
     }
 
   };
