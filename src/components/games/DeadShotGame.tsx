@@ -57,7 +57,7 @@ interface SubItem {
 
 interface EnemyProjectile {
   id: number;
-  mesh: THREE.Mesh;
+  mesh: THREE.Group | THREE.Mesh; // Can be group (amoeba) or mesh
   vx: number;
   vy: number;
   vz: number;
@@ -943,7 +943,7 @@ export default function DeadShotGame({
           // Slower speed (2 instead of 5)
           const projectile: EnemyProjectile = {
             id: Date.now() + Math.random(),
-            mesh: amoebaGroup as any, // Store group as mesh for compatibility
+            mesh: amoebaGroup, // Store as group
             vx: toPlayer.x * 2, // Slower
             vy: toPlayer.y * 2, // Slower
             vz: toPlayer.z * 2, // Slower
