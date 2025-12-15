@@ -75,6 +75,173 @@
   display: none;
 }
 
+/* Flickering Fire Effect */
+@keyframes flicker {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  10% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+  20% {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+  30% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+  40% {
+    opacity: 0.95;
+    transform: scale(0.99);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.03);
+  }
+  60% {
+    opacity: 0.88;
+    transform: scale(0.97);
+  }
+  70% {
+    opacity: 0.92;
+    transform: scale(1.01);
+  }
+  80% {
+    opacity: 0.87;
+    transform: scale(1.04);
+  }
+  90% {
+    opacity: 0.93;
+    transform: scale(0.96);
+  }
+}
+
+.fire-flicker {
+  animation: flicker 0.3s infinite;
+}
+
+.fire-flicker-delay-1 {
+  animation: flicker 0.35s infinite;
+  animation-delay: 0.1s;
+}
+
+.fire-flicker-delay-2 {
+  animation: flicker 0.4s infinite;
+  animation-delay: 0.2s;
+}
+
+/* Star Wars Scrolling Stars */
+@keyframes star-scroll {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(var(--star-x, 0));
+    opacity: 0;
+  }
+}
+
+.star-wars-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 4px white, 0 0 8px white;
+  animation: star-scroll linear infinite;
+  animation-duration: var(--star-duration, 3s);
+  left: var(--star-left, 50%);
+  top: 100%;
+}
+
+.star-wars-star.small {
+  width: 1px;
+  height: 1px;
+  box-shadow: 0 0 2px white, 0 0 4px white;
+}
+
+.star-wars-star.medium {
+  width: 2px;
+  height: 2px;
+  box-shadow: 0 0 4px white, 0 0 8px white;
+}
+
+.star-wars-star.large {
+  width: 3px;
+  height: 3px;
+  box-shadow: 0 0 6px white, 0 0 12px white;
+}
+
+/* Falling Coins Animation */
+@keyframes coin-fall {
+  0% {
+    transform: translateY(-100px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.falling-coin {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
+  border-radius: 50%;
+  box-shadow: 
+    0 0 10px rgba(255, 215, 0, 0.8),
+    0 0 20px rgba(255, 215, 0, 0.6),
+    inset -5px -5px 10px rgba(0, 0, 0, 0.3),
+    inset 5px 5px 10px rgba(255, 255, 255, 0.3);
+  animation: coin-fall linear infinite;
+  animation-duration: var(--coin-duration, 3s);
+  left: var(--coin-left, 50%);
+  top: -50px;
+  z-index: 1;
+}
+
+.falling-coin::before {
+  content: '$';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  font-weight: bold;
+  color: #8B6914;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.falling-coin.small {
+  width: 30px;
+  height: 30px;
+}
+
+.falling-coin.small::before {
+  font-size: 15px;
+}
+
+.falling-coin.large {
+  width: 50px;
+  height: 50px;
+}
+
+.falling-coin.large::before {
+  font-size: 25px;
+}
+
 /* Location banner spacing */
 .location-banner-spacer {
   padding-top: 4rem; /* Account for fixed header */

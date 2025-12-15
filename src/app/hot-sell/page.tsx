@@ -933,12 +933,20 @@ export default function HotSellPage() {
       />
 
       <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
-        {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-red-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/10 rounded-full blur-2xl animate-pulse delay-500"></div>
-      </div>
+        {/* Flickering Fire Background Effect */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Fire layers with flicker animation */}
+          <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-orange-600 via-red-600 to-transparent fire-flicker"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-red-700 via-orange-700 to-transparent fire-flicker-delay-1 opacity-80"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-yellow-600 via-orange-600 to-transparent fire-flicker-delay-2 opacity-60"></div>
+          
+          {/* Fire particles */}
+          <div className="absolute bottom-0 left-1/4 w-32 h-32 bg-orange-500/40 rounded-full blur-2xl fire-flicker"></div>
+          <div className="absolute bottom-0 right-1/4 w-40 h-40 bg-red-500/40 rounded-full blur-2xl fire-flicker-delay-1"></div>
+          <div className="absolute bottom-0 left-1/2 w-36 h-36 bg-yellow-500/30 rounded-full blur-2xl fire-flicker-delay-2"></div>
+          <div className="absolute bottom-0 left-3/4 w-28 h-28 bg-orange-500/50 rounded-full blur-xl fire-flicker"></div>
+          <div className="absolute bottom-0 right-1/3 w-44 h-44 bg-red-600/30 rounded-full blur-3xl fire-flicker-delay-1"></div>
+        </div>
       
       <CleanNavigation />
       
