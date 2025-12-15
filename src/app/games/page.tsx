@@ -1365,11 +1365,17 @@ export default function GamesPage() {
                   )}
                   
                   {game.id === 'color-sequence' && (
-                    <div className="absolute inset-0 grid grid-cols-2 gap-1 p-6">
-                      <div className="bg-red-500 rounded animate-pulse"></div>
-                      <div className="bg-blue-500 rounded animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                      <div className="bg-green-500 rounded animate-pulse" style={{animationDelay: '0.4s'}}></div>
-                      <div className="bg-yellow-500 rounded animate-pulse" style={{animationDelay: '0.6s'}}></div>
+                    <div className="absolute inset-0">
+                      {/* Color Sequence Gameplay Video */}
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      >
+                        <source src="/color-sequence-gameplay.mp4" type="video/mp4" />
+                      </video>
                     </div>
                   )}
                   

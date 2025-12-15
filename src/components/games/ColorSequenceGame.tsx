@@ -48,6 +48,8 @@ const COLORS: ColorFlash[] = [
 ];
 
 export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId }: ColorSequenceGameProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'showing' | 'input' | 'feedback' | 'ended'>('ready');
   const [sequence, setSequence] = useState<number[]>([]);
   const [userSequence, setUserSequence] = useState<number[]>([]);
@@ -461,8 +463,8 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
           </div>
         </div>
         <div 
-          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 text-center border border-white/20 shadow-2xl z-10 cursor-pointer"
-          onClick={handleStartGame}
+          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10"
+          style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem' }}
         >
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
@@ -481,6 +483,36 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
               Color Sequence Memory
             </h2>
             <p className="text-red-200 text-sm mb-6 font-medium">Multi-Sensory Memory Challenge</p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/color-sequence-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-purple-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/color-sequence-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
+            </div>
             
             {/* Epilepsy Warning */}
             {/* Epilepsy Warning - Enhanced Visibility */}
@@ -537,22 +569,58 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
               </div>
             </div>
             
-            <div className="flex space-x-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
               <button
-                onClick={onExit}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartGame();
+                }}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform text-lg sm:text-xl pointer-events-auto"
               >
-                ← Back
+                🌈 START GAME
               </button>
-              <button
-                onClick={handleStartGame}
-                className="flex-1 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-500 hover:to-yellow-500 text-white font-bold py-4 px-6 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform animate-pulse"
-              >
-                🌈 Start Game
-              </button>
+              {onExit && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExit();
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-105 transform text-lg sm:text-xl pointer-events-auto"
+                >
+                  ← Back to Menu
+                </button>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Expanded Video Modal */}
+        {expandedVideo && (
+          <div 
+            className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+            onClick={() => setExpandedVideo(null)}
+          >
+            <div className="relative w-full max-w-6xl" style={{ aspectRatio: '16/9' }}>
+              <button
+                onClick={() => setExpandedVideo(null)}
+                className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-purple-400 transition-colors z-10"
+              >
+                ✕ Close
+              </button>
+              <video
+                autoPlay
+                loop
+                controls
+                className="w-full h-full rounded-lg border-4 border-purple-400 shadow-2xl"
+                style={{ objectFit: 'contain' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <source src={expandedVideo} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
