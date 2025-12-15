@@ -933,20 +933,22 @@ export default function HotSellPage() {
       />
 
       <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
-        {/* Flickering Fire Background Effect */}
+        {/* Flickering Fire Background Effect - COVER ENTIRE PAGE */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0" style={{ zIndex: 0 }}>
-          {/* Fire layers with flicker animation - MORE VISIBLE */}
-          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-orange-600 via-red-600 to-transparent fire-flicker opacity-90"></div>
-          <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-red-700 via-orange-700 to-transparent fire-flicker-delay-1 opacity-85"></div>
-          <div className="absolute bottom-0 left-0 right-0 h-3/4 bg-gradient-to-t from-yellow-600 via-orange-600 to-transparent fire-flicker-delay-2 opacity-70"></div>
+          {/* Fire layers covering entire page with flicker animation */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-600/40 to-orange-600/60 fire-flicker opacity-90"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-700/35 to-red-700/55 fire-flicker-delay-1 opacity-85"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-yellow-600/30 to-yellow-600/50 fire-flicker-delay-2 opacity-70"></div>
           
-          {/* Fire particles - LARGER AND BRIGHTER */}
-          <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-orange-500/60 rounded-full blur-3xl fire-flicker"></div>
-          <div className="absolute bottom-0 right-1/4 w-56 h-56 bg-red-500/60 rounded-full blur-3xl fire-flicker-delay-1"></div>
-          <div className="absolute bottom-0 left-1/2 w-52 h-52 bg-yellow-500/50 rounded-full blur-3xl fire-flicker-delay-2"></div>
-          <div className="absolute bottom-0 left-3/4 w-40 h-40 bg-orange-500/70 rounded-full blur-2xl fire-flicker"></div>
-          <div className="absolute bottom-0 right-1/3 w-60 h-60 bg-red-600/50 rounded-full blur-3xl fire-flicker-delay-1"></div>
-          <div className="absolute bottom-0 left-1/6 w-44 h-44 bg-yellow-500/55 rounded-full blur-2xl fire-flicker-delay-2"></div>
+          {/* Fire particles distributed across entire page - LARGER AND BRIGHTER */}
+          <div className="absolute top-10 left-1/4 w-48 h-48 bg-orange-500/60 rounded-full blur-3xl fire-flicker"></div>
+          <div className="absolute top-1/3 right-1/4 w-56 h-56 bg-red-500/60 rounded-full blur-3xl fire-flicker-delay-1"></div>
+          <div className="absolute top-1/2 left-1/2 w-52 h-52 bg-yellow-500/50 rounded-full blur-3xl fire-flicker-delay-2"></div>
+          <div className="absolute top-2/3 left-3/4 w-40 h-40 bg-orange-500/70 rounded-full blur-2xl fire-flicker"></div>
+          <div className="absolute bottom-1/4 right-1/3 w-60 h-60 bg-red-600/50 rounded-full blur-3xl fire-flicker-delay-1"></div>
+          <div className="absolute bottom-1/3 left-1/6 w-44 h-44 bg-yellow-500/55 rounded-full blur-2xl fire-flicker-delay-2"></div>
+          <div className="absolute top-1/4 right-1/2 w-50 h-50 bg-orange-500/55 rounded-full blur-3xl fire-flicker"></div>
+          <div className="absolute bottom-1/2 right-1/6 w-46 h-46 bg-red-500/50 rounded-full blur-2xl fire-flicker-delay-2"></div>
         </div>
       
       <CleanNavigation />

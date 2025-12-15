@@ -202,7 +202,7 @@ export default function GamesPage() {
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
   
-  // Generate Star Wars scrolling stars
+  // Generate Star Wars scrolling stars - Travel all the way up
   useEffect(() => {
     const starsContainer = document.getElementById('stars-container');
     if (!starsContainer) return;
@@ -210,15 +210,15 @@ export default function GamesPage() {
     // Clear existing stars
     starsContainer.innerHTML = '';
     
-    // Generate stars
-    const starCount = 100;
+    // Generate more stars for continuous effect
+    const starCount = 150; // More stars for better coverage
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
       const left = Math.random() * 100;
-      const duration = 3 + Math.random() * 4; // 3-7 seconds
-      const delay = Math.random() * 2;
-      const xOffset = (Math.random() - 0.5) * 200; // Horizontal drift
+      const duration = 4 + Math.random() * 6; // 4-10 seconds for slower, more visible travel
+      const delay = Math.random() * 3; // Longer delay range
+      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift
       
       star.className = `star-wars-star ${size}`;
       star.style.setProperty('--star-left', `${left}%`);
@@ -229,8 +229,30 @@ export default function GamesPage() {
       starsContainer.appendChild(star);
     }
     
+    // Continuously regenerate stars for infinite scroll
+    const regenerateInterval = setInterval(() => {
+      // Add a few new stars periodically
+      for (let i = 0; i < 10; i++) {
+        const star = document.createElement('div');
+        const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
+        const left = Math.random() * 100;
+        const duration = 4 + Math.random() * 6;
+        const delay = 0;
+        const xOffset = (Math.random() - 0.5) * 300;
+        
+        star.className = `star-wars-star ${size}`;
+        star.style.setProperty('--star-left', `${left}%`);
+        star.style.setProperty('--star-duration', `${duration}s`);
+        star.style.setProperty('--star-x', `${xOffset}px`);
+        star.style.animationDelay = `${delay}s`;
+        
+        starsContainer.appendChild(star);
+      }
+    }, 2000); // Add new stars every 2 seconds
+    
     // Cleanup
     return () => {
+      clearInterval(regenerateInterval);
       if (starsContainer) {
         starsContainer.innerHTML = '';
       }

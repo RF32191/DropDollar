@@ -133,20 +133,20 @@
   animation-delay: 0.2s;
 }
 
-/* Star Wars Scrolling Stars */
+/* Star Wars Scrolling Stars - Travel all the way up */
 @keyframes star-scroll {
   0% {
     transform: translateY(0) translateX(0);
     opacity: 0;
   }
-  10% {
+  5% {
     opacity: 1;
   }
-  90% {
+  95% {
     opacity: 1;
   }
   100% {
-    transform: translateY(-100vh) translateX(var(--star-x, 0));
+    transform: translateY(calc(-100vh - 200px)) translateX(var(--star-x, 0));
     opacity: 0;
   }
 }
@@ -184,14 +184,26 @@
   box-shadow: 0 0 8px white, 0 0 16px white, 0 0 24px rgba(255, 255, 255, 0.6);
 }
 
-/* Falling Coins Animation */
+/* Falling Coins Animation - Enhanced smooth animation */
 @keyframes coin-fall {
   0% {
-    transform: translateY(-100px) rotate(0deg);
+    transform: translateY(-100px) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(-80px) rotate(45deg) scale(1);
+  }
+  50% {
+    transform: translateY(calc(50vh - 50px)) rotate(180deg) scale(1.1);
     opacity: 1;
   }
+  95% {
+    opacity: 1;
+    transform: translateY(calc(100vh + 50px)) rotate(315deg) scale(1);
+  }
   100% {
-    transform: translateY(100vh) rotate(360deg);
+    transform: translateY(calc(100vh + 100px)) rotate(360deg) scale(0.8);
     opacity: 0;
   }
 }
@@ -208,7 +220,7 @@
     0 0 45px rgba(255, 215, 0, 0.5),
     inset -5px -5px 10px rgba(0, 0, 0, 0.4),
     inset 5px 5px 10px rgba(255, 255, 255, 0.5);
-  animation: coin-fall linear infinite;
+  animation: coin-fall cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-duration: var(--coin-duration, 3s);
   left: var(--coin-left, 50%);
   top: -50px;

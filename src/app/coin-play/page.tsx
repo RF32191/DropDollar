@@ -160,7 +160,7 @@ export default function CoinPlayPage() {
     }
   }, []);
 
-  // Generate falling gold coins animation
+  // Generate falling gold coins animation - Enhanced smooth animation
   useEffect(() => {
     const coinsContainer = document.getElementById('coins-container');
     if (!coinsContainer) return;
@@ -168,18 +168,22 @@ export default function CoinPlayPage() {
     // Clear existing coins
     coinsContainer.innerHTML = '';
     
-    // Generate coins continuously
+    // Generate coins continuously with smoother animation
     const generateCoin = () => {
       const coin = document.createElement('div');
-      const size = Math.random() < 0.5 ? 'small' : Math.random() < 0.8 ? '' : 'large';
+      const size = Math.random() < 0.4 ? 'small' : Math.random() < 0.85 ? '' : 'large';
       const left = Math.random() * 100;
-      const duration = 2 + Math.random() * 3; // 2-5 seconds
-      const delay = Math.random() * 1;
+      const duration = 3 + Math.random() * 4; // 3-7 seconds for smoother fall
+      const delay = Math.random() * 0.5; // Shorter delay for more continuous flow
       
       coin.className = `falling-coin ${size}`;
       coin.style.setProperty('--coin-left', `${left}%`);
       coin.style.setProperty('--coin-duration', `${duration}s`);
       coin.style.animationDelay = `${delay}s`;
+      
+      // Add slight horizontal drift for more natural movement
+      const drift = (Math.random() - 0.5) * 20;
+      coin.style.setProperty('--coin-drift', `${drift}px`);
       
       coinsContainer.appendChild(coin);
       
@@ -191,15 +195,15 @@ export default function CoinPlayPage() {
       }, (duration + delay) * 1000);
     };
     
-    // Generate initial coins
-    for (let i = 0; i < 20; i++) {
-      setTimeout(() => generateCoin(), i * 200);
+    // Generate initial coins with staggered timing
+    for (let i = 0; i < 30; i++) {
+      setTimeout(() => generateCoin(), i * 150);
     }
     
-    // Continuously generate new coins
+    // Continuously generate new coins more frequently
     const coinInterval = setInterval(() => {
       generateCoin();
-    }, 300); // New coin every 300ms
+    }, 250); // New coin every 250ms for smoother flow
     
     // Cleanup
     return () => {
