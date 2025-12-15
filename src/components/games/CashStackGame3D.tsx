@@ -1447,13 +1447,32 @@ export default function CashStackGame3D({
       
       {/* Ready screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white overflow-y-auto">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white overflow-y-auto p-4">
           <h1 className="text-6xl font-bold mb-4 animate-pulse" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
             💰 CASH STACK 3D
           </h1>
           <p className="text-3xl font-bold mb-6" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
             {currentVariation.name}
           </p>
+          
+          {/* Gameplay Video */}
+          <div className="mb-6 w-full max-w-2xl mx-auto">
+            <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full rounded-lg border-2 border-yellow-400 shadow-2xl"
+                style={{ objectFit: 'contain' }}
+              >
+                <source src="/cash-stack-gameplay.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+            <p className="text-sm text-gray-400 mt-2 text-center">Watch how to play - Video loops automatically</p>
+          </div>
+          
           <p className="text-xl mb-2">Stack blocks by clicking or pressing SPACE</p>
           <p className="text-lg mb-2">⚡ <span className="text-yellow-400">FAST STACKING = BONUS POINTS!</span></p>
           <p className="text-lg mb-2">⏱️ &lt;0.5s = 2.0x | &lt;1s = 1.5x | &lt;2s = 1.2x</p>
