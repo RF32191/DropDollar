@@ -1350,9 +1350,17 @@ export default function GamesPage() {
                   
                   {/* Game-specific animations */}
                   {game.id === 'quick-click' && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-24 h-24 bg-green-500 rounded-full animate-ping"></div>
-                      <div className="w-24 h-24 bg-green-500 rounded-full absolute"></div>
+                    <div className="absolute inset-0">
+                      {/* Quick Click Gameplay Video */}
+                      <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                      >
+                        <source src="/quick-click-gameplay.mp4" type="video/mp4" />
+                      </video>
                     </div>
                   )}
                   

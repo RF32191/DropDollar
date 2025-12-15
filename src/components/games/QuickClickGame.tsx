@@ -31,6 +31,8 @@ interface Round {
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  
   // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
   console.log('');
   console.log('🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮🎮');
@@ -406,20 +408,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       <div 
         className="fixed inset-0 bg-gradient-to-br from-green-900 via-blue-900 to-purple-900 bg-opacity-95 flex items-center justify-center z-50 backdrop-blur-sm p-2 sm:p-4"
       >
-        {/* Clickable background overlay */}
         <div 
-          className="absolute inset-0 cursor-pointer"
-          onClick={handleStartGame}
-        />
-        
-        <div className="absolute top-8 left-0 right-0 z-50 pointer-events-none">
-          <div className="text-center bg-gradient-to-r from-green-400 to-blue-500 text-white text-3xl font-black py-4 px-8 rounded-full inline-block animate-pulse shadow-2xl">
-            🖱️ CLICK ANYWHERE TO START 🖱️
-          </div>
-        </div>
-        <div 
-          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl z-10 cursor-pointer"
-          onClick={handleStartGame}
+          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10"
         >
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-green-500/20 rounded-full blur-xl animate-pulse"></div>
@@ -436,6 +426,36 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
               QuickClick
             </h2>
             <p className="text-green-200 text-sm mb-4 sm:mb-6 font-medium">Lightning Reaction Challenge</p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/quick-click-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-green-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/quick-click-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
+            </div>
             
             {/* Epilepsy Warning */}
             {/* Epilepsy Warning - Enhanced Visibility */}
