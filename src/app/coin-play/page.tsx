@@ -160,7 +160,7 @@ export default function CoinPlayPage() {
     }
   }, []);
 
-  // Generate falling gold coins animation - Enhanced smooth animation
+  // Generate casino-style falling gold coins animation with spinning effect
   useEffect(() => {
     const coinsContainer = document.getElementById('coins-container');
     if (!coinsContainer) return;
@@ -168,22 +168,26 @@ export default function CoinPlayPage() {
     // Clear existing coins
     coinsContainer.innerHTML = '';
     
-    // Generate coins continuously with smoother animation
+    // Generate coins continuously with casino-style spinning animation
     const generateCoin = () => {
       const coin = document.createElement('div');
       const size = Math.random() < 0.4 ? 'small' : Math.random() < 0.85 ? '' : 'large';
       const left = Math.random() * 100;
-      const duration = 3 + Math.random() * 4; // 3-7 seconds for smoother fall
-      const delay = Math.random() * 0.5; // Shorter delay for more continuous flow
+      const duration = 4 + Math.random() * 5; // 4-9 seconds for casino-style slow fall
+      const delay = Math.random() * 0.8; // Staggered delay for continuous flow
       
       coin.className = `falling-coin ${size}`;
       coin.style.setProperty('--coin-left', `${left}%`);
       coin.style.setProperty('--coin-duration', `${duration}s`);
       coin.style.animationDelay = `${delay}s`;
       
-      // Add slight horizontal drift for more natural movement
-      const drift = (Math.random() - 0.5) * 20;
+      // Add horizontal drift for casino-style movement
+      const drift = (Math.random() - 0.5) * 30;
       coin.style.setProperty('--coin-drift', `${drift}px`);
+      
+      // Add random spin speed variation for casino effect
+      const spinSpeed = 0.3 + Math.random() * 0.4; // 0.3-0.7s per rotation
+      coin.style.setProperty('--spin-speed', `${spinSpeed}s`);
       
       coinsContainer.appendChild(coin);
       
@@ -195,15 +199,15 @@ export default function CoinPlayPage() {
       }, (duration + delay) * 1000);
     };
     
-    // Generate initial coins with staggered timing
-    for (let i = 0; i < 30; i++) {
-      setTimeout(() => generateCoin(), i * 150);
+    // Generate initial coins with staggered timing (more coins for casino feel)
+    for (let i = 0; i < 40; i++) {
+      setTimeout(() => generateCoin(), i * 120);
     }
     
-    // Continuously generate new coins more frequently
+    // Continuously generate new coins for casino atmosphere
     const coinInterval = setInterval(() => {
       generateCoin();
-    }, 250); // New coin every 250ms for smoother flow
+    }, 200); // New coin every 200ms for rich casino feel
     
     // Cleanup
     return () => {
