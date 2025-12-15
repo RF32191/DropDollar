@@ -12,6 +12,7 @@ import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import BladeBounceGame from '@/components/games/BladeBounceGame';
 import CashStackGame from '@/components/games/CashStackGame';
 import PennyPasserGame from '@/components/games/PennyPasserGame';
+import DeadShotGame from '@/components/games/DeadShotGame';
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -140,6 +141,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Timing', 'Risk Assessment', 'Spatial Awareness', 'Speed'],
     component: PennyPasserGame
+  },
+  {
+    id: 'dead-shot',
+    name: 'Dead Shot',
+    description: 'Draw your laser bow and hit 3D alien ships with precision! Center shots earn massive bonuses!',
+    icon: BoltIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Aiming', 'Physics', 'Precision', 'Timing'],
+    component: DeadShotGame
   }
 ];
 
