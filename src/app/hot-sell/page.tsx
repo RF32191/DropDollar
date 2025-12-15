@@ -934,7 +934,7 @@ export default function HotSellPage() {
 
       <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
         {/* Flickering Fire Background Effect */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           {/* Fire layers with flicker animation */}
           <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-orange-600 via-red-600 to-transparent fire-flicker"></div>
           <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-red-700 via-orange-700 to-transparent fire-flicker-delay-1 opacity-80"></div>
@@ -950,7 +950,7 @@ export default function HotSellPage() {
       
       <CleanNavigation />
       
-      <div className="container mx-auto px-4 py-8 relative z-10">
+      <div className="container mx-auto px-4 py-8 relative z-20">
         {/* Wallet Display */}
         <PageWalletDisplay />
 

@@ -162,6 +162,7 @@
   animation-duration: var(--star-duration, 3s);
   left: var(--star-left, 50%);
   top: 100%;
+  z-index: 1;
 }
 
 .star-wars-star.small {
@@ -210,6 +211,7 @@
   left: var(--coin-left, 50%);
   top: -50px;
   z-index: 1;
+  pointer-events: none;
 }
 
 .falling-coin::before {
