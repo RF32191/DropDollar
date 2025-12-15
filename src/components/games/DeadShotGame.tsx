@@ -54,6 +54,15 @@ interface SubItem {
   createdAt: number;
 }
 
+interface EnemyProjectile {
+  id: number;
+  mesh: THREE.Mesh;
+  vx: number;
+  vy: number;
+  vz: number;
+  createdAt: number;
+}
+
 export default function DeadShotGame({ 
   onGameEnd, 
   onExit, 
@@ -71,10 +80,22 @@ export default function DeadShotGame({
   const [aimAngle, setAimAngle] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [hearts, setHearts] = useState(3);
+  const [backgroundFlash, setBackgroundFlash] = useState(0);
   
-  // Sync gameState to ref for animation loop
+  // Sync gameState and hearts to refs for animation loop
   useEffect(() => {
     gameStateRef.current = gameState;
+    heartsRef.current = hearts;
+  }, [gameState, hearts]);
+  
+  // Background flash animation
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    const flashInterval = setInterval(() => {
+      setBackgroundFlash(prev => (prev + 0.1) % (Math.PI * 2));
+    }, 50);
+    return () => clearInterval(flashInterval);
   }, [gameState]);
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -87,7 +108,12 @@ export default function DeadShotGame({
   const arrowsRef = useRef<Arrow[]>([]);
   const shipsRef = useRef<AlienShip[]>([]);
   const subItemsRef = useRef<SubItem[]>([]);
+  const enemyProjectilesRef = useRef<EnemyProjectile[]>([]);
+  const aimPathRef = useRef<THREE.Line | null>(null);
   const lastSpawnRef = useRef<number>(0);
+  const lastEnemyShotRef = useRef<number>(0);
+  const heartsRef = useRef(3);
+  const lastHitTimeRef = useRef<number>(0);
   const gameStartTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
@@ -385,7 +411,8 @@ export default function DeadShotGame({
     }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000011);
+    // Dark crimson background (will flash)
+    scene.background = new THREE.Color(0x4a0000);
     
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -451,81 +478,63 @@ export default function DeadShotGame({
     
     // Test cube removed - ships should be visible instead
     
-    // Create spaceship bow - futuristic design
+    // Create white blood cell bow - spherical with nucleus and organelles
     const bowGroup = new THREE.Group();
     
-    // Main hull (central body) - sleek spaceship design
-    const hullGeometry = new THREE.ConeGeometry(0.3, 1.2, 8);
-    const hullMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ffff,
-      emissive: 0x00ffff,
-      emissiveIntensity: 3.0,
-      metalness: 0.95,
-      roughness: 0.05
-    });
-    const hull = new THREE.Mesh(hullGeometry, hullMaterial);
-    hull.rotation.z = Math.PI;
-    hull.position.y = 0.3;
-    bowGroup.add(hull);
-    
-    // Left wing/engine pod
-    const leftWingGeometry = new THREE.BoxGeometry(0.25, 0.8, 0.4);
-    const wingMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x00ffff,
-      emissive: 0x00ffff,
-      emissiveIntensity: 2.5,
-      metalness: 0.9,
-      roughness: 0.1
-    });
-    const leftWing = new THREE.Mesh(leftWingGeometry, wingMaterial);
-    leftWing.position.set(-0.6, 0.2, 0);
-    leftWing.rotation.z = 0.2;
-    bowGroup.add(leftWing);
-    
-    // Right wing/engine pod
-    const rightWing = new THREE.Mesh(leftWingGeometry, wingMaterial);
-    rightWing.position.set(0.6, 0.2, 0);
-    rightWing.rotation.z = -0.2;
-    bowGroup.add(rightWing);
-    
-    // Engine glow (left)
-    const leftEngineGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0x00ffff, emissive: 0x00ffff, transparent: true, opacity: 0.8 })
-    );
-    leftEngineGlow.position.set(-0.6, -0.2, 0);
-    bowGroup.add(leftEngineGlow);
-    
-    // Engine glow (right)
-    const rightEngineGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0x00ffff, emissive: 0x00ffff, transparent: true, opacity: 0.8 })
-    );
-    rightEngineGlow.position.set(0.6, -0.2, 0);
-    bowGroup.add(rightEngineGlow);
-    
-    // Cockpit/canopy
-    const cockpitGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-    const cockpitMaterial = new THREE.MeshStandardMaterial({
+    // Main cell body (spherical, white/blue neon)
+    const cellBodyGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+    const cellBodyMaterial = new THREE.MeshStandardMaterial({ 
       color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 1.5,
+      emissive: 0x88ccff, // Light blue neon glow
+      emissiveIntensity: 3.0,
+      metalness: 0.3,
+      roughness: 0.7,
       transparent: true,
-      opacity: 0.7
+      opacity: 0.9
     });
-    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
-    cockpit.position.set(0, 0.6, 0.1);
-    bowGroup.add(cockpit);
+    const cellBody = new THREE.Mesh(cellBodyGeometry, cellBodyMaterial);
+    bowGroup.add(cellBody);
     
-    // Energy wire/string (laser beam between wings) - THIS IS WHERE ARROWS SPAWN
+    // Nucleus (darker center, blue tint)
+    const nucleusGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+    const nucleusMaterial = new THREE.MeshStandardMaterial({
+      color: 0x4488ff,
+      emissive: 0x4488ff,
+      emissiveIntensity: 4.0,
+      metalness: 0.5,
+      roughness: 0.5
+    });
+    const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
+    nucleus.position.set(0, 0, 0.3);
+    bowGroup.add(nucleus);
+    
+    // Organelles (smaller spheres floating inside)
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 * i) / 6;
+      const organelleGeometry = new THREE.SphereGeometry(0.08, 12, 12);
+      const organelleMaterial = new THREE.MeshStandardMaterial({
+        color: 0xaaccff,
+        emissive: 0xaaccff,
+        emissiveIntensity: 3.5
+      });
+      const organelle = new THREE.Mesh(organelleGeometry, organelleMaterial);
+      organelle.position.set(
+        Math.cos(angle) * 0.35,
+        Math.sin(angle) * 0.35,
+        Math.sin(angle * 2) * 0.2
+      );
+      bowGroup.add(organelle);
+    }
+    
+    // Energy wire/string (laser beam) - THIS IS WHERE ARROWS SPAWN
     const stringPoints = [
-      new THREE.Vector3(-0.6, 0.2, 0),
+      new THREE.Vector3(-0.5, 0, 0),
       new THREE.Vector3(0, 0, 0), // Center point - arrow spawn location
-      new THREE.Vector3(0.6, 0.2, 0)
+      new THREE.Vector3(0.5, 0, 0)
     ];
     const stringGeometry = new THREE.BufferGeometry().setFromPoints(stringPoints);
     const stringMaterial = new THREE.LineBasicMaterial({ 
-      color: 0x00ffff, 
+      color: 0x88ccff, 
       linewidth: 8,
       transparent: true,
       opacity: 1.0
@@ -534,12 +543,27 @@ export default function DeadShotGame({
     bowGroup.add(bowString);
     bowStringRef.current = bowString;
     
-    // Energy glow around ship
-    const glowGeometry = new THREE.RingGeometry(0.6, 1.2, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+    // Aim path preview (trajectory line like Peggle) - initially hidden
+    const aimPathPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
+    const aimPathGeometry = new THREE.BufferGeometry().setFromPoints(aimPathPoints);
+    const aimPathMaterial = new THREE.LineBasicMaterial({
+      color: 0x88ccff,
+      linewidth: 3,
       transparent: true,
       opacity: 0.6,
+      dashed: true
+    });
+    const aimPath = new THREE.Line(aimPathGeometry, aimPathMaterial);
+    aimPath.visible = false;
+    scene.add(aimPath);
+    aimPathRef.current = aimPath;
+    
+    // Energy glow around white blood cell
+    const glowGeometry = new THREE.RingGeometry(0.5, 1.0, 32);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.5,
       side: THREE.DoubleSide
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -580,6 +604,14 @@ export default function DeadShotGame({
         console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${sceneRef.current.children.length}, Ships: ${shipsRef.current.length}`);
       }
       
+      // Update background flash (dark crimson pulsing)
+      if (gameStateRef.current === 'playing' && sceneRef.current) {
+        const flashIntensity = 0.4 + Math.sin(backgroundFlash) * 0.1;
+        sceneRef.current.background = new THREE.Color(
+          0x4a0000 + Math.floor(flashIntensity * 0x100000)
+        );
+      }
+      
       // ALWAYS render the scene (bow should be visible even when ready)
       rendererRef.current.render(sceneRef.current, cameraRef.current);
       
@@ -593,20 +625,63 @@ export default function DeadShotGame({
         const drawProgress = bowPowerRef.current / 100;
         bowRef.current.rotation.z = -aimAngleRef.current * Math.PI / 180;
         
-        // Animate bow string when drawing (spaceship wire)
+        // Animate bow string when drawing (white blood cell wire)
         const stringPoints = [
-          new THREE.Vector3(-0.6, 0.2, 0),
+          new THREE.Vector3(-0.5, 0, 0),
           new THREE.Vector3(0, 0 - drawProgress * 0.4, 0), // Draw back center point
-          new THREE.Vector3(0.6, 0.2, 0)
+          new THREE.Vector3(0.5, 0, 0)
         ];
         bowStringRef.current.geometry.setFromPoints(stringPoints);
         // Update string center position for arrow spawning
         stringCenterRef.current.set(0, 0 - drawProgress * 0.4, 0);
         
+        // Update aim path preview (trajectory like Peggle)
+        if (aimPathRef.current && isDrawingRef.current) {
+          const power = bowPowerRef.current / 100;
+          const aimAngleRad = aimAngleRef.current * Math.PI / 180;
+          const baseSpeed = 8 + power * 42;
+          
+          let vx: number, vy: number;
+          if (power >= 1.0) {
+            vx = Math.cos(aimAngleRad) * baseSpeed;
+            vy = Math.sin(aimAngleRad) * baseSpeed;
+          } else {
+            const upwardAngle = Math.PI / 4 * power;
+            const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
+            const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
+            vx = Math.cos(aimAngleRad) * horizontalSpeed;
+            vy = Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed;
+          }
+          
+          // Simulate trajectory path
+          const pathPoints: THREE.Vector3[] = [];
+          const localPos = stringCenterRef.current.clone();
+          let px = localPos.x;
+          let py = localPos.y;
+          let pz = localPos.z;
+          let pvx = vx;
+          let pvy = vy;
+          const gravity = 9.8;
+          
+          for (let i = 0; i < 30; i++) {
+            pathPoints.push(new THREE.Vector3(px, py, pz));
+            px += pvx * 0.1;
+            py += pvy * 0.1;
+            pvy -= gravity * 0.1;
+            
+            if (py < -10 || Math.abs(px) > 30) break;
+          }
+          
+          aimPathRef.current.geometry.setFromPoints(pathPoints);
+          aimPathRef.current.visible = true;
+        } else if (aimPathRef.current) {
+          aimPathRef.current.visible = false;
+        }
+        
         // Increase string brightness when charging
         if (bowStringRef.current.material instanceof THREE.LineBasicMaterial) {
           const intensity = 1.0 + drawProgress * 2.0; // 1.0 to 3.0
-          bowStringRef.current.material.color.setHex(0x00ffff);
+          bowStringRef.current.material.color.setHex(0x88ccff);
           bowStringRef.current.material.opacity = 0.5 + drawProgress * 0.5;
         }
         
@@ -698,8 +773,8 @@ export default function DeadShotGame({
           const capsidDistance = Math.sqrt(capsidDx * capsidDx + capsidDy * capsidDy + capsidDz * capsidDz);
           
           if (capsidDistance < ship.size * 0.2) {
-            // Hit center capsid - 100 points!
-            currentScoreRef.current += 100;
+            // Hit center capsid - HEADSHOT! 200 points!
+            currentScoreRef.current += 200;
             totalHitsRef.current++;
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
@@ -759,8 +834,9 @@ export default function DeadShotGame({
         return arrow;
       }).filter(arrow => arrow !== null) as Arrow[];
       
-      // Update ships
+      // Update ships - move omnidirectionally and shoot projectiles
       shipsRef.current = shipsRef.current.map(ship => {
+        // Omnidirectional movement (can change direction slightly)
         ship.group.position.add(ship.direction.clone().multiplyScalar(ship.speed * delta));
         
         // Rotate ship for visual effect
@@ -772,6 +848,37 @@ export default function DeadShotGame({
         if (glowMesh) {
           const time = Date.now() * 0.001;
           (glowMesh as THREE.Mesh).scale.setScalar(1 + Math.sin(time * 3) * 0.2);
+        }
+        
+        // Enemy shooting - shoot projectiles at player (center 0,0,0)
+        const now = Date.now();
+        if (now - lastEnemyShotRef.current > 2000 && sceneRef.current) { // Shoot every 2 seconds
+          lastEnemyShotRef.current = now;
+          
+          // Calculate direction to player
+          const toPlayer = new THREE.Vector3(0, 0, 0).sub(ship.group.position).normalize();
+          
+          // Create projectile
+          const projectileGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+          const projectileMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 3.0
+          });
+          const projectileMesh = new THREE.Mesh(projectileGeometry, projectileMaterial);
+          projectileMesh.position.copy(ship.group.position);
+          sceneRef.current.add(projectileMesh);
+          
+          const projectile: EnemyProjectile = {
+            id: Date.now(),
+            mesh: projectileMesh,
+            vx: toPlayer.x * 5,
+            vy: toPlayer.y * 5,
+            vz: toPlayer.z * 5,
+            createdAt: now
+          };
+          
+          enemyProjectilesRef.current.push(projectile);
         }
         
         // Remove ships that are out of bounds - DEDUCT 50 POINTS if ship escapes
@@ -788,6 +895,59 @@ export default function DeadShotGame({
         
         return ship;
       }).filter(ship => ship !== null) as AlienShip[];
+      
+      // Update enemy projectiles
+      enemyProjectilesRef.current = enemyProjectilesRef.current.map(projectile => {
+        projectile.mesh.position.x += projectile.vx * delta;
+        projectile.mesh.position.y += projectile.vy * delta;
+        projectile.mesh.position.z += projectile.vz * delta;
+        
+        // Check collision with player (at center 0,0,0)
+        const dx = projectile.mesh.position.x;
+        const dy = projectile.mesh.position.y;
+        const dz = projectile.mesh.position.z;
+        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        if (distanceToPlayer < 0.8 && heartsRef.current > 0 && Date.now() - lastHitTimeRef.current > 1000) {
+          // Hit player - lose a heart
+          lastHitTimeRef.current = Date.now();
+          setHearts(prev => {
+            const newHearts = Math.max(0, prev - 1);
+            heartsRef.current = newHearts;
+            if (newHearts <= 0) {
+              endGame();
+            }
+            return newHearts;
+          });
+          
+          sceneRef.current.remove(projectile.mesh);
+          return null;
+        }
+        
+        // Check if arrow hits projectile (can destroy it)
+        const arrowHit = arrowsRef.current.find(arrow => {
+          const dx = arrow.group.position.x - projectile.mesh.position.x;
+          const dy = arrow.group.position.y - projectile.mesh.position.y;
+          const dz = arrow.group.position.z - projectile.mesh.position.z;
+          return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.3;
+        });
+        
+        if (arrowHit) {
+          // Arrow hit projectile - destroy both
+          sceneRef.current.remove(projectile.mesh);
+          return null;
+        }
+        
+        // Remove projectiles that are out of bounds
+        if (Math.abs(projectile.mesh.position.x) > 30 || 
+            Math.abs(projectile.mesh.position.y) > 30 || 
+            Math.abs(projectile.mesh.position.z) > 30) {
+          sceneRef.current.remove(projectile.mesh);
+          return null;
+        }
+        
+        return projectile;
+      }).filter(p => p !== null) as EnemyProjectile[];
       
       // Update sub-items with physics
       subItemsRef.current = subItemsRef.current.map(item => {
@@ -899,42 +1059,24 @@ export default function DeadShotGame({
         legendary: 200
       }[shipType];
       
-      // Spawn from different sides but move linearly toward center
-      const side = rng.nextInt(0, 4);
-      let x, y, z;
-      let direction: THREE.Vector3;
+      // Spawn from random positions around the map - omnidirectional movement
+      const angle = rng.nextFloat(0, Math.PI * 2);
+      const distance = rng.nextFloat(8, 12);
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+      const z = rng.nextFloat(-2, 2); // Some Z variation but still hittable
       
-      // All ships spawn on the same plane (z = 0) so they can be hit
-      const shipZ = 0; // Fixed Z position for all ships
+      // Move toward center with some randomness (omnidirectional)
+      const toCenter = new THREE.Vector3(-x, -y, -z).normalize();
+      const randomOffset = new THREE.Vector3(
+        rng.nextFloat(-0.5, 0.5),
+        rng.nextFloat(-0.5, 0.5),
+        rng.nextFloat(-0.3, 0.3)
+      );
+      const direction = toCenter.add(randomOffset).normalize();
       
-      switch (side) {
-        case 0: // Left - move right toward center
-          x = -8;
-          y = rng.nextFloat(-4, 4);
-          z = shipZ;
-          direction = new THREE.Vector3(1, rng.nextFloat(-0.2, 0.2), 0).normalize();
-          break;
-        case 1: // Right - move left toward center
-          x = 8;
-          y = rng.nextFloat(-4, 4);
-          z = shipZ;
-          direction = new THREE.Vector3(-1, rng.nextFloat(-0.2, 0.2), 0).normalize();
-          break;
-        case 2: // Top - move down toward center
-          x = rng.nextFloat(-4, 4);
-          y = 6;
-          z = shipZ;
-          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), -1, 0).normalize();
-          break;
-        default: // Bottom - move up toward center
-          x = rng.nextFloat(-4, 4);
-          y = -6;
-          z = shipZ;
-          direction = new THREE.Vector3(rng.nextFloat(-0.2, 0.2), 1, 0).normalize();
-          break;
-      }
-      
-      const size = rng.nextFloat(1.0, 1.8); // Larger ships for visibility
+      // Different sizes - all hittable targets
+      const size = rng.nextFloat(0.8, 2.0); // Vary sizes more
       const { group: shipGroup, capsid, legs, zones } = createAlienShip(x, y, z, size, shipType);
       
       // Ensure ship is visible - make it larger and brighter
@@ -966,7 +1108,8 @@ export default function DeadShotGame({
     // Spawn first ship immediately
     spawnShip();
     
-    const spawnInterval = setInterval(spawnShip, 2000);
+    // More enemies spawn - faster spawn rate (every 1 second instead of 2)
+    const spawnInterval = setInterval(spawnShip, 1000);
     return () => {
       clearInterval(spawnInterval);
     };
@@ -1026,6 +1169,10 @@ export default function DeadShotGame({
           sceneRef.current.add(arrowGroup);
           arrowsRef.current.push(arrow);
           totalShotsRef.current++;
+          
+          // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
+          currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
+          setScore(currentScoreRef.current);
           
           bowPowerRef.current = 0;
           setBowPower(0);
@@ -1118,6 +1265,10 @@ export default function DeadShotGame({
     arrowsRef.current.push(arrow);
     totalShotsRef.current++;
     
+    // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
+    currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
+    setScore(currentScoreRef.current);
+    
     // Reset power after shooting
     bowPowerRef.current = 0;
     setBowPower(0);
@@ -1175,6 +1326,8 @@ export default function DeadShotGame({
       arrowsRef.current.forEach(arrow => sceneRef.current!.remove(arrow.group));
       shipsRef.current.forEach(ship => sceneRef.current!.remove(ship.group));
       subItemsRef.current.forEach(item => sceneRef.current!.remove(item.mesh));
+      enemyProjectilesRef.current.forEach(proj => sceneRef.current!.remove(proj.mesh));
+      if (aimPathRef.current) sceneRef.current.remove(aimPathRef.current);
     }
     
     onGameEnd({
@@ -1183,8 +1336,12 @@ export default function DeadShotGame({
     });
   };
 
+  // Calculate background color with flash
+  const bgFlash = Math.sin(backgroundFlash) * 0.1;
+  const bgColor = `rgb(${74 + bgFlash * 50}, 0, 0)`;
+  
   return (
-    <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900 overflow-hidden" style={{ margin: 0, padding: 0 }}>
+    <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ margin: 0, padding: 0, backgroundColor: bgColor }}>
       {/* 3D Scene Container - MUST be full size and positioned */}
       <div 
         ref={containerRef}
@@ -1218,6 +1375,18 @@ export default function DeadShotGame({
               <div className="text-2xl font-bold">Time: {timeLeft}s</div>
               <div className="text-sm">Power: {bowPower.toFixed(0)}%</div>
             </div>
+          </div>
+          
+          {/* Hearts Display */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2 pointer-events-none">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className={`text-3xl ${i < hearts ? 'text-red-500' : 'text-gray-500 opacity-30'}`}
+              >
+                ❤️
+              </div>
+            ))}
           </div>
           
           {/* Charge Bar - Always visible when playing */}
@@ -1256,24 +1425,36 @@ export default function DeadShotGame({
               🎯 Dead Shot
             </h1>
             <p className="text-white mb-6">
-              Draw your laser bow, aim at alien ships, and hit center shots for maximum points!
+              Control your white blood cell, aim at viruses, and destroy them with precision shots!
             </p>
-            <div className="space-y-4 text-left text-white/90 mb-6">
+            <div className="space-y-3 text-left text-white/90 mb-6 text-sm">
               <div className="flex items-start">
                 <span className="text-cyan-400 mr-2">•</span>
-                <span>Click and hold to draw bow, release to shoot</span>
+                <span><strong>Click and hold</strong> to charge, <strong>release to shoot</strong> - Aim path shows trajectory</span>
               </div>
               <div className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
-                <span>Hit alien ships for 10-50 points</span>
+                <span className="text-red-400 mr-2">•</span>
+                <span><strong>-20 points</strong> for every arrow shot - Plan your shots carefully!</span>
               </div>
               <div className="flex items-start">
                 <span className="text-yellow-400 mr-2">•</span>
-                <span>Center shots give 50-100 points!</span>
+                <span><strong>Headshot (center capsid):</strong> 200 points! Leg hits: 50 points each</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-purple-400 mr-2">•</span>
+                <span><strong>3 Hearts:</strong> Viruses shoot projectiles - if hit, lose a heart. Destroy projectiles with arrows!</span>
               </div>
               <div className="flex items-start">
                 <span className="text-green-400 mr-2">•</span>
-                <span>Hit sub-items for bonus points</span>
+                <span><strong>Full charge = straight shot</strong>, partial charge = arch shot with gravity</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-orange-400 mr-2">•</span>
+                <span><strong>Ship escapes:</strong> -50 points. Different enemy sizes, all hittable targets</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-pink-400 mr-2">•</span>
+                <span><strong>Fair play:</strong> RNG seeding and RLS enabled for skill-based competition</span>
               </div>
             </div>
             <div className="flex gap-4">
