@@ -82,7 +82,6 @@ export default function DeadShotGame({
   const [accuracy, setAccuracy] = useState(0);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hearts, setHearts] = useState(3);
-  const [backgroundFlash, setBackgroundFlash] = useState(0);
   
   // Sync gameState and hearts to refs for animation loop
   useEffect(() => {
@@ -90,14 +89,7 @@ export default function DeadShotGame({
     heartsRef.current = hearts;
   }, [gameState, hearts]);
   
-  // Background flash animation
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-    const flashInterval = setInterval(() => {
-      setBackgroundFlash(prev => (prev + 0.1) % (Math.PI * 2));
-    }, 50);
-    return () => clearInterval(flashInterval);
-  }, [gameState]);
+  // Background is now solid crimson - no flash needed
   
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -115,6 +107,50 @@ export default function DeadShotGame({
   const heartsRef = useRef(3);
   const lastHitTimeRef = useRef<number>(0);
   const gameStartTimeRef = useRef<number>(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  
+  // Audio functions
+  const playPlayerShotSound = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    try {
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.frequency.value = 600;
+      oscillator.type = 'square';
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.15);
+    } catch (e) {
+      // Silent fail
+    }
+  }, []);
+  
+  const playVirusShotSound = useCallback(() => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    try {
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      oscillator.frequency.value = 200;
+      oscillator.type = 'sawtooth';
+      gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+      // Silent fail
+    }
+  }, []);
   const timerRef = useRef<NodeJS.Timeout>();
   const countdownRef = useRef<NodeJS.Timeout>();
   const currentScoreRef = useRef(0);
@@ -411,8 +447,8 @@ export default function DeadShotGame({
     }
 
     const scene = new THREE.Scene();
-    // Dark crimson background (will flash)
-    scene.background = new THREE.Color(0x4a0000);
+    // Solid crimson red background (like instructions screen)
+    scene.background = new THREE.Color(0x8B0000); // Dark crimson red
     
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -602,14 +638,6 @@ export default function DeadShotGame({
       // Log every 60 frames to verify animation is running
       if (frameCount % 60 === 0) {
         console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${sceneRef.current.children.length}, Ships: ${shipsRef.current.length}`);
-      }
-      
-      // Update background flash (dark crimson pulsing)
-      if (gameStateRef.current === 'playing' && sceneRef.current) {
-        const flashIntensity = 0.4 + Math.sin(backgroundFlash) * 0.1;
-        sceneRef.current.background = new THREE.Color(
-          0x4a0000 + Math.floor(flashIntensity * 0x100000)
-        );
       }
       
       // ALWAYS render the scene (bow should be visible even when ready)
@@ -855,26 +883,70 @@ export default function DeadShotGame({
         if (now - ship.lastShotTime > 2000 && sceneRef.current) { // Each ship shoots every 2 seconds
           ship.lastShotTime = now;
           
+          // Play virus shot sound
+          playVirusShotSound();
+          
           // Calculate direction to player
           const toPlayer = new THREE.Vector3(0, 0, 0).sub(ship.group.position).normalize();
           
-          // Create projectile
-          const projectileGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-          const projectileMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            emissive: 0xff0000,
-            emissiveIntensity: 3.0
-          });
-          const projectileMesh = new THREE.Mesh(projectileGeometry, projectileMaterial);
-          projectileMesh.position.copy(ship.group.position);
-          sceneRef.current.add(projectileMesh);
+          // Create amoeba-like projectile (irregular blob shape)
+          const amoebaGroup = new THREE.Group();
           
+          // Main blob (irregular sphere with noise)
+          const blobSize = 0.3; // Larger size
+          const blobGeometry = new THREE.SphereGeometry(blobSize, 12, 12);
+          // Add noise to vertices for irregular shape
+          const positions = blobGeometry.attributes.position;
+          for (let i = 0; i < positions.count; i++) {
+            const x = positions.getX(i);
+            const y = positions.getY(i);
+            const z = positions.getZ(i);
+            const noise = 0.1 + Math.random() * 0.2; // Random variation
+            positions.setX(i, x * noise);
+            positions.setY(i, y * noise);
+            positions.setZ(i, z * noise);
+          }
+          positions.needsUpdate = true;
+          
+          const blobMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff4444,
+            emissive: 0xff4444,
+            emissiveIntensity: 3.0,
+            transparent: true,
+            opacity: 0.8
+          });
+          const blobMesh = new THREE.Mesh(blobGeometry, blobMaterial);
+          amoebaGroup.add(blobMesh);
+          
+          // Add smaller blobs for amoeba-like appearance
+          for (let i = 0; i < 3; i++) {
+            const smallBlobGeometry = new THREE.SphereGeometry(blobSize * 0.4, 8, 8);
+            const smallBlobMaterial = new THREE.MeshBasicMaterial({
+              color: 0xff6666,
+              emissive: 0xff6666,
+              emissiveIntensity: 2.5,
+              transparent: true,
+              opacity: 0.7
+            });
+            const smallBlob = new THREE.Mesh(smallBlobGeometry, smallBlobMaterial);
+            smallBlob.position.set(
+              (Math.random() - 0.5) * blobSize * 0.8,
+              (Math.random() - 0.5) * blobSize * 0.8,
+              (Math.random() - 0.5) * blobSize * 0.8
+            );
+            amoebaGroup.add(smallBlob);
+          }
+          
+          amoebaGroup.position.copy(ship.group.position);
+          sceneRef.current.add(amoebaGroup);
+          
+          // Slower speed (2 instead of 5)
           const projectile: EnemyProjectile = {
             id: Date.now() + Math.random(),
-            mesh: projectileMesh,
-            vx: toPlayer.x * 5,
-            vy: toPlayer.y * 5,
-            vz: toPlayer.z * 5,
+            mesh: amoebaGroup as any, // Store group as mesh for compatibility
+            vx: toPlayer.x * 2, // Slower
+            vy: toPlayer.y * 2, // Slower
+            vz: toPlayer.z * 2, // Slower
             createdAt: now
           };
           
@@ -902,13 +974,14 @@ export default function DeadShotGame({
         projectile.mesh.position.y += projectile.vy * delta;
         projectile.mesh.position.z += projectile.vz * delta;
         
-        // Check collision with player (at center 0,0,0)
+        // Check collision with player (at center 0,0,0) - larger hitbox for larger projectiles
         const dx = projectile.mesh.position.x;
         const dy = projectile.mesh.position.y;
         const dz = projectile.mesh.position.z;
         const distanceToPlayer = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
-        if (distanceToPlayer < 0.8 && heartsRef.current > 0 && Date.now() - lastHitTimeRef.current > 1000) {
+        // Larger hitbox (1.2 instead of 0.8) to match larger projectile size
+        if (distanceToPlayer < 1.2 && heartsRef.current > 0 && Date.now() - lastHitTimeRef.current > 1000) {
           // Hit player - lose a heart
           lastHitTimeRef.current = Date.now();
           setHearts(prev => {
@@ -924,13 +997,13 @@ export default function DeadShotGame({
           return null;
         }
         
-        // Check if arrow hits projectile (can destroy it)
-        const arrowHit = arrowsRef.current.find(arrow => {
-          const dx = arrow.group.position.x - projectile.mesh.position.x;
-          const dy = arrow.group.position.y - projectile.mesh.position.y;
-          const dz = arrow.group.position.z - projectile.mesh.position.z;
-          return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.3;
-        });
+          // Check if arrow hits projectile (can destroy it) - larger hitbox for larger projectiles
+          const arrowHit = arrowsRef.current.find(arrow => {
+            const dx = arrow.group.position.x - projectile.mesh.position.x;
+            const dy = arrow.group.position.y - projectile.mesh.position.y;
+            const dz = arrow.group.position.z - projectile.mesh.position.z;
+            return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.5; // Larger hitbox
+          });
         
         if (arrowHit) {
           // Arrow hit projectile - destroy both
@@ -1171,6 +1244,9 @@ export default function DeadShotGame({
           arrowsRef.current.push(arrow);
           totalShotsRef.current++;
           
+          // Play player shot sound
+          playPlayerShotSound();
+          
           // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
           currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
           setScore(currentScoreRef.current);
@@ -1266,6 +1342,9 @@ export default function DeadShotGame({
     arrowsRef.current.push(arrow);
     totalShotsRef.current++;
     
+    // Play player shot sound
+    playPlayerShotSound();
+    
     // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
     currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
     setScore(currentScoreRef.current);
@@ -1337,12 +1416,8 @@ export default function DeadShotGame({
     });
   };
 
-  // Calculate background color with flash
-  const bgFlash = Math.sin(backgroundFlash) * 0.1;
-  const bgColor = `rgb(${74 + bgFlash * 50}, 0, 0)`;
-  
   return (
-    <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ margin: 0, padding: 0, backgroundColor: bgColor }}>
+    <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ margin: 0, padding: 0, backgroundColor: '#8B0000' }}>
       {/* 3D Scene Container - MUST be full size and positioned */}
       <div 
         ref={containerRef}
