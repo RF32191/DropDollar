@@ -886,13 +886,22 @@ export default function DeadShotGame({
       shipsRef.current = shipsRef.current.map(ship => {
         // Omnidirectional movement (can change direction slightly)
         // Keep on same plane (z=0)
-        const movement = ship.direction.clone().multiplyScalar(ship.speed * delta);
+        // Add slight direction changes for more dynamic omnidirectional movement
+        const time = Date.now() * 0.001;
+        const directionVariation = Math.sin(time + ship.id) * 0.3; // Vary direction over time
+        const currentDirection = ship.direction.clone();
+        currentDirection.x += Math.cos(time + ship.id) * directionVariation * delta;
+        currentDirection.y += Math.sin(time + ship.id) * directionVariation * delta;
+        currentDirection.normalize();
+        
+        const movement = currentDirection.clone().multiplyScalar(ship.speed * delta);
         ship.group.position.add(movement);
         ship.group.position.z = 0; // Force z=0 to keep on same plane
         
-        // Rotate ship for visual effect
-        ship.group.rotation.y += delta * 2;
-        ship.group.rotation.x += delta * 0.5;
+        // Enhanced rotation for visual effect - rotate on all axes
+        ship.group.rotation.y += delta * 3; // Faster Y rotation
+        ship.group.rotation.x += delta * 1.5; // Faster X rotation
+        ship.group.rotation.z += delta * 2; // Add Z rotation for tumbling effect
         
         // Animate legs falling off
         ship.legs.forEach(leg => {
@@ -943,9 +952,9 @@ export default function DeadShotGame({
           const toPlayer = new THREE.Vector3(0, 0, 0).sub(ship.group.position).normalize();
           
           // Create semi-glowing amoeba-like projectile
-          // Size: 1/3 of mid-sized enemy (mid-size ~1.4, so ~0.47)
+          // Size: LARGER - 2/3 of mid-sized enemy (mid-size ~1.4, so ~0.93)
           const midSizeEnemy = 1.4; // Average of 0.8-2.0 range
-          const blobSize = midSizeEnemy / 3; // ~0.47 - about 1/3 of mid-sized enemy
+          const blobSize = midSizeEnemy * 0.67; // ~0.93 - about 2/3 of mid-sized enemy (MUCH LARGER)
           
           const amoebaGroup = new THREE.Group();
           
@@ -1016,13 +1025,13 @@ export default function DeadShotGame({
           amoebaGroup.position.copy(ship.group.position);
           sceneRef.current.add(amoebaGroup);
           
-          // Slower speed (2 instead of 5)
+          // MUCH SLOWER speed (1 instead of 2) - easier to dodge
           const projectile: EnemyProjectile = {
             id: Date.now() + Math.random(),
             mesh: amoebaGroup, // Store as group
-            vx: toPlayer.x * 2, // Slower
-            vy: toPlayer.y * 2, // Slower
-            vz: toPlayer.z * 2, // Slower
+            vx: toPlayer.x * 1, // Much slower
+            vy: toPlayer.y * 1, // Much slower
+            vz: toPlayer.z * 1, // Much slower
             createdAt: now
           };
           
@@ -1081,14 +1090,14 @@ export default function DeadShotGame({
         // Keep projectiles on same plane (z=0)
         projectile.mesh.position.z = 0;
         
-        // Check collision with player (at center 0,0,0) - larger hitbox for larger projectiles
+        // Check collision with player (at center 0,0,0) - MUCH larger hitbox for larger projectiles
         const dx = projectile.mesh.position.x;
         const dy = projectile.mesh.position.y;
         const dz = projectile.mesh.position.z;
         const distanceToPlayer = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
-        // Larger hitbox (1.2 instead of 0.8) to match larger projectile size
-        if (distanceToPlayer < 1.2 && heartsRef.current > 0 && Date.now() - lastHitTimeRef.current > 1000) {
+        // MUCH larger hitbox (1.5 instead of 1.2) to match larger projectile size
+        if (distanceToPlayer < 1.5 && heartsRef.current > 0 && Date.now() - lastHitTimeRef.current > 1000) {
           // Hit player - lose a heart
           lastHitTimeRef.current = Date.now();
           setHearts(prev => {
@@ -1104,12 +1113,12 @@ export default function DeadShotGame({
           return null;
         }
         
-          // Check if arrow hits projectile (can destroy it) - larger hitbox for larger projectiles
+          // Check if arrow hits projectile (can destroy it) - MUCH larger hitbox for larger projectiles
           const arrowHit = arrowsRef.current.find(arrow => {
             const dx = arrow.group.position.x - projectile.mesh.position.x;
             const dy = arrow.group.position.y - projectile.mesh.position.y;
             const dz = arrow.group.position.z - projectile.mesh.position.z;
-            return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.5; // Larger hitbox
+            return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.8; // Much larger hitbox to match larger projectile
           });
         
         if (arrowHit) {
