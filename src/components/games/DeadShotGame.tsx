@@ -28,6 +28,8 @@ interface VirusLeg {
   destroyed: boolean;
   fallingOff?: boolean;
   fallVelocity?: THREE.Vector3;
+  canPickup?: boolean; // Can be picked up as shield
+  pickupTime?: number; // When it became available for pickup
 }
 
 interface AlienShip {
@@ -175,6 +177,9 @@ export default function DeadShotGame({
   const stringCenterRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0));
   const bowVelocityRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0)); // Recoil velocity
   const bowPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 0)); // Current position
+  const shieldLegRef = useRef<THREE.Mesh | null>(null); // Currently equipped shield leg
+  const fallenLegsRef = useRef<Array<{ leg: VirusLeg; shipId: number }>>([]); // Track fallen legs available for pickup
+  const hasShieldRef = useRef(false); // Whether player has shield
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -670,6 +675,19 @@ export default function DeadShotGame({
         bowPositionRef.current.x += bowVelocityRef.current.x * adjustedDelta;
         bowPositionRef.current.y += bowVelocityRef.current.y * adjustedDelta;
         
+        // Wall bouncing - bounce off edges of screen (boundary ~15 units)
+        const boundary = 15;
+        const bounceDamping = 0.7; // Reduce velocity on bounce
+        
+        if (Math.abs(bowPositionRef.current.x) > boundary) {
+          bowPositionRef.current.x = Math.sign(bowPositionRef.current.x) * boundary;
+          bowVelocityRef.current.x *= -bounceDamping;
+        }
+        if (Math.abs(bowPositionRef.current.y) > boundary) {
+          bowPositionRef.current.y = Math.sign(bowPositionRef.current.y) * boundary;
+          bowVelocityRef.current.y *= -bounceDamping;
+        }
+        
         // Apply damping to gradually slow down movement
         const damping = 0.95; // Slow down by 5% each frame
         bowVelocityRef.current.x *= damping;
@@ -684,6 +702,16 @@ export default function DeadShotGame({
         
         // Update bow position
         bowRef.current.position.set(bowPositionRef.current.x, bowPositionRef.current.y, 0);
+        
+        // Update shield position if equipped
+        if (shieldLegRef.current && bowRef.current) {
+          // Position shield slightly in front of white blood cell
+          const shieldOffset = 0.8;
+          const shieldX = bowPositionRef.current.x + Math.cos(aimAngleRef.current * Math.PI / 180) * shieldOffset;
+          const shieldY = bowPositionRef.current.y + Math.sin(aimAngleRef.current * Math.PI / 180) * shieldOffset;
+          shieldLegRef.current.position.set(shieldX, shieldY, 0);
+          shieldLegRef.current.rotation.z = aimAngleRef.current * Math.PI / 180;
+        }
       }
       
       // Update bow animation with charge effects
@@ -954,6 +982,13 @@ export default function DeadShotGame({
               // Update leg position to world coordinates
               leg.mesh.position.copy(legWorldPos);
               
+              // Mark leg as available for pickup after a short delay
+              leg.canPickup = false;
+              leg.pickupTime = Date.now() + 500; // Available after 500ms
+              
+              // Add to fallen legs list for pickup detection
+              fallenLegsRef.current.push({ leg, shipId: ship.id });
+              
               currentScoreRef.current += 50;
               totalHitsRef.current++;
               setScore(currentScoreRef.current);
@@ -1003,9 +1038,19 @@ export default function DeadShotGame({
         ship.group.rotation.x += adjustedDelta * 1.5; // Faster X rotation
         ship.group.rotation.z += adjustedDelta * 2; // Add Z rotation for tumbling effect
         
-        // Animate legs falling off
+        // Animate legs falling off and check for pickup
         ship.legs.forEach(leg => {
           if (leg.fallingOff && leg.fallVelocity && leg.mesh.parent === sceneRef.current) {
+            // Check if leg is now available for pickup
+            if (!leg.canPickup && leg.pickupTime && Date.now() >= leg.pickupTime) {
+              leg.canPickup = true;
+              // Make leg glow to indicate it can be picked up
+              if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
+                leg.mesh.material.emissive.setHex(0x00ff00); // Green glow when pickupable
+                leg.mesh.material.emissiveIntensity = 3.0;
+              }
+            }
+            
             // Apply physics to falling leg
             leg.mesh.position.add(leg.fallVelocity.clone().multiplyScalar(adjustedDelta));
             leg.fallVelocity.y -= 9.8 * adjustedDelta; // Gravity
@@ -1014,20 +1059,50 @@ export default function DeadShotGame({
             leg.mesh.rotation.x += adjustedDelta * 5;
             leg.mesh.rotation.z += adjustedDelta * 3;
             
-            // Fade out and remove if out of bounds or too far
-            if (leg.mesh.position.y < -10 || 
-                Math.abs(leg.mesh.position.x) > 30 || 
-                Math.abs(leg.mesh.position.z) > 30) {
-              sceneRef.current.remove(leg.mesh);
-              leg.mesh.geometry.dispose();
-              if (leg.mesh.material instanceof THREE.Material) {
-                leg.mesh.material.dispose();
+            // Check for pickup by white blood cell
+            if (leg.canPickup && !hasShieldRef.current && bowRef.current) {
+              const dx = leg.mesh.position.x - bowPositionRef.current.x;
+              const dy = leg.mesh.position.y - bowPositionRef.current.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              if (distance < 1.5) { // Pickup range
+                // Pick up leg as shield
+                hasShieldRef.current = true;
+                shieldLegRef.current = leg.mesh;
+                
+                // Make shield more visible
+                if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
+                  leg.mesh.material.emissive.setHex(0x00ffff); // Cyan glow for shield
+                  leg.mesh.material.emissiveIntensity = 5.0;
+                  leg.mesh.material.opacity = 1.0;
+                }
+                
+                // Scale up shield slightly
+                leg.mesh.scale.set(1.5, 1.5, 1.5);
+                
+                // Remove from fallen legs list
+                fallenLegsRef.current = fallenLegsRef.current.filter(fl => fl.leg !== leg);
               }
-            } else {
-              // Fade out over time
-              if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
-                leg.mesh.material.opacity = Math.max(0, (leg.mesh.material.opacity || 1) - adjustedDelta * 0.5);
-                leg.mesh.material.transparent = true;
+            }
+            
+            // Remove if out of bounds or too far (but not if it's a shield)
+            if (leg.mesh !== shieldLegRef.current) {
+              if (leg.mesh.position.y < -10 || 
+                  Math.abs(leg.mesh.position.x) > 30 || 
+                  Math.abs(leg.mesh.position.z) > 30) {
+                sceneRef.current.remove(leg.mesh);
+                leg.mesh.geometry.dispose();
+                if (leg.mesh.material instanceof THREE.Material) {
+                  leg.mesh.material.dispose();
+                }
+                // Remove from fallen legs list
+                fallenLegsRef.current = fallenLegsRef.current.filter(fl => fl.leg !== leg);
+              } else if (!leg.canPickup) {
+                // Fade out over time (only if not pickupable yet)
+                if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
+                  leg.mesh.material.opacity = Math.max(0.3, (leg.mesh.material.opacity || 1) - adjustedDelta * 0.3);
+                  leg.mesh.material.transparent = true;
+                }
               }
             }
           }
@@ -1233,7 +1308,40 @@ export default function DeadShotGame({
         
         // MUCH larger hitbox (1.5 instead of 1.2) to match larger projectile size
         if (distanceToPlayer < 1.5 && heartsRef.current > 0 && Date.now() - lastHitTimeRef.current > 1000) {
-          // Hit player - lose a heart
+          // Check if shield protects player
+          if (hasShieldRef.current && shieldLegRef.current) {
+            // Shield blocks the hit! Destroy shield instead
+            hasShieldRef.current = false;
+            if (shieldLegRef.current.parent === sceneRef.current) {
+              sceneRef.current.remove(shieldLegRef.current);
+              shieldLegRef.current.geometry.dispose();
+              if (shieldLegRef.current.material instanceof THREE.Material) {
+                shieldLegRef.current.material.dispose();
+              }
+            }
+            shieldLegRef.current = null;
+            
+            // Visual feedback - flash white
+            if (bowRef.current) {
+              bowRef.current.children.forEach((child: any) => {
+                if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                  const originalEmissive = child.material.emissive.getHex();
+                  child.material.emissive.setHex(0xffffff);
+                  setTimeout(() => {
+                    if (child && child.material instanceof THREE.MeshStandardMaterial) {
+                      child.material.emissive.setHex(originalEmissive);
+                    }
+                  }, 200);
+                }
+              });
+            }
+            
+            // Remove projectile
+            sceneRef.current.remove(projectile.mesh);
+            return null;
+          }
+          
+          // No shield - hit player - lose a heart
           lastHitTimeRef.current = Date.now();
           setHearts(prev => {
             const newHearts = Math.max(0, prev - 1);
@@ -1653,8 +1761,11 @@ export default function DeadShotGame({
           arrowsRef.current.push(arrow);
           totalShotsRef.current++;
           
-          // Apply recoil - move white blood cell in opposite direction of shot (very slowly)
-          const recoilStrength = 0.15; // Very slow recoil movement
+          // Apply recoil - move white blood cell in opposite direction of shot
+          // Power shots move further and faster (scale with power)
+          const baseRecoilStrength = 0.15;
+          const powerRecoilMultiplier = 1.0 + power * 2.0; // Full power = 3x recoil
+          const recoilStrength = baseRecoilStrength * powerRecoilMultiplier;
           const recoilVx = -vx * recoilStrength;
           const recoilVy = -vy * recoilStrength;
           bowVelocityRef.current.x += recoilVx;
@@ -1781,8 +1892,11 @@ export default function DeadShotGame({
     // Play player shot sound
     playPlayerShotSound();
     
-    // Apply recoil - move white blood cell in opposite direction of shot (very slowly)
-    const recoilStrength = 0.15; // Very slow recoil movement
+    // Apply recoil - move white blood cell in opposite direction of shot
+    // Power shots move further and faster (scale with power)
+    const baseRecoilStrength = 0.15;
+    const powerRecoilMultiplier = 1.0 + power * 2.0; // Full power = 3x recoil
+    const recoilStrength = baseRecoilStrength * powerRecoilMultiplier;
     const recoilVx = -vx * recoilStrength;
     const recoilVy = -vy * recoilStrength;
     bowVelocityRef.current.x += recoilVx;
