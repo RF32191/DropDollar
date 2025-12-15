@@ -55,6 +55,8 @@ interface GoldenSword {
 }
 
 export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: SwordParryGameProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  
   // DON'T use pre-generated configs - causes gameplay issues (stacking swords)
   // Instead, use rngSeed to initialize engine for runtime generation
   const rngConfig = null; // Disabled - using runtime RNG instead
@@ -985,6 +987,36 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               Sword Slash
             </h2>
             <p className="text-red-200 text-sm mb-4 sm:mb-6 font-medium">Click to Destroy Attacks</p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/sword-parry-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-red-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/sword-parry-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
+            </div>
             
             {/* Epilepsy Warning */}
             <div className="bg-gradient-to-r from-red-600/30 to-orange-600/30 border border-red-400/50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">

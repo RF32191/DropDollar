@@ -45,6 +45,8 @@ interface Target {
 const COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink'];
 
 export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, gameId, rngSeed }: MultiTargetGameProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  
   // DON'T use pre-generated configs - causes gameplay issues
   // Instead, use rngSeed to initialize engine for runtime generation
   const rngConfig = null; // Disabled - using runtime RNG instead
@@ -491,8 +493,8 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
           </div>
         </div>
         <div 
-          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 text-center border border-white/20 shadow-2xl my-8 z-10 cursor-pointer"
-          onClick={handleStartGame}
+          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl my-8 z-10"
+          style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem' }}
         >
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
@@ -511,6 +513,36 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
               Multi-Target Reaction
             </h2>
             <p className="text-green-200 text-sm mb-6 font-medium">Precision & Speed Challenge</p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/multi-touch-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-green-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/multi-touch-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
+            </div>
             
             {/* Epilepsy Warning */}
             {/* Epilepsy Warning - Enhanced Visibility */}
@@ -585,6 +617,34 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
             </div>
           </div>
         </div>
+
+        {/* Expanded Video Modal */}
+        {expandedVideo && (
+          <div 
+            className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+            onClick={() => setExpandedVideo(null)}
+          >
+            <div className="relative w-full max-w-6xl" style={{ aspectRatio: '16/9' }}>
+              <button
+                onClick={() => setExpandedVideo(null)}
+                className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-green-400 transition-colors z-10"
+              >
+                ✕ Close
+              </button>
+              <video
+                autoPlay
+                loop
+                controls
+                className="w-full h-full rounded-lg border-4 border-green-400 shadow-2xl"
+                style={{ objectFit: 'contain' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <source src={expandedVideo} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
