@@ -1065,13 +1065,13 @@ export default function DeadShotGame({
           amoebaGroup.position.copy(ship.group.position);
           sceneRef.current.add(amoebaGroup);
           
-          // MUCH SLOWER speed (1 instead of 2) - easier to dodge
+          // MUCH SLOWER speed (0.5 instead of 1) - easier to dodge
           const projectile: EnemyProjectile = {
             id: Date.now() + Math.random(),
             mesh: amoebaGroup, // Store as group
-            vx: toPlayer.x * 1, // Much slower
-            vy: toPlayer.y * 1, // Much slower
-            vz: toPlayer.z * 1, // Much slower
+            vx: toPlayer.x * 0.5, // Much slower
+            vy: toPlayer.y * 0.5, // Much slower
+            vz: toPlayer.z * 0.5, // Much slower
             createdAt: now
           };
           
@@ -1143,6 +1143,28 @@ export default function DeadShotGame({
           setHearts(prev => {
             const newHearts = Math.max(0, prev - 1);
             heartsRef.current = newHearts;
+            
+            // Make white blood cell glow red when losing a heart
+            if (bowRef.current) {
+              const cellBody = bowRef.current.children.find((child: any) => 
+                child instanceof THREE.Mesh && child.material && child.material.emissive !== undefined
+              ) as THREE.Mesh | undefined;
+              
+              if (cellBody && cellBody.material instanceof THREE.MeshStandardMaterial) {
+                // Flash red glow
+                cellBody.material.emissive.setHex(0xff0000);
+                cellBody.material.emissiveIntensity = 5.0;
+                
+                // Fade back to normal after 0.5 seconds
+                setTimeout(() => {
+                  if (cellBody && cellBody.material instanceof THREE.MeshStandardMaterial) {
+                    cellBody.material.emissive.setHex(0x88ccff);
+                    cellBody.material.emissiveIntensity = 3.0;
+                  }
+                }, 500);
+              }
+            }
+            
             if (newHearts <= 0) {
               endGame();
             }
@@ -1256,11 +1278,39 @@ export default function DeadShotGame({
       return;
     }
     
+    // Progressive spawn rate - starts slower, increases every 10 seconds
+    const gameStartTime = Date.now();
+    let currentSpawnInterval = 3000; // Start at 3 seconds
+    
     const spawnShip = () => {
       if (!sceneRef.current) return;
       
       const now = Date.now();
-      if (now - lastSpawnRef.current < 2000) return;
+      const elapsedSeconds = (now - gameStartTime) / 1000;
+      
+      // Increase spawn rate every 10 seconds
+      // Start at 3000ms, decrease to 1000ms over 60 seconds
+      const intervals = [
+        { time: 0, interval: 3000 },    // 0-10s: 3 seconds
+        { time: 10, interval: 2500 },   // 10-20s: 2.5 seconds
+        { time: 20, interval: 2000 },   // 20-30s: 2 seconds
+        { time: 30, interval: 1500 },   // 30-40s: 1.5 seconds
+        { time: 40, interval: 1200 },  // 40-50s: 1.2 seconds
+        { time: 50, interval: 1000 },   // 50-60s: 1 second
+      ];
+      
+      // Find current interval based on elapsed time
+      let targetInterval = intervals[intervals.length - 1].interval;
+      for (let i = intervals.length - 1; i >= 0; i--) {
+        if (elapsedSeconds >= intervals[i].time) {
+          targetInterval = intervals[i].interval;
+          break;
+        }
+      }
+      
+      currentSpawnInterval = targetInterval;
+      
+      if (now - lastSpawnRef.current < currentSpawnInterval) return;
       lastSpawnRef.current = now;
       
       const rng = seededRng || {
@@ -1340,10 +1390,42 @@ export default function DeadShotGame({
     // Spawn first ship immediately
     spawnShip();
     
-    // More enemies spawn - faster spawn rate (every 1 second instead of 2)
-    const spawnInterval = setInterval(spawnShip, 1000);
+    // Progressive spawn rate - check and update interval dynamically
+    let spawnIntervalId: NodeJS.Timeout;
+    
+    const scheduleNextSpawn = () => {
+      const now = Date.now();
+      const elapsedSeconds = (now - gameStartTime) / 1000;
+      
+      // Calculate next spawn interval based on elapsed time
+      const intervals = [
+        { time: 0, interval: 3000 },
+        { time: 10, interval: 2500 },
+        { time: 20, interval: 2000 },
+        { time: 30, interval: 1500 },
+        { time: 40, interval: 1200 },
+        { time: 50, interval: 1000 },
+      ];
+      
+      let nextInterval = intervals[intervals.length - 1].interval;
+      for (let i = intervals.length - 1; i >= 0; i--) {
+        if (elapsedSeconds >= intervals[i].time) {
+          nextInterval = intervals[i].interval;
+          break;
+        }
+      }
+      
+      spawnShip();
+      spawnIntervalId = setTimeout(scheduleNextSpawn, nextInterval);
+    };
+    
+    // Start progressive spawning
+    scheduleNextSpawn();
+    
     return () => {
-      clearInterval(spawnInterval);
+      if (spawnIntervalId) {
+        clearTimeout(spawnIntervalId);
+      }
     };
   }, [gameState, seededRng, createAlienShip]);
 
