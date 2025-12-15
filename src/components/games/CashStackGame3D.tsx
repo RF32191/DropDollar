@@ -129,6 +129,8 @@ export default function CashStackGame3D({
   onExit,
   gameSession,
 }: CashStackGame3DProps) {
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -1447,7 +1449,7 @@ export default function CashStackGame3D({
       
       {/* Ready screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center bg-black/70 text-white overflow-y-auto p-4" style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem' }}>
+        <div className="absolute inset-0 flex flex-col items-center bg-black/70 text-white overflow-y-auto p-4" style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem', minHeight: '100vh' }}>
           <h1 className="text-6xl font-bold mb-4 animate-pulse" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
             💰 CASH STACK 3D
           </h1>
@@ -1457,20 +1459,32 @@ export default function CashStackGame3D({
           
           {/* Gameplay Video */}
           <div className="mb-6 w-full max-w-2xl mx-auto">
-            <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+            <div 
+              className="relative w-full cursor-pointer group" 
+              style={{ aspectRatio: '16/9' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedVideo('/cash-stack-gameplay.mp4');
+              }}
+            >
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
-                className="w-full h-full rounded-lg border-2 border-yellow-400 shadow-2xl"
+                className="w-full h-full rounded-lg border-2 border-yellow-400 shadow-2xl transition-transform group-hover:scale-105"
                 style={{ objectFit: 'contain' }}
               >
                 <source src="/cash-stack-gameplay.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                  Click to expand
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-gray-400 mt-2 text-center">Watch how to play - Video loops automatically</p>
+            <p className="text-sm text-gray-400 mt-2 text-center">Watch how to play - Click video to expand</p>
           </div>
           
           <p className="text-xl mb-2">Stack blocks by clicking or pressing SPACE</p>

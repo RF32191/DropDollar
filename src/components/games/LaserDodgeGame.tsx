@@ -1250,8 +1250,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         />
         
         <div 
-          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto text-center border border-white/20 shadow-2xl z-10 cursor-pointer"
-          onClick={handleStartGame}
+          className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-4 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10"
         >
           <div className="absolute top-4 left-0 right-0 z-50">
             <div className="text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-2xl sm:text-3xl font-black py-3 px-6 rounded-full inline-block animate-pulse shadow-2xl">
@@ -1276,20 +1275,32 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             
             {/* Gameplay Video */}
             <div className="mb-6 w-full max-w-2xl mx-auto">
-              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/laser-dodge-gameplay.mp4');
+                }}
+              >
                 <video
                   autoPlay
                   loop
                   muted
                   playsInline
-                  className="w-full h-full rounded-lg border-2 border-orange-400 shadow-2xl"
+                  className="w-full h-full rounded-lg border-2 border-orange-400 shadow-2xl transition-transform group-hover:scale-105"
                   style={{ objectFit: 'contain' }}
                 >
                   <source src="/laser-dodge-gameplay.mp4" type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Video loops automatically</p>
+              <p className="text-sm text-gray-300 mt-2 text-center">Watch how to play - Click video to expand</p>
             </div>
             
             <div className="text-left text-xs sm:text-sm text-white/90 mb-6 sm:mb-8 space-y-3 bg-black/20 rounded-2xl p-4 sm:p-6 backdrop-blur-sm border border-white/10 max-h-64 sm:max-h-none overflow-y-auto">
