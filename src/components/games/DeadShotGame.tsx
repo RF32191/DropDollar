@@ -33,6 +33,7 @@ interface AlienShip {
   size: number;
   type: ShipType;
   basePoints: number;
+  zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }>; // Colored zones for scoring
 }
 
 interface SubItem {
@@ -61,6 +62,7 @@ export default function DeadShotGame({
   const [bowPower, setBowPower] = useState(0);
   const [aimAngle, setAimAngle] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
+  const [isDrawing, setIsDrawing] = useState(false);
   
   // Sync gameState to ref for animation loop
   useEffect(() => {
@@ -118,7 +120,8 @@ export default function DeadShotGame({
   }, [rngSeed]);
 
   // Create neon alien ship with proper 3D geometry - improved design with types
-  const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): THREE.Group => {
+  // Returns both the group and zones array
+  const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): { group: THREE.Group; zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> } => {
     const shipGroup = new THREE.Group();
     
     // Ship colors based on type
@@ -204,8 +207,53 @@ export default function DeadShotGame({
     trail2.rotation.z = Math.PI;
     shipGroup.add(trail2);
     
+    // Add colored scoring zones (rings) - center is highest value
+    const zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> = [];
+    
+    // Center zone (gold/yellow) - 3x multiplier
+    const centerZoneGeometry = new THREE.RingGeometry(0, size * 0.15, 16);
+    const centerZoneMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffff00,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
+    const centerZone = new THREE.Mesh(centerZoneGeometry, centerZoneMaterial);
+    centerZone.position.y = size * 0.5;
+    centerZone.rotation.x = Math.PI / 2;
+    shipGroup.add(centerZone);
+    zones.push({ mesh: centerZone, radius: size * 0.15, multiplier: 3.0, color: 0xffff00 });
+    
+    // Middle zone (green) - 2x multiplier
+    const middleZoneGeometry = new THREE.RingGeometry(size * 0.15, size * 0.35, 16);
+    const middleZoneMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide
+    });
+    const middleZone = new THREE.Mesh(middleZoneGeometry, middleZoneMaterial);
+    middleZone.position.y = size * 0.5;
+    middleZone.rotation.x = Math.PI / 2;
+    shipGroup.add(middleZone);
+    zones.push({ mesh: middleZone, radius: size * 0.35, multiplier: 2.0, color: 0x00ff00 });
+    
+    // Outer zone (blue) - 1.5x multiplier
+    const outerZoneGeometry = new THREE.RingGeometry(size * 0.35, size * 0.6, 16);
+    const outerZoneMaterial = new THREE.MeshBasicMaterial({
+      color: 0x0088ff,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide
+    });
+    const outerZone = new THREE.Mesh(outerZoneGeometry, outerZoneMaterial);
+    outerZone.position.y = size * 0.5;
+    outerZone.rotation.x = Math.PI / 2;
+    shipGroup.add(outerZone);
+    zones.push({ mesh: outerZone, radius: size * 0.6, multiplier: 1.5, color: 0x0088ff });
+    
     shipGroup.position.set(x, y, z);
-    return shipGroup;
+    return { group: shipGroup, zones };
   }, []);
 
   // Create arrow with proper 3D geometry - more arrow-shaped and neon
@@ -599,21 +647,24 @@ export default function DeadShotGame({
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
           
           if (distance < ship.size) {
-            // Hit!
-            const centerDx = arrow.group.position.x - ship.center.x;
-            const centerDy = arrow.group.position.y - ship.center.y;
-            const centerDz = arrow.group.position.z - ship.center.z;
+            // Hit! Check which colored zone was hit
+            const centerDx = arrow.group.position.x - ship.group.position.x;
+            const centerDy = arrow.group.position.y - ship.group.position.y;
+            const centerDz = arrow.group.position.z - ship.group.position.z;
             const distanceFromCenter = Math.sqrt(centerDx * centerDx + centerDy * centerDy + centerDz * centerDz);
-            const isCenterShot = distanceFromCenter < ship.size * 0.2;
             
-            // Calculate points based on ship type and accuracy
-            const basePoints = ship.basePoints;
-            let points = basePoints;
-            if (isCenterShot) {
-              points = basePoints * 2 + (1 - distanceFromCenter / (ship.size * 0.2)) * basePoints; // 2x-3x for center shots
-            } else {
-              points = basePoints + (1 - distanceFromCenter / ship.size) * basePoints * 0.5; // 1x-1.5x for regular hits
+            // Find which zone was hit (check from smallest to largest)
+            let zoneMultiplier = 1.0; // Default multiplier
+            for (let i = ship.zones.length - 1; i >= 0; i--) {
+              if (distanceFromCenter <= ship.zones[i].radius) {
+                zoneMultiplier = ship.zones[i].multiplier;
+                break;
+              }
             }
+            
+            // Calculate points based on ship type and zone hit
+            const basePoints = ship.basePoints;
+            const points = basePoints * zoneMultiplier;
             
             currentScoreRef.current += points;
             totalHitsRef.current++;
@@ -830,7 +881,7 @@ export default function DeadShotGame({
       }
       
       const size = rng.nextFloat(0.8, 1.5);
-      const shipGroup = createAlienShip(x, y, z, size, shipType);
+      const { group: shipGroup, zones } = createAlienShip(x, y, z, size, shipType);
       
       sceneRef.current.add(shipGroup);
       
@@ -843,7 +894,8 @@ export default function DeadShotGame({
         center: new THREE.Vector3(x, y, z),
         size,
         type: shipType,
-        basePoints
+        basePoints,
+        zones
       };
       
       shipsRef.current.push(ship);
@@ -870,11 +922,16 @@ export default function DeadShotGame({
         // Auto-shoot at max charge
         if (bowPowerRef.current >= 100 && sceneRef.current) {
           isDrawingRef.current = false;
+          setIsDrawing(false);
           
-          // Shoot arrow
+          // Shoot arrow with arch trajectory based on power
           const power = bowPowerRef.current / 100;
           const angle = aimAngleRef.current * Math.PI / 180;
-          const speed = 20 + power * 30; // Max speed increased
+          const baseSpeed = 15 + power * 25; // Speed increases with power
+          // Add upward component for arch - more power = higher arch
+          const upwardAngle = Math.PI / 4 * power; // 0 to 45 degrees based on power
+          const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
+          const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
           
           const arrowGroup = createArrow();
           arrowGroup.position.set(0, 0, 0);
@@ -882,8 +939,8 @@ export default function DeadShotGame({
           const arrow: Arrow = {
             id: ++lastArrowIdRef.current,
             group: arrowGroup,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
+            vx: Math.cos(angle) * horizontalSpeed,
+            vy: Math.sin(angle) * horizontalSpeed + verticalSpeed, // Add upward component
             vz: 0,
             createdAt: Date.now()
           };
@@ -906,6 +963,7 @@ export default function DeadShotGame({
     if (gameState !== 'playing') return;
     e.preventDefault();
     isDrawingRef.current = true;
+    setIsDrawing(true);
     bowPowerRef.current = 0;
     setBowPower(0);
   }, [gameState]);
@@ -933,11 +991,16 @@ export default function DeadShotGame({
     if (gameState !== 'playing' || !isDrawingRef.current || !sceneRef.current) return;
     
     isDrawingRef.current = false;
+    setIsDrawing(false);
     
-    // Shoot arrow
+    // Shoot arrow with arch trajectory based on power
     const power = bowPowerRef.current / 100;
     const angle = aimAngleRef.current * Math.PI / 180;
-    const speed = 20 + power * 30; // Increased max speed
+    const baseSpeed = 15 + power * 25; // Speed increases with power
+    // Add upward component for arch - more power = higher arch
+    const upwardAngle = Math.PI / 4 * power; // 0 to 45 degrees based on power
+    const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
+    const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
     
     const arrowGroup = createArrow();
     arrowGroup.position.set(0, 0, 0); // Match bow position
@@ -945,8 +1008,8 @@ export default function DeadShotGame({
     const arrow: Arrow = {
       id: ++lastArrowIdRef.current,
       group: arrowGroup,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
+      vx: Math.cos(angle) * horizontalSpeed,
+      vy: Math.sin(angle) * horizontalSpeed + verticalSpeed, // Add upward component
       vz: 0,
       createdAt: Date.now()
     };
@@ -1056,31 +1119,33 @@ export default function DeadShotGame({
             </div>
           </div>
           
-          {/* Charge Bar */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 w-64 pointer-events-none">
-            <div className="text-white text-sm mb-2 text-center font-bold">CHARGE POWER</div>
-            <div className="h-6 bg-black/50 rounded-full border-2 border-cyan-400 overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-75 ease-linear rounded-full relative"
-                style={{ width: `${bowPower}%` }}
-              >
-                {/* Glow effect when charging */}
-                {bowPower > 0 && (
-                  <div 
-                    className="absolute inset-0 bg-white/30 animate-pulse"
-                    style={{ width: '100%' }}
-                  />
-                )}
-                {/* Max charge indicator */}
-                {bowPower >= 100 && (
-                  <div className="absolute inset-0 bg-white/50 animate-pulse" />
-                )}
+          {/* Charge Bar - Show when holding */}
+          {(isDrawing || bowPower > 0) && (
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 w-64 pointer-events-none">
+              <div className="text-white text-sm mb-2 text-center font-bold">CHARGE POWER</div>
+              <div className="h-6 bg-black/50 rounded-full border-2 border-cyan-400 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-75 ease-linear rounded-full relative"
+                  style={{ width: `${bowPower}%` }}
+                >
+                  {/* Glow effect when charging */}
+                  {bowPower > 0 && (
+                    <div 
+                      className="absolute inset-0 bg-white/30 animate-pulse"
+                      style={{ width: '100%' }}
+                    />
+                  )}
+                  {/* Max charge indicator */}
+                  {bowPower >= 100 && (
+                    <div className="absolute inset-0 bg-white/50 animate-pulse" />
+                  )}
+                </div>
+              </div>
+              <div className="text-white text-xs mt-1 text-center">
+                {bowPower >= 100 ? 'MAX CHARGE - READY!' : isDrawing ? 'Charging...' : 'Hold to charge'}
               </div>
             </div>
-            <div className="text-white text-xs mt-1 text-center">
-              {bowPower >= 100 ? 'MAX CHARGE - READY!' : 'Hold to charge'}
-            </div>
-          </div>
+          )}
         </>
       )}
       
