@@ -1129,17 +1129,18 @@ export default function GamesPage() {
             isVerified={locationVerified}
           />
         )}
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-6xl font-extrabold mb-6">
+        {/* Header with light reflection */}
+        <div className="text-center mb-12 light-reflection relative">
+          <h1 className="text-6xl font-extrabold mb-6 relative z-10">
             <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-indigo-500 bg-clip-text text-transparent animate-pulse">
             {isCompetitionMode ? '🏆 Competition Mode' : '🎮 Practice Gaming Arena'}
             </span>
           </h1>
-          <div className="w-32 h-1 bg-gradient-to-r from-purple-400 to-pink-500 mx-auto rounded-full animate-pulse mb-6"></div>
-          <p className="text-2xl font-bold text-transparent bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text mb-4 italic animate-pulse">
+          <div className="w-32 h-1 bg-gradient-to-r from-purple-400 to-pink-500 mx-auto rounded-full animate-pulse mb-6 relative z-10"></div>
+          <p className="text-2xl font-bold text-transparent bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text mb-4 italic animate-pulse relative z-10">
             "Don't drop out, drop a dollar."
           </p>
+        </div>
           {isCompetitionMode ? (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 max-w-3xl mx-auto">
               <p className="text-lg text-red-800 font-bold">
@@ -1170,8 +1171,8 @@ export default function GamesPage() {
         {/* Ad Banner */}
         <AdBanner pageLocation="games" position="top" />
 
-        {/* Become a Seller CTA */}
-        <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 mb-8 text-white shadow-2xl border border-green-400/30">
+        {/* Become a Seller CTA with light reflection */}
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 mb-8 text-white shadow-2xl border border-green-400/30 light-reflection relative">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-xl">
@@ -1191,8 +1192,8 @@ export default function GamesPage() {
           </div>
         </div>
 
-        {/* Sponsor Banner */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 mb-8 text-white text-center shadow-lg">
+        {/* Sponsor Banner with light reflection */}
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 mb-8 text-white text-center shadow-lg light-reflection relative">
           <div className="flex items-center justify-center space-x-4">
             <div className="text-2xl">🚀</div>
             <div>
@@ -1346,7 +1347,7 @@ export default function GamesPage() {
             const IconComponent = game.icon;
             
             return (
-              <div key={game.id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all border border-gray-200">
+              <div key={game.id} className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all border border-gray-200 light-reflection group">
                 {/* Animated Game Preview */}
                 <div className="h-40 bg-gradient-to-br from-blue-500 to-purple-600 relative overflow-hidden">
                   {/* Background emoji */}

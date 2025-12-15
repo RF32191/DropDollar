@@ -32,6 +32,49 @@
   animation: gradient-x 3s ease infinite;
 }
 
+/* Light reflection animation */
+@keyframes light-reflection {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(200%) translateY(200%) rotate(45deg);
+  }
+}
+
+.light-reflection {
+  position: relative;
+  overflow: hidden;
+}
+
+.light-reflection::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 70%
+  );
+  animation: light-reflection 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Location banner spacing */
 .location-banner-spacer {
   padding-top: 4rem; /* Account for fixed header */

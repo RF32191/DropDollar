@@ -71,10 +71,10 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
   };
 
   const getLinkStyles = (isActive: boolean) => {
-    const baseStyles = 'font-semibold transition-all duration-300 hover:scale-105 px-3 py-2 rounded-xl relative z-10 cursor-pointer group overflow-hidden text-sm';
+    const baseStyles = 'font-medium transition-all duration-300 hover:scale-105 px-2 py-1.5 rounded-lg relative z-10 cursor-pointer group overflow-hidden text-xs';
     
-    // Metallic theme for all navigation
-    return `${baseStyles} ${isActive ? 'text-yellow-200 font-bold bg-gradient-to-r from-white/25 to-yellow-400/25 shadow-lg border border-yellow-300/30' : 'text-white/90 hover:text-yellow-100 hover:bg-gradient-to-r hover:from-white/15 hover:to-white/10 hover:shadow-md'}`;
+    // Metallic theme for all navigation - smaller and more compact
+    return `${baseStyles} ${isActive ? 'text-yellow-200 font-semibold bg-gradient-to-r from-white/25 to-yellow-400/25 shadow-lg border border-yellow-300/30' : 'text-white/90 hover:text-yellow-100 hover:bg-gradient-to-r hover:from-white/15 hover:to-white/10 hover:shadow-md'}`;
   };
 
   const getLogoTextStyles = () => {
@@ -119,8 +119,8 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
             </div>
           </Link>
 
-          {/* Desktop Navigation - Left aligned */}
-          <nav className="hidden lg:flex items-center space-x-2 flex-1">
+          {/* Desktop Navigation - Left aligned - Compact */}
+          <nav className="hidden lg:flex items-center space-x-1 flex-1 overflow-x-auto scrollbar-hide">
             {navLinks.map((link) => {
               const isActive = currentPage === link.href;
               return (
@@ -134,14 +134,14 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
                     handleNavClick(link.href, link.label);
                   }}
                 >
-                  <span className="relative z-10 flex items-center">
-                    <span className="hidden xl:inline mr-2 text-lg transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
-                    <span className="font-semibold tracking-wide transition-all duration-300 group-hover:tracking-wider">{link.label}</span>
+                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                    <span className="hidden xl:inline mr-1.5 text-sm transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
+                    <span className="font-medium tracking-tight transition-all duration-300 group-hover:tracking-normal text-xs">{link.label}</span>
                   </span>
                   {/* Animated underline */}
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-300 group-hover:w-full"></span>
                   {/* Glow effect */}
-                  <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                  <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                 </Link>
               );
             })}
