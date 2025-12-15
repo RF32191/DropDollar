@@ -108,7 +108,7 @@ export default function UserMenu({ className = '', variant = 'default', unreadMe
   }
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={`relative z-[100] ${className}`} ref={dropdownRef}>
       {/* User Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -116,11 +116,11 @@ export default function UserMenu({ className = '', variant = 'default', unreadMe
           // Double-click to go to dashboard
           window.location.href = '/dashboard';
         }}
-        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative max-w-full"
+        className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-semibold transition-all duration-300 rounded-lg border border-white/20 hover:border-white/40 shadow-lg relative max-w-full whitespace-nowrap"
         title="Click to open menu, double-click to go to dashboard"
       >
         <UserIcon className="h-5 w-5 flex-shrink-0" />
-        <span className="hidden sm:inline max-w-[120px] md:max-w-[150px] lg:max-w-[180px] truncate" title={getUserDisplayName()}>
+        <span className="hidden sm:inline max-w-[120px] md:max-w-[150px] lg:max-w-[180px] truncate block" title={getUserDisplayName()}>
           {getUserDisplayName()}
         </span>
         <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
@@ -134,7 +134,7 @@ export default function UserMenu({ className = '', variant = 'default', unreadMe
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className={`absolute right-0 mt-2 w-72 ${styles.dropdown} rounded-lg shadow-lg border z-[9999]`}>
+        <div className={`absolute right-0 mt-2 w-72 ${styles.dropdown} rounded-lg shadow-lg border z-[9999] overflow-visible`}>
           <div className="py-1">
             {/* User Info */}
             <div className="px-4 py-2 border-b border-gray-200">
