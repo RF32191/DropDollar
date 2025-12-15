@@ -14,7 +14,7 @@ interface DeadShotGameProps {
 
 interface Arrow {
   id: number;
-  mesh: THREE.Mesh;
+  group: THREE.Group;
   vx: number;
   vy: number;
   vz: number;
@@ -23,7 +23,7 @@ interface Arrow {
 
 interface AlienShip {
   id: number;
-  mesh: THREE.Group;
+  group: THREE.Group;
   speed: number;
   direction: THREE.Vector3;
   createdAt: number;
@@ -88,6 +88,7 @@ export default function DeadShotGame({
   const lastSubItemIdRef = useRef(0);
   const mousePosRef = useRef({ x: 0, y: 0 });
   const clockRef = useRef(new THREE.Clock());
+  const initializedRef = useRef(false);
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -113,12 +114,12 @@ export default function DeadShotGame({
     return new Mulberry32(rngSeed);
   }, [rngSeed]);
 
-  // Create neon alien ship
+  // Create neon alien ship with proper 3D geometry
   const createAlienShip = useCallback((x: number, y: number, z: number, size: number): THREE.Group => {
     const shipGroup = new THREE.Group();
     
-    // Main body (futuristic triangular shape)
-    const bodyGeometry = new THREE.ConeGeometry(size * 0.8, size * 1.2, 6);
+    // Main body - triangular ship (cone rotated)
+    const bodyGeometry = new THREE.ConeGeometry(size * 0.6, size * 1.2, 6);
     const bodyMaterial = new THREE.MeshStandardMaterial({
       color: 0xff00ff,
       emissive: 0xff00ff,
@@ -128,10 +129,11 @@ export default function DeadShotGame({
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.rotation.z = Math.PI;
+    body.position.y = size * 0.3;
     shipGroup.add(body);
     
-    // Wings
-    const wingGeometry = new THREE.BoxGeometry(size * 0.3, size * 0.1, size * 0.8);
+    // Wings - left and right
+    const wingGeometry = new THREE.BoxGeometry(size * 0.4, size * 0.1, size * 0.8);
     const wingMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
       emissive: 0x00ffff,
@@ -139,69 +141,98 @@ export default function DeadShotGame({
     });
     
     const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    leftWing.position.set(-size * 0.6, 0, 0);
+    leftWing.position.set(-size * 0.5, size * 0.2, 0);
     shipGroup.add(leftWing);
     
     const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    rightWing.position.set(size * 0.6, 0, 0);
+    rightWing.position.set(size * 0.5, size * 0.2, 0);
     shipGroup.add(rightWing);
     
-    // Glow effect
+    // Glow effect - pulsing sphere
     const glowGeometry = new THREE.SphereGeometry(size * 0.4, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.3
+      opacity: 0.4
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.y = size * 0.3;
+    glow.position.y = size * 0.5;
     shipGroup.add(glow);
+    
+    // Engine trails
+    const trailGeometry = new THREE.ConeGeometry(size * 0.15, size * 0.3, 8);
+    const trailMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.6
+    });
+    const trail1 = new THREE.Mesh(trailGeometry, trailMaterial);
+    trail1.position.set(-size * 0.3, -size * 0.2, 0);
+    trail1.rotation.z = Math.PI;
+    shipGroup.add(trail1);
+    
+    const trail2 = new THREE.Mesh(trailGeometry, trailMaterial);
+    trail2.position.set(size * 0.3, -size * 0.2, 0);
+    trail2.rotation.z = Math.PI;
+    shipGroup.add(trail2);
     
     shipGroup.position.set(x, y, z);
     return shipGroup;
   }, []);
 
-  // Create arrow mesh
-  const createArrow = useCallback((): THREE.Mesh => {
+  // Create arrow with proper 3D geometry
+  const createArrow = useCallback((): THREE.Group => {
     const arrowGroup = new THREE.Group();
     
-    // Arrow shaft (neon cyan)
-    const shaftGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+    // Arrow shaft (neon cyan cylinder)
+    const shaftGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8);
     const shaftMaterial = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
       emissive: 0x00ffff,
-      emissiveIntensity: 0.8
+      emissiveIntensity: 1.0
     });
     const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
     shaft.rotation.z = Math.PI / 2;
     arrowGroup.add(shaft);
     
-    // Arrow head (pyramid)
-    const headGeometry = new THREE.ConeGeometry(0.05, 0.1, 8);
+    // Arrow head (pyramid/cone)
+    const headGeometry = new THREE.ConeGeometry(0.06, 0.15, 8);
     const headMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
-      emissiveIntensity: 1.0
+      emissiveIntensity: 1.2
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.x = 0.15;
+    head.position.x = 0.2;
     arrowGroup.add(head);
+    
+    // Fletching (feathers at back)
+    const fletchGeometry = new THREE.BoxGeometry(0.05, 0.1, 0.02);
+    const fletchMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00ffff,
+      emissive: 0x00ffff
+    });
+    
+    const fletch1 = new THREE.Mesh(fletchGeometry, fletchMaterial);
+    fletch1.position.set(-0.15, 0.05, 0);
+    arrowGroup.add(fletch1);
+    
+    const fletch2 = new THREE.Mesh(fletchGeometry, fletchMaterial);
+    fletch2.position.set(-0.15, -0.05, 0);
+    arrowGroup.add(fletch2);
     
     // Trail effect
     const trailGeometry = new THREE.SphereGeometry(0.03, 8, 8);
     const trailMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ffff,
       transparent: true,
-      opacity: 0.5
+      opacity: 0.6
     });
     const trail = new THREE.Mesh(trailGeometry, trailMaterial);
     trail.position.x = -0.1;
     arrowGroup.add(trail);
     
-    // Convert group to single mesh for easier handling
-    const arrowMesh = new THREE.Mesh();
-    arrowMesh.add(arrowGroup);
-    return arrowMesh;
+    return arrowGroup;
   }, []);
 
   // Create sub-item mesh
@@ -222,9 +253,9 @@ export default function DeadShotGame({
     return mesh;
   }, []);
 
-  // Initialize Three.js scene - Initialize immediately, not just when playing
+  // Initialize Three.js scene - Initialize immediately when component mounts
   useEffect(() => {
-    if (!mountRef.current || sceneRef.current) return;
+    if (!mountRef.current || initializedRef.current) return;
 
     console.log('🎯 [DeadShot] Initializing Three.js scene');
 
@@ -255,12 +286,13 @@ export default function DeadShotGame({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
     mountRef.current.appendChild(renderer.domElement);
     
     console.log('✅ [DeadShot] Renderer appended to DOM');
     
     // Neon lighting
-    const ambientLight = new THREE.AmbientLight(0x444444);
+    const ambientLight = new THREE.AmbientLight(0x444444, 0.5);
     scene.add(ambientLight);
     
     const pointLight1 = new THREE.PointLight(0x00ffff, 3, 50);
@@ -345,13 +377,27 @@ export default function DeadShotGame({
     sceneRef.current = scene;
     cameraRef.current = camera;
     rendererRef.current = renderer;
+    initializedRef.current = true;
     
-    // Animation loop
+    console.log('✅ [DeadShot] Scene initialized, starting animation loop');
+    
+    // Start animation loop immediately
     const animate = () => {
-      if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+      if (!sceneRef.current || !cameraRef.current || !rendererRef.current) {
+        console.warn('⚠️ [DeadShot] Scene not ready, stopping animation');
+        return;
+      }
       
       animationIdRef.current = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
+      
+      // Always render the scene (bow should be visible even when ready)
+      renderer.render(scene, camera);
+      
+      // Only update game logic when playing
+      if (gameStateRef.current !== 'playing') {
+        return;
+      }
       
       // Update bow animation
       if (bowRef.current && bowStringRef.current) {
@@ -374,28 +420,32 @@ export default function DeadShotGame({
       
       // Update arrows with physics
       arrowsRef.current = arrowsRef.current.map(arrow => {
-        arrow.mesh.position.x += arrow.vx * delta;
-        arrow.mesh.position.y += arrow.vy * delta;
-        arrow.mesh.position.z += arrow.vz * delta;
+        arrow.group.position.x += arrow.vx * delta;
+        arrow.group.position.y += arrow.vy * delta;
+        arrow.group.position.z += arrow.vz * delta;
         arrow.vy -= 9.8 * delta; // Gravity
         
         // Rotate arrow to match velocity
-        const angle = Math.atan2(arrow.vy, Math.sqrt(arrow.vx * arrow.vx + arrow.vz * arrow.vz));
-        arrow.mesh.rotation.z = angle;
-        arrow.mesh.rotation.y = Math.atan2(arrow.vx, arrow.vz);
+        const velocity = Math.sqrt(arrow.vx * arrow.vx + arrow.vy * arrow.vy + arrow.vz * arrow.vz);
+        if (velocity > 0) {
+          const angleY = Math.atan2(arrow.vx, arrow.vz);
+          const angleZ = Math.atan2(arrow.vy, Math.sqrt(arrow.vx * arrow.vx + arrow.vz * arrow.vz));
+          arrow.group.rotation.y = angleY;
+          arrow.group.rotation.z = angleZ;
+        }
         
         // Check collisions with ships
         shipsRef.current.forEach((ship, shipIndex) => {
-          const dx = arrow.mesh.position.x - ship.mesh.position.x;
-          const dy = arrow.mesh.position.y - ship.mesh.position.y;
-          const dz = arrow.mesh.position.z - ship.mesh.position.z;
+          const dx = arrow.group.position.x - ship.group.position.x;
+          const dy = arrow.group.position.y - ship.group.position.y;
+          const dz = arrow.group.position.z - ship.group.position.z;
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
           
           if (distance < ship.size) {
             // Hit!
-            const centerDx = arrow.mesh.position.x - ship.center.x;
-            const centerDy = arrow.mesh.position.y - ship.center.y;
-            const centerDz = arrow.mesh.position.z - ship.center.z;
+            const centerDx = arrow.group.position.x - ship.center.x;
+            const centerDy = arrow.group.position.y - ship.center.y;
+            const centerDz = arrow.group.position.z - ship.center.z;
             const distanceFromCenter = Math.sqrt(centerDx * centerDx + centerDy * centerDy + centerDz * centerDz);
             const isCenterShot = distanceFromCenter < ship.size * 0.2;
             
@@ -416,7 +466,7 @@ export default function DeadShotGame({
             for (let i = 0; i < 3; i++) {
               const angle = (Math.PI * 2 * i) / 3;
               const subItemMesh = createSubItem(['bonus', 'multiplier', 'time'][i] as 'bonus' | 'multiplier' | 'time');
-              subItemMesh.position.copy(ship.mesh.position);
+              subItemMesh.position.copy(ship.group.position);
               
               const subItem: SubItem = {
                 id: ++lastSubItemIdRef.current,
@@ -433,20 +483,20 @@ export default function DeadShotGame({
             }
             
             // Remove ship
-            scene.remove(ship.mesh);
+            scene.remove(ship.group);
             shipsRef.current.splice(shipIndex, 1);
             
             // Remove arrow
-            scene.remove(arrow.mesh);
+            scene.remove(arrow.group);
             return null;
           }
         });
         
         // Remove arrows that are out of bounds
-        if (arrow.mesh.position.y < -10 || 
-            Math.abs(arrow.mesh.position.x) > 30 || 
-            Math.abs(arrow.mesh.position.z) > 30) {
-          scene.remove(arrow.mesh);
+        if (arrow.group.position.y < -10 || 
+            Math.abs(arrow.group.position.x) > 30 || 
+            Math.abs(arrow.group.position.z) > 30) {
+          scene.remove(arrow.group);
           return null;
         }
         
@@ -455,17 +505,24 @@ export default function DeadShotGame({
       
       // Update ships
       shipsRef.current = shipsRef.current.map(ship => {
-        ship.mesh.position.add(ship.direction.clone().multiplyScalar(ship.speed * delta));
+        ship.group.position.add(ship.direction.clone().multiplyScalar(ship.speed * delta));
         
         // Rotate ship for visual effect
-        ship.mesh.rotation.y += delta * 2;
-        ship.mesh.rotation.x += delta * 0.5;
+        ship.group.rotation.y += delta * 2;
+        ship.group.rotation.x += delta * 0.5;
+        
+        // Animate glow pulsing
+        const glowMesh = ship.group.children.find(child => child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial);
+        if (glowMesh) {
+          const time = Date.now() * 0.001;
+          (glowMesh as THREE.Mesh).scale.setScalar(1 + Math.sin(time * 3) * 0.2);
+        }
         
         // Remove ships that are out of bounds
-        if (Math.abs(ship.mesh.position.x) > 30 || 
-            Math.abs(ship.mesh.position.y) > 30 || 
-            Math.abs(ship.mesh.position.z) > 30) {
-          scene.remove(ship.mesh);
+        if (Math.abs(ship.group.position.x) > 30 || 
+            Math.abs(ship.group.position.y) > 30 || 
+            Math.abs(ship.group.position.z) > 30) {
+          scene.remove(ship.group);
           return null;
         }
         
@@ -485,9 +542,9 @@ export default function DeadShotGame({
         
         // Check if arrow hits sub-item
         const arrowHit = arrowsRef.current.find(arrow => {
-          const dx = arrow.mesh.position.x - item.mesh.position.x;
-          const dy = arrow.mesh.position.y - item.mesh.position.y;
-          const dz = arrow.mesh.position.z - item.mesh.position.z;
+          const dx = arrow.group.position.x - item.mesh.position.x;
+          const dy = arrow.group.position.y - item.mesh.position.y;
+          const dz = arrow.group.position.z - item.mesh.position.z;
           return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.5;
         });
         
@@ -510,8 +567,6 @@ export default function DeadShotGame({
         
         return item;
       }).filter(item => item !== null) as SubItem[];
-      
-      renderer.render(scene, camera);
     };
     
     clockRef.current.start();
@@ -541,14 +596,22 @@ export default function DeadShotGame({
       sceneRef.current = null;
       cameraRef.current = null;
       rendererRef.current = null;
+      initializedRef.current = false;
     };
-  }, [createAlienShip, createArrow, createSubItem]); // Remove gameState dependency
+  }, [createAlienShip, createArrow, createSubItem]);
 
-  // Spawn ships
+  // Spawn ships - only when playing
   useEffect(() => {
-    if (gameState !== 'playing' || !sceneRef.current) return;
+    if (gameState !== 'playing' || !sceneRef.current) {
+      console.log('⏸️ [DeadShot] Not spawning ships - gameState:', gameState, 'scene:', !!sceneRef.current);
+      return;
+    }
+    
+    console.log('🚀 [DeadShot] Starting ship spawner');
     
     const spawnShip = () => {
+      if (!sceneRef.current) return;
+      
       const now = Date.now();
       if (now - lastSpawnRef.current < 2000) return;
       lastSpawnRef.current = now;
@@ -584,18 +647,18 @@ export default function DeadShotGame({
       }
       
       const size = rng.nextFloat(0.8, 1.5);
-      const shipMesh = createAlienShip(x, y, z, size);
+      const shipGroup = createAlienShip(x, y, z, size);
       const direction = new THREE.Vector3(
         rng.nextFloat(-1, 1),
         rng.nextFloat(-0.5, 0.5),
         rng.nextFloat(-1, 1)
       ).normalize();
       
-      sceneRef.current.add(shipMesh);
+      sceneRef.current.add(shipGroup);
       
       const ship: AlienShip = {
         id: ++lastShipIdRef.current,
-        mesh: shipMesh,
+        group: shipGroup,
         speed: rng.nextFloat(2, 4),
         direction,
         createdAt: now,
@@ -663,19 +726,19 @@ export default function DeadShotGame({
     const angle = aimAngleRef.current * Math.PI / 180;
     const speed = 20 + power * 25;
     
-    const arrowMesh = createArrow();
-    arrowMesh.position.set(0, -1, 0);
+    const arrowGroup = createArrow();
+    arrowGroup.position.set(0, -1, 0);
     
     const arrow: Arrow = {
       id: ++lastArrowIdRef.current,
-      mesh: arrowMesh,
+      group: arrowGroup,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       vz: 0,
       createdAt: Date.now()
     };
     
-    sceneRef.current.add(arrowMesh);
+    sceneRef.current.add(arrowGroup);
     arrowsRef.current.push(arrow);
     totalShotsRef.current++;
     
@@ -732,8 +795,8 @@ export default function DeadShotGame({
     
     // Clean up all meshes
     if (sceneRef.current) {
-      arrowsRef.current.forEach(arrow => sceneRef.current!.remove(arrow.mesh));
-      shipsRef.current.forEach(ship => sceneRef.current!.remove(ship.mesh));
+      arrowsRef.current.forEach(arrow => sceneRef.current!.remove(arrow.group));
+      shipsRef.current.forEach(ship => sceneRef.current!.remove(ship.group));
       subItemsRef.current.forEach(item => sceneRef.current!.remove(item.mesh));
     }
     
@@ -746,6 +809,14 @@ export default function DeadShotGame({
   if (gameState === 'ready') {
     return (
       <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
+        {/* 3D Scene Background - Always visible */}
+        <div 
+          ref={mountRef}
+          className="absolute inset-0 w-full h-full"
+          style={{ zIndex: 0 }}
+        />
+        
+        {/* Instructions Overlay */}
         <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10">
           <h1 className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
             🎯 Dead Shot
@@ -817,7 +888,7 @@ export default function DeadShotGame({
   return (
     <div className="w-full h-full relative bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900">
       {/* UI Overlay */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white">
+      <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
         <div>
           <div className="text-2xl font-bold">Score: {score.toFixed(2)}</div>
           <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
@@ -831,15 +902,22 @@ export default function DeadShotGame({
       {/* 3D Game Area */}
       <div 
         ref={mountRef}
-        className="w-full h-full"
+        className="w-full h-full absolute inset-0"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onTouchStart={handleMouseDown}
         onTouchMove={handleMouseMove}
         onTouchEnd={handleMouseUp}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'none', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
+      
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute bottom-4 left-4 text-white text-xs bg-black/50 p-2 rounded z-20">
+          Ships: {shipsRef.current.length} | Arrows: {arrowsRef.current.length} | SubItems: {subItemsRef.current.length}
+        </div>
+      )}
     </div>
   );
 }
