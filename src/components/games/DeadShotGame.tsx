@@ -974,6 +974,18 @@ export default function DeadShotGame({
         projectile.mesh.position.y += projectile.vy * delta;
         projectile.mesh.position.z += projectile.vz * delta;
         
+        // Animate amoeba rotation for organic movement
+        if (projectile.mesh instanceof THREE.Group) {
+          projectile.mesh.rotation.x += delta * 1.5;
+          projectile.mesh.rotation.y += delta * 2.0;
+          projectile.mesh.rotation.z += delta * 0.8;
+          
+          // Slight pulsing scale for amoeba effect
+          const time = Date.now() * 0.003;
+          const pulse = 1.0 + Math.sin(time + projectile.id) * 0.1;
+          projectile.mesh.scale.setScalar(pulse);
+        }
+        
         // Check collision with player (at center 0,0,0) - larger hitbox for larger projectiles
         const dx = projectile.mesh.position.x;
         const dy = projectile.mesh.position.y;
