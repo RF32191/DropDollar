@@ -120,200 +120,150 @@ export default function DeadShotGame({
     return new Mulberry32(rngSeed);
   }, [rngSeed]);
 
-  // Create neon alien ship with proper 3D geometry - improved design with types
-  // Returns both the group and zones array
+  // Create virus-like enemy ships with capsid top and legs bottom
+  // Returns both the group and zones array with color-coded regions
   const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): { group: THREE.Group; zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> } => {
     const shipGroup = new THREE.Group();
     
-    // Ship colors based on type
-    const shipColors = {
-      common: { body: 0x00ffff, wing: 0x0088ff, glow: 0x00ffff }, // Cyan
-      rare: { body: 0xff00ff, wing: 0xff0088, glow: 0xff00ff }, // Magenta
-      epic: { body: 0xffff00, wing: 0xff8800, glow: 0xffff00 }, // Yellow
-      legendary: { body: 0xff0088, wing: 0xff00ff, glow: 0xff0088 } // Hot Pink
+    // Virus colors - Red, Purple, Yellow regions
+    const virusColors = {
+      red: 0xff0000,
+      purple: 0xff00ff,
+      yellow: 0xffff00
     };
     
-    const colors = shipColors[type];
+    // Main capsid (icosahedral top) - RED region
+    const capsidGeometry = new THREE.IcosahedronGeometry(size * 0.5, 0);
+    const capsidMaterial = new THREE.MeshStandardMaterial({
+      color: virusColors.red,
+      emissive: virusColors.red,
+      emissiveIntensity: 4.0,
+      metalness: 0.8,
+      roughness: 0.2
+    });
+    const capsid = new THREE.Mesh(capsidGeometry, capsidMaterial);
+    capsid.position.y = size * 0.4;
+    shipGroup.add(capsid);
     
-    // Main body - sleek futuristic ship design (multi-colored)
-    const bodyGeometry = new THREE.OctahedronGeometry(size * 0.6, 0);
+    // Middle body section - PURPLE region
+    const bodyGeometry = new THREE.OctahedronGeometry(size * 0.4, 0);
     const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: colors.body,
-      emissive: colors.body,
-      emissiveIntensity: 3.0, // Much brighter neon
-      metalness: 0.95,
-      roughness: 0.05
+      color: virusColors.purple,
+      emissive: virusColors.purple,
+      emissiveIntensity: 4.0,
+      metalness: 0.8,
+      roughness: 0.2
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.rotation.x = Math.PI / 4;
-    body.position.y = size * 0.2;
+    body.position.y = size * 0.1;
     shipGroup.add(body);
     
-    // Forward hull section (different color accent)
-    const frontGeometry = new THREE.ConeGeometry(size * 0.3, size * 0.8, 8);
-    const frontMaterial = new THREE.MeshStandardMaterial({
-      color: colors.wing, // Use wing color for contrast
-      emissive: colors.wing,
-      emissiveIntensity: 3.5
+    // Bottom section - YELLOW region
+    const bottomGeometry = new THREE.OctahedronGeometry(size * 0.3, 0);
+    const bottomMaterial = new THREE.MeshStandardMaterial({
+      color: virusColors.yellow,
+      emissive: virusColors.yellow,
+      emissiveIntensity: 4.0,
+      metalness: 0.8,
+      roughness: 0.2
     });
-    const front = new THREE.Mesh(frontGeometry, frontMaterial);
-    front.rotation.z = Math.PI;
-    front.position.y = size * 0.8;
-    shipGroup.add(front);
+    const bottom = new THREE.Mesh(bottomGeometry, bottomMaterial);
+    bottom.position.y = -size * 0.2;
+    shipGroup.add(bottom);
     
-    // Wings - more detailed swept-back design (multi-colored)
-    const wingGeometry = new THREE.BoxGeometry(size * 0.6, size * 0.2, size * 1.2);
-    const wingMaterial = new THREE.MeshStandardMaterial({
-      color: colors.wing,
-      emissive: colors.wing,
-      emissiveIntensity: 2.5
-    });
+    // Virus legs (spikes on bottom) - YELLOW
+    const legCount = 6;
+    for (let i = 0; i < legCount; i++) {
+      const angle = (Math.PI * 2 * i) / legCount;
+      const legGeometry = new THREE.ConeGeometry(size * 0.08, size * 0.4, 6);
+      const legMaterial = new THREE.MeshStandardMaterial({
+        color: virusColors.yellow,
+        emissive: virusColors.yellow,
+        emissiveIntensity: 3.5
+      });
+      const leg = new THREE.Mesh(legGeometry, legMaterial);
+      leg.position.set(
+        Math.cos(angle) * size * 0.35,
+        -size * 0.4,
+        Math.sin(angle) * size * 0.35
+      );
+      leg.rotation.z = Math.PI;
+      shipGroup.add(leg);
+    }
     
-    const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    leftWing.position.set(-size * 0.7, size * 0.3, 0);
-    leftWing.rotation.z = -0.3;
-    leftWing.rotation.x = 0.1;
-    shipGroup.add(leftWing);
+    // Additional spikes on capsid - RED
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const spikeGeometry = new THREE.ConeGeometry(size * 0.06, size * 0.3, 6);
+      const spikeMaterial = new THREE.MeshStandardMaterial({
+        color: virusColors.red,
+        emissive: virusColors.red,
+        emissiveIntensity: 4.5
+      });
+      const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+      spike.position.set(
+        Math.cos(angle) * size * 0.4,
+        size * 0.6,
+        Math.sin(angle) * size * 0.4
+      );
+      shipGroup.add(spike);
+    }
     
-    const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    rightWing.position.set(size * 0.7, size * 0.3, 0);
-    rightWing.rotation.z = 0.3;
-    rightWing.rotation.x = 0.1;
-    shipGroup.add(rightWing);
-    
-    // Wing tips (different color - accent)
-    const tipGeometry = new THREE.ConeGeometry(size * 0.15, size * 0.4, 6);
-    const tipMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff, // White tips for contrast
-      emissive: 0xffffff,
-      emissiveIntensity: 3.5
-    });
-    
-    const leftTip = new THREE.Mesh(tipGeometry, tipMaterial);
-    leftTip.position.set(-size * 0.7, size * 0.5, size * 0.6);
-    leftTip.rotation.z = -0.3;
-    shipGroup.add(leftTip);
-    
-    const rightTip = new THREE.Mesh(tipGeometry, tipMaterial);
-    rightTip.position.set(size * 0.7, size * 0.5, size * 0.6);
-    rightTip.rotation.z = 0.3;
-    shipGroup.add(rightTip);
-    
-    // Side panels (additional color variation)
-    const panelGeometry = new THREE.BoxGeometry(size * 0.2, size * 0.3, size * 0.4);
-    const panelMaterial = new THREE.MeshStandardMaterial({
-      color: colors.glow, // Use glow color
-      emissive: colors.glow,
-      emissiveIntensity: 2.8
-    });
-    
-    const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
-    leftPanel.position.set(-size * 0.4, size * 0.1, 0);
-    shipGroup.add(leftPanel);
-    
-    const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
-    rightPanel.position.set(size * 0.4, size * 0.1, 0);
-    shipGroup.add(rightPanel);
-    
-    // Cockpit/canopy - more detailed (multi-colored)
-    const canopyGeometry = new THREE.SphereGeometry(size * 0.3, 16, 16);
-    const canopyMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 2.0,
-      transparent: true,
-      opacity: 0.8
-    });
-    const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
-    canopy.position.y = size * 0.7;
-    shipGroup.add(canopy);
-    
-    // Canopy frame (body color)
-    const frameGeometry = new THREE.RingGeometry(size * 0.25, size * 0.3, 16);
-    const frameMaterial = new THREE.MeshBasicMaterial({
-      color: colors.body,
-      emissive: colors.body,
-      transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide
-    });
-    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
-    frame.position.y = size * 0.7;
-    frame.rotation.x = Math.PI / 2;
-    shipGroup.add(frame);
-    
-    // Glow effect - pulsing sphere (brighter)
-    const glowGeometry = new THREE.SphereGeometry(size * 0.5, 16, 16);
+    // Glow effect around virus
+    const glowGeometry = new THREE.SphereGeometry(size * 0.6, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: colors.glow,
+      color: virusColors.purple,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.5
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.y = size * 0.5;
+    glow.position.y = size * 0.1;
     shipGroup.add(glow);
     
-    // Engine trails - brighter and more visible
-    const trailGeometry = new THREE.ConeGeometry(size * 0.2, size * 0.4, 8);
-    const trailMaterial = new THREE.MeshBasicMaterial({
-      color: colors.glow,
-      transparent: true,
-      opacity: 0.8
-    });
-    const trail1 = new THREE.Mesh(trailGeometry, trailMaterial);
-    trail1.position.set(-size * 0.35, -size * 0.3, 0);
-    trail1.rotation.z = Math.PI;
-    shipGroup.add(trail1);
-    
-    const trail2 = new THREE.Mesh(trailGeometry, trailMaterial);
-    trail2.position.set(size * 0.35, -size * 0.3, 0);
-    trail2.rotation.z = Math.PI;
-    shipGroup.add(trail2);
-    
-    // Add colored scoring zones (rings) - center is highest value
+    // Add colored scoring zones based on virus regions
     const zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> = [];
     
-    // Center zone (gold/yellow) - 3x multiplier
-    const centerZoneGeometry = new THREE.RingGeometry(0, size * 0.15, 16);
-    const centerZoneMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
+    // Top zone (RED capsid) - 3x multiplier
+    const redZoneGeometry = new THREE.RingGeometry(0, size * 0.25, 16);
+    const redZoneMaterial = new THREE.MeshBasicMaterial({
+      color: virusColors.red,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    });
+    const redZone = new THREE.Mesh(redZoneGeometry, redZoneMaterial);
+    redZone.position.y = size * 0.4;
+    redZone.rotation.x = Math.PI / 2;
+    shipGroup.add(redZone);
+    zones.push({ mesh: redZone, radius: size * 0.25, multiplier: 3.0, color: virusColors.red });
+    
+    // Middle zone (PURPLE body) - 2x multiplier
+    const purpleZoneGeometry = new THREE.RingGeometry(size * 0.25, size * 0.45, 16);
+    const purpleZoneMaterial = new THREE.MeshBasicMaterial({
+      color: virusColors.purple,
       transparent: true,
       opacity: 0.6,
       side: THREE.DoubleSide
     });
-    const centerZone = new THREE.Mesh(centerZoneGeometry, centerZoneMaterial);
-    centerZone.position.y = size * 0.5;
-    centerZone.rotation.x = Math.PI / 2;
-    shipGroup.add(centerZone);
-    zones.push({ mesh: centerZone, radius: size * 0.15, multiplier: 3.0, color: 0xffff00 });
+    const purpleZone = new THREE.Mesh(purpleZoneGeometry, purpleZoneMaterial);
+    purpleZone.position.y = size * 0.1;
+    purpleZone.rotation.x = Math.PI / 2;
+    shipGroup.add(purpleZone);
+    zones.push({ mesh: purpleZone, radius: size * 0.45, multiplier: 2.0, color: virusColors.purple });
     
-    // Middle zone (green) - 2x multiplier
-    const middleZoneGeometry = new THREE.RingGeometry(size * 0.15, size * 0.35, 16);
-    const middleZoneMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ff00,
+    // Bottom zone (YELLOW legs) - 1.5x multiplier
+    const yellowZoneGeometry = new THREE.RingGeometry(size * 0.45, size * 0.7, 16);
+    const yellowZoneMaterial = new THREE.MeshBasicMaterial({
+      color: virusColors.yellow,
       transparent: true,
       opacity: 0.5,
       side: THREE.DoubleSide
     });
-    const middleZone = new THREE.Mesh(middleZoneGeometry, middleZoneMaterial);
-    middleZone.position.y = size * 0.5;
-    middleZone.rotation.x = Math.PI / 2;
-    shipGroup.add(middleZone);
-    zones.push({ mesh: middleZone, radius: size * 0.35, multiplier: 2.0, color: 0x00ff00 });
-    
-    // Outer zone (blue) - 1.5x multiplier
-    const outerZoneGeometry = new THREE.RingGeometry(size * 0.35, size * 0.6, 16);
-    const outerZoneMaterial = new THREE.MeshBasicMaterial({
-      color: 0x0088ff,
-      transparent: true,
-      opacity: 0.4,
-      side: THREE.DoubleSide
-    });
-    const outerZone = new THREE.Mesh(outerZoneGeometry, outerZoneMaterial);
-    outerZone.position.y = size * 0.5;
-    outerZone.rotation.x = Math.PI / 2;
-    shipGroup.add(outerZone);
-    zones.push({ mesh: outerZone, radius: size * 0.6, multiplier: 1.5, color: 0x0088ff });
+    const yellowZone = new THREE.Mesh(yellowZoneGeometry, yellowZoneMaterial);
+    yellowZone.position.y = -size * 0.2;
+    yellowZone.rotation.x = Math.PI / 2;
+    shipGroup.add(yellowZone);
+    zones.push({ mesh: yellowZone, radius: size * 0.7, multiplier: 1.5, color: virusColors.yellow });
     
     shipGroup.position.set(x, y, z);
     return { group: shipGroup, zones };
@@ -522,17 +472,7 @@ export default function DeadShotGame({
     pointLight2.position.set(-5, 5, -5);
     scene.add(pointLight2);
     
-    // TEST CUBE - Verify rendering works
-    const testCubeGeometry = new THREE.BoxGeometry(2, 2, 2);
-    const testCubeMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xff0000,
-      emissive: 0xff0000,
-      emissiveIntensity: 1.0
-    });
-    const testCube = new THREE.Mesh(testCubeGeometry, testCubeMaterial);
-    testCube.position.set(3, 0, 0);
-    scene.add(testCube);
-    console.log('🧪 [DeadShot] Test cube added at (3, 0, 0)');
+    // Test cube removed - ships should be visible instead
     
     // Create spaceship bow - futuristic design
     const bowGroup = new THREE.Group();
@@ -660,7 +600,7 @@ export default function DeadShotGame({
       
       // Log every 60 frames to verify animation is running
       if (frameCount % 60 === 0) {
-        console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${sceneRef.current.children.length}`);
+        console.log(`🔄 [DeadShot] Animation running - Frame ${frameCount}, Scene children: ${sceneRef.current.children.length}, Ships: ${shipsRef.current.length}`);
       }
       
       // ALWAYS render the scene (bow should be visible even when ready)
@@ -1011,10 +951,14 @@ export default function DeadShotGame({
           break;
       }
       
-      const size = rng.nextFloat(0.8, 1.5);
+      const size = rng.nextFloat(1.0, 1.8); // Larger ships for visibility
       const { group: shipGroup, zones } = createAlienShip(x, y, z, size, shipType);
       
+      // Ensure ship is visible - make it larger and brighter
+      shipGroup.scale.set(1.5, 1.5, 1.5); // Scale up for visibility
+      
       sceneRef.current.add(shipGroup);
+      console.log(`🦠 [DeadShot] Virus ship spawned at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}) with size ${size.toFixed(2)}`);
       
       const ship: AlienShip = {
         id: ++lastShipIdRef.current,
@@ -1023,13 +967,14 @@ export default function DeadShotGame({
         direction,
         createdAt: now,
         center: new THREE.Vector3(x, y, z),
-        size,
+        size: size * 1.5, // Account for scale
         type: shipType,
         basePoints,
         zones
       };
       
       shipsRef.current.push(ship);
+      console.log(`✅ [DeadShot] Total ships: ${shipsRef.current.length}`);
     };
     
     // Spawn first ship immediately
@@ -1041,7 +986,7 @@ export default function DeadShotGame({
     };
   }, [gameState, seededRng, createAlienShip]);
 
-  // Charge up power while holding - FIXED to properly update state
+  // Charge up power while holding - FIXED to properly update state and show charge bar
   useEffect(() => {
     if (gameState !== 'playing') return;
     
@@ -1049,7 +994,7 @@ export default function DeadShotGame({
       // Check if drawing and update power
       if (isDrawingRef.current && bowPowerRef.current < 100) {
         bowPowerRef.current = Math.min(100, bowPowerRef.current + 2);
-        // Force state update to show charge bar
+        // Force state update to show charge bar moving
         setBowPower(bowPowerRef.current);
         
         // Auto-shoot at max charge
@@ -1060,8 +1005,8 @@ export default function DeadShotGame({
           // Shoot arrow with smooth arch trajectory based on power
           const power = bowPowerRef.current / 100;
           const aimAngleRad = aimAngleRef.current * Math.PI / 180;
-          // Velocity scales significantly with power (min 15, max 50)
-          const baseSpeed = 15 + power * 35; // Speed increases dramatically with power
+          // Velocity scales significantly with power (min 10, max 60)
+          const baseSpeed = 10 + power * 50; // Speed increases dramatically with power
           // Add upward component for arch - more power = higher arch (smoother curve)
           const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
           const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
@@ -1092,9 +1037,8 @@ export default function DeadShotGame({
           setBowPower(0);
         }
       } else if (!isDrawingRef.current && bowPowerRef.current > 0) {
-        // Reset power if not drawing
-        bowPowerRef.current = 0;
-        setBowPower(0);
+        // Don't reset immediately - allow release to shoot
+        // Power will reset after shooting
       }
     }, 50); // Charge every 50ms
     
@@ -1131,18 +1075,23 @@ export default function DeadShotGame({
   }, [gameState]);
 
   const handleMouseUp = useCallback(() => {
-    if (gameState !== 'playing' || !isDrawingRef.current || !sceneRef.current) return;
+    if (gameState !== 'playing' || !sceneRef.current) return;
     
+    const wasDrawing = isDrawingRef.current;
     isDrawingRef.current = false;
     setIsDrawing(false);
     
-    // Shoot arrow with smooth arch trajectory based on power
-    const power = bowPowerRef.current / 100;
+    // If no charge at all, shoot a weak arch shot
+    const power = Math.max(0.1, bowPowerRef.current / 100); // Minimum 10% power for arch shot
     const aimAngleRad = aimAngleRef.current * Math.PI / 180;
-    // Velocity scales significantly with power (min 15, max 50)
-    const baseSpeed = 15 + power * 35; // Speed increases dramatically with power
-    // Add upward component for arch - more power = higher arch (smoother curve)
-    const upwardAngle = Math.PI / 6 * power; // 0 to 30 degrees for smoother arch
+    
+    // Velocity scales significantly with power (min 10, max 60)
+    // If no hold at all (power < 0.2), make it a weak arch shot
+    const baseSpeed = 10 + power * 50; // Speed increases dramatically with power
+    
+    // Add upward component for arch - more power = higher arch
+    // Even with no charge, add some upward angle for arch shot
+    const upwardAngle = Math.PI / 8 * Math.max(0.3, power); // Minimum 30% arch even with no charge
     const horizontalSpeed = baseSpeed * Math.cos(upwardAngle);
     const verticalSpeed = baseSpeed * Math.sin(upwardAngle);
     
@@ -1158,7 +1107,7 @@ export default function DeadShotGame({
       id: ++lastArrowIdRef.current,
       group: arrowGroup,
       vx: Math.cos(aimAngleRad) * horizontalSpeed,
-      vy: Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed, // Add upward component
+      vy: Math.sin(aimAngleRad) * horizontalSpeed + verticalSpeed, // Add upward component for arch
       vz: 0,
       createdAt: Date.now()
     };
@@ -1167,6 +1116,7 @@ export default function DeadShotGame({
     arrowsRef.current.push(arrow);
     totalShotsRef.current++;
     
+    // Reset power after shooting
     bowPowerRef.current = 0;
     setBowPower(0);
   }, [gameState, createArrow]);
@@ -1268,33 +1218,31 @@ export default function DeadShotGame({
             </div>
           </div>
           
-          {/* Charge Bar - Show when holding */}
-          {(isDrawing || bowPower > 0) && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 w-64 pointer-events-none">
-              <div className="text-white text-sm mb-2 text-center font-bold">CHARGE POWER</div>
-              <div className="h-6 bg-black/50 rounded-full border-2 border-cyan-400 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-75 ease-linear rounded-full relative"
-                  style={{ width: `${bowPower}%` }}
-                >
-                  {/* Glow effect when charging */}
-                  {bowPower > 0 && (
-                    <div 
-                      className="absolute inset-0 bg-white/30 animate-pulse"
-                      style={{ width: '100%' }}
-                    />
-                  )}
-                  {/* Max charge indicator */}
-                  {bowPower >= 100 && (
-                    <div className="absolute inset-0 bg-white/50 animate-pulse" />
-                  )}
-                </div>
-              </div>
-              <div className="text-white text-xs mt-1 text-center">
-                {bowPower >= 100 ? 'MAX CHARGE - READY!' : isDrawing ? 'Charging...' : 'Hold to charge'}
+          {/* Charge Bar - Always visible when playing */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 w-80 pointer-events-none">
+            <div className="text-white text-sm mb-2 text-center font-bold">CHARGE POWER</div>
+            <div className="h-8 bg-black/70 rounded-full border-2 border-cyan-400 overflow-hidden shadow-lg">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-100 ease-linear rounded-full relative"
+                style={{ width: `${Math.max(0, Math.min(100, bowPower))}%` }}
+              >
+                {/* Glow effect when charging */}
+                {bowPower > 0 && (
+                  <div 
+                    className="absolute inset-0 bg-white/40 animate-pulse"
+                    style={{ width: '100%' }}
+                  />
+                )}
+                {/* Max charge indicator */}
+                {bowPower >= 100 && (
+                  <div className="absolute inset-0 bg-white/60 animate-pulse" />
+                )}
               </div>
             </div>
-          )}
+            <div className="text-white text-xs mt-1 text-center">
+              {bowPower >= 100 ? 'MAX CHARGE - READY!' : isDrawing ? `Charging... ${bowPower.toFixed(0)}%` : 'Hold to charge'}
+            </div>
+          </div>
         </>
       )}
       
