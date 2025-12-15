@@ -160,6 +160,56 @@ export default function CoinPlayPage() {
     }
   }, []);
 
+  // Generate falling gold coins animation
+  useEffect(() => {
+    const coinsContainer = document.getElementById('coins-container');
+    if (!coinsContainer) return;
+    
+    // Clear existing coins
+    coinsContainer.innerHTML = '';
+    
+    // Generate coins continuously
+    const generateCoin = () => {
+      const coin = document.createElement('div');
+      const size = Math.random() < 0.5 ? 'small' : Math.random() < 0.8 ? '' : 'large';
+      const left = Math.random() * 100;
+      const duration = 2 + Math.random() * 3; // 2-5 seconds
+      const delay = Math.random() * 1;
+      
+      coin.className = `falling-coin ${size}`;
+      coin.style.setProperty('--coin-left', `${left}%`);
+      coin.style.setProperty('--coin-duration', `${duration}s`);
+      coin.style.animationDelay = `${delay}s`;
+      
+      coinsContainer.appendChild(coin);
+      
+      // Remove coin after animation completes
+      setTimeout(() => {
+        if (coin.parentNode) {
+          coin.parentNode.removeChild(coin);
+        }
+      }, (duration + delay) * 1000);
+    };
+    
+    // Generate initial coins
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => generateCoin(), i * 200);
+    }
+    
+    // Continuously generate new coins
+    const coinInterval = setInterval(() => {
+      generateCoin();
+    }, 300); // New coin every 300ms
+    
+    // Cleanup
+    return () => {
+      clearInterval(coinInterval);
+      if (coinsContainer) {
+        coinsContainer.innerHTML = '';
+      }
+    };
+  }, []);
+
   // Load sessions regardless of auth status (everyone can view)
   useEffect(() => {
     loadSessions();
