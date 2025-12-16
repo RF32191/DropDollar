@@ -630,7 +630,7 @@ export default function OneVOnePage() {
           <AdBanner pageLocation="1v1" position="top" />
           
           {/* Wallet Display */}
-          <PageWalletDisplay />
+          <PageWalletDisplay variant="1v1" />
           
           {/* Header */}
           <div className="text-center mb-12">

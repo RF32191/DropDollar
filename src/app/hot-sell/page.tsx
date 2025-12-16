@@ -426,7 +426,7 @@ export default function HotSellPage() {
     }
   };
 
-  // Generate Red/Amber Scrolling Stars - Travel all the way up (same as games page)
+  // Generate Red/Amber Scrolling Stars - Travel all the way up (ENHANCED - MORE PROMINENT)
   useEffect(() => {
     const starsContainer = document.getElementById('stars-container-red');
     if (!starsContainer) return;
@@ -434,15 +434,17 @@ export default function HotSellPage() {
     // Clear existing stars
     starsContainer.innerHTML = '';
     
-    // Generate more stars for continuous effect (same as games page)
-    const starCount = 150; // More stars for better coverage
+    // Generate MANY more stars for continuous, prominent effect
+    const starCount = 300; // Increased from 150 for much better visibility
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
-      const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
+      // More large stars for prominence
+      const sizeRand = Math.random();
+      const size = sizeRand < 0.4 ? 'small' : sizeRand < 0.7 ? 'medium' : 'large';
       const left = Math.random() * 100;
-      const duration = 4 + Math.random() * 6; // 4-10 seconds for slower, more visible travel
-      const delay = Math.random() * 3; // Longer delay range
-      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift
+      const duration = 3 + Math.random() * 5; // 3-8 seconds for faster, more visible travel
+      const delay = Math.random() * 2; // Shorter delay for more immediate effect
+      const xOffset = (Math.random() - 0.5) * 400; // More horizontal drift for dynamic effect
       
       star.className = `star-wars-star-red ${size}`;
       star.style.setProperty('--star-left', `${left}%`);
@@ -453,16 +455,17 @@ export default function HotSellPage() {
       starsContainer.appendChild(star);
     }
     
-    // Continuously regenerate stars for infinite scroll (same as games page)
+    // Continuously regenerate stars for infinite scroll - MORE FREQUENTLY
     const regenerateInterval = setInterval(() => {
-      // Add a few new stars periodically
-      for (let i = 0; i < 10; i++) {
+      // Add more new stars periodically for continuous effect
+      for (let i = 0; i < 20; i++) { // Increased from 10
         const star = document.createElement('div');
-        const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
+        const sizeRand = Math.random();
+        const size = sizeRand < 0.4 ? 'small' : sizeRand < 0.7 ? 'medium' : 'large';
         const left = Math.random() * 100;
-        const duration = 4 + Math.random() * 6;
+        const duration = 3 + Math.random() * 5;
         const delay = 0;
-        const xOffset = (Math.random() - 0.5) * 300;
+        const xOffset = (Math.random() - 0.5) * 400;
         
         star.className = `star-wars-star-red ${size}`;
         star.style.setProperty('--star-left', `${left}%`);
@@ -472,7 +475,7 @@ export default function HotSellPage() {
         
         starsContainer.appendChild(star);
       }
-    }, 2000); // Add new stars every 2 seconds
+    }, 1500); // More frequent regeneration (every 1.5 seconds instead of 2)
     
     // Cleanup
     return () => {
@@ -480,6 +483,30 @@ export default function HotSellPage() {
       if (starsContainer) {
         starsContainer.innerHTML = '';
       }
+    };
+  }, []);
+
+  // Generate floating red particles (like RP pages)
+  useEffect(() => {
+    const particlesContainer = document.getElementById('hot-sell-particles');
+    if (!particlesContainer) return;
+
+    const particleCount = 60; // More particles for hot-sell theme
+    const particles: HTMLDivElement[] = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'hot-sell-particle';
+      particle.style.left = `${Math.random() * 100}%`;
+      particle.style.top = `${Math.random() * 100}%`;
+      particle.style.animationDelay = `${Math.random() * 5}s`;
+      particle.style.animationDuration = `${8 + Math.random() * 15}s`;
+      particlesContainer.appendChild(particle);
+      particles.push(particle);
+    }
+
+    return () => {
+      particles.forEach(p => p.remove());
     };
   }, []);
 
@@ -992,9 +1019,12 @@ export default function HotSellPage() {
       <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
         {/* Red/Amber Scrolling Stars Background - Cover entire page, travel all the way up */}
         {/* Higher z-index to appear above fire flicker but below content */}
-        <div className="fixed inset-0 overflow-visible pointer-events-none" id="stars-container-red" style={{ zIndex: 2 }}>
+        <div className="fixed inset-0 overflow-visible pointer-events-none" id="stars-container-red" style={{ zIndex: 10 }}>
           {/* Stars will be generated by useEffect */}
         </div>
+        
+        {/* Floating Red Particles - Like RP pages */}
+        <div id="hot-sell-particles" className="fixed inset-0 pointer-events-none" style={{ zIndex: 5 }}></div>
         
         {/* Animated Red/Amber Ember Glow Background - Same style as games page, enhanced with more red */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
@@ -1032,7 +1062,7 @@ export default function HotSellPage() {
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Wallet Display */}
-        <PageWalletDisplay />
+        <PageWalletDisplay variant="hot-sell" />
 
         {/* Location Verification Banner */}
         {isAuthenticated && (

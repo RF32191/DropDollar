@@ -747,7 +747,7 @@ export default function WinnerTakesAllPage() {
       <div className="min-h-screen bg-gradient-to-br from-yellow-800 via-amber-800 to-orange-800 text-white">
         <CleanNavigation />
         <div className="container mx-auto px-4 py-8">
-          <PageWalletDisplay />
+          <PageWalletDisplay variant="winner-takes-all" />
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
             <span className="ml-4 text-lg text-yellow-200">Loading Winner Takes It All tournaments...</span>
@@ -850,7 +850,7 @@ export default function WinnerTakesAllPage() {
       
       <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Wallet Display */}
-        <PageWalletDisplay />
+        <PageWalletDisplay variant="winner-takes-all" />
 
         {/* Location Verification Banner */}
         {isAuthenticated && (
