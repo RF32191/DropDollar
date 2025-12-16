@@ -2652,9 +2652,13 @@ export default function DeadShotGame({
     
     // Calculate final score with all bonuses
     const totalBonuses = accuracyBonus + perfectHitsBonus + survivalBonus + heartsBonus + streakBonus + perfectGameBonus;
-    const finalScore = baseScore + totalBonuses;
     
-    // Update the score ref with bonuses
+    // Add decimal precision based on accuracy (0.00 - 0.99)
+    // This creates unique scores: e.g., 5000 + 0.87 = 5000.87 for 87% accuracy
+    const accuracyDecimal = (finalAccuracy % 100) / 100;
+    const finalScore = baseScore + totalBonuses + accuracyDecimal;
+    
+    // Update the score ref with bonuses (keep precision)
     currentScoreRef.current = finalScore;
     setScore(finalScore);
     
@@ -2729,7 +2733,7 @@ export default function DeadShotGame({
         <>
           <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
             <div>
-              <div className="text-2xl font-bold">Score: {score.toLocaleString()}</div>
+              <div className="text-2xl font-bold">Score: {score.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
               {comboMultiplier > 1 && (
                 <div className="text-lg font-bold text-yellow-400 animate-pulse">
