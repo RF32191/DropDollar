@@ -30,31 +30,43 @@ export async function POST(request: NextRequest) {
     const formattedPhone = validation.formatted!;
     const normalizedPhone = normalizePhoneNumber(formattedPhone);
 
-    // Check if phone is already registered using database function
-    const { data: phoneAvailable, error: phoneCheckError } = await supabase
-      .rpc('is_phone_available', { phone_param: formattedPhone });
+    console.log('🔍 Checking if phone is already registered:', formattedPhone);
 
-    if (phoneCheckError) {
-      console.error('❌ Phone check error:', phoneCheckError);
-      // Fallback to manual check
-      const { data: existingUsers } = await supabase
-        .from('users')
-        .select('id')
-        .eq('phone', formattedPhone)
-        .limit(1);
-      
-      if (existingUsers && existingUsers.length > 0) {
-        return NextResponse.json(
-          { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
-          { status: 400 }
-        );
-      }
-    } else if (phoneAvailable === false) {
+    // CRITICAL: Check if phone is already registered - MUST prevent duplicate accounts
+    // First, do a direct database check (most reliable)
+    const { data: existingUsers, error: directCheckError } = await supabase
+      .from('users')
+      .select('id, username')
+      .eq('phone', formattedPhone)
+      .limit(1);
+
+    if (directCheckError) {
+      console.error('❌ Direct phone check error:', directCheckError);
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
+      console.log('🚫 Phone number already registered:', formattedPhone);
       return NextResponse.json(
         { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
         { status: 400 }
       );
     }
+
+    // Also check with database function (backup check)
+    const { data: phoneAvailable, error: phoneCheckError } = await supabase
+      .rpc('is_phone_available', { phone_param: formattedPhone });
+
+    if (phoneCheckError) {
+      console.error('⚠️ RPC phone check error (continuing with direct check):', phoneCheckError);
+    } else if (phoneAvailable === false) {
+      console.log('🚫 Phone number already registered (RPC check):', formattedPhone);
+      return NextResponse.json(
+        { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
+        { status: 400 }
+      );
+    }
+
+    console.log('✅ Phone number available:', formattedPhone);
 
     // Get IP address and user agent for tracking
     const ipAddress = request.headers.get('x-forwarded-for') || 
