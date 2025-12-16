@@ -193,39 +193,60 @@ export async function POST(request: NextRequest) {
       .insert(userProfile)
       .select();
     
+    // ALWAYS try to save phone, even if profile has issues
+    console.log('📱📱📱 [REGISTER] ==========================================');
+    console.log('📱📱📱 [REGISTER] SAVING PHONE NUMBER TO DATABASE');
+    console.log('📱📱📱 [REGISTER] This happens REGARDLESS of profile status');
+    console.log('📱📱📱 [REGISTER] ==========================================');
+    console.log('📱 [REGISTER] Phone:', formattedPhone);
+    console.log('📱 [REGISTER] User ID:', authData.user.id);
+    
+    const phoneRecord = {
+      user_id: authData.user.id,
+      phone_number: formattedPhone,
+      verified: true,
+      verified_at: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    };
+    
+    console.log('📱 [REGISTER] Phone record:', JSON.stringify(phoneRecord, null, 2));
+    
     if (insertedProfile) {
       console.log('✅ Profile created successfully:', insertedProfile);
+    } else {
+      console.log('⚠️ Profile may have had issues, but we STILL save the phone');
+    }
       
-      // Insert phone number into separate user_phones table
-      console.log('📱 [REGISTER] Inserting phone into user_phones table');
-      console.log('📱 [REGISTER] Phone number:', formattedPhone);
-      console.log('📱 [REGISTER] Phone length:', formattedPhone.length);
-      console.log('📱 [REGISTER] Phone prefix:', formattedPhone.substring(0, 3));
-      console.log('📱 [REGISTER] User ID:', authData.user.id);
+    let phoneData = null;
+    let phoneError = null;
+    let saveMethod = '';
+    
+    // METHOD 1: Direct insert first (most reliable)
+    try {
+      console.log('📱 [REGISTER] METHOD 1: Direct insert (no function)...');
+      const { data: insertResult, error: insertError } = await supabase
+        .from('user_phones')
+        .insert(phoneRecord)
+        .select();
       
-      const phoneRecord = {
-        user_id: authData.user.id,
-        phone_number: formattedPhone,
-        verified: true,
-        verified_at: new Date().toISOString()
-      };
+      if (insertError) {
+        console.error('❌ [REGISTER] Direct insert error:', insertError);
+        console.error('❌ [REGISTER] Error code:', insertError.code);
+        console.error('❌ [REGISTER] Error message:', insertError.message);
+        console.error('❌ [REGISTER] Full error:', JSON.stringify(insertError, null, 2));
+        throw insertError;
+      }
       
-      console.log('📱 [REGISTER] Inserting record:', JSON.stringify(phoneRecord, null, 2));
+      console.log('✅✅✅ [REGISTER] Phone saved via direct insert!');
+      console.log('✅ [REGISTER] Insert result:', JSON.stringify(insertResult, null, 2));
+      phoneData = insertResult;
+      saveMethod = 'direct_insert';
+    } catch (err1: any) {
+      console.error('❌ [REGISTER] METHOD 1 FAILED:', err1.message || err1);
       
-      // CRITICAL: Save phone number - try multiple methods
-      console.log('📱 [REGISTER] ==========================================');
-      console.log('📱 [REGISTER] SAVING PHONE NUMBER TO DATABASE');
-      console.log('📱 [REGISTER] ==========================================');
-      console.log('📱 [REGISTER] Phone:', formattedPhone);
-      console.log('📱 [REGISTER] User ID:', authData.user.id);
-      
-      let phoneData = null;
-      let phoneError = null;
-      let saveMethod = '';
-      
-      // METHOD 1: Try database function (most reliable, bypasses RLS)
+      // METHOD 2: Try database function
       try {
-        console.log('📱 [REGISTER] METHOD 1: Attempting save via database function...');
+        console.log('📱 [REGISTER] METHOD 2: Attempting via database function...');
         const { data: functionResult, error: functionError } = await supabase
           .rpc('save_user_phone', {
             p_user_id: authData.user.id,
@@ -234,51 +255,48 @@ export async function POST(request: NextRequest) {
           });
         
         if (functionError) {
-          console.error('⚠️ [REGISTER] Function error:', functionError);
-          console.error('⚠️ [REGISTER] Error code:', functionError.code);
-          console.error('⚠️ [REGISTER] Error message:', functionError.message);
+          console.error('❌ [REGISTER] Function error:', functionError);
           throw functionError;
         }
         
-        if (functionResult && Array.isArray(functionResult) && functionResult.length > 0) {
-          console.log('✅ [REGISTER] Phone saved via database function!');
-          console.log('✅ [REGISTER] Function result:', JSON.stringify(functionResult, null, 2));
-          phoneData = functionResult;
-          saveMethod = 'database_function';
-        } else {
-          console.error('⚠️ [REGISTER] Function returned unexpected result:', functionResult);
-          throw new Error('Function returned no data');
-        }
-      } catch (err: any) {
-        console.error('❌ [REGISTER] METHOD 1 FAILED:', err);
+        console.log('✅ [REGISTER] Phone saved via database function!');
+        console.log('✅ [REGISTER] Function result:', JSON.stringify(functionResult, null, 2));
+        phoneData = functionResult;
+        saveMethod = 'database_function';
+      } catch (err2: any) {
+        console.error('❌ [REGISTER] METHOD 2 FAILED:', err2.message || err2);
         
-        // METHOD 2: Fallback to direct insert with service role
+        // METHOD 3: Raw SQL insert
         try {
-          console.log('📱 [REGISTER] METHOD 2: Attempting direct insert...');
-          const result = await supabase
-            .from('user_phones')
-            .insert(phoneRecord)
-            .select();
+          console.log('📱 [REGISTER] METHOD 3: Raw SQL insert...');
+          const { data: sqlResult, error: sqlError } = await supabase
+            .rpc('save_phone_raw', {
+              p_user_id: authData.user.id,
+              p_phone: formattedPhone
+            });
           
-          if (result.error) {
-            console.error('❌ [REGISTER] Direct insert error:', result.error);
-            phoneError = result.error;
+          if (sqlError) {
+            console.error('❌ [REGISTER] SQL error:', sqlError);
+            phoneError = sqlError;
           } else {
-            console.log('✅ [REGISTER] Phone saved via direct insert!');
-            console.log('✅ [REGISTER] Insert result:', JSON.stringify(result.data, null, 2));
-            phoneData = result.data;
-            saveMethod = 'direct_insert';
+            console.log('✅ [REGISTER] Phone saved via raw SQL!');
+            phoneData = sqlResult;
+            saveMethod = 'raw_sql';
           }
-        } catch (insertErr: any) {
-          console.error('❌ [REGISTER] METHOD 2 FAILED:', insertErr);
-          phoneError = insertErr;
+        } catch (err3: any) {
+          console.error('❌ [REGISTER] METHOD 3 FAILED:', err3.message || err3);
+          phoneError = err3;
         }
       }
-      
-      console.log('📱 [REGISTER] ==========================================');
-      console.log('📱 [REGISTER] SAVE RESULT:', phoneData ? 'SUCCESS' : 'FAILED');
-      console.log('📱 [REGISTER] Method used:', saveMethod || 'none');
-      console.log('📱 [REGISTER] ==========================================');
+    }
+    
+    console.log('📱📱📱 [REGISTER] ==========================================');
+    console.log('📱📱📱 [REGISTER] SAVE RESULT:', phoneData ? '✅ SUCCESS' : '❌ FAILED');
+    console.log('📱📱📱 [REGISTER] Method used:', saveMethod || 'none');
+    if (phoneError) {
+      console.log('📱📱📱 [REGISTER] Error:', phoneError.message || phoneError);
+    }
+    console.log('📱📱📱 [REGISTER] ==========================================');
       
       if (phoneError) {
         console.error('❌ [REGISTER] CRITICAL: Error saving phone number:', phoneError);
