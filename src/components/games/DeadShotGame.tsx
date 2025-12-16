@@ -1455,23 +1455,22 @@ export default function DeadShotGame({
           projectile.mesh.rotation.y += adjustedDelta * 2.0;
           projectile.mesh.rotation.z += adjustedDelta * 0.8;
           
-          // Slight pulsing scale for amoeba effect
-          const time = Date.now() * 0.003;
-          const pulse = 1.0 + Math.sin(time + projectile.id) * 0.15;
+          // MORE OBVIOUS pulsing scale for amoeba effect - larger pulse
+          const time = Date.now() * 0.005;
+          const pulse = 1.0 + Math.sin(time + projectile.id) * 0.25; // Larger pulse, faster
           projectile.mesh.scale.setScalar(pulse);
           
-          // Animate glow intensity for semi-glowing effect
+          // Animate glow intensity for VERY OBVIOUS pulsing effect
           projectile.mesh.children.forEach((child) => {
             if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
               const material = child.material;
               if (material.emissiveIntensity !== undefined) {
-                const baseIntensity = material.emissiveIntensity || 3.0;
-                material.emissiveIntensity = baseIntensity + Math.sin(time * 2 + projectile.id) * 0.5;
+                const baseIntensity = material.emissiveIntensity || 8.0;
+                material.emissiveIntensity = baseIntensity + Math.sin(time * 2 + projectile.id) * 3.0; // Much larger pulse
               }
-              // Pulse opacity for glow effect
+              // Keep opacity high for visibility
               if (material.transparent) {
-                const baseOpacity = material.opacity || 0.8;
-                material.opacity = baseOpacity + Math.sin(time * 3 + projectile.id) * 0.1;
+                material.opacity = Math.max(0.9, material.opacity || 1.0); // Keep high opacity
               }
             }
           });
