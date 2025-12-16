@@ -26,11 +26,21 @@ ON public.user_phones (user_id);
 -- Step 4: Enable RLS (security)
 ALTER TABLE public.user_phones ENABLE ROW LEVEL SECURITY;
 
--- Step 5: Drop old policies
-DROP POLICY IF EXISTS "Users can view own phone" ON public.user_phones;
-DROP POLICY IF EXISTS "Service role can manage phones" ON public.user_phones;
-DROP POLICY IF EXISTS "Enable read access for authenticated users" ON public.user_phones;
-DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.user_phones;
+-- Step 5: Drop ALL existing policies (clean slate)
+DO $$ 
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE tablename = 'user_phones' 
+      AND schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.user_phones', pol.policyname);
+    RAISE NOTICE 'Dropped policy: %', pol.policyname;
+  END LOOP;
+END $$;
 
 -- Step 6: Create NEW policies (proper security)
 -- Users can read their own phone
