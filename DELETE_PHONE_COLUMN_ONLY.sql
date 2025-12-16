@@ -20,12 +20,15 @@ BEGIN
 END $$;
 
 -- Show that it's gone
+DO $$
+BEGIN
+  RAISE NOTICE 'ℹ️  Remaining columns shown below - phone should be GONE';
+END $$;
+
 SELECT column_name 
 FROM information_schema.columns 
 WHERE table_name = 'users' 
 ORDER BY ordinal_position;
-
-RAISE NOTICE 'ℹ️  Check the list above - phone column should be GONE';
 
 -- Confirm status
 DO $$
