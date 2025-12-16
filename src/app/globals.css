@@ -317,7 +317,7 @@
 }
 
 .hot-sell-star {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   top: auto;
   background: radial-gradient(circle, #ff0000 0%, #ff4444 50%, #ff6600 100%);
@@ -327,7 +327,7 @@
   --star-drift: 0px;
   will-change: transform, opacity;
   backface-visibility: hidden;
-  transform: translateZ(0) translateY(0);
+  transform: translateZ(0);
 }
 
 .hot-sell-star-small {
