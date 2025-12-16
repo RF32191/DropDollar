@@ -572,10 +572,10 @@ export default function DeadShotGame({
     boundaryXRef.current = visibleWidth / 2 - boundaryPadding;
     boundaryYRef.current = visibleHeight / 2 - boundaryPadding;
     
-    // Create membrane walls (visible cyan/blue glowing cell membrane)
+    // Create membrane walls (visible dark red glowing cell membrane)
     const membraneMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ffff, // Cyan
-      emissive: 0x00ffff, // Bright cyan glow
+      color: 0x8B0000, // Dark red
+      emissive: 0x8B0000, // Dark red glow
       emissiveIntensity: 3.0,
       transparent: true,
       opacity: 0.7, // More visible
@@ -625,6 +625,8 @@ export default function DeadShotGame({
     const pulseMaterial = membraneMaterial.clone();
     pulseMaterial.emissiveIntensity = 4.0;
     pulseMaterial.opacity = 0.8;
+    pulseMaterial.color.setHex(0x8B0000); // Dark red
+    pulseMaterial.emissive.setHex(0x8B0000); // Dark red glow
     
     // Add corner highlights for better visibility
     const cornerSize = 0.5;

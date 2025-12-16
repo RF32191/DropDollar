@@ -1033,6 +1033,7 @@ export default function HotSellPage() {
                 style={{
                   left: `${left}%`,
                   bottom: '0px', // Start at bottom
+                  top: 'auto', // Ensure bottom positioning works
                   animationDelay: `${delay}s`,
                   animationDuration: `${duration}s`,
                   '--star-drift': `${drift}px`,
