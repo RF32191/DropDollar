@@ -567,60 +567,80 @@ export default function DeadShotGame({
     const visibleHeight = 2 * Math.tan(fov / 2) * cameraDistance;
     const visibleWidth = visibleHeight * aspect;
     
-    // Store boundaries for physics
-    boundaryXRef.current = visibleWidth / 2 - 0.5; // Slightly inside to prevent clipping
-    boundaryYRef.current = visibleHeight / 2 - 0.5;
+    // Store boundaries for physics - tighter boundaries to prevent falling through
+    const boundaryPadding = 0.8; // Increased padding to ensure collision
+    boundaryXRef.current = visibleWidth / 2 - boundaryPadding;
+    boundaryYRef.current = visibleHeight / 2 - boundaryPadding;
     
-    // Create membrane walls (semi-transparent, glowing, cell-like)
+    // Create membrane walls (visible cyan/blue glowing cell membrane)
     const membraneMaterial = new THREE.MeshStandardMaterial({
-      color: 0x88ccff,
-      emissive: 0x4488ff,
-      emissiveIntensity: 2.0,
+      color: 0x00ffff, // Cyan
+      emissive: 0x00ffff, // Bright cyan glow
+      emissiveIntensity: 3.0,
       transparent: true,
-      opacity: 0.3,
-      side: THREE.DoubleSide
+      opacity: 0.7, // More visible
+      side: THREE.DoubleSide,
+      metalness: 0.3,
+      roughness: 0.2
     });
     
-    const wallThickness = 0.1;
-    const wallHeight = visibleHeight;
-    const wallWidth = visibleWidth;
+    // Thicker walls for better visibility
+    const wallThickness = 0.3;
+    const wallHeight = visibleHeight + wallThickness * 2;
+    const wallWidth = visibleWidth + wallThickness * 2;
     
-    // Top wall
+    // Top wall - positioned at boundary
     const topWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallWidth, wallThickness, 0.2),
+      new THREE.BoxGeometry(wallWidth, wallThickness, 0.3),
       membraneMaterial.clone()
     );
     topWall.position.set(0, boundaryYRef.current + wallThickness / 2, 0);
     membraneGroup.add(topWall);
     
-    // Bottom wall
+    // Bottom wall - positioned at boundary
     const bottomWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallWidth, wallThickness, 0.2),
+      new THREE.BoxGeometry(wallWidth, wallThickness, 0.3),
       membraneMaterial.clone()
     );
     bottomWall.position.set(0, -boundaryYRef.current - wallThickness / 2, 0);
     membraneGroup.add(bottomWall);
     
-    // Left wall
+    // Left wall - positioned at boundary
     const leftWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallThickness, wallHeight, 0.2),
+      new THREE.BoxGeometry(wallThickness, wallHeight, 0.3),
       membraneMaterial.clone()
     );
     leftWall.position.set(-boundaryXRef.current - wallThickness / 2, 0, 0);
     membraneGroup.add(leftWall);
     
-    // Right wall
+    // Right wall - positioned at boundary
     const rightWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallThickness, wallHeight, 0.2),
+      new THREE.BoxGeometry(wallThickness, wallHeight, 0.3),
       membraneMaterial.clone()
     );
     rightWall.position.set(boundaryXRef.current + wallThickness / 2, 0, 0);
     membraneGroup.add(rightWall);
     
-    // Add pulsing glow effect
+    // Add pulsing glow effect for extra visibility
     const pulseMaterial = membraneMaterial.clone();
-    pulseMaterial.emissiveIntensity = 3.0;
-    pulseMaterial.opacity = 0.5;
+    pulseMaterial.emissiveIntensity = 4.0;
+    pulseMaterial.opacity = 0.8;
+    
+    // Add corner highlights for better visibility
+    const cornerSize = 0.5;
+    const cornerGeometry = new THREE.BoxGeometry(cornerSize, cornerSize, 0.3);
+    const corners = [
+      { x: boundaryXRef.current, y: boundaryYRef.current }, // Top-right
+      { x: -boundaryXRef.current, y: boundaryYRef.current }, // Top-left
+      { x: boundaryXRef.current, y: -boundaryYRef.current }, // Bottom-right
+      { x: -boundaryXRef.current, y: -boundaryYRef.current } // Bottom-left
+    ];
+    
+    corners.forEach(corner => {
+      const cornerMesh = new THREE.Mesh(cornerGeometry, pulseMaterial.clone());
+      cornerMesh.position.set(corner.x, corner.y, 0);
+      membraneGroup.add(cornerMesh);
+    });
     
     scene.add(membraneGroup);
     cellMembraneRef.current = membraneGroup;
@@ -774,28 +794,52 @@ export default function DeadShotGame({
         bowPositionRef.current.y += bowVelocityRef.current.y * adjustedDelta;
         
         // Wall bouncing - bounce off cell membrane walls with proper physics
+        // Use tighter boundaries to prevent falling through
         const boundaryX = boundaryXRef.current;
         const boundaryY = boundaryYRef.current;
-        const bounceDamping = 0.8; // Reduce velocity on bounce (slightly less damping for better feel)
-        const minBounceVelocity = 0.1; // Minimum velocity to maintain bounce
+        const bounceDamping = 0.75; // Reduce velocity on bounce
+        const minBounceVelocity = 0.15; // Minimum velocity to maintain bounce
         
-        // X-axis boundary check and bounce
-        if (Math.abs(bowPositionRef.current.x) > boundaryX) {
-          bowPositionRef.current.x = Math.sign(bowPositionRef.current.x) * boundaryX;
-          bowVelocityRef.current.x *= -bounceDamping;
+        // X-axis boundary check and bounce - PREVENT FALLING THROUGH
+        if (bowPositionRef.current.x > boundaryX) {
+          bowPositionRef.current.x = boundaryX;
+          if (bowVelocityRef.current.x > 0) {
+            bowVelocityRef.current.x *= -bounceDamping;
+          }
           // Ensure minimum bounce velocity
           if (Math.abs(bowVelocityRef.current.x) < minBounceVelocity) {
-            bowVelocityRef.current.x = Math.sign(bowVelocityRef.current.x) * minBounceVelocity;
+            bowVelocityRef.current.x = -minBounceVelocity;
+          }
+        } else if (bowPositionRef.current.x < -boundaryX) {
+          bowPositionRef.current.x = -boundaryX;
+          if (bowVelocityRef.current.x < 0) {
+            bowVelocityRef.current.x *= -bounceDamping;
+          }
+          // Ensure minimum bounce velocity
+          if (Math.abs(bowVelocityRef.current.x) < minBounceVelocity) {
+            bowVelocityRef.current.x = minBounceVelocity;
           }
         }
         
-        // Y-axis boundary check and bounce
-        if (Math.abs(bowPositionRef.current.y) > boundaryY) {
-          bowPositionRef.current.y = Math.sign(bowPositionRef.current.y) * boundaryY;
-          bowVelocityRef.current.y *= -bounceDamping;
+        // Y-axis boundary check and bounce - PREVENT FALLING THROUGH (especially bottom)
+        if (bowPositionRef.current.y > boundaryY) {
+          bowPositionRef.current.y = boundaryY;
+          if (bowVelocityRef.current.y > 0) {
+            bowVelocityRef.current.y *= -bounceDamping;
+          }
           // Ensure minimum bounce velocity
           if (Math.abs(bowVelocityRef.current.y) < minBounceVelocity) {
-            bowVelocityRef.current.y = Math.sign(bowVelocityRef.current.y) * minBounceVelocity;
+            bowVelocityRef.current.y = -minBounceVelocity;
+          }
+        } else if (bowPositionRef.current.y < -boundaryY) {
+          // CRITICAL: Prevent falling through bottom
+          bowPositionRef.current.y = -boundaryY;
+          if (bowVelocityRef.current.y < 0) {
+            bowVelocityRef.current.y *= -bounceDamping;
+          }
+          // Ensure minimum bounce velocity upward
+          if (bowVelocityRef.current.y < minBounceVelocity) {
+            bowVelocityRef.current.y = minBounceVelocity;
           }
         }
         
