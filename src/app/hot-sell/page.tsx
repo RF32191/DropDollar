@@ -434,15 +434,15 @@ export default function HotSellPage() {
     // Clear existing stars
     starsContainer.innerHTML = '';
     
-    // Generate stars matching games page style - slower and smoother
+    // Generate stars matching games page style exactly - smooth and consistent
     const starCount = 150; // Match games page count
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
       const left = Math.random() * 100;
-      const duration = 8 + Math.random() * 12; // 8-20 seconds for much slower, more visible travel
-      const delay = Math.random() * 5; // Longer delay range for smoother effect
-      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift (matching games page)
+      const duration = 4 + Math.random() * 6; // 4-10 seconds for slower, more visible travel (matching games/home page)
+      const delay = Math.random() * 3; // Longer delay range (matching games/home page)
+      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift (matching games/home page)
       
       star.className = `star-wars-star-red ${size}`;
       star.style.setProperty('--star-left', `${left}%`);
@@ -453,14 +453,14 @@ export default function HotSellPage() {
       starsContainer.appendChild(star);
     }
     
-    // Continuously regenerate stars for infinite scroll (matching games page timing)
+    // Continuously regenerate stars for infinite scroll (matching games/home page timing exactly)
     const regenerateInterval = setInterval(() => {
       // Add a few new stars periodically
       for (let i = 0; i < 10; i++) {
         const star = document.createElement('div');
         const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
         const left = Math.random() * 100;
-        const duration = 8 + Math.random() * 12; // 8-20 seconds for much slower travel
+        const duration = 4 + Math.random() * 6; // 4-10 seconds (matching games/home page)
         const delay = 0;
         const xOffset = (Math.random() - 0.5) * 300;
         
@@ -472,7 +472,7 @@ export default function HotSellPage() {
         
         starsContainer.appendChild(star);
       }
-    }, 3000); // Add new stars every 3 seconds for slower, smoother effect
+    }, 2000); // Add new stars every 2 seconds (matching games/home page exactly)
     
     // Cleanup
     return () => {

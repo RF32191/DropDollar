@@ -2282,12 +2282,12 @@ export default function DeadShotGame({
     const intersectionPoint = new THREE.Vector3();
     raycaster.ray.intersectPlane(plane, intersectionPoint);
     
-    // Calculate angle from player position (0,0,0) to intersection point
-    const dx = intersectionPoint.x;
-    const dy = intersectionPoint.y;
+    // Calculate angle from white blood cell's actual position to intersection point
+    const dx = intersectionPoint.x - bowPositionRef.current.x;
+    const dy = intersectionPoint.y - bowPositionRef.current.y;
     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
     
-    mousePosRef.current = { x: dx, y: dy };
+    mousePosRef.current = { x: intersectionPoint.x, y: intersectionPoint.y };
     setAimAngle(angle);
     aimAngleRef.current = angle;
   }, [gameState]);
