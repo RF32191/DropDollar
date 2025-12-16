@@ -5,7 +5,13 @@ import { formatPhoneNumber, validatePhoneNumber, normalizePhoneNumber } from '@/
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Create Supabase client with service role (bypasses RLS)
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -206,10 +212,34 @@ export async function POST(request: NextRequest) {
       
       console.log('📱 [REGISTER] Inserting record:', JSON.stringify(phoneRecord, null, 2));
       
-      const { data: phoneData, error: phoneError } = await supabase
-        .from('user_phones')
-        .insert(phoneRecord)
-        .select();
+      // METHOD 1: Try database function (most reliable, bypasses RLS)
+      console.log('📱 [REGISTER] Attempting to save via database function...');
+      const { data: functionResult, error: functionError } = await supabase
+        .rpc('save_user_phone', {
+          p_user_id: authData.user.id,
+          p_phone_number: formattedPhone,
+          p_verified: true
+        });
+      
+      let phoneData = null;
+      let phoneError = null;
+      
+      if (!functionError && functionResult) {
+        console.log('✅ [REGISTER] Phone saved via database function, ID:', functionResult);
+        phoneData = [{ id: functionResult, phone_number: formattedPhone }];
+      } else {
+        console.log('⚠️ [REGISTER] Database function failed, trying direct insert...');
+        console.log('⚠️ [REGISTER] Function error:', functionError);
+        
+        // METHOD 2: Fallback to direct insert
+        const result = await supabase
+          .from('user_phones')
+          .insert(phoneRecord)
+          .select();
+        
+        phoneData = result.data;
+        phoneError = result.error;
+      }
       
       if (phoneError) {
         console.error('❌ [REGISTER] CRITICAL: Error saving phone number:', phoneError);

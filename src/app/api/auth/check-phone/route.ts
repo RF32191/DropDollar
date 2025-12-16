@@ -5,7 +5,13 @@ import { normalizePhoneNumber, formatPhoneNumber, validatePhoneNumber } from '@/
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Create Supabase client with service role (bypasses RLS)
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +38,24 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [CHECK-PHONE] Incoming phone:', phone);
     console.log('🔍 [CHECK-PHONE] Formatted phone:', formattedPhone);
 
-    // Check user_phones table for existing phone number
+    // METHOD 1: Try database function (bypasses RLS reliably)
+    console.log('🔍 [CHECK-PHONE] Using database function to check...');
+    const { data: functionResult, error: functionError } = await supabase
+      .rpc('check_phone_exists', { phone_to_check: formattedPhone });
+
+    if (!functionError && functionResult !== null) {
+      console.log('✅ [CHECK-PHONE] Database function result:', functionResult);
+      
+      return NextResponse.json(
+        { exists: functionResult, formatted: formattedPhone, method: 'database_function' },
+        { status: 200 }
+      );
+    }
+
+    console.log('⚠️ [CHECK-PHONE] Database function failed, trying direct query...');
+    console.log('⚠️ [CHECK-PHONE] Function error:', functionError);
+
+    // METHOD 2: Fallback to direct query (should work with service role)
     const { data: existingPhones, error: checkError } = await supabase
       .from('user_phones')
       .select('id, phone_number, user_id, created_at')
@@ -40,7 +63,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (checkError) {
-      console.error('❌ [CHECK-PHONE] Error:', checkError);
+      console.error('❌ [CHECK-PHONE] Direct query error:', checkError);
       console.error('❌ [CHECK-PHONE] Error code:', checkError.code);
       console.error('❌ [CHECK-PHONE] Error message:', checkError.message);
       
@@ -50,8 +73,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { 
             exists: false, 
-            error: 'Database table missing - please contact support',
+            error: 'Database table missing - please run FIX_PHONE_CHECK_WITH_RLS.sql',
             debug: 'user_phones table does not exist'
+          },
+          { status: 500 }
+        );
+      }
+      
+      // If function doesn't exist
+      if (checkError.message?.includes('function') || checkError.code === '42883') {
+        return NextResponse.json(
+          { 
+            exists: false, 
+            error: 'Database function missing - please run FIX_PHONE_CHECK_WITH_RLS.sql',
+            debug: 'check_phone_exists function does not exist'
           },
           { status: 500 }
         );
@@ -60,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     const exists = existingPhones && existingPhones.length > 0;
     
-    console.log('📞 [CHECK-PHONE] Query result:', { 
+    console.log('📞 [CHECK-PHONE] Direct query result:', { 
       formattedPhone, 
       exists, 
       foundRecords: existingPhones?.length || 0,
@@ -76,7 +111,7 @@ export async function POST(request: NextRequest) {
     console.log('📊 [CHECK-PHONE] Sample of phones in DB:', allPhones?.map(p => p.phone_number));
 
     return NextResponse.json(
-      { exists, formatted: formattedPhone, debug: { recordsFound: existingPhones?.length || 0 } },
+      { exists, formatted: formattedPhone, method: 'direct_query', debug: { recordsFound: existingPhones?.length || 0 } },
       { status: 200 }
     );
 

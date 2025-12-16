@@ -5,7 +5,13 @@ import { formatPhoneNumber, validatePhoneNumber, normalizePhoneNumber } from '@/
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Create Supabase client with service role (bypasses RLS)
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,52 +36,74 @@ export async function POST(request: NextRequest) {
     const formattedPhone = validation.formatted!;
     const normalizedPhone = normalizePhoneNumber(formattedPhone);
 
-    console.log('🔍 Checking if phone is already registered:', formattedPhone);
-    console.log('🔍 Normalized format for checking:', normalizedPhone);
+    console.log('🔍 [SEND-VERIFY] Checking if phone is already registered:', formattedPhone);
+    console.log('🔍 [SEND-VERIFY] Normalized format for checking:', normalizedPhone);
 
-    // CRITICAL: Check if phone is already registered in user_phones table
-    const { data: existingPhones, error: phoneCheckError } = await supabase
-      .from('user_phones')
-      .select('id, user_id, phone_number')
-      .eq('phone_number', formattedPhone)
-      .limit(1);
+    // METHOD 1: Try database function first (bypasses RLS)
+    console.log('🔍 [SEND-VERIFY] Using database function to check...');
+    const { data: phoneExists, error: functionError } = await supabase
+      .rpc('check_phone_exists', { phone_to_check: formattedPhone });
 
-    if (phoneCheckError) {
-      console.error('❌ CRITICAL: Phone check error (table may not exist!):', phoneCheckError);
-      console.error('❌ Error details:', JSON.stringify(phoneCheckError, null, 2));
+    if (!functionError && phoneExists !== null) {
+      console.log('✅ [SEND-VERIFY] Database function result:', phoneExists);
       
-      // If table doesn't exist, we MUST block registration until it's created
-      if (phoneCheckError.message?.includes('relation "user_phones" does not exist') || 
-          phoneCheckError.code === '42P01') {
+      if (phoneExists === true) {
+        console.log('🚫 [SEND-VERIFY] Phone number already registered (via function):', formattedPhone);
+        return NextResponse.json(
+          { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
+          { status: 400 }
+        );
+      }
+      
+      console.log('✅ [SEND-VERIFY] Phone number available:', formattedPhone);
+    } else {
+      console.log('⚠️ [SEND-VERIFY] Database function failed, trying direct query...');
+      console.log('⚠️ [SEND-VERIFY] Function error:', functionError);
+      
+      // METHOD 2: Fallback to direct query
+      const { data: existingPhones, error: phoneCheckError } = await supabase
+        .from('user_phones')
+        .select('id, user_id, phone_number')
+        .eq('phone_number', formattedPhone)
+        .limit(1);
+
+      if (phoneCheckError) {
+        console.error('❌ [SEND-VERIFY] CRITICAL: Phone check error (table may not exist!):', phoneCheckError);
+        console.error('❌ [SEND-VERIFY] Error details:', JSON.stringify(phoneCheckError, null, 2));
+        
+        // If table doesn't exist, we MUST block registration until it's created
+        if (phoneCheckError.message?.includes('relation "user_phones" does not exist') || 
+            phoneCheckError.code === '42P01') {
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: 'Database not ready. Please run FIX_PHONE_CHECK_WITH_RLS.sql' 
+            },
+            { status: 500 }
+          );
+        }
+        
+        // For other errors, also block to be safe
         return NextResponse.json(
           { 
             success: false, 
-            message: 'Database not ready. Please contact support. (user_phones table missing)' 
+            message: 'Failed to verify phone number availability. Please try again.' 
           },
           { status: 500 }
         );
       }
-      
-      // For other errors, also block to be safe
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: 'Failed to verify phone number availability. Please try again.' 
-        },
-        { status: 500 }
-      );
-    }
 
-    if (existingPhones && existingPhones.length > 0) {
-      console.log('🚫 Phone number already registered:', formattedPhone);
-      console.log('🚫 Existing record:', existingPhones[0]);
-      return NextResponse.json(
-        { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
-        { status: 400 }
-      );
-    }
+      if (existingPhones && existingPhones.length > 0) {
+        console.log('🚫 [SEND-VERIFY] Phone number already registered (via query):', formattedPhone);
+        console.log('🚫 [SEND-VERIFY] Existing record:', existingPhones[0]);
+        return NextResponse.json(
+          { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
+          { status: 400 }
+        );
+      }
 
-    console.log('✅ Phone number available:', formattedPhone);
+      console.log('✅ [SEND-VERIFY] Phone number available:', formattedPhone);
+    }
 
     // Get IP address and user agent for tracking
     const ipAddress = request.headers.get('x-forwarded-for') || 
