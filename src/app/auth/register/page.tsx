@@ -93,9 +93,11 @@ export default function SimpleRegisterPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
+        console.error('❌ Phone verification failed:', data.message);
         throw new Error(data.message || 'Failed to send verification code');
       }
 
+      console.log('✅ Verification code sent successfully');
       setVerificationSent(true);
       // In development, show the code
       if (data.code) {
@@ -104,6 +106,7 @@ export default function SimpleRegisterPage() {
         setError(null);
       }
     } catch (error: any) {
+      console.error('❌ Send verification error:', error);
       setError(error.message || 'Failed to send verification code. Please try again.');
     } finally {
       setIsSendingCode(false);
