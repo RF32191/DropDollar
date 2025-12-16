@@ -21,6 +21,7 @@ interface Arrow {
   vy: number;
   vz: number;
   createdAt: number;
+  power: number; // Power level when released (0-100)
 }
 
 type ShipType = 'common' | 'rare' | 'epic' | 'legendary';
@@ -98,6 +99,8 @@ export default function DeadShotGame({
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(3);
+  const [comboMultiplier, setComboMultiplier] = useState(1);
+  const [killStreak, setKillStreak] = useState(0);
   const [bowPower, setBowPower] = useState(0);
   const [aimAngle, setAimAngle] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
@@ -178,6 +181,10 @@ export default function DeadShotGame({
   const currentScoreRef = useRef(0);
   const totalShotsRef = useRef(0);
   const totalHitsRef = useRef(0);
+  const comboRef = useRef(1); // Combo multiplier (1x to 10x)
+  const killStreakRef = useRef(0); // Kill streak counter
+  const lastKillTimeRef = useRef(0); // Time of last kill for combo system
+  const perfectHitsRef = useRef(0); // Track perfect hits (center capsid)
   const isDrawingRef = useRef(false);
   const bowPowerRef = useRef(0);
   const aimAngleRef = useRef(0);
@@ -1100,8 +1107,37 @@ export default function DeadShotGame({
           const capsidDistance = Math.sqrt(capsidDx * capsidDx + capsidDy * capsidDy + capsidDz * capsidDz);
           
           if (capsidDistance < ship.size * 0.2) {
-            // Hit center capsid - HEADSHOT! 200 points!
-            currentScoreRef.current += 200;
+            // Hit center capsid - HEADSHOT! Base 200 points with multipliers!
+            const now = Date.now();
+            
+            // Update combo system - increase combo if kills are close together (within 3 seconds)
+            if (now - lastKillTimeRef.current < 3000) {
+              comboRef.current = Math.min(10, comboRef.current + 0.5); // Max 10x combo
+              killStreakRef.current++;
+            } else {
+              comboRef.current = 1; // Reset combo
+              killStreakRef.current = 1;
+            }
+            lastKillTimeRef.current = now;
+            setComboMultiplier(comboRef.current);
+            setKillStreak(killStreakRef.current);
+            
+            // Perfect hit (headshot) - track for end game bonus
+            perfectHitsRef.current++;
+            
+            // Calculate score with multipliers
+            const basePoints = 200;
+            const shipTypeMultiplier = ship.type === 'legendary' ? 4 : ship.type === 'epic' ? 3 : ship.type === 'rare' ? 2 : 1;
+            const comboPoints = Math.floor(basePoints * comboRef.current * shipTypeMultiplier);
+            
+            // Streak bonus (every 5 kills = bonus)
+            const streakBonus = killStreakRef.current % 5 === 0 ? killStreakRef.current * 50 : 0;
+            
+            // Power shot bonus (based on bow power when arrow was released)
+            const powerBonus = arrow.power >= 90 ? 100 : arrow.power >= 70 ? 50 : 0;
+            
+            const totalPoints = comboPoints + streakBonus + powerBonus;
+            currentScoreRef.current += totalPoints;
             totalHitsRef.current++;
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
@@ -1218,7 +1254,15 @@ export default function DeadShotGame({
               // Add to fallen legs list for pickup detection
               fallenLegsRef.current.push({ leg, shipId: ship.id });
               
-              currentScoreRef.current += 50;
+              // Leg hit scoring with combo
+              const legBasePoints = 50;
+              const shipTypeMultiplier = ship.type === 'legendary' ? 4 : ship.type === 'epic' ? 3 : ship.type === 'rare' ? 2 : 1;
+              const legPoints = Math.floor(legBasePoints * comboRef.current * shipTypeMultiplier);
+              
+              // Bonus for shooting all 4 legs off
+              const allLegsBonus = ship.legsDestroyed >= 4 ? 100 : 0;
+              
+              currentScoreRef.current += legPoints + allLegsBonus;
               totalHitsRef.current++;
               setScore(currentScoreRef.current);
               setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
@@ -1697,8 +1741,14 @@ export default function DeadShotGame({
             }
             
             if (whiteDotHit && hitWhiteDot && hitArrow) {
-              // Give extra points for hitting white dot
-              currentScoreRef.current += 100; // Extra 100 points for white dot!
+              // Give extra points for hitting white dot with combo!
+              const whiteDotBasePoints = 100;
+              const whiteDotPoints = Math.floor(whiteDotBasePoints * comboRef.current);
+              
+              // Skill shot bonus for hitting a moving target
+              const skillShotBonus = 50;
+              
+              currentScoreRef.current += whiteDotPoints + skillShotBonus;
               totalHitsRef.current++;
               setScore(currentScoreRef.current);
               setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
@@ -1767,8 +1817,24 @@ export default function DeadShotGame({
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
           
           if (distance < ship.size * 0.5) {
-            // Laser one-shots enemy - give points
-            currentScoreRef.current += ship.basePoints;
+            // Laser one-shots enemy - give points with combo
+            const now = Date.now();
+            
+            // Update combo for laser kills too
+            if (now - lastKillTimeRef.current < 3000) {
+              comboRef.current = Math.min(10, comboRef.current + 0.5);
+              killStreakRef.current++;
+            } else {
+              comboRef.current = 1;
+              killStreakRef.current = 1;
+            }
+            lastKillTimeRef.current = now;
+            setComboMultiplier(comboRef.current);
+            setKillStreak(killStreakRef.current);
+            
+            // Laser kill bonus (2x base points)
+            const laserKillPoints = Math.floor(ship.basePoints * 2 * comboRef.current);
+            currentScoreRef.current += laserKillPoints;
             totalHitsRef.current++;
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
@@ -1855,7 +1921,18 @@ export default function DeadShotGame({
         item.mesh.rotation.x += adjustedDelta * 3;
         item.mesh.rotation.y += adjustedDelta * 3;
         
-        // Check if arrow hits sub-item
+        // ============================================
+        // CHECK 1: Player collision (TOUCH TO PICK UP)
+        // ============================================
+        const playerDx = bowPositionRef.current.x - item.mesh.position.x;
+        const playerDy = bowPositionRef.current.y - item.mesh.position.y;
+        const playerDz = bowPositionRef.current.z - item.mesh.position.z;
+        const playerDistance = Math.sqrt(playerDx * playerDx + playerDy * playerDy + playerDz * playerDz);
+        
+        const playerPickupRange = 1.5; // Range to pick up items by touching
+        const playerPickedUp = playerDistance < playerPickupRange;
+        
+        // CHECK 2: Arrow collision (SHOOT TO PICK UP)
         const arrowHit = arrowsRef.current.find(arrow => {
           const dx = arrow.group.position.x - item.mesh.position.x;
           const dy = arrow.group.position.y - item.mesh.position.y;
@@ -1863,11 +1940,19 @@ export default function DeadShotGame({
           return Math.sqrt(dx * dx + dy * dy + dz * dz) < 0.5;
         });
         
-        if (arrowHit) {
+        // If player touched OR arrow hit, pick up the item
+        if (playerPickedUp || arrowHit) {
           // Handle different item types
           if (item.type === 'laser') {
             // Red item: Give 3 laser shots that one-shot all enemies
             laserShotsRemainingRef.current += 3;
+            setLaserShotsRemaining(laserShotsRemainingRef.current);
+            
+            // Bonus points for collecting laser
+            const laserBonus = 50 * comboRef.current;
+            currentScoreRef.current += laserBonus;
+            setScore(currentScoreRef.current);
+            
             // Visual feedback
             if (bowRef.current) {
               bowRef.current.children.forEach((child: any) => {
@@ -1883,7 +1968,7 @@ export default function DeadShotGame({
               });
             }
           } else if (item.type === 'heart') {
-            // Yellow item: Give heart back if lost one (ONLY ONE PER ITEM), otherwise 200 points
+            // Yellow item: Give heart back if lost one (ONLY ONE PER ITEM), otherwise points
             const now = Date.now();
             const heartCooldown = 100; // 100ms cooldown to prevent multiple hearts from same item
             if (heartsRef.current < 3 && now - lastHeartPickupRef.current > heartCooldown) {
@@ -1893,6 +1978,10 @@ export default function DeadShotGame({
                 heartsRef.current = newHearts;
                 return newHearts;
               });
+              // Bonus points for heart recovery
+              const heartBonus = 100 * comboRef.current;
+              currentScoreRef.current += heartBonus;
+              setScore(currentScoreRef.current);
               // Visual feedback
               if (bowRef.current) {
                 bowRef.current.children.forEach((child: any) => {
@@ -1908,14 +1997,17 @@ export default function DeadShotGame({
                 });
               }
             } else if (heartsRef.current >= 3) {
-              // Full hearts - give 200 points instead
-              currentScoreRef.current += 200;
+              // Full hearts - give more points based on combo
+              const fullHeartBonus = 200 * comboRef.current;
+              currentScoreRef.current += fullHeartBonus;
               setScore(currentScoreRef.current);
             }
           }
           
-          totalHitsRef.current++;
-          setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+          if (arrowHit) {
+            totalHitsRef.current++;
+            setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+          }
           sceneRef.current.remove(item.mesh);
           return null;
         }
@@ -2096,24 +2188,25 @@ export default function DeadShotGame({
         nextInt: (min: number, max: number) => Math.floor(Math.random() * (max - min)) + min
       };
       
-      // Determine ship type (weighted random)
+      // Determine ship type (weighted random) - more diverse point values
       const typeRoll = rng.nextFloat(0, 1);
       let shipType: ShipType;
-      if (typeRoll < 0.5) {
-        shipType = 'common'; // 50% - 20 base points
-      } else if (typeRoll < 0.8) {
-        shipType = 'rare'; // 30% - 50 base points
-      } else if (typeRoll < 0.95) {
-        shipType = 'epic'; // 15% - 100 base points
+      if (typeRoll < 0.50) {
+        shipType = 'common'; // 50% - base enemy
+      } else if (typeRoll < 0.75) {
+        shipType = 'rare'; // 25% - tougher enemy
+      } else if (typeRoll < 0.92) {
+        shipType = 'epic'; // 17% - elite enemy
       } else {
-        shipType = 'legendary'; // 5% - 200 base points
+        shipType = 'legendary'; // 8% - boss-tier enemy
       }
       
+      // Base points scaled for thousands of players - more variety
       const basePoints = {
-        common: 20,
-        rare: 50,
-        epic: 100,
-        legendary: 200
+        common: 25,      // Base enemy
+        rare: 75,        // 3x common
+        epic: 175,       // 7x common
+        legendary: 500   // 20x common (boss-tier)
       }[shipType];
       
       // Spawn from random positions around the map - omnidirectional movement
@@ -2448,7 +2541,8 @@ export default function DeadShotGame({
       vx,
       vy,
       vz: 0,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      power: bowPowerRef.current // Store power level when arrow was released
     };
     
     sceneRef.current.add(arrowGroup);
@@ -2468,8 +2562,8 @@ export default function DeadShotGame({
     bowVelocityRef.current.x += recoilVx;
     bowVelocityRef.current.y += recoilVy;
     
-    // DEDUCT 20 POINTS FOR EVERY ARROW SHOT
-    currentScoreRef.current = Math.max(0, currentScoreRef.current - 20);
+    // DEDUCT 10 POINTS FOR EVERY ARROW SHOT (less penalty for more action)
+    currentScoreRef.current = Math.max(0, currentScoreRef.current - 10);
     setScore(currentScoreRef.current);
     
     // Reset power after shooting
@@ -2533,9 +2627,48 @@ export default function DeadShotGame({
       if (aimPathRef.current) sceneRef.current.remove(aimPathRef.current);
     }
     
-    const finalScore = currentScoreRef.current;
+    // Calculate end-game bonuses for score diversity
+    const baseScore = currentScoreRef.current;
     const finalAccuracy = totalShotsRef.current > 0 ? (totalHitsRef.current / totalShotsRef.current) * 100 : 0;
     const gameDuration = gameStartTimeRef.current > 0 ? Math.floor((Date.now() - gameStartTimeRef.current) / 1000) : 0;
+    
+    // ACCURACY BONUS: +10 points per accuracy percentage (up to 1000 at 100%)
+    const accuracyBonus = Math.floor(finalAccuracy * 10);
+    
+    // PERFECT HITS BONUS: +25 points per perfect (headshot) hit
+    const perfectHitsBonus = perfectHitsRef.current * 25;
+    
+    // SURVIVAL BONUS: +5 points per second survived (up to 300 at 60 seconds)
+    const survivalBonus = gameDuration * 5;
+    
+    // HEARTS BONUS: +200 points per heart remaining
+    const heartsBonus = heartsRef.current * 200;
+    
+    // STREAK MASTER BONUS: +50 points for every 5 kills in best streak
+    const streakBonus = Math.floor(killStreakRef.current / 5) * 50;
+    
+    // NO MISS BONUS: +500 if accuracy is 100%
+    const perfectGameBonus = finalAccuracy >= 100 && totalShotsRef.current > 0 ? 500 : 0;
+    
+    // Calculate final score with all bonuses
+    const totalBonuses = accuracyBonus + perfectHitsBonus + survivalBonus + heartsBonus + streakBonus + perfectGameBonus;
+    const finalScore = baseScore + totalBonuses;
+    
+    // Update the score ref with bonuses
+    currentScoreRef.current = finalScore;
+    setScore(finalScore);
+    
+    console.log('🎯 End Game Bonuses:', {
+      baseScore,
+      accuracyBonus,
+      perfectHitsBonus,
+      survivalBonus,
+      heartsBonus,
+      streakBonus,
+      perfectGameBonus,
+      totalBonuses,
+      finalScore
+    });
     
     // Log to audit system
     console.log('🎯 [DeadShot] Game ended, logging to audit...');
@@ -2596,12 +2729,22 @@ export default function DeadShotGame({
         <>
           <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
             <div>
-              <div className="text-2xl font-bold">Score: {score.toFixed(2)}</div>
+              <div className="text-2xl font-bold">Score: {score.toLocaleString()}</div>
               <div className="text-sm">Accuracy: {accuracy.toFixed(1)}%</div>
+              {comboMultiplier > 1 && (
+                <div className="text-lg font-bold text-yellow-400 animate-pulse">
+                  🔥 {comboMultiplier.toFixed(1)}x COMBO!
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold">Time: {timeLeft}s</div>
               <div className="text-sm">Power: {bowPower.toFixed(0)}%</div>
+              {killStreak > 2 && (
+                <div className="text-lg font-bold text-orange-400">
+                  💀 {killStreak} Kill Streak!
+                </div>
+              )}
             </div>
           </div>
           
