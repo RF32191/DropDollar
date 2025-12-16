@@ -1073,18 +1073,19 @@ export default function DeadShotGame({
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
             
-            // Create drops when enemy is killed
+            // Create drops when enemy is killed - spawn exactly where enemy was
             const dropPosition = ship.group.position.clone();
             const dropTypes: Array<'laser' | 'heart'> = ['laser', 'heart'];
             
-            // Spawn 2-3 random drops (red = laser, yellow = heart)
+            // Spawn 2-3 random drops (red = laser, yellow = heart) at enemy position
             const numDrops = 2 + Math.floor(Math.random() * 2);
             for (let i = 0; i < numDrops; i++) {
               const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
               const dropMesh = createSubItem(dropType);
+              // Spawn drops exactly at enemy position with minimal spread
               dropMesh.position.set(
-                dropPosition.x + (Math.random() - 0.5) * 2,
-                dropPosition.y + (Math.random() - 0.5) * 2,
+                dropPosition.x + (Math.random() - 0.5) * 0.5, // Smaller spread - closer to kill position
+                dropPosition.y + (Math.random() - 0.5) * 0.5,
                 dropPosition.z
               );
               
