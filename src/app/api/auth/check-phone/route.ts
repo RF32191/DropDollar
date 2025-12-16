@@ -38,12 +38,47 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [CHECK-PHONE] Incoming phone:', phone);
     console.log('🔍 [CHECK-PHONE] Formatted phone:', formattedPhone);
 
-    // METHOD 1: Try database function (bypasses RLS reliably)
+    // Extract last 7 digits for matching (handles format differences)
+    const digitsOnly = formattedPhone.replace(/\D/g, '');
+    const last7Digits = digitsOnly.slice(-7);
+    
+    console.log('🔍 [CHECK-PHONE] Formatted:', formattedPhone);
+    console.log('🔍 [CHECK-PHONE] Last 7 digits:', last7Digits);
+
+    // METHOD 1: Check phone_verification_codes table (this HAS data!)
+    // Look for VERIFIED phones (verified = true means they completed registration)
+    console.log('🔍 [CHECK-PHONE] Checking phone_verification_codes for verified phones...');
+    const { data: verifiedCodes, error: verifyError } = await supabase
+      .from('phone_verification_codes')
+      .select('phone, verified, created_at')
+      .eq('verified', true)
+      .limit(100);
+    
+    if (!verifyError && verifiedCodes && verifiedCodes.length > 0) {
+      // Check if any verified phone matches (by last 7 digits)
+      const matchingPhone = verifiedCodes.find(record => {
+        const recordDigits = record.phone?.replace(/\D/g, '') || '';
+        const recordLast7 = recordDigits.slice(-7);
+        return recordLast7 === last7Digits;
+      });
+      
+      if (matchingPhone) {
+        console.log('🚫 [CHECK-PHONE] Found verified phone match:', matchingPhone.phone);
+        return NextResponse.json(
+          { exists: true, formatted: formattedPhone, method: 'phone_verification_codes', match: matchingPhone.phone },
+          { status: 200 }
+        );
+      }
+    }
+    
+    console.log('🔍 [CHECK-PHONE] No match in phone_verification_codes, checking user_phones...');
+
+    // METHOD 2: Try database function (bypasses RLS reliably)
     console.log('🔍 [CHECK-PHONE] Using database function to check...');
     const { data: functionResult, error: functionError } = await supabase
       .rpc('check_phone_exists', { phone_to_check: formattedPhone });
 
-    if (!functionError && functionResult !== null) {
+    if (!functionError && functionResult !== null && functionResult === true) {
       console.log('✅ [CHECK-PHONE] Database function result:', functionResult);
       
       return NextResponse.json(
@@ -52,10 +87,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('⚠️ [CHECK-PHONE] Database function failed, trying direct query...');
-    console.log('⚠️ [CHECK-PHONE] Function error:', functionError);
+    console.log('⚠️ [CHECK-PHONE] Database function returned:', functionResult);
 
-    // METHOD 2: Fallback to direct query (should work with service role)
+    // METHOD 3: Fallback to direct query on user_phones
     const { data: existingPhones, error: checkError } = await supabase
       .from('user_phones')
       .select('id, phone_number, user_id, created_at')

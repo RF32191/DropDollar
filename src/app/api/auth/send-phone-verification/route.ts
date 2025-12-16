@@ -39,28 +39,59 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [SEND-VERIFY] Checking if phone is already registered:', formattedPhone);
     console.log('🔍 [SEND-VERIFY] Normalized format for checking:', normalizedPhone);
 
-    // METHOD 1: Try database function first (bypasses RLS)
-    console.log('🔍 [SEND-VERIFY] Using database function to check...');
-    const { data: phoneExists, error: functionError } = await supabase
-      .rpc('check_phone_exists', { phone_to_check: formattedPhone });
+    // Extract last 7 digits for matching
+    const digitsOnly = formattedPhone.replace(/\D/g, '');
+    const last7Digits = digitsOnly.slice(-7);
+    console.log('🔍 [SEND-VERIFY] Last 7 digits:', last7Digits);
 
-    if (!functionError && phoneExists !== null) {
-      console.log('✅ [SEND-VERIFY] Database function result:', phoneExists);
+    // METHOD 1: Check phone_verification_codes for VERIFIED phones (this table has data!)
+    console.log('🔍 [SEND-VERIFY] Checking phone_verification_codes for verified phones...');
+    const { data: verifiedCodes, error: verifyError } = await supabase
+      .from('phone_verification_codes')
+      .select('phone, verified, created_at')
+      .eq('verified', true)
+      .limit(100);
+    
+    if (!verifyError && verifiedCodes && verifiedCodes.length > 0) {
+      // Check if any verified phone matches (by last 7 digits)
+      const matchingPhone = verifiedCodes.find(record => {
+        const recordDigits = record.phone?.replace(/\D/g, '') || '';
+        const recordLast7 = recordDigits.slice(-7);
+        return recordLast7 === last7Digits;
+      });
       
-      if (phoneExists === true) {
-        console.log('🚫 [SEND-VERIFY] Phone number already registered (via function):', formattedPhone);
+      if (matchingPhone) {
+        console.log('🚫 [SEND-VERIFY] Phone already verified/registered:', matchingPhone.phone);
         return NextResponse.json(
           { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
           { status: 400 }
         );
       }
-      
-      console.log('✅ [SEND-VERIFY] Phone number available:', formattedPhone);
-    } else {
-      console.log('⚠️ [SEND-VERIFY] Database function failed, trying direct query...');
-      console.log('⚠️ [SEND-VERIFY] Function error:', functionError);
-      
-      // METHOD 2: Fallback to direct query
+    }
+    
+    console.log('✅ [SEND-VERIFY] No match in phone_verification_codes, checking other tables...');
+
+    // METHOD 2: Try database function (bypasses RLS)
+    console.log('🔍 [SEND-VERIFY] Using database function to check...');
+    const { data: phoneExists, error: functionError } = await supabase
+      .rpc('check_phone_exists', { phone_to_check: formattedPhone });
+
+    if (!functionError && phoneExists === true) {
+      console.log('🚫 [SEND-VERIFY] Phone number already registered (via function):', formattedPhone);
+      return NextResponse.json(
+        { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('✅ [SEND-VERIFY] Phone number available:', formattedPhone);
+    
+    // Skip the old fallback since we're using phone_verification_codes now
+    const existingPhones = null;
+    const phoneCheckError = null;
+    
+    if (false) {
+      // This block is now disabled - we use phone_verification_codes above
       const { data: existingPhones, error: phoneCheckError } = await supabase
         .from('user_phones')
         .select('id, user_id, phone_number')
