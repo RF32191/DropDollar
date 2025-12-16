@@ -235,6 +235,50 @@
   box-shadow: 0 0 10px #ff0000, 0 0 20px #ff4444, 0 0 30px rgba(255, 68, 68, 1), 0 0 40px rgba(255, 0, 0, 0.6);
 }
 
+/* Rewards Page Particle Animation */
+@keyframes float-particle {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+    opacity: 0.7;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(90deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-10px) rotate(180deg);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translateY(-20px) translateX(5px) rotate(270deg);
+    opacity: 0.9;
+  }
+}
+
+.rewards-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: linear-gradient(135deg, #fbbf24, #ec4899, #a855f7);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(236, 72, 153, 0.6), 0 0 30px rgba(168, 85, 247, 0.4);
+  animation: float-particle linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
 /* Falling Coins Animation - Casino-style with spinning effect */
 @keyframes coin-fall {
   0% {
