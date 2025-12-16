@@ -279,36 +279,28 @@
 
 /* Hot Sell Page Red Stars - Spawn from bottom invisibly, rise smoothly */
 @keyframes hot-sell-star-rise {
-  0% {
+  from {
     transform: translateY(0) translateX(0px) scale(0.5);
     opacity: 0;
   }
-  2% {
-    opacity: 0;
-    transform: translateY(20px) translateX(0px) scale(0.6);
+  3% {
+    opacity: 0.3;
+    transform: translateY(30px) translateX(calc(var(--star-drift, 0px) * 0.05)) scale(0.7);
   }
-  5% {
-    opacity: 0.6;
-    transform: translateY(100px) translateX(calc(var(--star-drift, 0px) * 0.1)) scale(0.8);
-  }
-  10% {
+  8% {
     opacity: 1;
-    transform: translateY(200px) translateX(calc(var(--star-drift, 0px) * 0.2)) scale(1);
+    transform: translateY(150px) translateX(calc(var(--star-drift, 0px) * 0.15)) scale(1);
   }
-  90% {
+  92% {
     opacity: 1;
-    transform: translateY(calc(100vh + 200px)) translateX(calc(var(--star-drift, 0px) * 0.8)) scale(1);
+    transform: translateY(calc(100vh - 150px)) translateX(calc(var(--star-drift, 0px) * 0.85)) scale(1);
   }
-  95% {
-    opacity: 0.6;
-    transform: translateY(calc(100vh + 100px)) translateX(calc(var(--star-drift, 0px) * 0.9)) scale(0.8);
+  97% {
+    opacity: 0.3;
+    transform: translateY(calc(100vh - 30px)) translateX(calc(var(--star-drift, 0px) * 0.95)) scale(0.7);
   }
-  98% {
-    opacity: 0;
-    transform: translateY(calc(100vh + 20px)) translateX(var(--star-drift, 0px)) scale(0.6);
-  }
-  100% {
-    transform: translateY(calc(100vh + 0px)) translateX(var(--star-drift, 0px)) scale(0.5);
+  to {
+    transform: translateY(100vh) translateX(var(--star-drift, 0px)) scale(0.5);
     opacity: 0;
   }
 }

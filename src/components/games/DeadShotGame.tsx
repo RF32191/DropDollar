@@ -1675,9 +1675,10 @@ export default function DeadShotGame({
             for (let i = 0; i < numDrops; i++) {
               const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
               const dropMesh = createSubItem(dropType);
+              // Spawn drops exactly at enemy position with minimal spread
               dropMesh.position.set(
-                dropPosition.x + (Math.random() - 0.5) * 2,
-                dropPosition.y + (Math.random() - 0.5) * 2,
+                dropPosition.x + (Math.random() - 0.5) * 0.5, // Smaller spread - closer to kill position
+                dropPosition.y + (Math.random() - 0.5) * 0.5,
                 dropPosition.z
               );
               
@@ -1820,7 +1821,8 @@ export default function DeadShotGame({
         const dz = item.mesh.position.z - bowPositionRef.current.z;
         const distanceToPlayer = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
-        if (distanceToPlayer < 1.0) {
+        // Increased pickup range for easier collection
+        if (distanceToPlayer < 2.5) {
           // Player picked up item
           if (item.type === 'laser') {
             laserShotsRemainingRef.current += 3;
@@ -2611,7 +2613,7 @@ export default function DeadShotGame({
         <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/70">
           <div className="text-center text-white">
             <h2 className="text-4xl font-bold mb-4">Game Over!</h2>
-            <p className="text-2xl mb-2">Final Score: {score.toFixed(2)}</p>
+            <p className="text-2xl mb-2">Final Score: {currentScoreRef.current.toFixed(2)}</p>
             <p className="text-xl">Accuracy: {accuracy.toFixed(1)}%</p>
           </div>
         </div>
