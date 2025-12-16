@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { formatPhoneNumber, validatePhoneNumber } from '@/lib/utils/phoneFormatter';
+import { formatPhoneNumber, validatePhoneNumber, normalizePhoneNumber } from '@/lib/utils/phoneFormatter';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -67,23 +67,39 @@ export async function POST(request: NextRequest) {
           
           // Store verification in database for registration check
           try {
-            const normalizedPhone = formattedPhone.replace(/[^\d+]/g, '');
+            // Use the same normalization as the database function for consistency
+            const normalized = normalizePhoneNumber(formattedPhone);
+            
+            if (!normalized) {
+              throw new Error('Failed to normalize phone number');
+            }
+            
+            console.log('📱 Storing verification:', {
+              phone: formattedPhone,
+              normalized: normalized
+            });
             
             // Insert a verified record in phone_verification_codes table
-            await supabase
+            const { data: insertData, error: insertError } = await supabase
               .from('phone_verification_codes')
               .insert({
                 phone: formattedPhone,
-                phone_normalized: normalizedPhone,
+                phone_normalized: normalized, // Digits only (e.g., "15551234567")
                 code: code, // Store the code for reference
                 verified: true,
                 verified_at: new Date().toISOString(),
                 expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
                 attempts: 1,
                 max_attempts: 5
-              });
+              })
+              .select();
             
-            console.log('✅ Phone verification record stored in database');
+            if (insertError) {
+              console.error('❌ Database insert error:', insertError);
+              throw insertError;
+            }
+            
+            console.log('✅ Phone verification record stored in database:', insertData);
           } catch (dbError) {
             console.error('⚠️ Failed to store verification in DB:', dbError);
             // Continue anyway - verification succeeded with Twilio
