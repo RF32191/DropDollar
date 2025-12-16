@@ -2580,7 +2580,7 @@ export default function DeadShotGame({
                 <div className="text-white font-bold text-lg flex items-center gap-2">
                   <span className="text-2xl">⚡</span>
                   <span>Laser Shots: {laserShotsRemaining}</span>
-                  <span className="text-sm text-red-200">(Press Space/L)</span>
+                  <span className="text-sm text-red-200">(Right-Click for 3x)</span>
                 </div>
               </div>
             </div>
