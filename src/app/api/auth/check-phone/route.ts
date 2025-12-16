@@ -28,34 +28,21 @@ export async function POST(request: NextRequest) {
     }
 
     const formattedPhone = validation.formatted!;
-    const normalizedPhone = normalizePhoneNumber(phone);
 
-    // Use database function for more reliable duplicate checking
-    const { data: phoneAvailable, error: rpcError } = await supabase
-      .rpc('is_phone_available', { phone_param: formattedPhone });
+    // Check user_phones table for existing phone number
+    const { data: existingPhones, error: checkError } = await supabase
+      .from('user_phones')
+      .select('id')
+      .eq('phone_number', formattedPhone)
+      .limit(1);
 
-    let exists = false;
-    
-    if (rpcError) {
-      console.error('Phone check RPC error:', rpcError);
-      // Fallback to manual check
-      const { data: existingPhones } = await supabase
-        .from('users')
-        .select('id, phone')
-        .not('phone', 'is', null)
-        .limit(10000); // Increased limit for better coverage
-
-      if (existingPhones) {
-        exists = existingPhones.some((user: any) => {
-          if (!user.phone) return false;
-          const existingNormalized = normalizePhoneNumber(user.phone);
-          return existingNormalized === normalizedPhone;
-        });
-      }
-    } else {
-      // RPC returns true if available, false if taken
-      exists = phoneAvailable === false;
+    if (checkError) {
+      console.error('Phone check error:', checkError);
     }
+
+    const exists = existingPhones && existingPhones.length > 0;
+    
+    console.log('📞 Phone check:', formattedPhone, 'exists:', exists);
 
     return NextResponse.json(
       { exists, formatted: formattedPhone },

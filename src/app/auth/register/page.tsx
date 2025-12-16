@@ -49,7 +49,7 @@ export default function SimpleRegisterPage() {
     }
   };
 
-  const handlePhoneBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handlePhoneBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     const phoneValue = e.target.value;
     if (phoneValue) {
       const formatted = formatPhoneNumber(phoneValue);
@@ -62,6 +62,28 @@ export default function SimpleRegisterPage() {
         setPhoneVerified(false);
         setVerificationSent(false);
         setVerificationCode('');
+        
+        // Check if phone is already registered
+        try {
+          const response = await fetch('/api/auth/check-phone', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: formatted })
+          });
+          
+          const data = await response.json();
+          
+          if (data.exists) {
+            setError('❌ This phone number is already registered. Please use a different number or sign in.');
+          } else {
+            // Clear phone-related errors if phone is available
+            if (error?.includes('phone number is already registered')) {
+              setError(null);
+            }
+          }
+        } catch (err) {
+          console.error('Error checking phone:', err);
+        }
       }
     }
   };
