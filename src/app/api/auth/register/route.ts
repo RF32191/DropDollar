@@ -172,9 +172,9 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase().trim(),
         username,
         full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
-        phone: formattedPhone, // Use formatted phone number
+        phone: formattedPhone, // Phone number stored and verified
         location: location || null,
-        tokens: 10, // Welcome bonus
+        tokens: 1, // Starting token
         is_verified: false,
         marketing_consent: marketingConsent || false,
         created_at: new Date().toISOString(),
