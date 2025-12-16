@@ -44,8 +44,10 @@ export async function POST(request: NextRequest) {
     const last7Digits = digitsOnly.slice(-7);
     console.log('🔍 [SEND-VERIFY] Last 7 digits:', last7Digits);
 
-    // METHOD 1: Check phone_verification_codes for VERIFIED phones (this table has data!)
-    console.log('🔍 [SEND-VERIFY] Checking phone_verification_codes for verified phones...');
+    // ============================================
+    // CHECK 1: Is this phone already verified/registered?
+    // ============================================
+    console.log('🔍 [SEND-VERIFY] CHECK 1: Looking for verified phones...');
     const { data: verifiedCodes, error: verifyError } = await supabase
       .from('phone_verification_codes')
       .select('phone, verified, created_at')
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
       });
       
       if (matchingPhone) {
-        console.log('🚫 [SEND-VERIFY] Phone already verified/registered:', matchingPhone.phone);
+        console.log('🚫 [SEND-VERIFY] BLOCKED: Phone already verified/registered:', matchingPhone.phone);
         return NextResponse.json(
           { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
           { status: 400 }
@@ -69,7 +71,47 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log('✅ [SEND-VERIFY] No match in phone_verification_codes, checking other tables...');
+    console.log('✅ [SEND-VERIFY] Phone not verified yet, checking rate limit...');
+
+    // ============================================
+    // CHECK 2: Rate limit - max 2 requests per day
+    // ============================================
+    console.log('🔍 [SEND-VERIFY] CHECK 2: Rate limit (max 2 per day)...');
+    
+    // Get start of today (UTC)
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    
+    // Count how many codes were sent to this phone today
+    const { data: todayCodes, error: rateError } = await supabase
+      .from('phone_verification_codes')
+      .select('id, phone, created_at')
+      .gte('created_at', todayStart.toISOString())
+      .limit(100);
+    
+    if (!rateError && todayCodes) {
+      // Count codes for this phone number (by last 7 digits)
+      const codesForThisPhone = todayCodes.filter(record => {
+        const recordDigits = record.phone?.replace(/\D/g, '') || '';
+        const recordLast7 = recordDigits.slice(-7);
+        return recordLast7 === last7Digits;
+      });
+      
+      console.log('📊 [SEND-VERIFY] Codes sent today to this phone:', codesForThisPhone.length);
+      
+      if (codesForThisPhone.length >= 2) {
+        console.log('🚫 [SEND-VERIFY] BLOCKED: Rate limit exceeded (2 per day)');
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'Too many verification attempts. You can only request 2 codes per day. Please try again tomorrow.' 
+          },
+          { status: 429 }
+        );
+      }
+    }
+    
+    console.log('✅ [SEND-VERIFY] Rate limit OK, checking other tables...');
 
     // METHOD 2: Try database function (bypasses RLS)
     console.log('🔍 [SEND-VERIFY] Using database function to check...');
