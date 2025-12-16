@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { data: existingUsers, error: directCheckError } = await supabase
       .from('users')
       .select('id, username')
-      .eq('user_phone', formattedPhone) // Use new column name
+      .eq('phone', formattedPhone) // Check phone column
       .limit(1);
 
     if (directCheckError) {
