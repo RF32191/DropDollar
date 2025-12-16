@@ -848,12 +848,8 @@ export default function DeadShotGame({
         bowVelocityRef.current.x *= damping;
         bowVelocityRef.current.y *= damping;
         
-        // Spring back to center (very gentle)
-        const springStrength = 0.3; // Gentle pull back to center
-        const centerPullX = -bowPositionRef.current.x * springStrength * adjustedDelta;
-        const centerPullY = -bowPositionRef.current.y * springStrength * adjustedDelta;
-        bowPositionRef.current.x += centerPullX;
-        bowPositionRef.current.y += centerPullY;
+        // No auto-center - player stays where pushed and can work their way back with shots
+        // Removed spring back to center for better gameplay
         
         // Update bow position
         bowRef.current.position.set(bowPositionRef.current.x, bowPositionRef.current.y, 0);
@@ -1340,27 +1336,27 @@ export default function DeadShotGame({
           }
           positions.needsUpdate = true;
           
-          // Semi-glowing material with additive blending
+          // VERY BRIGHT and OBVIOUS material - make it impossible to miss
           const blobMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff4444,
-            emissive: 0xff6666,
-            emissiveIntensity: 4.0, // Strong glow
+            color: 0xff0000, // Bright red
+            emissive: 0xff0000, // Bright red glow
+            emissiveIntensity: 8.0, // VERY STRONG glow - much brighter
             transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending // Semi-glowing effect
+            opacity: 1.0, // Fully opaque - no transparency
+            blending: THREE.AdditiveBlending // Glowing effect
           });
           const blobMesh = new THREE.Mesh(blobGeometry, blobMaterial);
           amoebaGroup.add(blobMesh);
           
-          // Glow rings for semi-glowing effect
-          for (let i = 0; i < 2; i++) {
-            const glowRingGeometry = new THREE.RingGeometry(blobSize * (0.9 + i * 0.1), blobSize * (1.0 + i * 0.1), 16);
+          // VERY BRIGHT glow rings - make projectiles extremely obvious
+          for (let i = 0; i < 3; i++) { // More rings for visibility
+            const glowRingGeometry = new THREE.RingGeometry(blobSize * (0.8 + i * 0.15), blobSize * (1.0 + i * 0.15), 16);
             const glowRingMaterial = new THREE.MeshBasicMaterial({
-              color: 0xff4444,
-              emissive: 0xff8888,
-              emissiveIntensity: 3.0,
+              color: 0xff0000, // Bright red
+              emissive: 0xff0000, // Bright red glow
+              emissiveIntensity: 6.0, // Very bright
               transparent: true,
-              opacity: 0.6 - i * 0.2,
+              opacity: 0.8 - i * 0.2, // More visible
               side: THREE.DoubleSide,
               blending: THREE.AdditiveBlending
             });
@@ -1369,15 +1365,15 @@ export default function DeadShotGame({
             amoebaGroup.add(glowRing);
           }
           
-          // Add smaller blobs for amoeba-like appearance
+          // Add smaller blobs for amoeba-like appearance - BRIGHTER
           for (let i = 0; i < 3; i++) {
             const smallBlobGeometry = new THREE.SphereGeometry(blobSize * 0.4, 8, 8);
             const smallBlobMaterial = new THREE.MeshBasicMaterial({
-              color: 0xff6666,
-              emissive: 0xff8888,
-              emissiveIntensity: 3.5,
+              color: 0xff0000, // Bright red
+              emissive: 0xff0000, // Bright red glow
+              emissiveIntensity: 7.0, // Very bright
               transparent: true,
-              opacity: 0.8,
+              opacity: 1.0, // Fully opaque
               blending: THREE.AdditiveBlending
             });
             const smallBlob = new THREE.Mesh(smallBlobGeometry, smallBlobMaterial);
