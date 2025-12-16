@@ -292,14 +292,18 @@ export default function SimpleRegisterPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+        console.error('❌ Registration API error:', errorData);
+        setError(errorData.message || 'Registration failed. Please try again.');
+        setIsSubmitting(false);
+        return;
       }
 
       // Success - redirect to login
       alert('Account created successfully! Please sign in.');
       window.location.href = '/auth/login';
-    } catch (error) {
-      setError('Registration failed. Please try again.');
+    } catch (error: any) {
+      console.error('❌ Registration error:', error);
+      setError(error.message || 'Registration failed. Please try again.');
     }
     
     setIsSubmitting(false);
