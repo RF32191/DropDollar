@@ -1449,11 +1449,11 @@ export default function DeadShotGame({
         projectile.mesh.position.y += projectile.vy * adjustedDelta;
         projectile.mesh.position.z += projectile.vz * adjustedDelta;
         
-        // Animate amoeba rotation for organic movement
+        // Animate amoeba rotation for organic movement - MORE OBVIOUS
         if (projectile.mesh instanceof THREE.Group) {
-          projectile.mesh.rotation.x += adjustedDelta * 1.5;
-          projectile.mesh.rotation.y += adjustedDelta * 2.0;
-          projectile.mesh.rotation.z += adjustedDelta * 0.8;
+          projectile.mesh.rotation.x += adjustedDelta * 3; // Faster rotation
+          projectile.mesh.rotation.y += adjustedDelta * 2.5;
+          projectile.mesh.rotation.z += adjustedDelta * 2;
           
           // MORE OBVIOUS pulsing scale for amoeba effect - larger pulse
           const time = Date.now() * 0.005;
