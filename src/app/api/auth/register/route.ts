@@ -192,6 +192,8 @@ export async function POST(request: NextRequest) {
       
       // Insert phone number into separate user_phones table
       console.log('📱 Inserting phone into user_phones table:', formattedPhone);
+      console.log('📱 User ID:', authData.user.id);
+      
       const { data: phoneData, error: phoneError } = await supabase
         .from('user_phones')
         .insert({
@@ -203,9 +205,31 @@ export async function POST(request: NextRequest) {
         .select();
       
       if (phoneError) {
-        console.error('❌ Error saving phone number:', phoneError);
+        console.error('❌ CRITICAL: Error saving phone number:', phoneError);
+        console.error('❌ Error details:', JSON.stringify(phoneError, null, 2));
+        
+        // If duplicate phone somehow got through, fail the registration
+        if (phoneError.code === '23505') {
+          console.error('❌ Duplicate phone number detected at insert!');
+          // Clean up the auth user
+          try {
+            await supabase.auth.admin.deleteUser(authData.user.id);
+            console.log('🗑️ Cleaned up duplicate user');
+          } catch (cleanupError) {
+            console.error('❌ Failed to cleanup user:', cleanupError);
+          }
+          
+          return NextResponse.json(
+            { success: false, message: 'This phone number is already registered. Please use a different number.' },
+            { status: 400 }
+          );
+        }
+        
+        // For other errors, log but continue (phone will be missing)
+        console.error('⚠️ Warning: User created but phone not saved. Manual intervention may be needed.');
       } else {
         console.log('✅ Phone number saved to user_phones table:', phoneData);
+        console.log('✅ Saved phone record:', JSON.stringify(phoneData, null, 2));
       }
     }
 

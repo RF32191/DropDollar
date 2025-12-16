@@ -31,20 +31,44 @@ export async function POST(request: NextRequest) {
     const normalizedPhone = normalizePhoneNumber(formattedPhone);
 
     console.log('🔍 Checking if phone is already registered:', formattedPhone);
+    console.log('🔍 Normalized format for checking:', normalizedPhone);
 
     // CRITICAL: Check if phone is already registered in user_phones table
     const { data: existingPhones, error: phoneCheckError } = await supabase
       .from('user_phones')
-      .select('id, user_id')
+      .select('id, user_id, phone_number')
       .eq('phone_number', formattedPhone)
       .limit(1);
 
     if (phoneCheckError) {
-      console.error('❌ Phone check error:', phoneCheckError);
+      console.error('❌ CRITICAL: Phone check error (table may not exist!):', phoneCheckError);
+      console.error('❌ Error details:', JSON.stringify(phoneCheckError, null, 2));
+      
+      // If table doesn't exist, we MUST block registration until it's created
+      if (phoneCheckError.message?.includes('relation "user_phones" does not exist') || 
+          phoneCheckError.code === '42P01') {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'Database not ready. Please contact support. (user_phones table missing)' 
+          },
+          { status: 500 }
+        );
+      }
+      
+      // For other errors, also block to be safe
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Failed to verify phone number availability. Please try again.' 
+        },
+        { status: 500 }
+      );
     }
 
     if (existingPhones && existingPhones.length > 0) {
       console.log('🚫 Phone number already registered:', formattedPhone);
+      console.log('🚫 Existing record:', existingPhones[0]);
       return NextResponse.json(
         { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
         { status: 400 }

@@ -54,6 +54,7 @@ export default function SimpleRegisterPage() {
     if (phoneValue) {
       const formatted = formatPhoneNumber(phoneValue);
       if (formatted) {
+        console.log('📱 Phone formatted on blur:', formatted);
         setFormData(prev => ({
           ...prev,
           phone: formatted
@@ -63,8 +64,9 @@ export default function SimpleRegisterPage() {
         setVerificationSent(false);
         setVerificationCode('');
         
-        // Check if phone is already registered
+        // Check if phone is already registered (instant duplicate check)
         try {
+          console.log('🔍 Checking if phone exists:', formatted);
           const response = await fetch('/api/auth/check-phone', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -72,18 +74,24 @@ export default function SimpleRegisterPage() {
           });
           
           const data = await response.json();
+          console.log('🔍 Phone check result:', data);
           
           if (data.exists) {
+            console.log('🚫 Phone already registered:', formatted);
             setError('❌ This phone number is already registered. Please use a different number or sign in.');
           } else {
+            console.log('✅ Phone available:', formatted);
             // Clear phone-related errors if phone is available
             if (error?.includes('phone number is already registered')) {
               setError(null);
             }
           }
         } catch (err) {
-          console.error('Error checking phone:', err);
+          console.error('❌ Error checking phone:', err);
+          setError('Failed to check phone number. Please try again.');
         }
+      } else {
+        setError('Please enter a valid US phone number (10 digits).');
       }
     }
   };

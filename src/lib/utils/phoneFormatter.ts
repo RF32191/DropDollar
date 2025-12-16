@@ -8,11 +8,12 @@ export function formatPhoneNumber(phone: string | null | undefined): string | nu
   if (!phone) return null;
   
   // Remove all non-digit characters
-  const digitsOnly = phone.replace(/\D/g, '');
+  let digitsOnly = phone.replace(/\D/g, '');
   
   // If empty after removing non-digits, return null
   if (!digitsOnly) return null;
   
+  // CRITICAL: Always ensure US numbers have "1" prefix
   // Handle US numbers (10 digits) - add +1 prefix
   if (digitsOnly.length === 10) {
     return `+1${digitsOnly}`;
@@ -23,14 +24,44 @@ export function formatPhoneNumber(phone: string | null | undefined): string | nu
     return `+${digitsOnly}`;
   }
   
+  // If someone enters without "1" but it's clearly a US number, force add "1"
+  // This ensures all US numbers are stored with +1 prefix
+  if (digitsOnly.length === 10) {
+    console.log('📱 Adding +1 prefix to US number:', digitsOnly);
+    return `+1${digitsOnly}`;
+  }
+  
+  // If it's 11 digits but doesn't start with 1, assume they forgot and add it
+  if (digitsOnly.length === 11 && !digitsOnly.startsWith('1')) {
+    console.log('📱 Forcing +1 prefix for consistency');
+    return `+1${digitsOnly}`;
+  }
+  
   // Handle numbers that already have country code (starts with +)
   if (phone.startsWith('+')) {
+    // If it's +1XXXXXXXXXX format, keep it
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+      return `+${digitsOnly}`;
+    }
+    // Otherwise, assume US and add 1
+    if (digitsOnly.length === 10) {
+      return `+1${digitsOnly}`;
+    }
     return `+${digitsOnly}`;
   }
   
-  // For other formats, try to preserve as E.164
+  // For other formats, try to preserve as E.164 with +1 for US
+  // If it's 10 digits, it's US - add +1
+  if (digitsOnly.length === 10) {
+    return `+1${digitsOnly}`;
+  }
+  
   // If it's a reasonable length (10-15 digits), add + if missing
   if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+    // For 11 digit numbers, assume +1 prefix
+    if (digitsOnly.length === 11 && !digitsOnly.startsWith('1')) {
+      return `+1${digitsOnly}`;
+    }
     return `+${digitsOnly}`;
   }
   
