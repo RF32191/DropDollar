@@ -46,39 +46,47 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [CHECK-PHONE] Last 7 digits:', last7Digits);
 
     // ============================================
-    // CHECK 1: Is this phone already verified/registered?
+    // CHECK 1: Check if phone has a COMPLETED registration (user exists)
     // ============================================
-    console.log('🔍 [CHECK-PHONE] CHECK 1: Looking for verified phones in phone_verification_codes...');
-    const { data: verifiedCodes, error: verifyError } = await supabase
-      .from('phone_verification_codes')
-      .select('phone, verified, created_at')
-      .eq('verified', true)
+    // Only block if there's an actual user account with this phone
+    // NOT just because they verified a code (they might not have completed registration)
+    
+    console.log('🔍 [CHECK-PHONE] CHECK 1: Looking for completed registrations...');
+    
+    // Check users table for email/username with this phone in their verification history
+    // that successfully completed registration
+    const { data: existingUsers, error: userError } = await supabase
+      .from('users')
+      .select('id, username, email, created_at')
       .limit(100);
     
-    console.log('📊 [CHECK-PHONE] Found', verifiedCodes?.length || 0, 'verified phone records');
-    
-    if (!verifyError && verifiedCodes && verifiedCodes.length > 0) {
-      // Check if any verified phone matches (by last 7 digits)
-      const matchingPhone = verifiedCodes.find(record => {
-        const recordDigits = record.phone?.replace(/\D/g, '') || '';
-        const recordLast7 = recordDigits.slice(-7);
-        const isMatch = recordLast7 === last7Digits;
-        if (isMatch) {
-          console.log('🔍 [CHECK-PHONE] Match found! DB phone:', record.phone, 'Last 7:', recordLast7);
-        }
-        return isMatch;
-      });
+    if (!userError && existingUsers && existingUsers.length > 0) {
+      // Cross-reference with phone_verification_codes to find users who registered with this phone
+      const { data: completedRegistrations, error: regError } = await supabase
+        .from('phone_verification_codes')
+        .select('phone, verified, user_id, created_at')
+        .eq('verified', true)
+        .not('user_id', 'is', null)  // Only codes linked to actual users
+        .limit(100);
       
-      if (matchingPhone) {
-        console.log('🚫 [CHECK-PHONE] BLOCKED: Found verified phone match:', matchingPhone.phone);
-        return NextResponse.json(
-          { exists: true, formatted: formattedPhone, method: 'phone_verification_codes', match: matchingPhone.phone },
-          { status: 200 }
-        );
+      if (!regError && completedRegistrations && completedRegistrations.length > 0) {
+        const matchingRegistration = completedRegistrations.find(record => {
+          const recordDigits = record.phone?.replace(/\D/g, '') || '';
+          const recordLast7 = recordDigits.slice(-7);
+          return recordLast7 === last7Digits;
+        });
+        
+        if (matchingRegistration) {
+          console.log('🚫 [CHECK-PHONE] BLOCKED: Phone linked to existing user:', matchingRegistration.phone);
+          return NextResponse.json(
+            { exists: true, formatted: formattedPhone, method: 'completed_registration' },
+            { status: 200 }
+          );
+        }
       }
     }
     
-    console.log('🔍 [CHECK-PHONE] No verified match found, checking user_phones...');
+    console.log('✅ [CHECK-PHONE] No completed registration found with this phone');
 
     // METHOD 2: Try database function (bypasses RLS reliably)
     console.log('🔍 [CHECK-PHONE] Using database function to check...');

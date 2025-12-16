@@ -378,6 +378,31 @@ export async function POST(request: NextRequest) {
       // The trigger might handle this or we can clean up manually
     }
 
+    // ============================================
+    // CRITICAL: Link phone verification to this user
+    // ============================================
+    // This marks the phone as "used for completed registration"
+    // So it can't be used to register another account
+    console.log('🔗 [REGISTER] Linking phone verification to user...');
+    
+    try {
+      const { data: linkResult, error: linkError } = await supabase
+        .rpc('link_phone_to_user', {
+          p_phone: formattedPhone,
+          p_user_id: authData.user.id
+        });
+      
+      if (linkError) {
+        console.error('⚠️ [REGISTER] Failed to link phone to user:', linkError);
+        // Don't fail registration, just log the error
+      } else {
+        console.log('✅ [REGISTER] Phone linked to user successfully:', linkResult);
+      }
+    } catch (linkErr) {
+      console.error('⚠️ [REGISTER] Error linking phone:', linkErr);
+      // Don't fail registration, just log the error
+    }
+
     return NextResponse.json(
       { 
         message: 'Account created successfully!',

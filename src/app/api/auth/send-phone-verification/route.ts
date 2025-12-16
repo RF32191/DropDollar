@@ -45,25 +45,29 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [SEND-VERIFY] Last 7 digits:', last7Digits);
 
     // ============================================
-    // CHECK 1: Is this phone already verified/registered?
+    // CHECK 1: Is this phone linked to a COMPLETED registration?
     // ============================================
-    console.log('🔍 [SEND-VERIFY] CHECK 1: Looking for verified phones...');
-    const { data: verifiedCodes, error: verifyError } = await supabase
+    // Only block if phone was used to CREATE an account (not just verify a code)
+    console.log('🔍 [SEND-VERIFY] CHECK 1: Looking for completed registrations with this phone...');
+    
+    // Check phone_verification_codes for phones that completed registration (have user_id)
+    const { data: completedRegistrations, error: regError } = await supabase
       .from('phone_verification_codes')
-      .select('phone, verified, created_at')
+      .select('phone, verified, user_id, created_at')
       .eq('verified', true)
+      .not('user_id', 'is', null)  // Only codes linked to actual users (completed registration)
       .limit(100);
     
-    if (!verifyError && verifiedCodes && verifiedCodes.length > 0) {
-      // Check if any verified phone matches (by last 7 digits)
-      const matchingPhone = verifiedCodes.find(record => {
+    if (!regError && completedRegistrations && completedRegistrations.length > 0) {
+      // Check if any completed registration matches (by last 7 digits)
+      const matchingRegistration = completedRegistrations.find(record => {
         const recordDigits = record.phone?.replace(/\D/g, '') || '';
         const recordLast7 = recordDigits.slice(-7);
         return recordLast7 === last7Digits;
       });
       
-      if (matchingPhone) {
-        console.log('🚫 [SEND-VERIFY] BLOCKED: Phone already verified/registered:', matchingPhone.phone);
+      if (matchingRegistration) {
+        console.log('🚫 [SEND-VERIFY] BLOCKED: Phone already used for completed registration:', matchingRegistration.phone);
         return NextResponse.json(
           { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
           { status: 400 }
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log('✅ [SEND-VERIFY] Phone not verified yet, checking rate limit...');
+    console.log('✅ [SEND-VERIFY] No completed registration with this phone, checking rate limit...');
 
     // ============================================
     // CHECK 2: Rate limit - max 2 requests per day
