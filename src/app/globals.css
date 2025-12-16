@@ -292,6 +292,61 @@
   animation: pulse-slow 3s ease-in-out infinite;
 }
 
+/* Hot Sell Page Red Stars - CSS-based for guaranteed visibility */
+@keyframes hot-sell-star-rise {
+  0% {
+    transform: translateY(100vh) translateX(0px);
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(calc(var(--star-drift, 0px)));
+    opacity: 0;
+  }
+}
+
+.hot-sell-stars-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.hot-sell-star {
+  position: absolute;
+  background: radial-gradient(circle, #ff0000 0%, #ff4444 50%, #ff6600 100%);
+  border-radius: 50%;
+  animation: hot-sell-star-rise linear infinite;
+  pointer-events: none;
+  --star-drift: 0px;
+}
+
+.hot-sell-star-small {
+  width: 4px;
+  height: 4px;
+  box-shadow: 0 0 8px #ff0000, 0 0 16px #ff4444, 0 0 24px rgba(255, 68, 68, 0.9);
+}
+
+.hot-sell-star-medium {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 12px #ff0000, 0 0 24px #ff4444, 0 0 36px rgba(255, 68, 68, 1), 0 0 48px rgba(255, 0, 0, 0.9);
+}
+
+.hot-sell-star-large {
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 16px #ff0000, 0 0 32px #ff4444, 0 0 48px rgba(255, 68, 68, 1.2), 0 0 64px rgba(255, 0, 0, 1), 0 0 80px rgba(255, 100, 0, 0.8);
+}
+
 /* Hot Sell Page Red Particle Animation */
 @keyframes float-hot-sell {
   0%, 100% {

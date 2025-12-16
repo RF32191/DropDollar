@@ -190,6 +190,10 @@ export default function DeadShotGame({
   const shieldLegRef = useRef<THREE.Mesh | null>(null); // Currently equipped shield leg
   const fallenLegsRef = useRef<Array<{ leg: VirusLeg; shipId: number }>>([]); // Track fallen legs available for pickup
   const hasShieldRef = useRef(false); // Whether player has shield
+  const cellMembraneRef = useRef<THREE.Group | null>(null); // Cell membrane wall border
+  const lastHeartPickupRef = useRef<number>(0); // Track last heart pickup time to prevent multiple hearts
+  const boundaryXRef = useRef<number>(15); // Dynamic boundary based on camera view
+  const boundaryYRef = useRef<number>(15); // Dynamic boundary based on camera view
   const laserShotsRef = useRef<LaserShot[]>([]); // Laser shots from red items
   const laserShotsRemainingRef = useRef(0); // Remaining laser shots
   const lastLaserShotRef = useRef<number>(0); // Track last laser shot time
@@ -552,6 +556,75 @@ export default function DeadShotGame({
     pointLight2.position.set(-5, 5, -5);
     scene.add(pointLight2);
     
+    // Create cell membrane wall border (epidermal-like wall around entire window)
+    const membraneGroup = new THREE.Group();
+    
+    // Calculate visible boundaries based on camera view frustum
+    const cameraDistance = camera.position.z;
+    const fov = camera.fov * Math.PI / 180;
+    const aspect = camera.aspect;
+    const vFov = 2 * Math.atan(Math.tan(fov / 2) * aspect);
+    const visibleHeight = 2 * Math.tan(fov / 2) * cameraDistance;
+    const visibleWidth = visibleHeight * aspect;
+    
+    // Store boundaries for physics
+    boundaryXRef.current = visibleWidth / 2 - 0.5; // Slightly inside to prevent clipping
+    boundaryYRef.current = visibleHeight / 2 - 0.5;
+    
+    // Create membrane walls (semi-transparent, glowing, cell-like)
+    const membraneMaterial = new THREE.MeshStandardMaterial({
+      color: 0x88ccff,
+      emissive: 0x4488ff,
+      emissiveIntensity: 2.0,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide
+    });
+    
+    const wallThickness = 0.1;
+    const wallHeight = visibleHeight;
+    const wallWidth = visibleWidth;
+    
+    // Top wall
+    const topWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallWidth, wallThickness, 0.2),
+      membraneMaterial.clone()
+    );
+    topWall.position.set(0, boundaryYRef.current + wallThickness / 2, 0);
+    membraneGroup.add(topWall);
+    
+    // Bottom wall
+    const bottomWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallWidth, wallThickness, 0.2),
+      membraneMaterial.clone()
+    );
+    bottomWall.position.set(0, -boundaryYRef.current - wallThickness / 2, 0);
+    membraneGroup.add(bottomWall);
+    
+    // Left wall
+    const leftWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallThickness, wallHeight, 0.2),
+      membraneMaterial.clone()
+    );
+    leftWall.position.set(-boundaryXRef.current - wallThickness / 2, 0, 0);
+    membraneGroup.add(leftWall);
+    
+    // Right wall
+    const rightWall = new THREE.Mesh(
+      new THREE.BoxGeometry(wallThickness, wallHeight, 0.2),
+      membraneMaterial.clone()
+    );
+    rightWall.position.set(boundaryXRef.current + wallThickness / 2, 0, 0);
+    membraneGroup.add(rightWall);
+    
+    // Add pulsing glow effect
+    const pulseMaterial = membraneMaterial.clone();
+    pulseMaterial.emissiveIntensity = 3.0;
+    pulseMaterial.opacity = 0.5;
+    
+    scene.add(membraneGroup);
+    cellMembraneRef.current = membraneGroup;
+    
     // Test cube removed - ships should be visible instead
     
     // Create white blood cell bow - spherical with nucleus and organelles
@@ -700,17 +773,30 @@ export default function DeadShotGame({
         bowPositionRef.current.x += bowVelocityRef.current.x * adjustedDelta;
         bowPositionRef.current.y += bowVelocityRef.current.y * adjustedDelta;
         
-        // Wall bouncing - bounce off edges of screen (boundary ~15 units)
-        const boundary = 15;
-        const bounceDamping = 0.7; // Reduce velocity on bounce
+        // Wall bouncing - bounce off cell membrane walls with proper physics
+        const boundaryX = boundaryXRef.current;
+        const boundaryY = boundaryYRef.current;
+        const bounceDamping = 0.8; // Reduce velocity on bounce (slightly less damping for better feel)
+        const minBounceVelocity = 0.1; // Minimum velocity to maintain bounce
         
-        if (Math.abs(bowPositionRef.current.x) > boundary) {
-          bowPositionRef.current.x = Math.sign(bowPositionRef.current.x) * boundary;
+        // X-axis boundary check and bounce
+        if (Math.abs(bowPositionRef.current.x) > boundaryX) {
+          bowPositionRef.current.x = Math.sign(bowPositionRef.current.x) * boundaryX;
           bowVelocityRef.current.x *= -bounceDamping;
+          // Ensure minimum bounce velocity
+          if (Math.abs(bowVelocityRef.current.x) < minBounceVelocity) {
+            bowVelocityRef.current.x = Math.sign(bowVelocityRef.current.x) * minBounceVelocity;
+          }
         }
-        if (Math.abs(bowPositionRef.current.y) > boundary) {
-          bowPositionRef.current.y = Math.sign(bowPositionRef.current.y) * boundary;
+        
+        // Y-axis boundary check and bounce
+        if (Math.abs(bowPositionRef.current.y) > boundaryY) {
+          bowPositionRef.current.y = Math.sign(bowPositionRef.current.y) * boundaryY;
           bowVelocityRef.current.y *= -bounceDamping;
+          // Ensure minimum bounce velocity
+          if (Math.abs(bowVelocityRef.current.y) < minBounceVelocity) {
+            bowVelocityRef.current.y = Math.sign(bowVelocityRef.current.y) * minBounceVelocity;
+          }
         }
         
         // Apply damping to gradually slow down movement
@@ -1088,24 +1174,41 @@ export default function DeadShotGame({
               }
             }
             
-            // Apply physics to falling leg
-            leg.mesh.position.add(leg.fallVelocity.clone().multiplyScalar(adjustedDelta));
-            leg.fallVelocity.y -= 9.8 * adjustedDelta; // Gravity
+            // Apply physics to falling leg - stop after a short time to stay in place
+            const fallDuration = leg.pickupTime ? Date.now() - leg.pickupTime + 500 : 0;
+            const shouldStopFalling = fallDuration > 1000; // Stop after 1 second of falling
             
-            // Rotate leg as it falls
-            leg.mesh.rotation.x += adjustedDelta * 5;
-            leg.mesh.rotation.z += adjustedDelta * 3;
+            if (!shouldStopFalling && leg.fallVelocity) {
+              leg.mesh.position.add(leg.fallVelocity.clone().multiplyScalar(adjustedDelta));
+              leg.fallVelocity.y -= 9.8 * adjustedDelta; // Gravity
+              
+              // Stop falling when velocity is very low
+              if (Math.abs(leg.fallVelocity.y) < 0.1 && Math.abs(leg.fallVelocity.x) < 0.1 && Math.abs(leg.fallVelocity.z) < 0.1) {
+                leg.fallVelocity.set(0, 0, 0); // Stop physics - leg stays in place
+              }
+            } else {
+              // Leg has stopped falling - stay in place
+              leg.fallVelocity = new THREE.Vector3(0, 0, 0);
+            }
             
-            // Check for pickup by white blood cell
+            // Rotate leg as it falls (or gently rotate when stopped)
+            leg.mesh.rotation.x += adjustedDelta * (shouldStopFalling ? 1 : 5);
+            leg.mesh.rotation.z += adjustedDelta * (shouldStopFalling ? 0.5 : 3);
+            
+            // Check for pickup by white blood cell - ONLY if no shield already
             if (leg.canPickup && !hasShieldRef.current && bowRef.current) {
               const dx = leg.mesh.position.x - bowPositionRef.current.x;
               const dy = leg.mesh.position.y - bowPositionRef.current.y;
               const distance = Math.sqrt(dx * dx + dy * dy);
               
               if (distance < 1.5) { // Pickup range
-                // Pick up leg as shield
+                // Pick up leg as shield - ONLY ONE AT A TIME
                 hasShieldRef.current = true;
                 shieldLegRef.current = leg.mesh;
+                
+                // Stop leg physics - it's now attached as shield
+                leg.fallingOff = false;
+                leg.fallVelocity = new THREE.Vector3(0, 0, 0);
                 
                 // Make shield more visible
                 if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
@@ -1572,12 +1675,34 @@ export default function DeadShotGame({
         return laser;
       }).filter(l => l !== null) as LaserShot[];
       
-      // Update sub-items with physics - slower fall
+      // Update sub-items with physics - fall with gravity and bounce off walls
       subItemsRef.current = subItemsRef.current.map(item => {
+        // Apply velocity
         item.mesh.position.x += item.vx * adjustedDelta;
         item.mesh.position.y += item.vy * adjustedDelta;
         item.mesh.position.z += item.vz * adjustedDelta;
-        item.vy -= 6.0 * adjustedDelta; // Reduced gravity from 9.8 to 6.0 for slower fall
+        
+        // Apply gravity
+        item.vy -= 9.8 * adjustedDelta; // Gravity for falling
+        
+        // Bounce off cell membrane walls
+        const boundaryX = boundaryXRef.current;
+        const boundaryY = boundaryYRef.current;
+        const bounceDamping = 0.6; // Damping on bounce
+        
+        if (Math.abs(item.mesh.position.x) > boundaryX) {
+          item.mesh.position.x = Math.sign(item.mesh.position.x) * boundaryX;
+          item.vx *= -bounceDamping;
+        }
+        
+        if (Math.abs(item.mesh.position.y) > boundaryY) {
+          item.mesh.position.y = Math.sign(item.mesh.position.y) * boundaryY;
+          item.vy *= -bounceDamping;
+        }
+        
+        // Apply air resistance
+        item.vx *= 0.99;
+        item.vz *= 0.99;
         
         // Rotate sub-item
         item.mesh.rotation.x += adjustedDelta * 3;
@@ -1611,8 +1736,11 @@ export default function DeadShotGame({
               });
             }
           } else if (item.type === 'heart') {
-            // Yellow item: Give heart back if lost one, otherwise 200 points
-            if (heartsRef.current < 3) {
+            // Yellow item: Give heart back if lost one (ONLY ONE PER ITEM), otherwise 200 points
+            const now = Date.now();
+            const heartCooldown = 100; // 100ms cooldown to prevent multiple hearts from same item
+            if (heartsRef.current < 3 && now - lastHeartPickupRef.current > heartCooldown) {
+              lastHeartPickupRef.current = now;
               setHearts(prev => {
                 const newHearts = Math.min(3, prev + 1);
                 heartsRef.current = newHearts;
@@ -1632,7 +1760,7 @@ export default function DeadShotGame({
                   }
                 });
               }
-            } else {
+            } else if (heartsRef.current >= 3) {
               // Full hearts - give 200 points instead
               currentScoreRef.current += 200;
               setScore(currentScoreRef.current);
@@ -1671,7 +1799,11 @@ export default function DeadShotGame({
               });
             }
           } else if (item.type === 'heart') {
-            if (heartsRef.current < 3) {
+            // Yellow item: Give heart back if lost one (ONLY ONE PER ITEM), otherwise 200 points
+            const now = Date.now();
+            const heartCooldown = 100; // 100ms cooldown to prevent multiple hearts from same item
+            if (heartsRef.current < 3 && now - lastHeartPickupRef.current > heartCooldown) {
+              lastHeartPickupRef.current = now;
               setHearts(prev => {
                 const newHearts = Math.min(3, prev + 1);
                 heartsRef.current = newHearts;
@@ -1691,7 +1823,7 @@ export default function DeadShotGame({
                   }
                 });
               }
-            } else {
+            } else if (heartsRef.current >= 3) {
               currentScoreRef.current += 200;
               setScore(currentScoreRef.current);
             }
@@ -1723,6 +1855,31 @@ export default function DeadShotGame({
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(width, height);
+      
+      // Recalculate boundaries based on new camera view
+      const cameraDistance = cameraRef.current.position.z;
+      const fov = cameraRef.current.fov * Math.PI / 180;
+      const aspect = cameraRef.current.aspect;
+      const visibleHeight = 2 * Math.tan(fov / 2) * cameraDistance;
+      const visibleWidth = visibleHeight * aspect;
+      boundaryXRef.current = visibleWidth / 2 - 0.5;
+      boundaryYRef.current = visibleHeight / 2 - 0.5;
+      
+      // Update membrane wall positions
+      if (cellMembraneRef.current && sceneRef.current) {
+        const membraneGroup = cellMembraneRef.current;
+        const wallThickness = 0.1;
+        const wallHeight = visibleHeight;
+        const wallWidth = visibleWidth;
+        
+        // Update wall positions
+        if (membraneGroup.children.length >= 4) {
+          membraneGroup.children[0].position.set(0, boundaryYRef.current + wallThickness / 2, 0); // Top
+          membraneGroup.children[1].position.set(0, -boundaryYRef.current - wallThickness / 2, 0); // Bottom
+          membraneGroup.children[2].position.set(-boundaryXRef.current - wallThickness / 2, 0, 0); // Left
+          membraneGroup.children[3].position.set(boundaryXRef.current + wallThickness / 2, 0, 0); // Right
+        }
+      }
     };
     
     window.addEventListener('resize', handleResize);
