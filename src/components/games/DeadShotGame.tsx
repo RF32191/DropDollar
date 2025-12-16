@@ -2303,54 +2303,7 @@ export default function DeadShotGame({
     return () => clearInterval(chargeInterval);
   }, [gameState, createArrow, playPlayerShotSound]);
 
-  // Handle keyboard for laser shots
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameState !== 'playing' || !sceneRef.current) return;
-      
-      // Spacebar or 'L' key to fire laser shot
-      if ((e.key === ' ' || e.key === 'l' || e.key === 'L') && laserShotsRemainingRef.current > 0 && Date.now() - lastLaserShotRef.current > 200) {
-        e.preventDefault();
-        lastLaserShotRef.current = Date.now();
-        laserShotsRemainingRef.current--;
-        setLaserShotsRemaining(laserShotsRemainingRef.current);
-        
-        // Create laser shot in aim direction
-        const aimAngleRad = aimAngleRef.current * Math.PI / 180;
-        const laserSpeed = 30; // Fast straight shot
-        
-        const laserMesh = createLaserShot();
-        const localPos = stringCenterRef.current.clone();
-        const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
-        const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
-        
-        laserMesh.position.set(
-          bowPositionRef.current.x + worldX,
-          bowPositionRef.current.y + worldY,
-          bowPositionRef.current.z + localPos.z
-        );
-        laserMesh.rotation.z = aimAngleRad;
-        
-        const laser: LaserShot = {
-          id: Date.now(),
-          mesh: laserMesh,
-          vx: Math.cos(aimAngleRad) * laserSpeed,
-          vy: Math.sin(aimAngleRad) * laserSpeed,
-          vz: 0,
-          createdAt: Date.now()
-        };
-        
-        sceneRef.current.add(laserMesh);
-        laserShotsRef.current.push(laser);
-        
-        // Play laser sound
-        playPlayerShotSound();
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState, aimAngleRef, createLaserShot, playPlayerShotSound]);
+  // Right-click handler already defined above as handleRightClick
 
   // Handle mouse/touch for aiming and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
