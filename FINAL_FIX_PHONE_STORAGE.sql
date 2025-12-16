@@ -19,12 +19,18 @@ BEGIN
 END $$;
 
 -- Step 2: Add phone column with same properties as email
-ALTER TABLE public.users ADD COLUMN phone TEXT;
-RAISE NOTICE '✅ Created phone column';
+DO $$
+BEGIN
+  ALTER TABLE public.users ADD COLUMN phone TEXT;
+  RAISE NOTICE '✅ Created phone column';
+END $$;
 
 -- Step 3: Disable RLS temporarily to ensure no blocking
-ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
-RAISE NOTICE '🔓 Disabled RLS temporarily';
+DO $$
+BEGIN
+  ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+  RAISE NOTICE '🔓 Disabled RLS temporarily';
+END $$;
 
 -- Step 4: Drop ALL policies on users table
 DO $$
@@ -40,49 +46,61 @@ BEGIN
 END $$;
 
 -- Step 5: Re-enable RLS with simple policies
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- Policy 1: Anyone can insert (for registration)
-CREATE POLICY "Allow all inserts"
-ON public.users
-FOR INSERT
-WITH CHECK (true);
-
--- Policy 2: Users can see their own data
-CREATE POLICY "Users can view own data"
-ON public.users
-FOR SELECT
-USING (auth.uid() = id);
-
--- Policy 3: Service role can do everything
-CREATE POLICY "Service role has full access"
-ON public.users
-USING (true)
-WITH CHECK (true);
-
-RAISE NOTICE '✅ Created new RLS policies';
+DO $$
+BEGIN
+  ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+  
+  -- Policy 1: Anyone can insert (for registration)
+  CREATE POLICY "Allow all inserts"
+  ON public.users
+  FOR INSERT
+  WITH CHECK (true);
+  
+  -- Policy 2: Users can see their own data
+  CREATE POLICY "Users can view own data"
+  ON public.users
+  FOR SELECT
+  USING (auth.uid() = id);
+  
+  -- Policy 3: Service role can do everything
+  CREATE POLICY "Service role has full access"
+  ON public.users
+  USING (true)
+  WITH CHECK (true);
+  
+  RAISE NOTICE '✅ Created new RLS policies';
+END $$;
 
 -- Step 6: Grant permissions
-GRANT ALL ON public.users TO postgres;
-GRANT ALL ON public.users TO anon;
-GRANT ALL ON public.users TO authenticated;
-GRANT ALL ON public.users TO service_role;
-
-RAISE NOTICE '✅ Granted permissions';
+DO $$
+BEGIN
+  GRANT ALL ON public.users TO postgres;
+  GRANT ALL ON public.users TO anon;
+  GRANT ALL ON public.users TO authenticated;
+  GRANT ALL ON public.users TO service_role;
+  
+  RAISE NOTICE '✅ Granted permissions';
+END $$;
 
 -- Step 7: Create unique index for phone (like email has)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_unique
-ON public.users (phone)
-WHERE phone IS NOT NULL AND phone != '';
-
-RAISE NOTICE '✅ Created unique index on phone';
+DO $$
+BEGIN
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_unique
+  ON public.users (phone)
+  WHERE phone IS NOT NULL AND phone != '';
+  
+  RAISE NOTICE '✅ Created unique index on phone';
+END $$;
 
 -- Step 8: Create index for phone lookups (like email has)
-CREATE INDEX IF NOT EXISTS idx_users_phone_lookup
-ON public.users (phone)
-WHERE phone IS NOT NULL;
-
-RAISE NOTICE '✅ Created phone lookup index';
+DO $$
+BEGIN
+  CREATE INDEX IF NOT EXISTS idx_users_phone_lookup
+  ON public.users (phone)
+  WHERE phone IS NOT NULL;
+  
+  RAISE NOTICE '✅ Created phone lookup index';
+END $$;
 
 -- Step 9: TEST IT - Try to insert a user with phone
 DO $$
@@ -154,6 +172,11 @@ EXCEPTION
 END $$;
 
 -- Step 10: Show current users and their phone status
+DO $$
+BEGIN
+  RAISE NOTICE 'ℹ️  Showing last 10 users - check query results below';
+END $$;
+
 SELECT 
   username,
   email,
@@ -163,9 +186,12 @@ FROM public.users
 ORDER BY created_at DESC
 LIMIT 10;
 
-RAISE NOTICE 'ℹ️  Check the query results above to see current phone status';
-
 -- Step 11: Show table structure
+DO $$
+BEGIN
+  RAISE NOTICE 'ℹ️  Email and phone columns should have same structure - check results below';
+END $$;
+
 SELECT 
   column_name,
   data_type,
@@ -175,8 +201,6 @@ FROM information_schema.columns
 WHERE table_name = 'users'
   AND column_name IN ('email', 'phone')
 ORDER BY column_name;
-
-RAISE NOTICE 'ℹ️  Email and phone columns should have same structure';
 
 -- Step 12: Summary
 DO $$
