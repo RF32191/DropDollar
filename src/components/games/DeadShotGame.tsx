@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
+import { logGameCompletion } from '@/lib/gameAudit';
+import { GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface DeadShotGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
@@ -1078,23 +1080,23 @@ export default function DeadShotGame({
             const dropTypes: Array<'laser' | 'heart'> = ['laser', 'heart'];
             
             // Spawn 2-3 random drops (red = laser, yellow = heart) at enemy position
-            const numDrops = 2 + Math.floor(Math.random() * 2);
+            const numDrops = 2 + Math.floor(seededRng ? seededRng.next() * 2 : Math.random() * 2);
             for (let i = 0; i < numDrops; i++) {
-              const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
+              const dropType = dropTypes[Math.floor(seededRng ? seededRng.next() * dropTypes.length : Math.random() * dropTypes.length)];
               const dropMesh = createSubItem(dropType);
-              // Spawn drops exactly at enemy position with minimal spread
+              // Spawn drops exactly at enemy position with minimal spread - stay where hit
               dropMesh.position.set(
-                dropPosition.x + (Math.random() - 0.5) * 0.5, // Smaller spread - closer to kill position
-                dropPosition.y + (Math.random() - 0.5) * 0.5,
+                dropPosition.x + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5), // Smaller spread - closer to kill position
+                dropPosition.y + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5),
                 dropPosition.z
               );
               
               const drop: SubItem = {
                 id: ++lastSubItemIdRef.current,
                 mesh: dropMesh,
-                vx: (Math.random() - 0.5) * 3,
-                vy: Math.random() * 1 + 0.5, // Slower initial upward velocity (was 2 + 1, now 1 + 0.5)
-                vz: (Math.random() - 0.5) * 3,
+                vx: (seededRng ? (seededRng.next() - 0.5) * 3 : (Math.random() - 0.5) * 3),
+                vy: (seededRng ? seededRng.next() * 1 + 0.5 : Math.random() * 1 + 0.5), // Slower initial upward velocity
+                vz: (seededRng ? (seededRng.next() - 0.5) * 3 : (Math.random() - 0.5) * 3),
                 type: dropType,
                 createdAt: Date.now()
               };
@@ -1185,19 +1187,65 @@ export default function DeadShotGame({
       
       // Update ships - move omnidirectionally and shoot projectiles
       shipsRef.current = shipsRef.current.map(ship => {
-        // Omnidirectional movement (can change direction slightly)
-        // Keep on same plane (z=0)
-        // Add slight direction changes for more dynamic omnidirectional movement
-        const time = Date.now() * 0.001;
-        const directionVariation = Math.sin(time + ship.id) * 0.3; // Vary direction over time
-        const currentDirection = ship.direction.clone();
-        currentDirection.x += Math.cos(time + ship.id) * directionVariation * adjustedDelta;
-        currentDirection.y += Math.sin(time + ship.id) * directionVariation * adjustedDelta;
-        currentDirection.normalize();
+        // Get boundaries
+        const boundaryX = boundaryXRef.current;
+        const boundaryY = boundaryYRef.current;
         
-        const movement = currentDirection.clone().multiplyScalar(ship.speed * adjustedDelta);
-        ship.group.position.add(movement);
-        ship.group.position.z = 0; // Force z=0 to keep on same plane
+        // Check distance to player (center)
+        const distToPlayer = Math.sqrt(
+          ship.group.position.x * ship.group.position.x + 
+          ship.group.position.y * ship.group.position.y
+        );
+        
+        // If too close to player (within 2 units), move away
+        if (distToPlayer < 2.0) {
+          // Move directly away from center
+          const awayDirection = new THREE.Vector3(
+            ship.group.position.x,
+            ship.group.position.y,
+            0
+          ).normalize();
+          ship.direction.copy(awayDirection);
+        } else {
+          // Normal omnidirectional movement with slight direction changes
+          const time = Date.now() * 0.001;
+          const directionVariation = Math.sin(time + ship.id) * 0.3;
+          ship.direction.x += Math.cos(time + ship.id) * directionVariation * adjustedDelta;
+          ship.direction.y += Math.sin(time + ship.id) * directionVariation * adjustedDelta;
+          ship.direction.normalize();
+        }
+        
+        const movement = ship.direction.clone().multiplyScalar(ship.speed * adjustedDelta);
+        const newPosition = ship.group.position.clone().add(movement);
+        newPosition.z = 0; // Force z=0 to keep on same plane
+        
+        // Bounce off red walls (cell membrane boundaries)
+        let bounced = false;
+        if (newPosition.x > boundaryX) {
+          ship.direction.x = -Math.abs(ship.direction.x); // Force direction left
+          newPosition.x = boundaryX - 0.1; // Small offset to prevent sticking
+          bounced = true;
+        } else if (newPosition.x < -boundaryX) {
+          ship.direction.x = Math.abs(ship.direction.x); // Force direction right
+          newPosition.x = -boundaryX + 0.1;
+          bounced = true;
+        }
+        
+        if (newPosition.y > boundaryY) {
+          ship.direction.y = -Math.abs(ship.direction.y); // Force direction down
+          newPosition.y = boundaryY - 0.1;
+          bounced = true;
+        } else if (newPosition.y < -boundaryY) {
+          ship.direction.y = Math.abs(ship.direction.y); // Force direction up
+          newPosition.y = -boundaryY + 0.1;
+          bounced = true;
+        }
+        
+        if (bounced) {
+          ship.direction.normalize();
+        }
+        
+        ship.group.position.copy(newPosition);
         
         // Enhanced rotation for visual effect - rotate on all axes
         ship.group.rotation.y += adjustedDelta * 3; // Faster Y rotation
@@ -1431,17 +1479,8 @@ export default function DeadShotGame({
           enemyProjectilesRef.current.push(projectile);
         }
         
-        // Remove ships that are out of bounds - DEDUCT 50 POINTS if ship escapes
-        // Check X and Y only since z is always 0
-        if (Math.abs(ship.group.position.x) > 30 || 
-            Math.abs(ship.group.position.y) > 30) {
-          // Ship escaped - deduct 50 points
-          currentScoreRef.current = Math.max(0, currentScoreRef.current - 50);
-          setScore(currentScoreRef.current);
-          
-          sceneRef.current.remove(ship.group);
-          return null;
-        }
+        // Ships now bounce off walls instead of escaping - no need to remove them
+        // (Wall bouncing is handled above in movement code)
         
         return ship;
       }).filter(ship => ship !== null) as AlienShip[];
@@ -1672,23 +1711,23 @@ export default function DeadShotGame({
             // Create drops
             const dropPosition = ship.group.position.clone();
             const dropTypes: Array<'laser' | 'heart'> = ['laser', 'heart'];
-            const numDrops = 2 + Math.floor(Math.random() * 2);
+            const numDrops = 2 + Math.floor(seededRng ? seededRng.next() * 2 : Math.random() * 2);
             for (let i = 0; i < numDrops; i++) {
-              const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
+              const dropType = dropTypes[Math.floor(seededRng ? seededRng.next() * dropTypes.length : Math.random() * dropTypes.length)];
               const dropMesh = createSubItem(dropType);
-              // Spawn drops exactly at enemy position with minimal spread
+              // Spawn drops exactly at enemy position with minimal spread - stay where hit
               dropMesh.position.set(
-                dropPosition.x + (Math.random() - 0.5) * 0.5, // Smaller spread - closer to kill position
-                dropPosition.y + (Math.random() - 0.5) * 0.5,
+                dropPosition.x + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5), // Smaller spread - closer to kill position
+                dropPosition.y + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5),
                 dropPosition.z
               );
               
               const drop: SubItem = {
                 id: ++lastSubItemIdRef.current,
                 mesh: dropMesh,
-                vx: (Math.random() - 0.5) * 3,
-                vy: Math.random() * 1 + 0.5,
-                vz: (Math.random() - 0.5) * 3,
+                vx: (seededRng ? (seededRng.next() - 0.5) * 3 : (Math.random() - 0.5) * 3),
+                vy: (seededRng ? seededRng.next() * 1 + 0.5 : Math.random() * 1 + 0.5),
+                vz: (seededRng ? (seededRng.next() - 0.5) * 3 : (Math.random() - 0.5) * 3),
                 type: dropType,
                 createdAt: Date.now()
               };
@@ -2416,7 +2455,7 @@ export default function DeadShotGame({
     };
   }, [gameState]);
 
-  const endGame = () => {
+  const endGame = async () => {
     setGameState('ended');
     if (animationIdRef.current) {
       cancelAnimationFrame(animationIdRef.current);
@@ -2432,9 +2471,37 @@ export default function DeadShotGame({
       if (aimPathRef.current) sceneRef.current.remove(aimPathRef.current);
     }
     
+    const finalScore = currentScoreRef.current;
+    const finalAccuracy = totalShotsRef.current > 0 ? (totalHitsRef.current / totalShotsRef.current) * 100 : 0;
+    const gameDuration = gameStartTimeRef.current > 0 ? Math.floor((Date.now() - gameStartTimeRef.current) / 1000) : 0;
+    
+    // Log to audit system
+    console.log('🎯 [DeadShot] Game ended, logging to audit...');
+    try {
+      const auditResult = await logGameCompletion({
+        gameType: GAME_TYPES.DEAD_SHOT || 'Dead Shot',
+        gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: finalScore,
+        accuracy: finalAccuracy,
+        reactionTime: 0,
+        durationSeconds: gameDuration,
+        additionalData: {
+          rngSeed,
+          listingId,
+          entryNumber,
+          totalShots: totalShotsRef.current,
+          totalHits: totalHitsRef.current,
+          heartsRemaining: hearts
+        }
+      });
+      console.log('🎯 [DeadShot] Audit result:', auditResult);
+    } catch (error) {
+      console.error('🎯 [DeadShot] Audit logging failed:', error);
+    }
+    
     onGameEnd({
-      score: currentScoreRef.current,
-      accuracy: totalShotsRef.current > 0 ? (totalHitsRef.current / totalShotsRef.current) * 100 : 0
+      score: finalScore,
+      accuracy: finalAccuracy
     });
   };
 

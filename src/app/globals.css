@@ -169,16 +169,16 @@
   box-shadow: 0 0 8px white, 0 0 16px white, 0 0 24px rgba(255, 255, 255, 0.6);
 }
 
-/* Red/Amber Stars for Hot Sell Page - BRIGHTER AND MORE VISIBLE */
+/* Red/Amber Stars for Hot Sell Page - SMOOTH NO FLICKER */
 @keyframes star-scroll-red {
   0% {
     transform: translateY(0) translateX(0);
     opacity: 0;
   }
-  2% {
+  5% {
     opacity: 1;
   }
-  98% {
+  95% {
     opacity: 1;
   }
   100% {
@@ -195,11 +195,13 @@
   border-radius: 50%;
   box-shadow: 0 0 6px #ff0000, 0 0 12px #ff4444, 0 0 18px rgba(255, 68, 68, 0.5);
   animation: star-scroll-red linear infinite;
-  animation-duration: var(--star-duration, 3s);
+  animation-duration: var(--star-duration, 7s);
   left: var(--star-left, 50%);
   top: 100vh;
   z-index: 10;
   will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .star-wars-star-red.small {
@@ -262,6 +264,19 @@
 
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
 }
 
 @keyframes pulse-slow {

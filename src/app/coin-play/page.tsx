@@ -712,7 +712,7 @@ export default function CoinPlayPage() {
         <CleanNavigation currentPage="coin-play" />
         
         {/* Wallet Display */}
-        <PageWalletDisplay />
+        <PageWalletDisplay variant="coin-play" />
 
         {/* Location Verification Banner */}
         {isAuthenticated && (

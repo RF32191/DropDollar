@@ -426,7 +426,7 @@ export default function HotSellPage() {
     }
   };
 
-  // Generate Red/Amber Scrolling Stars - Travel all the way up (ENHANCED - MORE PROMINENT)
+  // Generate Red/Amber Scrolling Stars - Travel all the way up (SMOOTH - NO FLICKER)
   useEffect(() => {
     const starsContainer = document.getElementById('stars-container-red');
     if (!starsContainer) return;
@@ -435,44 +435,55 @@ export default function HotSellPage() {
     starsContainer.innerHTML = '';
     
     // Generate stars matching games page style exactly - smooth and consistent
-    const starCount = 150; // Match games page count
+    const starCount = 100; // Reduced count for smoother performance
+    const starsGenerated: HTMLDivElement[] = [];
+    
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
       const left = Math.random() * 100;
-      const duration = 4 + Math.random() * 6; // 4-10 seconds for slower, more visible travel (matching games/home page)
-      const delay = Math.random() * 3; // Longer delay range (matching games/home page)
-      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift (matching games/home page)
+      const duration = 5 + Math.random() * 5; // 5-10 seconds for smooth travel
+      const delay = Math.random() * 10; // Longer staggered delay to prevent flickering
+      const xOffset = (Math.random() - 0.5) * 200; // Less drift for smoother appearance
       
       star.className = `star-wars-star-red ${size}`;
       star.style.setProperty('--star-left', `${left}%`);
       star.style.setProperty('--star-duration', `${duration}s`);
       star.style.setProperty('--star-x', `${xOffset}px`);
       star.style.animationDelay = `${delay}s`;
+      star.style.willChange = 'transform, opacity';
       
       starsContainer.appendChild(star);
+      starsGenerated.push(star);
     }
     
-    // Continuously regenerate stars for infinite scroll (matching games/home page timing exactly)
+    // Continuously regenerate stars for infinite scroll - STAGGERED to prevent flicker
     const regenerateInterval = setInterval(() => {
-      // Add a few new stars periodically
-      for (let i = 0; i < 10; i++) {
+      // Add a few new stars periodically - FEWER to prevent overlap/flicker
+      for (let i = 0; i < 5; i++) {
         const star = document.createElement('div');
         const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
         const left = Math.random() * 100;
-        const duration = 4 + Math.random() * 6; // 4-10 seconds (matching games/home page)
-        const delay = 0;
-        const xOffset = (Math.random() - 0.5) * 300;
+        const duration = 5 + Math.random() * 5; // 5-10 seconds
+        const delay = i * 0.2; // Stagger new stars
+        const xOffset = (Math.random() - 0.5) * 200;
         
         star.className = `star-wars-star-red ${size}`;
         star.style.setProperty('--star-left', `${left}%`);
         star.style.setProperty('--star-duration', `${duration}s`);
         star.style.setProperty('--star-x', `${xOffset}px`);
         star.style.animationDelay = `${delay}s`;
+        star.style.willChange = 'transform, opacity';
         
         starsContainer.appendChild(star);
+        
+        // Remove old stars to prevent DOM bloat
+        if (starsContainer.children.length > 150) {
+          const oldStar = starsContainer.firstChild;
+          if (oldStar) starsContainer.removeChild(oldStar);
+        }
       }
-    }, 2000); // Add new stars every 2 seconds (matching games/home page exactly)
+    }, 3000); // Add new stars every 3 seconds (less frequent = smoother)
     
     // Cleanup
     return () => {
@@ -1014,32 +1025,7 @@ export default function HotSellPage() {
       />
 
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 text-white relative overflow-hidden">
-        {/* Red Scrolling Stars Background - Fewer stars for smoother loading, spawn from bottom */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none hot-sell-stars-container" style={{ zIndex: 20 }}>
-          {/* Generate fewer stars - spawn from bottom invisibly */}
-          {Array.from({ length: 40 }).map((_, i) => {
-            const left = Math.random() * 100;
-            const delay = Math.random() * 10; // Longer delay for smoother staggered spawning
-            const duration = 8 + Math.random() * 7; // Slower, smoother movement (8-15 seconds)
-            const drift = (Math.random() - 0.5) * 120; // Less horizontal drift for smoother path
-            const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
-            return (
-              <div
-                key={`star-${i}`}
-                className={`hot-sell-star hot-sell-star-${size}`}
-                style={{
-                  left: `${left}%`,
-                  '--star-left': `${left}%`,
-                  animationDelay: `${delay}s`,
-                  animationDuration: `${duration}s`,
-                  '--star-drift': `${drift}px`,
-                } as React.CSSProperties}
-              />
-            );
-          })}
-        </div>
-        
-        {/* JavaScript-generated red stars - restored with fewer stars */}
+        {/* JavaScript-generated red stars - smooth scrolling like games/home page */}
         <div className="fixed inset-0 overflow-visible pointer-events-none" id="stars-container-red" style={{ zIndex: 15 }}>
           {/* Stars will be generated by useEffect */}
         </div>

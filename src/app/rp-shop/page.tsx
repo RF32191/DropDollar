@@ -227,11 +227,11 @@ export default function RPShopPage() {
                   
                   {listing.image_url && (
                     <div className="relative mb-4 rounded-xl overflow-hidden border-2 border-white/20">
-                      <img
-                        src={listing.image_url}
-                        alt={listing.title}
+                    <img
+                      src={listing.image_url}
+                      alt={listing.title}
                         className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
-                      />
+                    />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                     </div>
                   )}
