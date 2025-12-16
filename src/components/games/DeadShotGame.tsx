@@ -63,7 +63,7 @@ interface SubItem {
 
 interface LaserShot {
   id: number;
-  mesh: THREE.Mesh;
+  mesh: THREE.Group;
   vx: number;
   vy: number;
   vz: number;
@@ -452,17 +452,48 @@ export default function DeadShotGame({
     return mesh;
   }, []);
   
-  // Create laser shot mesh
-  const createLaserShot = useCallback((): THREE.Mesh => {
-    const geometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 8);
-    const material = new THREE.MeshStandardMaterial({
+  // Create laser shot mesh - Bright beam like LaserDodgeGame
+  const createLaserShot = useCallback((): THREE.Group => {
+    const laserGroup = new THREE.Group();
+    
+    // Main bright laser beam - long and narrow
+    const beamGeometry = new THREE.CylinderGeometry(0.08, 0.08, 8, 16);
+    const beamMaterial = new THREE.MeshBasicMaterial({
       color: 0xff0000,
-      emissive: 0xff0000,
-      emissiveIntensity: 5.0
+      transparent: true,
+      opacity: 1.0
     });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.z = Math.PI / 2;
-    return mesh;
+    const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
+    beamMesh.rotation.z = Math.PI / 2;
+    laserGroup.add(beamMesh);
+    
+    // Bright core
+    const coreGeometry = new THREE.CylinderGeometry(0.04, 0.04, 8, 16);
+    const coreMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 1.0
+    });
+    const coreMesh = new THREE.Mesh(coreGeometry, coreMaterial);
+    coreMesh.rotation.z = Math.PI / 2;
+    laserGroup.add(coreMesh);
+    
+    // Glow rings along the beam
+    for (let i = 0; i < 5; i++) {
+      const glowGeometry = new THREE.RingGeometry(0.1, 0.15, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+      });
+      const glowRing = new THREE.Mesh(glowGeometry, glowMaterial);
+      glowRing.position.x = -3 + i * 1.5;
+      glowRing.rotation.y = Math.PI / 2;
+      laserGroup.add(glowRing);
+    }
+    
+    return laserGroup;
   }, []);
 
   // Initialize Three.js scene - Match working pattern from BladeBounce3D
@@ -1075,6 +1106,21 @@ export default function DeadShotGame({
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
             
+            // BRIGHT RED GLOW when enemy is hit
+            if (ship.capsid.material instanceof THREE.MeshStandardMaterial) {
+              const originalEmissive = ship.capsid.material.emissive.getHex();
+              const originalIntensity = ship.capsid.material.emissiveIntensity || 2.0;
+              ship.capsid.material.emissive.setHex(0xff0000);
+              ship.capsid.material.emissiveIntensity = 10.0;
+              
+              setTimeout(() => {
+                if (ship.capsid.material instanceof THREE.MeshStandardMaterial) {
+                  ship.capsid.material.emissive.setHex(originalEmissive);
+                  ship.capsid.material.emissiveIntensity = originalIntensity;
+                }
+              }, 150);
+            }
+            
             // Create drops when enemy is killed - spawn exactly where enemy was
             const dropPosition = ship.group.position.clone();
             const dropTypes: Array<'laser' | 'heart'> = ['laser', 'heart'];
@@ -1129,6 +1175,21 @@ export default function DeadShotGame({
               leg.destroyed = true;
               leg.fallingOff = true;
               ship.legsDestroyed++;
+              
+              // BRIGHT RED GLOW when leg is hit
+              if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
+                const originalEmissive = leg.mesh.material.emissive.getHex();
+                const originalIntensity = leg.mesh.material.emissiveIntensity || 1.0;
+                leg.mesh.material.emissive.setHex(0xff0000);
+                leg.mesh.material.emissiveIntensity = 8.0;
+                
+                setTimeout(() => {
+                  if (leg.mesh.material instanceof THREE.MeshStandardMaterial) {
+                    leg.mesh.material.emissive.setHex(originalEmissive);
+                    leg.mesh.material.emissiveIntensity = originalIntensity;
+                  }
+                }, 150);
+              }
               
               // Animate leg falling off - calculate fall direction
               const legWorldPos = new THREE.Vector3();
@@ -2527,6 +2588,7 @@ export default function DeadShotGame({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onContextMenu={handleRightClick}
         onTouchStart={handleMouseDown}
         onTouchMove={handleMouseMove}
         onTouchEnd={handleMouseUp}
