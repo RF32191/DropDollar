@@ -1362,8 +1362,12 @@ export default function DeadShotGame({
           // Play virus shot sound
           playVirusShotSound();
           
-          // Calculate direction to player
-          const toPlayer = new THREE.Vector3(0, 0, 0).sub(ship.group.position).normalize();
+          // Calculate direction to player's ACTUAL position (white blood cell), not spawn point
+          const toPlayer = new THREE.Vector3(
+            bowPositionRef.current.x,
+            bowPositionRef.current.y,
+            bowPositionRef.current.z
+          ).sub(ship.group.position).normalize();
           
           // Create semi-glowing amoeba-like projectile
           // Size: LARGER - 2/3 of mid-sized enemy (mid-size ~1.4, so ~0.93)
@@ -2149,7 +2153,7 @@ export default function DeadShotGame({
     const chargeInterval = setInterval(() => {
       // Check if drawing and update power - charge faster
       if (isDrawingRef.current && bowPowerRef.current < 100) {
-        bowPowerRef.current = Math.min(100, bowPowerRef.current + 3.5); // Increased from 2 to 3.5 for faster charging
+        bowPowerRef.current = Math.min(100, bowPowerRef.current + 5.0); // Increased from 3.5 to 5.0 for much faster charging
         // Force state update to show charge bar moving
         setBowPower(bowPowerRef.current);
         
