@@ -1016,22 +1016,23 @@ export default function HotSellPage() {
         onLocationDenied={handleLocationDenied}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-red-800 to-orange-800 text-white relative overflow-hidden">
-        {/* Red/Amber Scrolling Stars Background - CSS-based animation for guaranteed visibility */}
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 text-white relative overflow-hidden">
+        {/* Red Scrolling Stars Background - Fewer stars for smoother loading, spawn from bottom */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none hot-sell-stars-container" style={{ zIndex: 20 }}>
-          {/* Generate many stars using CSS - guaranteed to be visible */}
-          {Array.from({ length: 200 }).map((_, i) => {
+          {/* Generate fewer stars - spawn from bottom invisibly */}
+          {Array.from({ length: 60 }).map((_, i) => {
             const left = Math.random() * 100;
-            const delay = Math.random() * 5;
-            const duration = 3 + Math.random() * 4;
-            const drift = (Math.random() - 0.5) * 200; // Horizontal drift
-            const size = Math.random() < 0.5 ? 'small' : Math.random() < 0.8 ? 'medium' : 'large';
+            const delay = Math.random() * 8; // Longer delay range for staggered spawning
+            const duration = 5 + Math.random() * 5; // Slower, smoother movement
+            const drift = (Math.random() - 0.5) * 150; // Less horizontal drift
+            const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
             return (
               <div
                 key={`star-${i}`}
                 className={`hot-sell-star hot-sell-star-${size}`}
                 style={{
                   left: `${left}%`,
+                  bottom: '0px', // Start at bottom
                   animationDelay: `${delay}s`,
                   animationDuration: `${duration}s`,
                   '--star-drift': `${drift}px`,
@@ -1049,36 +1050,23 @@ export default function HotSellPage() {
         {/* Floating Red Particles - Like RP pages */}
         <div id="hot-sell-particles" className="fixed inset-0 pointer-events-none" style={{ zIndex: 5 }}></div>
         
-        {/* Animated Red/Amber Ember Glow Background - Same style as games page, enhanced with more red */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 0 }}>
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/40 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute top-1/2 right-1/4 w-80 h-80 bg-red-600/35 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute bottom-1/4 left-1/2 w-72 h-72 bg-red-600/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-          <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-yellow-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-          <div className="absolute bottom-1/3 left-1/6 w-88 h-88 bg-red-500/35 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }}></div>
-          <div className="absolute top-2/3 right-1/6 w-76 h-76 bg-red-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2.5s' }}></div>
-          <div className="absolute top-1/6 left-1/3 w-68 h-68 bg-yellow-400/35 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
-          <div className="absolute bottom-1/6 right-1/4 w-84 h-84 bg-red-600/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.75s' }}></div>
-          <div className="absolute top-1/5 right-1/5 w-70 h-70 bg-red-500/35 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.25s' }}></div>
-          <div className="absolute bottom-1/5 left-1/5 w-90 h-90 bg-yellow-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2.25s' }}></div>
+        {/* Candle Flame Glow Effect - Large flame in dark room */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ zIndex: 1 }}>
+          {/* Large central flame glow - candle effect */}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[600px] h-[800px] bg-gradient-to-t from-red-600/60 via-red-500/40 to-red-400/20 rounded-full blur-3xl fire-flicker"></div>
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[500px] h-[700px] bg-gradient-to-t from-orange-500/50 via-orange-400/30 to-yellow-400/15 rounded-full blur-3xl fire-flicker-delay-1"></div>
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[400px] h-[600px] bg-gradient-to-t from-yellow-400/40 via-yellow-300/25 to-transparent rounded-full blur-2xl fire-flicker-delay-2"></div>
+          
+          {/* Ambient red glow around edges - candle lighting dark room */}
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-radial from-transparent via-red-950/20 to-black"></div>
+          <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-red-900/30 via-red-950/15 to-transparent"></div>
         </div>
         
-        {/* Flickering Fire Background Effect - COVER ENTIRE PAGE */}
+        {/* Subtle Flickering Fire Overlay - Very minimal for dark room effect */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0" style={{ zIndex: 0 }}>
-          {/* Fire layers covering entire page with flicker animation */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-orange-600/40 to-orange-600/60 fire-flicker opacity-90"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-700/35 to-red-700/55 fire-flicker-delay-1 opacity-85"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-yellow-600/30 to-yellow-600/50 fire-flicker-delay-2 opacity-70"></div>
-          
-          {/* Fire particles distributed across entire page - LARGER AND BRIGHTER */}
-          <div className="absolute top-10 left-1/4 w-48 h-48 bg-orange-500/60 rounded-full blur-3xl fire-flicker"></div>
-          <div className="absolute top-1/3 right-1/4 w-56 h-56 bg-red-500/60 rounded-full blur-3xl fire-flicker-delay-1"></div>
-          <div className="absolute top-1/2 left-1/2 w-52 h-52 bg-yellow-500/50 rounded-full blur-3xl fire-flicker-delay-2"></div>
-          <div className="absolute top-2/3 left-3/4 w-40 h-40 bg-orange-500/70 rounded-full blur-2xl fire-flicker"></div>
-          <div className="absolute bottom-1/4 right-1/3 w-60 h-60 bg-red-600/50 rounded-full blur-3xl fire-flicker-delay-1"></div>
-          <div className="absolute bottom-1/3 left-1/6 w-44 h-44 bg-yellow-500/55 rounded-full blur-2xl fire-flicker-delay-2"></div>
-          <div className="absolute top-1/4 right-1/2 w-50 h-50 bg-orange-500/55 rounded-full blur-3xl fire-flicker"></div>
-          <div className="absolute bottom-1/2 right-1/6 w-46 h-46 bg-red-500/50 rounded-full blur-2xl fire-flicker-delay-2"></div>
+          {/* Very subtle fire layers - minimal opacity for dark room */}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-full h-1/2 bg-gradient-to-t from-red-900/15 via-red-950/8 to-transparent fire-flicker"></div>
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-full h-1/3 bg-gradient-to-t from-orange-900/10 via-orange-950/5 to-transparent fire-flicker-delay-1"></div>
         </div>
       
       <CleanNavigation variant="gradient" currentPage="hot-sell" />

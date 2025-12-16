@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom gradient utilities */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
 @layer base {
   html {
     @apply antialiased;
@@ -75,38 +80,34 @@
   display: none;
 }
 
-/* Flickering Fire Effect - Lighter and Slower */
+/* Flickering Fire Effect - Very Subtle for Dark Room Candle Effect */
 @keyframes flicker {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 1;
     transform: scale(1);
   }
-  25% {
-    opacity: 0.5;
-    transform: scale(1.02);
-  }
-  50% {
-    opacity: 0.65;
-    transform: scale(0.99);
-  }
-  75% {
-    opacity: 0.55;
+  33% {
+    opacity: 0.95;
     transform: scale(1.01);
+  }
+  66% {
+    opacity: 0.98;
+    transform: scale(0.995);
   }
 }
 
 .fire-flicker {
-  animation: flicker 1.2s ease-in-out infinite;
+  animation: flicker 2.5s ease-in-out infinite;
 }
 
 .fire-flicker-delay-1 {
-  animation: flicker 1.4s ease-in-out infinite;
-  animation-delay: 0.3s;
+  animation: flicker 3s ease-in-out infinite;
+  animation-delay: 0.8s;
 }
 
 .fire-flicker-delay-2 {
-  animation: flicker 1.6s ease-in-out infinite;
-  animation-delay: 0.6s;
+  animation: flicker 3.5s ease-in-out infinite;
+  animation-delay: 1.5s;
 }
 
 /* Star Wars Scrolling Stars - Travel all the way up to navigation */
@@ -268,28 +269,38 @@
   animation: pulse-slow 3s ease-in-out infinite;
 }
 
-/* Hot Sell Page Red Stars - CSS-based for guaranteed visibility - Smoother Animation */
+/* Hot Sell Page Red Stars - Spawn from bottom invisibly, rise smoothly */
 @keyframes hot-sell-star-rise {
   0% {
-    transform: translateY(100vh) translateX(0px) scale(0.8);
+    transform: translateY(0) translateX(0px) scale(0.5);
     opacity: 0;
   }
-  3% {
-    opacity: 0.3;
+  2% {
+    opacity: 0;
+    transform: translateY(0) translateX(0px) scale(0.6);
   }
-  8% {
+  5% {
+    opacity: 0.4;
+    transform: translateY(20px) translateX(calc(var(--star-drift, 0px) * 0.1)) scale(0.8);
+  }
+  10% {
     opacity: 1;
-    transform: translateY(calc(100vh - 10vh)) translateX(calc(var(--star-drift, 0px) * 0.3)) scale(1);
+    transform: translateY(50px) translateX(calc(var(--star-drift, 0px) * 0.2)) scale(1);
   }
-  92% {
+  90% {
     opacity: 1;
-    transform: translateY(calc(-100vh + 10vh)) translateX(calc(var(--star-drift, 0px) * 0.7)) scale(1);
+    transform: translateY(calc(100vh - 50px)) translateX(calc(var(--star-drift, 0px) * 0.8)) scale(1);
   }
-  97% {
-    opacity: 0.3;
+  95% {
+    opacity: 0.4;
+    transform: translateY(calc(100vh - 20px)) translateX(calc(var(--star-drift, 0px) * 0.9)) scale(0.8);
+  }
+  98% {
+    opacity: 0;
+    transform: translateY(100vh) translateX(var(--star-drift, 0px)) scale(0.6);
   }
   100% {
-    transform: translateY(-100vh) translateX(var(--star-drift, 0px)) scale(0.8);
+    transform: translateY(100vh) translateX(var(--star-drift, 0px)) scale(0.5);
     opacity: 0;
   }
 }
@@ -307,9 +318,10 @@
 
 .hot-sell-star {
   position: absolute;
+  bottom: 0;
   background: radial-gradient(circle, #ff0000 0%, #ff4444 50%, #ff6600 100%);
   border-radius: 50%;
-  animation: hot-sell-star-rise cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: hot-sell-star-rise cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
   pointer-events: none;
   --star-drift: 0px;
   will-change: transform, opacity;
@@ -922,3 +934,4 @@ header * {
     justify-content: center;
   }
 }
+
