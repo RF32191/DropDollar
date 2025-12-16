@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user with Supabase Auth
+    console.log('📝 Creating auth user with phone:', formattedPhone);
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
           username,
           first_name: firstName,
           last_name: lastName,
-          phone,
+          phone: formattedPhone, // Use formatted phone in auth metadata
           location,
           marketing_consent: marketingConsent
         }
@@ -165,21 +166,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user profile in users table with formatted phone number
-    const { error: profileError } = await supabase
+    console.log('📝 Inserting user profile with phone:', formattedPhone);
+    const userProfile = {
+      id: authData.user.id,
+      email: email.toLowerCase().trim(),
+      username,
+      full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
+      phone: formattedPhone, // CRITICAL: Store verified phone number
+      location: location || null,
+      tokens: 1, // Starting token
+      is_verified: false,
+      marketing_consent: marketingConsent || false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('📦 User profile data:', JSON.stringify(userProfile, null, 2));
+    
+    const { data: insertedProfile, error: profileError } = await supabase
       .from('users')
-      .insert({
-        id: authData.user.id,
-        email: email.toLowerCase().trim(),
-        username,
-        full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
-        phone: formattedPhone, // Phone number stored and verified
-        location: location || null,
-        tokens: 1, // Starting token
-        is_verified: false,
-        marketing_consent: marketingConsent || false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
+      .insert(userProfile)
+      .select();
+    
+    if (insertedProfile) {
+      console.log('✅ Profile created successfully:', insertedProfile);
+    }
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
