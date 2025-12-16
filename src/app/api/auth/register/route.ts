@@ -166,13 +166,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user profile in users table with formatted phone number
-    console.log('📝 Inserting user profile with phone:', formattedPhone);
+    console.log('📝 Inserting user profile (without phone in users table)');
     const userProfile = {
       id: authData.user.id,
       email: email.toLowerCase().trim(),
       username,
       full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
-      phone: formattedPhone, // Store verified phone number in phone column
       location: location || null,
       tokens: 1, // Starting token
       is_verified: false,
@@ -190,6 +189,24 @@ export async function POST(request: NextRequest) {
     
     if (insertedProfile) {
       console.log('✅ Profile created successfully:', insertedProfile);
+      
+      // Insert phone number into separate user_phones table
+      console.log('📱 Inserting phone into user_phones table:', formattedPhone);
+      const { data: phoneData, error: phoneError } = await supabase
+        .from('user_phones')
+        .insert({
+          user_id: authData.user.id,
+          phone_number: formattedPhone,
+          verified: true,
+          verified_at: new Date().toISOString()
+        })
+        .select();
+      
+      if (phoneError) {
+        console.error('❌ Error saving phone number:', phoneError);
+      } else {
+        console.log('✅ Phone number saved to user_phones table:', phoneData);
+      }
     }
 
     if (profileError) {
