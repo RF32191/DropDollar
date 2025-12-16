@@ -37,16 +37,54 @@ export async function POST(request: NextRequest) {
 
     const formattedPhone = validation.formatted!;
 
-    // If using Twilio Verify API, verify with Twilio first (optional)
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-    // If Twilio Verify Service is configured, we can optionally verify with Twilio
-    // But since we're using our own database codes, we'll verify via database
-    // Twilio is only used for sending SMS, not verification
+    // PRIORITY 1: Try Twilio Verify Service first (if configured)
+    if (accountSid && authToken && verifyServiceSid) {
+      try {
+        console.log('🔐 Checking code with Twilio Verify Service...');
+        const url = `https://verify.twilio.com/v2/Services/${verifyServiceSid}/VerificationCheck`;
+        const body = new URLSearchParams({
+          To: formattedPhone,
+          Code: code
+        });
 
-    // Verify code using database function
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body
+        });
+
+        const responseData = await res.json().catch(() => ({}));
+
+        if (res.ok && responseData.status === 'approved') {
+          console.log('✅ Twilio Verify confirmed - code is valid!');
+          return NextResponse.json({
+            success: true,
+            message: 'Phone number verified successfully',
+            phone: formattedPhone
+          });
+        } else if (res.ok && responseData.status !== 'approved') {
+          console.log('❌ Twilio Verify rejected - invalid code');
+          return NextResponse.json(
+            { success: false, message: 'Invalid verification code or code expired. Please request a new code.' },
+            { status: 400 }
+          );
+        }
+        // If error, fall through to database verification
+        console.log('⚠️ Twilio Verify error, trying database verification...');
+      } catch (error: any) {
+        console.error('❌ Twilio Verify check error:', error);
+        // Fall through to database verification
+      }
+    }
+
+    // PRIORITY 2: Verify code using database function (fallback or if Verify not configured)
     const { data: verified, error: verifyError } = await supabase
       .rpc('verify_phone_code', {
         phone_param: formattedPhone,

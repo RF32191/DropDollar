@@ -143,15 +143,50 @@ async function sendTwilioSMS(
     verifyServiceSid?: string;
     fromNumber?: string;
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; usedVerify?: boolean }> {
   const { accountSid, authToken, verifyServiceSid, fromNumber } = config;
 
-  // NOTE: Twilio Verify API doesn't support custom codes - it generates its own codes
-  // Since we're using database-generated codes, we MUST use regular SMS API with a phone number
+  // PRIORITY 1: Use Twilio Verify Service (no A2P registration needed!)
+  if (verifyServiceSid) {
+    try {
+      console.log('🔐 Using Twilio Verify Service...');
+      const url = `https://verify.twilio.com/v2/Services/${verifyServiceSid}/Verifications`;
+      const body = new URLSearchParams({
+        To: phone,
+        Channel: 'sms'
+      });
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
+      });
+
+      const responseData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.error('❌ Twilio Verify API error:', responseData);
+        return { 
+          success: false, 
+          error: responseData.message || `Failed to send verification: ${responseData.code || 'Unknown error'}` 
+        };
+      }
+
+      console.log('✅ Twilio Verify sent successfully - Twilio generates the code');
+      return { success: true, usedVerify: true };
+    } catch (error: any) {
+      console.error('❌ Twilio Verify API error:', error);
+      // Fall through to try regular SMS if available
+    }
+  }
   
-  // Option 1: Use regular Twilio SMS API (REQUIRED for custom codes)
+  // PRIORITY 2: Use regular Twilio SMS API with custom database code (requires A2P)
   if (fromNumber) {
     try {
+      console.log('📱 Using Twilio Messages API with custom code...');
       const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
       const body = new URLSearchParams({
         To: phone,
@@ -179,25 +214,17 @@ async function sendTwilioSMS(
       }
 
       console.log('✅ Twilio SMS sent successfully via Messages API');
-      return { success: true };
+      return { success: true, usedVerify: false };
     } catch (error: any) {
       console.error('❌ Twilio SMS API error:', error);
       return { success: false, error: error.message };
     }
   }
 
-  // If Verify Service SID is set but no phone number, explain the issue
-  if (verifyServiceSid && !fromNumber) {
-    return { 
-      success: false, 
-      error: 'Twilio phone number (TWILIO_FROM_NUMBER) is required for sending custom verification codes. Twilio Verify Service cannot send custom codes - it generates its own. Please add TWILIO_FROM_NUMBER to your environment variables. Get a phone number from: https://console.twilio.com/us1/develop/phone-numbers/manage/incoming' 
-    };
-  }
-
-  // Neither Verify Service nor From Number configured
+  // No method available
   return { 
     success: false, 
-    error: 'Twilio phone number (TWILIO_FROM_NUMBER) is required. Get one from: https://console.twilio.com/us1/develop/phone-numbers/manage/incoming' 
+    error: 'Twilio Verify Service SID or Phone Number required. Add TWILIO_VERIFY_SERVICE_SID (recommended) or TWILIO_FROM_NUMBER to environment variables.' 
   };
 }
 
