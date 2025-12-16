@@ -698,24 +698,11 @@ export default function CoinPlayPage() {
 
       <ErrorBoundary>
         <div className="min-h-screen relative overflow-hidden coin-play-page" style={{ 
-          background: 'radial-gradient(ellipse at center, rgba(200, 200, 200, 0.4) 0%, rgba(100, 100, 100, 0.8) 40%, rgba(60, 60, 60, 0.95) 70%, rgba(40, 40, 40, 1) 100%)',
-          backgroundColor: '#404040'
+          background: 'radial-gradient(ellipse at center, rgba(184, 115, 51, 0.6) 0%, rgba(139, 69, 19, 0.85) 30%, rgba(101, 67, 33, 0.95) 60%, rgba(80, 50, 20, 1) 100%)',
+          backgroundColor: '#8B4513'
         }}>
-        {/* Silver/Copper Particles Background */}
-        <div className="fixed inset-0 pointer-events-none z-0">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <div
-              key={`particle-${i}`}
-              className="coin-play-particle"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${7 + Math.random() * 12}s`,
-              }}
-            ></div>
-          ))}
-        </div>
+        {/* Copper Shimmer Animation */}
+        <div className="fixed inset-0 pointer-events-none z-0 copper-shimmer-overlay"></div>
         
         {/* Falling Silver/Copper Coins Animation */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0" id="coins-container" style={{ zIndex: 0 }}>
