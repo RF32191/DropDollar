@@ -189,11 +189,11 @@
 
 .star-wars-star-red {
   position: absolute;
-  width: 4px;
-  height: 4px;
-  background: linear-gradient(135deg, #ff0000 0%, #ff4444 50%, #ff6600 100%);
+  width: 2px;
+  height: 2px;
+  background: #ff0000;
   border-radius: 50%;
-  box-shadow: 0 0 16px #ff0000, 0 0 32px #ff4444, 0 0 48px rgba(255, 68, 68, 1.2), 0 0 64px rgba(255, 0, 0, 1), 0 0 80px rgba(255, 100, 0, 0.8);
+  box-shadow: 0 0 6px #ff0000, 0 0 12px #ff4444, 0 0 18px rgba(255, 68, 68, 0.5);
   animation: star-scroll-red linear infinite;
   animation-duration: var(--star-duration, 3s);
   left: var(--star-left, 50%);
@@ -203,21 +203,21 @@
 }
 
 .star-wars-star-red.small {
-  width: 3px;
-  height: 3px;
-  box-shadow: 0 0 12px #ff0000, 0 0 24px #ff4444, 0 0 36px rgba(255, 68, 68, 1), 0 0 48px rgba(255, 0, 0, 0.9);
+  width: 1px;
+  height: 1px;
+  box-shadow: 0 0 3px #ff0000, 0 0 6px #ff4444, 0 0 9px rgba(255, 68, 68, 0.4);
 }
 
 .star-wars-star-red.medium {
-  width: 4px;
-  height: 4px;
-  box-shadow: 0 0 16px #ff0000, 0 0 32px #ff4444, 0 0 48px rgba(255, 68, 68, 1.2), 0 0 64px rgba(255, 0, 0, 1), 0 0 80px rgba(255, 100, 0, 0.8);
+  width: 2px;
+  height: 2px;
+  box-shadow: 0 0 6px #ff0000, 0 0 12px #ff4444, 0 0 18px rgba(255, 68, 68, 0.5);
 }
 
 .star-wars-star-red.large {
-  width: 6px;
-  height: 6px;
-  box-shadow: 0 0 20px #ff0000, 0 0 40px #ff4444, 0 0 60px rgba(255, 68, 68, 1.4), 0 0 80px rgba(255, 0, 0, 1.2), 0 0 100px rgba(255, 100, 0, 1);
+  width: 3px;
+  height: 3px;
+  box-shadow: 0 0 8px #ff0000, 0 0 16px #ff4444, 0 0 24px rgba(255, 68, 68, 0.6);
 }
 
 /* Rewards Page Particle Animation */

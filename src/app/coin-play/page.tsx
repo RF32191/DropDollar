@@ -697,7 +697,10 @@ export default function CoinPlayPage() {
       />
 
       <ErrorBoundary>
-        <div className="min-h-screen bg-gradient-to-br from-slate-300 via-gray-200 to-slate-400 relative overflow-hidden coin-play-page" style={{ background: 'linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 25%, #D3D3D3 50%, #C0C0C0 75%, #A8A8A8 100%)' }}>
+        <div className="min-h-screen relative overflow-hidden coin-play-page" style={{ 
+          background: 'radial-gradient(ellipse at center, rgba(200, 200, 200, 0.4) 0%, rgba(100, 100, 100, 0.8) 40%, rgba(60, 60, 60, 0.95) 70%, rgba(40, 40, 40, 1) 100%)',
+          backgroundColor: '#404040'
+        }}>
         {/* Silver/Copper Particles Background */}
         <div className="fixed inset-0 pointer-events-none z-0">
           {Array.from({ length: 40 }).map((_, i) => (

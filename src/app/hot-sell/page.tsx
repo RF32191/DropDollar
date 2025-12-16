@@ -434,17 +434,15 @@ export default function HotSellPage() {
     // Clear existing stars
     starsContainer.innerHTML = '';
     
-    // Generate fewer stars for smoother performance
-    const starCount = 80; // Reduced for better performance while maintaining visibility
+    // Generate stars matching games page style - slower and smoother
+    const starCount = 150; // Match games page count
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
-      // More large stars for prominence
-      const sizeRand = Math.random();
-      const size = sizeRand < 0.4 ? 'small' : sizeRand < 0.7 ? 'medium' : 'large';
+      const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
       const left = Math.random() * 100;
-      const duration = 4 + Math.random() * 6; // 4-10 seconds for smooth travel
-      const delay = Math.random() * 3; // Staggered delay
-      const xOffset = (Math.random() - 0.5) * 300; // Horizontal drift for dynamic effect
+      const duration = 4 + Math.random() * 6; // 4-10 seconds for slower, more visible travel (matching games page)
+      const delay = Math.random() * 3; // Longer delay range (matching games page)
+      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift (matching games page)
       
       star.className = `star-wars-star-red ${size}`;
       star.style.setProperty('--star-left', `${left}%`);
@@ -455,17 +453,16 @@ export default function HotSellPage() {
       starsContainer.appendChild(star);
     }
     
-    // Continuously regenerate stars for infinite scroll
+    // Continuously regenerate stars for infinite scroll (matching games page timing)
     const regenerateInterval = setInterval(() => {
-      // Add fewer new stars periodically for continuous effect
-      for (let i = 0; i < 8; i++) { // Reduced for smoother performance
+      // Add a few new stars periodically
+      for (let i = 0; i < 10; i++) {
         const star = document.createElement('div');
-        const sizeRand = Math.random();
-        const size = sizeRand < 0.4 ? 'small' : sizeRand < 0.7 ? 'medium' : 'large';
+        const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
         const left = Math.random() * 100;
-        const duration = 3 + Math.random() * 5;
+        const duration = 4 + Math.random() * 6;
         const delay = 0;
-        const xOffset = (Math.random() - 0.5) * 400;
+        const xOffset = (Math.random() - 0.5) * 300;
         
         star.className = `star-wars-star-red ${size}`;
         star.style.setProperty('--star-left', `${left}%`);
@@ -475,7 +472,7 @@ export default function HotSellPage() {
         
         starsContainer.appendChild(star);
       }
-    }, 1500); // More frequent regeneration (every 1.5 seconds instead of 2)
+    }, 2000); // Add new stars every 2 seconds (matching games page)
     
     // Cleanup
     return () => {
