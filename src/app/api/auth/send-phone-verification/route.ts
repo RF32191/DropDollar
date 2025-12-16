@@ -35,10 +35,23 @@ export async function POST(request: NextRequest) {
       .rpc('is_phone_available', { phone_param: formattedPhone });
 
     if (phoneCheckError) {
-      console.error('Phone check error:', phoneCheckError);
+      console.error('❌ Phone check error:', phoneCheckError);
+      // Fallback to manual check
+      const { data: existingUsers } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', formattedPhone)
+        .limit(1);
+      
+      if (existingUsers && existingUsers.length > 0) {
+        return NextResponse.json(
+          { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
+          { status: 400 }
+        );
+      }
     } else if (phoneAvailable === false) {
       return NextResponse.json(
-        { success: false, message: 'This phone number is already registered' },
+        { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
         { status: 400 }
       );
     }

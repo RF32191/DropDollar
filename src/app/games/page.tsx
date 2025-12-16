@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import MultiTargetGame from '@/components/games/MultiTargetGame';
 import FallingObjectGame from '@/components/games/FallingObjectGame';
 import ColorSequenceGame from '@/components/games/ColorSequenceGame';
@@ -12,7 +13,27 @@ import SwordParryGame from '@/components/games/SwordParryGameSimple';
 import BladeBounceGame from '@/components/games/BladeBounceGame';
 import CashStackGame from '@/components/games/CashStackGame';
 import PennyPasserGame from '@/components/games/PennyPasserGame';
-import DeadShotGame from '@/components/games/DeadShotGame';
+
+// Dynamically import DeadShotGame to avoid SSR issues with Three.js
+const DeadShotGame = dynamic(
+  () => import('@/components/games/DeadShotGame').then(mod => {
+    console.log('✅ [DeadShot] Module loaded successfully');
+    return mod;
+  }).catch(err => {
+    console.error('❌ [DeadShot] Failed to load module:', err);
+    throw err;
+  }),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="w-full h-screen flex items-center justify-center bg-[#8B0000]">
+        <div className="text-white text-4xl font-bold animate-pulse">
+          Loading DeadShot...
+        </div>
+      </div>
+    )
+  }
+);
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
