@@ -127,56 +127,6 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('✅ [SEND-VERIFY] Phone number available:', formattedPhone);
-    
-    // Skip the old fallback since we're using phone_verification_codes now
-    const existingPhones = null;
-    const phoneCheckError = null;
-    
-    if (false) {
-      // This block is now disabled - we use phone_verification_codes above
-      const { data: existingPhones, error: phoneCheckError } = await supabase
-        .from('user_phones')
-        .select('id, user_id, phone_number')
-        .eq('phone_number', formattedPhone)
-        .limit(1);
-
-      if (phoneCheckError) {
-        console.error('❌ [SEND-VERIFY] CRITICAL: Phone check error (table may not exist!):', phoneCheckError);
-        console.error('❌ [SEND-VERIFY] Error details:', JSON.stringify(phoneCheckError, null, 2));
-        
-        // If table doesn't exist, we MUST block registration until it's created
-        if (phoneCheckError.message?.includes('relation "user_phones" does not exist') || 
-            phoneCheckError.code === '42P01') {
-          return NextResponse.json(
-            { 
-              success: false, 
-              message: 'Database not ready. Please run FIX_PHONE_CHECK_WITH_RLS.sql' 
-            },
-            { status: 500 }
-          );
-        }
-        
-        // For other errors, also block to be safe
-        return NextResponse.json(
-          { 
-            success: false, 
-            message: 'Failed to verify phone number availability. Please try again.' 
-          },
-          { status: 500 }
-        );
-      }
-
-      if (existingPhones && existingPhones.length > 0) {
-        console.log('🚫 [SEND-VERIFY] Phone number already registered (via query):', formattedPhone);
-        console.log('🚫 [SEND-VERIFY] Existing record:', existingPhones[0]);
-        return NextResponse.json(
-          { success: false, message: 'This phone number is already registered. Please use a different number or sign in.' },
-          { status: 400 }
-        );
-      }
-
-      console.log('✅ [SEND-VERIFY] Phone number available:', formattedPhone);
-    }
 
     // Get IP address and user agent for tracking
     const ipAddress = request.headers.get('x-forwarded-for') || 
