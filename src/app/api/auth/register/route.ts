@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase().trim(),
       username,
       full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
-      phone: formattedPhone, // CRITICAL: Store verified phone number
+      user_phone: formattedPhone, // NEW COLUMN: Store verified phone number
       location: location || null,
       tokens: 1, // Starting token
       is_verified: false,
