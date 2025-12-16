@@ -1906,15 +1906,16 @@ export default function DeadShotGame({
       const aspect = cameraRef.current.aspect;
       const visibleHeight = 2 * Math.tan(fov / 2) * cameraDistance;
       const visibleWidth = visibleHeight * aspect;
-      boundaryXRef.current = visibleWidth / 2 - 0.5;
-      boundaryYRef.current = visibleHeight / 2 - 0.5;
+      const boundaryPadding = 0.8; // Increased padding to ensure collision
+      boundaryXRef.current = visibleWidth / 2 - boundaryPadding;
+      boundaryYRef.current = visibleHeight / 2 - boundaryPadding;
       
       // Update membrane wall positions
       if (cellMembraneRef.current && sceneRef.current) {
         const membraneGroup = cellMembraneRef.current;
-        const wallThickness = 0.1;
-        const wallHeight = visibleHeight;
-        const wallWidth = visibleWidth;
+        const wallThickness = 0.3; // Match thicker walls
+        const wallHeight = visibleHeight + wallThickness * 2;
+        const wallWidth = visibleWidth + wallThickness * 2;
         
         // Update wall positions
         if (membraneGroup.children.length >= 4) {
