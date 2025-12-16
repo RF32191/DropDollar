@@ -244,7 +244,7 @@ async function sendTwilioSMS(
       const body = new URLSearchParams({
         To: phone,
         From: fromNumber,
-        Body: `Your DropDollar verification code is: ${code}. This code expires in 10 minutes.`
+        Body: `Verify DropDollar account: ${code}. This code expires in 10 minutes.`
       });
 
       const res = await fetch(url, {

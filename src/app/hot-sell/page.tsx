@@ -426,7 +426,7 @@ export default function HotSellPage() {
     }
   };
 
-  // Generate Red/Amber Scrolling Stars - Travel all the way up (SMOOTH - NO FLICKER)
+  // Generate Red Scrolling Stars - SLOW AND FEW
   useEffect(() => {
     const starsContainer = document.getElementById('stars-container-red');
     if (!starsContainer) return;
@@ -434,17 +434,17 @@ export default function HotSellPage() {
     // Clear existing stars
     starsContainer.innerHTML = '';
     
-    // Generate stars matching games page style exactly - smooth and consistent
-    const starCount = 100; // Reduced count for smoother performance
+    // Generate stars - FEWER for cleaner look
+    const starCount = 60; // Much fewer stars
     const starsGenerated: HTMLDivElement[] = [];
     
     for (let i = 0; i < starCount; i++) {
       const star = document.createElement('div');
       const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
       const left = Math.random() * 100;
-      const duration = 5 + Math.random() * 5; // 5-10 seconds for smooth travel
-      const delay = Math.random() * 10; // Longer staggered delay to prevent flickering
-      const xOffset = (Math.random() - 0.5) * 200; // Less drift for smoother appearance
+      const duration = 8 + Math.random() * 7; // 8-15 seconds (much slower)
+      const delay = Math.random() * 12; // 0-12s stagger for gradual appearance
+      const xOffset = (Math.random() - 0.5) * 150; // Minimal horizontal drift
       
       star.className = `star-wars-star-red ${size}`;
       star.style.setProperty('--star-left', `${left}%`);
@@ -457,16 +457,16 @@ export default function HotSellPage() {
       starsGenerated.push(star);
     }
     
-    // Continuously regenerate stars for infinite scroll - STAGGERED to prevent flicker
+    // Continuously regenerate stars - VERY SLOW regeneration
     const regenerateInterval = setInterval(() => {
-      // Add a few new stars periodically - FEWER to prevent overlap/flicker
-      for (let i = 0; i < 5; i++) {
+      // Add just a few new stars periodically
+      for (let i = 0; i < 3; i++) {
         const star = document.createElement('div');
         const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
         const left = Math.random() * 100;
-        const duration = 5 + Math.random() * 5; // 5-10 seconds
-        const delay = i * 0.2; // Stagger new stars
-        const xOffset = (Math.random() - 0.5) * 200;
+        const duration = 8 + Math.random() * 7; // 8-15 seconds
+        const delay = i * 0.3; // Stagger new stars
+        const xOffset = (Math.random() - 0.5) * 150;
         
         star.className = `star-wars-star-red ${size}`;
         star.style.setProperty('--star-left', `${left}%`);
@@ -478,12 +478,12 @@ export default function HotSellPage() {
         starsContainer.appendChild(star);
         
         // Remove old stars to prevent DOM bloat
-        if (starsContainer.children.length > 150) {
+        if (starsContainer.children.length > 100) {
           const oldStar = starsContainer.firstChild;
           if (oldStar) starsContainer.removeChild(oldStar);
         }
       }
-    }, 3000); // Add new stars every 3 seconds (less frequent = smoother)
+    }, 5000); // Add new stars every 5 seconds (much slower = cleaner)
     
     // Cleanup
     return () => {
