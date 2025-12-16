@@ -1521,10 +1521,10 @@ export default function DeadShotGame({
         // Keep projectiles on same plane (z=0)
         projectile.mesh.position.z = 0;
         
-        // Check collision with player (at center 0,0,0) - MUCH larger hitbox for larger projectiles
-        const dx = projectile.mesh.position.x;
-        const dy = projectile.mesh.position.y;
-        const dz = projectile.mesh.position.z;
+        // Check collision with player (at white blood cell's ACTUAL position, not spawn point)
+        const dx = projectile.mesh.position.x - bowPositionRef.current.x;
+        const dy = projectile.mesh.position.y - bowPositionRef.current.y;
+        const dz = projectile.mesh.position.z - bowPositionRef.current.z;
         const distanceToPlayer = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
         // MUCH larger hitbox (1.5 instead of 1.2) to match larger projectile size

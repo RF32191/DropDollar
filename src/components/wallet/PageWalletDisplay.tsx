@@ -68,9 +68,9 @@ export default function PageWalletDisplay({ variant = 'default' }: PageWalletDis
       winnings: { bg: 'from-cyan-600/40 to-blue-600/40', border: 'border-cyan-400/50', text: 'text-cyan-300', icon: 'text-cyan-400', value: 'text-cyan-100', badge: 'bg-cyan-900/40 text-cyan-300', glow: 'from-cyan-400/10 to-blue-400/10' }
     },
     'coin-play': {
-      total: { bg: 'from-amber-600/40 to-orange-600/40', border: 'border-amber-500/50', text: 'text-amber-200', icon: 'text-amber-300', value: 'text-white' },
-      purchased: { bg: 'from-orange-900/50 to-amber-800/50', border: 'border-orange-500/50', text: 'text-orange-200', icon: 'text-orange-300', value: 'text-orange-100', badge: 'bg-orange-900/50 text-orange-300' },
-      winnings: { bg: 'from-yellow-500/50 to-amber-600/50', border: 'border-yellow-400/60', text: 'text-yellow-200', icon: 'text-yellow-300', value: 'text-yellow-50', badge: 'bg-yellow-900/50 text-yellow-200', glow: 'from-yellow-400/20 to-amber-400/20' }
+      total: { bg: 'from-amber-600/50 to-orange-700/50', border: 'border-amber-400/60', text: 'text-amber-100', icon: 'text-amber-200', value: 'text-white' },
+      purchased: { bg: 'from-orange-800/60 to-amber-900/60', border: 'border-orange-400/60', text: 'text-orange-100', icon: 'text-orange-200', value: 'text-white', badge: 'bg-orange-800/60 text-orange-200' },
+      winnings: { bg: 'from-yellow-600/60 to-amber-700/60', border: 'border-yellow-300/70', text: 'text-yellow-100', icon: 'text-yellow-200', value: 'text-white', badge: 'bg-yellow-800/60 text-yellow-100', glow: 'from-yellow-300/25 to-amber-300/25' }
     }
   };
 

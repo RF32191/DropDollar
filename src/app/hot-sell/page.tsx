@@ -494,12 +494,12 @@ export default function HotSellPage() {
     };
   }, []);
 
-  // Generate floating red particles (like RP pages)
+  // Generate floating red particles (like RP pages) - SLOWER like games page
   useEffect(() => {
     const particlesContainer = document.getElementById('hot-sell-particles');
     if (!particlesContainer) return;
 
-    const particleCount = 60; // More particles for hot-sell theme
+    const particleCount = 40; // Fewer particles for smoother animation (matching games page)
     const particles: HTMLDivElement[] = [];
 
     for (let i = 0; i < particleCount; i++) {
@@ -507,8 +507,8 @@ export default function HotSellPage() {
       particle.className = 'hot-sell-particle';
       particle.style.left = `${Math.random() * 100}%`;
       particle.style.top = `${Math.random() * 100}%`;
-      particle.style.animationDelay = `${Math.random() * 5}s`;
-      particle.style.animationDuration = `${8 + Math.random() * 15}s`;
+      particle.style.animationDelay = `${Math.random() * 8}s`; // Longer delay range for staggered start
+      particle.style.animationDuration = `${12 + Math.random() * 18}s`; // Much slower (12-30s instead of 8-23s)
       particlesContainer.appendChild(particle);
       particles.push(particle);
     }
