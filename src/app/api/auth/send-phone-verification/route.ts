@@ -49,7 +49,112 @@ export async function POST(request: NextRequest) {
                      'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    // Generate verification code using database function
+    // Try to send SMS via Twilio (if configured)
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+    const twilioFromNumber = process.env.TWILIO_FROM_NUMBER;
+    
+    if (accountSid && authToken) {
+      // If using Twilio Verify, we don't need to generate a database code (Twilio generates it)
+      if (verifyServiceSid) {
+        try {
+          console.log('🔐 Using Twilio Verify Service - no database code needed');
+          const smsSent = await sendTwilioSMS(formattedPhone, '', {
+            accountSid,
+            authToken,
+            verifyServiceSid,
+            fromNumber: twilioFromNumber
+          });
+          
+          if (smsSent.success) {
+            console.log('✅ Twilio Verify SMS sent successfully to', formattedPhone);
+            return NextResponse.json({
+              success: true,
+              message: 'Verification code sent via SMS',
+              phone: formattedPhone,
+              usesVerify: true // Flag to indicate Twilio Verify is being used
+            });
+          } else {
+            console.error('❌ Twilio Verify error:', smsSent.error);
+            return NextResponse.json({
+              success: false,
+              message: smsSent.error || 'Failed to send verification code.',
+              phone: formattedPhone
+            }, { status: 500 });
+          }
+        } catch (error: any) {
+          console.error('❌ Twilio Verify error:', error);
+          return NextResponse.json({
+            success: false,
+            message: `Failed to send verification: ${error.message}`,
+            phone: formattedPhone
+          }, { status: 500 });
+        }
+      }
+      
+      // If using regular SMS (not Verify), generate database code
+      if (twilioFromNumber) {
+        console.log('📱 Using regular SMS - generating database code');
+        const { data: code, error: codeError } = await supabase
+          .rpc('generate_phone_verification_code', {
+            phone_param: formattedPhone,
+            ip_address_param: ipAddress !== 'unknown' ? ipAddress : null,
+            user_agent_param: userAgent
+          });
+
+        if (codeError || !code) {
+          console.error('Code generation error:', codeError);
+          return NextResponse.json(
+            { success: false, message: 'Failed to generate verification code. Please try again.' },
+            { status: 500 }
+          );
+        }
+
+        try {
+          const smsSent = await sendTwilioSMS(formattedPhone, code, {
+            accountSid,
+            authToken,
+            verifyServiceSid,
+            fromNumber: twilioFromNumber
+          });
+          
+          if (smsSent.success) {
+            console.log('✅ Regular SMS sent successfully to', formattedPhone);
+            return NextResponse.json({
+              success: true,
+              message: 'Verification code sent via SMS',
+              phone: formattedPhone,
+              usesVerify: false
+            });
+          } else {
+            console.error('❌ Regular SMS error:', smsSent.error);
+            return NextResponse.json({
+              success: false,
+              message: smsSent.error || 'Failed to send SMS.',
+              phone: formattedPhone
+            }, { status: 500 });
+          }
+        } catch (error: any) {
+          console.error('❌ SMS send error:', error);
+          return NextResponse.json({
+            success: false,
+            message: `Failed to send SMS: ${error.message}`,
+            phone: formattedPhone
+          }, { status: 500 });
+        }
+      }
+      
+      // Neither Verify nor From Number configured
+      return NextResponse.json({
+        success: false,
+        message: 'Twilio is not properly configured. Please contact support.',
+        phone: formattedPhone
+      }, { status: 500 });
+    }
+
+    // Development/fallback mode - generate code for testing
+    console.log('⚠️ Twilio not configured, using dev mode');
     const { data: code, error: codeError } = await supabase
       .rpc('generate_phone_verification_code', {
         phone_param: formattedPhone,
@@ -64,65 +169,13 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    // Try to send SMS via Twilio (if configured)
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-    const twilioFromNumber = process.env.TWILIO_FROM_NUMBER; // For regular SMS if Verify Service not available
-    
-    if (accountSid && authToken) {
-      try {
-        const smsSent = await sendTwilioSMS(formattedPhone, code, {
-          accountSid,
-          authToken,
-          verifyServiceSid,
-          fromNumber: twilioFromNumber
-        });
-        
-        if (smsSent.success) {
-          console.log('✅ Twilio SMS sent successfully to', formattedPhone);
-          return NextResponse.json({
-            success: true,
-            message: 'Verification code sent via SMS',
-            phone: formattedPhone
-          });
-        } else {
-          console.error('❌ Twilio SMS error:', smsSent.error);
-          // Return error instead of falling through to dev mode
-          return NextResponse.json({
-            success: false,
-            message: smsSent.error || 'Failed to send SMS. Please check your Twilio configuration.',
-            phone: formattedPhone
-          }, { status: 500 });
-        }
-      } catch (smsError: any) {
-        console.error('❌ SMS send error:', smsError);
-        return NextResponse.json({
-          success: false,
-          message: `Failed to send SMS: ${smsError.message || 'Unknown error'}`,
-          phone: formattedPhone
-        }, { status: 500 });
-      }
-    } else {
-      console.warn('⚠️  Twilio not configured. Add TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN to environment variables.');
-    }
-
-    // Development/fallback mode - return code for testing
-    const isDevelopment = process.env.NODE_ENV === 'development' || !accountSid || !authToken;
     
     return NextResponse.json({
       success: true,
-      message: isDevelopment 
-        ? 'Verification code generated (dev mode - check response for code)' 
-        : 'Verification code generated. SMS service not configured.',
+      message: 'Verification code generated (dev mode - check response for code)',
       phone: formattedPhone,
-      ...(isDevelopment && { 
-        code, // Include code in dev mode for testing
-        note: accountSid && authToken 
-          ? 'Twilio configured but SMS send failed. Check logs.' 
-          : 'Configure TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN for SMS delivery.'
-      })
+      code, // Include code in dev mode for testing
+      usesVerify: false
     });
   } catch (error: any) {
     console.error('Send verification error:', error);

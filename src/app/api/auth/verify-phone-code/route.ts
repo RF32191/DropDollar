@@ -41,10 +41,10 @@ export async function POST(request: NextRequest) {
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-    // PRIORITY 1: Try Twilio Verify Service first (if configured)
+    // PRIORITY 1: Use Twilio Verify Service (if configured)
     if (accountSid && authToken && verifyServiceSid) {
       try {
-        console.log('🔐 Checking code with Twilio Verify Service...');
+        console.log('🔐 Verifying code with Twilio Verify Service...');
         const url = `https://verify.twilio.com/v2/Services/${verifyServiceSid}/VerificationCheck`;
         const body = new URLSearchParams({
           To: formattedPhone,
@@ -63,28 +63,30 @@ export async function POST(request: NextRequest) {
         const responseData = await res.json().catch(() => ({}));
 
         if (res.ok && responseData.status === 'approved') {
-          console.log('✅ Twilio Verify confirmed - code is valid!');
+          console.log('✅ Twilio Verify approved - code is valid!');
           return NextResponse.json({
             success: true,
             message: 'Phone number verified successfully',
             phone: formattedPhone
           });
-        } else if (res.ok && responseData.status !== 'approved') {
-          console.log('❌ Twilio Verify rejected - invalid code');
+        } else {
+          console.log('❌ Twilio Verify rejected:', responseData);
           return NextResponse.json(
             { success: false, message: 'Invalid verification code or code expired. Please request a new code.' },
             { status: 400 }
           );
         }
-        // If error, fall through to database verification
-        console.log('⚠️ Twilio Verify error, trying database verification...');
       } catch (error: any) {
         console.error('❌ Twilio Verify check error:', error);
-        // Fall through to database verification
+        return NextResponse.json(
+          { success: false, message: 'Failed to verify code. Please try again.' },
+          { status: 500 }
+        );
       }
     }
 
-    // PRIORITY 2: Verify code using database function (fallback or if Verify not configured)
+    // PRIORITY 2: Verify code using database (if Verify not configured)
+    console.log('📱 Verifying code with database...');
     const { data: verified, error: verifyError } = await supabase
       .rpc('verify_phone_code', {
         phone_param: formattedPhone,
