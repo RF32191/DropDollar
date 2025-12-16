@@ -191,22 +191,31 @@ export async function POST(request: NextRequest) {
       console.log('✅ Profile created successfully:', insertedProfile);
       
       // Insert phone number into separate user_phones table
-      console.log('📱 Inserting phone into user_phones table:', formattedPhone);
-      console.log('📱 User ID:', authData.user.id);
+      console.log('📱 [REGISTER] Inserting phone into user_phones table');
+      console.log('📱 [REGISTER] Phone number:', formattedPhone);
+      console.log('📱 [REGISTER] Phone length:', formattedPhone.length);
+      console.log('📱 [REGISTER] Phone prefix:', formattedPhone.substring(0, 3));
+      console.log('📱 [REGISTER] User ID:', authData.user.id);
+      
+      const phoneRecord = {
+        user_id: authData.user.id,
+        phone_number: formattedPhone,
+        verified: true,
+        verified_at: new Date().toISOString()
+      };
+      
+      console.log('📱 [REGISTER] Inserting record:', JSON.stringify(phoneRecord, null, 2));
       
       const { data: phoneData, error: phoneError } = await supabase
         .from('user_phones')
-        .insert({
-          user_id: authData.user.id,
-          phone_number: formattedPhone,
-          verified: true,
-          verified_at: new Date().toISOString()
-        })
+        .insert(phoneRecord)
         .select();
       
       if (phoneError) {
-        console.error('❌ CRITICAL: Error saving phone number:', phoneError);
-        console.error('❌ Error details:', JSON.stringify(phoneError, null, 2));
+        console.error('❌ [REGISTER] CRITICAL: Error saving phone number:', phoneError);
+        console.error('❌ [REGISTER] Error code:', phoneError.code);
+        console.error('❌ [REGISTER] Error message:', phoneError.message);
+        console.error('❌ [REGISTER] Error details:', JSON.stringify(phoneError, null, 2));
         
         // If duplicate phone somehow got through, fail the registration
         if (phoneError.code === '23505') {
@@ -226,10 +235,12 @@ export async function POST(request: NextRequest) {
         }
         
         // For other errors, log but continue (phone will be missing)
-        console.error('⚠️ Warning: User created but phone not saved. Manual intervention may be needed.');
+        console.error('⚠️ [REGISTER] Warning: User created but phone not saved. Manual intervention may be needed.');
       } else {
-        console.log('✅ Phone number saved to user_phones table:', phoneData);
-        console.log('✅ Saved phone record:', JSON.stringify(phoneData, null, 2));
+        console.log('✅ [REGISTER] Phone number saved to user_phones table!');
+        console.log('✅ [REGISTER] Saved phone record:', JSON.stringify(phoneData, null, 2));
+        console.log('✅ [REGISTER] Saved phone number:', phoneData?.[0]?.phone_number);
+        console.log('✅ [REGISTER] Record ID:', phoneData?.[0]?.id);
       }
     }
 
