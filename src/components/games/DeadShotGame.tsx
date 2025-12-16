@@ -55,7 +55,16 @@ interface SubItem {
   vx: number;
   vy: number;
   vz: number;
-  type: 'bonus' | 'multiplier' | 'time';
+  type: 'laser' | 'heart'; // Red = laser shot, Yellow = heart/points
+  createdAt: number;
+}
+
+interface LaserShot {
+  id: number;
+  mesh: THREE.Mesh;
+  vx: number;
+  vy: number;
+  vz: number;
   createdAt: number;
 }
 
@@ -92,6 +101,7 @@ export default function DeadShotGame({
   const [accuracy, setAccuracy] = useState(0);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hearts, setHearts] = useState(3);
+  const [laserShotsRemaining, setLaserShotsRemaining] = useState(0);
   
   // Sync gameState and hearts to refs for animation loop
   useEffect(() => {
@@ -180,6 +190,9 @@ export default function DeadShotGame({
   const shieldLegRef = useRef<THREE.Mesh | null>(null); // Currently equipped shield leg
   const fallenLegsRef = useRef<Array<{ leg: VirusLeg; shipId: number }>>([]); // Track fallen legs available for pickup
   const hasShieldRef = useRef(false); // Whether player has shield
+  const laserShotsRef = useRef<LaserShot[]>([]); // Laser shots from red items
+  const laserShotsRemainingRef = useRef(0); // Remaining laser shots
+  const lastLaserShotRef = useRef<number>(0); // Track last laser shot time
   
   // Seeded RNG for deterministic gameplay
   const seededRng = useMemo(() => {
@@ -416,21 +429,33 @@ export default function DeadShotGame({
     return arrowGroup;
   }, []);
 
-  // Create sub-item mesh
-  const createSubItem = useCallback((type: 'bonus' | 'multiplier' | 'time'): THREE.Mesh => {
+  // Create sub-item mesh - Red = laser shot, Yellow = heart/points
+  const createSubItem = useCallback((type: 'laser' | 'heart'): THREE.Mesh => {
     const colors = {
-      bonus: 0x00ff00,
-      multiplier: 0xffff00,
-      time: 0xff00ff
+      laser: 0xff0000, // Red for laser shots
+      heart: 0xffff00  // Yellow for heart/points
     };
     
     const geometry = new THREE.OctahedronGeometry(0.2, 0);
     const material = new THREE.MeshStandardMaterial({
       color: colors[type],
       emissive: colors[type],
-      emissiveIntensity: 0.8
+      emissiveIntensity: 2.0 // Brighter
     });
     const mesh = new THREE.Mesh(geometry, material);
+    return mesh;
+  }, []);
+  
+  // Create laser shot mesh
+  const createLaserShot = useCallback((): THREE.Mesh => {
+    const geometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 8);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      emissive: 0xff0000,
+      emissiveIntensity: 5.0
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.z = Math.PI / 2;
     return mesh;
   }, []);
 
@@ -703,14 +728,25 @@ export default function DeadShotGame({
         // Update bow position
         bowRef.current.position.set(bowPositionRef.current.x, bowPositionRef.current.y, 0);
         
-        // Update shield position if equipped
+        // Update shield position if equipped - connect to player
         if (shieldLegRef.current && bowRef.current) {
-          // Position shield slightly in front of white blood cell
+          // Position shield slightly in front of white blood cell, always connected
           const shieldOffset = 0.8;
-          const shieldX = bowPositionRef.current.x + Math.cos(aimAngleRef.current * Math.PI / 180) * shieldOffset;
-          const shieldY = bowPositionRef.current.y + Math.sin(aimAngleRef.current * Math.PI / 180) * shieldOffset;
+          const aimAngleRad = aimAngleRef.current * Math.PI / 180;
+          const shieldX = bowPositionRef.current.x + Math.cos(aimAngleRad) * shieldOffset;
+          const shieldY = bowPositionRef.current.y + Math.sin(aimAngleRad) * shieldOffset;
           shieldLegRef.current.position.set(shieldX, shieldY, 0);
-          shieldLegRef.current.rotation.z = aimAngleRef.current * Math.PI / 180;
+          shieldLegRef.current.rotation.z = aimAngleRad;
+          
+          // Ensure shield stays connected - if too far, teleport it back
+          const shieldDx = shieldLegRef.current.position.x - bowPositionRef.current.x;
+          const shieldDy = shieldLegRef.current.position.y - bowPositionRef.current.y;
+          const shieldDistance = Math.sqrt(shieldDx * shieldDx + shieldDy * shieldDy);
+          
+          if (shieldDistance > 2.0) {
+            // Shield got disconnected - reconnect it
+            shieldLegRef.current.position.set(shieldX, shieldY, 0);
+          }
         }
       }
       
@@ -911,9 +947,9 @@ export default function DeadShotGame({
             
             // Create drops when enemy is killed
             const dropPosition = ship.group.position.clone();
-            const dropTypes: Array<'bonus' | 'multiplier' | 'time'> = ['bonus', 'multiplier', 'time'];
+            const dropTypes: Array<'laser' | 'heart'> = ['laser', 'heart'];
             
-            // Spawn 2-3 random drops
+            // Spawn 2-3 random drops (red = laser, yellow = heart)
             const numDrops = 2 + Math.floor(Math.random() * 2);
             for (let i = 0; i < numDrops; i++) {
               const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
@@ -1467,6 +1503,75 @@ export default function DeadShotGame({
         return projectile;
       }).filter(p => p !== null) as EnemyProjectile[];
       
+      // Update laser shots - straight vector power shots that one-shot all enemies
+      laserShotsRef.current = laserShotsRef.current.map(laser => {
+        // Move laser shot forward in straight line
+        laser.mesh.position.x += laser.vx * adjustedDelta;
+        laser.mesh.position.y += laser.vy * adjustedDelta;
+        laser.mesh.position.z += laser.vz * adjustedDelta;
+        
+        // Check collision with all ships - one-shot kill
+        shipsRef.current.forEach((ship, shipIndex) => {
+          const dx = laser.mesh.position.x - ship.group.position.x;
+          const dy = laser.mesh.position.y - ship.group.position.y;
+          const dz = laser.mesh.position.z - ship.group.position.z;
+          const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          
+          if (distance < ship.size * 0.5) {
+            // Laser one-shots enemy - give points
+            currentScoreRef.current += ship.basePoints;
+            totalHitsRef.current++;
+            setScore(currentScoreRef.current);
+            setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+            
+            // Create drops
+            const dropPosition = ship.group.position.clone();
+            const dropTypes: Array<'laser' | 'heart'> = ['laser', 'heart'];
+            const numDrops = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < numDrops; i++) {
+              const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
+              const dropMesh = createSubItem(dropType);
+              dropMesh.position.set(
+                dropPosition.x + (Math.random() - 0.5) * 2,
+                dropPosition.y + (Math.random() - 0.5) * 2,
+                dropPosition.z
+              );
+              
+              const drop: SubItem = {
+                id: ++lastSubItemIdRef.current,
+                mesh: dropMesh,
+                vx: (Math.random() - 0.5) * 3,
+                vy: Math.random() * 1 + 0.5,
+                vz: (Math.random() - 0.5) * 3,
+                type: dropType,
+                createdAt: Date.now()
+              };
+              
+              sceneRef.current.add(dropMesh);
+              subItemsRef.current.push(drop);
+            }
+            
+            // Remove ship
+            sceneRef.current.remove(ship.group);
+            shipsRef.current.splice(shipIndex, 1);
+            
+            // Remove laser
+            sceneRef.current.remove(laser.mesh);
+            return null;
+          }
+        });
+        
+        // Remove laser if out of bounds
+        if (Math.abs(laser.mesh.position.x) > 30 || 
+            Math.abs(laser.mesh.position.y) > 30 || 
+            Math.abs(laser.mesh.position.z) > 30) {
+          sceneRef.current.remove(laser.mesh);
+          return null;
+        }
+        
+        return laser;
+      }).filter(l => l !== null) as LaserShot[];
+      
       // Update sub-items with physics - slower fall
       subItemsRef.current = subItemsRef.current.map(item => {
         item.mesh.position.x += item.vx * adjustedDelta;
@@ -1487,13 +1592,110 @@ export default function DeadShotGame({
         });
         
         if (arrowHit) {
-          // Increased bonus points for hitting enemy drops (post-kill drops)
-          // These drops come from killed enemies, so give more points
-          const bonusPoints = item.type === 'bonus' ? 75 : item.type === 'multiplier' ? 150 : 50;
-          currentScoreRef.current += bonusPoints;
+          // Handle different item types
+          if (item.type === 'laser') {
+            // Red item: Give 3 laser shots that one-shot all enemies
+            laserShotsRemainingRef.current += 3;
+            // Visual feedback
+            if (bowRef.current) {
+              bowRef.current.children.forEach((child: any) => {
+                if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                  const originalEmissive = child.material.emissive.getHex();
+                  child.material.emissive.setHex(0xff0000);
+                  setTimeout(() => {
+                    if (child && child.material instanceof THREE.MeshStandardMaterial) {
+                      child.material.emissive.setHex(originalEmissive);
+                    }
+                  }, 500);
+                }
+              });
+            }
+          } else if (item.type === 'heart') {
+            // Yellow item: Give heart back if lost one, otherwise 200 points
+            if (heartsRef.current < 3) {
+              setHearts(prev => {
+                const newHearts = Math.min(3, prev + 1);
+                heartsRef.current = newHearts;
+                return newHearts;
+              });
+              // Visual feedback
+              if (bowRef.current) {
+                bowRef.current.children.forEach((child: any) => {
+                  if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                    const originalEmissive = child.material.emissive.getHex();
+                    child.material.emissive.setHex(0x00ff00);
+                    setTimeout(() => {
+                      if (child && child.material instanceof THREE.MeshStandardMaterial) {
+                        child.material.emissive.setHex(originalEmissive);
+                      }
+                    }, 500);
+                  }
+                });
+              }
+            } else {
+              // Full hearts - give 200 points instead
+              currentScoreRef.current += 200;
+              setScore(currentScoreRef.current);
+            }
+          }
+          
           totalHitsRef.current++;
-          setScore(currentScoreRef.current);
           setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+          sceneRef.current.remove(item.mesh);
+          return null;
+        }
+        
+        // Check if sub-item is close to player for pickup (not just arrow hit)
+        const dx = item.mesh.position.x - bowPositionRef.current.x;
+        const dy = item.mesh.position.y - bowPositionRef.current.y;
+        const dz = item.mesh.position.z - bowPositionRef.current.z;
+        const distanceToPlayer = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        if (distanceToPlayer < 1.0) {
+          // Player picked up item
+          if (item.type === 'laser') {
+            laserShotsRemainingRef.current += 3;
+            setLaserShotsRemaining(laserShotsRemainingRef.current);
+            // Visual feedback
+            if (bowRef.current) {
+              bowRef.current.children.forEach((child: any) => {
+                if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                  const originalEmissive = child.material.emissive.getHex();
+                  child.material.emissive.setHex(0xff0000);
+                  setTimeout(() => {
+                    if (child && child.material instanceof THREE.MeshStandardMaterial) {
+                      child.material.emissive.setHex(originalEmissive);
+                    }
+                  }, 500);
+                }
+              });
+            }
+          } else if (item.type === 'heart') {
+            if (heartsRef.current < 3) {
+              setHearts(prev => {
+                const newHearts = Math.min(3, prev + 1);
+                heartsRef.current = newHearts;
+                return newHearts;
+              });
+              // Visual feedback
+              if (bowRef.current) {
+                bowRef.current.children.forEach((child: any) => {
+                  if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                    const originalEmissive = child.material.emissive.getHex();
+                    child.material.emissive.setHex(0x00ff00);
+                    setTimeout(() => {
+                      if (child && child.material instanceof THREE.MeshStandardMaterial) {
+                        child.material.emissive.setHex(originalEmissive);
+                      }
+                    }, 500);
+                  }
+                });
+              }
+            } else {
+              currentScoreRef.current += 200;
+              setScore(currentScoreRef.current);
+            }
+          }
           sceneRef.current.remove(item.mesh);
           return null;
         }
@@ -1795,6 +1997,55 @@ export default function DeadShotGame({
     return () => clearInterval(chargeInterval);
   }, [gameState, createArrow, playPlayerShotSound]);
 
+  // Handle keyboard for laser shots
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (gameState !== 'playing' || !sceneRef.current) return;
+      
+      // Spacebar or 'L' key to fire laser shot
+      if ((e.key === ' ' || e.key === 'l' || e.key === 'L') && laserShotsRemainingRef.current > 0 && Date.now() - lastLaserShotRef.current > 200) {
+        e.preventDefault();
+        lastLaserShotRef.current = Date.now();
+        laserShotsRemainingRef.current--;
+        setLaserShotsRemaining(laserShotsRemainingRef.current);
+        
+        // Create laser shot in aim direction
+        const aimAngleRad = aimAngleRef.current * Math.PI / 180;
+        const laserSpeed = 30; // Fast straight shot
+        
+        const laserMesh = createLaserShot();
+        const localPos = stringCenterRef.current.clone();
+        const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
+        const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
+        
+        laserMesh.position.set(
+          bowPositionRef.current.x + worldX,
+          bowPositionRef.current.y + worldY,
+          bowPositionRef.current.z + localPos.z
+        );
+        laserMesh.rotation.z = aimAngleRad;
+        
+        const laser: LaserShot = {
+          id: Date.now(),
+          mesh: laserMesh,
+          vx: Math.cos(aimAngleRad) * laserSpeed,
+          vy: Math.sin(aimAngleRad) * laserSpeed,
+          vz: 0,
+          createdAt: Date.now()
+        };
+        
+        sceneRef.current.add(laserMesh);
+        laserShotsRef.current.push(laser);
+        
+        // Play laser sound
+        playPlayerShotSound();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState, aimAngleRef, createLaserShot, playPlayerShotSound]);
+
   // Handle mouse/touch for aiming and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (gameState !== 'playing') return;
@@ -2033,6 +2284,31 @@ export default function DeadShotGame({
               </div>
             ))}
           </div>
+          
+          {/* Laser Shots Display */}
+          {laserShotsRemaining > 0 && (
+            <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none">
+              <div className="bg-red-500/80 backdrop-blur-xl rounded-lg px-4 py-2 border-2 border-red-400 shadow-lg animate-pulse">
+                <div className="text-white font-bold text-lg flex items-center gap-2">
+                  <span className="text-2xl">⚡</span>
+                  <span>Laser Shots: {laserShotsRemaining}</span>
+                  <span className="text-sm text-red-200">(Press Space/L)</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Shield Display */}
+          {hasShieldRef.current && (
+            <div className="absolute top-20 right-4 z-10 pointer-events-none">
+              <div className="bg-cyan-500/80 backdrop-blur-xl rounded-lg px-4 py-2 border-2 border-cyan-400 shadow-lg">
+                <div className="text-white font-bold text-lg flex items-center gap-2">
+                  <span className="text-2xl">🛡️</span>
+                  <span>Shield Active</span>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Charge Bar - Always visible when playing */}
           <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 w-80 pointer-events-none">

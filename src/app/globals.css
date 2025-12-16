@@ -184,7 +184,7 @@
   box-shadow: 0 0 8px white, 0 0 16px white, 0 0 24px rgba(255, 255, 255, 0.6);
 }
 
-/* Red/Amber Stars for Hot Sell Page */
+/* Red/Amber Stars for Hot Sell Page - BRIGHTER AND MORE VISIBLE */
 @keyframes star-scroll-red {
   0% {
     transform: translateY(0) translateX(0);
@@ -204,35 +204,35 @@
 
 .star-wars-star-red {
   position: absolute;
-  width: 2px;
-  height: 2px;
+  width: 3px;
+  height: 3px;
   background: linear-gradient(135deg, #ff0000 0%, #ff4444 50%, #ff6600 100%);
   border-radius: 50%;
-  box-shadow: 0 0 8px #ff0000, 0 0 16px #ff4444, 0 0 24px rgba(255, 68, 68, 0.8), 0 0 32px rgba(255, 0, 0, 0.4);
+  box-shadow: 0 0 12px #ff0000, 0 0 24px #ff4444, 0 0 36px rgba(255, 68, 68, 1), 0 0 48px rgba(255, 0, 0, 0.8);
   animation: star-scroll-red linear infinite;
   animation-duration: var(--star-duration, 3s);
   left: var(--star-left, 50%);
   top: 100vh;
-  z-index: 1;
+  z-index: 2;
   will-change: transform, opacity;
 }
 
 .star-wars-star-red.small {
-  width: 1px;
-  height: 1px;
-  box-shadow: 0 0 4px #ff0000, 0 0 8px #ff4444, 0 0 12px rgba(255, 68, 68, 0.6);
+  width: 2px;
+  height: 2px;
+  box-shadow: 0 0 8px #ff0000, 0 0 16px #ff4444, 0 0 24px rgba(255, 68, 68, 0.9);
 }
 
 .star-wars-star-red.medium {
-  width: 2px;
-  height: 2px;
-  box-shadow: 0 0 8px #ff0000, 0 0 16px #ff4444, 0 0 24px rgba(255, 68, 68, 0.8), 0 0 32px rgba(255, 0, 0, 0.4);
+  width: 3px;
+  height: 3px;
+  box-shadow: 0 0 12px #ff0000, 0 0 24px #ff4444, 0 0 36px rgba(255, 68, 68, 1), 0 0 48px rgba(255, 0, 0, 0.8);
 }
 
 .star-wars-star-red.large {
-  width: 3px;
-  height: 3px;
-  box-shadow: 0 0 10px #ff0000, 0 0 20px #ff4444, 0 0 30px rgba(255, 68, 68, 1), 0 0 40px rgba(255, 0, 0, 0.6);
+  width: 4px;
+  height: 4px;
+  box-shadow: 0 0 16px #ff0000, 0 0 32px #ff4444, 0 0 48px rgba(255, 68, 68, 1.2), 0 0 64px rgba(255, 0, 0, 1);
 }
 
 /* Rewards Page Particle Animation */
@@ -277,6 +277,71 @@
 
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+/* RP Shop Page Coin Particle Animation */
+@keyframes float-coin {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateY(-30px) translateX(15px) rotate(90deg) scale(1.1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-60px) translateX(-15px) rotate(180deg) scale(1.2);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translateY(-30px) translateX(10px) rotate(270deg) scale(1.1);
+    opacity: 0.9;
+  }
+}
+
+.rp-shop-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6, #6366f1);
+  border-radius: 50%;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.9), 0 0 30px rgba(59, 130, 246, 0.7), 0 0 45px rgba(99, 102, 241, 0.5);
+  animation: float-coin linear infinite;
+  pointer-events: none;
+}
+
+/* Make red stars brighter and more visible */
+.star-wars-star-red {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: linear-gradient(135deg, #ff0000 0%, #ff4444 50%, #ff6600 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 12px #ff0000, 0 0 24px #ff4444, 0 0 36px rgba(255, 68, 68, 1), 0 0 48px rgba(255, 0, 0, 0.8);
+  animation: star-scroll-red linear infinite;
+  animation-duration: var(--star-duration, 3s);
+  left: var(--star-left, 50%);
+  top: 100vh;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+
+.star-wars-star-red.small {
+  width: 2px;
+  height: 2px;
+  box-shadow: 0 0 8px #ff0000, 0 0 16px #ff4444, 0 0 24px rgba(255, 68, 68, 0.9);
+}
+
+.star-wars-star-red.medium {
+  width: 3px;
+  height: 3px;
+  box-shadow: 0 0 12px #ff0000, 0 0 24px #ff4444, 0 0 36px rgba(255, 68, 68, 1), 0 0 48px rgba(255, 0, 0, 0.8);
+}
+
+.star-wars-star-red.large {
+  width: 4px;
+  height: 4px;
+  box-shadow: 0 0 16px #ff0000, 0 0 32px #ff4444, 0 0 48px rgba(255, 68, 68, 1.2), 0 0 64px rgba(255, 0, 0, 1);
 }
 
 /* Falling Coins Animation - Casino-style with spinning effect */
