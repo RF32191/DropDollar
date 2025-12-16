@@ -2303,7 +2303,51 @@ export default function DeadShotGame({
     return () => clearInterval(chargeInterval);
   }, [gameState, createArrow, playPlayerShotSound]);
 
-  // Right-click handler already defined above as handleRightClick
+  // Right-click handler for firing laser shots
+  const handleRightClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (gameState !== 'playing') return;
+    if (laserShotsRemainingRef.current <= 0) return;
+    
+    // Rate limit laser shots (100ms between shots)
+    const now = Date.now();
+    if (now - lastLaserShotRef.current < 100) return;
+    lastLaserShotRef.current = now;
+    
+    console.log('🔫 Firing laser shot! Remaining:', laserShotsRemainingRef.current);
+    
+    // Decrease laser shots
+    laserShotsRemainingRef.current--;
+    setLaserShotsRemaining(laserShotsRemainingRef.current);
+    
+    // Play shot sound
+    playPlayerShotSound();
+    
+    // Create laser in direction of aim
+    const angleRad = aimAngleRef.current * Math.PI / 180;
+    const speed = 50; // Fast laser
+    
+    const laserMesh = createLaserShot();
+    laserMesh.position.set(
+      bowPositionRef.current.x,
+      bowPositionRef.current.y,
+      bowPositionRef.current.z
+    );
+    laserMesh.rotation.z = angleRad;
+    
+    const laserShot: LaserShot = {
+      id: now,
+      mesh: laserMesh,
+      vx: Math.cos(angleRad) * speed,
+      vy: Math.sin(angleRad) * speed,
+      vz: 0,
+      createdAt: now
+    };
+    
+    sceneRef.current?.add(laserShot.mesh);
+    laserShotsRef.current.push(laserShot);
+  }, [gameState, createLaserShot, playPlayerShotSound]);
 
   // Handle mouse/touch for aiming and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
