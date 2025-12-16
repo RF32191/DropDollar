@@ -754,9 +754,10 @@ export default function DeadShotGame({
           // Convert local position to world position accounting for bow rotation
           const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
           const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
-          let px = worldX;
-          let py = worldY;
-          let pz = localPos.z;
+          // Add bow's current world position to ensure preview originates from white blood cell
+          let px = bowPositionRef.current.x + worldX;
+          let py = bowPositionRef.current.y + worldY;
+          let pz = bowPositionRef.current.z + localPos.z;
           let pvx = vx;
           let pvy = vy;
           const gravity = 9.8;
@@ -1743,10 +1744,16 @@ export default function DeadShotGame({
           }
           
           const arrowGroup = createArrow();
+          // Spawn arrow from white blood cell's current position (not string center)
           const localPos = stringCenterRef.current.clone();
           const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
           const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
-          arrowGroup.position.set(worldX, worldY, localPos.z);
+          // Add bow's current world position to ensure arrow originates from white blood cell
+          arrowGroup.position.set(
+            bowPositionRef.current.x + worldX,
+            bowPositionRef.current.y + worldY,
+            bowPositionRef.current.z + localPos.z
+          );
           
           const arrow: Arrow = {
             id: ++lastArrowIdRef.current,
@@ -1870,11 +1877,16 @@ export default function DeadShotGame({
     }
     
     const arrowGroup = createArrow();
-    // Spawn arrow at string center position (on the wire)
+    // Spawn arrow from white blood cell's current position (not string center)
     const localPos = stringCenterRef.current.clone();
     const worldX = localPos.x * Math.cos(aimAngleRad) - localPos.y * Math.sin(aimAngleRad);
     const worldY = localPos.x * Math.sin(aimAngleRad) + localPos.y * Math.cos(aimAngleRad);
-    arrowGroup.position.set(worldX, worldY, localPos.z);
+    // Add bow's current world position to ensure arrow originates from white blood cell
+    arrowGroup.position.set(
+      bowPositionRef.current.x + worldX,
+      bowPositionRef.current.y + worldY,
+      bowPositionRef.current.z + localPos.z
+    );
     
     const arrow: Arrow = {
       id: ++lastArrowIdRef.current,
