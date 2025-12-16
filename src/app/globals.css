@@ -80,34 +80,42 @@
   display: none;
 }
 
-/* Flickering Fire Effect - Very Subtle for Dark Room Candle Effect */
+/* Flickering Fire Effect - Subtle candle flicker */
 @keyframes flicker {
   0%, 100% {
     opacity: 1;
     transform: scale(1);
   }
-  33% {
-    opacity: 0.95;
-    transform: scale(1.01);
+  20% {
+    opacity: 0.92;
+    transform: scale(1.02);
   }
-  66% {
-    opacity: 0.98;
-    transform: scale(0.995);
+  40% {
+    opacity: 0.96;
+    transform: scale(0.98);
+  }
+  60% {
+    opacity: 0.94;
+    transform: scale(1.015);
+  }
+  80% {
+    opacity: 0.97;
+    transform: scale(0.99);
   }
 }
 
 .fire-flicker {
-  animation: flicker 2.5s ease-in-out infinite;
+  animation: flicker 2s ease-in-out infinite;
 }
 
 .fire-flicker-delay-1 {
-  animation: flicker 3s ease-in-out infinite;
-  animation-delay: 0.8s;
+  animation: flicker 2.3s ease-in-out infinite;
+  animation-delay: 0.5s;
 }
 
 .fire-flicker-delay-2 {
-  animation: flicker 3.5s ease-in-out infinite;
-  animation-delay: 1.5s;
+  animation: flicker 2.6s ease-in-out infinite;
+  animation-delay: 1s;
 }
 
 /* Star Wars Scrolling Stars - Travel all the way up to navigation */
