@@ -64,6 +64,31 @@ export async function POST(request: NextRequest) {
 
         if (res.ok && responseData.status === 'approved') {
           console.log('✅ Twilio Verify approved - code is valid!');
+          
+          // Store verification in database for registration check
+          try {
+            const normalizedPhone = formattedPhone.replace(/[^\d+]/g, '');
+            
+            // Insert a verified record in phone_verification_codes table
+            await supabase
+              .from('phone_verification_codes')
+              .insert({
+                phone: formattedPhone,
+                phone_normalized: normalizedPhone,
+                code: code, // Store the code for reference
+                verified: true,
+                verified_at: new Date().toISOString(),
+                expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+                attempts: 1,
+                max_attempts: 5
+              });
+            
+            console.log('✅ Phone verification record stored in database');
+          } catch (dbError) {
+            console.error('⚠️ Failed to store verification in DB:', dbError);
+            // Continue anyway - verification succeeded with Twilio
+          }
+          
           return NextResponse.json({
             success: true,
             message: 'Phone number verified successfully',
