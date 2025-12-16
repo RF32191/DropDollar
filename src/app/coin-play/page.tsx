@@ -185,8 +185,8 @@ export default function CoinPlayPage() {
       const drift = (Math.random() - 0.5) * 30;
       coin.style.setProperty('--coin-drift', `${drift}px`);
       
-      // Add random spin speed variation for casino effect
-      const spinSpeed = 0.3 + Math.random() * 0.4; // 0.3-0.7s per rotation
+      // Add random spin speed variation for smooth effect
+      const spinSpeed = 0.6 + Math.random() * 0.6; // 0.6-1.2s per rotation (slower, smoother)
       coin.style.setProperty('--spin-speed', `${spinSpeed}s`);
       
       coinsContainer.appendChild(coin);
