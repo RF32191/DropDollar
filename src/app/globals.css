@@ -281,32 +281,42 @@
 @keyframes hot-sell-star-rise {
   0% {
     top: 100vh;
-    transform: translateX(0px) translateY(0) scale(0.5);
+    transform: translateX(0px) scale(0.6);
     opacity: 0;
   }
-  3% {
-    top: calc(100vh - 30px);
-    opacity: 0.3;
-    transform: translateX(calc(var(--star-drift, 0px) * 0.05)) translateY(0) scale(0.7);
+  2% {
+    top: calc(100vh - 20px);
+    opacity: 0.2;
+    transform: translateX(calc(var(--star-drift, 0px) * 0.02)) scale(0.7);
   }
-  8% {
-    top: calc(100vh - 150px);
+  5% {
+    top: calc(100vh - 80px);
+    opacity: 0.6;
+    transform: translateX(calc(var(--star-drift, 0px) * 0.08)) scale(0.85);
+  }
+  10% {
+    top: calc(100vh - 200px);
     opacity: 1;
-    transform: translateX(calc(var(--star-drift, 0px) * 0.15)) translateY(0) scale(1);
+    transform: translateX(calc(var(--star-drift, 0px) * 0.15)) scale(1);
   }
-  92% {
-    top: 150px;
+  90% {
+    top: 200px;
     opacity: 1;
-    transform: translateX(calc(var(--star-drift, 0px) * 0.85)) translateY(0) scale(1);
+    transform: translateX(calc(var(--star-drift, 0px) * 0.85)) scale(1);
   }
-  97% {
-    top: 30px;
-    opacity: 0.3;
-    transform: translateX(calc(var(--star-drift, 0px) * 0.95)) translateY(0) scale(0.7);
+  95% {
+    top: 80px;
+    opacity: 0.6;
+    transform: translateX(calc(var(--star-drift, 0px) * 0.92)) scale(0.85);
+  }
+  98% {
+    top: 20px;
+    opacity: 0.2;
+    transform: translateX(calc(var(--star-drift, 0px) * 0.98)) scale(0.7);
   }
   100% {
     top: 0;
-    transform: translateX(var(--star-drift, 0px)) translateY(0) scale(0.5);
+    transform: translateX(var(--star-drift, 0px)) scale(0.6);
     opacity: 0;
   }
 }
@@ -328,12 +338,13 @@
   left: var(--star-left, 50%);
   background: radial-gradient(circle, #ff0000 0%, #ff4444 50%, #ff6600 100%);
   border-radius: 50%;
-  animation: hot-sell-star-rise linear infinite;
+  animation: hot-sell-star-rise cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
   pointer-events: none;
   --star-drift: 0px;
   will-change: top, transform, opacity;
   backface-visibility: hidden;
   transform: translateZ(0);
+  transform-origin: center center;
 }
 
 .hot-sell-star-small {

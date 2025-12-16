@@ -1020,11 +1020,11 @@ export default function HotSellPage() {
         {/* Red Scrolling Stars Background - Fewer stars for smoother loading, spawn from bottom */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none hot-sell-stars-container" style={{ zIndex: 20 }}>
           {/* Generate fewer stars - spawn from bottom invisibly */}
-          {Array.from({ length: 60 }).map((_, i) => {
+          {Array.from({ length: 40 }).map((_, i) => {
             const left = Math.random() * 100;
-            const delay = Math.random() * 8; // Longer delay range for staggered spawning
-            const duration = 5 + Math.random() * 5; // Slower, smoother movement
-            const drift = (Math.random() - 0.5) * 150; // Less horizontal drift
+            const delay = Math.random() * 10; // Longer delay for smoother staggered spawning
+            const duration = 8 + Math.random() * 7; // Slower, smoother movement (8-15 seconds)
+            const drift = (Math.random() - 0.5) * 120; // Less horizontal drift for smoother path
             const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
             return (
               <div
