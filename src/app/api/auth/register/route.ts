@@ -340,7 +340,6 @@ export async function POST(request: NextRequest) {
         console.log('✅ [REGISTER] Record ID:', phoneData?.[0]?.id);
         console.log('✅ [REGISTER] Method:', saveMethod);
       }
-    }
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
