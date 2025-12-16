@@ -173,8 +173,8 @@ export default function CoinPlayPage() {
       const coin = document.createElement('div');
       const size = Math.random() < 0.4 ? 'small' : Math.random() < 0.85 ? '' : 'large';
       const left = Math.random() * 100;
-      const duration = 4 + Math.random() * 5; // 4-9 seconds for casino-style slow fall
-      const delay = Math.random() * 0.8; // Staggered delay for continuous flow
+      const duration = 10 + Math.random() * 8; // 10-18 seconds for smooth, slow fall
+      const delay = Math.random() * 2; // Longer staggered delay for smoother flow
       
       coin.className = `falling-coin ${size}`;
       coin.style.setProperty('--coin-left', `${left}%`);
@@ -199,15 +199,15 @@ export default function CoinPlayPage() {
       }, (duration + delay) * 1000);
     };
     
-    // Generate initial coins with staggered timing (more coins for casino feel)
-    for (let i = 0; i < 40; i++) {
-      setTimeout(() => generateCoin(), i * 120);
+    // Generate initial coins with staggered timing (fewer coins for smoother effect)
+    for (let i = 0; i < 25; i++) {
+      setTimeout(() => generateCoin(), i * 300); // Slower initial generation
     }
     
-    // Continuously generate new coins for casino atmosphere
+    // Continuously generate new coins smoothly
     const coinInterval = setInterval(() => {
       generateCoin();
-    }, 200); // New coin every 200ms for rich casino feel
+    }, 800); // New coin every 800ms for smooth, slow fall
     
     // Cleanup
     return () => {
@@ -697,7 +697,7 @@ export default function CoinPlayPage() {
       />
 
       <ErrorBoundary>
-        <div className="min-h-screen bg-gradient-to-br from-gray-800 via-slate-700 to-gray-900 relative overflow-hidden coin-play-page">
+        <div className="min-h-screen bg-gradient-to-br from-slate-300 via-gray-200 to-slate-400 relative overflow-hidden coin-play-page" style={{ background: 'linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 25%, #D3D3D3 50%, #C0C0C0 75%, #A8A8A8 100%)' }}>
         {/* Silver/Copper Particles Background */}
         <div className="fixed inset-0 pointer-events-none z-0">
           {Array.from({ length: 40 }).map((_, i) => (

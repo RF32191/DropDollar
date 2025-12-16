@@ -467,23 +467,31 @@
     transform: translateY(-100px) rotateY(0deg) rotateX(0deg) scale(0.8);
     opacity: 0;
   }
+  3% {
+    opacity: 0.6;
+    transform: translateY(-80px) rotateY(45deg) rotateX(20deg) scale(0.9);
+  }
   5% {
     opacity: 1;
-    transform: translateY(-80px) rotateY(90deg) rotateX(45deg) scale(1);
+    transform: translateY(-60px) rotateY(90deg) rotateX(45deg) scale(1);
   }
   25% {
-    transform: translateY(calc(25vh - 50px)) rotateY(180deg) rotateX(90deg) scale(1.1);
+    transform: translateY(calc(25vh - 50px)) rotateY(180deg) rotateX(90deg) scale(1.05);
   }
   50% {
-    transform: translateY(calc(50vh - 50px)) rotateY(270deg) rotateX(180deg) scale(1.2);
+    transform: translateY(calc(50vh - 50px)) rotateY(270deg) rotateX(180deg) scale(1.1);
     opacity: 1;
   }
   75% {
-    transform: translateY(calc(75vh - 50px)) rotateY(360deg) rotateX(270deg) scale(1.1);
+    transform: translateY(calc(75vh - 50px)) rotateY(360deg) rotateX(270deg) scale(1.05);
   }
   95% {
     opacity: 1;
     transform: translateY(calc(100vh + 50px)) rotateY(450deg) rotateX(360deg) scale(1);
+  }
+  97% {
+    opacity: 0.6;
+    transform: translateY(calc(100vh + 70px)) rotateY(495deg) rotateX(405deg) scale(0.9);
   }
   100% {
     transform: translateY(calc(100vh + 100px)) rotateY(540deg) rotateX(450deg) scale(0.8);
@@ -504,16 +512,17 @@
   position: absolute;
   width: 40px;
   height: 40px;
-  background: radial-gradient(circle, #C0C0C0 0%, #A8A8A8 30%, #8B7355 60%, #B87333 100%);
+  background: radial-gradient(circle, #FFD700 0%, #FFA500 30%, #CD853F 60%, #B87333 100%);
   border-radius: 50%;
   box-shadow: 
-    0 0 20px rgba(192, 192, 192, 0.8),
-    0 0 40px rgba(184, 115, 51, 0.7),
-    0 0 60px rgba(139, 115, 85, 0.5),
+    0 0 20px rgba(255, 215, 0, 0.9),
+    0 0 40px rgba(255, 165, 0, 0.8),
+    0 0 60px rgba(205, 133, 63, 0.6),
+    0 0 80px rgba(184, 115, 51, 0.4),
     inset -5px -5px 10px rgba(0, 0, 0, 0.4),
-    inset 5px 5px 10px rgba(255, 255, 255, 0.5);
-  animation: coin-fall cubic-bezier(0.4, 0, 0.2, 1) infinite, coin-spin var(--spin-speed, 0.5s) linear infinite, coin-shimmer 2s ease-in-out infinite;
-  animation-duration: var(--coin-duration, 3s), var(--spin-speed, 0.5s), 2s;
+    inset 5px 5px 10px rgba(255, 255, 255, 0.6);
+  animation: coin-fall cubic-bezier(0.25, 0.1, 0.25, 1) infinite, coin-spin var(--spin-speed, 0.8s) linear infinite, coin-shimmer 3s ease-in-out infinite;
+  animation-duration: var(--coin-duration, 12s), var(--spin-speed, 0.8s), 3s;
   left: var(--coin-left, 50%);
   top: -50px;
   z-index: 1;
@@ -530,9 +539,9 @@
   transform: translate(-50%, -50%);
   font-size: 20px;
   font-weight: bold;
-  color: #654321;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7), 0 0 10px rgba(184, 115, 51, 0.8), 0 0 15px rgba(192, 192, 192, 0.6);
-  animation: coin-spin var(--spin-speed, 0.5s) linear infinite reverse;
+  color: #8B6914;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7), 0 0 10px rgba(255, 215, 0, 0.9), 0 0 15px rgba(255, 165, 0, 0.7);
+  animation: coin-spin var(--spin-speed, 0.8s) linear infinite reverse;
 }
 
 .falling-coin::after {
@@ -561,8 +570,8 @@
 .falling-coin.small {
   width: 30px;
   height: 30px;
-  background: radial-gradient(circle, #E8E8E8 0%, #C0C0C0 40%, #A8A8A8 70%, #8B7355 100%);
-  box-shadow: 0 0 15px rgba(192, 192, 192, 0.7), 0 0 25px rgba(184, 115, 51, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.3);
+  background: radial-gradient(circle, #FFD700 0%, #FFA500 40%, #CD853F 70%, #B87333 100%);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), 0 0 25px rgba(255, 165, 0, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.4);
 }
 
 .falling-coin.small::before {
@@ -572,8 +581,8 @@
 .falling-coin.large {
   width: 50px;
   height: 50px;
-  background: radial-gradient(circle, #D3D3D3 0%, #B0B0B0 25%, #8B7355 50%, #B87333 75%, #CD853F 100%);
-  box-shadow: 0 0 25px rgba(192, 192, 192, 0.9), 0 0 35px rgba(184, 115, 51, 0.7), inset 0 0 25px rgba(255, 255, 255, 0.5);
+  background: radial-gradient(circle, #FFD700 0%, #FFA500 25%, #CD853F 50%, #B87333 75%, #8B6914 100%);
+  box-shadow: 0 0 25px rgba(255, 215, 0, 1), 0 0 35px rgba(255, 165, 0, 0.8), 0 0 45px rgba(205, 133, 63, 0.6), inset 0 0 25px rgba(255, 255, 255, 0.6);
 }
 
 .falling-coin.large::before {
