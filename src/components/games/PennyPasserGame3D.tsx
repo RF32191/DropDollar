@@ -46,22 +46,23 @@ interface Quadrant {
 }
 
 // Coin appearance configurations - VERY DISTINCT SIZES
+// Each coin has a unique symbol: Circle, Square, Triangle, Omega
 const COIN_CONFIGS = {
-  penny: { color: 0xB87333, radius: 0.35, thickness: 0.06, value: 1, shape: 'circle' as const },      // Tiny - Circle
-  nickel: { color: 0xC0C0C0, radius: 0.55, thickness: 0.12, value: 5, shape: 'square' as const },     // Medium - Square
-  dime: { color: 0xE8E8E8, radius: 0.25, thickness: 0.04, value: 10, shape: 'triangle' as const },    // Smallest - Triangle
-  quarter: { color: 0xD4D4D4, radius: 0.75, thickness: 0.15, value: 25, shape: 'pentagon' as const }  // Largest - Pentagon
+  penny: { color: 0xB87333, radius: 0.35, thickness: 0.06, value: 1, shape: 'circle' as const },      // Tiny - Circle (Cyan)
+  nickel: { color: 0xC0C0C0, radius: 0.55, thickness: 0.12, value: 5, shape: 'square' as const },     // Medium - Square (Green)
+  dime: { color: 0xE8E8E8, radius: 0.25, thickness: 0.04, value: 10, shape: 'triangle' as const },    // Smallest - Triangle (Purple)
+  quarter: { color: 0xD4D4D4, radius: 0.75, thickness: 0.15, value: 25, shape: 'omega' as const }     // Largest - OMEGA (Red)
 };
 
-// Shape types for quadrants
-type ShapeType = 'circle' | 'square' | 'triangle' | 'pentagon';
+// Shape types for quadrants - Omega replaces Pentagon for Red/Quarter!
+type ShapeType = 'circle' | 'square' | 'triangle' | 'omega';
 
 // Map shapes to quadrants
 const SHAPE_TO_QUADRANT: Record<ShapeType, QuadrantColor> = {
   circle: 'cyan',     // Penny shape
   square: 'green',    // Nickel shape
   triangle: 'purple', // Dime shape
-  pentagon: 'red'     // Quarter shape
+  omega: 'red'        // Quarter shape - RED OMEGA!
 };
 
 // Quadrant configurations - neon colors
@@ -206,8 +207,19 @@ export default function PennyPasserGame3D({
       case 'triangle':
         shapeGeometry = new THREE.CircleGeometry(shapeSize * 0.8, 3);
         break;
-      case 'pentagon':
-        shapeGeometry = new THREE.CircleGeometry(shapeSize * 0.7, 5);
+      case 'omega':
+        // Create OMEGA (Ω) shape - horseshoe with feet
+        const omegaShape = new THREE.Shape();
+        const s = shapeSize * 0.8;
+        // Draw omega: arc at top with two feet at bottom
+        omegaShape.moveTo(-s * 0.8, -s * 0.5); // Left foot start
+        omegaShape.lineTo(-s * 0.5, -s * 0.5); // Left foot end
+        omegaShape.lineTo(-s * 0.5, -s * 0.2); // Left leg up
+        omegaShape.absarc(0, 0, s * 0.5, Math.PI, 0, true); // Top arc
+        omegaShape.lineTo(s * 0.5, -s * 0.2); // Right leg down
+        omegaShape.lineTo(s * 0.5, -s * 0.5); // Right foot start
+        omegaShape.lineTo(s * 0.8, -s * 0.5); // Right foot end
+        shapeGeometry = new THREE.ShapeGeometry(omegaShape);
         break;
     }
     
@@ -238,8 +250,18 @@ export default function PennyPasserGame3D({
         case 'triangle':
           bonusShapeGeometry = new THREE.CircleGeometry(bonusShapeSize * 0.8, 3);
           break;
-        case 'pentagon':
-          bonusShapeGeometry = new THREE.CircleGeometry(bonusShapeSize * 0.7, 5);
+        case 'omega':
+          // Omega shape for bonus
+          const omegaBonusShape = new THREE.Shape();
+          const bs = bonusShapeSize * 0.8;
+          omegaBonusShape.moveTo(-bs * 0.8, -bs * 0.5);
+          omegaBonusShape.lineTo(-bs * 0.5, -bs * 0.5);
+          omegaBonusShape.lineTo(-bs * 0.5, -bs * 0.2);
+          omegaBonusShape.absarc(0, 0, bs * 0.5, Math.PI, 0, true);
+          omegaBonusShape.lineTo(bs * 0.5, -bs * 0.2);
+          omegaBonusShape.lineTo(bs * 0.5, -bs * 0.5);
+          omegaBonusShape.lineTo(bs * 0.8, -bs * 0.5);
+          bonusShapeGeometry = new THREE.ShapeGeometry(omegaBonusShape);
           break;
       }
       
@@ -346,8 +368,18 @@ export default function PennyPasserGame3D({
       case 'triangle':
         shapeIndicatorGeometry = new THREE.RingGeometry(0.8, 1.0, 3);
         break;
-      case 'pentagon':
-        shapeIndicatorGeometry = new THREE.RingGeometry(0.8, 1.0, 5);
+      case 'omega':
+        // Large OMEGA indicator for quadrant
+        const omegaIndicator = new THREE.Shape();
+        const os = 1.0;
+        omegaIndicator.moveTo(-os * 0.8, -os * 0.5);
+        omegaIndicator.lineTo(-os * 0.5, -os * 0.5);
+        omegaIndicator.lineTo(-os * 0.5, -os * 0.2);
+        omegaIndicator.absarc(0, 0, os * 0.5, Math.PI, 0, true);
+        omegaIndicator.lineTo(os * 0.5, -os * 0.2);
+        omegaIndicator.lineTo(os * 0.5, -os * 0.5);
+        omegaIndicator.lineTo(os * 0.8, -os * 0.5);
+        shapeIndicatorGeometry = new THREE.ShapeGeometry(omegaIndicator);
         break;
     }
     
@@ -400,8 +432,18 @@ export default function PennyPasserGame3D({
         case 'triangle':
           bonusGeometry = new THREE.CircleGeometry(0.22, 3); // Triangle
           break;
-        case 'pentagon':
-          bonusGeometry = new THREE.CircleGeometry(0.2, 5); // Pentagon
+        case 'omega':
+          // Small omega for bonus shape
+          const omegaBonus = new THREE.Shape();
+          const ob = 0.2;
+          omegaBonus.moveTo(-ob * 0.8, -ob * 0.5);
+          omegaBonus.lineTo(-ob * 0.5, -ob * 0.5);
+          omegaBonus.lineTo(-ob * 0.5, -ob * 0.2);
+          omegaBonus.absarc(0, 0, ob * 0.5, Math.PI, 0, true);
+          omegaBonus.lineTo(ob * 0.5, -ob * 0.2);
+          omegaBonus.lineTo(ob * 0.5, -ob * 0.5);
+          omegaBonus.lineTo(ob * 0.8, -ob * 0.5);
+          bonusGeometry = new THREE.ShapeGeometry(omegaBonus);
           break;
       }
       
@@ -508,10 +550,10 @@ export default function PennyPasserGame3D({
       targetZoneRef.current.position.set(randomX, randomY, 0);
       targetZoneRef.current.visible = true;
       
-      // ~17% chance for TRICK SHAPE - asks for a DIFFERENT coin!
-      const hasTrickShape = getRandom() < 0.17;
-      
-      if (hasTrickShape) {
+      // ALWAYS show a TRICK SHAPE - target zone shows a DIFFERENT coin's symbol!
+      // This forces players to identify the symbol, not just the quadrant color
+      // Example: Blue quadrant shows RED OMEGA = place QUARTER here for bonus!
+      {
         // Pick a DIFFERENT coin type than the quadrant's normal coin
         const coinTypes: CoinType[] = ['penny', 'nickel', 'dime', 'quarter'];
         const otherCoinTypes = coinTypes.filter(t => t !== targetQuadrant!.coinType);
@@ -524,6 +566,20 @@ export default function PennyPasserGame3D({
           shape: trickConfig.shape,
           coinType: trickCoinType,
           color: trickColor
+        };
+        
+        // Helper function to create omega geometry
+        const createOmegaGeometry = (size: number): THREE.BufferGeometry => {
+          const omegaShape = new THREE.Shape();
+          const s = size;
+          omegaShape.moveTo(-s * 0.8, -s * 0.5);
+          omegaShape.lineTo(-s * 0.5, -s * 0.5);
+          omegaShape.lineTo(-s * 0.5, -s * 0.2);
+          omegaShape.absarc(0, 0, s * 0.5, Math.PI, 0, true);
+          omegaShape.lineTo(s * 0.5, -s * 0.2);
+          omegaShape.lineTo(s * 0.5, -s * 0.5);
+          omegaShape.lineTo(s * 0.8, -s * 0.5);
+          return new THREE.ShapeGeometry(omegaShape);
         };
         
         // Update the trick shape mesh
@@ -542,11 +598,11 @@ export default function PennyPasserGame3D({
             case 'triangle':
               newGeometry = new THREE.CircleGeometry(0.4, 3);
               break;
-            case 'pentagon':
-              newGeometry = new THREE.CircleGeometry(0.4, 5);
+            case 'omega':
+              newGeometry = createOmegaGeometry(0.4);
               break;
             default:
-              newGeometry = new THREE.CircleGeometry(0.4, 5);
+              newGeometry = new THREE.CircleGeometry(0.4, 32);
           }
           
           trickShapeMeshRef.current.geometry = newGeometry;
@@ -565,47 +621,6 @@ export default function PennyPasserGame3D({
         }
         
         console.log(`🎯 TRICK TARGET: ${targetQuadrant.color} quadrant shows ${trickConfig.shape} (${trickCoinType}) - place ${trickCoinType} for +200 bonus!`);
-      } else {
-        // No trick - shape matches the quadrant's normal coin
-        trickShapeRef.current = null;
-        
-        // Update trick shape to match quadrant's coin
-        if (trickShapeMeshRef.current) {
-          const quadrantConfig = COIN_CONFIGS[targetQuadrant.coinType];
-          const oldGeometry = trickShapeMeshRef.current.geometry;
-          let newGeometry: THREE.BufferGeometry;
-          
-          switch (quadrantConfig.shape) {
-            case 'circle':
-              newGeometry = new THREE.RingGeometry(0.2, 0.4, 32);
-              break;
-            case 'square':
-              newGeometry = new THREE.PlaneGeometry(0.7, 0.7);
-              break;
-            case 'triangle':
-              newGeometry = new THREE.CircleGeometry(0.4, 3);
-              break;
-            case 'pentagon':
-              newGeometry = new THREE.CircleGeometry(0.4, 5);
-              break;
-            default:
-              newGeometry = new THREE.CircleGeometry(0.4, 5);
-          }
-          
-          trickShapeMeshRef.current.geometry = newGeometry;
-          oldGeometry.dispose();
-          
-          // Color matches the quadrant
-          if (trickShapeMeshRef.current.material instanceof THREE.MeshBasicMaterial) {
-            trickShapeMeshRef.current.material.color.setHex(targetQuadrant.hexColor);
-          }
-        }
-        
-        // Update trick glow to match quadrant
-        const trickGlow = targetZoneRef.current.getObjectByName('trickGlow');
-        if (trickGlow instanceof THREE.Mesh && trickGlow.material instanceof THREE.MeshBasicMaterial) {
-          trickGlow.material.color.setHex(targetQuadrant.hexColor);
-        }
       }
       
       // Update outer circle and crosshairs to match the quadrant color (where it is)
@@ -630,7 +645,7 @@ export default function PennyPasserGame3D({
     
     const coinTypes: CoinType[] = ['penny', 'nickel', 'dime', 'quarter'];
     const quadrantColors: QuadrantColor[] = ['cyan', 'green', 'purple', 'red'];
-    const shapeTypes: ShapeType[] = ['circle', 'square', 'triangle', 'pentagon'];
+    const shapeTypes: ShapeType[] = ['circle', 'square', 'triangle', 'omega'];
     
     // 15% chance for color coin
     const isColorCoin = getRandom() < 0.15;
@@ -1021,8 +1036,8 @@ export default function PennyPasserGame3D({
     scene.add(purpleQuadrant.mesh);
     scene.add(purpleQuadrant.targetMesh);
     
-    // Bottom-Right: RED (Quarter = Pentagon shape, largest)
-    const redQuadrant = createQuadrant('red', 'quarter', 'pentagon', offset, -offset, quadrantWidth, quadrantHeight);
+    // Bottom-Right: RED (Quarter = OMEGA shape, largest)
+    const redQuadrant = createQuadrant('red', 'quarter', 'omega', offset, -offset, quadrantWidth, quadrantHeight);
     scene.add(redQuadrant.mesh);
     scene.add(redQuadrant.targetMesh);
     
