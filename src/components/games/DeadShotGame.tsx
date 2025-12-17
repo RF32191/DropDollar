@@ -2388,14 +2388,14 @@ export default function DeadShotGame({
       const now = Date.now();
       const elapsedSeconds = (now - gameStartTime) / 1000;
       
-      // Calculate next spawn interval based on elapsed time
+      // HARDER: More frequent spawns, faster ramp-up!
       const intervals = [
-        { time: 0, interval: 3000 },
-        { time: 10, interval: 2500 },
-        { time: 20, interval: 2000 },
-        { time: 30, interval: 1500 },
-        { time: 40, interval: 1200 },
-        { time: 50, interval: 1000 },
+        { time: 0, interval: 2000 },    // Start: 2 seconds (was 3)
+        { time: 10, interval: 1500 },   // 10s: 1.5 seconds (was 2.5)
+        { time: 20, interval: 1200 },   // 20s: 1.2 seconds (was 2)
+        { time: 30, interval: 900 },    // 30s: 0.9 seconds (was 1.5)
+        { time: 40, interval: 700 },    // 40s: 0.7 seconds (was 1.2)
+        { time: 50, interval: 500 },    // 50s+: 0.5 seconds! (was 1)
       ];
       
       let nextInterval = intervals[intervals.length - 1].interval;
@@ -2406,7 +2406,19 @@ export default function DeadShotGame({
         }
       }
       
+      // Spawn the enemy
       spawnShip();
+      
+      // After 30 seconds, sometimes spawn 2 enemies at once!
+      if (elapsedSeconds >= 30 && Math.random() < 0.3) {
+        setTimeout(() => spawnShip(), 100); // Quick double spawn
+      }
+      
+      // After 50 seconds, sometimes spawn 3 enemies!
+      if (elapsedSeconds >= 50 && Math.random() < 0.2) {
+        setTimeout(() => spawnShip(), 200); // Triple spawn
+      }
+      
       spawnIntervalId = setTimeout(scheduleNextSpawn, nextInterval);
     };
     
