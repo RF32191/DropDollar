@@ -34,6 +34,27 @@ const DeadShotGame = dynamic(
     )
   }
 );
+
+// Dynamically import LightningMazeGame to avoid SSR issues with Three.js
+const LightningMazeGame = dynamic(
+  () => import('@/components/games/LightningMazeGame').then(mod => {
+    console.log('✅ [LightningMaze] Module loaded successfully');
+    return mod;
+  }).catch(err => {
+    console.error('❌ [LightningMaze] Failed to load module:', err);
+    throw err;
+  }),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="w-full h-screen flex items-center justify-center bg-black">
+        <div className="text-cyan-400 text-4xl font-bold animate-pulse">
+          ⚡ Loading Lightning Maze...
+        </div>
+      </div>
+    )
+  }
+);
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -173,6 +194,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Aiming', 'Physics', 'Precision', 'Timing'],
     component: DeadShotGame
+  },
+  {
+    id: 'lightning-maze',
+    name: 'Lightning Maze',
+    description: 'Guide a neon lightning bolt through a 3D maze with changing walls! Speed is everything!',
+    icon: BoltIcon,
+    difficulty: 'Medium',
+    avgTime: '90s',
+    skills: ['Navigation', 'Speed', 'Awareness', 'Precision'],
+    component: LightningMazeGame
   }
 ];
 
@@ -180,6 +211,7 @@ const GAMES = [
 console.log('🎮 Available games for deployment:', GAMES.map(g => `${g.name} (${g.id})`));
 console.log('🚀 Laser Dodge game included:', GAMES.find(g => g.id === 'laser-dodge') ? '✅ YES' : '❌ NO');
 console.log('🪙 Penny Passer game included:', GAMES.find(g => g.id === 'penny-passer') ? '✅ YES' : '❌ NO');
+console.log('⚡ Lightning Maze game included:', GAMES.find(g => g.id === 'lightning-maze') ? '✅ YES' : '❌ NO');
 console.log('📊 Total games available:', GAMES.length);
 
 interface GameResult {
