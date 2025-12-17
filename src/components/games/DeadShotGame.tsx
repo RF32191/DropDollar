@@ -2041,8 +2041,8 @@ export default function DeadShotGame({
         if (playerPickedUp || arrowHit) {
           // Handle different item types
           if (item.type === 'laser') {
-            // Red item: Give 3 laser shots that one-shot all enemies
-            laserShotsRemainingRef.current += 3;
+            // Red item: Give 1 laser shot that destroys all enemies in path
+            laserShotsRemainingRef.current += 1;
             setLaserShotsRemaining(laserShotsRemainingRef.current);
             
             // Bonus points for collecting laser
@@ -2119,7 +2119,7 @@ export default function DeadShotGame({
         if (distanceToPlayer < 2.5) {
           // Player picked up item
           if (item.type === 'laser') {
-            laserShotsRemainingRef.current += 3;
+            laserShotsRemainingRef.current += 1;
             setLaserShotsRemaining(laserShotsRemainingRef.current);
             // Visual feedback
             if (bowRef.current) {
@@ -2646,6 +2646,39 @@ export default function DeadShotGame({
         if (shipsToDestroy.length > 0) {
           comboRef.current = Math.min(10, comboRef.current + shipsToDestroy.length * 0.5);
           lastKillTimeRef.current = now;
+        }
+        
+        // *** ALSO DESTROY ENEMY PROJECTILES (AMOEBA SHOTS) ***
+        const projectilesToDestroy: number[] = [];
+        enemyProjectilesRef.current.forEach((projectile, index) => {
+          const projX = projectile.mesh.position.x;
+          const projY = projectile.mesh.position.y;
+          
+          const toProjX = projX - startX;
+          const toProjY = projY - startY;
+          const projection = toProjX * dirX + toProjY * dirY;
+          
+          if (projection > 0 && projection < beamLength) {
+            const perpDist = Math.abs(toProjX * (-dirY) + toProjY * dirX);
+            
+            if (perpDist < beamWidth) {
+              projectilesToDestroy.push(index);
+              console.log(`⚡ LASER destroyed enemy projectile!`);
+            }
+          }
+        });
+        
+        // Remove destroyed projectiles
+        projectilesToDestroy.sort((a, b) => b - a).forEach(index => {
+          const projectile = enemyProjectilesRef.current[index];
+          if (projectile && sceneRef.current) {
+            sceneRef.current.remove(projectile.mesh);
+            enemyProjectilesRef.current.splice(index, 1);
+          }
+        });
+        
+        if (projectilesToDestroy.length > 0) {
+          console.log(`⚡ LASER cleared ${projectilesToDestroy.length} enemy projectiles!`);
         }
         
         // Fade out laser beam after 400ms
