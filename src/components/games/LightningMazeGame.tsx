@@ -1,10 +1,28 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
+import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
 interface LightningMazeGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onExit?: () => void;
+  gameMode?: 'practice' | 'competition';
+  rngSeed?: number;
+}
+
+// Seeded random number generator for fair gameplay
+class Mulberry32 {
+  private state: number;
+  constructor(seed: number) {
+    this.state = seed >>> 0;
+  }
+  next(): number {
+    let t = this.state += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
 }
 
 // Maze cell types
@@ -29,21 +47,15 @@ interface MovingObstacle {
   speed: number;
 }
 
-// Generate a maze using recursive backtracking
-function generateMaze(width: number, height: number, seed: number): CellType[][] {
-  // Seeded random for variety
-  const seededRandom = () => {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  };
-  
+// Generate a maze using recursive backtracking with seeded RNG
+function generateMaze(width: number, height: number, rng: Mulberry32): CellType[][] {
   const maze: CellType[][] = Array(height).fill(null).map(() => Array(width).fill('wall'));
   
   const carve = (x: number, z: number) => {
     maze[z][x] = 'path';
     const directions = [
       [0, -2], [0, 2], [-2, 0], [2, 0]
-    ].sort(() => seededRandom() - 0.5);
+    ].sort(() => rng.next() - 0.5);
     
     for (const [dx, dz] of directions) {
       const nx = x + dx;
@@ -57,10 +69,10 @@ function generateMaze(width: number, height: number, seed: number): CellType[][]
   
   carve(1, 1);
   
-  // Add extra passages
+  // Add extra passages for more interesting paths
   for (let i = 0; i < width * height / 12; i++) {
-    const x = Math.floor(seededRandom() * (width - 2)) + 1;
-    const z = Math.floor(seededRandom() * (height - 2)) + 1;
+    const x = Math.floor(rng.next() * (width - 2)) + 1;
+    const z = Math.floor(rng.next() * (height - 2)) + 1;
     if (maze[z][x] === 'wall') {
       const hasPath = 
         (z > 0 && maze[z - 1][x] === 'path') ||
@@ -76,7 +88,7 @@ function generateMaze(width: number, height: number, seed: number): CellType[][]
   return maze;
 }
 
-export default function LightningMazeGame({ onGameComplete }: LightningMazeGameProps) {
+export default function LightningMazeGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: LightningMazeGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -84,6 +96,9 @@ export default function LightningMazeGame({ onGameComplete }: LightningMazeGameP
   const lightningRef = useRef<THREE.Group | null>(null);
   const lightningPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.5, 0));
   const targetPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0.5, 0));
+  const lastDirectionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 1)); // Track direction for rotation
+  const targetRotationRef = useRef<number>(0); // Target Y rotation
+  const currentRotationRef = useRef<number>(0); // Current Y rotation (smoothed)
   const mazeRef = useRef<CellType[][]>([]);
   const mazeMeshesRef = useRef<THREE.Object3D[]>([]);
   const checkpointsRef = useRef<Checkpoint[]>([]);
@@ -94,6 +109,17 @@ export default function LightningMazeGame({ onGameComplete }: LightningMazeGameP
   const lightningTimeRef = useRef<number>(0);
   const hasControlRef = useRef<boolean>(false);
   const wallHitCooldownRef = useRef<number>(0);
+  
+  // Seeded RNG for deterministic/fair gameplay
+  const seededRng = useMemo(() => {
+    const seed = rngSeed ?? Math.floor(Math.random() * 1000000);
+    console.log('⚡ [LightningMaze] RNG Seed:', seed);
+    return new Mulberry32(seed);
+  }, [rngSeed]);
+  
+  const getRandom = useCallback(() => {
+    return seededRng.next();
+  }, [seededRng]);
   
   const [gameState, setGameState] = useState<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
   const [score, setScore] = useState(0);
@@ -541,8 +567,10 @@ export default function LightningMazeGame({ onGameComplete }: LightningMazeGameP
     
     clearMaze();
     
-    // Generate new maze with seed based on maze number
-    const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT, mazeNumber * 12345 + Date.now() % 1000);
+    // Generate new maze using seeded RNG for fairness
+    // Create a new RNG with deterministic seed based on maze number
+    const mazeRng = new Mulberry32((rngSeed ?? Date.now()) + mazeNumber * 12345);
+    const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT, mazeRng);
     mazeRef.current = maze;
     
     // Wall materials - better looking neon red
@@ -912,15 +940,33 @@ export default function LightningMazeGame({ onGameComplete }: LightningMazeGameP
         setTimeRemaining(Math.ceil(remaining));
         
         if (remaining <= 0) {
-          // Game over
+          // Game over - time's up
           gameStateRef.current = 'complete';
           setGameState('complete');
           
           const accuracy = Math.min(100, Math.max(0, 100 - wallHits * 2));
+          const avgReactionTime = Math.round(elapsed * 1000 / Math.max(1, mazesCompletedRef.current));
+          
+          // Log to audit system for fair gameplay tracking
+          logGameCompletion({
+            gameType: GAME_TYPES.LIGHTNING_MAZE || 'lightning_maze',
+            gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+            score: scoreRef.current,
+            accuracy: accuracy,
+            reactionTime: avgReactionTime,
+            durationSeconds: Math.round(elapsed),
+            additionalData: {
+              mazesCompleted: mazesCompletedRef.current,
+              wallHits: wallHits,
+              checkpointsReached: currentCheckpoint,
+              rngSeed: rngSeed
+            }
+          }).catch(err => console.error('❌ [LightningMaze] Audit log failed:', err));
+          
           onGameComplete({
             score: scoreRef.current,
             accuracy: accuracy,
-            avgReactionTime: Math.round(elapsed * 1000 / Math.max(1, mazesCompletedRef.current))
+            avgReactionTime: avgReactionTime
           });
           return;
         }
@@ -941,6 +987,33 @@ export default function LightningMazeGame({ onGameComplete }: LightningMazeGameP
           direction.normalize();
           const moveSpeed = 10 * deltaTime;
           const moveAmount = Math.min(moveSpeed, distance);
+          
+          // Track direction for rotation - calculate target angle from movement direction
+          if (direction.x !== 0 || direction.z !== 0) {
+            // Calculate angle from direction vector (atan2 gives angle in radians)
+            const newTargetRotation = Math.atan2(direction.x, direction.z);
+            
+            // Only update target rotation if direction changed significantly
+            const directionChange = Math.abs(newTargetRotation - targetRotationRef.current);
+            if (directionChange > 0.1) {
+              targetRotationRef.current = newTargetRotation;
+              lastDirectionRef.current.copy(direction);
+            }
+          }
+          
+          // Smoothly interpolate rotation for turning animation
+          const rotationDiff = targetRotationRef.current - currentRotationRef.current;
+          // Handle wrapping around -PI to PI
+          let shortestRotation = rotationDiff;
+          if (Math.abs(rotationDiff) > Math.PI) {
+            shortestRotation = rotationDiff > 0 ? rotationDiff - Math.PI * 2 : rotationDiff + Math.PI * 2;
+          }
+          currentRotationRef.current += shortestRotation * Math.min(1, deltaTime * 8); // Smooth rotation
+          
+          // Apply rotation to lightning bolt
+          if (lightningRef.current) {
+            lightningRef.current.rotation.y = currentRotationRef.current;
+          }
           
           const newPos = currentPos.clone().addScaledVector(direction, moveAmount);
           
@@ -1079,11 +1152,28 @@ export default function LightningMazeGame({ onGameComplete }: LightningMazeGameP
             
             const totalTime = (Date.now() - startTimeRef.current) / 1000;
             const accuracy = Math.min(100, Math.max(0, 100 - wallHits * 2));
+            const avgReactionTime = Math.round(totalTime * 1000 / TOTAL_MAZES);
+            
+            // Log to audit system for fair gameplay tracking
+            logGameCompletion({
+              gameType: GAME_TYPES.LIGHTNING_MAZE || 'lightning_maze',
+              gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+              score: scoreRef.current,
+              accuracy: accuracy,
+              reactionTime: avgReactionTime,
+              durationSeconds: Math.round(totalTime),
+              additionalData: {
+                mazesCompleted: TOTAL_MAZES,
+                wallHits: wallHits,
+                allMazesComplete: true,
+                rngSeed: rngSeed
+              }
+            }).catch(err => console.error('❌ [LightningMaze] Audit log failed:', err));
             
             onGameComplete({
               score: scoreRef.current,
               accuracy: accuracy,
-              avgReactionTime: Math.round(totalTime * 1000 / TOTAL_MAZES)
+              avgReactionTime: avgReactionTime
             });
           }
         }

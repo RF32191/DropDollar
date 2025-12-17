@@ -919,6 +919,21 @@ export default function GamesPage() {
         });
         console.log('✅ [Games] Game history saved to game_history table:', gameHistory);
         
+        // Award XP for the game (this also updates XP-based challenges via database trigger)
+        if (gameHistory?.id) {
+          try {
+            if (!isCompetitionMode) {
+              const xpResult = await XPService.awardPracticeGameXP(user.id, gameHistory.id, result.score);
+              console.log('📊 [Games] Practice XP awarded:', xpResult);
+            } else {
+              const xpResult = await XPService.awardCompetitionGameXP(user.id, gameHistory.id, result.score);
+              console.log('📊 [Games] Competition XP awarded:', xpResult);
+            }
+          } catch (xpError) {
+            console.error('❌ [Games] XP award failed:', xpError);
+          }
+        }
+        
         // CRITICAL: Immediately update challenges (don't wait for trigger)
         // This ensures progress updates even if trigger doesn't fire
         try {
@@ -929,9 +944,11 @@ export default function GamesPage() {
               XPService.updateDailyChallengeProgress(user.id, 'play_practice', 1),
               XPService.updateDailyChallengeProgress(user.id, 'games_count', 1),
               XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1),
+              XPService.updateDailyChallengeProgress(user.id, 'total_xp', 5), // Practice games award 5 XP
               XPService.updateWeeklyChallengeProgress(user.id, 'play_practice', 1),
               XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1),
-              XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1)
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'total_xp', 5)
             ]);
             
             const successes = results.filter(r => r.status === 'fulfilled').length;
@@ -950,10 +967,13 @@ export default function GamesPage() {
               XPService.updateDailyChallengeProgress(user.id, 'games_count', 1),
               XPService.updateDailyChallengeProgress(user.id, 'score_threshold', result.score),
               XPService.updateDailyChallengeProgress(user.id, 'play_specific_game', 1),
+              XPService.updateDailyChallengeProgress(user.id, 'play_competition', 1),
+              XPService.updateDailyChallengeProgress(user.id, 'total_xp', 10), // Competition games award more XP
               XPService.updateWeeklyChallengeProgress(user.id, 'games_count', 1),
               XPService.updateWeeklyChallengeProgress(user.id, 'score_threshold', result.score),
               XPService.updateWeeklyChallengeProgress(user.id, 'play_specific_game', 1),
-              XPService.updateWeeklyChallengeProgress(user.id, 'play_competition', 1)
+              XPService.updateWeeklyChallengeProgress(user.id, 'play_competition', 1),
+              XPService.updateWeeklyChallengeProgress(user.id, 'total_xp', 10)
             ];
             
             // Add specific tournament type challenges
