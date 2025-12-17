@@ -716,7 +716,8 @@ export default function TriumphStyleDashboard() {
     return gameNames[gameType] || gameType;
   };
 
-  const formatScore = (score: number) => {
+  const formatScore = (score: number | undefined | null) => {
+    if (score === undefined || score === null) return '0';
     return score.toLocaleString();
   };
 
@@ -1166,7 +1167,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Total Games</p>
-                      <p className="text-2xl font-bold text-white">{userStats.totalGames}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.totalGames ?? 0}</p>
                     </div>
                     <ChartBarIcon className="w-8 h-8 text-blue-500" />
                   </div>
@@ -1176,7 +1177,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Practice Games</p>
-                      <p className="text-2xl font-bold text-white">{userStats.practiceGames}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.practiceGames ?? 0}</p>
                     </div>
                     <StarIcon className="w-8 h-8 text-yellow-500" />
                   </div>
@@ -1186,7 +1187,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Competitions</p>
-                      <p className="text-2xl font-bold text-white">{userStats.competitionGames}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.competitionGames ?? 0}</p>
                     </div>
                     <TrophyIcon className="w-8 h-8 text-red-500" />
                   </div>
@@ -1196,7 +1197,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Avg Score</p>
-                      <p className="text-2xl font-bold text-white">{Math.round(userStats.averageScore)}</p>
+                      <p className="text-2xl font-bold text-white">{Math.round(userStats?.averageScore ?? 0)}</p>
                     </div>
                     <FireIcon className="w-8 h-8 text-orange-500" />
                   </div>
@@ -1209,7 +1210,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Tokens Wagered</p>
-                      <p className="text-2xl font-bold text-white">{userStats.totalTokensWagered}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.totalTokensWagered ?? 0}</p>
                     </div>
                     <BanknotesIcon className="w-8 h-8 text-purple-500" />
                   </div>
@@ -1219,7 +1220,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Tokens Won</p>
-                      <p className="text-2xl font-bold text-white">{userStats.totalTokensWon}</p>
+                      <p className="text-2xl font-bold text-white">{userStats?.totalTokensWon ?? 0}</p>
                     </div>
                     <HeartIcon className="w-8 h-8 text-green-500" />
                   </div>
@@ -1232,40 +1233,40 @@ export default function TriumphStyleDashboard() {
                   <TrophyIcon className="w-5 h-5 mr-2 text-yellow-500" />
                   High Scores by Game
                 </h3>
-                {highScores.length === 0 ? (
-                    <div className="text-center py-8">
+                {!highScores || highScores.length === 0 ? (
+                  <div className="text-center py-8">
                     <ChartBarIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-400">No high scores yet</p>
                     <p className="text-sm text-gray-500">Play some games to see your best scores!</p>
-                    </div>
-                  ) : (
+                  </div>
+                ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {highScores.map((score) => (
-                      <div key={score.game_type} className="p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                    {highScores.map((score, index) => (
+                      <div key={score?.game_type || index} className="p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">
-                            {getGameIcon(score.game_type)}
-                            <h3 className="font-medium text-white ml-2">{formatGameType(score.game_type)}</h3>
+                            {getGameIcon(score?.game_type || '')}
+                            <h3 className="font-medium text-white ml-2">{formatGameType(score?.game_type || 'Unknown')}</h3>
                           </div>
                           <TrophyIcon className="w-5 h-5 text-yellow-500" />
                         </div>
                         <div className="space-y-1">
-                          <p className="text-2xl font-bold text-white">{formatScore(score.best_score)}</p>
+                          <p className="text-2xl font-bold text-white">{formatScore(score?.best_score)}</p>
                           <p className="text-sm text-gray-400">
-                            {score.games_played} games played
-                            {score.practice_games > 0 && ` • ${score.practice_games} practice`}
-                            {score.competition_games > 0 && ` • ${score.competition_games} competitions`}
+                            {score?.games_played ?? 0} games played
+                            {(score?.practice_games ?? 0) > 0 && ` • ${score.practice_games} practice`}
+                            {(score?.competition_games ?? 0) > 0 && ` • ${score.competition_games} competitions`}
                           </p>
-                          {score.best_accuracy && (
+                          {score?.best_accuracy && (
                             <p className="text-sm text-gray-400">
                               Best accuracy: {score.best_accuracy}%
                             </p>
                           )}
                         </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
