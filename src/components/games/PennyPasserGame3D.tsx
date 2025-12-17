@@ -316,38 +316,43 @@ export default function PennyPasserGame3D({
     ringMesh.position.set(centerX, centerY, -0.2);
     sceneRef.current?.add(ringMesh);
     
-    // Create bonus shapes (10 per quadrant) - same shape type as quadrant
+    // Create bonus shapes (10 per quadrant) - VISIBLE symbols showing what coin belongs here
     const bonusShapes: THREE.Mesh[] = [];
     for (let i = 0; i < 10; i++) {
       let bonusGeometry: THREE.BufferGeometry;
       
+      // Shape matches the coin type that belongs in this quadrant
       switch (shape) {
         case 'circle':
-          bonusGeometry = new THREE.CircleGeometry(0.15, 32);
+          bonusGeometry = new THREE.RingGeometry(0.15, 0.22, 32); // Circle outline
           break;
         case 'square':
-          bonusGeometry = new THREE.PlaneGeometry(0.25, 0.25);
+          bonusGeometry = new THREE.PlaneGeometry(0.35, 0.35); // Filled square
           break;
         case 'triangle':
-          bonusGeometry = new THREE.CircleGeometry(0.18, 3);
+          bonusGeometry = new THREE.CircleGeometry(0.22, 3); // Triangle
           break;
         case 'pentagon':
-          bonusGeometry = new THREE.CircleGeometry(0.15, 5);
+          bonusGeometry = new THREE.CircleGeometry(0.2, 5); // Pentagon
           break;
       }
       
       const shapeMaterial = new THREE.MeshBasicMaterial({
         color: hexColor,
         transparent: true,
-        opacity: 0.5
+        opacity: 0.25, // Subtle but visible
+        side: THREE.DoubleSide
       });
       const shapeMesh = new THREE.Mesh(bonusGeometry, shapeMaterial);
       
-      // Random position within quadrant
-      const offsetX = (Math.random() - 0.5) * (width * 0.8);
-      const offsetY = (Math.random() - 0.5) * (height * 0.8);
-      shapeMesh.position.set(centerX + offsetX, centerY + offsetY, -0.1);
-      shapeMesh.visible = false; // Hidden until activated
+      // Random position within quadrant - spread out nicely
+      const angle = (i / 10) * Math.PI * 2;
+      const radius = 1.5 + Math.random() * 1.5;
+      const offsetX = Math.cos(angle) * radius;
+      const offsetY = Math.sin(angle) * radius;
+      shapeMesh.position.set(centerX + offsetX, centerY + offsetY, -0.15);
+      shapeMesh.visible = true; // ALWAYS VISIBLE - shows what shape belongs here
+      shapeMesh.rotation.z = Math.random() * Math.PI * 2; // Random rotation
       
       sceneRef.current?.add(shapeMesh);
       bonusShapes.push(shapeMesh);
@@ -568,11 +573,14 @@ export default function PennyPasserGame3D({
       if (result.bonus) {
         points += 100;
         
-        // Show bonus shape
+        // Light up a bonus shape (make it brighter/glow)
         if (result.quadrant && result.quadrant.matchCount < 10) {
           const shapeIndex = result.quadrant.matchCount;
-          if (result.quadrant.bonusShapes[shapeIndex]) {
-            result.quadrant.bonusShapes[shapeIndex].visible = true;
+          const bonusShape = result.quadrant.bonusShapes[shapeIndex];
+          if (bonusShape && bonusShape.material instanceof THREE.MeshBasicMaterial) {
+            // Make shape bright and fully visible (was subtle, now glowing)
+            bonusShape.material.opacity = 1.0;
+            bonusShape.scale.setScalar(1.5); // Make it bigger
           }
           result.quadrant.matchCount++;
         }
