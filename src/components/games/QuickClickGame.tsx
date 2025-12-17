@@ -28,6 +28,8 @@ interface Round {
   targetX?: number;
   targetY?: number;
   accuracy?: number;
+  earlyClick?: boolean; // True if clicked during waiting phase
+  roundScore?: number; // Points scored this round
 }
 
 export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
@@ -169,34 +171,32 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
     console.log('QuickClick: Game ended', finalRounds);
     setGameState('ended');
     
-    // Calculate results
-    const validRounds = finalRounds.filter(r => r.reactionTime !== null);
+    // Calculate results - sum up all round scores
+    const totalScore = finalRounds.reduce((sum, r) => sum + (r.roundScore || 0), 0);
+    
+    // Calculate average reaction time (excluding early clicks)
+    const validRounds = finalRounds.filter(r => r.reactionTime !== null && !r.earlyClick);
     const avgReactionTime = validRounds.length > 0 
       ? validRounds.reduce((sum, r) => sum + r.reactionTime!, 0) / validRounds.length 
       : 0;
     
-    const accuracy = (validRounds.length / 4) * 100; // Now 4 rounds total
+    // Calculate overall accuracy
+    const bonusRound = finalRounds.find(r => r.isBonus);
+    const bonusAccuracy = bonusRound?.accuracy || 0;
+    const successfulRounds = finalRounds.filter(r => !r.earlyClick && r.reactionTime !== 999).length;
+    const accuracy = (successfulRounds / 4) * 100;
     
     // Play game end sound based on performance
-    const performance = accuracy > 75 ? 'great' : accuracy < 50 ? 'poor' : 'good';
+    const performance = totalScore > 2500 ? 'great' : totalScore < 1000 ? 'poor' : 'good';
     playGameEnd(performance);
     
-    // Score based on speed and accuracy
-    const speedScore = avgReactionTime > 0 ? Math.max(0, 1000 - avgReactionTime) : 0;
-    const accuracyBonus = accuracy * 10;
+    console.log('📊 FINAL SCORING:');
+    finalRounds.forEach(r => {
+      console.log(`  Round ${r.roundNumber}: ${r.roundScore || 0} pts ${r.earlyClick ? '(EARLY CLICK)' : ''} ${r.isBonus ? `(Accuracy: ${r.accuracy?.toFixed(1)}%)` : ''}`);
+    });
+    console.log(`  TOTAL: ${totalScore} pts`);
     
-    // Bonus round scoring
-    const bonusRound = finalRounds.find(r => r.isBonus);
-    let bonusScore = 0;
-    if (bonusRound && bonusRound.reactionTime && bonusRound.accuracy) {
-      // Bonus: reaction time + accuracy bonus
-      const bonusSpeed = Math.max(0, 500 - bonusRound.reactionTime); // Up to 500 points for speed
-      const bonusAccuracy = bonusRound.accuracy * 5; // Up to 500 points for accuracy
-      bonusScore = bonusSpeed + bonusAccuracy;
-      console.log(`Bonus scoring: Speed=${bonusSpeed}, Accuracy=${bonusAccuracy}, Total=${bonusScore}`);
-    }
-    
-    const finalScore = Number((speedScore + accuracyBonus + bonusScore).toFixed(2));
+    const finalScore = totalScore;
     
     console.log('');
     console.log('========================================');
@@ -242,8 +242,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState === 'waiting') {
-      // Clicked too early - end round with 50 points penalty score
-      console.log(`QuickClick: Clicked too early! Round ${currentRound} - 50 points penalty`);
+      // Clicked too early - PUNISHMENT: exactly 50 points
+      console.log(`QuickClick: Clicked too early! Round ${currentRound} - PUNISHMENT 50 points`);
       
       // Clear the flash timeout since we're ending early
       if (flashTimeoutRef.current) {
@@ -252,12 +252,14 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       const newRound: Round = {
         roundNumber: currentRound,
-        reactionTime: 500, // 500ms penalty (gives ~50 points in scoring formula)
+        reactionTime: null, // No valid reaction time
         clicked: true,
         isBonus: currentRound === 4,
         targetX: targetPosition?.x,
         targetY: targetPosition?.y,
-        accuracy: currentRound === 4 ? 10 : undefined // Low accuracy for bonus round
+        accuracy: 0,
+        earlyClick: true, // Mark as early click
+        roundScore: 50 // Exactly 50 points punishment
       };
       
       const updatedRounds = [...rounds, newRound];
@@ -289,6 +291,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       const isBonus = currentRound === 4;
       let accuracy = 100;
+      let roundScore = 0;
       
       if (isBonus && targetPosition && gameAreaRef.current) {
         // Calculate click accuracy for bonus round - FIXED positioning
@@ -309,10 +312,22 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         );
         
         // Convert distance to accuracy (closer = higher accuracy)
-        // Target is ~8% wide (w-16 = 64px on ~800px = 8%), so clicking within target = ~100%
-        // Max meaningful distance is ~50% (half the screen), so 2% penalty per % distance
         accuracy = Math.max(0, 100 - (distance * 2));
         console.log(`🎯 Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)}%)`);
+        
+        // BONUS ROUND SCORING: Speed AND Accuracy combined!
+        // Speed score: faster = higher (max ~800 for 200ms reaction)
+        const speedScore = Math.max(0, 1000 - reactionTime);
+        // Accuracy multiplier: 0% = 0.1x, 50% = 0.55x, 100% = 1.0x
+        const accuracyMultiplier = 0.1 + (accuracy / 100) * 0.9;
+        // Combined score
+        roundScore = Math.round(speedScore * accuracyMultiplier);
+        console.log(`🎯 Bonus scoring: Speed=${speedScore}, AccuracyMult=${accuracyMultiplier.toFixed(2)}, Total=${roundScore}`);
+      } else {
+        // NORMAL ROUND SCORING: Faster click = higher points
+        // 100ms = 900pts, 200ms = 800pts, 500ms = 500pts, 1000ms+ = 0pts
+        roundScore = Math.max(0, Math.round(1000 - reactionTime));
+        console.log(`⚡ Round ${currentRound} scoring: ${reactionTime}ms = ${roundScore} points`);
       }
       
       // Play success sound based on performance
@@ -330,7 +345,9 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         isBonus,
         targetX: targetPosition?.x,
         targetY: targetPosition?.y,
-        accuracy: isBonus ? accuracy : undefined
+        accuracy: isBonus ? accuracy : undefined,
+        earlyClick: false,
+        roundScore
       };
       
       setRounds(prev => [...prev, newRound]);
@@ -685,15 +702,20 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                   </div>
                 ) : (
                   <div>
-                    <div className="text-3xl sm:text-4xl font-bold mb-4">
+                    <div className="text-3xl sm:text-4xl font-bold mb-4 text-red-300">
                       {rounds[rounds.length - 1]?.clicked === false && rounds[rounds.length - 1]?.reactionTime === 999 
                         ? 'Too Late!' 
-                        : 'Too Early! +50'}
+                        : 'Too Early!'}
+                    </div>
+                    <div className="text-xl sm:text-2xl font-bold text-yellow-300 mb-2">
+                      {rounds[rounds.length - 1]?.earlyClick 
+                        ? 'Punishment: 50 points'
+                        : 'Missed!'}
                     </div>
                     <div className="text-lg sm:text-xl">
                       {rounds[rounds.length - 1]?.clicked === false && rounds[rounds.length - 1]?.reactionTime === 999
                         ? 'Click faster when it turns green!'
-                        : `Round ${currentRound} ended - Next round starting...`}
+                        : `Round ${currentRound} ended`}
                     </div>
                   </div>
                 )}

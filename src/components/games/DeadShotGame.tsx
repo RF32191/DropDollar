@@ -2516,134 +2516,10 @@ export default function DeadShotGame({
     return () => clearInterval(chargeInterval);
   }, [gameState, createArrow, playPlayerShotSound]);
 
-  // Right-click handler for firing INSTANT laser beam - obliterates all enemies in path
+  // Prevent right-click context menu
   const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    
-    if (gameState !== 'playing') return;
-    if (laserShotsRemainingRef.current <= 0) return;
-    if (!containerRef.current || !cameraRef.current || !sceneRef.current) return;
-    
-    // Rate limit laser shots (300ms between shots for instant beam)
-    const now = Date.now();
-    if (now - lastLaserShotRef.current < 300) return;
-    lastLaserShotRef.current = now;
-    
-    console.log('⚡ FIRING INSTANT LASER BEAM! Remaining:', laserShotsRemainingRef.current);
-    
-    // Decrease laser shots
-    laserShotsRemainingRef.current--;
-    setLaserShotsRemaining(laserShotsRemainingRef.current);
-    
-    // Play shot sound
-    playPlayerShotSound();
-    
-    // Get cursor position in world coordinates
-    const rect = containerRef.current.getBoundingClientRect();
-    const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    
-    const mouse = new THREE.Vector2(mouseX, mouseY);
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, cameraRef.current);
-    
-    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-    const targetPoint = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, targetPoint);
-    
-    // Calculate direction from player to cursor
-    const startX = bowPositionRef.current.x;
-    const startY = bowPositionRef.current.y;
-    const dx = targetPoint.x - startX;
-    const dy = targetPoint.y - startY;
-    const angleRad = Math.atan2(dy, dx);
-    const dirX = Math.cos(angleRad);
-    const dirY = Math.sin(angleRad);
-    
-    // Create INSTANT laser beam visual
-    const laserMesh = createLaserShot(startX, startY, angleRad);
-    sceneRef.current.add(laserMesh);
-    
-    // *** INSTANT DESTRUCTION - Check all enemies along the beam path ***
-    const beamLength = 60;
-    const beamWidth = 2.5; // Hit detection width
-    const shipsToDestroy: number[] = [];
-    
-    shipsRef.current.forEach((ship, index) => {
-      // Check if ship is within beam path using line-to-point distance
-      const shipX = ship.group.position.x;
-      const shipY = ship.group.position.y;
-      
-      // Vector from beam start to ship
-      const toShipX = shipX - startX;
-      const toShipY = shipY - startY;
-      
-      // Project onto beam direction
-      const projection = toShipX * dirX + toShipY * dirY;
-      
-      // Only check enemies in FRONT of the player (positive projection)
-      if (projection > 0 && projection < beamLength) {
-        // Perpendicular distance to beam line
-        const perpDist = Math.abs(toShipX * (-dirY) + toShipY * dirX);
-        
-        if (perpDist < beamWidth) {
-          // ENEMY HIT! Mark for destruction
-          shipsToDestroy.push(index);
-          
-          // Flash effect on hit
-          if (ship.capsid.material instanceof THREE.MeshStandardMaterial) {
-            ship.capsid.material.emissive.setHex(0xffffff);
-            ship.capsid.material.emissiveIntensity = 15.0;
-          }
-          
-          // Award points
-          const basePoints = { common: 25, rare: 75, epic: 175, legendary: 500 }[ship.type] || 50;
-          const comboMultiplier = Math.min(10, 1 + comboRef.current * 0.3);
-          const points = Math.floor(basePoints * comboMultiplier * 1.5); // Laser bonus
-          currentScoreRef.current += points;
-          setScore(currentScoreRef.current);
-          
-          console.log(`💥 LASER HIT! Enemy destroyed for ${points} points`);
-        }
-      }
-    });
-    
-    // Destroy all hit enemies (reverse order to preserve indices)
-    shipsToDestroy.sort((a, b) => b - a).forEach(index => {
-      const ship = shipsRef.current[index];
-      if (ship && sceneRef.current) {
-        sceneRef.current.remove(ship.group);
-        shipsRef.current.splice(index, 1);
-      }
-    });
-    
-    // Update combo if we got kills
-    if (shipsToDestroy.length > 0) {
-      comboRef.current = Math.min(10, comboRef.current + shipsToDestroy.length * 0.5);
-      lastKillTimeRef.current = now;
-    }
-    
-    // Fade out laser beam after 400ms
-    setTimeout(() => {
-      if (sceneRef.current && laserMesh) {
-        // Animate fade out
-        let opacity = 1.0;
-        const fadeInterval = setInterval(() => {
-          opacity -= 0.1;
-          laserMesh.traverse((child) => {
-            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
-              child.material.opacity = Math.max(0, opacity * child.material.opacity);
-            }
-          });
-          if (opacity <= 0) {
-            clearInterval(fadeInterval);
-            sceneRef.current?.remove(laserMesh);
-          }
-        }, 30);
-      }
-    }, 400);
-    
-  }, [gameState, createLaserShot, playPlayerShotSound]);
+  }, []);
 
   // Handle mouse/touch for aiming and drawing
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -2698,6 +2574,113 @@ export default function DeadShotGame({
     const power = bowPowerRef.current / 100;
     const aimAngleRad = aimAngleRef.current * Math.PI / 180;
     
+    // *** CHECK IF WE SHOULD FIRE A LASER INSTEAD ***
+    if (laserShotsRemainingRef.current > 0) {
+      // Rate limit laser shots (300ms between shots)
+      const now = Date.now();
+      if (now - lastLaserShotRef.current >= 300) {
+        lastLaserShotRef.current = now;
+        
+        console.log('⚡ FIRING LASER BEAM! Remaining:', laserShotsRemainingRef.current);
+        
+        // Decrease laser shots
+        laserShotsRemainingRef.current--;
+        setLaserShotsRemaining(laserShotsRemainingRef.current);
+        
+        // Play shot sound
+        playPlayerShotSound();
+        
+        // Calculate direction from aim angle
+        const startX = bowPositionRef.current.x;
+        const startY = bowPositionRef.current.y;
+        const dirX = Math.cos(aimAngleRad);
+        const dirY = Math.sin(aimAngleRad);
+        
+        // Create INSTANT laser beam visual
+        const laserMesh = createLaserShot(startX, startY, aimAngleRad);
+        sceneRef.current.add(laserMesh);
+        
+        // *** INSTANT DESTRUCTION - Check all enemies along the beam path ***
+        const beamLength = 60;
+        const beamWidth = 2.5;
+        const shipsToDestroy: number[] = [];
+        
+        shipsRef.current.forEach((ship, index) => {
+          const shipX = ship.group.position.x;
+          const shipY = ship.group.position.y;
+          
+          const toShipX = shipX - startX;
+          const toShipY = shipY - startY;
+          const projection = toShipX * dirX + toShipY * dirY;
+          
+          if (projection > 0 && projection < beamLength) {
+            const perpDist = Math.abs(toShipX * (-dirY) + toShipY * dirX);
+            
+            if (perpDist < beamWidth) {
+              shipsToDestroy.push(index);
+              
+              if (ship.capsid.material instanceof THREE.MeshStandardMaterial) {
+                ship.capsid.material.emissive.setHex(0xffffff);
+                ship.capsid.material.emissiveIntensity = 15.0;
+              }
+              
+              const basePoints = { common: 25, rare: 75, epic: 175, legendary: 500 }[ship.type] || 50;
+              const comboMultiplier = Math.min(10, 1 + comboRef.current * 0.3);
+              const points = Math.floor(basePoints * comboMultiplier * 1.5);
+              currentScoreRef.current += points;
+              setScore(currentScoreRef.current);
+              
+              console.log(`💥 LASER HIT! Enemy destroyed for ${points} points`);
+            }
+          }
+        });
+        
+        shipsToDestroy.sort((a, b) => b - a).forEach(index => {
+          const ship = shipsRef.current[index];
+          if (ship && sceneRef.current) {
+            sceneRef.current.remove(ship.group);
+            shipsRef.current.splice(index, 1);
+          }
+        });
+        
+        if (shipsToDestroy.length > 0) {
+          comboRef.current = Math.min(10, comboRef.current + shipsToDestroy.length * 0.5);
+          lastKillTimeRef.current = now;
+        }
+        
+        // Fade out laser beam after 400ms
+        setTimeout(() => {
+          if (sceneRef.current && laserMesh) {
+            let opacity = 1.0;
+            const fadeInterval = setInterval(() => {
+              opacity -= 0.1;
+              laserMesh.traverse((child) => {
+                if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+                  child.material.opacity = Math.max(0, opacity * child.material.opacity);
+                }
+              });
+              if (opacity <= 0) {
+                clearInterval(fadeInterval);
+                sceneRef.current?.remove(laserMesh);
+              }
+            }, 30);
+          }
+        }, 400);
+        
+        // Apply recoil for laser too
+        const recoilVx = -dirX * 0.5;
+        const recoilVy = -dirY * 0.5;
+        bowVelocityRef.current.x += recoilVx;
+        bowVelocityRef.current.y += recoilVy;
+      }
+      
+      // Reset power after shooting
+      bowPowerRef.current = 0;
+      setBowPower(0);
+      return; // Don't fire regular arrow
+    }
+    
+    // *** REGULAR ARROW SHOT ***
     // Velocity scales with power (min 8, max 50)
     const baseSpeed = 8 + power * 42;
     
@@ -2772,7 +2755,7 @@ export default function DeadShotGame({
     // Reset power after shooting
     bowPowerRef.current = 0;
     setBowPower(0);
-  }, [gameState, createArrow, playPlayerShotSound]);
+  }, [gameState, createArrow, createLaserShot, playPlayerShotSound]);
 
   // Start game
   const startGame = () => {
@@ -2973,8 +2956,7 @@ export default function DeadShotGame({
               <div className="bg-red-500/80 backdrop-blur-xl rounded-lg px-4 py-2 border-2 border-red-400 shadow-lg animate-pulse">
                 <div className="text-white font-bold text-lg flex items-center gap-2">
                   <span className="text-2xl">⚡</span>
-                  <span>Laser Shots: {laserShotsRemaining}</span>
-                  <span className="text-sm text-red-200">(Right-Click for 3x)</span>
+                  <span>LASER ACTIVE: {laserShotsRemaining} shots</span>
                 </div>
               </div>
             </div>
