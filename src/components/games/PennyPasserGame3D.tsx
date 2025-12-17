@@ -27,6 +27,9 @@ interface Coin {
   isPriority: boolean; // Highlighted coin to sort next
   glowMesh?: THREE.Mesh; // Glow effect mesh
   destinationColor: number; // Color of destination quadrant
+  hasBonusShape: boolean; // Special coin with bonus shape indicator
+  bonusShapeType?: ShapeType; // The bonus shape shown on coin (different from its normal type)
+  bonusQuadrant?: QuadrantColor; // The quadrant this bonus shape belongs to
 }
 
 interface Quadrant {
@@ -75,6 +78,14 @@ const COIN_TO_QUADRANT_COLOR: Record<CoinType, number> = {
   nickel: 0x00FF00,  // Green
   dime: 0xFF00FF,    // Purple
   quarter: 0xFF0000  // Red
+};
+
+// Map coin types to their destination quadrant (color name)
+const COIN_TO_QUADRANT: Record<CoinType, QuadrantColor> = {
+  penny: 'cyan',
+  nickel: 'green',
+  dime: 'purple',
+  quarter: 'red'
 };
 
 // Seeded random number generator
@@ -135,7 +146,14 @@ export default function PennyPasserGame3D({
   }, []);
 
   // Create realistic 3D coin mesh with destination color glow and shape indicator
-  const createCoinMesh = useCallback((type: CoinType, isColorCoin: boolean, colorMatch?: QuadrantColor): { group: THREE.Group; glowMesh: THREE.Mesh; destinationColor: number } => {
+  // bonusShape param: if set, adds a SECOND shape indicator in a different color for bonus placement
+  const createCoinMesh = useCallback((
+    type: CoinType, 
+    isColorCoin: boolean, 
+    colorMatch?: QuadrantColor,
+    bonusShapeType?: ShapeType,
+    bonusQuadrant?: QuadrantColor
+  ): { group: THREE.Group; glowMesh: THREE.Mesh; destinationColor: number } => {
     const config = COIN_CONFIGS[type];
     const group = new THREE.Group();
     
@@ -200,6 +218,54 @@ export default function PennyPasserGame3D({
     const shapeMesh = new THREE.Mesh(shapeGeometry, shapeMaterial);
     shapeMesh.position.z = config.thickness / 2 + 0.02;
     group.add(shapeMesh);
+    
+    // Add BONUS SHAPE indicator if this is a bonus coin
+    // Shows a DIFFERENT colored shape indicating alternate placement for +200 points
+    if (bonusShapeType && bonusQuadrant) {
+      const bonusColor = QUADRANT_COLORS[bonusQuadrant];
+      let bonusShapeGeometry: THREE.BufferGeometry;
+      const bonusShapeSize = config.radius * 0.35; // Smaller than main shape
+      
+      switch (bonusShapeType) {
+        case 'circle':
+          bonusShapeGeometry = new THREE.RingGeometry(bonusShapeSize * 0.5, bonusShapeSize * 0.8, 32);
+          break;
+        case 'square':
+          bonusShapeGeometry = new THREE.PlaneGeometry(bonusShapeSize * 1.2, bonusShapeSize * 1.2);
+          break;
+        case 'triangle':
+          bonusShapeGeometry = new THREE.CircleGeometry(bonusShapeSize * 0.8, 3);
+          break;
+        case 'pentagon':
+          bonusShapeGeometry = new THREE.CircleGeometry(bonusShapeSize * 0.7, 5);
+          break;
+      }
+      
+      // Bonus shape indicator - positioned slightly offset on the coin
+      const bonusShapeMaterial = new THREE.MeshBasicMaterial({
+        color: bonusColor,
+        transparent: true,
+        opacity: 1.0,
+        side: THREE.DoubleSide
+      });
+      const bonusShapeMesh = new THREE.Mesh(bonusShapeGeometry, bonusShapeMaterial);
+      bonusShapeMesh.position.set(config.radius * 0.4, config.radius * 0.4, config.thickness / 2 + 0.03);
+      bonusShapeMesh.name = 'bonusShape';
+      group.add(bonusShapeMesh);
+      
+      // Pulsing glow ring around bonus shape
+      const bonusGlowGeometry = new THREE.RingGeometry(bonusShapeSize * 1.2, bonusShapeSize * 1.5, 16);
+      const bonusGlowMaterial = new THREE.MeshBasicMaterial({
+        color: bonusColor,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+      });
+      const bonusGlowMesh = new THREE.Mesh(bonusGlowGeometry, bonusGlowMaterial);
+      bonusGlowMesh.position.set(config.radius * 0.4, config.radius * 0.4, config.thickness / 2 + 0.025);
+      bonusGlowMesh.name = 'bonusGlow';
+      group.add(bonusGlowMesh);
+    }
     
     // Glow effect - always present, shows destination quadrant color
     const glowGeometry = new THREE.CircleGeometry(config.radius * 1.6, 32);
@@ -451,18 +517,42 @@ export default function PennyPasserGame3D({
   }, [getRandom]);
 
   // Spawn a new coin
+  // ~10 bonus shape coins per minute (60s/10 = every 6s, with ~1 coin/second spawn = ~17% chance)
   const spawnCoin = useCallback(() => {
     if (!sceneRef.current) return;
     
     const coinTypes: CoinType[] = ['penny', 'nickel', 'dime', 'quarter'];
     const quadrantColors: QuadrantColor[] = ['cyan', 'green', 'purple', 'red'];
+    const shapeTypes: ShapeType[] = ['circle', 'square', 'triangle', 'pentagon'];
     
     // 15% chance for color coin
     const isColorCoin = getRandom() < 0.15;
     const coinType = coinTypes[Math.floor(getRandom() * coinTypes.length)];
     const colorMatch = isColorCoin ? quadrantColors[Math.floor(getRandom() * quadrantColors.length)] : undefined;
     
-    const { group: coinMesh, glowMesh, destinationColor } = createCoinMesh(coinType, isColorCoin, colorMatch);
+    // ~17% chance for bonus shape coin (approximately 10 per minute)
+    const hasBonusShape = getRandom() < 0.17;
+    let bonusShapeType: ShapeType | undefined;
+    let bonusQuadrant: QuadrantColor | undefined;
+    
+    if (hasBonusShape && !isColorCoin) {
+      // Pick a DIFFERENT quadrant than the coin's normal destination
+      const normalQuadrant = COIN_TO_QUADRANT[coinType];
+      const otherQuadrants = quadrantColors.filter(c => c !== normalQuadrant);
+      bonusQuadrant = otherQuadrants[Math.floor(getRandom() * otherQuadrants.length)];
+      
+      // Get the shape of the bonus quadrant
+      const bonusQuadrantData = quadrantsRef.current.find(q => q.color === bonusQuadrant);
+      bonusShapeType = bonusQuadrantData?.shape;
+    }
+    
+    const { group: coinMesh, glowMesh, destinationColor } = createCoinMesh(
+      coinType, 
+      isColorCoin, 
+      colorMatch,
+      bonusShapeType,
+      bonusQuadrant
+    );
     
     // Spawn in center area with some randomness
     const x = (getRandom() - 0.5) * 3;
@@ -481,7 +571,10 @@ export default function PennyPasserGame3D({
       sorted: false,
       isPriority: false,
       glowMesh,
-      destinationColor
+      destinationColor,
+      hasBonusShape: hasBonusShape && !isColorCoin && !!bonusShapeType,
+      bonusShapeType,
+      bonusQuadrant
     };
     
     sceneRef.current.add(coinMesh);
@@ -495,7 +588,15 @@ export default function PennyPasserGame3D({
   }, [createCoinMesh, getRandom, updatePriorityCoin]);
 
   // Check if coin is in correct quadrant
-  const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { correct: boolean; bonus: boolean; perfectBonus: boolean; quadrant: Quadrant | null } => {
+  // Now includes bonus shape placement check (+200 points if bonus shape coin goes to bonus quadrant)
+  const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { 
+    correct: boolean; 
+    bonus: boolean; 
+    perfectBonus: boolean; 
+    quadrant: Quadrant | null;
+    bonusShapePlacement: boolean; // Bonus shape coin placed in bonus quadrant (+200)
+    wrongBonusPlacement: boolean; // Non-bonus coin placed in quadrant with bonus indicator (-points)
+  } => {
     for (const quadrant of quadrantsRef.current) {
       if (x >= quadrant.bounds.minX && x <= quadrant.bounds.maxX &&
           y >= quadrant.bounds.minY && y <= quadrant.bounds.maxY) {
@@ -508,6 +609,14 @@ export default function PennyPasserGame3D({
         } else {
           // Regular coins match by type
           isCorrect = coin.type === quadrant.coinType;
+        }
+        
+        // Check for BONUS SHAPE placement
+        // If coin has bonus shape and is placed in the bonus quadrant = +200 points!
+        let bonusShapePlacement = false;
+        if (coin.hasBonusShape && coin.bonusQuadrant && coin.bonusQuadrant === quadrant.color) {
+          bonusShapePlacement = true;
+          isCorrect = true; // Bonus placement is also correct!
         }
         
         // Check if in target zone indicator (perfect accuracy bonus)
@@ -525,11 +634,18 @@ export default function PennyPasserGame3D({
         const distanceToCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
         const isBonus = distanceToCenter < 1.5;
         
-        return { correct: isCorrect, bonus: isBonus && isCorrect, perfectBonus: isPerfectBonus, quadrant };
+        return { 
+          correct: isCorrect, 
+          bonus: isBonus && isCorrect, 
+          perfectBonus: isPerfectBonus, 
+          quadrant,
+          bonusShapePlacement,
+          wrongBonusPlacement: false // Not implemented yet
+        };
       }
     }
     
-    return { correct: false, bonus: false, perfectBonus: false, quadrant: null };
+    return { correct: false, bonus: false, perfectBonus: false, quadrant: null, bonusShapePlacement: false, wrongBonusPlacement: false };
   }, []);
 
   // Handle coin drop
@@ -548,6 +664,28 @@ export default function PennyPasserGame3D({
       // Combo multiplier
       const comboMultiplier = Math.min(5, 1 + comboRef.current * 0.2);
       points = Math.floor(points * comboMultiplier);
+      
+      // *** BONUS SHAPE PLACEMENT - +200 points! ***
+      // If coin has bonus shape and was placed in the bonus quadrant
+      if (result.bonusShapePlacement) {
+        points += 200; // Big bonus for bonus shape placement!
+        console.log('🌟 BONUS SHAPE PLACEMENT! +200 points');
+        
+        // Flash the bonus shape on the coin
+        coin.mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.name === 'bonusGlow') {
+            if (child.material instanceof THREE.MeshBasicMaterial) {
+              const originalOpacity = child.material.opacity;
+              child.material.opacity = 1.0;
+              setTimeout(() => {
+                if (child.material instanceof THREE.MeshBasicMaterial) {
+                  child.material.opacity = originalOpacity;
+                }
+              }, 300);
+            }
+          }
+        });
+      }
       
       // Bonus for hitting target zone indicator (PERFECT ACCURACY)
       if (result.perfectBonus) {
