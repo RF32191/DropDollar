@@ -361,7 +361,18 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     }
   });
 
-  const createRandomObject = useCallback(() => {
+  // Calculate speed multiplier based on time elapsed (slower at start, faster at end)
+  const getSpeedMultiplier = useCallback((timeLeft: number) => {
+    const timeElapsed = 60 - timeLeft;
+    // Start at 40% speed, reach 100% at 50 seconds (last 10 seconds at full speed)
+    if (timeElapsed >= 50) {
+      return 1.0; // Full speed for last 10 seconds
+    }
+    // Linear ramp from 0.4 to 1.0 over first 50 seconds
+    return 0.4 + (timeElapsed / 50) * 0.6;
+  }, []);
+
+  const createRandomObject = useCallback((currentTimeLeft?: number) => {
     // Weighted random selection for object types
     const rand = engine.random();
     let selectedType = OBJECT_TYPES[0]; // Default to coin
@@ -375,11 +386,14 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       }
     }
     
+    // Get speed multiplier based on time (slower at start, faster at end)
+    const speedMultiplier = getSpeedMultiplier(currentTimeLeft ?? 60);
+    
     const id = Date.now() + engine.random();
     const x = engine.randomFloat(5, 95); // Wider spawn area for larger view
-    const baseVelocityY = engine.randomFloat(0.5, 1.2); // Even slower for better control
-    const velocityY = baseVelocityY + engine.randomFloat(0, 0.5);
-    const velocityX = engine.randomFloat(-0.3, 0.3); // Very slow horizontal drift
+    const baseVelocityY = engine.randomFloat(0.5, 1.2); // Base speed range
+    const velocityY = (baseVelocityY + engine.randomFloat(0, 0.5)) * speedMultiplier; // Apply speed multiplier
+    const velocityX = engine.randomFloat(-0.3, 0.3) * speedMultiplier; // Very slow horizontal drift
     const size = engine.randomFloat(selectedType.size[0], selectedType.size[1]);
     
     return {
@@ -393,7 +407,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       value: selectedType.value,
       bounces: 0
     };
-  }, [engine]);
+  }, [engine, getSpeedMultiplier]);
 
   const updateGame = useCallback(() => {
     if (gameState !== 'playing') return;
@@ -403,13 +417,17 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
     const delta = Math.min((now - lastFrameTimeRef.current) / 1000, 0.1); // Cap delta to prevent huge jumps
     lastFrameTimeRef.current = now;
     const frameMultiplier = delta * 60; // Normalize to 60 FPS
+    
+    // Dynamic speed multiplier based on time (slower at start, faster at end)
+    const speedMultiplier = getSpeedMultiplier(timer.timeLeft);
 
     setObjects(prevObjects => {
       let caughtThisFrame = 0;
       
       const updatedObjects = prevObjects.map(obj => {
-        let newX = obj.x + obj.velocityX * 0.3 * frameMultiplier; // SMOOTH horizontal movement
-        let newY = obj.y + obj.velocityY * 0.6 * frameMultiplier; // SMOOTH vertical movement
+        // Apply speed multiplier to make objects move slower at start, faster at end
+        let newX = obj.x + obj.velocityX * 0.3 * frameMultiplier * speedMultiplier; // SMOOTH horizontal movement
+        let newY = obj.y + obj.velocityY * 0.6 * frameMultiplier * speedMultiplier; // SMOOTH vertical movement
         let newVelocityX = obj.velocityX;
         let newVelocityY = obj.velocityY;
         let newBounces = obj.bounces;
@@ -560,13 +578,13 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
       const spawnMultiplier = 1 + (timeElapsed * 0.06); // Increases 6% every second
       const spawnRate = Math.min(0.1, 0.025 * spawnMultiplier); // Max 10% spawn rate, starts at 2.5%
       if (objects.length < MAX_OBJECTS && engine.random() < spawnRate) {
-        setObjects(prev => [...prev, createRandomObject()]);
+        setObjects(prev => [...prev, createRandomObject(timer.timeLeft)]);
         setTotalObjects(prev => prev + 1);
       }
     }
 
     animationRef.current = requestAnimationFrame(updateGame);
-  }, [gameState, timer.timeLeft, createRandomObject, engine, rngConfig, objects]);
+  }, [gameState, timer.timeLeft, createRandomObject, engine, rngConfig, objects, getSpeedMultiplier]);
 
   const handleKeyPress = useCallback((key: string, pressed: boolean) => {
     setKeysPressed(prev => {
