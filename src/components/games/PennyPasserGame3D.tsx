@@ -4,659 +4,680 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
-interface PennyPasserGameProps {
+interface CoinSorterGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
   competitionId?: string;
 }
 
-interface Lane {
-  y: number;
-  direction: 1 | -1;
-  speed: number;
-  cars: Car[];
-  pattern: number; // Pattern ID (0-19)
-}
+type CoinType = 'penny' | 'nickel' | 'dime' | 'quarter';
+type QuadrantColor = 'cyan' | 'green' | 'purple' | 'red';
 
-interface Car {
-  x: number;
+interface Coin {
+  id: number;
+  type: CoinType;
   mesh: THREE.Group;
-  color: number;
-}
-
-interface CollectibleCoin {
   x: number;
   y: number;
-  mesh: THREE.Group;
-  collected: boolean;
+  isColorCoin: boolean; // Special colored coins match by color
+  colorMatch?: QuadrantColor; // If color coin, which quadrant color to match
+  isDragging: boolean;
+  sorted: boolean;
 }
 
-// Car colors (varied palette)
-const CAR_COLORS = [
-  0xFF0000, // Red
-  0x0000FF, // Blue
-  0x00FF00, // Green
-  0xFFFF00, // Yellow
-  0xFF00FF, // Magenta
-  0x00FFFF, // Cyan
-  0xFF8800, // Orange
-  0x8800FF, // Purple
-  0xFFFFFF, // White
-  0x808080  // Gray
-];
+interface Quadrant {
+  color: QuadrantColor;
+  coinType: CoinType;
+  mesh: THREE.Mesh;
+  targetMesh: THREE.Mesh; // Bonus zone
+  bounds: { minX: number; maxX: number; minY: number; maxY: number };
+  hexColor: number;
+  bonusShapes: THREE.Mesh[];
+  matchCount: number;
+}
 
-// 20 pre-defined fair patterns - PROGRESSIVE DIFFICULTY (fewer cars at start, more later)
-const PATTERN_CONFIGS = [
-  // EASY patterns (0-4): 1-2 cars, slow, wide spacing
-  { numCars: 1, spacing: 15, speed: 0.02, direction: 1 },
-  { numCars: 1, spacing: 18, speed: 0.015, direction: -1 },
-  { numCars: 2, spacing: 12, speed: 0.02, direction: 1 },
-  { numCars: 2, spacing: 14, speed: 0.025, direction: -1 },
-  { numCars: 1, spacing: 20, speed: 0.02, direction: 1 },
-  
-  // MEDIUM patterns (5-9): 2-3 cars, moderate speed
-  { numCars: 2, spacing: 10, speed: 0.03, direction: -1 },
-  { numCars: 2, spacing: 11, speed: 0.035, direction: 1 },
-  { numCars: 3, spacing: 9, speed: 0.03, direction: -1 },
-  { numCars: 2, spacing: 12, speed: 0.04, direction: 1 },
-  { numCars: 3, spacing: 8, speed: 0.035, direction: -1 },
-  
-  // HARD patterns (10-14): 3-4 cars, faster
-  { numCars: 3, spacing: 7, speed: 0.04, direction: 1 },
-  { numCars: 3, spacing: 8, speed: 0.045, direction: -1 },
-  { numCars: 4, spacing: 6, speed: 0.04, direction: 1 },
-  { numCars: 3, spacing: 9, speed: 0.05, direction: -1 },
-  { numCars: 4, spacing: 7, speed: 0.045, direction: 1 },
-  
-  // EXPERT patterns (15-19): 4-5 cars, fast, tight spacing
-  { numCars: 4, spacing: 5, speed: 0.05, direction: -1 },
-  { numCars: 4, spacing: 6, speed: 0.055, direction: 1 },
-  { numCars: 5, spacing: 5, speed: 0.05, direction: -1 },
-  { numCars: 4, spacing: 7, speed: 0.06, direction: 1 },
-  { numCars: 5, spacing: 6, speed: 0.055, direction: -1 }
-];
+// Coin appearance configurations
+const COIN_CONFIGS = {
+  penny: { color: 0xB87333, radius: 0.4, thickness: 0.08, value: 1 },
+  nickel: { color: 0xC0C0C0, radius: 0.5, thickness: 0.1, value: 5 },
+  dime: { color: 0xE8E8E8, radius: 0.35, thickness: 0.06, value: 10 },
+  quarter: { color: 0xD4D4D4, radius: 0.6, thickness: 0.12, value: 25 }
+};
 
-// Seeded RNG for deterministic patterns in competition mode
-class SeededRandom {
-  private seed: number;
+// Quadrant configurations - neon colors
+const QUADRANT_COLORS = {
+  cyan: 0x00FFFF,
+  green: 0x00FF00,
+  purple: 0xFF00FF,
+  red: 0xFF0000
+};
 
+// Seeded random number generator
+class Mulberry32 {
+  private state: number;
   constructor(seed: number) {
-    this.seed = seed;
+    this.state = seed;
   }
-
   next(): number {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
-    return this.seed / 233280;
-  }
-
-  range(min: number, max: number): number {
-    return min + this.next() * (max - min);
-  }
-
-  integer(min: number, max: number): number {
-    return Math.floor(this.range(min, max + 1));
+    let t = this.state += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
   }
 }
 
-export default function PennyPasserGame3D({
-  onGameEnd,
+export default function PennyPasserGame3D({ 
+  onGameEnd, 
   gameMode = 'practice',
   rngSeed,
-  competitionId
-}: PennyPasserGameProps) {
-  const mountRef = useRef<HTMLDivElement>(null);
+  competitionId 
+}: CoinSorterGameProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const animationIdRef = useRef<number | undefined>(undefined);
-  const pennyRef = useRef<THREE.Group | null>(null);
-  const lanesRef = useRef<Lane[]>([]);
-  const collectibleCoinsRef = useRef<CollectibleCoin[]>([]);
-  const rngRef = useRef<SeededRandom>(new SeededRandom(rngSeed || Date.now()));
-  const hasEndedRef = useRef(false);
-  const clockRef = useRef<THREE.Clock>(new THREE.Clock()); // For frame-independent animation
-  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
-  const mouseRef = useRef<THREE.Vector2>(new THREE.Vector2());
-  const hopAnimationRef = useRef(0);
-  const lastClickTimeRef = useRef(0);
-  const clickDirectionRef = useRef<{ x: number; z: number } | null>(null);
-
-  const [gameState, setGameState] = useState<'playing' | 'ended'>('playing');
+  const animationIdRef = useRef<number>();
+  
+  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [score, setScore] = useState(0);
-  const [hearts, setHearts] = useState(3);
-  const [timeRemaining, setTimeRemaining] = useState(60);
-  const [pennyPosition, setPennyPosition] = useState(0);
-  const [isMoving, setIsMoving] = useState(false);
-  const [moveCount, setMoveCount] = useState(0);
-  const [lastMoveTime, setLastMoveTime] = useState(Date.now());
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [collectedCoins, setCollectedCoins] = useState(0);
-  const [showArrow, setShowArrow] = useState<{ direction: string; x: number; y: number } | null>(null);
-  const [showJumpIndicator, setShowJumpIndicator] = useState(false);
-  const [floatingScore, setFloatingScore] = useState<{ points: number; show: boolean }>({ points: 0, show: false });
-
-  // Anti-cheat tracking
-  const moveTimingsRef = useRef<number[]>([]);
-  const collisionCountRef = useRef(0);
-
-  // Audio feedback
-  const playSound = (frequency: number, duration: number, type: OscillatorType = 'sine', volume: number = 0.3) => {
-    if (typeof window === 'undefined') return;
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.frequency.value = frequency;
-      oscillator.type = type;
-      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + duration);
-    } catch (e) {
-      console.warn('Audio not available:', e);
-    }
-  };
-
-  // Car ambient sound
-  const playCarSound = () => {
-    if (typeof window === 'undefined') return;
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.frequency.value = 80 + Math.random() * 40; // Low rumble
-      oscillator.type = 'sawtooth';
-      gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (e) {
-      // Silent fail
-    }
-  };
-
-  // Initialize Three.js scene
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [countdown, setCountdown] = useState(3);
+  const [combo, setCombo] = useState(0);
+  const [accuracy, setAccuracy] = useState(100);
+  
+  const scoreRef = useRef(0);
+  const coinsRef = useRef<Coin[]>([]);
+  const quadrantsRef = useRef<Quadrant[]>([]);
+  const draggedCoinRef = useRef<Coin | null>(null);
+  const lastCoinIdRef = useRef(0);
+  const totalCoinsRef = useRef(0);
+  const correctSortsRef = useRef(0);
+  const comboRef = useRef(0);
+  const gameStartTimeRef = useRef(0);
+  const rngRef = useRef<Mulberry32 | null>(null);
+  
+  // Initialize seeded RNG
   useEffect(() => {
-    if (!mountRef.current) return;
+    if (rngSeed !== undefined) {
+      rngRef.current = new Mulberry32(rngSeed);
+    }
+  }, [rngSeed]);
+  
+  const getRandom = useCallback(() => {
+    return rngRef.current ? rngRef.current.next() : Math.random();
+  }, []);
 
-    // Scene - BEAUTIFUL gradient background
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f0f1e);
-    scene.fog = new THREE.Fog(0x0f0f1e, 30, 60); // Atmospheric depth
-    sceneRef.current = scene;
-
-    // Camera - TOP-DOWN VIEW of bottom spawn
-    const camera = new THREE.PerspectiveCamera(
-      55,
-      mountRef.current.clientWidth / mountRef.current.clientHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(0, 30, -15); // View coin at bottom, lanes ahead
-    camera.lookAt(0, 0, 0); // Look at center
-    cameraRef.current = camera;
-
-    // Renderer - OPTIMIZED for performance
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      powerPreference: 'high-performance',
-      stencil: false,
-      depth: true
+  // Create realistic 3D coin mesh
+  const createCoinMesh = useCallback((type: CoinType, isColorCoin: boolean, colorMatch?: QuadrantColor): THREE.Group => {
+    const config = COIN_CONFIGS[type];
+    const group = new THREE.Group();
+    
+    // Determine coin color
+    let coinColor = config.color;
+    if (isColorCoin && colorMatch) {
+      coinColor = QUADRANT_COLORS[colorMatch];
+    }
+    
+    // Main coin body (cylinder)
+    const coinGeometry = new THREE.CylinderGeometry(config.radius, config.radius, config.thickness, 32);
+    const coinMaterial = new THREE.MeshStandardMaterial({
+      color: coinColor,
+      metalness: 0.8,
+      roughness: 0.2,
+      emissive: isColorCoin ? coinColor : 0x000000,
+      emissiveIntensity: isColorCoin ? 0.3 : 0
     });
-    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
-    renderer.shadowMap.enabled = false; // Disable shadows for performance
-    mountRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    // Lights - ATMOSPHERIC
-    const ambientLight = new THREE.AmbientLight(0x6666ff, 0.5);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
-    directionalLight.position.set(0, 25, 0);
-    scene.add(directionalLight);
+    const coinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
+    coinMesh.rotation.x = Math.PI / 2; // Lay flat
+    group.add(coinMesh);
     
-    // Add colored accent lights for atmosphere
-    const leftAccent = new THREE.PointLight(0xff3366, 0.8, 20);
-    leftAccent.position.set(-13, 2, 0);
-    scene.add(leftAccent);
-    
-    const rightAccent = new THREE.PointLight(0x00ffff, 0.8, 20);
-    rightAccent.position.set(13, 2, 0);
-    scene.add(rightAccent);
-
-    // Ground/Road - Extended from spawn to lanes
-    const roadGeometry = new THREE.PlaneGeometry(24, 90);
-    const roadMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a,
-      roughness: 0.9,
-      metalness: 0.02,
-      emissive: 0x0a0a0a,
-      emissiveIntensity: 0.1
+    // Coin rim (torus for edge detail)
+    const rimGeometry = new THREE.TorusGeometry(config.radius, config.thickness / 4, 8, 32);
+    const rimMaterial = new THREE.MeshStandardMaterial({
+      color: isColorCoin ? coinColor : (coinColor * 0.8),
+      metalness: 0.9,
+      roughness: 0.1
     });
-    const road = new THREE.Mesh(roadGeometry, roadMaterial);
-    road.rotation.x = -Math.PI / 2;
-    road.position.z = 0; // Centered from -20 (spawn) to +40 (end lanes)
-    scene.add(road);
+    const rimMesh = new THREE.Mesh(rimGeometry, rimMaterial);
+    rimMesh.rotation.x = Math.PI / 2;
+    group.add(rimMesh);
     
-    // Side barriers (neon glow effect)
-    for (let side of [-13, 13]) {
-      const barrierGeo = new THREE.BoxGeometry(0.3, 1.2, 90);
-      const barrierMat = new THREE.MeshStandardMaterial({
-        color: side < 0 ? 0xff3366 : 0x00ffff,
-        emissive: side < 0 ? 0xff3366 : 0x00ffff,
-        emissiveIntensity: 0.6
+    // Face detail - coin symbol/text
+    const faceGeometry = new THREE.CircleGeometry(config.radius * 0.7, 32);
+    const faceMaterial = new THREE.MeshStandardMaterial({
+      color: isColorCoin ? 0xFFFFFF : (coinColor * 1.2),
+      metalness: 0.6,
+      roughness: 0.4
+    });
+    const faceMesh = new THREE.Mesh(faceGeometry, faceMaterial);
+    faceMesh.position.z = config.thickness / 2 + 0.01;
+    group.add(faceMesh);
+    
+    // Add coin letter/symbol
+    const letterGeometry = new THREE.RingGeometry(config.radius * 0.2, config.radius * 0.35, 16);
+    const letterMaterial = new THREE.MeshBasicMaterial({
+      color: isColorCoin ? coinColor : 0x333333,
+      side: THREE.DoubleSide
+    });
+    const letterMesh = new THREE.Mesh(letterGeometry, letterMaterial);
+    letterMesh.position.z = config.thickness / 2 + 0.02;
+    group.add(letterMesh);
+    
+    // Glow effect for color coins
+    if (isColorCoin) {
+      const glowGeometry = new THREE.CircleGeometry(config.radius * 1.3, 32);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: coinColor,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending
       });
-      const barrier = new THREE.Mesh(barrierGeo, barrierMat);
-      barrier.position.set(side, 0.6, 0);
-      scene.add(barrier);
+      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+      glowMesh.position.z = -0.1;
+      group.add(glowMesh);
     }
-
-    // Lane dividers - GLOWING (full road coverage)
-    for (let i = -2; i <= 2; i++) {
-      for (let j = -35; j < 45; j += 4) {
-        const dividerGeometry = new THREE.BoxGeometry(0.2, 0.12, 2);
-        const dividerMaterial = new THREE.MeshStandardMaterial({ 
-          color: 0xffff00,
-          emissive: 0xffff00,
-          emissiveIntensity: 0.5
-        });
-        const divider = new THREE.Mesh(dividerGeometry, dividerMaterial);
-        divider.position.set(i * 4, 0.06, j);
-        scene.add(divider);
-      }
-    }
-
-    // Road edge lines - BRIGHT WHITE
-    for (let side of [-12, 12]) {
-      const edgeGeometry = new THREE.BoxGeometry(0.4, 0.12, 90);
-      const edgeMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0xffffff,
-        emissive: 0xffffff,
-        emissiveIntensity: 0.3
-      });
-      const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-      edge.position.set(side, 0.06, 0);
-      scene.add(edge);
-    }
-
-    // Create GOLDEN PENNY (player) - OPTIMIZED and PROFESSIONAL
-    const pennyGroup = new THREE.Group();
     
-    // Main coin body - SPHERE for rolling effect
-    const pennyGeometry = new THREE.SphereGeometry(1.3, 32, 32);
-    const pennyMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xFFD700,
-      metalness: 0.98,
-      roughness: 0.02,
-      emissive: 0xFFAA00,
-      emissiveIntensity: 0.6
+    return group;
+  }, []);
+
+  // Create quadrant with neon glow
+  const createQuadrant = useCallback((
+    color: QuadrantColor,
+    coinType: CoinType,
+    centerX: number,
+    centerY: number,
+    width: number,
+    height: number
+  ): Quadrant => {
+    const hexColor = QUADRANT_COLORS[color];
+    
+    // Main quadrant plane
+    const geometry = new THREE.PlaneGeometry(width, height);
+    const material = new THREE.MeshBasicMaterial({
+      color: hexColor,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide
     });
-    const penny = new THREE.Mesh(pennyGeometry, pennyMaterial);
-    pennyGroup.add(penny);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(centerX, centerY, -0.5);
     
-    // Add surface details for rolling visibility
-    const detailGeo = new THREE.TorusGeometry(0.8, 0.08, 8, 24);
-    const detailMat = new THREE.MeshStandardMaterial({
-      color: 0xCC9900,
-      metalness: 0.95,
-      roughness: 0.05
-    });
-    const detail1 = new THREE.Mesh(detailGeo, detailMat);
-    detail1.rotation.y = Math.PI / 2;
-    pennyGroup.add(detail1);
-    
-    const detail2 = new THREE.Mesh(detailGeo, detailMat);
-    pennyGroup.add(detail2);
-    
-    // Glowing outer ring
-    const ringGeometry = new THREE.TorusGeometry(1.5, 0.12, 8, 32);
-    const ringMaterial = new THREE.MeshStandardMaterial({
-      color: 0xFFFF00,
-      metalness: 1,
-      roughness: 0,
-      emissive: 0xFFFF00,
-      emissiveIntensity: 1.0,
+    // Border glow
+    const borderGeometry = new THREE.EdgesGeometry(geometry);
+    const borderMaterial = new THREE.LineBasicMaterial({
+      color: hexColor,
+      linewidth: 3,
       transparent: true,
       opacity: 0.8
     });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    pennyGroup.add(ring);
+    const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+    border.position.set(centerX, centerY, -0.4);
+    sceneRef.current?.add(border);
     
-    pennyGroup.position.set(0, 1.3, -20); // START at BOTTOM
-    scene.add(pennyGroup);
-    pennyRef.current = pennyGroup;
-
-    // Create lanes with CARS using 20 RNG patterns
-    const lanes: Lane[] = [];
-    const numLanes = 15;
-    const rng = rngRef.current;
-
-    for (let i = 0; i < numLanes; i++) {
-      // START LANES AT 0 (coin is at -20, HUGE safe zone from -20 to 0 = 20 units / 8 lane moves)
-      const yPos = 0 + (i * 2.5);
+    // Target zone (bonus area) - center of quadrant
+    const targetGeometry = new THREE.CircleGeometry(1.2, 32);
+    const targetMaterial = new THREE.MeshBasicMaterial({
+      color: hexColor,
+      transparent: true,
+      opacity: 0.4,
+      blending: THREE.AdditiveBlending
+    });
+    const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
+    targetMesh.position.set(centerX, centerY, -0.3);
+    
+    // Add pulsing ring around target
+    const ringGeometry = new THREE.RingGeometry(1.0, 1.3, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: hexColor,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
+    const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+    ringMesh.position.set(centerX, centerY, -0.2);
+    sceneRef.current?.add(ringMesh);
+    
+    // Create bonus shapes (10 per quadrant)
+    const bonusShapes: THREE.Mesh[] = [];
+    for (let i = 0; i < 10; i++) {
+      const shapeType = Math.floor(Math.random() * 4);
+      let shapeGeometry: THREE.BufferGeometry;
       
-      // PROGRESSIVE DIFFICULTY: Use easier patterns at start, harder patterns later
-      const progressRatio = i / numLanes; // 0.0 to 1.0
-      let patternIndex;
-      
-      if (progressRatio < 0.25) {
-        // First 25%: Easy patterns (0-4)
-        patternIndex = rng.integer(0, 4);
-      } else if (progressRatio < 0.5) {
-        // 25-50%: Medium patterns (5-9)
-        patternIndex = rng.integer(5, 9);
-      } else if (progressRatio < 0.75) {
-        // 50-75%: Hard patterns (10-14)
-        patternIndex = rng.integer(10, 14);
-      } else {
-        // Last 25%: Expert patterns (15-19)
-        patternIndex = rng.integer(15, 19);
+      switch (shapeType) {
+        case 0: // Triangle
+          shapeGeometry = new THREE.CircleGeometry(0.15, 3);
+          break;
+        case 1: // Square
+          shapeGeometry = new THREE.PlaneGeometry(0.25, 0.25);
+          break;
+        case 2: // Pentagon
+          shapeGeometry = new THREE.CircleGeometry(0.15, 5);
+          break;
+        default: // Circle
+          shapeGeometry = new THREE.CircleGeometry(0.12, 16);
       }
       
-      const pattern = PATTERN_CONFIGS[patternIndex];
-      
-      const cars: Car[] = [];
-      const numCars = pattern.numCars;
-      const spacing = pattern.spacing;
-
-      for (let j = 0; j < numCars; j++) {
-        // Create 3D car
-        const carGroup = new THREE.Group();
-        
-        // Car body (main box)
-        const carColor = CAR_COLORS[rng.integer(0, CAR_COLORS.length - 1)];
-        const bodyGeometry = new THREE.BoxGeometry(2, 0.6, 1);
-        const bodyMaterial = new THREE.MeshStandardMaterial({ 
-          color: carColor,
-          metalness: 0.7,
-          roughness: 0.3
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.3;
-        carGroup.add(body);
-        
-        // Car cabin (smaller box on top)
-        const cabinGeometry = new THREE.BoxGeometry(1, 0.5, 0.8);
-        const cabinMaterial = new THREE.MeshStandardMaterial({
-          color: carColor,
-          metalness: 0.6,
-          roughness: 0.4
-        });
-        const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
-        cabin.position.set(0, 0.8, 0);
-        carGroup.add(cabin);
-        
-        // Windows (dark blue transparent)
-        const windowMaterial = new THREE.MeshStandardMaterial({
-          color: 0x2222AA,
-          transparent: true,
-          opacity: 0.6,
-          metalness: 0.9,
-          roughness: 0.1
-        });
-        
-        const frontWindowGeo = new THREE.PlaneGeometry(0.8, 0.4);
-        const frontWindow = new THREE.Mesh(frontWindowGeo, windowMaterial);
-        frontWindow.position.set(0, 0.8, 0.41);
-        carGroup.add(frontWindow);
-        
-        const backWindowGeo = new THREE.PlaneGeometry(0.8, 0.4);
-        const backWindow = new THREE.Mesh(backWindowGeo, windowMaterial);
-        backWindow.position.set(0, 0.8, -0.41);
-        backWindow.rotation.y = Math.PI;
-        carGroup.add(backWindow);
-        
-        // Wheels (black cylinders)
-        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const wheelGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16);
-        
-        for (let w = 0; w < 4; w++) {
-          const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-          wheel.rotation.z = Math.PI / 2;
-          const xPos = w < 2 ? 0.6 : -0.6;
-          const zPos = w % 2 === 0 ? 0.4 : -0.4;
-          wheel.position.set(xPos, 0.25, zPos);
-          carGroup.add(wheel);
-        }
-        
-        // Headlights (yellow emissive)
-        const headlightMaterial = new THREE.MeshStandardMaterial({
-          color: 0xFFFFAA,
-          emissive: 0xFFFF00,
-          emissiveIntensity: 0.8
-        });
-        const headlightGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
-        
-        const leftHeadlight = new THREE.Mesh(headlightGeo, headlightMaterial);
-        leftHeadlight.position.set(0.5, 0.3, 0.51);
-        carGroup.add(leftHeadlight);
-        
-        const rightHeadlight = new THREE.Mesh(headlightGeo, headlightMaterial);
-        rightHeadlight.position.set(-0.5, 0.3, 0.51);
-        carGroup.add(rightHeadlight);
-        
-        const xPos = -10 + (j * spacing) + rng.range(-1, 1);
-        carGroup.position.set(xPos, 0, yPos);
-        carGroup.castShadow = true;
-        
-        // Rotate car based on direction
-        if (pattern.direction === -1) {
-          carGroup.rotation.y = Math.PI;
-        }
-        
-        scene.add(carGroup);
-
-        cars.push({ x: xPos, mesh: carGroup, color: carColor });
-      }
-
-      lanes.push({ 
-        y: yPos, 
-        direction: pattern.direction as 1 | -1,
-        speed: pattern.speed,
-        cars,
-        pattern: patternIndex
+      const shapeMaterial = new THREE.MeshBasicMaterial({
+        color: hexColor,
+        transparent: true,
+        opacity: 0.5
       });
+      const shapeMesh = new THREE.Mesh(shapeGeometry, shapeMaterial);
+      
+      // Random position within quadrant
+      const offsetX = (Math.random() - 0.5) * (width * 0.8);
+      const offsetY = (Math.random() - 0.5) * (height * 0.8);
+      shapeMesh.position.set(centerX + offsetX, centerY + offsetY, -0.1);
+      shapeMesh.visible = false; // Hidden until activated
+      
+      sceneRef.current?.add(shapeMesh);
+      bonusShapes.push(shapeMesh);
     }
-    lanesRef.current = lanes;
-
-    // Create collectible coins scattered on the road
-    const collectibleCoins: CollectibleCoin[] = [];
-    for (let i = 0; i < 20; i++) {
-      const coinGroup = new THREE.Group();
-      
-      // Small gold coin
-      const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.15, 16);
-      const coinMat = new THREE.MeshStandardMaterial({
-        color: 0xFFD700,
-        metalness: 1,
-        roughness: 0.1,
-        emissive: 0xFFAA00,
-        emissiveIntensity: 0.8
-      });
-      const coin = new THREE.Mesh(coinGeo, coinMat);
-      coin.rotation.x = Math.PI / 2;
-      coinGroup.add(coin);
-      
-      // Position randomly on road, avoiding starting area
-      const coinX = (rng.range(0, 1) < 0.5 ? -8 : -4) + rng.range(0, 12);
-      const coinZ = rng.range(5, 35); // After starting area
-      coinGroup.position.set(coinX, 0.5, coinZ);
-      
-      scene.add(coinGroup);
-      collectibleCoins.push({ x: coinX, y: coinZ, mesh: coinGroup, collected: false });
-    }
-    collectibleCoinsRef.current = collectibleCoins;
-
-    // Handle window resize
-    const handleResize = () => {
-      if (!mountRef.current || !camera || !renderer) return;
-      camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-      }
-      if (renderer) {
-        renderer.dispose();
-      }
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
+    
+    return {
+      color,
+      coinType,
+      mesh,
+      targetMesh,
+      bounds: {
+        minX: centerX - width / 2,
+        maxX: centerX + width / 2,
+        minY: centerY - height / 2,
+        maxY: centerY + height / 2
+      },
+      hexColor,
+      bonusShapes,
+      matchCount: 0
     };
   }, []);
 
-  // Game loop
-  useEffect(() => {
-    if (gameState !== 'playing') return;
+  // Spawn a new coin
+  const spawnCoin = useCallback(() => {
+    if (!sceneRef.current) return;
+    
+    const coinTypes: CoinType[] = ['penny', 'nickel', 'dime', 'quarter'];
+    const quadrantColors: QuadrantColor[] = ['cyan', 'green', 'purple', 'red'];
+    
+    // 15% chance for color coin
+    const isColorCoin = getRandom() < 0.15;
+    const coinType = coinTypes[Math.floor(getRandom() * coinTypes.length)];
+    const colorMatch = isColorCoin ? quadrantColors[Math.floor(getRandom() * quadrantColors.length)] : undefined;
+    
+    const coinMesh = createCoinMesh(coinType, isColorCoin, colorMatch);
+    
+    // Spawn in center area with some randomness
+    const x = (getRandom() - 0.5) * 3;
+    const y = (getRandom() - 0.5) * 3;
+    coinMesh.position.set(x, y, 0);
+    
+    const coin: Coin = {
+      id: ++lastCoinIdRef.current,
+      type: coinType,
+      mesh: coinMesh,
+      x,
+      y,
+      isColorCoin,
+      colorMatch,
+      isDragging: false,
+      sorted: false
+    };
+    
+    sceneRef.current.add(coinMesh);
+    coinsRef.current.push(coin);
+    totalCoinsRef.current++;
+    
+    return coin;
+  }, [createCoinMesh, getRandom]);
 
-    const animate = () => {
-      if (!sceneRef.current || !cameraRef.current || !rendererRef.current || !pennyRef.current) return;
-
-      // FRAME-INDEPENDENT animation with delta timing
-      const delta = Math.min(clockRef.current.getDelta(), 0.1); // Cap to prevent jumps
-      const frameMultiplier = delta * 60; // Normalize to 60 FPS
-
-      // ROLLING ANIMATION - coin rolls as it moves (SMOOTH on all devices)
-      hopAnimationRef.current += 0.08 * frameMultiplier;
-      const hopHeight = Math.abs(Math.sin(hopAnimationRef.current)) * 0.2;
-      pennyRef.current.position.y = 1.3 + hopHeight;
-      
-      // Roll the coin (rotate on X axis for forward rolling, FRAME-INDEPENDENT)
-      const rollSpeed = 0.03 * frameMultiplier;
-      if (pennyRef.current.children[0]) {
-        pennyRef.current.children[0].rotation.x += rollSpeed;
-        pennyRef.current.children[1].rotation.x += rollSpeed;
-        pennyRef.current.children[2].rotation.x += rollSpeed;
-      }
-
-      // Smooth pulse on outer ring (FRAME-INDEPENDENT)
-      const pulseFactor = Math.sin(hopAnimationRef.current * 1.2) * 0.1 + 1;
-      if (pennyRef.current.children[3]) {
-        pennyRef.current.children[3].scale.set(pulseFactor, pulseFactor, pulseFactor);
-      }
-
-      // Rotate collectible coins for visibility (FRAME-INDEPENDENT)
-      const now = Date.now();
-      collectibleCoinsRef.current.forEach(coin => {
-        if (!coin.collected) {
-          coin.mesh.rotation.y += 0.05 * frameMultiplier;
-          coin.mesh.position.y = 0.5 + Math.sin(now * 0.003 + coin.x) * 0.2;
-        }
-      });
-
-      // Move cars - FRAME-INDEPENDENT for smooth movement
-      lanesRef.current.forEach(lane => {
-        lane.cars.forEach(car => {
-          car.x += lane.speed * lane.direction * frameMultiplier;
-          
-          // Wrap around
-          if (car.x > 12) car.x = -12;
-          if (car.x < -12) car.x = 12;
-          
-          car.mesh.position.x = car.x;
-          car.mesh.position.y = 0.3;
-          
-          // Play car sound when passing near penny (reduced frequency for performance)
-          if (pennyRef.current && Math.abs(car.mesh.position.z - pennyRef.current.position.z) < 3) {
-            if (Math.abs(car.x - pennyRef.current.position.x) < 5 && Math.random() < 0.005) {
-              playCarSound();
-            }
-          }
-        });
-      });
-
-      // Check collisions - DOUBLE JUMP AVOIDS CARS!
-      if (pennyRef.current && !isMoving) {
-        const pennyZ = pennyRef.current.position.z;
-        const pennyX = pennyRef.current.position.x;
-        const pennyY = pennyRef.current.position.y; // Check height for jump
-        const tolerance = 1.5;
-
-        // If penny is jumping high (Y > 2.5), COMPLETELY avoid collision!
-        const isJumpingHigh = pennyY > 2.5;
-
-        if (!isJumpingHigh) {
-          lanesRef.current.forEach(lane => {
-            if (Math.abs(pennyZ - lane.y) < tolerance) {
-              lane.cars.forEach(car => {
-                const distanceX = Math.abs(pennyX - car.x);
-                const distanceZ = Math.abs(pennyZ - lane.y);
-                // Only collide if really close and NOT moving
-                if (distanceX < 1.6 && distanceZ < 1.2) {
-                  handleCollision();
-                }
-              });
-            }
-          });
+  // Check if coin is in correct quadrant
+  const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { correct: boolean; bonus: boolean; quadrant: Quadrant | null } => {
+    for (const quadrant of quadrantsRef.current) {
+      if (x >= quadrant.bounds.minX && x <= quadrant.bounds.maxX &&
+          y >= quadrant.bounds.minY && y <= quadrant.bounds.maxY) {
+        
+        let isCorrect = false;
+        
+        if (coin.isColorCoin && coin.colorMatch) {
+          // Color coins match by color
+          isCorrect = coin.colorMatch === quadrant.color;
+        } else {
+          // Regular coins match by type
+          isCorrect = coin.type === quadrant.coinType;
         }
         
-        // Check collectible coin collisions
-        collectibleCoinsRef.current.forEach(coin => {
-          if (!coin.collected) {
-            const distX = Math.abs(pennyX - coin.x);
-            const distZ = Math.abs(pennyZ - coin.y);
-            if (distX < 1.5 && distZ < 1.5) {
-              // Collect coin!
-              coin.collected = true;
-              coin.mesh.visible = false;
-              setCollectedCoins(prev => prev + 1);
-              
-              // Grow main penny
-              const newScale = 1 + (collectedCoins + 1) * 0.15;
-              pennyRef.current.scale.set(newScale, newScale, newScale);
-              
-              // Play collect sound
-              playSound(800, 0.2, 'sine', 0.4);
-              playSound(1000, 0.15, 'sine', 0.3);
-              
-              console.log(`🪙 Collected coin! Total: ${collectedCoins + 1} | Size: ${newScale.toFixed(2)}x`);
-            }
-          }
-        });
+        // Check if in bonus zone (center target)
+        const targetX = (quadrant.bounds.minX + quadrant.bounds.maxX) / 2;
+        const targetY = (quadrant.bounds.minY + quadrant.bounds.maxY) / 2;
+        const distanceToTarget = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+        const isBonus = distanceToTarget < 1.2;
+        
+        return { correct: isCorrect, bonus: isBonus && isCorrect, quadrant };
       }
+    }
+    
+    return { correct: false, bonus: false, quadrant: null };
+  }, []);
+
+  // Handle coin drop
+  const handleCoinDrop = useCallback((coin: Coin) => {
+    const result = checkCoinPlacement(coin, coin.x, coin.y);
+    
+    if (result.correct) {
+      correctSortsRef.current++;
+      comboRef.current++;
+      setCombo(comboRef.current);
       
-      // CAMERA FOLLOWS PLAYER - Adjust forward as they progress
-      if (pennyRef.current && cameraRef.current) {
-        const pennyProgress = pennyRef.current.position.z;
-        if (pennyProgress > -5) {
-          // Smoothly move camera forward as player advances from -20 start
-          const cameraOffset = (pennyProgress + 5) * 0.4;
-          cameraRef.current.position.z = -15 + cameraOffset;
-          cameraRef.current.lookAt(0, 0, pennyProgress * 0.6);
+      // Base points based on coin value
+      const coinValue = COIN_CONFIGS[coin.type].value;
+      let points = coinValue * 10;
+      
+      // Combo multiplier
+      const comboMultiplier = Math.min(5, 1 + comboRef.current * 0.2);
+      points = Math.floor(points * comboMultiplier);
+      
+      // Bonus for exact placement
+      if (result.bonus) {
+        points += 100;
+        
+        // Show bonus shape
+        if (result.quadrant && result.quadrant.matchCount < 10) {
+          const shapeIndex = result.quadrant.matchCount;
+          if (result.quadrant.bonusShapes[shapeIndex]) {
+            result.quadrant.bonusShapes[shapeIndex].visible = true;
+          }
+          result.quadrant.matchCount++;
         }
       }
+      
+      // Color coin bonus
+      if (coin.isColorCoin) {
+        points += 50;
+      }
+      
+      // Speed bonus (faster = more points)
+      const gameTime = (Date.now() - gameStartTimeRef.current) / 1000;
+      const speedBonus = Math.max(0, Math.floor(20 - gameTime / 3));
+      points += speedBonus;
+      
+      scoreRef.current += points;
+      setScore(scoreRef.current);
+      
+      // Visual feedback - coin disappears with effect
+      if (coin.mesh) {
+        const originalScale = coin.mesh.scale.clone();
+        
+        // Animate scale up then remove
+        let frame = 0;
+        const animateDisappear = () => {
+          frame++;
+          if (frame < 10) {
+            coin.mesh.scale.multiplyScalar(1.1);
+            coin.mesh.rotation.z += 0.3;
+            requestAnimationFrame(animateDisappear);
+          } else {
+            sceneRef.current?.remove(coin.mesh);
+          }
+        };
+        animateDisappear();
+      }
+      
+      coin.sorted = true;
+    } else {
+      // Wrong placement - reset combo
+      comboRef.current = 0;
+      setCombo(0);
+      
+      // Return coin to center
+      coin.x = (getRandom() - 0.5) * 3;
+      coin.y = (getRandom() - 0.5) * 3;
+      coin.mesh.position.set(coin.x, coin.y, 0);
+      
+      // Penalty
+      scoreRef.current = Math.max(0, scoreRef.current - 10);
+      setScore(scoreRef.current);
+    }
+    
+    // Update accuracy
+    if (totalCoinsRef.current > 0) {
+      const newAccuracy = (correctSortsRef.current / totalCoinsRef.current) * 100;
+      setAccuracy(newAccuracy);
+    }
+    
+    coin.isDragging = false;
+    draggedCoinRef.current = null;
+  }, [checkCoinPlacement, getRandom]);
 
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-      animationIdRef.current = requestAnimationFrame(animate);
+  // Initialize Three.js scene
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    // Scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a1a);
+    sceneRef.current = scene;
+    
+    // Camera (orthographic for 2D-like view)
+    const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+    const frustumSize = 15;
+    const camera = new THREE.OrthographicCamera(
+      -frustumSize * aspect / 2,
+      frustumSize * aspect / 2,
+      frustumSize / 2,
+      -frustumSize / 2,
+      0.1,
+      100
+    );
+    camera.position.z = 10;
+    cameraRef.current = camera;
+    
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    containerRef.current.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+    
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+    pointLight.position.set(0, 0, 10);
+    scene.add(pointLight);
+    
+    // Create 4 quadrants
+    const quadrantWidth = 6;
+    const quadrantHeight = 5;
+    const offset = 4;
+    
+    // Top-Left: CYAN (Penny)
+    const cyanQuadrant = createQuadrant('cyan', 'penny', -offset, offset, quadrantWidth, quadrantHeight);
+    scene.add(cyanQuadrant.mesh);
+    scene.add(cyanQuadrant.targetMesh);
+    
+    // Top-Right: GREEN (Nickel)
+    const greenQuadrant = createQuadrant('green', 'nickel', offset, offset, quadrantWidth, quadrantHeight);
+    scene.add(greenQuadrant.mesh);
+    scene.add(greenQuadrant.targetMesh);
+    
+    // Bottom-Left: PURPLE (Dime)
+    const purpleQuadrant = createQuadrant('purple', 'dime', -offset, -offset, quadrantWidth, quadrantHeight);
+    scene.add(purpleQuadrant.mesh);
+    scene.add(purpleQuadrant.targetMesh);
+    
+    // Bottom-Right: RED (Quarter)
+    const redQuadrant = createQuadrant('red', 'quarter', offset, -offset, quadrantWidth, quadrantHeight);
+    scene.add(redQuadrant.mesh);
+    scene.add(redQuadrant.targetMesh);
+    
+    quadrantsRef.current = [cyanQuadrant, greenQuadrant, purpleQuadrant, redQuadrant];
+    
+    // Add labels for each quadrant
+    const createLabel = (text: string, x: number, y: number, color: number) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+      ctx.font = 'bold 32px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 128, 40);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMaterial);
+      sprite.position.set(x, y, 0.5);
+      sprite.scale.set(3, 0.75, 1);
+      scene.add(sprite);
     };
-
+    
+    createLabel('PENNY', -offset, offset + 2, QUADRANT_COLORS.cyan);
+    createLabel('NICKEL', offset, offset + 2, QUADRANT_COLORS.green);
+    createLabel('DIME', -offset, -offset - 2.5, QUADRANT_COLORS.purple);
+    createLabel('QUARTER', offset, -offset - 2.5, QUADRANT_COLORS.red);
+    
+    // Center zone
+    const centerGeometry = new THREE.CircleGeometry(2, 32);
+    const centerMaterial = new THREE.MeshBasicMaterial({
+      color: 0x333366,
+      transparent: true,
+      opacity: 0.3
+    });
+    const centerMesh = new THREE.Mesh(centerGeometry, centerMaterial);
+    centerMesh.position.z = -0.6;
+    scene.add(centerMesh);
+    
+    // Animation loop
+    const animate = () => {
+      animationIdRef.current = requestAnimationFrame(animate);
+      
+      // Rotate coins slightly for visual effect
+      coinsRef.current.forEach(coin => {
+        if (!coin.isDragging && !coin.sorted) {
+          coin.mesh.rotation.z += 0.01;
+        }
+      });
+      
+      // Pulse quadrant targets
+      const time = Date.now() * 0.003;
+      quadrantsRef.current.forEach((quad, i) => {
+        const pulse = 0.3 + Math.sin(time + i) * 0.1;
+        if (quad.targetMesh.material instanceof THREE.MeshBasicMaterial) {
+          quad.targetMesh.material.opacity = pulse;
+        }
+      });
+      
+      renderer.render(scene, camera);
+    };
     animate();
-
+    
+    // Handle resize
+    const handleResize = () => {
+      if (!containerRef.current || !renderer || !camera) return;
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      const newAspect = width / height;
+      
+      camera.left = -frustumSize * newAspect / 2;
+      camera.right = frustumSize * newAspect / 2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    };
+    window.addEventListener('resize', handleResize);
+    
     return () => {
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
+      window.removeEventListener('resize', handleResize);
+      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
+      renderer.dispose();
+      if (containerRef.current?.contains(renderer.domElement)) {
+        containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [gameState]);
+  }, [createQuadrant]);
 
-  // Timer countdown
+  // Mouse/touch handlers
+  const getWorldPosition = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
+    if (!containerRef.current || !cameraRef.current) return { x: 0, y: 0 };
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // Convert to world coordinates
+    const camera = cameraRef.current;
+    const worldX = x * (camera.right - camera.left) / 2;
+    const worldY = y * (camera.top - camera.bottom) / 2;
+    
+    return { x: worldX, y: worldY };
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (gameState !== 'playing') return;
+    
+    const { x, y } = getWorldPosition(e.clientX, e.clientY);
+    
+    // Find coin under pointer
+    for (const coin of coinsRef.current) {
+      if (coin.sorted) continue;
+      
+      const dx = x - coin.x;
+      const dy = y - coin.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const coinRadius = COIN_CONFIGS[coin.type].radius;
+      
+      if (distance < coinRadius + 0.3) {
+        coin.isDragging = true;
+        draggedCoinRef.current = coin;
+        break;
+      }
+    }
+  }, [gameState, getWorldPosition]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggedCoinRef.current) return;
+    
+    const { x, y } = getWorldPosition(e.clientX, e.clientY);
+    const coin = draggedCoinRef.current;
+    
+    coin.x = x;
+    coin.y = y;
+    coin.mesh.position.set(x, y, 0.5); // Lift while dragging
+  }, [getWorldPosition]);
+
+  const handlePointerUp = useCallback(() => {
+    if (draggedCoinRef.current) {
+      handleCoinDrop(draggedCoinRef.current);
+    }
+  }, [handleCoinDrop]);
+
+  // Spawn coins periodically during gameplay
   useEffect(() => {
     if (gameState !== 'playing') return;
+    
+    // Initial coins
+    for (let i = 0; i < 3; i++) {
+      spawnCoin();
+    }
+    
+    // Spawn new coins periodically
+    const spawnInterval = setInterval(() => {
+      // Keep around 4-6 coins on screen
+      const activeCoins = coinsRef.current.filter(c => !c.sorted).length;
+      if (activeCoins < 5) {
+        spawnCoin();
+      }
+    }, 1500);
+    
+    return () => clearInterval(spawnInterval);
+  }, [gameState, spawnCoin]);
 
-    const interval = setInterval(() => {
-      setTimeRemaining(prev => {
+  // Game timer
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
         if (prev <= 1) {
           endGame();
           return 0;
@@ -664,516 +685,178 @@ export default function PennyPasserGame3D({
         return prev - 1;
       });
     }, 1000);
-
-    return () => clearInterval(interval);
+    
+    return () => clearInterval(timer);
   }, [gameState]);
 
-  // Collision handler
-  const handleCollision = useCallback(() => {
-    if (collisionCountRef.current === 0 || Date.now() - lastMoveTime > 500) {
-      collisionCountRef.current++;
-      setHearts(prev => {
-        const newHearts = prev - 1;
-        if (newHearts <= 0) {
-          endGame();
-        }
-        return Math.max(0, newHearts);
-      });
-      playSound(200, 0.2, 'sawtooth');
-
-      // Flash penny red
-      if (pennyRef.current) {
-        const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
-        const originalColor = (pennyMesh.material as THREE.MeshStandardMaterial).color.getHex();
-        (pennyMesh.material as THREE.MeshStandardMaterial).color.setHex(0xff0000);
-        setTimeout(() => {
-          if (pennyRef.current) {
-            (pennyMesh.material as THREE.MeshStandardMaterial).color.setHex(originalColor);
-          }
-        }, 200);
-      }
-    }
-  }, [lastMoveTime]);
-
-  // Mouse move handler - Show directional arrows AROUND THE COIN
-  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (gameState !== 'playing' || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
-
-    const rect = mountRef.current.getBoundingClientRect();
-    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersectPoint = new THREE.Vector3();
-    raycasterRef.current.ray.intersectPlane(plane, intersectPoint);
-
-    if (!intersectPoint) return;
-
-    const currentX = pennyRef.current.position.x;
-    const currentZ = pennyRef.current.position.z;
-    const deltaX = intersectPoint.x - currentX;
-    const deltaZ = intersectPoint.z - currentZ;
-
-    // Determine direction for arrow
-    let direction = '';
-    if (Math.abs(deltaZ) > Math.abs(deltaX)) {
-      direction = deltaZ > 0.5 ? 'forward' : 'forward'; // Always forward
-    } else {
-      if (Math.abs(deltaX) > 0.5) {
-        direction = deltaX > 0 ? 'right' : 'left';
-      } else {
-        direction = 'forward';
-      }
-    }
-
-    // Project penny position to screen coordinates to show arrow AROUND THE COIN
-    const pennyScreenPos = pennyRef.current.position.clone();
-    pennyScreenPos.project(cameraRef.current);
+  // Countdown
+  useEffect(() => {
+    if (gameState !== 'countdown') return;
     
-    const screenX = (pennyScreenPos.x * 0.5 + 0.5) * rect.width;
-    const screenY = (-pennyScreenPos.y * 0.5 + 0.5) * rect.height;
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          setGameState('playing');
+          gameStartTimeRef.current = Date.now();
+          return 3;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(countdownInterval);
+  }, [gameState]);
 
-    // Show arrow around the penny position
-    setShowArrow({
-      direction,
-      x: screenX,
-      y: screenY
+  const startGame = () => {
+    setGameState('countdown');
+    setScore(0);
+    setTimeLeft(60);
+    setCombo(0);
+    setAccuracy(100);
+    scoreRef.current = 0;
+    comboRef.current = 0;
+    correctSortsRef.current = 0;
+    totalCoinsRef.current = 0;
+    coinsRef.current = [];
+    
+    // Reset quadrant match counts
+    quadrantsRef.current.forEach(quad => {
+      quad.matchCount = 0;
+      quad.bonusShapes.forEach(shape => shape.visible = false);
     });
-  }, [gameState]);
+  };
 
-  // Click-to-move handler - STEP-BASED with DOUBLE-CLICK JUMP
-  const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (gameState !== 'playing' || hearts <= 0 || !pennyRef.current || !cameraRef.current || !mountRef.current) return;
-
-    const now = Date.now();
-    const timeSinceLastClick = now - lastClickTimeRef.current;
-    
-    // DOUBLE-CLICK DETECTION (< 300ms = jump!) - Check BEFORE isMoving
-    const isDoubleClick = timeSinceLastClick < 300 && timeSinceLastClick > 10;
-    
-    // If already moving and NOT a double-click, ignore
-    if (isMoving && !isDoubleClick) return;
-    
-    // Debug log for double-click
-    if (isDoubleClick) {
-      console.log('🦘 JUMP DETECTED! Time between clicks:', timeSinceLastClick, 'ms - SKIPPING 2 POSITIONS');
-    }
-    
-    lastClickTimeRef.current = now;
-
-    const rect = mountRef.current.getBoundingClientRect();
-    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersectPoint = new THREE.Vector3();
-    raycasterRef.current.ray.intersectPlane(plane, intersectPoint);
-
-    if (!intersectPoint) return;
-
-    const timeSinceLastMove = now - lastMoveTime;
-    const jumpMultiplier = isDoubleClick ? 3 : 1; // JUMP = 3x distance (skip 2 positions)
-    
-    moveTimingsRef.current.push(timeSinceLastMove);
-
-    setIsMoving(true);
-    setMoveCount(prev => prev + 1);
-    setLastMoveTime(now);
-
-    const currentX = pennyRef.current.position.x;
-    const currentZ = pennyRef.current.position.z;
-    const deltaX = intersectPoint.x - currentX;
-    const deltaZ = intersectPoint.z - currentZ;
-
-    let targetX = currentX;
-    let targetZ = currentZ;
-
-    // Determine movement direction (with jump multiplier)
-    if (Math.abs(deltaZ) > Math.abs(deltaX)) {
-      if (deltaZ > 0.5) {
-        targetZ = currentZ + (2.5 * jumpMultiplier);
-      }
-    } else {
-      if (Math.abs(deltaX) > 0.5) {
-        if (deltaX > 0) {
-          targetX = Math.min(currentX + (4 * jumpMultiplier), 8);
-        } else {
-          targetX = Math.max(currentX - (4 * jumpMultiplier), -8);
-        }
-      } else {
-        targetZ = currentZ + (2.5 * jumpMultiplier);
-      }
-    }
-
-    if (targetZ < currentZ) {
-      targetZ = currentZ + (2.5 * jumpMultiplier);
-    }
-
-    const startX = currentX;
-    const startZ = currentZ;
-    const distanceMoved = Math.abs(targetZ - startZ) + Math.abs(targetX - startX);
-    const duration = isDoubleClick ? 450 : 300; // SMOOTHER timing
-    const startTime = Date.now();
-
-    // GORGEOUS JUMP ANIMATION - Super obvious visual feedback!
-    if (isDoubleClick) {
-      console.log('✅ DOUBLE-CLICK JUMP ACTIVATED!', {
-        jumpDistance: `${jumpMultiplier}x`,
-        duration: `${duration}ms`,
-        scoreBonus: '50%'
-      });
-      
-      // Show jump indicator on screen - BRIEF flash
-      setShowJumpIndicator(true);
-      setTimeout(() => setShowJumpIndicator(false), 200); // Only 200ms!
-      
-      playSound(700, 0.2, 'sine'); // Jump sound (reduced volume)
-      
-      // Flash penny bright for jump - OPTIMIZED
-      if (pennyRef.current && pennyRef.current.children[0]) {
-        const pennyMesh = pennyRef.current.children[0] as THREE.Mesh;
-        const mat = pennyMesh.material as THREE.MeshStandardMaterial;
-        const originalIntensity = mat.emissiveIntensity || 0.5;
-        mat.emissiveIntensity = 2.0;
-        setTimeout(() => {
-          if (pennyRef.current && pennyRef.current.children[0]) {
-            ((pennyRef.current.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = originalIntensity;
-          }
-        }, 200);
-      }
-    }
-
-    const animateMove = () => {
-      if (!pennyRef.current) return;
-      
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // ULTRA SMOOTH easing (cubic ease-in-out)
-      const easeProgress = progress < 0.5
-        ? 4 * progress * progress * progress
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-      
-      pennyRef.current.position.x = startX + (targetX - startX) * easeProgress;
-      pennyRef.current.position.z = startZ + (targetZ - startZ) * easeProgress;
-      
-      // SMOOTH JUMP ARC - Higher for double jump
-      if (isDoubleClick) {
-        const jumpArc = Math.sin(progress * Math.PI) * 3.5; // HIGH arc to clear cars
-        pennyRef.current.position.y = 1.3 + jumpArc;
-        
-        // Rolling rotation during jump
-        pennyRef.current.children[0].rotation.x += 0.15;
-        pennyRef.current.children[1].rotation.x += 0.15;
-        pennyRef.current.children[2].rotation.x += 0.15;
-      } else {
-        // Normal hop - smaller arc
-        const hopArc = Math.sin(progress * Math.PI) * 0.8;
-        pennyRef.current.position.y = 1.3 + hopArc;
-      }
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateMove);
-      } else {
-        setIsMoving(false);
-        
-        if (distanceMoved > 0) {
-          const forwardDistance = Math.abs(targetZ - startZ);
-          const lateralDistance = Math.abs(targetX - startX);
-          
-          setPennyPosition(prev => prev + forwardDistance);
-          
-          // ONLY SCORE FORWARD MOVEMENT (not lateral)
-          if (forwardDistance > 0) {
-            // ADVANCED DECIMAL SCORING based on precise timing
-            const basePoints = 10 * (forwardDistance / 2.5);
-            
-            // Speed bonus (more precise decimal calculation)
-            const perfectMoveTime = 500; // 500ms = perfect
-            const speedRatio = Math.min(1, perfectMoveTime / Math.max(timeSinceLastMove, 100));
-            const speedBonus = speedRatio * speedRatio; // Squared for exponential reward
-            
-            // Jump bonus
-            const jumpBonus = isDoubleClick ? 1.5 : 1.0;
-            
-            // Risk bonus (closer to cars = more points)
-            const riskBonus = 1.0;
-            
-            // Final calculation with PRECISE decimals
-            const points = basePoints * (1 + speedBonus) * jumpBonus * riskBonus;
-            
-            setScore(prev => prev + points);
-            
-            // Show floating score indicator
-            setFloatingScore({ points, show: true });
-            setTimeout(() => setFloatingScore({ points: 0, show: false }), 800);
-            
-            // Visual feedback for good timing
-            if (speedBonus > 0.8) {
-              playSound(600 + (progress * 300), 0.15, 'sine');
-            } else {
-              playSound(500 + (progress * 200), 0.15, 'sine');
-            }
-            
-            // Detailed decimal scoring log
-            console.log(`💰 +${points.toFixed(2)} pts | Speed: ${(speedBonus * 100).toFixed(1)}% | ${isDoubleClick ? '🦘 JUMP x1.5' : 'Hop'} | Total: ${(score + points).toFixed(2)}`);
-          } else if (lateralDistance > 0) {
-            // Lateral movement - no points, just sound
-            playSound(400, 0.1, 'sine');
-            console.log('⬅️➡️ Lane change - no points');
-          }
-        }
-      }
-    };
-    
-    animateMove();
-  }, [gameState, isMoving, hearts, lastMoveTime]);
-
-  // End game
-  const endGame = useCallback(() => {
-    if (hasEndedRef.current) return;
-    hasEndedRef.current = true;
+  const endGame = async () => {
     setGameState('ended');
-    setIsSubmitting(true);
-
-    let finalScore = score;
-    const heartBonus = hearts * 50;
-    finalScore += heartBonus;
-
-    const timeUsed = 60 - timeRemaining;
-    const timeEfficiency = pennyPosition / Math.max(1, timeUsed);
-    const timeBonus = Math.floor(timeEfficiency * 10);
-    finalScore += timeBonus;
-
-    const totalPossibleCollisions = pennyPosition * 3;
-    const accuracy = Math.min(100, Math.max(0, 100 - (collisionCountRef.current / Math.max(1, totalPossibleCollisions)) * 100));
-
-    const avgMoveTime = moveTimingsRef.current.reduce((a, b) => a + b, 0) / Math.max(1, moveTimingsRef.current.length);
-    const isSuspicious = avgMoveTime < 50 || moveCount > 100;
-
-    if (isSuspicious) {
-      finalScore = Math.floor(finalScore * 0.5);
+    
+    const finalScore = scoreRef.current;
+    const finalAccuracy = totalCoinsRef.current > 0 
+      ? (correctSortsRef.current / totalCoinsRef.current) * 100 
+      : 0;
+    
+    // Add accuracy decimal to score
+    const accuracyDecimal = (finalAccuracy % 100) / 100;
+    const adjustedScore = finalScore + accuracyDecimal;
+    
+    // Log to audit
+    try {
+      await logGameCompletion({
+        gameType: GAME_TYPES.PENNY_PASSERS || 'Coin Sorter',
+        gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        score: adjustedScore,
+        accuracy: finalAccuracy,
+        reactionTime: 0,
+        durationSeconds: 60 - timeLeft,
+        additionalData: {
+          rngSeed,
+          competitionId,
+          correctSorts: correctSortsRef.current,
+          totalCoins: totalCoinsRef.current,
+          maxCombo: comboRef.current
+        }
+      });
+    } catch (error) {
+      console.error('Audit logging failed:', error);
     }
-
-    playSound(600, 0.5, 'sine');
-
-    logGameCompletion({
-      gameType: GAME_TYPES.PENNY_PASSER,
-      gameMode: gameMode === 'competition' ? GAME_MODES.COMPETITION : GAME_MODES.PRACTICE,
-      score: finalScore,
-      accuracy: accuracy,
-      reactionTime: avgMoveTime,
-      durationSeconds: 60 - timeRemaining,
-      additionalData: {
-        moveCount,
-        pennyPosition,
-        heartsRemaining: hearts,
-        collisions: collisionCountRef.current,
-        heartBonus,
-        timeBonus,
-        rngSeed: rngSeed || 0,
-        competitionId: competitionId || null
-      }
-    }).catch(err => console.warn('[PennyPasser] Audit log failed:', err));
-
-    if (animationIdRef.current) {
-      cancelAnimationFrame(animationIdRef.current);
-    }
-
-    setTimeout(() => {
-      onGameEnd({ score: finalScore, accuracy: accuracy });
-      setIsSubmitting(false);
-    }, 1500);
-  }, [score, hearts, timeRemaining, pennyPosition, moveCount, gameMode, rngSeed, competitionId, onGameEnd]);
+    
+    onGameEnd({
+      score: adjustedScore,
+      accuracy: finalAccuracy
+    });
+  };
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden z-50">
-      <div
-        ref={mountRef}
-        className="w-full h-full cursor-crosshair"
-        onClick={handleClick}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setShowArrow(null)}
+    <div className="fixed inset-0 w-full h-full overflow-hidden bg-gray-900">
+      <div 
+        ref={containerRef}
+        className="w-full h-full"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        style={{ touchAction: 'none' }}
       />
-
+      
+      {/* UI Overlay */}
       {gameState === 'playing' && (
-        <>
-          {/* HUD - Hearts on LEFT, Timer/Score on RIGHT */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-50">
-            {/* Left: Hearts */}
-            <div className="bg-black/80 backdrop-blur-sm rounded-xl p-3 border border-white/20 shadow-xl">
-              <div className="flex gap-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className={`text-3xl ${i < hearts ? 'opacity-100' : 'opacity-20'}`}>
-                    ❤️
-                  </div>
-                ))}
+        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start text-white pointer-events-none">
+          <div className="bg-black/50 rounded-lg p-3">
+            <div className="text-2xl font-bold">Score: {score.toLocaleString()}</div>
+            <div className="text-sm text-gray-300">Accuracy: {accuracy.toFixed(1)}%</div>
+            {combo > 1 && (
+              <div className="text-lg font-bold text-yellow-400 animate-pulse">
+                🔥 {combo}x Combo!
               </div>
-            </div>
-
-            {/* Right: Timer and Score - SEPARATE, NON-OVERLAPPING */}
-            <div className="flex flex-col gap-3 items-end">
-              {/* Timer - TOP RIGHT CORNER */}
-              <div className="bg-black/80 backdrop-blur-sm rounded-xl px-4 py-2 border border-yellow-400/50 shadow-xl">
-                <div className="text-3xl font-black text-yellow-400 text-center min-w-[100px]">
-                  ⏱️ {timeRemaining}s
-                </div>
-              </div>
-              
-              {/* Score - Below timer with precise decimals */}
-              <div className="bg-black/80 backdrop-blur-sm rounded-xl p-3 border border-white/20 shadow-xl">
-                <div className="text-sm text-gray-300 text-right">Score</div>
-                <div className="text-2xl font-bold text-green-400 text-right">
-                  {score.toFixed(2)}
-                </div>
-                <div className="text-xs text-gray-400 mt-1 text-right">
-                  Dist: {pennyPosition.toFixed(1)}
-                </div>
-              </div>
-            </div>
+            )}
           </div>
-
-          {/* Directional Arrows AROUND THE COIN */}
-          {showArrow && (
-            <div 
-              className="absolute pointer-events-none"
-              style={{
-                left: showArrow.x,
-                top: showArrow.y,
-                transform: 'translate(-50%, -50%)',
-                zIndex: 60
-              }}
+          <div className="bg-black/50 rounded-lg p-3 text-right">
+            <div className="text-2xl font-bold">Time: {timeLeft}s</div>
+            <div className="text-sm text-gray-300">Sorted: {correctSortsRef.current}</div>
+          </div>
+        </div>
+      )}
+      
+      {/* Instructions */}
+      {gameState === 'playing' && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 text-white text-center pointer-events-none">
+          <div className="bg-black/50 rounded-lg px-4 py-2">
+            <p className="text-sm">Drag coins to matching quadrants • Bonus for center placement</p>
+            <p className="text-xs text-cyan-400 mt-1">🟦 Cyan = Penny • 🟩 Green = Nickel • 🟪 Purple = Dime • 🟥 Red = Quarter</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Ready Screen */}
+      {gameState === 'ready' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/70">
+          <div className="text-center text-white">
+            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-purple-500 to-red-500 bg-clip-text text-transparent">
+              COIN SORTER
+            </h1>
+            <p className="text-xl mb-6 text-gray-300">
+              Match coins to their quadrants!
+            </p>
+            <div className="grid grid-cols-2 gap-4 mb-8 text-lg">
+              <div className="text-cyan-400">🪙 Penny → Cyan</div>
+              <div className="text-green-400">🪙 Nickel → Green</div>
+              <div className="text-purple-400">🪙 Dime → Purple</div>
+              <div className="text-red-400">🪙 Quarter → Red</div>
+            </div>
+            <p className="text-sm text-yellow-400 mb-4">
+              ⚡ Color coins match by COLOR, not type!
+            </p>
+            <button
+              onClick={startGame}
+              className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl text-xl font-bold hover:scale-105 transition-transform"
             >
-              {/* Forward Arrow - Above coin */}
-              {showArrow.direction === 'forward' && (
-                <div className="absolute" style={{ top: '-80px', left: '50%', transform: 'translateX(-50%)' }}>
-                  <div className="text-6xl animate-bounce text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,1)]">
-                    ⬆️
-                  </div>
-                  <div className="text-xs font-bold text-yellow-300 bg-black/90 px-2 py-1 rounded-full text-center mt-2 whitespace-nowrap">
-                    Double-click = JUMP!
-                  </div>
-                </div>
-              )}
-              
-              {/* Left Arrow - Left of coin */}
-              {showArrow.direction === 'left' && (
-                <div className="absolute" style={{ left: '-100px', top: '50%', transform: 'translateY(-50%)' }}>
-                  <div className="text-6xl animate-bounce text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,1)]">
-                    ⬅️
-                  </div>
-                  <div className="text-xs font-bold text-yellow-300 bg-black/90 px-2 py-1 rounded-full text-center mt-2 whitespace-nowrap">
-                    Double-click = JUMP!
-                  </div>
-                </div>
-              )}
-              
-              {/* Right Arrow - Right of coin */}
-              {showArrow.direction === 'right' && (
-                <div className="absolute" style={{ left: '100px', top: '50%', transform: 'translateY(-50%)' }}>
-                  <div className="text-6xl animate-bounce text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,1)]">
-                    ➡️
-                  </div>
-                  <div className="text-xs font-bold text-yellow-300 bg-black/90 px-2 py-1 rounded-full text-center mt-2 whitespace-nowrap">
-                    Double-click = JUMP!
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* JUMP INDICATOR - TOP of screen, brief flash */}
-          {showJumpIndicator && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none z-50 animate-pulse">
-              <div className="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 text-white text-3xl font-black px-6 py-2 rounded-xl border-2 border-white shadow-2xl">
-                🦘 JUMP! +50% 🦘
-              </div>
-            </div>
-          )}
-          
-          {/* FLOATING SCORE INDICATOR - TOP RIGHT (away from coin) */}
-          {floatingScore.show && (
-            <div className="absolute top-32 right-8 pointer-events-none z-50 animate-bounce">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-3xl font-black px-5 py-2 rounded-xl border-2 border-yellow-400 shadow-2xl">
-                +{floatingScore.points.toFixed(2)} 💰
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {gameState === 'playing' && timeRemaining > 55 && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gradient-to-r from-black/90 via-purple-900/50 to-black/90 backdrop-blur-md rounded-xl p-4 border-2 border-yellow-400/70 shadow-2xl pointer-events-none z-40">
-          <div className="text-white text-center">
-            <div className="text-xl font-black mb-2 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-              🪙 Click = Hop • Double-Click = JUMP! 🦘
-            </div>
-            <div className="text-xs text-gray-200">
-              <div>⬆️⬅️➡️ Arrows show direction • Faster moves = More points 💰</div>
-              <div>🚗 Avoid cars • 🦘 Jump over obstacles • ❤️ Keep your hearts</div>
-            </div>
+              START GAME
+            </button>
           </div>
         </div>
       )}
-
-      {gameState === 'ended' && !isSubmitting && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center pointer-events-auto">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-8 max-w-md border-2 border-yellow-400/50 shadow-2xl">
-            <div className="text-center">
-              <div className="text-6xl mb-4">🪙</div>
-              <h2 className="text-3xl font-bold text-white mb-4">Game Over!</h2>
-              
-              <div className="space-y-3 mb-6">
-                <div className="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 rounded-lg p-4 border border-yellow-500/30">
-                  <div className="text-sm text-yellow-300">Final Score</div>
-                  <div className="text-4xl font-black text-yellow-400">{score.toFixed(2)}</div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-xs text-gray-400">Distance</div>
-                    <div className="text-xl font-bold text-white">{pennyPosition.toFixed(1)}</div>
-                  </div>
-                  
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-xs text-gray-400">Hearts</div>
-                    <div className="text-xl font-bold text-red-400">{hearts} ❤️</div>
-                  </div>
-                  
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-xs text-gray-400">Moves</div>
-                    <div className="text-xl font-bold text-blue-400">{moveCount}</div>
-                  </div>
-                  
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-xs text-gray-400">Time</div>
-                    <div className="text-xl font-bold text-purple-400">{60 - timeRemaining}s</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-sm text-gray-400">
-                {hearts > 0 ? '✨ Great job! You survived!' : '💔 Better luck next time!'}
-              </div>
-            </div>
+      
+      {/* Countdown */}
+      {gameState === 'countdown' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/50">
+          <div className="text-9xl font-bold text-white animate-ping">
+            {countdown}
           </div>
         </div>
       )}
-
-      {isSubmitting && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mb-4"></div>
-            <div className="text-white text-xl">Recording Score...</div>
+      
+      {/* End Screen */}
+      {gameState === 'ended' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/70">
+          <div className="text-center text-white bg-gray-800/80 rounded-2xl p-8">
+            <h2 className="text-4xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
+              Game Over!
+            </h2>
+            <p className="text-3xl mb-2">Score: <span className="text-yellow-400">{score.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+            <p className="text-xl mb-4">Accuracy: <span className="text-cyan-400">{accuracy.toFixed(1)}%</span></p>
+            <p className="text-lg text-gray-400">Coins Sorted: {correctSortsRef.current} / {totalCoinsRef.current}</p>
           </div>
         </div>
       )}
-
-      <div className="absolute bottom-4 right-4 text-xs text-white/70 bg-black/50 px-3 py-1 rounded-full pointer-events-none backdrop-blur-sm">
-        v3.9 - Rolling Coin + Smooth Movement
-      </div>
     </div>
   );
 }
