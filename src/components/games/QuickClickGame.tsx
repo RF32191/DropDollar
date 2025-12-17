@@ -242,12 +242,17 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState === 'waiting') {
-      // Clicked too early - give zero score
-      console.log(`QuickClick: Clicked too early! Round ${currentRound}`);
+      // Clicked too early - PUNISH by immediately ending this phase!
+      console.log(`QuickClick: Clicked too early! Round ${currentRound} - PUNISHED!`);
+      
+      // Clear the flash timeout since we're ending early
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
       
       const newRound: Round = {
         roundNumber: currentRound,
-        reactionTime: 0,
+        reactionTime: 0, // Zero score for early click
         clicked: true,
         isBonus: currentRound === 4,
         targetX: targetPosition?.x,
@@ -255,22 +260,21 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         accuracy: 0 // Zero accuracy for premature click
       };
       
-      setRounds(prev => [...prev, newRound]);
-      setGameState('clicked');
+      const updatedRounds = [...rounds, newRound];
+      setRounds(updatedRounds);
       
       // Play failure sound
       playSwordMiss();
       
-      // Move to next round or end game
-      setTimeout(() => {
-        if (currentRound < 4) {
-          setCurrentRound(prev => prev + 1);
-          setGameState('waiting');
-        } else {
-          // Call endGame to ensure audit logging happens
-          endGame([...rounds, newRound]);
-        }
-      }, 1000);
+      // IMMEDIATE punishment - skip directly to next round countdown (no delay!)
+      if (currentRound < 4) {
+        setCurrentRound(prev => prev + 1);
+        setCountdown(3);
+        setGameState('countdown'); // Go straight to countdown for next round
+      } else {
+        // End game immediately for bonus round
+        endGame(updatedRounds);
+      }
       
       return;
     }
@@ -283,20 +287,28 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       let accuracy = 100;
       
       if (isBonus && targetPosition && gameAreaRef.current) {
-        // Calculate click accuracy for bonus round
+        // Calculate click accuracy for bonus round - FIXED positioning
         const rect = gameAreaRef.current.getBoundingClientRect();
+        
+        // Calculate click position as percentage of game area
         const clickX = ((event.clientX - rect.left) / rect.width) * 100;
         const clickY = ((event.clientY - rect.top) / rect.height) * 100;
         setClickPosition({ x: clickX, y: clickY });
         
-        // Calculate distance from target (in percentage points)
+        // Log for debugging
+        console.log(`🎯 Click position: (${clickX.toFixed(1)}%, ${clickY.toFixed(1)}%)`);
+        console.log(`🎯 Target position: (${targetPosition.x.toFixed(1)}%, ${targetPosition.y.toFixed(1)}%)`);
+        
+        // Calculate distance from target center (in percentage points)
         const distance = Math.sqrt(
           Math.pow(clickX - targetPosition.x, 2) + Math.pow(clickY - targetPosition.y, 2)
         );
         
         // Convert distance to accuracy (closer = higher accuracy)
-        accuracy = Math.max(0, 100 - (distance * 2)); // 2% penalty per percentage point distance
-        console.log(`QuickClick: Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)})`);
+        // Target is ~8% wide (w-16 = 64px on ~800px = 8%), so clicking within target = ~100%
+        // Max meaningful distance is ~50% (half the screen), so 2% penalty per % distance
+        accuracy = Math.max(0, 100 - (distance * 2));
+        console.log(`🎯 Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)}%)`);
       }
       
       // Play success sound based on performance
@@ -616,10 +628,10 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           </div>
         </div>
 
-        {/* Game Area */}
+        {/* Game Area - MUST have relative positioning for target accuracy! */}
         <div 
           ref={gameAreaRef}
-          className={`flex-1 cursor-pointer transition-all duration-100 select-none ${
+          className={`flex-1 cursor-pointer transition-all duration-100 select-none relative ${
             gameState === 'waiting' ? 'bg-red-500 border-red-600' :
             gameState === 'flash' ? 'bg-green-500 border-green-600 animate-pulse' :
             gameState === 'clicked' ? 'bg-blue-500 border-blue-600' :
