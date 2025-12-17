@@ -1179,41 +1179,41 @@ export default function TriumphStyleDashboard() {
                       <p className="text-2xl font-bold text-white">{userStats.practiceGames}</p>
                     </div>
                     <StarIcon className="w-8 h-8 text-yellow-500" />
-                          </div>
-                        </div>
+                  </div>
+                </div>
                 
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Competitions</p>
                       <p className="text-2xl font-bold text-white">{userStats.competitionGames}</p>
-                                </div>
+                    </div>
                     <TrophyIcon className="w-8 h-8 text-red-500" />
-                        </div>
-                      </div>
+                  </div>
+                </div>
                       
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
-                            <div>
+                    <div>
                       <p className="text-gray-400 text-sm">Avg Score</p>
                       <p className="text-2xl font-bold text-white">{Math.round(userStats.averageScore)}</p>
                     </div>
                     <FireIcon className="w-8 h-8 text-orange-500" />
-                            </div>
-                          </div>
-                        </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Token Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
-                            <div>
+                    <div>
                       <p className="text-gray-400 text-sm">Tokens Wagered</p>
                       <p className="text-2xl font-bold text-white">{userStats.totalTokensWagered}</p>
-                            </div>
+                    </div>
                     <BanknotesIcon className="w-8 h-8 text-purple-500" />
-                          </div>
-                        </div>
+                  </div>
+                </div>
                 
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">

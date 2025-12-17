@@ -2388,14 +2388,14 @@ export default function DeadShotGame({
       const now = Date.now();
       const elapsedSeconds = (now - gameStartTime) / 1000;
       
-      // HARDER: More frequent spawns, faster ramp-up!
+      // EXTREME DIFFICULTY: Very frequent spawns!
       const intervals = [
-        { time: 0, interval: 2000 },    // Start: 2 seconds (was 3)
-        { time: 10, interval: 1500 },   // 10s: 1.5 seconds (was 2.5)
-        { time: 20, interval: 1200 },   // 20s: 1.2 seconds (was 2)
-        { time: 30, interval: 900 },    // 30s: 0.9 seconds (was 1.5)
-        { time: 40, interval: 700 },    // 40s: 0.7 seconds (was 1.2)
-        { time: 50, interval: 500 },    // 50s+: 0.5 seconds! (was 1)
+        { time: 0, interval: 1500 },    // Start: 1.5 seconds 
+        { time: 10, interval: 1200 },   // 10s: 1.2 seconds
+        { time: 20, interval: 900 },    // 20s: 0.9 seconds
+        { time: 30, interval: 700 },    // 30s: 0.7 seconds
+        { time: 40, interval: 500 },    // 40s: 0.5 seconds
+        { time: 50, interval: 400 },    // 50s+: 0.4 seconds! (INTENSE)
       ];
       
       let nextInterval = intervals[intervals.length - 1].interval;
@@ -2409,14 +2409,19 @@ export default function DeadShotGame({
       // Spawn the enemy
       spawnShip();
       
-      // After 30 seconds, sometimes spawn 2 enemies at once!
-      if (elapsedSeconds >= 30 && Math.random() < 0.3) {
+      // After 20 seconds, sometimes spawn 2 enemies at once!
+      if (elapsedSeconds >= 20 && Math.random() < 0.35) {
         setTimeout(() => spawnShip(), 100); // Quick double spawn
       }
       
-      // After 50 seconds, sometimes spawn 3 enemies!
+      // After 40 seconds, sometimes spawn 3 enemies!
+      if (elapsedSeconds >= 40 && Math.random() < 0.3) {
+        setTimeout(() => spawnShip(), 150); // Triple spawn
+      }
+      
+      // After 50 seconds, sometimes spawn 4 enemies! (CHAOS)
       if (elapsedSeconds >= 50 && Math.random() < 0.2) {
-        setTimeout(() => spawnShip(), 200); // Triple spawn
+        setTimeout(() => spawnShip(), 200); // Quad spawn
       }
       
       spawnIntervalId = setTimeout(scheduleNextSpawn, nextInterval);
@@ -3049,58 +3054,69 @@ export default function DeadShotGame({
       
       {/* Ready Screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/20">
-          <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl">
-            <h1 className="text-4xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-              🎯 Dead Shot
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-gradient-to-br from-red-900/90 via-black/90 to-red-900/90">
+          <div className="relative bg-gradient-to-br from-red-950/80 to-black/80 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border-2 border-red-500/50 shadow-2xl shadow-red-500/20">
+            {/* Animated blood cell decoration */}
+            <div className="absolute top-4 right-4 w-12 h-12 rounded-full bg-gradient-to-br from-white to-pink-200 opacity-30 animate-pulse"></div>
+            <div className="absolute bottom-4 left-4 w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-red-600 opacity-40 animate-bounce"></div>
+            
+            <h1 className="text-5xl font-black text-white mb-2 bg-gradient-to-r from-red-400 via-white to-red-400 bg-clip-text text-transparent drop-shadow-lg">
+              🩸 DEAD SHOT
             </h1>
-            <p className="text-white mb-6">
-              Control your white blood cell, aim at viruses, and destroy them with precision shots!
+            <p className="text-red-200 text-lg mb-6 font-semibold">
+              Defend the body! Destroy invading viruses with your white blood cell!
             </p>
-            <div className="space-y-3 text-left text-white/90 mb-6 text-sm">
-              <div className="flex items-start">
-                <span className="text-cyan-400 mr-2">•</span>
-                <span><strong>Click and hold</strong> to charge, <strong>release to shoot</strong> - Aim path shows trajectory</span>
+            
+            {/* Compact instruction cards */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-red-500/20 rounded-xl p-3 border border-red-500/30">
+                <div className="text-2xl mb-1">🎯</div>
+                <p className="text-xs text-white"><strong>Click & Hold</strong> to charge</p>
+                <p className="text-xs text-red-200">Release to fire!</p>
               </div>
-              <div className="flex items-start">
-                <span className="text-cyan-400 mr-2">•</span>
-                <span><strong>Guide laser</strong> shows arrow trajectory halfway - adjust aim based on charge!</span>
+              <div className="bg-yellow-500/20 rounded-xl p-3 border border-yellow-500/30">
+                <div className="text-2xl mb-1">💥</div>
+                <p className="text-xs text-white"><strong>Headshots:</strong> 200 pts</p>
+                <p className="text-xs text-yellow-200">Leg hits: 50 pts</p>
               </div>
-              <div className="flex items-start">
-                <span className="text-yellow-400 mr-2">•</span>
-                <span><strong>Headshot (center capsid):</strong> 200 points! Leg hits: 50 points each</span>
+              <div className="bg-purple-500/20 rounded-xl p-3 border border-purple-500/30">
+                <div className="text-2xl mb-1">❤️</div>
+                <p className="text-xs text-white"><strong>3 Hearts</strong></p>
+                <p className="text-xs text-purple-200">Virus contact = lose heart!</p>
               </div>
-              <div className="flex items-start">
-                <span className="text-purple-400 mr-2">•</span>
-                <span><strong>3 Hearts:</strong> Viruses shoot projectiles - if hit, lose a heart. Destroy projectiles with arrows!</span>
-              </div>
-              <div className="flex items-start">
-                <span className="text-green-400 mr-2">•</span>
-                <span><strong>Full charge = straight shot</strong>, partial charge = arch shot with gravity</span>
-              </div>
-              <div className="flex items-start">
-                <span className="text-orange-400 mr-2">•</span>
-                <span><strong>Ship escapes:</strong> -50 points. Different enemy sizes, all hittable targets</span>
-              </div>
-              <div className="flex items-start">
-                <span className="text-pink-400 mr-2">•</span>
-                <span><strong>Fair play:</strong> RNG seeding and RLS enabled for skill-based competition</span>
+              <div className="bg-cyan-500/20 rounded-xl p-3 border border-cyan-500/30">
+                <div className="text-2xl mb-1">⚡</div>
+                <p className="text-xs text-white"><strong>Red Drops</strong> = Laser!</p>
+                <p className="text-xs text-cyan-200">Destroys all in path</p>
               </div>
             </div>
+            
+            {/* Pro tips */}
+            <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/10">
+              <h3 className="text-sm font-bold text-red-400 mb-2">⚔️ COMBAT TIPS</h3>
+              <div className="space-y-1 text-xs text-left text-white/80">
+                <p>• <span className="text-green-400">Full charge</span> = straight shot • <span className="text-yellow-400">Partial</span> = arched shot</p>
+                <p>• <span className="text-yellow-400">Yellow drops</span> = restore hearts or +200 points</p>
+                <p>• <span className="text-cyan-400">Shoot enemy legs</span> = pick up as shield!</p>
+                <p>• <span className="text-red-400">Stay mobile!</span> Corner camping = auto-push to center</p>
+                <p>• <span className="text-purple-400">Enemies intensify</span> - waves get faster over time!</p>
+              </div>
+            </div>
+            
             <div className="flex gap-4">
               {onExit && (
                 <button
                   onClick={onExit}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl transition-all"
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl transition-all border border-white/20"
                 >
                   ← Back
                 </button>
               )}
               <button
                 onClick={startGame}
-                className="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-2xl transition-all"
+                className="flex-1 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg shadow-red-500/30 border border-red-400/50 animate-pulse"
               >
-                🎯 Start Shooting
+                🩸 DEFEND THE BODY
               </button>
             </div>
           </div>

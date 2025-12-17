@@ -1451,36 +1451,70 @@ export default function PennyPasserGame3D({
       
       {/* Ready Screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/70">
-          <div className="text-center text-white">
-            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-purple-500 to-red-500 bg-clip-text text-transparent">
-              COIN SORTER
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-gradient-to-br from-blue-900/90 via-purple-900/90 to-red-900/90">
+          <div className="bg-gradient-to-br from-gray-900/90 to-black/90 backdrop-blur-xl rounded-3xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto text-center border-2 border-purple-500/50 shadow-2xl shadow-purple-500/20">
+            {/* Animated coin decorations */}
+            <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 opacity-50 animate-spin" style={{animationDuration: '3s'}}></div>
+            <div className="absolute bottom-4 left-4 w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 opacity-40 animate-bounce"></div>
+            
+            <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-cyan-400 via-purple-400 to-red-400 bg-clip-text text-transparent">
+              💰 COIN SORTER
             </h1>
-            <p className="text-xl mb-6 text-gray-300">
-              Match coins by SIZE, SHAPE, and COLOR!
+            <p className="text-purple-200 text-sm mb-4 font-medium">
+              Drag coins to matching quadrants by recognizing their SHAPE!
             </p>
-            <div className="grid grid-cols-2 gap-4 mb-8 text-lg">
-              <div className="text-cyan-400 flex items-center justify-center gap-2">
-                <span className="text-2xl">⭕</span> Circle → Cyan (Tiny)
+            
+            {/* Shape legend - compact grid */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="bg-cyan-500/20 rounded-lg p-2 border border-cyan-500/40">
+                <div className="text-xl">⭕</div>
+                <p className="text-[10px] text-cyan-300 font-bold">CIRCLE</p>
+                <p className="text-[8px] text-cyan-200">Cyan • Tiny</p>
               </div>
-              <div className="text-green-400 flex items-center justify-center gap-2">
-                <span className="text-2xl">⬜</span> Square → Green (Medium)
+              <div className="bg-green-500/20 rounded-lg p-2 border border-green-500/40">
+                <div className="text-xl">⬜</div>
+                <p className="text-[10px] text-green-300 font-bold">SQUARE</p>
+                <p className="text-[8px] text-green-200">Green • Med</p>
               </div>
-              <div className="text-purple-400 flex items-center justify-center gap-2">
-                <span className="text-2xl">🔺</span> Triangle → Purple (Smallest)
+              <div className="bg-purple-500/20 rounded-lg p-2 border border-purple-500/40">
+                <div className="text-xl">🔺</div>
+                <p className="text-[10px] text-purple-300 font-bold">TRIANGLE</p>
+                <p className="text-[8px] text-purple-200">Purple • Small</p>
               </div>
-              <div className="text-red-400 flex items-center justify-center gap-2">
-                <span className="text-2xl">⬠</span> Pentagon → Red (Largest)
+              <div className="bg-red-500/20 rounded-lg p-2 border border-red-500/40">
+                <div className="text-xl">Ω</div>
+                <p className="text-[10px] text-red-300 font-bold">OMEGA</p>
+                <p className="text-[8px] text-red-200">Red • Large</p>
               </div>
             </div>
-            <p className="text-sm text-yellow-400 mb-4">
-              ⚡ Hit the TARGET for +250 bonus! Glowing coins match by COLOR!
-            </p>
+            
+            {/* Scoring info */}
+            <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10 text-left">
+              <h3 className="text-xs font-bold text-yellow-400 mb-2 text-center">🎯 SCORING SYSTEM</h3>
+              <div className="grid grid-cols-2 gap-2 text-[10px] text-white/80">
+                <p>✓ <span className="text-green-400">Correct sort:</span> Base points</p>
+                <p>🎯 <span className="text-cyan-400">Target zone:</span> +250 bonus</p>
+                <p>🔥 <span className="text-orange-400">Combo streak:</span> Multiplier!</p>
+                <p>⚡ <span className="text-yellow-400">Speed bonus:</span> Fast = more pts</p>
+              </div>
+            </div>
+            
+            {/* Pro tips */}
+            <div className="bg-purple-500/10 rounded-xl p-3 mb-4 border border-purple-500/20">
+              <h3 className="text-xs font-bold text-purple-400 mb-2">💡 PRO TIPS</h3>
+              <div className="space-y-1 text-[10px] text-left text-white/70">
+                <p>• <span className="text-cyan-400">White shapes</span> on coins show which quadrant they belong to</p>
+                <p>• <span className="text-yellow-400">Glowing coin</span> = priority! Sort it first for combo bonus</p>
+                <p>• <span className="text-green-400">Target crosshair</span> shows perfect placement spot</p>
+                <p>• <span className="text-red-400">Trick shapes</span> in target = match THAT shape for +200 bonus!</p>
+              </div>
+            </div>
+            
             <button
               onClick={startGame}
-              className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl text-xl font-bold hover:scale-105 transition-transform"
+              className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 via-purple-500 to-red-500 rounded-2xl text-lg font-bold hover:scale-105 transition-transform shadow-lg shadow-purple-500/30 text-white"
             >
-              START GAME
+              💰 START SORTING
             </button>
           </div>
         </div>
