@@ -224,7 +224,7 @@ export default function TriumphStyleDashboard() {
       }
     }
     
-    // Periodic refresh of XP data every 5 seconds (more frequent to catch updates)
+    // Periodic refresh of XP data every 30 seconds - less aggressive to prevent UI disruptions
     const xpRefreshInterval = setInterval(() => {
       if (user && isAuthenticated) {
         XPService.getUserXP(user.id).then(xpData => {
@@ -264,7 +264,7 @@ export default function TriumphStyleDashboard() {
           console.error('❌ [Dashboard] XP auto-refresh failed:', err);
         });
       }
-    }, 5000); // Refresh every 5 seconds for faster updates
+    }, 30000); // Refresh every 30 seconds
     
     // Only load data if user is authenticated AND auth is not loading
     if (user && isAuthenticated && !authLoading) {
@@ -318,18 +318,41 @@ export default function TriumphStyleDashboard() {
 
       // Token balance is now handled by useTokenSync hook
 
-      // Load game data in parallel (including XP for level progress bar)
-      const [gameHistory, highScores, userStats, userXPData] = await Promise.all([
+      // Load game history and XP first
+      const [gameHistoryData, userXPData] = await Promise.all([
         loadGameHistory(user.id).catch(err => {
           console.error('❌ [Dashboard] Game history load failed:', err);
           return [];
         }),
-        loadHighScores(user.id).catch(err => {
+        XPService.getUserXP(user.id).catch(err => {
+          console.error('❌ [Dashboard] XP load failed:', err);
+          return null;
+        })
+      ]);
+
+      // Now load high scores and stats with game history for fallback calculations
+      const [highScoresData, userStatsData] = await Promise.all([
+        loadHighScores(user.id, gameHistoryData).catch(err => {
           console.error('❌ [Dashboard] High scores load failed:', err);
           return [];
         }),
-        loadUserStats(user.id).catch(err => {
+        loadUserStats(user.id, gameHistoryData).catch(err => {
           console.error('❌ [Dashboard] User stats load failed:', err);
+          // Calculate from history as final fallback
+          if (gameHistoryData.length > 0) {
+            const practiceGames = gameHistoryData.filter(g => g.is_practice);
+            const competitionGames = gameHistoryData.filter(g => !g.is_practice);
+            const totalScore = gameHistoryData.reduce((sum, g) => sum + (g.score || 0), 0);
+            return {
+              totalGames: gameHistoryData.length,
+              practiceGames: practiceGames.length,
+              competitionGames: competitionGames.length,
+              totalTokensWagered: gameHistoryData.reduce((sum, g) => sum + (g.tokens_wagered || 0), 0),
+              totalTokensWon: gameHistoryData.reduce((sum, g) => sum + (g.tokens_won || 0), 0),
+              totalPrizeMoney: 0,
+              averageScore: totalScore / gameHistoryData.length
+            };
+          }
           return {
             totalGames: 0,
             practiceGames: 0,
@@ -339,10 +362,6 @@ export default function TriumphStyleDashboard() {
             totalPrizeMoney: 0,
             averageScore: 0
           };
-        }),
-        XPService.getUserXP(user.id).catch(err => {
-          console.error('❌ [Dashboard] XP load failed:', err);
-          return null;
         })
       ]);
 
@@ -353,9 +372,9 @@ export default function TriumphStyleDashboard() {
         console.error('❌ [Dashboard] Transactions load failed:', err);
       });
 
-      setGameHistory(gameHistory);
-      setHighScores(highScores);
-      setUserStats(userStats);
+      setGameHistory(gameHistoryData);
+      setHighScores(highScoresData);
+      setUserStats(userStatsData);
       
       // Set XP data (CRITICAL for level progress bar - always refresh)
       if (userXPData) {
@@ -408,9 +427,9 @@ export default function TriumphStyleDashboard() {
       }
 
       console.log('✅ [Dashboard] All data loaded successfully');
-      console.log('✅ [Dashboard] Game history loaded:', gameHistory.length, 'games');
-      console.log('✅ [Dashboard] High scores loaded:', highScores.length, 'games');
-      console.log('✅ [Dashboard] User stats loaded:', userStats);
+      console.log('✅ [Dashboard] Game history loaded:', gameHistoryData.length, 'games');
+      console.log('✅ [Dashboard] High scores loaded:', highScoresData.length, 'games');
+      console.log('✅ [Dashboard] User stats loaded:', userStatsData);
 
     } catch (error) {
       console.error('❌ [Dashboard] Error loading dashboard:', error);
@@ -500,20 +519,62 @@ export default function TriumphStyleDashboard() {
     }
   };
 
-  const loadHighScores = async (userId: string): Promise<HighScoreRecord[]> => {
+  const loadHighScores = async (userId: string, gameHistoryData?: GameHistoryRecord[]): Promise<HighScoreRecord[]> => {
     try {
       console.log('🏆 [Dashboard] Loading high scores...');
       
-      const highScores = await SimpleGameService.getUserHighScores(userId);
-      console.log('✅ [Dashboard] High scores loaded:', Object.keys(highScores).length, 'games');
-      return Object.values(highScores) as unknown as HighScoreRecord[]; // Return instead of setting state
+      // Try service first
+      try {
+        const highScores = await SimpleGameService.getUserHighScores(userId);
+        if (highScores && Object.keys(highScores).length > 0) {
+          console.log('✅ [Dashboard] High scores loaded from service:', Object.keys(highScores).length, 'games');
+          return Object.values(highScores) as unknown as HighScoreRecord[];
+        }
+      } catch (serviceError) {
+        console.log('⚠️ [Dashboard] High scores service failed, calculating from history');
+      }
+      
+      // Fallback: Calculate from game history
+      if (gameHistoryData && gameHistoryData.length > 0) {
+        const gameTypeMap = new Map<string, HighScoreRecord>();
+        
+        for (const game of gameHistoryData) {
+          const existing = gameTypeMap.get(game.game_type);
+          if (!existing) {
+            gameTypeMap.set(game.game_type, {
+              game_type: game.game_type,
+              best_score: game.score || 0,
+              best_accuracy: game.accuracy,
+              games_played: 1,
+              practice_games: game.is_practice ? 1 : 0,
+              competition_games: game.is_practice ? 0 : 1
+            });
+          } else {
+            existing.games_played++;
+            if (game.is_practice) existing.practice_games++;
+            else existing.competition_games++;
+            if ((game.score || 0) > existing.best_score) {
+              existing.best_score = game.score || 0;
+            }
+            if (game.accuracy && (!existing.best_accuracy || game.accuracy > existing.best_accuracy)) {
+              existing.best_accuracy = game.accuracy;
+            }
+          }
+        }
+        
+        const scores = Array.from(gameTypeMap.values());
+        console.log('✅ [Dashboard] High scores calculated from history:', scores.length, 'games');
+        return scores;
+      }
+      
+      return [];
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadHighScores:', error);
-      return [] as HighScoreRecord[]; // Return empty array on error
+      return [];
     }
   };
 
-  const loadUserStats = async (userId: string) => {
+  const loadUserStats = async (userId: string, gameHistoryData?: GameHistoryRecord[]) => {
     try {
       console.log('📊 [Dashboard] Loading user stats...');
       
@@ -543,10 +604,52 @@ export default function TriumphStyleDashboard() {
         console.log('⚠️ [Dashboard] Analytics function not ready, using fallback');
       }
       
-      // Fallback to old method
-      const userStats = await SimpleGameService.getUserGameStats(userId);
-      console.log('✅ [Dashboard] User stats loaded:', userStats);
-      return userStats;
+      // Fallback to SimpleGameService
+      try {
+        const userStats = await SimpleGameService.getUserGameStats(userId);
+        if (userStats && userStats.totalGames > 0) {
+          console.log('✅ [Dashboard] User stats loaded from service:', userStats);
+          return userStats;
+        }
+      } catch (serviceError) {
+        console.log('⚠️ [Dashboard] Service fallback failed, calculating from history');
+      }
+      
+      // Final fallback: calculate stats from game history
+      if (gameHistoryData && gameHistoryData.length > 0) {
+        const practiceGames = gameHistoryData.filter(g => g.is_practice);
+        const competitionGames = gameHistoryData.filter(g => !g.is_practice);
+        const totalScore = gameHistoryData.reduce((sum, g) => sum + (g.score || 0), 0);
+        const totalWagered = gameHistoryData.reduce((sum, g) => sum + (g.tokens_wagered || 0), 0);
+        const totalWon = gameHistoryData.reduce((sum, g) => sum + (g.tokens_won || 0), 0);
+        
+        console.log('✅ [Dashboard] Stats calculated from history:', {
+          totalGames: gameHistoryData.length,
+          practiceGames: practiceGames.length,
+          competitionGames: competitionGames.length
+        });
+        
+        return {
+          totalGames: gameHistoryData.length,
+          practiceGames: practiceGames.length,
+          competitionGames: competitionGames.length,
+          totalTokensWagered: totalWagered,
+          totalTokensWon: totalWon,
+          totalPrizeMoney: 0,
+          averageScore: gameHistoryData.length > 0 ? totalScore / gameHistoryData.length : 0
+        };
+      }
+      
+      console.log('⚠️ [Dashboard] No game data available for stats');
+      return {
+        totalGames: 0,
+        practiceGames: 0,
+        competitionGames: 0,
+        totalTokensWagered: 0,
+        totalTokensWon: 0,
+        totalPrizeMoney: 0,
+        averageScore: 0
+      };
     } catch (error) {
       console.error('❌ [Dashboard] Error in loadUserStats:', error);
       return {
