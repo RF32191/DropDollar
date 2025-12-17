@@ -927,9 +927,9 @@ export default function DeadShotGame({
         bowVelocityRef.current.y *= damping;
         
         // ============================================
-        // CORNER CAMPING PREVENTION - Spawn pushers
+        // CORNER CAMPING PREVENTION - AGGRESSIVE PUSH TO CENTER
         // ============================================
-        const cornerThreshold = boundaryX * 0.6; // Define corner area
+        const cornerThreshold = boundaryX * 0.5; // Define corner area (more sensitive)
         const playerX = bowPositionRef.current.x;
         const playerY = bowPositionRef.current.y;
         const isInCorner = (Math.abs(playerX) > cornerThreshold && Math.abs(playerY) > cornerThreshold);
@@ -937,86 +937,56 @@ export default function DeadShotGame({
         if (isInCorner) {
           cornerStayDurationRef.current += adjustedDelta;
           
-          // If player has been in corner for 2+ seconds, spawn pushers
-          if (cornerStayDurationRef.current > 2.0) {
-            const now = Date.now();
+          // If player has been in corner for 1 second, IMMEDIATELY push to center!
+          if (cornerStayDurationRef.current > 1.0) {
+            console.log('⚠️ CORNER CAMPING DETECTED! Pushing player to center');
             
-            // Spawn pushers every 500ms while in corner
-            if (now - lastCornerPushTimeRef.current > 500) {
-              lastCornerPushTimeRef.current = now;
-              
-              // Determine which corner player is in
-              const cornerX = playerX > 0 ? boundaryX : -boundaryX;
-              const cornerY = playerY > 0 ? boundaryY : -boundaryY;
-              
-              // Spawn pusher from the corner toward the player
-              const pusherGeometry = new THREE.SphereGeometry(0.4, 16, 16);
-              const pusherMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-              });
-              const pusherMesh = new THREE.Mesh(pusherGeometry, pusherMaterial);
-              pusherMesh.position.set(cornerX, cornerY, 0);
-              
-              // Add glow ring
-              const glowGeometry = new THREE.RingGeometry(0.5, 0.7, 16);
-              const glowMaterial = new THREE.MeshBasicMaterial({
-                color: 0x00ffff,
-                transparent: true,
-                opacity: 0.5,
-                side: THREE.DoubleSide
-              });
-              const glowRing = new THREE.Mesh(glowGeometry, glowMaterial);
-              pusherMesh.add(glowRing);
-              
-              sceneRef.current?.add(pusherMesh);
-              
-              // Calculate velocity toward center (opposite of corner)
-              const pushSpeed = 8;
-              cornerPushersRef.current.push({
-                mesh: pusherMesh,
-                vx: -Math.sign(cornerX) * pushSpeed,
-                vy: -Math.sign(cornerY) * pushSpeed,
-                targetX: 0,
-                targetY: 0
+            // STRONG push toward center
+            const pushForce = 15;
+            bowVelocityRef.current.x = -Math.sign(playerX) * pushForce;
+            bowVelocityRef.current.y = -Math.sign(playerY) * pushForce;
+            
+            // Also move player position directly toward center
+            bowPositionRef.current.x *= 0.7; // Move 30% toward center
+            bowPositionRef.current.y *= 0.7;
+            
+            // Flash effect to indicate push
+            if (cellMembraneRef.current) {
+              cellMembraneRef.current.children.forEach((child: any) => {
+                if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+                  const originalColor = child.material.color.getHex();
+                  child.material.color.setHex(0x00ffff); // Flash cyan
+                  child.material.opacity = 1.0;
+                  setTimeout(() => {
+                    if (child.material instanceof THREE.MeshBasicMaterial) {
+                      child.material.color.setHex(originalColor);
+                      child.material.opacity = 0.5;
+                    }
+                  }, 200);
+                }
               });
             }
+            
+            // Reset timer so they can stay briefly again
+            cornerStayDurationRef.current = 0;
           }
         } else {
           // Reset corner timer when not in corner
           cornerStayDurationRef.current = 0;
         }
         
-        // Update corner pushers
-        cornerPushersRef.current = cornerPushersRef.current.filter(pusher => {
-          pusher.mesh.position.x += pusher.vx * adjustedDelta;
-          pusher.mesh.position.y += pusher.vy * adjustedDelta;
-          pusher.mesh.rotation.z += 0.1; // Spin
+        // Also push ENEMIES away from corners!
+        shipsRef.current.forEach(ship => {
+          const shipX = ship.group.position.x;
+          const shipY = ship.group.position.y;
+          const shipInCorner = (Math.abs(shipX) > cornerThreshold && Math.abs(shipY) > cornerThreshold);
           
-          // Check collision with player - push them toward center
-          const dx = pusher.mesh.position.x - bowPositionRef.current.x;
-          const dy = pusher.mesh.position.y - bowPositionRef.current.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          
-          if (dist < 1.5) {
-            // Push player toward center
-            bowVelocityRef.current.x = -Math.sign(bowPositionRef.current.x) * 5;
-            bowVelocityRef.current.y = -Math.sign(bowPositionRef.current.y) * 5;
-            
-            // Remove pusher
-            sceneRef.current?.remove(pusher.mesh);
-            return false;
+          if (shipInCorner) {
+            // Push enemy toward center
+            const pushForce = 5 * adjustedDelta;
+            ship.group.position.x -= Math.sign(shipX) * pushForce;
+            ship.group.position.y -= Math.sign(shipY) * pushForce;
           }
-          
-          // Remove if out of bounds or reached center area
-          if (Math.abs(pusher.mesh.position.x) < 3 && Math.abs(pusher.mesh.position.y) < 3) {
-            sceneRef.current?.remove(pusher.mesh);
-            return false;
-          }
-          
-          return true;
         });
         
         // No auto-center - player stays where pushed and can work their way back with shots
