@@ -462,18 +462,18 @@ export default function DeadShotGame({
     return mesh;
   }, []);
   
-  // Create INSTANT laser beam - extends across entire screen, destroys all in path
+  // Create INSTANT laser beam - RED NEON, extends across entire screen, destroys all in path
   const createLaserShot = useCallback((startX: number, startY: number, angleRad: number): THREE.Group => {
     const laserGroup = new THREE.Group();
     
     // INSTANT BEAM - extends from player across entire screen
     const beamLength = 60; // Full screen length
-    const beamRadius = 0.6; // Thick beam
+    const beamRadius = 0.7; // Thick beam
     
-    // Main laser beam - BRIGHT NEON
+    // Main laser beam - RED NEON
     const beamGeometry = new THREE.CylinderGeometry(beamRadius, beamRadius, beamLength, 32);
     const beamMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff, // Cyan neon
+      color: 0xff0000, // RED neon
       transparent: true,
       opacity: 0.95
     });
@@ -482,10 +482,10 @@ export default function DeadShotGame({
     beamMesh.position.x = beamLength / 2; // Extend forward from origin
     laserGroup.add(beamMesh);
     
-    // Bright WHITE hot core
-    const coreGeometry = new THREE.CylinderGeometry(beamRadius * 0.3, beamRadius * 0.3, beamLength, 32);
+    // Bright WHITE hot core - intense center
+    const coreGeometry = new THREE.CylinderGeometry(beamRadius * 0.35, beamRadius * 0.35, beamLength, 32);
     const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+      color: 0xffaaaa, // Light pinkish-white hot core
       transparent: true,
       opacity: 1.0
     });
@@ -494,12 +494,12 @@ export default function DeadShotGame({
     coreMesh.position.x = beamLength / 2;
     laserGroup.add(coreMesh);
     
-    // Outer glow - INTENSE
-    const outerGlowGeometry = new THREE.CylinderGeometry(beamRadius * 2.0, beamRadius * 2.0, beamLength, 32);
+    // Outer RED glow - INTENSE
+    const outerGlowGeometry = new THREE.CylinderGeometry(beamRadius * 2.5, beamRadius * 2.5, beamLength, 32);
     const outerGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+      color: 0xff3333, // Bright red glow
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.5,
       blending: THREE.AdditiveBlending
     });
     const outerGlow = new THREE.Mesh(outerGlowGeometry, outerGlowMaterial);
@@ -507,18 +507,31 @@ export default function DeadShotGame({
     outerGlow.position.x = beamLength / 2;
     laserGroup.add(outerGlow);
     
-    // Electric crackling rings along the beam
-    for (let i = 0; i < 12; i++) {
-      const ringRadius = beamRadius * (1.0 + Math.random() * 0.5);
-      const glowGeometry = new THREE.RingGeometry(ringRadius * 0.8, ringRadius * 1.2, 6);
+    // Far outer haze - makes it look more powerful
+    const hazeGeometry = new THREE.CylinderGeometry(beamRadius * 4.0, beamRadius * 4.0, beamLength, 32);
+    const hazeMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.2,
+      blending: THREE.AdditiveBlending
+    });
+    const hazeMesh = new THREE.Mesh(hazeGeometry, hazeMaterial);
+    hazeMesh.rotation.z = Math.PI / 2;
+    hazeMesh.position.x = beamLength / 2;
+    laserGroup.add(hazeMesh);
+    
+    // Electric crackling rings along the beam - orange/red pulses
+    for (let i = 0; i < 15; i++) {
+      const ringRadius = beamRadius * (1.2 + Math.random() * 0.6);
+      const glowGeometry = new THREE.RingGeometry(ringRadius * 0.7, ringRadius * 1.3, 8);
       const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: i % 2 === 0 ? 0xff6600 : 0xffff00, // Alternating orange and yellow
         transparent: true,
         opacity: 0.9,
         side: THREE.DoubleSide
       });
       const glowRing = new THREE.Mesh(glowGeometry, glowMaterial);
-      glowRing.position.x = i * (beamLength / 11);
+      glowRing.position.x = i * (beamLength / 14);
       glowRing.rotation.y = Math.PI / 2;
       glowRing.rotation.x = Math.random() * Math.PI;
       laserGroup.add(glowRing);

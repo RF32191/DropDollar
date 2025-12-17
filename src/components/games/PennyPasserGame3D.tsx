@@ -285,10 +285,10 @@ export default function PennyPasserGame3D({
       bonusShapeMesh.name = 'bonusShape';
       group.add(bonusShapeMesh);
       
-      // Pulsing glow ring around bonus shape
+      // Pulsing glow ring around bonus shape - WHITE, no color hints!
       const bonusGlowGeometry = new THREE.RingGeometry(bonusShapeSize * 1.2, bonusShapeSize * 1.5, 16);
       const bonusGlowMaterial = new THREE.MeshBasicMaterial({
-        color: bonusColor,
+        color: 0xFFFFFF, // WHITE - no color hint!
         transparent: true,
         opacity: 0.8,
         side: THREE.DoubleSide
@@ -391,7 +391,7 @@ export default function PennyPasserGame3D({
     }
     
     const shapeIndicatorMaterial = new THREE.MeshBasicMaterial({
-      color: hexColor,
+      color: 0xFFFFFF, // WHITE - no color hint! Shape recognition only!
       transparent: true,
       opacity: 0.6,
       side: THREE.DoubleSide
@@ -454,7 +454,7 @@ export default function PennyPasserGame3D({
       }
       
       const shapeMaterial = new THREE.MeshBasicMaterial({
-        color: hexColor,
+        color: 0xFFFFFF, // WHITE - no color hint! Shape recognition only!
         transparent: true,
         opacity: 0.25, // Subtle but visible
         side: THREE.DoubleSide
