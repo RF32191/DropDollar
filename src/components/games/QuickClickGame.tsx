@@ -315,18 +315,23 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         accuracy = Math.max(0, 100 - (distance * 2));
         console.log(`🎯 Bonus accuracy: ${accuracy.toFixed(1)}% (distance: ${distance.toFixed(1)}%)`);
         
-        // BONUS ROUND SCORING: Speed AND Accuracy combined!
+        // BONUS ROUND SCORING: Speed AND Accuracy combined with DECIMALS!
         // Speed score: faster = higher (max ~800 for 200ms reaction)
         const speedScore = Math.max(0, 1000 - reactionTime);
         // Accuracy multiplier: 0% = 0.1x, 50% = 0.55x, 100% = 1.0x
         const accuracyMultiplier = 0.1 + (accuracy / 100) * 0.9;
-        // Combined score
-        roundScore = Math.round(speedScore * accuracyMultiplier);
+        // Combined score WITH DECIMALS based on accuracy
+        // Base score + accuracy decimal (e.g., 500.87 where .87 is from 87% accuracy)
+        roundScore = Number((speedScore * accuracyMultiplier + (accuracy / 100)).toFixed(2));
         console.log(`🎯 Bonus scoring: Speed=${speedScore}, AccuracyMult=${accuracyMultiplier.toFixed(2)}, Total=${roundScore}`);
       } else {
-        // NORMAL ROUND SCORING: Faster click = higher points
-        // 100ms = 900pts, 200ms = 800pts, 500ms = 500pts, 1000ms+ = 0pts
-        roundScore = Math.max(0, Math.round(1000 - reactionTime));
+        // NORMAL ROUND SCORING: Faster click = higher points WITH DECIMALS!
+        // Base: 1000 - reactionTime
+        // Decimal: precise timing (e.g., 247ms = 753.47 points where .47 comes from timing precision)
+        const baseScore = Math.max(0, 1000 - reactionTime);
+        // Add decimal based on exact milliseconds (more precise = unique scores)
+        const timingDecimal = (reactionTime % 100) / 100;
+        roundScore = Number((baseScore + timingDecimal).toFixed(2));
         console.log(`⚡ Round ${currentRound} scoring: ${reactionTime}ms = ${roundScore} points`);
       }
       
@@ -682,10 +687,13 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
             )}
             {gameState === 'clicked' && (
               <div className="text-center">
-                {rounds.length > 0 && rounds[rounds.length - 1].reactionTime ? (
+                {rounds.length > 0 && rounds[rounds.length - 1].reactionTime && !rounds[rounds.length - 1].earlyClick ? (
                   <div>
-                    <div className="text-3xl sm:text-4xl font-bold mb-4">
+                    <div className="text-3xl sm:text-4xl font-bold mb-2">
                       {rounds[rounds.length - 1].reactionTime}ms
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-bold mb-4 text-green-300">
+                      +{rounds[rounds.length - 1].roundScore?.toFixed(2)} pts
                     </div>
                     {rounds[rounds.length - 1].isBonus && rounds[rounds.length - 1].accuracy && (
                       <div className="text-xl sm:text-2xl font-bold mb-2 text-yellow-300">
@@ -774,9 +782,12 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                     {round.isBonus ? 'Bonus' : `Round ${round.roundNumber}`}
                   </div>
                   <div className="text-lg font-bold">
-                    {round.reactionTime ? `${round.reactionTime}ms` : 'Failed'}
+                    {round.earlyClick ? 'Too Early!' : round.reactionTime ? `${round.reactionTime}ms` : 'Failed'}
                   </div>
-                  {round.isBonus && round.accuracy && (
+                  <div className={`text-sm font-bold ${round.roundScore && round.roundScore > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {round.roundScore?.toFixed(2)} pts
+                  </div>
+                  {round.isBonus && round.accuracy !== undefined && (
                     <div className="text-sm text-yellow-600 font-semibold">
                       {round.accuracy.toFixed(1)}% accuracy
                     </div>
