@@ -24,6 +24,9 @@ interface Coin {
   colorMatch?: QuadrantColor; // If color coin, which quadrant color to match
   isDragging: boolean;
   sorted: boolean;
+  isPriority: boolean; // Highlighted coin to sort next
+  glowMesh?: THREE.Mesh; // Glow effect mesh
+  destinationColor: number; // Color of destination quadrant
 }
 
 interface Quadrant {
@@ -51,6 +54,14 @@ const QUADRANT_COLORS = {
   green: 0x00FF00,
   purple: 0xFF00FF,
   red: 0xFF0000
+};
+
+// Map coin types to their destination quadrant colors
+const COIN_TO_QUADRANT_COLOR: Record<CoinType, number> = {
+  penny: 0x00FFFF,   // Cyan
+  nickel: 0x00FF00,  // Green
+  dime: 0xFF00FF,    // Purple
+  quarter: 0xFF0000  // Red
 };
 
 // Seeded random number generator
@@ -96,6 +107,8 @@ export default function PennyPasserGame3D({
   const comboRef = useRef(0);
   const gameStartTimeRef = useRef(0);
   const rngRef = useRef<Mulberry32 | null>(null);
+  const priorityCoinRef = useRef<Coin | null>(null);
+  const targetZoneRef = useRef<THREE.Group | null>(null); // Moving target zone indicator
   
   // Initialize seeded RNG
   useEffect(() => {
@@ -108,36 +121,40 @@ export default function PennyPasserGame3D({
     return rngRef.current ? rngRef.current.next() : Math.random();
   }, []);
 
-  // Create realistic 3D coin mesh
-  const createCoinMesh = useCallback((type: CoinType, isColorCoin: boolean, colorMatch?: QuadrantColor): THREE.Group => {
+  // Create realistic 3D coin mesh with destination color glow
+  const createCoinMesh = useCallback((type: CoinType, isColorCoin: boolean, colorMatch?: QuadrantColor): { group: THREE.Group; glowMesh: THREE.Mesh; destinationColor: number } => {
     const config = COIN_CONFIGS[type];
     const group = new THREE.Group();
     
-    // Determine coin color
-    let coinColor = config.color;
+    // Determine destination color (quadrant this coin belongs to)
+    let destinationColor: number;
     if (isColorCoin && colorMatch) {
-      coinColor = QUADRANT_COLORS[colorMatch];
+      destinationColor = QUADRANT_COLORS[colorMatch];
+    } else {
+      destinationColor = COIN_TO_QUADRANT_COLOR[type];
     }
     
-    // Main coin body (cylinder)
+    // Main coin body (cylinder) - keep original coin appearance
     const coinGeometry = new THREE.CylinderGeometry(config.radius, config.radius, config.thickness, 32);
     const coinMaterial = new THREE.MeshStandardMaterial({
-      color: coinColor,
+      color: config.color, // Original coin color
       metalness: 0.8,
       roughness: 0.2,
-      emissive: isColorCoin ? coinColor : 0x000000,
-      emissiveIntensity: isColorCoin ? 0.3 : 0
+      emissive: destinationColor, // Glow with destination color
+      emissiveIntensity: 0.4
     });
     const coinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
     coinMesh.rotation.x = Math.PI / 2; // Lay flat
     group.add(coinMesh);
     
-    // Coin rim (torus for edge detail)
+    // Coin rim (torus for edge detail) - glows with destination color
     const rimGeometry = new THREE.TorusGeometry(config.radius, config.thickness / 4, 8, 32);
     const rimMaterial = new THREE.MeshStandardMaterial({
-      color: isColorCoin ? coinColor : (coinColor * 0.8),
+      color: config.color * 0.8,
       metalness: 0.9,
-      roughness: 0.1
+      roughness: 0.1,
+      emissive: destinationColor,
+      emissiveIntensity: 0.6
     });
     const rimMesh = new THREE.Mesh(rimGeometry, rimMaterial);
     rimMesh.rotation.x = Math.PI / 2;
@@ -146,7 +163,7 @@ export default function PennyPasserGame3D({
     // Face detail - coin symbol/text
     const faceGeometry = new THREE.CircleGeometry(config.radius * 0.7, 32);
     const faceMaterial = new THREE.MeshStandardMaterial({
-      color: isColorCoin ? 0xFFFFFF : (coinColor * 1.2),
+      color: config.color * 1.2,
       metalness: 0.6,
       roughness: 0.4
     });
@@ -157,28 +174,39 @@ export default function PennyPasserGame3D({
     // Add coin letter/symbol
     const letterGeometry = new THREE.RingGeometry(config.radius * 0.2, config.radius * 0.35, 16);
     const letterMaterial = new THREE.MeshBasicMaterial({
-      color: isColorCoin ? coinColor : 0x333333,
+      color: 0x333333,
       side: THREE.DoubleSide
     });
     const letterMesh = new THREE.Mesh(letterGeometry, letterMaterial);
     letterMesh.position.z = config.thickness / 2 + 0.02;
     group.add(letterMesh);
     
-    // Glow effect for color coins
-    if (isColorCoin) {
-      const glowGeometry = new THREE.CircleGeometry(config.radius * 1.3, 32);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: coinColor,
-        transparent: true,
-        opacity: 0.3,
-        blending: THREE.AdditiveBlending
-      });
-      const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-      glowMesh.position.z = -0.1;
-      group.add(glowMesh);
-    }
+    // Glow effect - always present, shows destination quadrant color
+    const glowGeometry = new THREE.CircleGeometry(config.radius * 1.5, 32);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: destinationColor,
+      transparent: true,
+      opacity: 0.4,
+      blending: THREE.AdditiveBlending
+    });
+    const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+    glowMesh.position.z = -0.1;
+    group.add(glowMesh);
     
-    return group;
+    // Priority indicator ring (hidden by default, shown when priority)
+    const priorityRingGeometry = new THREE.RingGeometry(config.radius * 1.6, config.radius * 1.8, 32);
+    const priorityRingMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide
+    });
+    const priorityRing = new THREE.Mesh(priorityRingGeometry, priorityRingMaterial);
+    priorityRing.position.z = -0.05;
+    priorityRing.name = 'priorityRing';
+    group.add(priorityRing);
+    
+    return { group, glowMesh, destinationColor };
   }, []);
 
   // Create quadrant with neon glow
@@ -292,6 +320,79 @@ export default function PennyPasserGame3D({
     };
   }, []);
 
+  // Update priority coin and target zone
+  const updatePriorityCoin = useCallback(() => {
+    if (!sceneRef.current) return;
+    
+    // Find first unsorted coin that's not being dragged
+    const availableCoins = coinsRef.current.filter(c => !c.sorted && !c.isDragging);
+    
+    // Reset all coins' priority state
+    coinsRef.current.forEach(coin => {
+      coin.isPriority = false;
+      // Hide priority ring
+      const priorityRing = coin.mesh.getObjectByName('priorityRing');
+      if (priorityRing && priorityRing instanceof THREE.Mesh && priorityRing.material instanceof THREE.MeshBasicMaterial) {
+        priorityRing.material.opacity = 0;
+      }
+    });
+    
+    if (availableCoins.length > 0) {
+      const priorityCoin = availableCoins[0];
+      priorityCoin.isPriority = true;
+      priorityCoinRef.current = priorityCoin;
+      
+      // Show priority ring with pulsing animation
+      const priorityRing = priorityCoin.mesh.getObjectByName('priorityRing');
+      if (priorityRing && priorityRing instanceof THREE.Mesh && priorityRing.material instanceof THREE.MeshBasicMaterial) {
+        priorityRing.material.opacity = 0.8;
+        priorityRing.material.color.setHex(priorityCoin.destinationColor);
+      }
+      
+      // Update target zone position to random spot in destination quadrant
+      updateTargetZone(priorityCoin);
+    } else {
+      priorityCoinRef.current = null;
+      // Hide target zone
+      if (targetZoneRef.current) {
+        targetZoneRef.current.visible = false;
+      }
+    }
+  }, []);
+
+  // Update target zone to show where to place the priority coin
+  const updateTargetZone = useCallback((coin: Coin) => {
+    if (!sceneRef.current || !targetZoneRef.current) return;
+    
+    // Find the destination quadrant for this coin
+    let targetQuadrant: Quadrant | null = null;
+    
+    if (coin.isColorCoin && coin.colorMatch) {
+      targetQuadrant = quadrantsRef.current.find(q => q.color === coin.colorMatch) || null;
+    } else {
+      targetQuadrant = quadrantsRef.current.find(q => q.coinType === coin.type) || null;
+    }
+    
+    if (targetQuadrant) {
+      // Random position within the quadrant
+      const randomX = targetQuadrant.bounds.minX + (getRandom() * 0.6 + 0.2) * (targetQuadrant.bounds.maxX - targetQuadrant.bounds.minX);
+      const randomY = targetQuadrant.bounds.minY + (getRandom() * 0.6 + 0.2) * (targetQuadrant.bounds.maxY - targetQuadrant.bounds.minY);
+      
+      targetZoneRef.current.position.set(randomX, randomY, 0);
+      targetZoneRef.current.visible = true;
+      
+      // Update target zone color to match destination
+      targetZoneRef.current.children.forEach(child => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+          child.material.color.setHex(coin.destinationColor);
+        }
+        if (child instanceof THREE.Line && child.material instanceof THREE.LineBasicMaterial) {
+          child.material.color.setHex(coin.destinationColor);
+        }
+      });
+    }
+  }, [getRandom]);
+
   // Spawn a new coin
   const spawnCoin = useCallback(() => {
     if (!sceneRef.current) return;
@@ -304,7 +405,7 @@ export default function PennyPasserGame3D({
     const coinType = coinTypes[Math.floor(getRandom() * coinTypes.length)];
     const colorMatch = isColorCoin ? quadrantColors[Math.floor(getRandom() * quadrantColors.length)] : undefined;
     
-    const coinMesh = createCoinMesh(coinType, isColorCoin, colorMatch);
+    const { group: coinMesh, glowMesh, destinationColor } = createCoinMesh(coinType, isColorCoin, colorMatch);
     
     // Spawn in center area with some randomness
     const x = (getRandom() - 0.5) * 3;
@@ -320,18 +421,24 @@ export default function PennyPasserGame3D({
       isColorCoin,
       colorMatch,
       isDragging: false,
-      sorted: false
+      sorted: false,
+      isPriority: false,
+      glowMesh,
+      destinationColor
     };
     
     sceneRef.current.add(coinMesh);
     coinsRef.current.push(coin);
     totalCoinsRef.current++;
     
+    // Update priority coin
+    updatePriorityCoin();
+    
     return coin;
-  }, [createCoinMesh, getRandom]);
+  }, [createCoinMesh, getRandom, updatePriorityCoin]);
 
   // Check if coin is in correct quadrant
-  const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { correct: boolean; bonus: boolean; quadrant: Quadrant | null } => {
+  const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { correct: boolean; bonus: boolean; perfectBonus: boolean; quadrant: Quadrant | null } => {
     for (const quadrant of quadrantsRef.current) {
       if (x >= quadrant.bounds.minX && x <= quadrant.bounds.maxX &&
           y >= quadrant.bounds.minY && y <= quadrant.bounds.maxY) {
@@ -346,17 +453,26 @@ export default function PennyPasserGame3D({
           isCorrect = coin.type === quadrant.coinType;
         }
         
-        // Check if in bonus zone (center target)
-        const targetX = (quadrant.bounds.minX + quadrant.bounds.maxX) / 2;
-        const targetY = (quadrant.bounds.minY + quadrant.bounds.maxY) / 2;
-        const distanceToTarget = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
-        const isBonus = distanceToTarget < 1.2;
+        // Check if in target zone indicator (perfect accuracy bonus)
+        let isPerfectBonus = false;
+        if (targetZoneRef.current && targetZoneRef.current.visible) {
+          const targetX = targetZoneRef.current.position.x;
+          const targetY = targetZoneRef.current.position.y;
+          const distanceToIndicator = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+          isPerfectBonus = distanceToIndicator < 1.0 && isCorrect;
+        }
         
-        return { correct: isCorrect, bonus: isBonus && isCorrect, quadrant };
+        // Check if in general bonus zone (center of quadrant)
+        const centerX = (quadrant.bounds.minX + quadrant.bounds.maxX) / 2;
+        const centerY = (quadrant.bounds.minY + quadrant.bounds.maxY) / 2;
+        const distanceToCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+        const isBonus = distanceToCenter < 1.5;
+        
+        return { correct: isCorrect, bonus: isBonus && isCorrect, perfectBonus: isPerfectBonus, quadrant };
       }
     }
     
-    return { correct: false, bonus: false, quadrant: null };
+    return { correct: false, bonus: false, perfectBonus: false, quadrant: null };
   }, []);
 
   // Handle coin drop
@@ -376,7 +492,27 @@ export default function PennyPasserGame3D({
       const comboMultiplier = Math.min(5, 1 + comboRef.current * 0.2);
       points = Math.floor(points * comboMultiplier);
       
-      // Bonus for exact placement
+      // Bonus for hitting target zone indicator (PERFECT ACCURACY)
+      if (result.perfectBonus) {
+        points += 250; // Big bonus for perfect placement!
+        
+        // Flash effect on target zone
+        if (targetZoneRef.current) {
+          targetZoneRef.current.children.forEach(child => {
+            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+              const originalOpacity = child.material.opacity;
+              child.material.opacity = 1.0;
+              setTimeout(() => {
+                if (child.material instanceof THREE.MeshBasicMaterial) {
+                  child.material.opacity = originalOpacity;
+                }
+              }, 200);
+            }
+          });
+        }
+      }
+      
+      // Bonus for general placement in quadrant center
       if (result.bonus) {
         points += 100;
         
@@ -446,7 +582,10 @@ export default function PennyPasserGame3D({
     
     coin.isDragging = false;
     draggedCoinRef.current = null;
-  }, [checkCoinPlacement, getRandom]);
+    
+    // Update priority coin after sorting
+    updatePriorityCoin();
+  }, [checkCoinPlacement, getRandom, updatePriorityCoin]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -548,19 +687,110 @@ export default function PennyPasserGame3D({
     centerMesh.position.z = -0.6;
     scene.add(centerMesh);
     
+    // Create target zone indicator (shows where to place priority coin)
+    const targetZoneGroup = new THREE.Group();
+    
+    // Target circle (main)
+    const targetCircleGeometry = new THREE.RingGeometry(0.8, 1.0, 32);
+    const targetCircleMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+    const targetCircle = new THREE.Mesh(targetCircleGeometry, targetCircleMaterial);
+    targetZoneGroup.add(targetCircle);
+    
+    // Inner target circle
+    const innerCircleGeometry = new THREE.CircleGeometry(0.5, 32);
+    const innerCircleMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending
+    });
+    const innerCircle = new THREE.Mesh(innerCircleGeometry, innerCircleMaterial);
+    targetZoneGroup.add(innerCircle);
+    
+    // Crosshair lines
+    const crosshairMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.6 });
+    
+    // Horizontal line
+    const hLineGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-1.3, 0, 0),
+      new THREE.Vector3(1.3, 0, 0)
+    ]);
+    const hLine = new THREE.Line(hLineGeometry, crosshairMaterial);
+    targetZoneGroup.add(hLine);
+    
+    // Vertical line
+    const vLineGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, -1.3, 0),
+      new THREE.Vector3(0, 1.3, 0)
+    ]);
+    const vLine = new THREE.Line(vLineGeometry, crosshairMaterial);
+    targetZoneGroup.add(vLine);
+    
+    // Pulsing outer ring
+    const pulseRingGeometry = new THREE.RingGeometry(1.1, 1.2, 32);
+    const pulseRingMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide
+    });
+    const pulseRing = new THREE.Mesh(pulseRingGeometry, pulseRingMaterial);
+    pulseRing.name = 'pulseRing';
+    targetZoneGroup.add(pulseRing);
+    
+    targetZoneGroup.position.z = 0.1;
+    targetZoneGroup.visible = false;
+    scene.add(targetZoneGroup);
+    targetZoneRef.current = targetZoneGroup;
+    
     // Animation loop
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
       
-      // Rotate coins slightly for visual effect
+      const time = Date.now() * 0.003;
+      
+      // Rotate coins and pulse priority coin
       coinsRef.current.forEach(coin => {
         if (!coin.isDragging && !coin.sorted) {
           coin.mesh.rotation.z += 0.01;
+          
+          // Pulse priority coin glow
+          if (coin.isPriority && coin.glowMesh) {
+            const glowPulse = 0.5 + Math.sin(time * 3) * 0.3;
+            if (coin.glowMesh.material instanceof THREE.MeshBasicMaterial) {
+              coin.glowMesh.material.opacity = glowPulse;
+            }
+            // Scale pulse for priority coin
+            const scalePulse = 1 + Math.sin(time * 2) * 0.05;
+            coin.mesh.scale.setScalar(scalePulse);
+          } else {
+            coin.mesh.scale.setScalar(1);
+          }
         }
       });
       
+      // Pulse target zone
+      if (targetZoneRef.current && targetZoneRef.current.visible) {
+        const pulseRing = targetZoneRef.current.getObjectByName('pulseRing');
+        if (pulseRing && pulseRing instanceof THREE.Mesh) {
+          const ringPulse = 0.3 + Math.sin(time * 4) * 0.3;
+          if (pulseRing.material instanceof THREE.MeshBasicMaterial) {
+            pulseRing.material.opacity = ringPulse;
+          }
+          // Expand/contract pulse ring
+          const ringScale = 1 + Math.sin(time * 2) * 0.15;
+          pulseRing.scale.setScalar(ringScale);
+        }
+        // Rotate target zone slowly
+        targetZoneRef.current.rotation.z += 0.01;
+      }
+      
       // Pulse quadrant targets
-      const time = Date.now() * 0.003;
       quadrantsRef.current.forEach((quad, i) => {
         const pulse = 0.3 + Math.sin(time + i) * 0.1;
         if (quad.targetMesh.material instanceof THREE.MeshBasicMaterial) {
