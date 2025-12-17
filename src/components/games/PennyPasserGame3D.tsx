@@ -32,20 +32,33 @@ interface Coin {
 interface Quadrant {
   color: QuadrantColor;
   coinType: CoinType;
+  shape: ShapeType; // Shape indicator for this quadrant
   mesh: THREE.Mesh;
   targetMesh: THREE.Mesh; // Bonus zone
+  shapeIndicator: THREE.Mesh; // Shape shown in quadrant
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
   hexColor: number;
   bonusShapes: THREE.Mesh[];
   matchCount: number;
 }
 
-// Coin appearance configurations
+// Coin appearance configurations - VERY DISTINCT SIZES
 const COIN_CONFIGS = {
-  penny: { color: 0xB87333, radius: 0.4, thickness: 0.08, value: 1 },
-  nickel: { color: 0xC0C0C0, radius: 0.5, thickness: 0.1, value: 5 },
-  dime: { color: 0xE8E8E8, radius: 0.35, thickness: 0.06, value: 10 },
-  quarter: { color: 0xD4D4D4, radius: 0.6, thickness: 0.12, value: 25 }
+  penny: { color: 0xB87333, radius: 0.35, thickness: 0.06, value: 1, shape: 'circle' as const },      // Tiny - Circle
+  nickel: { color: 0xC0C0C0, radius: 0.55, thickness: 0.12, value: 5, shape: 'square' as const },     // Medium - Square
+  dime: { color: 0xE8E8E8, radius: 0.25, thickness: 0.04, value: 10, shape: 'triangle' as const },    // Smallest - Triangle
+  quarter: { color: 0xD4D4D4, radius: 0.75, thickness: 0.15, value: 25, shape: 'pentagon' as const }  // Largest - Pentagon
+};
+
+// Shape types for quadrants
+type ShapeType = 'circle' | 'square' | 'triangle' | 'pentagon';
+
+// Map shapes to quadrants
+const SHAPE_TO_QUADRANT: Record<ShapeType, QuadrantColor> = {
+  circle: 'cyan',     // Penny shape
+  square: 'green',    // Nickel shape
+  triangle: 'purple', // Dime shape
+  pentagon: 'red'     // Quarter shape
 };
 
 // Quadrant configurations - neon colors
@@ -121,7 +134,7 @@ export default function PennyPasserGame3D({
     return rngRef.current ? rngRef.current.next() : Math.random();
   }, []);
 
-  // Create realistic 3D coin mesh with destination color glow
+  // Create realistic 3D coin mesh with destination color glow and shape indicator
   const createCoinMesh = useCallback((type: CoinType, isColorCoin: boolean, colorMatch?: QuadrantColor): { group: THREE.Group; glowMesh: THREE.Mesh; destinationColor: number } => {
     const config = COIN_CONFIGS[type];
     const group = new THREE.Group();
@@ -134,59 +147,66 @@ export default function PennyPasserGame3D({
       destinationColor = COIN_TO_QUADRANT_COLOR[type];
     }
     
-    // Main coin body (cylinder) - keep original coin appearance
+    // Main coin body (cylinder) - VERY DISTINCT SIZES
     const coinGeometry = new THREE.CylinderGeometry(config.radius, config.radius, config.thickness, 32);
     const coinMaterial = new THREE.MeshStandardMaterial({
       color: config.color, // Original coin color
       metalness: 0.8,
       roughness: 0.2,
       emissive: destinationColor, // Glow with destination color
-      emissiveIntensity: 0.4
+      emissiveIntensity: 0.5
     });
     const coinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
     coinMesh.rotation.x = Math.PI / 2; // Lay flat
     group.add(coinMesh);
     
     // Coin rim (torus for edge detail) - glows with destination color
-    const rimGeometry = new THREE.TorusGeometry(config.radius, config.thickness / 4, 8, 32);
+    const rimGeometry = new THREE.TorusGeometry(config.radius, config.thickness / 3, 8, 32);
     const rimMaterial = new THREE.MeshStandardMaterial({
-      color: config.color * 0.8,
+      color: destinationColor,
       metalness: 0.9,
       roughness: 0.1,
       emissive: destinationColor,
-      emissiveIntensity: 0.6
+      emissiveIntensity: 0.8
     });
     const rimMesh = new THREE.Mesh(rimGeometry, rimMaterial);
     rimMesh.rotation.x = Math.PI / 2;
     group.add(rimMesh);
     
-    // Face detail - coin symbol/text
-    const faceGeometry = new THREE.CircleGeometry(config.radius * 0.7, 32);
-    const faceMaterial = new THREE.MeshStandardMaterial({
-      color: config.color * 1.2,
-      metalness: 0.6,
-      roughness: 0.4
-    });
-    const faceMesh = new THREE.Mesh(faceGeometry, faceMaterial);
-    faceMesh.position.z = config.thickness / 2 + 0.01;
-    group.add(faceMesh);
+    // Add SHAPE indicator on coin face (matches the quadrant shape)
+    let shapeGeometry: THREE.BufferGeometry;
+    const shapeSize = config.radius * 0.5;
+    switch (config.shape) {
+      case 'circle':
+        shapeGeometry = new THREE.RingGeometry(shapeSize * 0.5, shapeSize * 0.8, 32);
+        break;
+      case 'square':
+        shapeGeometry = new THREE.PlaneGeometry(shapeSize * 1.2, shapeSize * 1.2);
+        break;
+      case 'triangle':
+        shapeGeometry = new THREE.CircleGeometry(shapeSize * 0.8, 3);
+        break;
+      case 'pentagon':
+        shapeGeometry = new THREE.CircleGeometry(shapeSize * 0.7, 5);
+        break;
+    }
     
-    // Add coin letter/symbol
-    const letterGeometry = new THREE.RingGeometry(config.radius * 0.2, config.radius * 0.35, 16);
-    const letterMaterial = new THREE.MeshBasicMaterial({
-      color: 0x333333,
+    const shapeMaterial = new THREE.MeshBasicMaterial({
+      color: destinationColor,
+      transparent: true,
+      opacity: 0.9,
       side: THREE.DoubleSide
     });
-    const letterMesh = new THREE.Mesh(letterGeometry, letterMaterial);
-    letterMesh.position.z = config.thickness / 2 + 0.02;
-    group.add(letterMesh);
+    const shapeMesh = new THREE.Mesh(shapeGeometry, shapeMaterial);
+    shapeMesh.position.z = config.thickness / 2 + 0.02;
+    group.add(shapeMesh);
     
     // Glow effect - always present, shows destination quadrant color
-    const glowGeometry = new THREE.CircleGeometry(config.radius * 1.5, 32);
+    const glowGeometry = new THREE.CircleGeometry(config.radius * 1.6, 32);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: destinationColor,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.5,
       blending: THREE.AdditiveBlending
     });
     const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -194,7 +214,7 @@ export default function PennyPasserGame3D({
     group.add(glowMesh);
     
     // Priority indicator ring (hidden by default, shown when priority)
-    const priorityRingGeometry = new THREE.RingGeometry(config.radius * 1.6, config.radius * 1.8, 32);
+    const priorityRingGeometry = new THREE.RingGeometry(config.radius * 1.7, config.radius * 2.0, 32);
     const priorityRingMaterial = new THREE.MeshBasicMaterial({
       color: 0xFFFFFF,
       transparent: true,
@@ -209,10 +229,11 @@ export default function PennyPasserGame3D({
     return { group, glowMesh, destinationColor };
   }, []);
 
-  // Create quadrant with neon glow
+  // Create quadrant with neon glow and shape indicator
   const createQuadrant = useCallback((
     color: QuadrantColor,
     coinType: CoinType,
+    shape: ShapeType,
     centerX: number,
     centerY: number,
     width: number,
@@ -243,47 +264,76 @@ export default function PennyPasserGame3D({
     border.position.set(centerX, centerY, -0.4);
     sceneRef.current?.add(border);
     
+    // Create LARGE shape indicator in center of quadrant
+    let shapeIndicatorGeometry: THREE.BufferGeometry;
+    switch (shape) {
+      case 'circle':
+        shapeIndicatorGeometry = new THREE.RingGeometry(0.8, 1.0, 32);
+        break;
+      case 'square':
+        // Create square outline using edges
+        const squareShape = new THREE.PlaneGeometry(1.8, 1.8);
+        shapeIndicatorGeometry = new THREE.EdgesGeometry(squareShape);
+        break;
+      case 'triangle':
+        shapeIndicatorGeometry = new THREE.RingGeometry(0.8, 1.0, 3);
+        break;
+      case 'pentagon':
+        shapeIndicatorGeometry = new THREE.RingGeometry(0.8, 1.0, 5);
+        break;
+    }
+    
+    const shapeIndicatorMaterial = new THREE.MeshBasicMaterial({
+      color: hexColor,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
+    const shapeIndicator = new THREE.Mesh(shapeIndicatorGeometry, shapeIndicatorMaterial);
+    shapeIndicator.position.set(centerX, centerY, -0.25);
+    sceneRef.current?.add(shapeIndicator);
+    
     // Target zone (bonus area) - center of quadrant
     const targetGeometry = new THREE.CircleGeometry(1.2, 32);
     const targetMaterial = new THREE.MeshBasicMaterial({
       color: hexColor,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.3,
       blending: THREE.AdditiveBlending
     });
     const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
-    targetMesh.position.set(centerX, centerY, -0.3);
+    targetMesh.position.set(centerX, centerY, -0.35);
     
     // Add pulsing ring around target
     const ringGeometry = new THREE.RingGeometry(1.0, 1.3, 32);
     const ringMaterial = new THREE.MeshBasicMaterial({
       color: hexColor,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.5,
       side: THREE.DoubleSide
     });
     const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
     ringMesh.position.set(centerX, centerY, -0.2);
     sceneRef.current?.add(ringMesh);
     
-    // Create bonus shapes (10 per quadrant)
+    // Create bonus shapes (10 per quadrant) - same shape type as quadrant
     const bonusShapes: THREE.Mesh[] = [];
     for (let i = 0; i < 10; i++) {
-      const shapeType = Math.floor(Math.random() * 4);
-      let shapeGeometry: THREE.BufferGeometry;
+      let bonusGeometry: THREE.BufferGeometry;
       
-      switch (shapeType) {
-        case 0: // Triangle
-          shapeGeometry = new THREE.CircleGeometry(0.15, 3);
+      switch (shape) {
+        case 'circle':
+          bonusGeometry = new THREE.CircleGeometry(0.15, 32);
           break;
-        case 1: // Square
-          shapeGeometry = new THREE.PlaneGeometry(0.25, 0.25);
+        case 'square':
+          bonusGeometry = new THREE.PlaneGeometry(0.25, 0.25);
           break;
-        case 2: // Pentagon
-          shapeGeometry = new THREE.CircleGeometry(0.15, 5);
+        case 'triangle':
+          bonusGeometry = new THREE.CircleGeometry(0.18, 3);
           break;
-        default: // Circle
-          shapeGeometry = new THREE.CircleGeometry(0.12, 16);
+        case 'pentagon':
+          bonusGeometry = new THREE.CircleGeometry(0.15, 5);
+          break;
       }
       
       const shapeMaterial = new THREE.MeshBasicMaterial({
@@ -291,7 +341,7 @@ export default function PennyPasserGame3D({
         transparent: true,
         opacity: 0.5
       });
-      const shapeMesh = new THREE.Mesh(shapeGeometry, shapeMaterial);
+      const shapeMesh = new THREE.Mesh(bonusGeometry, shapeMaterial);
       
       // Random position within quadrant
       const offsetX = (Math.random() - 0.5) * (width * 0.8);
@@ -306,8 +356,10 @@ export default function PennyPasserGame3D({
     return {
       color,
       coinType,
+      shape,
       mesh,
       targetMesh,
+      shapeIndicator,
       bounds: {
         minX: centerX - width / 2,
         maxX: centerX + width / 2,
@@ -625,56 +677,32 @@ export default function PennyPasserGame3D({
     pointLight.position.set(0, 0, 10);
     scene.add(pointLight);
     
-    // Create 4 quadrants
+    // Create 4 quadrants with SHAPE indicators (no text labels)
     const quadrantWidth = 6;
     const quadrantHeight = 5;
     const offset = 4;
     
-    // Top-Left: CYAN (Penny)
-    const cyanQuadrant = createQuadrant('cyan', 'penny', -offset, offset, quadrantWidth, quadrantHeight);
+    // Top-Left: CYAN (Penny = Circle shape, smallest)
+    const cyanQuadrant = createQuadrant('cyan', 'penny', 'circle', -offset, offset, quadrantWidth, quadrantHeight);
     scene.add(cyanQuadrant.mesh);
     scene.add(cyanQuadrant.targetMesh);
     
-    // Top-Right: GREEN (Nickel)
-    const greenQuadrant = createQuadrant('green', 'nickel', offset, offset, quadrantWidth, quadrantHeight);
+    // Top-Right: GREEN (Nickel = Square shape, medium)
+    const greenQuadrant = createQuadrant('green', 'nickel', 'square', offset, offset, quadrantWidth, quadrantHeight);
     scene.add(greenQuadrant.mesh);
     scene.add(greenQuadrant.targetMesh);
     
-    // Bottom-Left: PURPLE (Dime)
-    const purpleQuadrant = createQuadrant('purple', 'dime', -offset, -offset, quadrantWidth, quadrantHeight);
+    // Bottom-Left: PURPLE (Dime = Triangle shape, tiny)
+    const purpleQuadrant = createQuadrant('purple', 'dime', 'triangle', -offset, -offset, quadrantWidth, quadrantHeight);
     scene.add(purpleQuadrant.mesh);
     scene.add(purpleQuadrant.targetMesh);
     
-    // Bottom-Right: RED (Quarter)
-    const redQuadrant = createQuadrant('red', 'quarter', offset, -offset, quadrantWidth, quadrantHeight);
+    // Bottom-Right: RED (Quarter = Pentagon shape, largest)
+    const redQuadrant = createQuadrant('red', 'quarter', 'pentagon', offset, -offset, quadrantWidth, quadrantHeight);
     scene.add(redQuadrant.mesh);
     scene.add(redQuadrant.targetMesh);
     
     quadrantsRef.current = [cyanQuadrant, greenQuadrant, purpleQuadrant, redQuadrant];
-    
-    // Add labels for each quadrant
-    const createLabel = (text: string, x: number, y: number, color: number) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-      ctx.font = 'bold 32px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(text, 128, 40);
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-      const sprite = new THREE.Sprite(spriteMaterial);
-      sprite.position.set(x, y, 0.5);
-      sprite.scale.set(3, 0.75, 1);
-      scene.add(sprite);
-    };
-    
-    createLabel('PENNY', -offset, offset + 2, QUADRANT_COLORS.cyan);
-    createLabel('NICKEL', offset, offset + 2, QUADRANT_COLORS.green);
-    createLabel('DIME', -offset, -offset - 2.5, QUADRANT_COLORS.purple);
-    createLabel('QUARTER', offset, -offset - 2.5, QUADRANT_COLORS.red);
     
     // Center zone
     const centerGeometry = new THREE.CircleGeometry(2, 32);
@@ -1030,8 +1058,13 @@ export default function PennyPasserGame3D({
       {gameState === 'playing' && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 text-white text-center pointer-events-none">
           <div className="bg-black/50 rounded-lg px-4 py-2">
-            <p className="text-sm">Drag coins to matching quadrants • Bonus for center placement</p>
-            <p className="text-xs text-cyan-400 mt-1">🟦 Cyan = Penny • 🟩 Green = Nickel • 🟪 Purple = Dime • 🟥 Red = Quarter</p>
+            <p className="text-sm">Match coins by SIZE, SHAPE, and COLOR • Hit the target for bonus!</p>
+            <p className="text-xs mt-1">
+              <span className="text-cyan-400">⭕ Circle</span> • 
+              <span className="text-green-400"> ⬜ Square</span> • 
+              <span className="text-purple-400"> 🔺 Triangle</span> • 
+              <span className="text-red-400"> ⬠ Pentagon</span>
+            </p>
           </div>
         </div>
       )}
@@ -1044,16 +1077,24 @@ export default function PennyPasserGame3D({
               COIN SORTER
             </h1>
             <p className="text-xl mb-6 text-gray-300">
-              Match coins to their quadrants!
+              Match coins by SIZE, SHAPE, and COLOR!
             </p>
             <div className="grid grid-cols-2 gap-4 mb-8 text-lg">
-              <div className="text-cyan-400">🪙 Penny → Cyan</div>
-              <div className="text-green-400">🪙 Nickel → Green</div>
-              <div className="text-purple-400">🪙 Dime → Purple</div>
-              <div className="text-red-400">🪙 Quarter → Red</div>
+              <div className="text-cyan-400 flex items-center justify-center gap-2">
+                <span className="text-2xl">⭕</span> Circle → Cyan (Tiny)
+              </div>
+              <div className="text-green-400 flex items-center justify-center gap-2">
+                <span className="text-2xl">⬜</span> Square → Green (Medium)
+              </div>
+              <div className="text-purple-400 flex items-center justify-center gap-2">
+                <span className="text-2xl">🔺</span> Triangle → Purple (Smallest)
+              </div>
+              <div className="text-red-400 flex items-center justify-center gap-2">
+                <span className="text-2xl">⬠</span> Pentagon → Red (Largest)
+              </div>
             </div>
             <p className="text-sm text-yellow-400 mb-4">
-              ⚡ Color coins match by COLOR, not type!
+              ⚡ Hit the TARGET for +250 bonus! Glowing coins match by COLOR!
             </p>
             <button
               onClick={startGame}
