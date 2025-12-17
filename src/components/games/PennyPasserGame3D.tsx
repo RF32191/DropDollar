@@ -133,6 +133,8 @@ export default function PennyPasserGame3D({
   const rngRef = useRef<Mulberry32 | null>(null);
   const priorityCoinRef = useRef<Coin | null>(null);
   const targetZoneRef = useRef<THREE.Group | null>(null); // Moving target zone indicator
+  const trickShapeRef = useRef<{ shape: ShapeType; coinType: CoinType; color: number } | null>(null); // Trick shape asking for different coin
+  const trickShapeMeshRef = useRef<THREE.Mesh | null>(null); // The trick shape mesh in target zone
   
   // Initialize seeded RNG
   useEffect(() => {
@@ -484,6 +486,8 @@ export default function PennyPasserGame3D({
   }, []);
 
   // Update target zone to show where to place the priority coin
+  // TRICK MECHANIC: ~17% chance to show a DIFFERENT coin's shape inside the target
+  // If the shape is a pentagon in the blue quadrant, it's asking for a RED coin (quarter)!
   const updateTargetZone = useCallback((coin: Coin) => {
     if (!sceneRef.current || !targetZoneRef.current) return;
     
@@ -504,13 +508,116 @@ export default function PennyPasserGame3D({
       targetZoneRef.current.position.set(randomX, randomY, 0);
       targetZoneRef.current.visible = true;
       
-      // Update target zone color to match destination
-      targetZoneRef.current.children.forEach(child => {
-        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
-          child.material.color.setHex(coin.destinationColor);
+      // ~17% chance for TRICK SHAPE - asks for a DIFFERENT coin!
+      const hasTrickShape = getRandom() < 0.17;
+      
+      if (hasTrickShape) {
+        // Pick a DIFFERENT coin type than the quadrant's normal coin
+        const coinTypes: CoinType[] = ['penny', 'nickel', 'dime', 'quarter'];
+        const otherCoinTypes = coinTypes.filter(t => t !== targetQuadrant!.coinType);
+        const trickCoinType = otherCoinTypes[Math.floor(getRandom() * otherCoinTypes.length)];
+        const trickConfig = COIN_CONFIGS[trickCoinType];
+        const trickColor = COIN_TO_QUADRANT_COLOR[trickCoinType];
+        
+        // Store trick shape info
+        trickShapeRef.current = {
+          shape: trickConfig.shape,
+          coinType: trickCoinType,
+          color: trickColor
+        };
+        
+        // Update the trick shape mesh
+        if (trickShapeMeshRef.current) {
+          // Remove old geometry and create new one based on shape
+          const oldGeometry = trickShapeMeshRef.current.geometry;
+          let newGeometry: THREE.BufferGeometry;
+          
+          switch (trickConfig.shape) {
+            case 'circle':
+              newGeometry = new THREE.RingGeometry(0.2, 0.4, 32);
+              break;
+            case 'square':
+              newGeometry = new THREE.PlaneGeometry(0.7, 0.7);
+              break;
+            case 'triangle':
+              newGeometry = new THREE.CircleGeometry(0.4, 3);
+              break;
+            case 'pentagon':
+              newGeometry = new THREE.CircleGeometry(0.4, 5);
+              break;
+            default:
+              newGeometry = new THREE.CircleGeometry(0.4, 5);
+          }
+          
+          trickShapeMeshRef.current.geometry = newGeometry;
+          oldGeometry.dispose();
+          
+          // Update material color to trick coin's quadrant color
+          if (trickShapeMeshRef.current.material instanceof THREE.MeshBasicMaterial) {
+            trickShapeMeshRef.current.material.color.setHex(trickColor);
+          }
         }
+        
+        // Update trick glow color
+        const trickGlow = targetZoneRef.current.getObjectByName('trickGlow');
+        if (trickGlow instanceof THREE.Mesh && trickGlow.material instanceof THREE.MeshBasicMaterial) {
+          trickGlow.material.color.setHex(trickColor);
+        }
+        
+        console.log(`🎯 TRICK TARGET: ${targetQuadrant.color} quadrant shows ${trickConfig.shape} (${trickCoinType}) - place ${trickCoinType} for +200 bonus!`);
+      } else {
+        // No trick - shape matches the quadrant's normal coin
+        trickShapeRef.current = null;
+        
+        // Update trick shape to match quadrant's coin
+        if (trickShapeMeshRef.current) {
+          const quadrantConfig = COIN_CONFIGS[targetQuadrant.coinType];
+          const oldGeometry = trickShapeMeshRef.current.geometry;
+          let newGeometry: THREE.BufferGeometry;
+          
+          switch (quadrantConfig.shape) {
+            case 'circle':
+              newGeometry = new THREE.RingGeometry(0.2, 0.4, 32);
+              break;
+            case 'square':
+              newGeometry = new THREE.PlaneGeometry(0.7, 0.7);
+              break;
+            case 'triangle':
+              newGeometry = new THREE.CircleGeometry(0.4, 3);
+              break;
+            case 'pentagon':
+              newGeometry = new THREE.CircleGeometry(0.4, 5);
+              break;
+            default:
+              newGeometry = new THREE.CircleGeometry(0.4, 5);
+          }
+          
+          trickShapeMeshRef.current.geometry = newGeometry;
+          oldGeometry.dispose();
+          
+          // Color matches the quadrant
+          if (trickShapeMeshRef.current.material instanceof THREE.MeshBasicMaterial) {
+            trickShapeMeshRef.current.material.color.setHex(targetQuadrant.hexColor);
+          }
+        }
+        
+        // Update trick glow to match quadrant
+        const trickGlow = targetZoneRef.current.getObjectByName('trickGlow');
+        if (trickGlow instanceof THREE.Mesh && trickGlow.material instanceof THREE.MeshBasicMaterial) {
+          trickGlow.material.color.setHex(targetQuadrant.hexColor);
+        }
+      }
+      
+      // Update outer circle and crosshairs to match the quadrant color (where it is)
+      const outerCircle = targetZoneRef.current.getObjectByName('outerCircle');
+      if (outerCircle instanceof THREE.Mesh && outerCircle.material instanceof THREE.MeshBasicMaterial) {
+        outerCircle.material.color.setHex(targetQuadrant.hexColor);
+      }
+      
+      // Update crosshairs
+      targetZoneRef.current.children.forEach(child => {
         if (child instanceof THREE.Line && child.material instanceof THREE.LineBasicMaterial) {
-          child.material.color.setHex(coin.destinationColor);
+          child.material.color.setHex(targetQuadrant!.hexColor);
         }
       });
     }
@@ -588,14 +695,18 @@ export default function PennyPasserGame3D({
   }, [createCoinMesh, getRandom, updatePriorityCoin]);
 
   // Check if coin is in correct quadrant
-  // Now includes bonus shape placement check (+200 points if bonus shape coin goes to bonus quadrant)
+  // Now includes:
+  // - bonusShapePlacement: coin with bonus shape placed in bonus quadrant (+200)
+  // - trickShapePlacement: coin matches the TRICK shape in target zone (+200)
+  // - wrongTrickPlacement: non-trick coin placed in target zone with trick shape (-points)
   const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { 
     correct: boolean; 
     bonus: boolean; 
     perfectBonus: boolean; 
     quadrant: Quadrant | null;
     bonusShapePlacement: boolean; // Bonus shape coin placed in bonus quadrant (+200)
-    wrongBonusPlacement: boolean; // Non-bonus coin placed in quadrant with bonus indicator (-points)
+    trickShapePlacement: boolean; // Coin matches the trick shape in target zone (+200)
+    wrongBonusPlacement: boolean; // Wrong coin placed when trick expected (-points)
   } => {
     for (const quadrant of quadrantsRef.current) {
       if (x >= quadrant.bounds.minX && x <= quadrant.bounds.maxX &&
@@ -611,7 +722,7 @@ export default function PennyPasserGame3D({
           isCorrect = coin.type === quadrant.coinType;
         }
         
-        // Check for BONUS SHAPE placement
+        // Check for BONUS SHAPE placement (on coin itself)
         // If coin has bonus shape and is placed in the bonus quadrant = +200 points!
         let bonusShapePlacement = false;
         if (coin.hasBonusShape && coin.bonusQuadrant && coin.bonusQuadrant === quadrant.color) {
@@ -619,13 +730,37 @@ export default function PennyPasserGame3D({
           isCorrect = true; // Bonus placement is also correct!
         }
         
-        // Check if in target zone indicator (perfect accuracy bonus)
+        // Check if in target zone indicator
         let isPerfectBonus = false;
+        let trickShapePlacement = false;
+        let wrongTrickPlacement = false;
+        
         if (targetZoneRef.current && targetZoneRef.current.visible) {
           const targetX = targetZoneRef.current.position.x;
           const targetY = targetZoneRef.current.position.y;
           const distanceToIndicator = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
-          isPerfectBonus = distanceToIndicator < 1.0 && isCorrect;
+          const inTargetZone = distanceToIndicator < 1.5; // Within target zone
+          
+          if (inTargetZone) {
+            // Check if there's a TRICK SHAPE active
+            if (trickShapeRef.current) {
+              // Trick shape is asking for a DIFFERENT coin!
+              if (coin.type === trickShapeRef.current.coinType) {
+                // Player understood the trick - they placed the correct coin!
+                trickShapePlacement = true;
+                isCorrect = true; // Override - this is correct!
+                isPerfectBonus = distanceToIndicator < 1.0;
+                console.log(`🎯 TRICK SUCCESS! Placed ${coin.type} in trick target (+200 bonus!)`);
+              } else if (coin.type === quadrant.coinType) {
+                // Player placed the "obvious" coin but missed the trick
+                wrongTrickPlacement = true; // Penalty!
+                console.log(`❌ TRICK FAILED! Placed ${coin.type} but target wanted ${trickShapeRef.current.coinType}`);
+              }
+            } else {
+              // No trick - normal target zone bonus
+              isPerfectBonus = distanceToIndicator < 1.0 && isCorrect;
+            }
+          }
         }
         
         // Check if in general bonus zone (center of quadrant)
@@ -640,12 +775,13 @@ export default function PennyPasserGame3D({
           perfectBonus: isPerfectBonus, 
           quadrant,
           bonusShapePlacement,
-          wrongBonusPlacement: false // Not implemented yet
+          trickShapePlacement,
+          wrongBonusPlacement: wrongTrickPlacement
         };
       }
     }
     
-    return { correct: false, bonus: false, perfectBonus: false, quadrant: null, bonusShapePlacement: false, wrongBonusPlacement: false };
+    return { correct: false, bonus: false, perfectBonus: false, quadrant: null, bonusShapePlacement: false, trickShapePlacement: false, wrongBonusPlacement: false };
   }, []);
 
   // Handle coin drop
@@ -685,6 +821,27 @@ export default function PennyPasserGame3D({
             }
           }
         });
+      }
+      
+      // *** TRICK SHAPE PLACEMENT - +200 points! ***
+      // If target zone had a trick shape and player put the CORRECT (trick) coin there!
+      if (result.trickShapePlacement) {
+        points += 200; // Big bonus for solving the trick!
+        console.log('🎯 TRICK SHAPE SOLVED! +200 points');
+        
+        // Flash the trick shape in the target zone
+        if (targetZoneRef.current) {
+          const trickShape = targetZoneRef.current.getObjectByName('trickShape');
+          if (trickShape instanceof THREE.Mesh && trickShape.material instanceof THREE.MeshBasicMaterial) {
+            const originalColor = trickShape.material.color.getHex();
+            trickShape.material.color.setHex(0xFFFFFF); // Flash white
+            setTimeout(() => {
+              if (trickShape.material instanceof THREE.MeshBasicMaterial) {
+                trickShape.material.color.setHex(originalColor);
+              }
+            }, 300);
+          }
+        }
       }
       
       // Bonus for hitting target zone indicator (PERFECT ACCURACY)
@@ -767,8 +924,29 @@ export default function PennyPasserGame3D({
       coin.y = (getRandom() - 0.5) * 3;
       coin.mesh.position.set(coin.x, coin.y, 0);
       
-      // Penalty
-      scoreRef.current = Math.max(0, scoreRef.current - 10);
+      // Penalty - EXTRA penalty if wrong coin placed in trick target zone!
+      let penalty = 10;
+      if (result.wrongBonusPlacement) {
+        penalty = 50; // Bigger penalty for ignoring the trick shape!
+        console.log('❌ TRICK FAILED! -50 penalty for placing wrong coin in trick target');
+        
+        // Flash trick shape red to indicate failure
+        if (targetZoneRef.current) {
+          const trickGlow = targetZoneRef.current.getObjectByName('trickGlow');
+          if (trickGlow instanceof THREE.Mesh && trickGlow.material instanceof THREE.MeshBasicMaterial) {
+            const originalColor = trickGlow.material.color.getHex();
+            trickGlow.material.color.setHex(0xFF0000); // Flash red
+            trickGlow.material.opacity = 1.0;
+            setTimeout(() => {
+              if (trickGlow.material instanceof THREE.MeshBasicMaterial) {
+                trickGlow.material.color.setHex(originalColor);
+                trickGlow.material.opacity = 0.6;
+              }
+            }, 500);
+          }
+        }
+      }
+      scoreRef.current = Math.max(0, scoreRef.current - penalty);
       setScore(scoreRef.current);
     }
     
@@ -862,51 +1040,81 @@ export default function PennyPasserGame3D({
     scene.add(centerMesh);
     
     // Create target zone indicator (shows where to place priority coin)
+    // NOW WITH TRICK SHAPE - a shape in the center that asks for a DIFFERENT coin!
     const targetZoneGroup = new THREE.Group();
     
-    // Target circle (main)
-    const targetCircleGeometry = new THREE.RingGeometry(0.8, 1.0, 32);
+    // Outer accuracy circle (main target area)
+    const targetCircleGeometry = new THREE.RingGeometry(1.0, 1.2, 32);
     const targetCircleMaterial = new THREE.MeshBasicMaterial({
       color: 0xFFFFFF,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9,
       side: THREE.DoubleSide
     });
     const targetCircle = new THREE.Mesh(targetCircleGeometry, targetCircleMaterial);
+    targetCircle.name = 'outerCircle';
     targetZoneGroup.add(targetCircle);
     
-    // Inner target circle
-    const innerCircleGeometry = new THREE.CircleGeometry(0.5, 32);
-    const innerCircleMaterial = new THREE.MeshBasicMaterial({
-      color: 0xFFFFFF,
+    // Inner background circle for the trick shape
+    const innerBgGeometry = new THREE.CircleGeometry(0.7, 32);
+    const innerBgMaterial = new THREE.MeshBasicMaterial({
+      color: 0x000000,
       transparent: true,
-      opacity: 0.5,
-      blending: THREE.AdditiveBlending
+      opacity: 0.6
     });
-    const innerCircle = new THREE.Mesh(innerCircleGeometry, innerCircleMaterial);
-    targetZoneGroup.add(innerCircle);
+    const innerBg = new THREE.Mesh(innerBgGeometry, innerBgMaterial);
+    innerBg.position.z = 0.01;
+    targetZoneGroup.add(innerBg);
     
-    // Crosshair lines
-    const crosshairMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.6 });
+    // TRICK SHAPE - this shape indicates which coin should ACTUALLY go here for bonus!
+    // Starts as a pentagon (will be dynamically changed)
+    const trickShapeGeometry = new THREE.CircleGeometry(0.45, 5); // Pentagon by default
+    const trickShapeMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFF0000, // Red by default (quarter)
+      transparent: true,
+      opacity: 1.0,
+      side: THREE.DoubleSide
+    });
+    const trickShape = new THREE.Mesh(trickShapeGeometry, trickShapeMaterial);
+    trickShape.name = 'trickShape';
+    trickShape.position.z = 0.02;
+    targetZoneGroup.add(trickShape);
+    trickShapeMeshRef.current = trickShape;
+    
+    // Glow ring around trick shape
+    const trickGlowGeometry = new THREE.RingGeometry(0.5, 0.65, 32);
+    const trickGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFF0000,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
+    const trickGlow = new THREE.Mesh(trickGlowGeometry, trickGlowMaterial);
+    trickGlow.name = 'trickGlow';
+    trickGlow.position.z = 0.015;
+    targetZoneGroup.add(trickGlow);
+    
+    // Crosshair lines (thinner, outside the shape)
+    const crosshairMaterial = new THREE.LineBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.5 });
     
     // Horizontal line
     const hLineGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-1.3, 0, 0),
-      new THREE.Vector3(1.3, 0, 0)
+      new THREE.Vector3(-1.5, 0, 0),
+      new THREE.Vector3(1.5, 0, 0)
     ]);
     const hLine = new THREE.Line(hLineGeometry, crosshairMaterial);
     targetZoneGroup.add(hLine);
     
     // Vertical line
     const vLineGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, -1.3, 0),
-      new THREE.Vector3(0, 1.3, 0)
+      new THREE.Vector3(0, -1.5, 0),
+      new THREE.Vector3(0, 1.5, 0)
     ]);
     const vLine = new THREE.Line(vLineGeometry, crosshairMaterial);
     targetZoneGroup.add(vLine);
     
     // Pulsing outer ring
-    const pulseRingGeometry = new THREE.RingGeometry(1.1, 1.2, 32);
+    const pulseRingGeometry = new THREE.RingGeometry(1.3, 1.4, 32);
     const pulseRingMaterial = new THREE.MeshBasicMaterial({
       color: 0xFFFFFF,
       transparent: true,
