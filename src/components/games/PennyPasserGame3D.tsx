@@ -620,16 +620,16 @@ export default function PennyPasserGame3D({
           trickShapeMeshRef.current.geometry = newGeometry;
           oldGeometry.dispose();
           
-          // Update material color to trick coin's quadrant color
+          // Shape is WHITE - no color hint! Player must recognize the shape!
           if (trickShapeMeshRef.current.material instanceof THREE.MeshBasicMaterial) {
-            trickShapeMeshRef.current.material.color.setHex(trickColor);
+            trickShapeMeshRef.current.material.color.setHex(0xFFFFFF); // WHITE - neutral
           }
         }
         
-        // Update trick glow color
+        // Glow is also WHITE - no color hint!
         const trickGlow = targetZoneRef.current.getObjectByName('trickGlow');
         if (trickGlow instanceof THREE.Mesh && trickGlow.material instanceof THREE.MeshBasicMaterial) {
-          trickGlow.material.color.setHex(trickColor);
+          trickGlow.material.color.setHex(0xFFFFFF); // WHITE - neutral
         }
         
         console.log(`🎯 TRICK TARGET: ${targetQuadrant.color} quadrant shows ${trickConfig.shape} (${trickCoinType}) - place ${trickCoinType} for +200 bonus!`);
@@ -961,12 +961,11 @@ export default function PennyPasserGame3D({
         if (targetZoneRef.current) {
           const trickGlow = targetZoneRef.current.getObjectByName('trickGlow');
           if (trickGlow instanceof THREE.Mesh && trickGlow.material instanceof THREE.MeshBasicMaterial) {
-            const originalColor = trickGlow.material.color.getHex();
-            trickGlow.material.color.setHex(0xFF0000); // Flash red
+            trickGlow.material.color.setHex(0xFF0000); // Flash red for failure
             trickGlow.material.opacity = 1.0;
             setTimeout(() => {
               if (trickGlow.material instanceof THREE.MeshBasicMaterial) {
-                trickGlow.material.color.setHex(originalColor);
+                trickGlow.material.color.setHex(0xFFFFFF); // Back to WHITE
                 trickGlow.material.opacity = 0.6;
               }
             }, 500);
@@ -1094,10 +1093,10 @@ export default function PennyPasserGame3D({
     targetZoneGroup.add(innerBg);
     
     // TRICK SHAPE - this shape indicates which coin should ACTUALLY go here for bonus!
-    // Starts as a pentagon (will be dynamically changed)
+    // WHITE/NEUTRAL - no color hint! Player must recognize the shape!
     const trickShapeGeometry = new THREE.CircleGeometry(0.45, 5); // Pentagon by default
     const trickShapeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xFF0000, // Red by default (quarter)
+      color: 0xFFFFFF, // WHITE - no color hint!
       transparent: true,
       opacity: 1.0,
       side: THREE.DoubleSide
@@ -1108,10 +1107,10 @@ export default function PennyPasserGame3D({
     targetZoneGroup.add(trickShape);
     trickShapeMeshRef.current = trickShape;
     
-    // Glow ring around trick shape
+    // Glow ring around trick shape - also WHITE
     const trickGlowGeometry = new THREE.RingGeometry(0.5, 0.65, 32);
     const trickGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xFF0000,
+      color: 0xFFFFFF, // WHITE - no color hint!
       transparent: true,
       opacity: 0.6,
       side: THREE.DoubleSide
