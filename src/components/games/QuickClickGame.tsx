@@ -242,8 +242,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState === 'waiting') {
-      // Clicked too early - PUNISHMENT: exactly 50 points
-      console.log(`QuickClick: Clicked too early! Round ${currentRound} - PUNISHMENT 50 points`);
+      // Clicked too early - PUNISHMENT: 1000ms = 0 points!
+      console.log(`QuickClick: Clicked too early! Round ${currentRound} - PUNISHMENT 0 points (1000ms)`);
       
       // Clear the flash timeout since we're ending early
       if (flashTimeoutRef.current) {
@@ -252,14 +252,14 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       const newRound: Round = {
         roundNumber: currentRound,
-        reactionTime: null, // No valid reaction time
+        reactionTime: 1000, // 1000ms = worst possible time = 0 points
         clicked: true,
         isBonus: currentRound === 4,
         targetX: targetPosition?.x,
         targetY: targetPosition?.y,
         accuracy: 0,
         earlyClick: true, // Mark as early click
-        roundScore: 50 // Exactly 50 points punishment
+        roundScore: 0 // Zero points for clicking too early!
       };
       
       const updatedRounds = [...rounds, newRound];
@@ -707,9 +707,9 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                         ? 'Too Late!' 
                         : 'Too Early!'}
                     </div>
-                    <div className="text-xl sm:text-2xl font-bold text-yellow-300 mb-2">
+                    <div className="text-xl sm:text-2xl font-bold text-red-400 mb-2">
                       {rounds[rounds.length - 1]?.earlyClick 
-                        ? 'Punishment: 50 points'
+                        ? '0 points - Wait for green!'
                         : 'Missed!'}
                     </div>
                     <div className="text-lg sm:text-xl">
