@@ -205,6 +205,9 @@ export default function DeadShotGame({
   const boundaryYRef = useRef<number>(15); // Dynamic boundary based on camera view
   const laserShotsRef = useRef<LaserShot[]>([]); // Laser shots from red items
   const laserShotsRemainingRef = useRef(0); // Remaining laser shots
+  const cornerPushersRef = useRef<Array<{ mesh: THREE.Mesh; vx: number; vy: number; targetX: number; targetY: number }>>([]); // Corner pushers
+  const lastCornerPushTimeRef = useRef<number>(0); // Track when player was last in corner
+  const cornerStayDurationRef = useRef<number>(0); // How long player has been in corner
   const lastLaserShotRef = useRef<number>(0); // Track last laser shot time
   
   // Seeded RNG for deterministic gameplay
@@ -459,23 +462,25 @@ export default function DeadShotGame({
     return mesh;
   }, []);
   
-  // Create laser shot mesh - Bright beam like LaserDodgeGame
+  // Create laser shot mesh - MASSIVE BEAM that destroys everything in its path
   const createLaserShot = useCallback((): THREE.Group => {
     const laserGroup = new THREE.Group();
     
-    // Main bright laser beam - long and narrow
-    const beamGeometry = new THREE.CylinderGeometry(0.08, 0.08, 8, 16);
+    // Main MASSIVE laser beam - thick and long
+    const beamLength = 30; // Very long beam
+    const beamRadius = 0.5; // Much thicker
+    const beamGeometry = new THREE.CylinderGeometry(beamRadius, beamRadius, beamLength, 32);
     const beamMaterial = new THREE.MeshBasicMaterial({
       color: 0xff0000,
       transparent: true,
-      opacity: 1.0
+      opacity: 0.9
     });
     const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
     beamMesh.rotation.z = Math.PI / 2;
     laserGroup.add(beamMesh);
     
-    // Bright core
-    const coreGeometry = new THREE.CylinderGeometry(0.04, 0.04, 8, 16);
+    // Bright white core
+    const coreGeometry = new THREE.CylinderGeometry(beamRadius * 0.4, beamRadius * 0.4, beamLength, 32);
     const coreMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
@@ -485,17 +490,29 @@ export default function DeadShotGame({
     coreMesh.rotation.z = Math.PI / 2;
     laserGroup.add(coreMesh);
     
-    // Glow rings along the beam
-    for (let i = 0; i < 5; i++) {
-      const glowGeometry = new THREE.RingGeometry(0.1, 0.15, 16);
+    // Outer glow
+    const outerGlowGeometry = new THREE.CylinderGeometry(beamRadius * 1.5, beamRadius * 1.5, beamLength, 32);
+    const outerGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.3,
+      blending: THREE.AdditiveBlending
+    });
+    const outerGlow = new THREE.Mesh(outerGlowGeometry, outerGlowMaterial);
+    outerGlow.rotation.z = Math.PI / 2;
+    laserGroup.add(outerGlow);
+    
+    // Pulsing rings along the beam
+    for (let i = 0; i < 8; i++) {
+      const glowGeometry = new THREE.RingGeometry(beamRadius * 0.8, beamRadius * 1.2, 32);
       const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff0000,
+        color: 0xffff00,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.8,
         side: THREE.DoubleSide
       });
       const glowRing = new THREE.Mesh(glowGeometry, glowMaterial);
-      glowRing.position.x = -3 + i * 1.5;
+      glowRing.position.x = -beamLength/2 + i * (beamLength / 7);
       glowRing.rotation.y = Math.PI / 2;
       laserGroup.add(glowRing);
     }
@@ -889,6 +906,99 @@ export default function DeadShotGame({
         const damping = 0.95; // Slow down by 5% each frame
         bowVelocityRef.current.x *= damping;
         bowVelocityRef.current.y *= damping;
+        
+        // ============================================
+        // CORNER CAMPING PREVENTION - Spawn pushers
+        // ============================================
+        const cornerThreshold = boundaryX * 0.6; // Define corner area
+        const playerX = bowPositionRef.current.x;
+        const playerY = bowPositionRef.current.y;
+        const isInCorner = (Math.abs(playerX) > cornerThreshold && Math.abs(playerY) > cornerThreshold);
+        
+        if (isInCorner) {
+          cornerStayDurationRef.current += adjustedDelta;
+          
+          // If player has been in corner for 2+ seconds, spawn pushers
+          if (cornerStayDurationRef.current > 2.0) {
+            const now = Date.now();
+            
+            // Spawn pushers every 500ms while in corner
+            if (now - lastCornerPushTimeRef.current > 500) {
+              lastCornerPushTimeRef.current = now;
+              
+              // Determine which corner player is in
+              const cornerX = playerX > 0 ? boundaryX : -boundaryX;
+              const cornerY = playerY > 0 ? boundaryY : -boundaryY;
+              
+              // Spawn pusher from the corner toward the player
+              const pusherGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+              const pusherMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+              });
+              const pusherMesh = new THREE.Mesh(pusherGeometry, pusherMaterial);
+              pusherMesh.position.set(cornerX, cornerY, 0);
+              
+              // Add glow ring
+              const glowGeometry = new THREE.RingGeometry(0.5, 0.7, 16);
+              const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+              });
+              const glowRing = new THREE.Mesh(glowGeometry, glowMaterial);
+              pusherMesh.add(glowRing);
+              
+              sceneRef.current?.add(pusherMesh);
+              
+              // Calculate velocity toward center (opposite of corner)
+              const pushSpeed = 8;
+              cornerPushersRef.current.push({
+                mesh: pusherMesh,
+                vx: -Math.sign(cornerX) * pushSpeed,
+                vy: -Math.sign(cornerY) * pushSpeed,
+                targetX: 0,
+                targetY: 0
+              });
+            }
+          }
+        } else {
+          // Reset corner timer when not in corner
+          cornerStayDurationRef.current = 0;
+        }
+        
+        // Update corner pushers
+        cornerPushersRef.current = cornerPushersRef.current.filter(pusher => {
+          pusher.mesh.position.x += pusher.vx * adjustedDelta;
+          pusher.mesh.position.y += pusher.vy * adjustedDelta;
+          pusher.mesh.rotation.z += 0.1; // Spin
+          
+          // Check collision with player - push them toward center
+          const dx = pusher.mesh.position.x - bowPositionRef.current.x;
+          const dy = pusher.mesh.position.y - bowPositionRef.current.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 1.5) {
+            // Push player toward center
+            bowVelocityRef.current.x = -Math.sign(bowPositionRef.current.x) * 5;
+            bowVelocityRef.current.y = -Math.sign(bowPositionRef.current.y) * 5;
+            
+            // Remove pusher
+            sceneRef.current?.remove(pusher.mesh);
+            return false;
+          }
+          
+          // Remove if out of bounds or reached center area
+          if (Math.abs(pusher.mesh.position.x) < 3 && Math.abs(pusher.mesh.position.y) < 3) {
+            sceneRef.current?.remove(pusher.mesh);
+            return false;
+          }
+          
+          return true;
+        });
         
         // No auto-center - player stays where pushed and can work their way back with shots
         // Removed spring back to center for better gameplay
@@ -1802,21 +1912,25 @@ export default function DeadShotGame({
         return projectile;
       }).filter(p => p !== null) as EnemyProjectile[];
       
-      // Update laser shots - straight vector power shots that one-shot all enemies
+      // Update laser shots - MASSIVE BEAM that PIERCES through ALL enemies
       laserShotsRef.current = laserShotsRef.current.map(laser => {
-        // Move laser shot forward in straight line
+        // Move laser shot forward in straight line (faster speed)
         laser.mesh.position.x += laser.vx * adjustedDelta;
         laser.mesh.position.y += laser.vy * adjustedDelta;
         laser.mesh.position.z += laser.vz * adjustedDelta;
         
-        // Check collision with all ships - one-shot kill
+        // Track ships to remove (can't modify array while iterating)
+        const shipsToRemove: number[] = [];
+        
+        // Check collision with ALL ships - PIERCES THROUGH ALL OF THEM
         shipsRef.current.forEach((ship, shipIndex) => {
           const dx = laser.mesh.position.x - ship.group.position.x;
           const dy = laser.mesh.position.y - ship.group.position.y;
           const dz = laser.mesh.position.z - ship.group.position.z;
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
           
-          if (distance < ship.size * 0.5) {
+          // Large hit radius for the massive beam (1.5 = beam width + ship size)
+          if (distance < 2.5) {
             // Laser one-shots enemy - give points with combo
             const now = Date.now();
             
@@ -1832,8 +1946,8 @@ export default function DeadShotGame({
             setComboMultiplier(comboRef.current);
             setKillStreak(killStreakRef.current);
             
-            // Laser kill bonus (2x base points)
-            const laserKillPoints = Math.floor(ship.basePoints * 2 * comboRef.current);
+            // Laser kill bonus (3x base points for beam kills)
+            const laserKillPoints = Math.floor(ship.basePoints * 3 * comboRef.current);
             currentScoreRef.current += laserKillPoints;
             totalHitsRef.current++;
             setScore(currentScoreRef.current);
@@ -1848,7 +1962,7 @@ export default function DeadShotGame({
               const dropMesh = createSubItem(dropType);
               // Spawn drops exactly at enemy position with minimal spread - stay where hit
               dropMesh.position.set(
-                dropPosition.x + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5), // Smaller spread - closer to kill position
+                dropPosition.x + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5),
                 dropPosition.y + (seededRng ? (seededRng.next() - 0.5) * 0.5 : (Math.random() - 0.5) * 0.5),
                 dropPosition.z
               );
@@ -1867,14 +1981,15 @@ export default function DeadShotGame({
               subItemsRef.current.push(drop);
             }
             
-            // Remove ship
+            // Mark ship for removal (laser PIERCES through - doesn't stop)
+            shipsToRemove.push(shipIndex);
             sceneRef.current.remove(ship.group);
-            shipsRef.current.splice(shipIndex, 1);
-            
-            // Remove laser
-            sceneRef.current.remove(laser.mesh);
-            return null;
           }
+        });
+        
+        // Remove all ships that were hit (in reverse order to preserve indices)
+        shipsToRemove.sort((a, b) => b - a).forEach(index => {
+          shipsRef.current.splice(index, 1);
         });
         
         // Remove laser if out of bounds
