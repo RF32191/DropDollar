@@ -208,23 +208,32 @@ export default function PennyPasserGame3D({
         shapeGeometry = new THREE.CircleGeometry(shapeSize * 0.8, 3);
         break;
       case 'omega':
-        // Create OMEGA (Ω) shape - horseshoe with feet
+        // Create proper OMEGA (Ω) symbol - Greek letter
         const omegaShape = new THREE.Shape();
-        const s = shapeSize * 0.8;
-        // Draw omega: arc at top with two feet at bottom
-        omegaShape.moveTo(-s * 0.8, -s * 0.5); // Left foot start
-        omegaShape.lineTo(-s * 0.5, -s * 0.5); // Left foot end
-        omegaShape.lineTo(-s * 0.5, -s * 0.2); // Left leg up
-        omegaShape.absarc(0, 0, s * 0.5, Math.PI, 0, true); // Top arc
-        omegaShape.lineTo(s * 0.5, -s * 0.2); // Right leg down
-        omegaShape.lineTo(s * 0.5, -s * 0.5); // Right foot start
-        omegaShape.lineTo(s * 0.8, -s * 0.5); // Right foot end
+        const s = shapeSize * 1.0;
+        // Start from left foot, draw the actual Omega shape
+        // Left foot (horizontal line at bottom left)
+        omegaShape.moveTo(-s * 0.7, -s * 0.4);
+        omegaShape.lineTo(-s * 0.4, -s * 0.4);
+        // Go up to the arc
+        omegaShape.lineTo(-s * 0.4, -s * 0.15);
+        // Draw the main arc (the "U" part of omega, but inverted - like a dome)
+        omegaShape.bezierCurveTo(
+          -s * 0.5, s * 0.5,  // control point 1
+          s * 0.5, s * 0.5,   // control point 2  
+          s * 0.4, -s * 0.15  // end point
+        );
+        // Go down to right foot
+        omegaShape.lineTo(s * 0.4, -s * 0.4);
+        // Right foot (horizontal line at bottom right)
+        omegaShape.lineTo(s * 0.7, -s * 0.4);
         shapeGeometry = new THREE.ShapeGeometry(omegaShape);
         break;
     }
     
+    // Shape is WHITE/NEUTRAL - does NOT give away destination color!
     const shapeMaterial = new THREE.MeshBasicMaterial({
-      color: destinationColor,
+      color: 0xFFFFFF, // WHITE - neutral, doesn't give away answer
       transparent: true,
       opacity: 0.9,
       side: THREE.DoubleSide
@@ -251,23 +260,22 @@ export default function PennyPasserGame3D({
           bonusShapeGeometry = new THREE.CircleGeometry(bonusShapeSize * 0.8, 3);
           break;
         case 'omega':
-          // Omega shape for bonus
+          // Proper OMEGA (Ω) shape for bonus
           const omegaBonusShape = new THREE.Shape();
-          const bs = bonusShapeSize * 0.8;
-          omegaBonusShape.moveTo(-bs * 0.8, -bs * 0.5);
-          omegaBonusShape.lineTo(-bs * 0.5, -bs * 0.5);
-          omegaBonusShape.lineTo(-bs * 0.5, -bs * 0.2);
-          omegaBonusShape.absarc(0, 0, bs * 0.5, Math.PI, 0, true);
-          omegaBonusShape.lineTo(bs * 0.5, -bs * 0.2);
-          omegaBonusShape.lineTo(bs * 0.5, -bs * 0.5);
-          omegaBonusShape.lineTo(bs * 0.8, -bs * 0.5);
+          const bs = bonusShapeSize * 1.0;
+          omegaBonusShape.moveTo(-bs * 0.7, -bs * 0.4);
+          omegaBonusShape.lineTo(-bs * 0.4, -bs * 0.4);
+          omegaBonusShape.lineTo(-bs * 0.4, -bs * 0.15);
+          omegaBonusShape.bezierCurveTo(-bs * 0.5, bs * 0.5, bs * 0.5, bs * 0.5, bs * 0.4, -bs * 0.15);
+          omegaBonusShape.lineTo(bs * 0.4, -bs * 0.4);
+          omegaBonusShape.lineTo(bs * 0.7, -bs * 0.4);
           bonusShapeGeometry = new THREE.ShapeGeometry(omegaBonusShape);
           break;
       }
       
-      // Bonus shape indicator - positioned slightly offset on the coin
+      // Bonus shape indicator - WHITE, doesn't give away answer
       const bonusShapeMaterial = new THREE.MeshBasicMaterial({
-        color: bonusColor,
+        color: 0xFFFFFF, // WHITE - neutral
         transparent: true,
         opacity: 1.0,
         side: THREE.DoubleSide
@@ -369,16 +377,15 @@ export default function PennyPasserGame3D({
         shapeIndicatorGeometry = new THREE.RingGeometry(0.8, 1.0, 3);
         break;
       case 'omega':
-        // Large OMEGA indicator for quadrant
+        // Large proper OMEGA (Ω) indicator for quadrant
         const omegaIndicator = new THREE.Shape();
-        const os = 1.0;
-        omegaIndicator.moveTo(-os * 0.8, -os * 0.5);
-        omegaIndicator.lineTo(-os * 0.5, -os * 0.5);
-        omegaIndicator.lineTo(-os * 0.5, -os * 0.2);
-        omegaIndicator.absarc(0, 0, os * 0.5, Math.PI, 0, true);
-        omegaIndicator.lineTo(os * 0.5, -os * 0.2);
-        omegaIndicator.lineTo(os * 0.5, -os * 0.5);
-        omegaIndicator.lineTo(os * 0.8, -os * 0.5);
+        const os = 1.2;
+        omegaIndicator.moveTo(-os * 0.7, -os * 0.4);
+        omegaIndicator.lineTo(-os * 0.4, -os * 0.4);
+        omegaIndicator.lineTo(-os * 0.4, -os * 0.15);
+        omegaIndicator.bezierCurveTo(-os * 0.5, os * 0.5, os * 0.5, os * 0.5, os * 0.4, -os * 0.15);
+        omegaIndicator.lineTo(os * 0.4, -os * 0.4);
+        omegaIndicator.lineTo(os * 0.7, -os * 0.4);
         shapeIndicatorGeometry = new THREE.ShapeGeometry(omegaIndicator);
         break;
     }
@@ -433,16 +440,15 @@ export default function PennyPasserGame3D({
           bonusGeometry = new THREE.CircleGeometry(0.22, 3); // Triangle
           break;
         case 'omega':
-          // Small omega for bonus shape
+          // Small proper OMEGA (Ω) for bonus shape
           const omegaBonus = new THREE.Shape();
-          const ob = 0.2;
-          omegaBonus.moveTo(-ob * 0.8, -ob * 0.5);
-          omegaBonus.lineTo(-ob * 0.5, -ob * 0.5);
-          omegaBonus.lineTo(-ob * 0.5, -ob * 0.2);
-          omegaBonus.absarc(0, 0, ob * 0.5, Math.PI, 0, true);
-          omegaBonus.lineTo(ob * 0.5, -ob * 0.2);
-          omegaBonus.lineTo(ob * 0.5, -ob * 0.5);
-          omegaBonus.lineTo(ob * 0.8, -ob * 0.5);
+          const ob = 0.25;
+          omegaBonus.moveTo(-ob * 0.7, -ob * 0.4);
+          omegaBonus.lineTo(-ob * 0.4, -ob * 0.4);
+          omegaBonus.lineTo(-ob * 0.4, -ob * 0.15);
+          omegaBonus.bezierCurveTo(-ob * 0.5, ob * 0.5, ob * 0.5, ob * 0.5, ob * 0.4, -ob * 0.15);
+          omegaBonus.lineTo(ob * 0.4, -ob * 0.4);
+          omegaBonus.lineTo(ob * 0.7, -ob * 0.4);
           bonusGeometry = new THREE.ShapeGeometry(omegaBonus);
           break;
       }
@@ -568,17 +574,23 @@ export default function PennyPasserGame3D({
           color: trickColor
         };
         
-        // Helper function to create omega geometry
+        // Helper function to create proper OMEGA (Ω) geometry
         const createOmegaGeometry = (size: number): THREE.BufferGeometry => {
           const omegaShape = new THREE.Shape();
           const s = size;
-          omegaShape.moveTo(-s * 0.8, -s * 0.5);
-          omegaShape.lineTo(-s * 0.5, -s * 0.5);
-          omegaShape.lineTo(-s * 0.5, -s * 0.2);
-          omegaShape.absarc(0, 0, s * 0.5, Math.PI, 0, true);
-          omegaShape.lineTo(s * 0.5, -s * 0.2);
-          omegaShape.lineTo(s * 0.5, -s * 0.5);
-          omegaShape.lineTo(s * 0.8, -s * 0.5);
+          // Left foot
+          omegaShape.moveTo(-s * 0.7, -s * 0.4);
+          omegaShape.lineTo(-s * 0.4, -s * 0.4);
+          omegaShape.lineTo(-s * 0.4, -s * 0.15);
+          // Main arc (dome shape)
+          omegaShape.bezierCurveTo(
+            -s * 0.5, s * 0.5,
+            s * 0.5, s * 0.5,
+            s * 0.4, -s * 0.15
+          );
+          // Right foot
+          omegaShape.lineTo(s * 0.4, -s * 0.4);
+          omegaShape.lineTo(s * 0.7, -s * 0.4);
           return new THREE.ShapeGeometry(omegaShape);
         };
         

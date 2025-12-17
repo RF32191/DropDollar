@@ -1395,18 +1395,77 @@ export default function DeadShotGame({
         const boundaryX = boundaryXRef.current;
         const boundaryY = boundaryYRef.current;
         
-        // Check distance to player (center)
+        // Check distance to ACTUAL player position (not center)
+        const playerX = bowPositionRef.current.x;
+        const playerY = bowPositionRef.current.y;
         const distToPlayer = Math.sqrt(
-          ship.group.position.x * ship.group.position.x + 
-          ship.group.position.y * ship.group.position.y
+          (ship.group.position.x - playerX) ** 2 + 
+          (ship.group.position.y - playerY) ** 2
         );
+        
+        // *** ENEMY COLLISION WITH PLAYER - TAKE HEARTS! ***
+        if (distToPlayer < 1.8) {
+          const now = Date.now();
+          // Only take heart if cooldown passed (1 second between hits)
+          if (now - lastHitTimeRef.current > 1000) {
+            lastHitTimeRef.current = now;
+            
+            // Check for shield
+            if (hasShieldRef.current && shieldLegRef.current) {
+              // Shield blocks the hit
+              hasShieldRef.current = false;
+              sceneRef.current?.remove(shieldLegRef.current);
+              shieldLegRef.current = null;
+              console.log('🛡️ Shield blocked enemy contact!');
+            } else {
+              // No shield - LOSE A HEART!
+              setHearts(prev => {
+                const newHearts = Math.max(0, prev - 1);
+                heartsRef.current = newHearts;
+                
+                // Flash white blood cell red
+                if (bowRef.current) {
+                  bowRef.current.traverse((child) => {
+                    if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                      const originalColor = child.material.emissive.getHex();
+                      child.material.emissive.setHex(0xff0000);
+                      child.material.emissiveIntensity = 5.0;
+                      setTimeout(() => {
+                        if (child.material instanceof THREE.MeshStandardMaterial) {
+                          child.material.emissive.setHex(originalColor);
+                          child.material.emissiveIntensity = 1.0;
+                        }
+                      }, 300);
+                    }
+                  });
+                }
+                
+                console.log('💔 ENEMY CONTACT! Lost a heart:', newHearts);
+                
+                if (newHearts <= 0) {
+                  endGame();
+                }
+                return newHearts;
+              });
+              
+              // Push player away from enemy
+              const pushDirection = new THREE.Vector3(
+                playerX - ship.group.position.x,
+                playerY - ship.group.position.y,
+                0
+              ).normalize();
+              bowVelocityRef.current.x = pushDirection.x * 10;
+              bowVelocityRef.current.y = pushDirection.y * 10;
+            }
+          }
+        }
         
         // If too close to player (within 2 units), move away
         if (distToPlayer < 2.0) {
-          // Move directly away from center
+          // Move directly away from player position
           const awayDirection = new THREE.Vector3(
-            ship.group.position.x,
-            ship.group.position.y,
+            ship.group.position.x - playerX,
+            ship.group.position.y - playerY,
             0
           ).normalize();
           ship.direction.copy(awayDirection);
