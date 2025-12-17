@@ -852,54 +852,59 @@ export default function DeadShotGame({
         bowPositionRef.current.x += bowVelocityRef.current.x * adjustedDelta;
         bowPositionRef.current.y += bowVelocityRef.current.y * adjustedDelta;
         
-        // Wall bouncing - bounce off cell membrane walls with proper physics
-        // Use tighter boundaries to prevent falling through
+        // Wall collision - FLASH wall and PUSH player toward center
         const boundaryX = boundaryXRef.current;
         const boundaryY = boundaryYRef.current;
-        const bounceDamping = 0.75; // Reduce velocity on bounce
-        const minBounceVelocity = 0.15; // Minimum velocity to maintain bounce
+        const pushTowardCenterSpeed = 8; // Strong push toward center
         
-        // X-axis boundary check and bounce - PREVENT FALLING THROUGH
+        // Function to flash the cell membrane wall
+        const flashWall = (side: 'left' | 'right' | 'top' | 'bottom') => {
+          if (cellMembraneRef.current) {
+            cellMembraneRef.current.children.forEach((child: any) => {
+              if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+                const originalColor = child.material.color.getHex();
+                const originalOpacity = child.material.opacity;
+                child.material.color.setHex(0xffffff); // Flash white
+                child.material.opacity = 1.0;
+                setTimeout(() => {
+                  if (child.material instanceof THREE.MeshBasicMaterial) {
+                    child.material.color.setHex(originalColor);
+                    child.material.opacity = originalOpacity;
+                  }
+                }, 150);
+              }
+            });
+          }
+        };
+        
+        // X-axis boundary - FLASH and PUSH toward center
         if (bowPositionRef.current.x > boundaryX) {
-          bowPositionRef.current.x = boundaryX;
-          if (bowVelocityRef.current.x > 0) {
-            bowVelocityRef.current.x *= -bounceDamping;
-          }
-          // Ensure minimum bounce velocity
-          if (Math.abs(bowVelocityRef.current.x) < minBounceVelocity) {
-            bowVelocityRef.current.x = -minBounceVelocity;
-          }
+          bowPositionRef.current.x = boundaryX - 0.5;
+          flashWall('right');
+          // Push toward center (left)
+          bowVelocityRef.current.x = -pushTowardCenterSpeed;
+          bowVelocityRef.current.y *= 0.5; // Reduce perpendicular velocity
         } else if (bowPositionRef.current.x < -boundaryX) {
-          bowPositionRef.current.x = -boundaryX;
-          if (bowVelocityRef.current.x < 0) {
-            bowVelocityRef.current.x *= -bounceDamping;
-          }
-          // Ensure minimum bounce velocity
-          if (Math.abs(bowVelocityRef.current.x) < minBounceVelocity) {
-            bowVelocityRef.current.x = minBounceVelocity;
-          }
+          bowPositionRef.current.x = -boundaryX + 0.5;
+          flashWall('left');
+          // Push toward center (right)
+          bowVelocityRef.current.x = pushTowardCenterSpeed;
+          bowVelocityRef.current.y *= 0.5;
         }
         
-        // Y-axis boundary check and bounce - PREVENT FALLING THROUGH (especially bottom)
+        // Y-axis boundary - FLASH and PUSH toward center
         if (bowPositionRef.current.y > boundaryY) {
-          bowPositionRef.current.y = boundaryY;
-          if (bowVelocityRef.current.y > 0) {
-            bowVelocityRef.current.y *= -bounceDamping;
-          }
-          // Ensure minimum bounce velocity
-          if (Math.abs(bowVelocityRef.current.y) < minBounceVelocity) {
-            bowVelocityRef.current.y = -minBounceVelocity;
-          }
+          bowPositionRef.current.y = boundaryY - 0.5;
+          flashWall('top');
+          // Push toward center (down)
+          bowVelocityRef.current.y = -pushTowardCenterSpeed;
+          bowVelocityRef.current.x *= 0.5;
         } else if (bowPositionRef.current.y < -boundaryY) {
-          // CRITICAL: Prevent falling through bottom
-          bowPositionRef.current.y = -boundaryY;
-          if (bowVelocityRef.current.y < 0) {
-            bowVelocityRef.current.y *= -bounceDamping;
-          }
-          // Ensure minimum bounce velocity upward
-          if (bowVelocityRef.current.y < minBounceVelocity) {
-            bowVelocityRef.current.y = minBounceVelocity;
-          }
+          bowPositionRef.current.y = -boundaryY + 0.5;
+          flashWall('bottom');
+          // Push toward center (up)
+          bowVelocityRef.current.y = pushTowardCenterSpeed;
+          bowVelocityRef.current.x *= 0.5;
         }
         
         // Apply damping to gradually slow down movement
@@ -2324,23 +2329,46 @@ export default function DeadShotGame({
         legendary: 500   // 20x common (boss-tier)
       }[shipType];
       
-      // Spawn from random positions around the map - omnidirectional movement
-      // ALL ENEMIES ON SAME PLANE (z=0) so they can all be hit
-      const angle = rng.nextFloat(0, Math.PI * 2);
-      const distance = rng.nextFloat(8, 12);
-      const x = Math.cos(angle) * distance;
-      const y = Math.sin(angle) * distance;
+      // Spawn from ALL FOUR SIDES including BOTTOM
+      // Pick a random spawn side: top, bottom, left, right
+      const spawnSide = rng.nextInt(0, 4);
+      let x: number, y: number;
+      const distance = rng.nextFloat(10, 14);
+      
+      switch (spawnSide) {
+        case 0: // TOP
+          x = rng.nextFloat(-12, 12);
+          y = distance;
+          break;
+        case 1: // BOTTOM - enemies come from below too!
+          x = rng.nextFloat(-12, 12);
+          y = -distance;
+          break;
+        case 2: // LEFT
+          x = -distance;
+          y = rng.nextFloat(-12, 12);
+          break;
+        case 3: // RIGHT
+        default:
+          x = distance;
+          y = rng.nextFloat(-12, 12);
+          break;
+      }
       const z = 0; // All enemies on same plane for consistent hit detection
       
-      // Move toward center with some randomness (omnidirectional)
-      // Keep movement on same plane (z=0)
-      const toCenter = new THREE.Vector3(-x, -y, 0).normalize();
+      // Move toward player position with some randomness
+      const playerPos = bowPositionRef.current;
+      const toPlayer = new THREE.Vector3(
+        playerPos.x - x,
+        playerPos.y - y,
+        0
+      ).normalize();
       const randomOffset = new THREE.Vector3(
-        rng.nextFloat(-0.5, 0.5),
-        rng.nextFloat(-0.5, 0.5),
-        0 // No Z variation - keep on same plane
+        rng.nextFloat(-0.3, 0.3),
+        rng.nextFloat(-0.3, 0.3),
+        0
       );
-      const direction = toCenter.add(randomOffset).normalize();
+      const direction = toPlayer.add(randomOffset).normalize();
       
       // Different sizes - all hittable targets
       const size = rng.nextFloat(0.8, 2.0); // Vary sizes more
@@ -2511,12 +2539,13 @@ export default function DeadShotGame({
     return () => clearInterval(chargeInterval);
   }, [gameState, createArrow, playPlayerShotSound]);
 
-  // Right-click handler for firing laser shots
+  // Right-click handler for firing laser shots - STRAIGHT NEON BEAM toward cursor
   const handleRightClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     
     if (gameState !== 'playing') return;
     if (laserShotsRemainingRef.current <= 0) return;
+    if (!containerRef.current || !cameraRef.current) return;
     
     // Rate limit laser shots (100ms between shots)
     const now = Date.now();
@@ -2532,9 +2561,24 @@ export default function DeadShotGame({
     // Play shot sound
     playPlayerShotSound();
     
-    // Create laser in direction of aim
-    const angleRad = aimAngleRef.current * Math.PI / 180;
-    const speed = 50; // Fast laser
+    // Get cursor position in world coordinates
+    const rect = containerRef.current.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    const mouse = new THREE.Vector2(mouseX, mouseY);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current);
+    
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const targetPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, targetPoint);
+    
+    // Calculate direction from player to cursor
+    const dx = targetPoint.x - bowPositionRef.current.x;
+    const dy = targetPoint.y - bowPositionRef.current.y;
+    const angleRad = Math.atan2(dy, dx);
+    const speed = 80; // Very fast laser
     
     const laserMesh = createLaserShot();
     laserMesh.position.set(
@@ -2568,7 +2612,7 @@ export default function DeadShotGame({
   }, [gameState]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (gameState !== 'playing' || !isDrawingRef.current) return;
+    if (gameState !== 'playing') return;
     e.preventDefault();
     
     const rect = containerRef.current?.getBoundingClientRect();
