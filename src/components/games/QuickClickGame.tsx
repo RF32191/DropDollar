@@ -242,8 +242,8 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   // Handle click
   const handleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (gameState === 'waiting') {
-      // Clicked too early - PUNISH by immediately ending this phase!
-      console.log(`QuickClick: Clicked too early! Round ${currentRound} - PUNISHED!`);
+      // Clicked too early - end round with 50 points penalty score
+      console.log(`QuickClick: Clicked too early! Round ${currentRound} - 50 points penalty`);
       
       // Clear the flash timeout since we're ending early
       if (flashTimeoutRef.current) {
@@ -252,29 +252,33 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
       
       const newRound: Round = {
         roundNumber: currentRound,
-        reactionTime: 0, // Zero score for early click
+        reactionTime: 500, // 500ms penalty (gives ~50 points in scoring formula)
         clicked: true,
         isBonus: currentRound === 4,
         targetX: targetPosition?.x,
         targetY: targetPosition?.y,
-        accuracy: 0 // Zero accuracy for premature click
+        accuracy: currentRound === 4 ? 10 : undefined // Low accuracy for bonus round
       };
       
       const updatedRounds = [...rounds, newRound];
       setRounds(updatedRounds);
       
-      // Play failure sound
+      // Play sound for early click
       playSwordMiss();
       
-      // IMMEDIATE punishment - skip directly to next round countdown (no delay!)
-      if (currentRound < 4) {
-        setCurrentRound(prev => prev + 1);
-        setCountdown(3);
-        setGameState('countdown'); // Go straight to countdown for next round
-      } else {
-        // End game immediately for bonus round
-        endGame(updatedRounds);
-      }
+      // Show brief "Too Early" then move to next round
+      setGameState('clicked');
+      
+      setTimeout(() => {
+        if (currentRound < 4) {
+          setCurrentRound(prev => prev + 1);
+          setCountdown(3);
+          setGameState('countdown'); // Go to countdown for next round
+        } else {
+          // End game for bonus round
+          endGame(updatedRounds);
+        }
+      }, 800); // Brief 800ms to show result before next round
       
       return;
     }
@@ -684,12 +688,12 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                     <div className="text-3xl sm:text-4xl font-bold mb-4">
                       {rounds[rounds.length - 1]?.clicked === false && rounds[rounds.length - 1]?.reactionTime === 999 
                         ? 'Too Late!' 
-                        : 'Too Early!'}
+                        : 'Too Early! +50'}
                     </div>
                     <div className="text-lg sm:text-xl">
                       {rounds[rounds.length - 1]?.clicked === false && rounds[rounds.length - 1]?.reactionTime === 999
                         ? 'Click faster when it turns green!'
-                        : currentRound === 4 ? 'Wait for the target circle!' : 'Wait for green next time!'}
+                        : `Round ${currentRound} ended - Next round starting...`}
                     </div>
                   </div>
                 )}
