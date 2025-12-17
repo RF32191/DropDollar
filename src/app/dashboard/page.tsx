@@ -45,6 +45,8 @@ interface HighScoreRecord {
   game_type: string;
   best_score: number;
   best_accuracy?: number;
+  avg_accuracy?: number;
+  avg_score?: number;
   best_reaction_time?: number;
   last_score?: number;
   last_accuracy?: number;
@@ -536,33 +538,57 @@ export default function TriumphStyleDashboard() {
       
       // Fallback: Calculate from game history
       if (gameHistoryData && gameHistoryData.length > 0) {
-        const gameTypeMap = new Map<string, HighScoreRecord>();
+        const gameTypeMap = new Map<string, HighScoreRecord & { total_score: number; total_accuracy: number; accuracy_count: number }>();
         
         for (const game of gameHistoryData) {
-          const existing = gameTypeMap.get(game.game_type);
+          // Normalize game type to merge dash/underscore variants
+          const normalizedType = game.game_type.toLowerCase().replace(/-/g, '_');
+          const existing = gameTypeMap.get(normalizedType);
+          
           if (!existing) {
-            gameTypeMap.set(game.game_type, {
-              game_type: game.game_type,
+            gameTypeMap.set(normalizedType, {
+              game_type: normalizedType,
               best_score: game.score || 0,
-              best_accuracy: game.accuracy,
+              best_accuracy: game.accuracy || 0,
               games_played: 1,
               practice_games: game.is_practice ? 1 : 0,
-              competition_games: game.is_practice ? 0 : 1
+              competition_games: game.is_practice ? 0 : 1,
+              total_score: game.score || 0,
+              total_accuracy: game.accuracy || 0,
+              accuracy_count: game.accuracy ? 1 : 0
             });
           } else {
             existing.games_played++;
+            existing.total_score += game.score || 0;
             if (game.is_practice) existing.practice_games++;
             else existing.competition_games++;
             if ((game.score || 0) > existing.best_score) {
               existing.best_score = game.score || 0;
             }
-            if (game.accuracy && (!existing.best_accuracy || game.accuracy > existing.best_accuracy)) {
-              existing.best_accuracy = game.accuracy;
+            if (game.accuracy) {
+              existing.total_accuracy += game.accuracy;
+              existing.accuracy_count++;
+              if (game.accuracy > (existing.best_accuracy || 0)) {
+                existing.best_accuracy = game.accuracy;
+              }
             }
           }
         }
         
-        const scores = Array.from(gameTypeMap.values());
+        // Convert to array, filter out games with 0 plays, and calculate averages
+        const scores = Array.from(gameTypeMap.values())
+          .filter(s => s.games_played > 0)
+          .map(s => ({
+            game_type: s.game_type,
+            best_score: s.best_score,
+            best_accuracy: s.best_accuracy,
+            avg_accuracy: s.accuracy_count > 0 ? Math.round(s.total_accuracy / s.accuracy_count) : undefined,
+            avg_score: Math.round(s.total_score / s.games_played),
+            games_played: s.games_played,
+            practice_games: s.practice_games,
+            competition_games: s.competition_games
+          }));
+        
         console.log('✅ [Dashboard] High scores calculated from history:', scores.length, 'games');
         return scores;
       }
@@ -807,16 +833,34 @@ export default function TriumphStyleDashboard() {
     }
   };
 
+  // Normalize game type to handle both dash and underscore variants
+  const normalizeGameType = (gameType: string): string => {
+    return gameType.toLowerCase().replace(/-/g, '_');
+  };
+  
   const formatGameType = (gameType: string) => {
+    const normalized = normalizeGameType(gameType);
     const gameNames: Record<string, string> = {
-      'sword-parry': 'Sword Parry',
-      'quick-click': 'Quick Click',
-      'memory-color': 'Memory Color',
-      'number-tap': 'Multi-Target Reaction',
-      'shape-tap': 'Shape Tap',
-      'reaction-test': 'Reaction Test'
+      'sword_parry': 'Sword Parry',
+      'quick_click': 'Quick Click',
+      'memory_color': 'Memory Color',
+      'color_sequence': 'Color Sequence',
+      'number_tap': 'Multi-Target',
+      'multi_target': 'Multi-Target',
+      'multi_target_reaction': 'Multi-Target',
+      'shape_tap': 'Shape Tap',
+      'reaction_test': 'Reaction Test',
+      'laser_dodge': 'Laser Dodge',
+      'blade_bounce': 'Blade Bounce',
+      'falling_object': 'Falling Objects',
+      'falling_objects': 'Falling Objects',
+      'cash_stack': 'Cash Stack',
+      'penny_passer': 'Coin Sorter',
+      'coin_sorter': 'Coin Sorter',
+      'dead_shot': 'Dead Shot',
+      'lightning_maze': 'Lightning Maze'
     };
-    return gameNames[gameType] || gameType;
+    return gameNames[normalized] || gameType.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const formatScore = (score: number | undefined | null) => {
@@ -1334,37 +1378,42 @@ export default function TriumphStyleDashboard() {
               <div className="mt-8">
                 <h3 className="text-lg font-bold mb-4 flex items-center">
                   <TrophyIcon className="w-5 h-5 mr-2 text-yellow-500" />
-                  High Scores by Game
+                  Your Game Stats
                 </h3>
-                {!highScores || highScores.length === 0 ? (
+                {!highScores || highScores.filter(s => s && s.games_played > 0).length === 0 ? (
                   <div className="text-center py-8">
                     <ChartBarIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-400">No high scores yet</p>
-                    <p className="text-sm text-gray-500">Play some games to see your best scores!</p>
+                    <p className="text-gray-400">No games played yet</p>
+                    <p className="text-sm text-gray-500">Play some games to see your stats!</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {highScores.map((score, index) => (
-                      <div key={score?.game_type || index} className="p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
-                        <div className="flex items-center justify-between mb-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {highScores
+                      .filter(score => score && score.games_played > 0)
+                      .sort((a, b) => (b?.games_played ?? 0) - (a?.games_played ?? 0))
+                      .map((score, index) => (
+                      <div key={score?.game_type || index} className="p-4 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl border border-white/20 hover:border-yellow-500/50 transition-all">
+                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center">
                             {getGameIcon(score?.game_type || '')}
-                            <h3 className="font-medium text-white ml-2">{formatGameType(score?.game_type || 'Unknown')}</h3>
+                            <h3 className="font-bold text-white ml-2">{formatGameType(score?.game_type || 'Unknown')}</h3>
                           </div>
-                          <TrophyIcon className="w-5 h-5 text-yellow-500" />
+                          <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
+                            {score?.games_played ?? 0} plays
+                          </span>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-2xl font-bold text-white">{formatScore(score?.best_score)}</p>
-                          <p className="text-sm text-gray-400">
-                            {score?.games_played ?? 0} games played
-                            {(score?.practice_games ?? 0) > 0 && ` • ${score.practice_games} practice`}
-                            {(score?.competition_games ?? 0) > 0 && ` • ${score.competition_games} competitions`}
-                          </p>
-                          {score?.best_accuracy && (
-                            <p className="text-sm text-gray-400">
-                              Best accuracy: {score.best_accuracy}%
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-black/30 rounded-lg p-3">
+                            <p className="text-xs text-gray-400 uppercase tracking-wide">High Score</p>
+                            <p className="text-xl font-bold text-yellow-400">{formatScore(score?.best_score)}</p>
+                          </div>
+                          <div className="bg-black/30 rounded-lg p-3">
+                            <p className="text-xs text-gray-400 uppercase tracking-wide">Avg Accuracy</p>
+                            <p className="text-xl font-bold text-cyan-400">
+                              {score?.avg_accuracy ? `${score.avg_accuracy}%` : '--'}
                             </p>
-                          )}
+                          </div>
                         </div>
                       </div>
                     ))}
