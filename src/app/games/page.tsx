@@ -177,12 +177,12 @@ const GAMES = [
   },
   {
     id: 'penny-passer',
-    name: 'Penny Passer',
-    description: 'Guide a 3D penny through a street filled with moving hands in this Frogger-style challenge!',
+    name: 'Coin Sorter',
+    description: 'Sort 3D coins into their matching colored quadrants! Match shapes & colors for bonus points in this fast-paced sorting challenge!',
     icon: BanknotesIcon,
     difficulty: 'Medium',
     avgTime: '60s',
-    skills: ['Timing', 'Risk Assessment', 'Spatial Awareness', 'Speed'],
+    skills: ['Pattern Recognition', 'Speed', 'Color Matching', 'Precision'],
     component: PennyPasserGame
   },
   {
@@ -210,7 +210,7 @@ const GAMES = [
 // Debug: Log games array to ensure all games are included
 console.log('🎮 Available games for deployment:', GAMES.map(g => `${g.name} (${g.id})`));
 console.log('🚀 Laser Dodge game included:', GAMES.find(g => g.id === 'laser-dodge') ? '✅ YES' : '❌ NO');
-console.log('🪙 Penny Passer game included:', GAMES.find(g => g.id === 'penny-passer') ? '✅ YES' : '❌ NO');
+console.log('🪙 Coin Sorter game included:', GAMES.find(g => g.id === 'penny-passer') ? '✅ YES' : '❌ NO');
 console.log('⚡ Lightning Maze game included:', GAMES.find(g => g.id === 'lightning-maze') ? '✅ YES' : '❌ NO');
 console.log('📊 Total games available:', GAMES.length);
 

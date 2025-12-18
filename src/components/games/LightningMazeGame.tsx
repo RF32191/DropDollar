@@ -128,12 +128,16 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const [timeRemaining, setTimeRemaining] = useState(90);
   const [mazesCompleted, setMazesCompleted] = useState(0);
   const [wallHits, setWallHits] = useState(0);
+  const [is2DMode, setIs2DMode] = useState(false); // Alternating 2D/3D modes
+  const [isMobile, setIsMobile] = useState(false); // Detect mobile for responsive layout
   
   const scoreRef = useRef(0);
   const gameStateRef = useRef<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
   const startTimeRef = useRef<number>(0);
   const currentMazeRef = useRef(1);
   const mazesCompletedRef = useRef(0);
+  const is2DModeRef = useRef(false);
+  const orthoCameraRef = useRef<THREE.OrthographicCamera | null>(null);
 
   const MAZE_WIDTH = 17;
   const MAZE_HEIGHT = 17;
@@ -755,6 +759,16 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     }
   }, [clearMaze, createStartMarker, createTeslaCoil, createObstacle]);
 
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Initialize game
   useEffect(() => {
     if (!containerRef.current) return;
@@ -764,6 +778,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     scene.fog = new THREE.Fog(0x050505, 25, 70);
     sceneRef.current = scene;
 
+    // Create perspective camera for 3D mode
     const camera = new THREE.PerspectiveCamera(
       55, 
       containerRef.current.clientWidth / containerRef.current.clientHeight, 
@@ -774,14 +789,29 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
+    // Create orthographic camera for 2D mode (top-down view)
+    const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+    const frustumSize = 30;
+    const orthoCamera = new THREE.OrthographicCamera(
+      frustumSize * aspect / -2,
+      frustumSize * aspect / 2,
+      frustumSize / 2,
+      frustumSize / -2,
+      0.1,
+      200
+    );
+    orthoCamera.position.set(0, 50, 0);
+    orthoCamera.lookAt(0, 0, 0);
+    orthoCameraRef.current = orthoCamera;
+
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0x111111);
+    // Ambient light (brighter for 2D mode visibility)
+    const ambientLight = new THREE.AmbientLight(0x222222);
     scene.add(ambientLight);
 
     // Create lightning bolt
@@ -789,15 +819,33 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     scene.add(lightning);
     lightningRef.current = lightning;
 
-    // Build initial maze
+    // Build initial maze (maze 1 is 3D)
+    is2DModeRef.current = false;
+    setIs2DMode(false);
     buildMaze(1);
 
-    // Handle resize
+    // Handle resize - update both cameras
     const handleResize = () => {
       if (!containerRef.current || !camera || !renderer) return;
-      camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      
+      // Update perspective camera
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      
+      // Update orthographic camera
+      if (orthoCameraRef.current) {
+        const aspect = width / height;
+        const frustumSize = 30;
+        orthoCameraRef.current.left = frustumSize * aspect / -2;
+        orthoCameraRef.current.right = frustumSize * aspect / 2;
+        orthoCameraRef.current.top = frustumSize / 2;
+        orthoCameraRef.current.bottom = frustumSize / -2;
+        orthoCameraRef.current.updateProjectionMatrix();
+      }
+      
+      renderer.setSize(width, height);
     };
     window.addEventListener('resize', handleResize);
 
@@ -1201,6 +1249,11 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             scoreRef.current += 1000;
             setScore(scoreRef.current);
             
+            // Alternate between 3D (odd mazes) and 2D (even mazes)
+            const new2DMode = currentMazeRef.current % 2 === 0;
+            is2DModeRef.current = new2DMode;
+            setIs2DMode(new2DMode);
+            
             // Build next maze
             buildMaze(currentMazeRef.current);
             hasControlRef.current = true; // Keep control for subsequent mazes
@@ -1241,8 +1294,20 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           }
         }
         
-        // Camera follow
-        if (cameraRef.current) {
+        // Camera follow - different behavior for 2D vs 3D
+        if (is2DModeRef.current && orthoCameraRef.current) {
+          // 2D mode: Top-down orthographic camera follows player smoothly
+          const targetX = lightningPositionRef.current.x * 0.6;
+          const targetZ = lightningPositionRef.current.z * 0.6;
+          orthoCameraRef.current.position.x += (targetX - orthoCameraRef.current.position.x) * 0.05;
+          orthoCameraRef.current.position.z += (targetZ - orthoCameraRef.current.position.z) * 0.05;
+          orthoCameraRef.current.lookAt(
+            orthoCameraRef.current.position.x, 
+            0, 
+            orthoCameraRef.current.position.z
+          );
+        } else if (cameraRef.current) {
+          // 3D mode: Angled perspective camera
           const targetCamX = lightningPositionRef.current.x * 0.4;
           const targetCamZ = lightningPositionRef.current.z * 0.4 + 20;
           cameraRef.current.position.x += (targetCamX - cameraRef.current.position.x) * 0.03;
@@ -1255,7 +1320,9 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         }
       }
       
-      renderer.render(scene, camera);
+      // Render with appropriate camera
+      const activeCamera = is2DModeRef.current && orthoCameraRef.current ? orthoCameraRef.current : camera;
+      renderer.render(scene, activeCamera);
     };
     
     animate(0);
@@ -1293,53 +1360,62 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   };
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden">
-      <div ref={containerRef} className="w-full h-full" />
+    <div className="fixed inset-0 w-full h-full bg-black overflow-hidden touch-none">
+      <div ref={containerRef} className="w-full h-full" style={{ touchAction: 'none' }} />
       
-      {/* HUD */}
-      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-        <div className="bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-cyan-500/50">
-          <div className="text-cyan-400 text-sm font-bold mb-1">SCORE</div>
-          <div className="text-white text-3xl font-bold">{score.toLocaleString()}</div>
+      {/* 2D/3D Mode Indicator */}
+      {gameState === 'playing' && (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+          <div className={`px-4 py-1 rounded-full text-sm font-bold ${is2DMode ? 'bg-green-500/80 text-white' : 'bg-purple-500/80 text-white'}`}>
+            {is2DMode ? '2D MODE' : '3D MODE'}
+          </div>
+        </div>
+      )}
+      
+      {/* HUD - Responsive for mobile */}
+      <div className="absolute top-8 sm:top-4 left-2 right-2 sm:left-4 sm:right-4 flex flex-wrap sm:flex-nowrap justify-between items-start gap-2 pointer-events-none z-10">
+        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-cyan-500/50 flex-1 min-w-[70px]">
+          <div className="text-cyan-400 text-xs sm:text-sm font-bold">SCORE</div>
+          <div className="text-white text-lg sm:text-3xl font-bold">{score.toLocaleString()}</div>
         </div>
         
-        <div className="bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-purple-500/50">
-          <div className="text-purple-400 text-sm font-bold mb-1">MAZE</div>
-          <div className="text-white text-3xl font-bold">{currentMaze} / {TOTAL_MAZES}</div>
+        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-purple-500/50 flex-1 min-w-[60px]">
+          <div className="text-purple-400 text-xs sm:text-sm font-bold">MAZE</div>
+          <div className="text-white text-lg sm:text-3xl font-bold">{currentMaze}/{TOTAL_MAZES}</div>
         </div>
         
-        <div className="bg-black/80 backdrop-blur-sm rounded-xl p-4 border border-green-500/50">
-          <div className="text-green-400 text-sm font-bold mb-1">CHECKPOINTS</div>
-          <div className="text-white text-3xl font-bold">{currentCheckpoint} / {CHECKPOINTS_PER_MAZE}</div>
+        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-green-500/50 flex-1 min-w-[60px]">
+          <div className="text-green-400 text-xs sm:text-sm font-bold">CHECK</div>
+          <div className="text-white text-lg sm:text-3xl font-bold">{currentCheckpoint}/{CHECKPOINTS_PER_MAZE}</div>
         </div>
         
-        <div className={`bg-black/80 backdrop-blur-sm rounded-xl p-4 border ${timeRemaining <= 10 ? 'border-red-500 animate-pulse' : 'border-yellow-500/50'}`}>
-          <div className={`text-sm font-bold mb-1 ${timeRemaining <= 10 ? 'text-red-400' : 'text-yellow-400'}`}>TIME</div>
-          <div className={`text-3xl font-bold ${timeRemaining <= 10 ? 'text-red-400' : 'text-white'}`}>{timeRemaining}s</div>
+        <div className={`bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border flex-1 min-w-[60px] ${timeRemaining <= 10 ? 'border-red-500 animate-pulse' : 'border-yellow-500/50'}`}>
+          <div className={`text-xs sm:text-sm font-bold ${timeRemaining <= 10 ? 'text-red-400' : 'text-yellow-400'}`}>TIME</div>
+          <div className={`text-lg sm:text-3xl font-bold ${timeRemaining <= 10 ? 'text-red-400' : 'text-white'}`}>{timeRemaining}s</div>
         </div>
       </div>
 
-      {/* Ready Screen */}
+      {/* Ready Screen - Mobile Responsive */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-10">
-          <div className="text-center max-w-xl p-8">
-            <div className="text-7xl mb-4">⚡</div>
-            <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-10 p-4 overflow-y-auto">
+          <div className="text-center max-w-xl w-full">
+            <div className="text-5xl sm:text-7xl mb-2 sm:mb-4">⚡</div>
+            <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               LIGHTNING MAZE
             </h1>
-            <div className="space-y-3 text-left bg-black/60 rounded-xl p-6 border border-cyan-500/30 mb-6">
-              <p className="text-cyan-300 font-bold text-xl">⚡ HOW TO PLAY:</p>
-              <p className="text-gray-300 text-lg">• <span className="text-green-400 font-bold">TAP</span> the lightning bolt at the start to take control</p>
-              <p className="text-gray-300 text-lg">• Move your <span className="text-cyan-400 font-bold">mouse</span> to guide the lightning</p>
-              <p className="text-gray-300 text-lg">• Reach all <span className="text-gray-200 font-bold">silver Tesla coils</span> (+500 pts each)</p>
-              <p className="text-gray-300 text-lg">• Avoid <span className="text-pink-400 font-bold">moving obstacles</span> (-25 pts)</p>
-              <p className="text-gray-300 text-lg">• Don't hit <span className="text-red-400 font-bold">walls</span> (-10 pts)</p>
-              <p className="text-gray-300 text-lg">• Complete <span className="text-purple-400 font-bold">5 mazes</span> before time runs out!</p>
-              <p className="text-yellow-300 font-bold text-lg mt-4">⏱️ {GAME_DURATION} SECONDS TO COMPLETE ALL MAZES!</p>
+            <div className="space-y-2 sm:space-y-3 text-left bg-black/60 rounded-xl p-4 sm:p-6 border border-cyan-500/30 mb-4 sm:mb-6">
+              <p className="text-cyan-300 font-bold text-base sm:text-xl">⚡ HOW TO PLAY:</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP</span> the lightning bolt to start</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• {isMobile ? 'Drag your finger' : 'Move your mouse'} to guide the bolt</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Reach all <span className="text-gray-200 font-bold">Tesla coils</span> (+500 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Avoid <span className="text-pink-400 font-bold">obstacles</span> (-25 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Don't hit <span className="text-red-400 font-bold">walls</span> (-10 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-purple-400 font-bold">Odd mazes = 3D</span>, <span className="text-green-400 font-bold">Even mazes = 2D</span></p>
+              <p className="text-yellow-300 font-bold text-sm sm:text-lg mt-2 sm:mt-4">⏱️ {GAME_DURATION} SECONDS FOR ALL 5 MAZES!</p>
             </div>
             <button
               onClick={startGame}
-              className="px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-2xl rounded-xl transform hover:scale-105 transition-all shadow-lg shadow-cyan-500/50"
+              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xl sm:text-2xl rounded-xl transform hover:scale-105 transition-all shadow-lg shadow-cyan-500/50"
             >
               START GAME
             </button>
@@ -1347,39 +1423,47 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         </div>
       )}
 
-      {/* Waiting for tap */}
+      {/* Waiting for tap - Mobile Friendly */}
       {gameState === 'waiting' && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none">
-          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-8 py-4 border border-green-500 animate-pulse">
-            <p className="text-green-400 text-2xl font-bold text-center">
-              ⚡ TAP THE LIGHTNING BOLT TO START! ⚡
+        <div className="absolute bottom-16 sm:bottom-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-10 pointer-events-none">
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-4 sm:px-8 py-3 sm:py-4 border border-green-500 animate-pulse">
+            <p className="text-green-400 text-lg sm:text-2xl font-bold text-center">
+              ⚡ TAP THE LIGHTNING BOLT! ⚡
             </p>
           </div>
         </div>
       )}
 
-      {/* Complete Screen */}
+      {/* Complete Screen - Mobile Friendly */}
       {gameState === 'complete' && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-10">
-          <div className="text-center max-w-lg p-8">
-            <div className="text-7xl mb-4">{mazesCompleted >= TOTAL_MAZES ? '🏆' : '⏱️'}</div>
-            <h1 className="text-4xl font-bold mb-4 text-yellow-400">
+        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-10 p-4">
+          <div className="text-center max-w-lg w-full">
+            <div className="text-5xl sm:text-7xl mb-2 sm:mb-4">{mazesCompleted >= TOTAL_MAZES ? '🏆' : '⏱️'}</div>
+            <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4 text-yellow-400">
               {mazesCompleted >= TOTAL_MAZES ? 'ALL MAZES COMPLETE!' : 'TIME\'S UP!'}
             </h1>
-            <div className="bg-black/60 rounded-xl p-6 border border-yellow-500/30 mb-6">
-              <div className="text-6xl font-bold text-white mb-2">{score.toLocaleString()}</div>
-              <div className="text-yellow-400 text-xl">POINTS</div>
-              <div className="mt-4 grid grid-cols-2 gap-4 text-gray-300">
+            <div className="bg-black/60 rounded-xl p-4 sm:p-6 border border-yellow-500/30 mb-4 sm:mb-6">
+              <div className="text-4xl sm:text-6xl font-bold text-white mb-2">{score.toLocaleString()}</div>
+              <div className="text-yellow-400 text-lg sm:text-xl">POINTS</div>
+              <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-3 sm:gap-4 text-gray-300">
                 <div>
-                  <div className="text-2xl font-bold text-purple-400">{mazesCompleted}</div>
-                  <div className="text-sm">Mazes Completed</div>
+                  <div className="text-xl sm:text-2xl font-bold text-purple-400">{mazesCompleted}</div>
+                  <div className="text-xs sm:text-sm">Mazes Done</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-red-400">{wallHits}</div>
-                  <div className="text-sm">Wall Hits</div>
+                  <div className="text-xl sm:text-2xl font-bold text-red-400">{wallHits}</div>
+                  <div className="text-xs sm:text-sm">Wall Hits</div>
                 </div>
               </div>
             </div>
+            {onExit && (
+              <button
+                onClick={onExit}
+                className="w-full px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white font-bold text-lg rounded-xl"
+              >
+                Back to Games
+              </button>
+            )}
           </div>
         </div>
       )}
