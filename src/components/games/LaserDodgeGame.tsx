@@ -109,8 +109,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Mobile/Gyroscope state
   const [isMobile, setIsMobile] = useState(false);
   const [gyroscopeEnabled, setGyroscopeEnabled] = useState(false);
+  const [gyroPermissionNeeded, setGyroPermissionNeeded] = useState(false);
   const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
   const lastGyroUpdateRef = useRef<number>(0);
+  const gyroListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
   
   // Refs for game entities (needed for collision detection in game loop)
   const bulletsRef = useRef<Bullet[]>([]);
@@ -148,93 +150,113 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       const mobile = window.innerWidth < 768 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       setIsMobile(mobile);
       console.log('📱 [LaserDodge] Mobile detected:', mobile);
+      
+      // Check if iOS requires permission
+      if (mobile && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        setGyroPermissionNeeded(true);
+        console.log('📱 [LaserDodge] iOS gyro permission needed');
+      }
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  // Gyroscope controls for mobile
+  // Gyroscope handler function
+  const handleOrientation = (event: DeviceOrientationEvent) => {
+    if (!isGameRunningRef.current) return;
+    
+    const beta = event.beta ?? 0;
+    const gamma = event.gamma ?? 0;
+    
+    // Set initial position on first reading
+    if (!gyroBaseRef.current) {
+      gyroBaseRef.current = { beta, gamma };
+      console.log('📱 [LaserDodge] Gyro base set:', gyroBaseRef.current);
+      return;
+    }
+    
+    // Calculate delta from neutral position
+    const deltaBeta = beta - gyroBaseRef.current.beta;
+    const deltaGamma = gamma - gyroBaseRef.current.gamma;
+    
+    // Higher sensitivity for more responsive movement
+    const sensitivity = 3.0;
+    
+    // Calculate new position
+    let newX = 50 + (deltaGamma * sensitivity);
+    let newY = 50 - (deltaBeta * sensitivity);
+    
+    // Clamp to game bounds
+    newX = Math.max(5, Math.min(95, newX));
+    newY = Math.max(5, Math.min(95, newY));
+    
+    const newShipPos = { x: newX, y: newY };
+    shipRef.current = newShipPos;
+    setShip(newShipPos);
+  };
+  
+  // Request gyroscope permission (must be called from user gesture for iOS)
+  const requestGyroPermission = async () => {
+    console.log('📱 [LaserDodge] Requesting gyro permission...');
+    
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        console.log('📱 [LaserDodge] Gyro permission result:', permission);
+        if (permission === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation);
+          gyroListenerRef.current = handleOrientation;
+          setGyroscopeEnabled(true);
+          setGyroPermissionNeeded(false);
+          console.log('✅ [LaserDodge] Gyroscope permission granted and enabled!');
+        }
+      } catch (error) {
+        console.warn('⚠️ [LaserDodge] Gyroscope permission error:', error);
+      }
+    } else {
+      // Non-iOS - just enable directly
+      window.addEventListener('deviceorientation', handleOrientation);
+      gyroListenerRef.current = handleOrientation;
+      setGyroscopeEnabled(true);
+      console.log('✅ [LaserDodge] Gyroscope enabled (no permission needed)');
+    }
+  };
+  
+  // Enable gyroscope for Android/non-permission devices when playing
   useEffect(() => {
     if (!isMobile || gameState !== 'playing') return;
+    if (gyroPermissionNeeded) return; // iOS needs button click
+    if (gyroscopeEnabled) return; // Already enabled
     
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (!isGameRunningRef.current) return;
-      
-      const now = Date.now();
-      // Throttle updates to 60fps
-      if (now - lastGyroUpdateRef.current < 16) return;
-      lastGyroUpdateRef.current = now;
-      
-      const beta = event.beta ?? 0;  // Front/back tilt (-180 to 180) - controls Y
-      const gamma = event.gamma ?? 0; // Left/right tilt (-90 to 90) - controls X
-      
-      // Set initial position on first reading
-      if (!gyroBaseRef.current) {
-        gyroBaseRef.current = { beta: beta, gamma: gamma };
-        console.log('📱 [LaserDodge] Gyro base set:', gyroBaseRef.current);
-        return;
-      }
-      
-      // Calculate delta from neutral position
-      const deltaBeta = beta - gyroBaseRef.current.beta;
-      const deltaGamma = gamma - gyroBaseRef.current.gamma;
-      
-      // Sensitivity - how much tilt = how much movement
-      const sensitivity = 2.5;
-      
-      // Calculate new position (gamma = X, beta = Y inverted)
-      // Tilt right (positive gamma) = move right
-      // Tilt forward (positive beta) = move up (so we invert)
-      const currentX = shipRef.current.x;
-      const currentY = shipRef.current.y;
-      
-      let newX = 50 + (deltaGamma * sensitivity);
-      let newY = 50 - (deltaBeta * sensitivity); // Inverted: tilt forward = move up
-      
-      // Clamp to game bounds
-      newX = Math.max(5, Math.min(95, newX));
-      newY = Math.max(5, Math.min(95, newY));
-      
-      const newShipPos = { x: newX, y: newY };
-      shipRef.current = newShipPos;
-      setShip(newShipPos);
-    };
-    
-    // Request permission for iOS 13+
-    const requestGyroPermission = async () => {
-      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        try {
-          const permission = await (DeviceOrientationEvent as any).requestPermission();
-          if (permission === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation);
-            setGyroscopeEnabled(true);
-            console.log('✅ [LaserDodge] Gyroscope permission granted');
-          }
-        } catch (error) {
-          console.warn('⚠️ [LaserDodge] Gyroscope permission denied:', error);
-        }
-      } else {
-        // Non-iOS or older iOS - just add listener
-        window.addEventListener('deviceorientation', handleOrientation);
-        setGyroscopeEnabled(true);
-        console.log('✅ [LaserDodge] Gyroscope enabled (no permission needed)');
-      }
-    };
-    
-    requestGyroPermission();
+    // For Android and other devices, enable directly
+    window.addEventListener('deviceorientation', handleOrientation);
+    gyroListenerRef.current = handleOrientation;
+    setGyroscopeEnabled(true);
+    console.log('✅ [LaserDodge] Gyroscope auto-enabled for Android');
     
     return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
+      if (gyroListenerRef.current) {
+        window.removeEventListener('deviceorientation', gyroListenerRef.current);
+      }
     };
-  }, [isMobile, gameState]);
+  }, [isMobile, gameState, gyroPermissionNeeded, gyroscopeEnabled]);
   
   // Reset gyro base when game starts
   useEffect(() => {
     if (gameState === 'playing') {
-      gyroBaseRef.current = null; // Will be set on first reading
+      gyroBaseRef.current = null;
     }
   }, [gameState]);
+  
+  // Cleanup gyro listener
+  useEffect(() => {
+    return () => {
+      if (gyroListenerRef.current) {
+        window.removeEventListener('deviceorientation', gyroListenerRef.current);
+      }
+    };
+  }, []);
   
   // Audio unlock mechanism for browser autoplay restrictions
   const unlockAudio = () => {
@@ -1238,6 +1260,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     
     // Unlock audio on touch interaction (critical for mobile)
     if (!audioUnlockedRef.current) {
@@ -1246,13 +1269,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     if (gameState !== 'playing') return;
     
-    // Handle shooting on touch (tap to shoot on mobile)
+    // Always shoot on tap (mobile)
+    console.log('📱 [LaserDodge] Touch detected - shooting!');
     shoot();
     
     // Only move by touch if gyroscope is not enabled
     if (!gyroscopeEnabled) {
       handleTouchMove(event);
     }
+  };
+  
+  // Handle touch end for additional tap detection
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
   };
 
   // Keyboard event handling for shooting
@@ -1570,13 +1599,32 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         </div>
         
         {/* Instruction overlay */}
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-30 px-4 w-full max-w-md">
+          {/* iOS Gyroscope Permission Button */}
+          {isMobile && gyroPermissionNeeded && !gyroscopeEnabled && (
+            <button
+              onClick={requestGyroPermission}
+              className="w-full mb-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg border-2 border-purple-400"
+            >
+              <p className="text-lg">📱 Enable Tilt Controls</p>
+              <p className="text-xs opacity-80">Tilt phone to move ship</p>
+            </button>
+          )}
+          
+          {/* Gyroscope status */}
+          {isMobile && gyroscopeEnabled && (
+            <div className="w-full mb-4 bg-green-600/50 text-white font-bold py-3 px-6 rounded-xl border-2 border-green-400 text-center">
+              <p className="text-lg">✅ Tilt Controls Active!</p>
+              <p className="text-xs opacity-80">Tilt phone to move • Tap to shoot</p>
+            </div>
+          )}
+          
           <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-4 border-2 border-green-500 animate-pulse">
             <p className="text-green-400 text-xl sm:text-2xl font-bold text-center">
               🎯 TAP THE SHIP TO START! 🎯
             </p>
             <p className="text-gray-300 text-sm text-center mt-2">
-              Click/tap on your ship to link controls
+              {isMobile ? 'Tap ship to start • Tilt to move • Tap to shoot' : 'Click ship to start • Move mouse to move • Click to shoot'}
             </p>
           </div>
         </div>
@@ -1672,6 +1720,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       onClick={handleMouseClick}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* HUD Overlay - Always visible at top */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
@@ -1733,6 +1782,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ) : null;
             })()}
+            {/* Mobile control hint */}
+            {isMobile && gyroscopeEnabled && (
+              <div className="text-xs text-green-400 opacity-70 mt-1">
+                📱 Tilt to move • Tap to shoot
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1756,9 +1811,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 ))}
               </div>
 
-              {/* Horizontal Lasers */}
+              {/* Horizontal Lasers - Thicker on mobile */}
               {lasers.filter(l => l.type === 'horizontal').map((laser) => (
-                <div key={laser.id} className="absolute w-full h-4" style={{
+                <div key={laser.id} className={`absolute w-full ${isMobile ? 'h-6' : 'h-4'}`} style={{
                   left: '0%',
                   top: `${laser.position}%`,
                   transform: 'translateY(-50%)'
@@ -1791,9 +1846,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
 
-              {/* Vertical Lasers */}
+              {/* Vertical Lasers - Thicker on mobile */}
               {lasers.filter(l => l.type === 'vertical').map((laser) => (
-                <div key={laser.id} className="absolute h-full w-4" style={{
+                <div key={laser.id} className={`absolute h-full ${isMobile ? 'w-6' : 'w-4'}`} style={{
                   left: `${laser.position}%`,
                   top: '0%',
                   transform: 'translateX(-50%)'
@@ -1826,11 +1881,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
               
-              {/* Enemy Ships */}
+              {/* Enemy Ships - Larger on mobile */}
               {enemyShips.map((enemy) => (
                 <div
                   key={enemy.id}
-                  className="absolute w-6 h-6"
+                  className={isMobile ? "absolute w-10 h-10" : "absolute w-6 h-6"}
                   style={{
                     left: `${enemy.x}%`,
                     top: `${enemy.y}%`,
@@ -1840,7 +1895,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',
-                    filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))' // Red glow effect
+                    filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))'
                   }}
                 />
               ))}
@@ -1893,7 +1948,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 );
               })}
 
-              {/* Ship - Using SHIP.png */}
+              {/* Ship - Using SHIP.png - Larger on mobile */}
               <div
                 className="absolute"
                 style={{
@@ -1910,18 +1965,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     left: '50%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: '32px', // 4 units * 8px = 32px (matches collision detection of 4 units)
-                    height: '32px',
-                    borderColor: 'rgba(173, 216, 230, 0.6)', // Light blue
-                    backgroundColor: 'rgba(173, 216, 230, 0.15)', // Light blue with transparency
+                    width: isMobile ? '48px' : '32px',
+                    height: isMobile ? '48px' : '32px',
+                    borderColor: 'rgba(173, 216, 230, 0.6)',
+                    backgroundColor: 'rgba(173, 216, 230, 0.15)',
                     boxShadow: '0 0 8px rgba(173, 216, 230, 0.5), inset 0 0 8px rgba(173, 216, 230, 0.3)',
-                    pointerEvents: 'none', // Don't interfere with mouse events
+                    pointerEvents: 'none',
                     zIndex: 9,
                   }}
                 />
-                {/* Ship sprite */}
+                {/* Ship sprite - larger on mobile */}
                 <div
-                  className="absolute w-8 h-8"
+                  className={isMobile ? "absolute w-12 h-12" : "absolute w-8 h-8"}
                   style={{
                     left: '50%',
                     top: '50%',
@@ -1930,7 +1985,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     backgroundSize: 'contain',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',
-                    filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))', // Green glow effect
+                    filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))',
                     zIndex: 10,
                   }}
                 />
