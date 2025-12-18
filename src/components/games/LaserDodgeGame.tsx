@@ -106,6 +106,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
   
+  // Mobile/Gyroscope state
+  const [isMobile, setIsMobile] = useState(false);
+  const [gyroscopeEnabled, setGyroscopeEnabled] = useState(false);
+  const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
+  const lastGyroUpdateRef = useRef<number>(0);
+  
   // Refs for game entities (needed for collision detection in game loop)
   const bulletsRef = useRef<Bullet[]>([]);
   const enemyShipsRef = useRef<EnemyShip[]>([]);
@@ -136,6 +142,100 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     return new Mulberry32(rngSeed);
   }, [rngSeed]);
 
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobile(mobile);
+      console.log('📱 [LaserDodge] Mobile detected:', mobile);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Gyroscope controls for mobile
+  useEffect(() => {
+    if (!isMobile || gameState !== 'playing') return;
+    
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (!isGameRunningRef.current) return;
+      
+      const now = Date.now();
+      // Throttle updates to 60fps
+      if (now - lastGyroUpdateRef.current < 16) return;
+      lastGyroUpdateRef.current = now;
+      
+      const beta = event.beta ?? 0;  // Front/back tilt (-180 to 180) - controls Y
+      const gamma = event.gamma ?? 0; // Left/right tilt (-90 to 90) - controls X
+      
+      // Set initial position on first reading
+      if (!gyroBaseRef.current) {
+        gyroBaseRef.current = { beta: beta, gamma: gamma };
+        console.log('📱 [LaserDodge] Gyro base set:', gyroBaseRef.current);
+        return;
+      }
+      
+      // Calculate delta from neutral position
+      const deltaBeta = beta - gyroBaseRef.current.beta;
+      const deltaGamma = gamma - gyroBaseRef.current.gamma;
+      
+      // Sensitivity - how much tilt = how much movement
+      const sensitivity = 2.5;
+      
+      // Calculate new position (gamma = X, beta = Y inverted)
+      // Tilt right (positive gamma) = move right
+      // Tilt forward (positive beta) = move up (so we invert)
+      const currentX = shipRef.current.x;
+      const currentY = shipRef.current.y;
+      
+      let newX = 50 + (deltaGamma * sensitivity);
+      let newY = 50 - (deltaBeta * sensitivity); // Inverted: tilt forward = move up
+      
+      // Clamp to game bounds
+      newX = Math.max(5, Math.min(95, newX));
+      newY = Math.max(5, Math.min(95, newY));
+      
+      const newShipPos = { x: newX, y: newY };
+      shipRef.current = newShipPos;
+      setShip(newShipPos);
+    };
+    
+    // Request permission for iOS 13+
+    const requestGyroPermission = async () => {
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        try {
+          const permission = await (DeviceOrientationEvent as any).requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+            setGyroscopeEnabled(true);
+            console.log('✅ [LaserDodge] Gyroscope permission granted');
+          }
+        } catch (error) {
+          console.warn('⚠️ [LaserDodge] Gyroscope permission denied:', error);
+        }
+      } else {
+        // Non-iOS or older iOS - just add listener
+        window.addEventListener('deviceorientation', handleOrientation);
+        setGyroscopeEnabled(true);
+        console.log('✅ [LaserDodge] Gyroscope enabled (no permission needed)');
+      }
+    };
+    
+    requestGyroPermission();
+    
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, [isMobile, gameState]);
+  
+  // Reset gyro base when game starts
+  useEffect(() => {
+    if (gameState === 'playing') {
+      gyroBaseRef.current = null; // Will be set on first reading
+    }
+  }, [gameState]);
+  
   // Audio unlock mechanism for browser autoplay restrictions
   const unlockAudio = () => {
     if (audioUnlockedRef.current) return;
@@ -1112,10 +1212,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     shoot();
   };
 
-  // Handle touch movement
+  // Handle touch movement (for non-gyroscope or as fallback)
   const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
     if (gameState !== 'playing') return;
+    
+    // Skip if gyroscope is handling movement
+    if (gyroscopeEnabled && isMobile) return;
     
     const gameArea = gameAreaRef.current;
     if (!gameArea) return;
@@ -1129,7 +1232,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedY = Math.max(5, Math.min(95, y));
     
     const newShipPos = { x: boundedX, y: boundedY };
-    shipRef.current = newShipPos; // Update ref immediately for collision detection
+    shipRef.current = newShipPos;
     setShip(newShipPos);
   };
 
@@ -1143,11 +1246,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     if (gameState !== 'playing') return;
     
-    // Handle shooting on touch
+    // Handle shooting on touch (tap to shoot on mobile)
     shoot();
     
-    // Also handle movement
-    handleTouchMove(event);
+    // Only move by touch if gyroscope is not enabled
+    if (!gyroscopeEnabled) {
+      handleTouchMove(event);
+    }
   };
 
   // Keyboard event handling for shooting

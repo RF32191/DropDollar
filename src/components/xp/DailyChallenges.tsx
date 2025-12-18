@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { XPService, DailyChallenge, WeeklyChallenge } from '@/lib/supabase/xpService';
 import { useAuth } from '@/contexts/AuthContext';
 import { CheckCircleIcon, ClockIcon, FireIcon, TrophyIcon, CalendarIcon, SparklesIcon } from '@heroicons/react/24/solid';
@@ -11,12 +11,110 @@ interface DailyChallengesProps {
   initialLoading?: boolean;
 }
 
+// Get time until midnight in user's local timezone
+const getTimeUntilDailyReset = (): string => {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  
+  const diff = tomorrow.getTime() - now.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  return `${hours}h ${minutes}m`;
+};
+
+// Get time until next Monday in user's local timezone
+const getTimeUntilWeeklyReset = (): string => {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+  
+  const nextMonday = new Date(now);
+  nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+  nextMonday.setHours(0, 0, 0, 0);
+  
+  const diff = nextMonday.getTime() - now.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+  return `${hours}h`;
+};
+
+// Check if challenges should be reset based on local time
+const shouldResetDaily = (): boolean => {
+  const lastResetKey = 'dailyChallengesLastReset';
+  const lastReset = localStorage.getItem(lastResetKey);
+  
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  
+  if (!lastReset) {
+    localStorage.setItem(lastResetKey, todayStart.toISOString());
+    return true;
+  }
+  
+  const lastResetDate = new Date(lastReset);
+  if (lastResetDate < todayStart) {
+    localStorage.setItem(lastResetKey, todayStart.toISOString());
+    return true;
+  }
+  
+  return false;
+};
+
+const shouldResetWeekly = (): boolean => {
+  const lastResetKey = 'weeklyChallengesLastReset';
+  const lastReset = localStorage.getItem(lastResetKey);
+  
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  
+  const thisMonday = new Date(now);
+  thisMonday.setDate(thisMonday.getDate() - daysFromMonday);
+  thisMonday.setHours(0, 0, 0, 0);
+  
+  if (!lastReset) {
+    localStorage.setItem(lastResetKey, thisMonday.toISOString());
+    return true;
+  }
+  
+  const lastResetDate = new Date(lastReset);
+  if (lastResetDate < thisMonday) {
+    localStorage.setItem(lastResetKey, thisMonday.toISOString());
+    return true;
+  }
+  
+  return false;
+};
+
 export default function DailyChallenges({ userId, initialLoading = false }: DailyChallengesProps) {
   const [dailyChallenges, setDailyChallenges] = useState<DailyChallenge[]>([]);
   const [weeklyChallenges, setWeeklyChallenges] = useState<WeeklyChallenge[]>([]);
   const [isLoading, setIsLoading] = useState(!initialLoading);
   const [error, setError] = useState<string | null>(null);
+  const [dailyResetTime, setDailyResetTime] = useState<string>('');
+  const [weeklyResetTime, setWeeklyResetTime] = useState<string>('');
 
+  // Update reset countdown timers
+  useEffect(() => {
+    const updateTimers = () => {
+      setDailyResetTime(getTimeUntilDailyReset());
+      setWeeklyResetTime(getTimeUntilWeeklyReset());
+    };
+    
+    updateTimers();
+    const timerInterval = setInterval(updateTimers, 60000); // Update every minute
+    
+    return () => clearInterval(timerInterval);
+  }, []);
+  
   useEffect(() => {
     if (!userId) {
       console.warn('⚠️ [DailyChallenges] No userId provided');
@@ -26,14 +124,28 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
     
     console.log('✅ [DailyChallenges] Component mounted with userId:', userId);
     
+    // Check for local time-based resets
+    const dailyNeedsReset = shouldResetDaily();
+    const weeklyNeedsReset = shouldResetWeekly();
+    
+    if (dailyNeedsReset) {
+      console.log('🔄 [DailyChallenges] Daily reset triggered based on local time');
+    }
+    if (weeklyNeedsReset) {
+      console.log('🔄 [DailyChallenges] Weekly reset triggered based on local time');
+    }
+    
     // Initial load
     loadChallenges();
     
-    // Auto-refresh challenges every 60 seconds - less aggressive to prevent tab resets
+    // Auto-refresh challenges every 60 seconds
     const refreshInterval = setInterval(() => {
-      console.log('🔄 [DailyChallenges] Auto-refreshing challenges...');
+      // Check if a reset should happen
+      if (shouldResetDaily() || shouldResetWeekly()) {
+        console.log('🔄 [DailyChallenges] Time-based reset detected, refreshing...');
+      }
       loadChallenges();
-    }, 60000); // Refresh every 60 seconds
+    }, 60000);
     
     // Refresh when window gains focus (user comes back to tab)
     const handleFocus = () => {
@@ -293,14 +405,18 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
           <h3 className="text-xl font-black text-white flex items-center gap-2">
             <ClockIcon className="w-6 h-6 text-blue-400" />
             Daily Challenges
-            <span className="text-sm font-normal text-gray-400 ml-2">(Resets Daily)</span>
           </h3>
-          <button
-            onClick={handleManualRefresh}
-            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            🔄 Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded-lg">
+              ⏰ Resets in {dailyResetTime}
+            </span>
+            <button
+              onClick={handleManualRefresh}
+              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              🔄
+            </button>
+          </div>
         </div>
         
         {error ? (
@@ -328,14 +444,18 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
           <h3 className="text-xl font-black text-white flex items-center gap-2">
             <CalendarIcon className="w-6 h-6 text-purple-400" />
             Weekly Challenges
-            <span className="text-sm font-normal text-gray-400 ml-2">(Resets Weekly)</span>
           </h3>
-          <button
-            onClick={handleManualRefresh}
-            className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-          >
-            🔄 Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-purple-400 bg-purple-500/20 px-2 py-1 rounded-lg">
+              ⏰ Resets in {weeklyResetTime}
+            </span>
+            <button
+              onClick={handleManualRefresh}
+              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              🔄
+            </button>
+          </div>
         </div>
         
         {weeklyChallenges.length === 0 ? (
