@@ -73,7 +73,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Instead, use rngSeed to initialize engine for runtime generation
   const rngConfig = null; // Disabled - using runtime RNG instead
   
-  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [gameState, setGameState] = useState<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('ready');
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
@@ -84,6 +84,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(5);
   const [hearts, setHearts] = useState(3); // Player has 3 hearts
+  const [hasControl, setHasControl] = useState(false); // Track if player clicked on ship
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
@@ -1162,13 +1163,24 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState]);
 
-  // Start game
+  // Start game - go to waiting state first
   const handleStartGame = () => {
     // Unlock audio on user interaction (clicking start)
     unlockAudio();
     
-    setCountdown(5);
-    setGameState('countdown');
+    // Reset ship to center
+    setShip({ x: 50, y: 50 });
+    setHasControl(false);
+    setGameState('waiting');
+  };
+  
+  // Handle clicking on ship to take control
+  const handleShipClick = () => {
+    if (gameState === 'waiting' && !hasControl) {
+      setHasControl(true);
+      setCountdown(5);
+      setGameState('countdown');
+    }
   };
 
   const handleCountdownComplete = () => {
@@ -1426,6 +1438,100 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Waiting state - player must click on ship to start
+  if (gameState === 'waiting') {
+    return (
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 overflow-hidden"
+        style={{ touchAction: 'none' }}
+      >
+        {/* Stars background */}
+        <div className="absolute inset-0">
+          {Array.from({ length: 60 }, (_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+              style={{
+                left: `${(i * 137) % 100}%`,
+                top: `${(i * 211) % 100}%`,
+                animationDelay: `${i * 0.05}s`
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Instruction overlay */}
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-4 border-2 border-green-500 animate-pulse">
+            <p className="text-green-400 text-xl sm:text-2xl font-bold text-center">
+              🎯 TAP THE SHIP TO START! 🎯
+            </p>
+            <p className="text-gray-300 text-sm text-center mt-2">
+              Click/tap on your ship to link controls
+            </p>
+          </div>
+        </div>
+        
+        {/* Ship in center - clickable */}
+        <div
+          className="absolute cursor-pointer transition-transform hover:scale-110"
+          style={{
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20,
+          }}
+          onClick={handleShipClick}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            handleShipClick();
+          }}
+        >
+          {/* Pulsing ring around ship */}
+          <div
+            className="absolute rounded-full border-4 border-green-400 animate-ping"
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '80px',
+              height: '80px',
+            }}
+          />
+          <div
+            className="absolute rounded-full border-2 border-green-400"
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '60px',
+              height: '60px',
+              backgroundColor: 'rgba(34, 197, 94, 0.2)',
+              boxShadow: '0 0 20px rgba(34, 197, 94, 0.5), inset 0 0 20px rgba(34, 197, 94, 0.3)',
+            }}
+          />
+          {/* Ship sprite */}
+          <div
+            className="w-12 h-12"
+            style={{
+              backgroundImage: 'url("/SHIP.png")',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              filter: 'drop-shadow(0 0 15px rgba(34, 197, 94, 0.8))',
+            }}
+          />
+        </div>
+        
+        {/* Title */}
+        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-orange-400 mb-2">🔥 LASER DODGE 🔥</h1>
+          <p className="text-gray-400 text-sm sm:text-base">Dodge lasers, destroy enemies, survive!</p>
+        </div>
       </div>
     );
   }
