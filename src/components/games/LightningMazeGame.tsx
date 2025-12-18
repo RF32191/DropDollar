@@ -1124,6 +1124,23 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           // Apply rotation to lightning bolt
           if (lightningRef.current) {
             lightningRef.current.rotation.y = currentRotationRef.current;
+            
+            // Tilt bolt based on movement direction (horizontal vs vertical)
+            // When moving along X axis (left/right), lay flat; when moving along Z axis (up/down), stand upright
+            const horizontalAmount = Math.abs(direction.x);
+            const verticalAmount = Math.abs(direction.z);
+            
+            // Calculate target X tilt - 0 when moving in Z, PI/2 when moving in X
+            let targetXTilt = 0;
+            if (horizontalAmount > 0.1 || verticalAmount > 0.1) {
+              // Blend between upright (0) and flat (PI/2) based on X vs Z movement
+              targetXTilt = (horizontalAmount / (horizontalAmount + verticalAmount + 0.001)) * (Math.PI / 2);
+            }
+            
+            // Smoothly interpolate X rotation
+            const currentXTilt = lightningRef.current.rotation.x;
+            const xTiltDiff = targetXTilt - currentXTilt;
+            lightningRef.current.rotation.x += xTiltDiff * Math.min(1, deltaTime * 6);
           }
           
           const newPos = currentPos.clone().addScaledVector(direction, moveAmount);
