@@ -76,6 +76,11 @@ const LightningMazeGame = dynamic(() => import('@/components/games/LightningMaze
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Lightning Maze" color="cyan" />
 });
+
+const FlappyCoinGame = dynamic(() => import('@/components/games/FlappyCoinGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Flappy Coin" color="yellow" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -112,7 +117,8 @@ import {
   ShieldCheckIcon,
   BoltIcon,
   ShieldExclamationIcon,
-  BanknotesIcon
+  BanknotesIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -225,6 +231,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Navigation', 'Speed', 'Awareness', 'Precision'],
     component: LightningMazeGame
+  },
+  {
+    id: 'flappy-coin',
+    name: 'Flappy Coin',
+    description: 'Tap to make the spinning coin fly through grabbing hands! A 3D twist on the classic!',
+    icon: CurrencyDollarIcon,
+    difficulty: 'Medium',
+    avgTime: '60s',
+    skills: ['Timing', 'Reflexes', 'Precision', 'Focus'],
+    component: FlappyCoinGame
   }
 ];
 
