@@ -184,8 +184,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const sensitivity = 3.0;
     
     // Calculate new position
+    // Tilt right (positive gamma) = move right
+    // Tilt forward (positive beta) = move DOWN (forward on screen)
     let newX = 50 + (deltaGamma * sensitivity);
-    let newY = 50 - (deltaBeta * sensitivity);
+    let newY = 50 + (deltaBeta * sensitivity);
     
     // Clamp to game bounds
     newX = Math.max(5, Math.min(95, newX));

@@ -81,6 +81,11 @@ const FlappyCoinGame = dynamic(() => import('@/components/games/FlappyCoinGame')
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Flippy Coin" color="yellow" />
 });
+
+const ParryProGame = dynamic(() => import('@/components/games/ParryProGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Parry Pro" color="red" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -241,6 +246,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Timing', 'Reflexes', 'Precision', 'Focus'],
     component: FlappyCoinGame
+  },
+  {
+    id: 'parry-pro',
+    name: 'Parry Pro',
+    description: 'Master the art of the perfect parry! Time your blocks against sword strikes in this 3D combat game!',
+    icon: ShieldExclamationIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Timing', 'Reflexes', 'Focus', 'Pattern Recognition'],
+    component: ParryProGame
   }
 ];
 
