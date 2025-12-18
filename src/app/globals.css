@@ -171,31 +171,34 @@
   height: 2px;
   background: white;
   border-radius: 50%;
-  box-shadow: 0 0 6px white, 0 0 12px white, 0 0 18px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 6px white, 0 0 12px white;
   animation: star-scroll linear infinite;
-  animation-duration: var(--star-duration, 3s);
+  animation-duration: var(--star-duration, 6s);
   left: var(--star-left, 50%);
   top: 100vh;
   z-index: 1;
   will-change: transform, opacity;
+  contain: layout style;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .star-wars-star.small {
   width: 1px;
   height: 1px;
-  box-shadow: 0 0 3px white, 0 0 6px white, 0 0 9px rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 3px white, 0 0 6px rgba(255, 255, 255, 0.5);
 }
 
 .star-wars-star.medium {
   width: 2px;
   height: 2px;
-  box-shadow: 0 0 6px white, 0 0 12px white, 0 0 18px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 5px white, 0 0 10px rgba(255, 255, 255, 0.6);
 }
 
 .star-wars-star.large {
   width: 3px;
   height: 3px;
-  box-shadow: 0 0 8px white, 0 0 16px white, 0 0 24px rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 6px white, 0 0 12px rgba(255, 255, 255, 0.7);
 }
 
 /* Red/Amber Stars for Hot Sell Page - SMOOTH NO FLICKER */

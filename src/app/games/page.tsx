@@ -1,60 +1,81 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import MultiTargetGame from '@/components/games/MultiTargetGame';
-import FallingObjectGame from '@/components/games/FallingObjectGame';
-import ColorSequenceGame from '@/components/games/ColorSequenceGame';
-import LaserDodgeGame from '@/components/games/LaserDodgeGame';
-import QuickClickGame from '@/components/games/QuickClickGame';
-import SwordParryGame from '@/components/games/SwordParryGameSimple';
-import BladeBounceGame from '@/components/games/BladeBounceGame';
-import CashStackGame from '@/components/games/CashStackGame';
-import PennyPasserGame from '@/components/games/PennyPasserGame';
 
-// Dynamically import DeadShotGame to avoid SSR issues with Three.js
-const DeadShotGame = dynamic(
-  () => import('@/components/games/DeadShotGame').then(mod => {
-    console.log('✅ [DeadShot] Module loaded successfully');
-    return mod;
-  }).catch(err => {
-    console.error('❌ [DeadShot] Failed to load module:', err);
-    throw err;
-  }),
-  { 
-    ssr: false, 
-    loading: () => (
-      <div className="w-full h-screen flex items-center justify-center bg-[#8B0000]">
-        <div className="text-white text-4xl font-bold animate-pulse">
-          Loading DeadShot...
-        </div>
+// Game loading skeleton component
+const GameLoadingSkeleton = ({ name, color = 'purple' }: { name: string; color?: string }) => (
+  <div className={`w-full h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-black`}>
+    <div className="text-center">
+      <div className={`text-${color}-400 text-3xl sm:text-4xl font-bold animate-pulse mb-4`}>
+        🎮 Loading {name}...
       </div>
-    )
-  }
+      <div className="flex justify-center gap-1">
+        <div className={`w-3 h-3 bg-${color}-500 rounded-full animate-bounce`} style={{ animationDelay: '0ms' }} />
+        <div className={`w-3 h-3 bg-${color}-500 rounded-full animate-bounce`} style={{ animationDelay: '150ms' }} />
+        <div className={`w-3 h-3 bg-${color}-500 rounded-full animate-bounce`} style={{ animationDelay: '300ms' }} />
+      </div>
+    </div>
+  </div>
 );
 
-// Dynamically import LightningMazeGame to avoid SSR issues with Three.js
-const LightningMazeGame = dynamic(
-  () => import('@/components/games/LightningMazeGame').then(mod => {
-    console.log('✅ [LightningMaze] Module loaded successfully');
-    return mod;
-  }).catch(err => {
-    console.error('❌ [LightningMaze] Failed to load module:', err);
-    throw err;
-  }),
-  { 
-    ssr: false, 
-    loading: () => (
-      <div className="w-full h-screen flex items-center justify-center bg-black">
-        <div className="text-cyan-400 text-4xl font-bold animate-pulse">
-          ⚡ Loading Lightning Maze...
-        </div>
-      </div>
-    )
-  }
-);
+// Dynamically import ALL game components to improve initial load time
+const MultiTargetGame = dynamic(() => import('@/components/games/MultiTargetGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Multi-Target" color="blue" />
+});
+
+const FallingObjectGame = dynamic(() => import('@/components/games/FallingObjectGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Falling Objects" color="green" />
+});
+
+const ColorSequenceGame = dynamic(() => import('@/components/games/ColorSequenceGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Color Sequence" color="pink" />
+});
+
+const LaserDodgeGame = dynamic(() => import('@/components/games/LaserDodgeGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Laser Dodge" color="orange" />
+});
+
+const QuickClickGame = dynamic(() => import('@/components/games/QuickClickGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Quick Click" color="green" />
+});
+
+const SwordParryGame = dynamic(() => import('@/components/games/SwordParryGameSimple'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Sword Parry" color="red" />
+});
+
+const BladeBounceGame = dynamic(() => import('@/components/games/BladeBounceGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Blade Bounce" color="cyan" />
+});
+
+const CashStackGame = dynamic(() => import('@/components/games/CashStackGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Cash Stack" color="yellow" />
+});
+
+const PennyPasserGame = dynamic(() => import('@/components/games/PennyPasserGame'), {
+  ssr: false,
+  loading: () => <GameLoadingSkeleton name="Coin Sorter" color="amber" />
+});
+
+const DeadShotGame = dynamic(() => import('@/components/games/DeadShotGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="DeadShot" color="red" />
+});
+
+const LightningMazeGame = dynamic(() => import('@/components/games/LightningMazeGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Lightning Maze" color="cyan" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -255,7 +276,7 @@ export default function GamesPage() {
   const deviceInfo = useDeviceDetection();
   const responsiveClasses = getResponsiveClasses(deviceInfo);
   
-  // Generate Star Wars scrolling stars - Travel all the way up
+  // Generate Star Wars scrolling stars - Optimized for smooth loading
   useEffect(() => {
     const starsContainer = document.getElementById('stars-container');
     if (!starsContainer) return;
@@ -263,52 +284,66 @@ export default function GamesPage() {
     // Clear existing stars
     starsContainer.innerHTML = '';
     
-    // Generate more stars for continuous effect
-    const starCount = 150; // More stars for better coverage
-    for (let i = 0; i < starCount; i++) {
-      const star = document.createElement('div');
-      const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
-      const left = Math.random() * 100;
-      const duration = 4 + Math.random() * 6; // 4-10 seconds for slower, more visible travel
-      const delay = Math.random() * 3; // Longer delay range
-      const xOffset = (Math.random() - 0.5) * 300; // More horizontal drift
+    // Use requestIdleCallback or setTimeout for non-blocking star generation
+    const generateStars = () => {
+      // Reduced initial star count for faster load
+      const starCount = 60;
+      const fragment = document.createDocumentFragment(); // Batch DOM operations
       
-      star.className = `star-wars-star ${size}`;
-      star.style.setProperty('--star-left', `${left}%`);
-      star.style.setProperty('--star-duration', `${duration}s`);
-      star.style.setProperty('--star-x', `${xOffset}px`);
-      star.style.animationDelay = `${delay}s`;
-      
-      starsContainer.appendChild(star);
-    }
-    
-    // Continuously regenerate stars for infinite scroll
-    const regenerateInterval = setInterval(() => {
-      // Add a few new stars periodically
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
         const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
         const left = Math.random() * 100;
-        const duration = 4 + Math.random() * 6;
-        const delay = 0;
-        const xOffset = (Math.random() - 0.5) * 300;
+        const duration = 6 + Math.random() * 8; // Slower animation = smoother
+        const delay = Math.random() * 5; // Staggered start
+        const xOffset = (Math.random() - 0.5) * 200;
         
         star.className = `star-wars-star ${size}`;
-        star.style.setProperty('--star-left', `${left}%`);
-        star.style.setProperty('--star-duration', `${duration}s`);
-        star.style.setProperty('--star-x', `${xOffset}px`);
-        star.style.animationDelay = `${delay}s`;
+        star.style.cssText = `--star-left:${left}%;--star-duration:${duration}s;--star-x:${xOffset}px;animation-delay:${delay}s;will-change:transform,opacity;`;
         
-        starsContainer.appendChild(star);
+        fragment.appendChild(star);
       }
-    }, 2000); // Add new stars every 2 seconds
+      
+      starsContainer.appendChild(fragment);
+    };
     
-    // Cleanup
-    return () => {
-      clearInterval(regenerateInterval);
-      if (starsContainer) {
-        starsContainer.innerHTML = '';
+    // Defer star generation to after initial paint
+    const timeoutId = setTimeout(generateStars, 100);
+    
+    // Regenerate fewer stars less frequently
+    const regenerateInterval = setInterval(() => {
+      if (!starsContainer) return;
+      
+      // Limit max stars to prevent memory issues
+      const maxStars = 80;
+      if (starsContainer.children.length > maxStars) {
+        // Remove oldest stars
+        while (starsContainer.children.length > maxStars - 5) {
+          starsContainer.removeChild(starsContainer.firstChild!);
+        }
       }
+      
+      // Add fewer new stars
+      const fragment = document.createDocumentFragment();
+      for (let i = 0; i < 5; i++) {
+        const star = document.createElement('div');
+        const size = Math.random() < 0.6 ? 'small' : Math.random() < 0.9 ? 'medium' : 'large';
+        const left = Math.random() * 100;
+        const duration = 6 + Math.random() * 8;
+        const xOffset = (Math.random() - 0.5) * 200;
+        
+        star.className = `star-wars-star ${size}`;
+        star.style.cssText = `--star-left:${left}%;--star-duration:${duration}s;--star-x:${xOffset}px;will-change:transform,opacity;`;
+        
+        fragment.appendChild(star);
+      }
+      starsContainer.appendChild(fragment);
+    }, 4000); // Less frequent regeneration
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(regenerateInterval);
+      if (starsContainer) starsContainer.innerHTML = '';
     };
   }, []);
 
@@ -477,9 +512,17 @@ export default function GamesPage() {
   const [isLoadingScores, setIsLoadingScores] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
+  const [pageLoaded, setPageLoaded] = useState(false); // For smooth page load animation
   
   // Enable fullscreen mode when game is active
   const fullscreenRef = useFullscreenGame(isGameActive);
+  
+  // Trigger smooth page load animation
+  useEffect(() => {
+    // Small delay to allow critical content to render first
+    const timer = setTimeout(() => setPageLoaded(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Prevent back button navigation during active game
   usePreventBackNavigation(isGameActive, '/games');
@@ -1246,16 +1289,16 @@ export default function GamesPage() {
 
       {/* Main page content - only show when no game is active */}
       {!currentGame && (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-      {/* Star Wars Scrolling Stars Background - Travel all the way up behind everything */}
-      <div className="fixed inset-0 overflow-visible pointer-events-none" id="stars-container" style={{ zIndex: 0 }}>
-        {/* Stars will be generated by useEffect */}
+        <div className={`min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden transition-opacity duration-500 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
+      {/* Star Wars Scrolling Stars Background - Optimized with will-change */}
+      <div className="fixed inset-0 overflow-visible pointer-events-none" id="stars-container" style={{ zIndex: 0, contain: 'layout style paint' }}>
+        {/* Stars will be generated by useEffect after initial paint */}
       </div>
       
       {/* Clean Navigation */}
       <CleanNavigation variant="gradient" currentPage="games" />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10 transition-all duration-700 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Location Verification Banner */}
         {isAuthenticated && (
           <LocationBanner
