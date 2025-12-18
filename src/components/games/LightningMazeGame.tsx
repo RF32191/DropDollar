@@ -834,6 +834,41 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     };
     containerRef.current.addEventListener('click', handleClick);
 
+    // Touch handler for mobile - tap to start
+    const handleTouchStart = (event: TouchEvent) => {
+      event.preventDefault();
+      if (event.touches.length === 0) return;
+      
+      const touch = event.touches[0];
+      if (gameStateRef.current === 'waiting' && !hasControlRef.current) {
+        const rect = containerRef.current!.getBoundingClientRect();
+        const touchX = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+        const touchY = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(touchX, touchY), camera);
+        
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+        const intersectPoint = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersectPoint);
+        
+        if (intersectPoint) {
+          const dist = intersectPoint.distanceTo(lightningPositionRef.current);
+          if (dist < 6) { // Larger tap area for mobile
+            hasControlRef.current = true;
+            gameStateRef.current = 'playing';
+            setGameState('playing');
+            startTimeRef.current = Date.now();
+            
+            if (startMarkerRef.current) {
+              startMarkerRef.current.visible = false;
+            }
+          }
+        }
+      }
+    };
+    containerRef.current.addEventListener('touchstart', handleTouchStart, { passive: false });
+
     // Mouse movement
     const handleMouseMove = (event: MouseEvent) => {
       if (!containerRef.current || !hasControlRef.current || gameStateRef.current !== 'playing') return;
@@ -858,6 +893,34 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       }
     };
     containerRef.current.addEventListener('mousemove', handleMouseMove);
+
+    // Touch movement for mobile
+    const handleTouchMove = (event: TouchEvent) => {
+      event.preventDefault();
+      if (!containerRef.current || !hasControlRef.current || gameStateRef.current !== 'playing') return;
+      if (event.touches.length === 0) return;
+      
+      const touch = event.touches[0];
+      const rect = containerRef.current.getBoundingClientRect();
+      const touchX = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+      const touchY = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(touchX, touchY), camera);
+      
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+      const intersectPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersectPoint);
+      
+      if (intersectPoint) {
+        targetPositionRef.current = findClosestValidPosition(
+          intersectPoint.x,
+          intersectPoint.z,
+          lightningPositionRef.current
+        );
+      }
+    };
+    containerRef.current.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     // Animation loop
     const animate = (time: number) => {
@@ -1203,6 +1266,8 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       if (containerRef.current) {
         containerRef.current.removeEventListener('click', handleClick);
         containerRef.current.removeEventListener('mousemove', handleMouseMove);
+        containerRef.current.removeEventListener('touchstart', handleTouchStart);
+        containerRef.current.removeEventListener('touchmove', handleTouchMove);
       }
       renderer.dispose();
       if (containerRef.current && renderer.domElement) {

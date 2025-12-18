@@ -91,19 +91,19 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
   };
 
   return (
-    <header className={`${getHeaderStyles()} relative z-50 overflow-visible`}>
-      <div className="w-full px-2">
-        <div className="flex items-center justify-start h-16 gap-4">
-          {/* Logo - Against left edge */}
-          <Link href="/" className="flex items-center space-x-2 flex-shrink-0 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:rotate-12 group-hover:animate-pulse">
+    <header className={`${getHeaderStyles()} relative z-50 overflow-visible safe-area-inset`}>
+      <div className="w-full px-2 sm:px-4">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
+          {/* Logo - Left side */}
+          <Link href="/" className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 group min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-110 hover:rotate-12 group-hover:animate-pulse flex-shrink-0">
               <img 
                 src="/DropCoin.png" 
                 alt="DropDollar"
-                className="w-7 h-7 object-contain transition-transform duration-300 group-hover:scale-110"
+                className="w-5 h-5 sm:w-7 sm:h-7 object-contain transition-transform duration-300 group-hover:scale-110"
               />
             </div>
-            <span className="text-lg sm:text-xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient whitespace-nowrap">
+            <span className="text-sm sm:text-lg md:text-xl font-black bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient whitespace-nowrap truncate">
               DropDollar
             </span>
           </Link>
@@ -156,45 +156,47 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
             />
           </div>
 
-          {/* Mobile menu button */}
-          <div className="flex lg:hidden items-center space-x-2 ml-auto pr-2 flex-shrink-0 min-w-0 relative z-[100]">
+          {/* Mobile menu button - Always visible on mobile */}
+          <div className="flex lg:hidden items-center gap-1 sm:gap-2 flex-shrink-0 relative z-[100]">
             <UserMenu 
               variant={variant === 'light' ? 'light' : 'dark'}
               unreadMessageCount={unreadMessageCount}
             />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`p-3 rounded-xl transition-all duration-300 hover:scale-110 hover:rotate-12 group ${variant === 'light' ? 'text-gray-700 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200' : 'text-white hover:bg-gradient-to-r hover:from-white/10 hover:to-white/20'}`}
+              className={`p-2 sm:p-3 rounded-xl transition-all duration-300 hover:scale-110 group flex-shrink-0 ${variant === 'light' ? 'text-gray-700 bg-gray-100/50 hover:bg-gray-200' : 'text-white bg-white/10 hover:bg-white/20'}`}
+              aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
-                <XMarkIcon className="h-6 w-6 transition-all duration-300 rotate-180 group-hover:scale-125" />
+                <XMarkIcon className="h-6 w-6 sm:h-7 sm:w-7 transition-all duration-300" />
               ) : (
-                <Bars3Icon className="h-6 w-6 transition-all duration-300 group-hover:scale-125" />
+                <Bars3Icon className="h-6 w-6 sm:h-7 sm:w-7 transition-all duration-300" />
               )}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {/* Mobile Navigation Menu - Full width centered */}
         {mobileMenuOpen && (
-          <div className={`lg:hidden py-6 border-t ${variant === 'light' ? 'border-gray-200' : 'border-white/10'} animate-fade-in`}>
+          <div className={`lg:hidden py-4 border-t ${variant === 'light' ? 'border-gray-200' : 'border-white/10'} animate-fade-in max-h-[calc(100vh-4rem)] overflow-y-auto`}>
             {/* COIN PLAY BUTTON - Mobile */}
             <Link 
               href="/coin-play"
-              className="flex items-center justify-between mx-6 mb-4 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl shadow-lg border-2 border-amber-400/50"
+              className="flex items-center justify-between mx-4 mb-3 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl shadow-lg border-2 border-amber-400/50"
               onClick={() => setMobileMenuOpen(false)}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl animate-pulse">🪙</span>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl animate-pulse">🪙</span>
                 <div className="flex flex-col items-start">
-                  <span className="text-white font-black text-lg leading-tight">COIN PLAY</span>
-                  <span className="text-amber-100 font-bold text-sm leading-tight">25¢ Entry Fee!</span>
+                  <span className="text-white font-black text-base leading-tight">COIN PLAY</span>
+                  <span className="text-amber-100 font-bold text-xs leading-tight">25¢ Entry!</span>
                 </div>
               </div>
-              <span className="text-white text-2xl">→</span>
+              <span className="text-white text-xl">→</span>
             </Link>
 
-            <nav className="flex flex-col space-y-4">
+            {/* Navigation links grid for mobile - 2 columns for easier tapping */}
+            <nav className="grid grid-cols-2 gap-2 px-4">
               {navLinks.map((link) => {
                 const isActive = currentPage === link.href;
                 return (
@@ -202,16 +204,14 @@ export default function CleanNavigation({ variant = 'gradient', currentPage, unr
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`${getLinkStyles(isActive)} px-6 py-3 rounded-xl group relative overflow-hidden`}
+                    className={`flex items-center gap-2 px-3 py-3 rounded-xl group relative overflow-hidden ${
+                      isActive 
+                        ? 'bg-white/20 text-yellow-200 border border-yellow-300/30' 
+                        : 'bg-white/5 text-white/90 hover:bg-white/10 border border-transparent'
+                    } transition-all duration-200`}
                   >
-                    <span className="relative z-10 flex items-center">
-                      <span className="mr-3 text-xl transition-transform duration-300 group-hover:scale-125 group-hover:rotate-12">{link.emoji}</span>
-                      <span className="font-semibold tracking-wide transition-all duration-300 group-hover:tracking-wider">{link.label}</span>
-                    </span>
-                    {/* Animated background */}
-                    <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                    {/* Animated underline */}
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-yellow-400 to-orange-400 transition-all duration-300 group-hover:w-full"></span>
+                    <span className="text-lg">{link.emoji}</span>
+                    <span className="font-medium text-sm truncate">{link.label}</span>
                   </Link>
                 );
               })}
