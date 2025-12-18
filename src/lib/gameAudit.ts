@@ -209,7 +209,7 @@ export const GAME_TYPES = {
   FALLING_OBJECT: 'falling_object',
   DEAD_SHOT: 'dead_shot',
   LIGHTNING_MAZE: 'lightning_maze',
-  FLAPPY_COIN: 'flappy_coin',
+  FLIPPY_COIN: 'flippy_coin',
   ONE_V_ONE: 'one_v_one',
   WINNER_TAKES_ALL: 'winner_takes_all',
   HOT_SELL: 'hot_sell',

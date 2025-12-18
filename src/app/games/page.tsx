@@ -79,7 +79,7 @@ const LightningMazeGame = dynamic(() => import('@/components/games/LightningMaze
 
 const FlappyCoinGame = dynamic(() => import('@/components/games/FlappyCoinGame'), { 
   ssr: false, 
-  loading: () => <GameLoadingSkeleton name="Flappy Coin" color="yellow" />
+  loading: () => <GameLoadingSkeleton name="Flippy Coin" color="yellow" />
 });
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
@@ -234,8 +234,8 @@ const GAMES = [
   },
   {
     id: 'flappy-coin',
-    name: 'Flappy Coin',
-    description: 'Tap to make the spinning coin fly through grabbing hands! A 3D twist on the classic!',
+    name: 'Flippy Coin',
+    description: 'Tap to flip the spinning coin through grabbing hands! Classic arcade action in 3D!',
     icon: CurrencyDollarIcon,
     difficulty: 'Medium',
     avgTime: '60s',
