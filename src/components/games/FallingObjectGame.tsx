@@ -756,16 +756,19 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
 
   const getObjectStyle = (obj: FallingObject) => {
     const objType = OBJECT_TYPES.find(t => t.type === obj.type);
+    // Responsive size - use vmin for scaling, with min/max bounds
+    const responsiveSize = `clamp(${obj.size * 0.6}px, ${obj.size * 0.15}vmin, ${obj.size}px)`;
+    const responsiveFontSize = `clamp(${obj.size * 0.5}px, ${obj.size * 0.12}vmin, ${obj.size * 0.8}px)`;
     
     return {
       position: 'absolute' as const,
       left: `${obj.x}%`,
       top: `${obj.y}%`,
-      width: `${obj.size}px`,
-      height: `${obj.size}px`,
+      width: responsiveSize,
+      height: responsiveSize,
       transform: 'translate(-50%, -50%)',
       transition: 'none',
-      fontSize: `${obj.size * 0.8}px`, // Scale emoji with size
+      fontSize: responsiveFontSize, // Scale emoji with size
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -997,7 +1000,7 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 );
               })}
               
-              {/* Cash Case Paddle - LARGER - INSTANT MOVEMENT - GLOWING (Gold center, Blue off-center) */}
+              {/* Cash Case Paddle - RESPONSIVE - INSTANT MOVEMENT - GLOWING (Gold center, Blue off-center) */}
               <div
                 className={`absolute flex items-center justify-center ${
                   suitcaseGlow === 'gold' ? 'scale-110' : ''
@@ -1005,8 +1008,11 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 style={{
                   left: `${paddleX}%`,
                   top: '85%',
-                  width: '1100px', // Slightly bigger container
-                  height: '90px',
+                  width: '25%', // Responsive width - 25% of game area
+                  maxWidth: '480px', // Cap at desktop size
+                  minWidth: '120px', // Minimum size for mobile
+                  height: 'auto',
+                  aspectRatio: '5/1',
                   transform: 'translateX(-50%)',
                   transition: 'transform 0.15s, filter 0.15s', // ONLY animate glow, NOT position!
                   filter: suitcaseGlow === 'gold' 
@@ -1021,8 +1027,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                   src="/CashCase.PNG" 
                   alt="Cash Case" 
                   style={{
-                    width: '480px', // Slightly bigger suitcase (400px → 480px)
-                    height: '90px',
+                    width: '100%', // Fill container responsively
+                    height: '100%',
                     objectFit: 'contain',
                     filter: suitcaseGlow === 'gold'
                       ? 'brightness(1.6) saturate(1.6) drop-shadow(2px 2px 10px rgba(255,215,0,0.9))'

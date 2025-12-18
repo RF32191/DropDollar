@@ -460,8 +460,8 @@ export default function MultiTargetGame({ onGameEnd, onExit, listingId, entryNum
       style: {
         left: `${target.x}%`,
         top: `${target.y}%`,
-        width: `${target.size}px`,
-        height: `${target.size}px`,
+        width: `clamp(${target.size * 0.6}px, ${target.size * 0.12}vmin, ${target.size}px)`,
+        height: `clamp(${target.size * 0.6}px, ${target.size * 0.12}vmin, ${target.size}px)`,
         transform: 'translate(-50%, -50%)',
         animationDuration: target.isCorrect ? `${target.pulseSpeed}s` : undefined,
         boxShadow: target.isCorrect ? 

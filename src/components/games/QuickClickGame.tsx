@@ -735,7 +735,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           {gameState === 'flash' && currentRound === 4 && targetPosition && (
             <>
               <div
-                className="absolute w-16 h-16 bg-yellow-400 rounded-full border-4 border-yellow-200 animate-pulse shadow-lg"
+                className="absolute w-12 h-12 sm:w-16 sm:h-16 bg-yellow-400 rounded-full border-4 border-yellow-200 animate-pulse shadow-lg"
                 style={{
                   left: `${targetPosition.x}%`,
                   top: `${targetPosition.y}%`,
@@ -744,7 +744,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                 }}
               />
               <div
-                className="absolute w-8 h-8 bg-red-500 rounded-full border-2 border-red-300"
+                className="absolute w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full border-2 border-red-300"
                 style={{
                   left: `${targetPosition.x}%`,
                   top: `${targetPosition.y}%`,
@@ -758,7 +758,7 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
           {/* Show click position for bonus round */}
           {gameState === 'clicked' && currentRound === 4 && clickPosition && (
             <div
-              className="absolute w-4 h-4 bg-blue-400 rounded-full border-2 border-blue-200"
+              className="absolute w-3 h-3 sm:w-4 sm:h-4 bg-blue-400 rounded-full border-2 border-blue-200"
               style={{
                 left: `${clickPosition.x}%`,
                 top: `${clickPosition.y}%`,
