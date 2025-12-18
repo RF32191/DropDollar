@@ -90,6 +90,133 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioContextRef = useRef<AudioContext | null>(null); // For victory sound
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
+  
+  // Mobile/Gyroscope state
+  const [isMobile, setIsMobile] = useState(false);
+  const [gyroscopeEnabled, setGyroscopeEnabled] = useState(false);
+  const [gyroPermissionNeeded, setGyroPermissionNeeded] = useState(false);
+  const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
+  const gyroListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
+  const mousePosRef = useRef<MousePosition>({ x: 50, y: 50, angle: 0 });
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768 || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobile(mobile);
+      console.log('⚔️ [SwordParry] Mobile detected:', mobile);
+      
+      // Check if iOS requires permission
+      if (mobile && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        setGyroPermissionNeeded(true);
+        console.log('⚔️ [SwordParry] iOS gyro permission needed');
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Gyroscope handler function
+  const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
+    if (!isGameRunningRef.current) return;
+    
+    const beta = event.beta ?? 0;
+    const gamma = event.gamma ?? 0;
+    
+    // Set initial position on first reading
+    if (!gyroBaseRef.current) {
+      gyroBaseRef.current = { beta, gamma };
+      console.log('⚔️ [SwordParry] Gyro base set:', gyroBaseRef.current);
+      return;
+    }
+    
+    // Calculate delta from neutral position
+    const deltaBeta = beta - gyroBaseRef.current.beta;
+    const deltaGamma = gamma - gyroBaseRef.current.gamma;
+    
+    // Higher sensitivity for more responsive movement
+    const sensitivity = 2.5;
+    
+    // Calculate new position
+    // Tilt right (positive gamma) = move right
+    // Tilt forward (positive beta) = move DOWN (forward on screen)
+    let newX = 50 + (deltaGamma * sensitivity);
+    let newY = 50 + (deltaBeta * sensitivity);
+    
+    // Clamp to game bounds
+    newX = Math.max(5, Math.min(95, newX));
+    newY = Math.max(5, Math.min(95, newY));
+    
+    // Calculate angle based on movement direction
+    const angle = Math.atan2(newY - 50, newX - 50) * (180 / Math.PI);
+    
+    const newPos = { x: newX, y: newY, angle };
+    mousePosRef.current = newPos;
+    setMousePos(newPos);
+  }, []);
+  
+  // Request gyroscope permission (must be called from user gesture for iOS)
+  const requestGyroPermission = async () => {
+    console.log('⚔️ [SwordParry] Requesting gyro permission...');
+    
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        console.log('⚔️ [SwordParry] Gyro permission result:', permission);
+        if (permission === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation);
+          gyroListenerRef.current = handleOrientation;
+          setGyroscopeEnabled(true);
+          setGyroPermissionNeeded(false);
+          console.log('✅ [SwordParry] Gyroscope permission granted and enabled!');
+        }
+      } catch (error) {
+        console.warn('⚠️ [SwordParry] Gyroscope permission error:', error);
+      }
+    } else {
+      // Non-iOS - just enable directly
+      window.addEventListener('deviceorientation', handleOrientation);
+      gyroListenerRef.current = handleOrientation;
+      setGyroscopeEnabled(true);
+      console.log('✅ [SwordParry] Gyroscope enabled (no permission needed)');
+    }
+  };
+  
+  // Enable gyroscope for Android/non-permission devices when playing
+  useEffect(() => {
+    if (!isMobile || gameState !== 'playing') return;
+    if (gyroPermissionNeeded) return; // iOS needs button click
+    if (gyroscopeEnabled) return; // Already enabled
+    
+    // For Android and other devices, enable directly
+    window.addEventListener('deviceorientation', handleOrientation);
+    gyroListenerRef.current = handleOrientation;
+    setGyroscopeEnabled(true);
+    console.log('✅ [SwordParry] Gyroscope auto-enabled for Android');
+    
+    return () => {
+      if (gyroListenerRef.current) {
+        window.removeEventListener('deviceorientation', gyroListenerRef.current);
+      }
+    };
+  }, [isMobile, gameState, gyroPermissionNeeded, gyroscopeEnabled, handleOrientation]);
+  
+  // Reset gyro base when game starts
+  useEffect(() => {
+    if (gameState === 'playing') {
+      gyroBaseRef.current = null;
+    }
+  }, [gameState]);
+  
+  // Cleanup gyro listener
+  useEffect(() => {
+    return () => {
+      if (gyroListenerRef.current) {
+        window.removeEventListener('deviceorientation', gyroListenerRef.current);
+      }
+    };
+  }, []);
 
   // Audio unlock mechanism for browser autoplay restrictions
   const unlockAudio = useCallback(() => {
@@ -325,6 +452,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     if (gameState !== 'playing') return;
     
+    // Skip if gyroscope is handling movement
+    if (gyroscopeEnabled && isMobile) return;
+    
     const gameArea = gameAreaRef.current;
     if (!gameArea) return;
     
@@ -336,9 +466,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedX = Math.max(5, Math.min(95, x));
     const boundedY = Math.max(5, Math.min(95, y));
     
-    setMousePos({ x: boundedX, y: boundedY, angle });
+    const newPos = { x: boundedX, y: boundedY, angle };
+    mousePosRef.current = newPos;
+    setMousePos(newPos);
     lastMouseAngleRef.current = angle;
-  }, [gameState, calculateAngle, unlockAudio]);
+  }, [gameState, calculateAngle, unlockAudio, gyroscopeEnabled, isMobile]);
 
   // Handle mouse clicks for slashing
   const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -363,6 +495,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     event.preventDefault();
     if (gameState !== 'playing') return;
     
+    // Skip if gyroscope is handling movement
+    if (gyroscopeEnabled && isMobile) return;
+    
     const gameArea = gameAreaRef.current;
     if (!gameArea) return;
     
@@ -375,9 +510,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     const boundedX = Math.max(5, Math.min(95, x));
     const boundedY = Math.max(5, Math.min(95, y));
     
-    setMousePos({ x: boundedX, y: boundedY, angle });
+    const newPos = { x: boundedX, y: boundedY, angle };
+    mousePosRef.current = newPos;
+    setMousePos(newPos);
     lastMouseAngleRef.current = angle;
-  }, [gameState, calculateAngle]);
+  }, [gameState, calculateAngle, gyroscopeEnabled, isMobile]);
 
   const handleTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -385,9 +522,22 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     if (!audioUnlockedRef.current) {
       unlockAudio();
     }
+    
+    // Always trigger slash on tap (even with gyroscope)
     setIsSlashing(true);
-    handleTouchMove(event);
-  }, [handleTouchMove, unlockAudio]);
+    
+    // Only move if gyroscope is not handling movement
+    if (!gyroscopeEnabled || !isMobile) {
+      handleTouchMove(event);
+    }
+    
+    // Rotate sword on tap - quick rotation animation
+    const currentAngle = mousePosRef.current.angle;
+    const newAngle = currentAngle + 90; // Rotate 90 degrees on tap
+    const newPos = { ...mousePosRef.current, angle: newAngle };
+    mousePosRef.current = newPos;
+    setMousePos(newPos);
+  }, [handleTouchMove, unlockAudio, gyroscopeEnabled, isMobile]);
 
   const handleTouchEnd = useCallback(() => {
     setIsSlashing(false);
@@ -875,6 +1025,30 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
+            {/* iOS Gyroscope Permission Button */}
+            {isMobile && gyroPermissionNeeded && !gyroscopeEnabled && (
+              <div className="mb-4">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestGyroPermission();
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg border-2 border-purple-400 pointer-events-auto"
+                >
+                  <p className="text-lg">📱 Enable Tilt Controls</p>
+                  <p className="text-xs opacity-80">Tilt phone to move sword</p>
+                </button>
+              </div>
+            )}
+            
+            {/* Gyroscope enabled indicator */}
+            {isMobile && gyroscopeEnabled && (
+              <div className="w-full mb-4 bg-green-600/50 text-white font-bold py-3 px-6 rounded-xl border-2 border-green-400 text-center">
+                <p className="text-lg">✅ Tilt Controls Active!</p>
+                <p className="text-xs opacity-80">Tilt phone to move • Tap to slash</p>
+              </div>
+            )}
+            
             {!isCompetitionMode && onExit && (
               <div className="flex justify-center gap-4">
                 <button
@@ -1125,7 +1299,11 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
             </div>
 
             <div className="text-sm text-gray-600 text-center">
-              <strong>Desktop:</strong> Move mouse to control sword, CLICK to slash attacks • <strong>Mobile:</strong> Touch and drag, TAP to slash
+              {isMobile && gyroscopeEnabled ? (
+                <span className="text-green-600">📱 <strong>Tilt phone</strong> to move sword • <strong>TAP</strong> to slash & rotate sword</span>
+              ) : (
+                <span><strong>Desktop:</strong> Move mouse to control sword, CLICK to slash attacks • <strong>Mobile:</strong> Touch and drag, TAP to slash</span>
+              )}
             </div>
           </div>
         )}
