@@ -1646,15 +1646,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             handleShipClick();
           }}
         >
-          {/* Pulsing ring around ship */}
+          {/* Pulsing ring around ship - consistent sizing */}
           <div
             className="absolute rounded-full border-4 border-green-400 animate-ping"
             style={{
               left: '50%',
               top: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '80px',
-              height: '80px',
+              width: '56px',
+              height: '56px',
             }}
           />
           <div
@@ -1663,15 +1663,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               left: '50%',
               top: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '60px',
-              height: '60px',
+              width: '48px',
+              height: '48px',
               backgroundColor: 'rgba(34, 197, 94, 0.2)',
               boxShadow: '0 0 20px rgba(34, 197, 94, 0.5), inset 0 0 20px rgba(34, 197, 94, 0.3)',
             }}
           />
-          {/* Ship sprite */}
+          {/* Ship sprite - same size as gameplay */}
           <div
-            className="w-12 h-12"
+            className="w-8 h-8"
             style={{
               backgroundImage: 'url("/SHIP.png")',
               backgroundSize: 'contain',
@@ -1813,9 +1813,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 ))}
               </div>
 
-              {/* Horizontal Lasers - Thicker on mobile */}
+              {/* Horizontal Lasers - Same size on all devices */}
               {lasers.filter(l => l.type === 'horizontal').map((laser) => (
-                <div key={laser.id} className={`absolute w-full ${isMobile ? 'h-6' : 'h-4'}`} style={{
+                <div key={laser.id} className="absolute w-full h-4" style={{
                   left: '0%',
                   top: `${laser.position}%`,
                   transform: 'translateY(-50%)'
@@ -1848,9 +1848,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
 
-              {/* Vertical Lasers - Thicker on mobile */}
+              {/* Vertical Lasers - Same size on all devices */}
               {lasers.filter(l => l.type === 'vertical').map((laser) => (
-                <div key={laser.id} className={`absolute h-full ${isMobile ? 'w-6' : 'w-4'}`} style={{
+                <div key={laser.id} className="absolute h-full w-4" style={{
                   left: `${laser.position}%`,
                   top: '0%',
                   transform: 'translateX(-50%)'
@@ -1883,11 +1883,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
               
-              {/* Enemy Ships - Larger on mobile */}
+              {/* Enemy Ships - Same size on all devices */}
               {enemyShips.map((enemy) => (
                 <div
                   key={enemy.id}
-                  className={isMobile ? "absolute w-10 h-10" : "absolute w-6 h-6"}
+                  className="absolute w-6 h-6"
                   style={{
                     left: `${enemy.x}%`,
                     top: `${enemy.y}%`,
@@ -1950,7 +1950,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 );
               })}
 
-              {/* Ship - Using SHIP.png - Larger on mobile */}
+              {/* Ship - Using SHIP.png - Same size on all devices */}
               <div
                 className="absolute"
                 style={{
@@ -1967,8 +1967,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     left: '50%',
                     top: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: isMobile ? '48px' : '32px',
-                    height: isMobile ? '48px' : '32px',
+                    width: '32px',
+                    height: '32px',
                     borderColor: 'rgba(173, 216, 230, 0.6)',
                     backgroundColor: 'rgba(173, 216, 230, 0.15)',
                     boxShadow: '0 0 8px rgba(173, 216, 230, 0.5), inset 0 0 8px rgba(173, 216, 230, 0.3)',
@@ -1976,9 +1976,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     zIndex: 9,
                   }}
                 />
-                {/* Ship sprite - larger on mobile */}
+                {/* Ship sprite - same size on all devices */}
                 <div
-                  className={isMobile ? "absolute w-12 h-12" : "absolute w-8 h-8"}
+                  className="absolute w-8 h-8"
                   style={{
                     left: '50%',
                     top: '50%',
