@@ -946,13 +946,16 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   // Keyboard handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'KeyP') {
+      // Parry: Space, P, or Up Arrow
+      if (e.code === 'Space' || e.code === 'KeyP' || e.code === 'ArrowUp') {
         e.preventDefault();
         handleParry();
-      } else if (e.code === 'KeyD' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      // Dodge: D, Shift, or Left Arrow
+      } else if (e.code === 'KeyD' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'ArrowLeft') {
         e.preventDefault();
         handleDodge();
-      } else if (e.code === 'KeyS' || e.code === 'KeyX' || e.code === 'Enter') {
+      // Strike: S, X, Enter, or Right Arrow
+      } else if (e.code === 'KeyS' || e.code === 'KeyX' || e.code === 'Enter' || e.code === 'ArrowRight') {
         e.preventDefault();
         handleStrike();
       }
@@ -1057,7 +1060,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               >
                 <span className="text-3xl sm:text-4xl">💨</span>
                 <span className="text-white font-bold text-xs sm:text-sm">DODGE</span>
-                <span className="text-white/60 text-[10px] hidden sm:block">D / Shift</span>
+                <span className="text-white/60 text-[10px] hidden sm:block">← / D / Shift</span>
               </button>
               
               {/* Parry button (center, larger) */}
@@ -1073,7 +1076,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               >
                 <span className="text-4xl sm:text-5xl">⚔️</span>
                 <span className="text-white font-bold text-sm">PARRY</span>
-                <span className="text-white/60 text-xs hidden sm:block">Space / P</span>
+                <span className="text-white/60 text-xs hidden sm:block">↑ / Space / P</span>
               </button>
               
               {/* Strike button */}
@@ -1089,7 +1092,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               >
                 <span className="text-3xl sm:text-4xl">🗡️</span>
                 <span className="text-white font-bold text-xs sm:text-sm">STRIKE</span>
-                <span className="text-white/60 text-[10px] hidden sm:block">S / X / Enter</span>
+                <span className="text-white/60 text-[10px] hidden sm:block">→ / S / X</span>
               </button>
             </div>
           </div>
