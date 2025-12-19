@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQuickClickBonusHit, playRoundTransition, playGameEnd, playSwordMiss } from '@/lib/gameAudio';
 import { FairRNGService, QuickClickRNGConfig } from '@/lib/fairRNGService';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 interface GameResult {
   score: number;
@@ -81,6 +82,9 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
   const [countdown, setCountdown] = useState(3);
   const [flashStartTime, setFlashStartTime] = useState<number>(0);
   const [targetPosition, setTargetPosition] = useState<{x: number, y: number} | null>(null);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
   const [clickPosition, setClickPosition] = useState<{x: number, y: number} | null>(null);
   
   const flashTimeoutRef = useRef<NodeJS.Timeout>();
@@ -324,6 +328,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         // Base score + accuracy decimal (e.g., 500.87 where .87 is from 87% accuracy)
         roundScore = Number((speedScore * accuracyMultiplier + (accuracy / 100)).toFixed(2));
         console.log(`🎯 Bonus scoring: Speed=${speedScore}, AccuracyMult=${accuracyMultiplier.toFixed(2)}, Total=${roundScore}`);
+        
+        // CoD-style floating score popup for bonus round
+        const popupType = accuracy >= 90 ? 'perfect' : accuracy >= 70 ? 'bonus' : 'normal';
+        const label = accuracy >= 90 ? 'PERFECT!' : accuracy >= 70 ? 'GREAT!' : 'HIT';
+        addPopup(Math.round(roundScore), targetPosition?.x || 50, targetPosition?.y || 50, popupType, label);
       } else {
         // NORMAL ROUND SCORING: Faster click = higher points WITH DECIMALS!
         // Base: 1000 - reactionTime
@@ -333,6 +342,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
         const timingDecimal = (reactionTime % 100) / 100;
         roundScore = Number((baseScore + timingDecimal).toFixed(2));
         console.log(`⚡ Round ${currentRound} scoring: ${reactionTime}ms = ${roundScore} points`);
+        
+        // CoD-style floating score popup for normal round
+        const popupType = reactionTime < 200 ? 'perfect' : reactionTime < 350 ? 'bonus' : 'normal';
+        const label = reactionTime < 200 ? 'LIGHTNING!' : reactionTime < 350 ? 'FAST!' : 'CLICK';
+        addPopup(Math.round(roundScore), 50, 50, popupType, label);
       }
       
       // Play success sound based on performance
@@ -633,6 +647,9 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-0">
+      {/* CoD-style floating score popups */}
+      <FloatingScore popups={popups} onRemove={removePopup} />
+      
       <div className="bg-gradient-to-br from-gray-900 via-black to-gray-900 rounded-none p-3 sm:p-6 w-full h-full overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-2 gap-2 flex-shrink-0">

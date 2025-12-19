@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
 import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd, playShootSound, playExplosionSound, playEnemyHitSound } from '@/lib/gameAudio';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
 console.log('');
@@ -85,6 +86,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [countdown, setCountdown] = useState(5);
   const [hearts, setHearts] = useState(3); // Player has 3 hearts
   const [hasControl, setHasControl] = useState(false); // Track if player clicked on ship
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
+  const addPopupRef = useRef(addPopup);
+  addPopupRef.current = addPopup;
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const gameStartTimeRef = useRef<number>(0);
@@ -572,6 +578,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         );
         
         console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points! Total instant bonuses:', instantBonusRef.current);
+        
+        // CoD-style floating score popup
+        addPopupRef.current(200, currentShip.x, currentShip.y, 'bonus', 'LASER BONUS');
       }
     }
     
@@ -979,6 +988,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             // Award points immediately - add to ref that persists across frames (like blue laser bonus)
             enemyDestroyedPointsRef.current += 100; // Add 100 points IMMEDIATELY and PERMANENTLY
             console.log('LaserDodge: 💥 Enemy destroyed! +100 points! Total enemy points:', enemyDestroyedPointsRef.current);
+            
+            // CoD-style floating score popup
+            addPopupRef.current(100, enemy.x, enemy.y, 'critical', 'KILL');
             
             // Force immediate score update
             const currentBaseScore = Number((timeSinceStart / 50).toFixed(2));
@@ -1817,6 +1829,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       </div>
 
       {gameState === 'playing' && (
+        <>
+        {/* CoD-style floating score popups */}
+        <FloatingScore popups={popups} onRemove={removePopup} />
+        
         <div className="absolute inset-0">
           {/* Game Area - Full Screen */}
           <div className="w-full h-full relative">
@@ -2016,6 +2032,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
           </div>
         </div>
+        </>
       )}
     </div>
   );

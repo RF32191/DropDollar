@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 interface CoinSorterGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
@@ -121,6 +122,9 @@ export default function PennyPasserGame3D({
   const [countdown, setCountdown] = useState(3);
   const [combo, setCombo] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
   
   const scoreRef = useRef(0);
   const coinsRef = useRef<Coin[]>([]);
@@ -921,6 +925,13 @@ export default function PennyPasserGame3D({
       scoreRef.current += points;
       setScore(scoreRef.current);
       
+      // CoD-style floating score popup - calculate screen position from quadrant
+      const quadrantX = quadrant === 'cyan' || quadrant === 'purple' ? 25 : 75;
+      const quadrantY = quadrant === 'cyan' || quadrant === 'green' ? 25 : 75;
+      const popupType = isPerfectPlacement ? 'perfect' : comboRef.current >= 3 ? 'combo' : isExactCenter ? 'bonus' : 'normal';
+      const label = isPerfectPlacement ? 'PERFECT!' : comboRef.current > 1 ? `${comboRef.current}x COMBO` : isExactCenter ? 'CENTER!' : 'SORTED';
+      addPopup(points, quadrantX, quadrantY, popupType, label);
+      
       // Visual feedback - coin disappears with effect
       if (coin.mesh) {
         const originalScale = coin.mesh.scale.clone();
@@ -1405,6 +1416,9 @@ export default function PennyPasserGame3D({
 
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden bg-gray-900">
+      {/* CoD-style floating score popups */}
+      {gameState === 'playing' && <FloatingScore popups={popups} onRemove={removePopup} />}
+      
       <div 
         ref={containerRef}
         className="w-full h-full"

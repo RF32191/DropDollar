@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 import * as THREE from 'three';
 import { logGameCompletion } from '@/lib/gameAudit';
 import { GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
@@ -107,6 +108,11 @@ export default function DeadShotGame({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hearts, setHearts] = useState(3);
   const [laserShotsRemaining, setLaserShotsRemaining] = useState(0);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
+  const addPopupRef = useRef(addPopup);
+  addPopupRef.current = addPopup;
   
   // Sync gameState and hearts to refs for animation loop
   useEffect(() => {
@@ -1254,6 +1260,11 @@ export default function DeadShotGame({
             setScore(currentScoreRef.current);
             setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
             
+            // CoD-style floating score popup
+            const popupType = ship.type === 'legendary' ? 'perfect' : ship.type === 'epic' ? 'bonus' : comboRef.current >= 3 ? 'combo' : 'critical';
+            const label = comboRef.current > 1 ? `${comboRef.current}x COMBO` : 'KILL';
+            addPopupRef.current(totalPoints, (ship.x / 12 + 0.5) * 100, (ship.y / 9 + 0.5) * 100, popupType, label);
+            
             // BRIGHT RED GLOW when enemy is hit
             if (ship.capsid.material instanceof THREE.MeshStandardMaterial) {
               const originalEmissive = ship.capsid.material.emissive.getHex();
@@ -1378,6 +1389,10 @@ export default function DeadShotGame({
               totalHitsRef.current++;
               setScore(currentScoreRef.current);
               setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
+              
+              // CoD-style floating score popup for leg hit
+              const legLabel = ship.legsDestroyed >= 4 ? 'ALL LEGS!' : 'LEG HIT';
+              addPopupRef.current(legPoints + allLegsBonus, (ship.legs[leg].x / 12 + 0.5) * 100, (ship.legs[leg].y / 9 + 0.5) * 100, allLegsBonus > 0 ? 'bonus' : 'normal', legLabel);
               
               // Remove arrow
               sceneRef.current.remove(arrow.group);
@@ -1924,6 +1939,9 @@ export default function DeadShotGame({
               setScore(currentScoreRef.current);
               setAccuracy((totalHitsRef.current / totalShotsRef.current) * 100);
               
+              // CoD-style floating score popup for white dot
+              addPopupRef.current(whiteDotPoints + skillShotBonus, (projectile.x / 12 + 0.5) * 100, (projectile.y / 9 + 0.5) * 100, 'perfect', 'SKILL SHOT');
+              
               // Remove white dot from amoeba
               if (projectile.mesh instanceof THREE.Group) {
                 projectile.mesh.remove(hitWhiteDot.mesh);
@@ -2050,6 +2068,9 @@ export default function DeadShotGame({
             currentScoreRef.current += laserBonus;
             setScore(currentScoreRef.current);
             
+            // CoD-style floating score popup
+            addPopupRef.current(laserBonus, (bowPos.x / 12 + 0.5) * 100, (bowPos.y / 9 + 0.5) * 100, 'critical', 'LASER!');
+            
             // Visual feedback
             if (bowRef.current) {
               bowRef.current.children.forEach((child: any) => {
@@ -2079,6 +2100,10 @@ export default function DeadShotGame({
               const heartBonus = 100 * comboRef.current;
               currentScoreRef.current += heartBonus;
               setScore(currentScoreRef.current);
+              
+              // CoD-style floating score popup
+              addPopupRef.current(heartBonus, (bowPos.x / 12 + 0.5) * 100, (bowPos.y / 9 + 0.5) * 100, 'bonus', '+HEART');
+              
               // Visual feedback
               if (bowRef.current) {
                 bowRef.current.children.forEach((child: any) => {
@@ -2098,6 +2123,9 @@ export default function DeadShotGame({
               const fullHeartBonus = 200 * comboRef.current;
               currentScoreRef.current += fullHeartBonus;
               setScore(currentScoreRef.current);
+              
+              // CoD-style floating score popup
+              addPopupRef.current(fullHeartBonus, (bowPos.x / 12 + 0.5) * 100, (bowPos.y / 9 + 0.5) * 100, 'bonus', 'FULL HP');
             }
           }
           
@@ -2647,6 +2675,9 @@ export default function DeadShotGame({
               currentScoreRef.current += points;
               setScore(currentScoreRef.current);
               
+              // CoD-style floating score popup for laser kills
+              addPopupRef.current(points, (ship.x / 12 + 0.5) * 100, (ship.y / 9 + 0.5) * 100, 'critical', 'LASER KILL');
+              
               console.log(`💥 LASER HIT! Enemy destroyed for ${points} points`);
             }
           }
@@ -2942,6 +2973,9 @@ export default function DeadShotGame({
 
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ margin: 0, padding: 0, backgroundColor: '#8B0000' }}>
+      {/* CoD-style floating score popups */}
+      {gameState === 'playing' && <FloatingScore popups={popups} onRemove={removePopup} />}
+      
       {/* 3D Scene Container - MUST be full size and positioned */}
       <div 
         ref={containerRef}

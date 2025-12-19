@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FairRNGService, SwordSlashRNGConfig } from '@/lib/fairRNGService';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
 console.log('');
@@ -72,6 +73,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const [destroyedAttacks, setDestroyedAttacks] = useState(0);
   const [totalAttacks, setTotalAttacks] = useState(0);
   const [perfectDestroys, setPerfectDestroys] = useState(0);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
   const [isSlashing, setIsSlashing] = useState(false); // Track if user is actively slashing
   const [hearts, setHearts] = useState(3); // Player has 3 hearts
   
@@ -755,6 +759,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       setScore(prev => prev + totalPoints);
       currentScoreRef.current += totalPoints;
       
+      // CoD-style floating score popup
+      addPopup(totalPoints, attack.x, attack.y, isPerfect ? 'perfect' : 'critical', isPerfect ? 'PERFECT!' : 'DESTROYED');
+      
       // Play success sound
       try {
         const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj');
@@ -784,6 +791,10 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
       
       setScore(prev => prev + target.points);
       currentScoreRef.current += target.points;
+      
+      // CoD-style floating score popup
+      const label = target.type === 'shield' ? 'SHIELD!' : target.type === 'coin' ? 'COIN!' : 'BONUS';
+      addPopup(target.points, target.x, target.y, 'bonus', label);
       
       // Play cut sound
       try {
@@ -1127,6 +1138,9 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+      {/* CoD-style floating score popups */}
+      <FloatingScore popups={popups} onRemove={removePopup} />
+      
       <div className="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">

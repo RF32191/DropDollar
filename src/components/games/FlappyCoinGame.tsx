@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 interface FlappyCoinGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
@@ -81,6 +82,11 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const [gameState, setGameState] = useState<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
+  const addPopupRef = useRef(addPopup);
+  addPopupRef.current = addPopup;
   
   // Flappy Bird style physics constants
   const GRAVITY = -40;
@@ -482,6 +488,11 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             obs.passed = true;
             scoreRef.current += 1;
             setScore(scoreRef.current);
+            
+            // CoD-style floating score popup
+            const popupType = scoreRef.current >= 20 ? 'perfect' : scoreRef.current >= 10 ? 'combo' : scoreRef.current >= 5 ? 'bonus' : 'normal';
+            const label = scoreRef.current % 10 === 0 ? 'MILESTONE!' : scoreRef.current % 5 === 0 ? 'STREAK!' : 'PASS';
+            addPopupRef.current(1, 50, 40, popupType, label);
           }
           
           // Collision
@@ -570,6 +581,9 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
       className="fixed inset-0 w-full h-full bg-sky-400 overflow-hidden"
       style={{ touchAction: 'none', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
     >
+      {/* CoD-style floating score popups */}
+      {gameState === 'playing' && <FloatingScore popups={popups} onRemove={removePopup} />}
+      
       {/* Game canvas - clickable during gameplay */}
       <div 
         ref={containerRef} 
