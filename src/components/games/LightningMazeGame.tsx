@@ -111,6 +111,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const lightningTimeRef = useRef<number>(0);
   const hasControlRef = useRef<boolean>(false);
   const wallHitCooldownRef = useRef<number>(0);
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   
   // Seeded RNG for deterministic/fair gameplay
   const seededRng = useMemo(() => {
@@ -1271,6 +1272,14 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             setGameState('playing');
             startTimeRef.current = Date.now();
             
+            // Start background music
+            if (!backgroundMusicRef.current) {
+              backgroundMusicRef.current = new Audio('/lightning-maze.mp3');
+              backgroundMusicRef.current.loop = true;
+              backgroundMusicRef.current.volume = 0.4;
+            }
+            backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
+            
             // Hide start marker
             if (startMarkerRef.current) {
               startMarkerRef.current.visible = false;
@@ -1306,6 +1315,14 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             gameStateRef.current = 'playing';
             setGameState('playing');
             startTimeRef.current = Date.now();
+            
+            // Start background music
+            if (!backgroundMusicRef.current) {
+              backgroundMusicRef.current = new Audio('/lightning-maze.mp3');
+              backgroundMusicRef.current.loop = true;
+              backgroundMusicRef.current.volume = 0.4;
+            }
+            backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
             
             if (startMarkerRef.current) {
               startMarkerRef.current.visible = false;
@@ -1465,6 +1482,12 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           // Game over - time's up
           gameStateRef.current = 'complete';
           setGameState('complete');
+          
+          // Stop background music
+          if (backgroundMusicRef.current) {
+            backgroundMusicRef.current.pause();
+            backgroundMusicRef.current.currentTime = 0;
+          }
           
           const accuracy = Math.min(100, Math.max(0, 100 - wallHits * 2));
           const avgReactionTime = Math.round(elapsed * 1000 / Math.max(1, mazesCompletedRef.current));
@@ -1748,6 +1771,12 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             // All mazes complete!
             gameStateRef.current = 'complete';
             setGameState('complete');
+            
+            // Stop background music
+            if (backgroundMusicRef.current) {
+              backgroundMusicRef.current.pause();
+              backgroundMusicRef.current.currentTime = 0;
+            }
             
             // Big bonus for finishing all mazes
             scoreRef.current += 5000;

@@ -140,6 +140,7 @@ export default function PennyPasserGame3D({
   const targetZoneRef = useRef<THREE.Group | null>(null); // Moving target zone indicator
   const trickShapeRef = useRef<{ shape: ShapeType; coinType: CoinType; color: number } | null>(null); // Trick shape asking for different coin
   const trickShapeMeshRef = useRef<THREE.Mesh | null>(null); // The trick shape mesh in target zone
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   
   // Initialize seeded RNG
   useEffect(() => {
@@ -1347,6 +1348,15 @@ export default function PennyPasserGame3D({
         if (prev <= 1) {
           setGameState('playing');
           gameStartTimeRef.current = Date.now();
+          
+          // Start background music
+          if (!backgroundMusicRef.current) {
+            backgroundMusicRef.current = new Audio('/penny-passer.mp3');
+            backgroundMusicRef.current.loop = true;
+            backgroundMusicRef.current.volume = 0.4;
+          }
+          backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
+          
           return 3;
         }
         return prev - 1;
@@ -1377,6 +1387,12 @@ export default function PennyPasserGame3D({
 
   const endGame = async () => {
     setGameState('ended');
+    
+    // Stop background music
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.pause();
+      backgroundMusicRef.current.currentTime = 0;
+    }
     
     const finalScore = scoreRef.current;
     const finalAccuracy = totalCoinsRef.current > 0 
