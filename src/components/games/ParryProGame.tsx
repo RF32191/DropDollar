@@ -26,6 +26,9 @@ class Mulberry32 {
   }
 }
 
+// Game duration in seconds
+const GAME_DURATION = 60;
+
 interface Enemy {
   id: number;
   side: 'left' | 'right' | 'center' | 'far-left' | 'far-right';
@@ -95,11 +98,12 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
   const [combo, setCombo] = useState(0);
-  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(GAME_DURATION);
   const [actionFeedback, setActionFeedback] = useState<'none' | 'perfect' | 'good' | 'miss' | 'dodge' | 'strike' | 'kill'>('none');
   const [isMobile, setIsMobile] = useState(false);
   const [enemyCount, setEnemyCount] = useState(0);
   const [screenFlash, setScreenFlash] = useState<'none' | 'red' | 'white'>('none');
+  const [endReason, setEndReason] = useState<'timeout' | 'defeated'>('defeated');
   
   // CoD-style floating score indicators
   const { popups, addPopup, removePopup } = useFloatingScores();
@@ -530,7 +534,8 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     comboRef.current = 0;
     setCombo(0);
     gameTimeRef.current = 0;
-    setTimeElapsed(0);
+    setTimeRemaining(GAME_DURATION);
+    setEndReason('defeated');
     perfectParriesRef.current = 0;
     totalParriesRef.current = 0;
     totalStrikesRef.current = 0;
@@ -674,7 +679,15 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       // Update game time
       if (gameStateRef.current === 'playing') {
         gameTimeRef.current += deltaTime;
-        setTimeElapsed(Math.floor(gameTimeRef.current));
+        const remaining = Math.max(0, GAME_DURATION - Math.floor(gameTimeRef.current));
+        setTimeRemaining(remaining);
+        
+        // Check if time ran out
+        if (remaining <= 0) {
+          setEndReason('timeout');
+          endGameRef.current();
+          return;
+        }
         
         // Spawn more enemies over time
         spawnCooldownRef.current -= deltaTime;
@@ -759,6 +772,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
                   setTimeout(() => setActionFeedback('none'), 500);
                   
                   if (heartsRef.current <= 0) {
+                    setEndReason('defeated');
                     endGameRef.current();
                     return;
                   }
@@ -941,7 +955,9 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               <div className="text-yellow-400 text-3xl sm:text-4xl font-bold" style={{ textShadow: '0 0 10px rgba(255, 200, 0, 0.5)' }}>
                 {score}
               </div>
-              <div className="text-gray-400 text-sm">⏱️ {timeElapsed}s</div>
+              <div className={`text-sm font-bold ${timeRemaining <= 10 ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
+                ⏱️ {timeRemaining}s
+              </div>
             </div>
             <div className="text-right">
               {combo > 0 && (
@@ -1107,9 +1123,11 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       {/* Game Over Screen */}
       {gameState === 'complete' && (
         <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-30 p-4">
-          <div className="text-center max-w-md w-full bg-gradient-to-b from-gray-900 to-gray-800 rounded-3xl p-6 border-2 border-red-500/50">
-            <div className="text-5xl mb-2">💀</div>
-            <h1 className="text-3xl font-bold text-red-500 mb-4">DEFEATED</h1>
+          <div className={`text-center max-w-md w-full bg-gradient-to-b from-gray-900 to-gray-800 rounded-3xl p-6 border-2 ${endReason === 'timeout' ? 'border-yellow-500/50' : 'border-red-500/50'}`}>
+            <div className="text-5xl mb-2">{endReason === 'timeout' ? '⏱️' : '💀'}</div>
+            <h1 className={`text-3xl font-bold mb-4 ${endReason === 'timeout' ? 'text-yellow-400' : 'text-red-500'}`}>
+              {endReason === 'timeout' ? "TIME'S UP!" : 'DEFEATED'}
+            </h1>
             
             <div className="bg-black/50 rounded-xl p-4 mb-4">
               <div className="text-4xl font-bold text-yellow-400 mb-2">{score}</div>
@@ -1118,7 +1136,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
                 <div>
                   <div className="text-gray-500">Survival Time</div>
-                  <div className="text-white font-bold">{timeElapsed}s</div>
+                  <div className="text-white font-bold">{GAME_DURATION - timeRemaining}s</div>
                 </div>
                 <div>
                   <div className="text-gray-500">Enemies Killed</div>
@@ -1135,18 +1153,15 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               </div>
             </div>
             
-            <button
-              onClick={(e) => { e.stopPropagation(); startGame(); }}
-              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); startGame(); }}
-              className="w-full px-8 py-4 bg-gradient-to-b from-green-600 to-green-800 text-white font-bold text-xl rounded-xl border-b-4 border-green-900 active:scale-95 transition-transform mb-3"
-            >
-              🔄 TRY AGAIN
-            </button>
+            {/* No retry button - users watch ads to play again */}
+            <p className="text-gray-500 text-sm mb-4">
+              Play again from the Games menu
+            </p>
             
             {onExit && (
               <button
                 onClick={(e) => { e.stopPropagation(); onExit(); }}
-                className="w-full px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl"
+                className="w-full px-6 py-4 bg-gradient-to-b from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white font-bold text-lg rounded-xl border-b-4 border-purple-900 active:scale-95 transition-transform"
               >
                 ← Back to Games
               </button>
