@@ -104,8 +104,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const COIN_X = -4;
   const FLOOR_Y = -4.5;
   const CEILING_Y = 4.5;
-  const OBSTACLE_GAP = 5.5;
-  const GAP_SIZE = 3.0;
+  const OBSTACLE_GAP = 8.0; // Increased gap between obstacles for back/forth movement
+  const GAP_SIZE = 3.8; // Larger opening to pass through
   
   // Create beautiful 3D SILVER coin with detailed features
   const createCoin = useCallback(() => {
@@ -406,6 +406,23 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     targetFlipRef.current = 0;
   }, []);
   
+  // Keyboard controls for arrow keys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        handleJumpForward();
+      } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        handleReverse();
+      } else if (e.key === ' ' || e.key === 'ArrowUp') {
+        // Space or Up arrow also jumps forward
+        handleJumpForward();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleJumpForward, handleReverse]);
+  
   // Initialize scene
   useEffect(() => {
     if (!containerRef.current || initializedRef.current) return;
@@ -632,7 +649,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           
         if (rightmostX < 14) {
           const newX = rightmostX + OBSTACLE_GAP;
-          const gapY = (seededRngRef.current.next() - 0.5) * 4;
+          // More varied gap heights for interesting gameplay
+          const gapY = (seededRngRef.current.next() - 0.5) * 6;
           
           const topHand = createHand(true);
           const bottomHand = createHand(false);

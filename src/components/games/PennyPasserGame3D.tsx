@@ -731,6 +731,8 @@ export default function PennyPasserGame3D({
   // - bonusShapePlacement: coin with bonus shape placed in bonus quadrant (+200)
   // - trickShapePlacement: coin matches the TRICK shape in target zone (+200)
   // - wrongTrickPlacement: non-trick coin placed in target zone with trick shape (-points)
+  // - wrongColorRightShape: placed in wrong color quadrant but coin shape matches that quadrant's shape (+2000!)
+  // - wrongColorWrongShape: completely wrong placement (-100)
   const checkCoinPlacement = useCallback((coin: Coin, x: number, y: number): { 
     correct: boolean; 
     bonus: boolean; 
@@ -739,6 +741,8 @@ export default function PennyPasserGame3D({
     bonusShapePlacement: boolean; // Bonus shape coin placed in bonus quadrant (+200)
     trickShapePlacement: boolean; // Coin matches the trick shape in target zone (+200)
     wrongBonusPlacement: boolean; // Wrong coin placed when trick expected (-points)
+    wrongColorRightShape: boolean; // Wrong color but right shape (+2000!)
+    wrongColorWrongShape: boolean; // Wrong color AND wrong shape (-100)
   } => {
     for (const quadrant of quadrantsRef.current) {
       if (x >= quadrant.bounds.minX && x <= quadrant.bounds.maxX &&
@@ -752,6 +756,28 @@ export default function PennyPasserGame3D({
         } else {
           // Regular coins match by type
           isCorrect = coin.type === quadrant.coinType;
+        }
+        
+        // NEW: Check for wrong color but right shape scenario
+        // The coin's shape (based on type) matches this quadrant's shape, but it's in the wrong quadrant
+        const coinShape = COIN_CONFIGS[coin.type].shape;
+        const quadrantShape = quadrant.shape;
+        const shapeMatches = coinShape === quadrantShape;
+        const colorMatches = coin.type === quadrant.coinType || (coin.isColorCoin && coin.colorMatch === quadrant.color);
+        
+        let wrongColorRightShape = false;
+        let wrongColorWrongShape = false;
+        
+        if (!isCorrect) {
+          if (shapeMatches && !colorMatches) {
+            // Shape matches but wrong color/type - BIG BONUS!
+            wrongColorRightShape = true;
+            console.log(`🌟 SHAPE MATCH! Wrong color but right shape (+2000!)`);
+          } else if (!shapeMatches) {
+            // Completely wrong - penalty
+            wrongColorWrongShape = true;
+            console.log(`❌ WRONG! Wrong color AND wrong shape (-100)`);
+          }
         }
         
         // Check for BONUS SHAPE placement (on coin itself)
@@ -808,12 +834,14 @@ export default function PennyPasserGame3D({
           quadrant,
           bonusShapePlacement,
           trickShapePlacement,
-          wrongBonusPlacement: wrongTrickPlacement
+          wrongBonusPlacement: wrongTrickPlacement,
+          wrongColorRightShape,
+          wrongColorWrongShape
         };
       }
     }
     
-    return { correct: false, bonus: false, perfectBonus: false, quadrant: null, bonusShapePlacement: false, trickShapePlacement: false, wrongBonusPlacement: false };
+    return { correct: false, bonus: false, perfectBonus: false, quadrant: null, bonusShapePlacement: false, trickShapePlacement: false, wrongBonusPlacement: false, wrongColorRightShape: false, wrongColorWrongShape: false };
   }, []);
 
   // Handle coin drop
@@ -927,16 +955,18 @@ export default function PennyPasserGame3D({
       setScore(scoreRef.current);
       
       // CoD-style floating score popup - calculate screen position from quadrant
-      const quadrantX = quadrant === 'cyan' || quadrant === 'purple' ? 25 : 75;
-      const quadrantY = quadrant === 'cyan' || quadrant === 'green' ? 25 : 75;
-      const popupType = isPerfectPlacement ? 'perfect' : comboRef.current >= 3 ? 'combo' : isExactCenter ? 'bonus' : 'normal';
-      const label = isPerfectPlacement ? 'PERFECT!' : comboRef.current > 1 ? `${comboRef.current}x COMBO` : isExactCenter ? 'CENTER!' : 'SORTED';
-      addPopup(points, quadrantX, quadrantY, popupType, label);
+      const qColor = result.quadrant?.color || 'cyan';
+      const quadrantScreenX = qColor === 'cyan' || qColor === 'purple' ? 25 : 75;
+      const quadrantScreenY = qColor === 'cyan' || qColor === 'green' ? 25 : 75;
+      const popupType = result.perfectBonus ? 'perfect' : comboRef.current >= 3 ? 'combo' : result.bonus ? 'bonus' : 'normal';
+      const label = result.perfectBonus ? 'PERFECT!' : comboRef.current > 1 ? `${comboRef.current}x COMBO` : result.bonus ? 'CENTER!' : 'SORTED';
+      addPopup(points, quadrantScreenX, quadrantScreenY, popupType, label);
       
       // Visual feedback - coin drops into quadrant with animation, then disappears
       if (coin.mesh && result.quadrant) {
-        const targetX = result.quadrant.centerX;
-        const targetY = result.quadrant.centerY;
+        // Calculate center from bounds
+        const targetX = (result.quadrant.bounds.minX + result.quadrant.bounds.maxX) / 2;
+        const targetY = (result.quadrant.bounds.minY + result.quadrant.bounds.maxY) / 2;
         const startX = coin.mesh.position.x;
         const startY = coin.mesh.position.y;
         const startZ = coin.mesh.position.z;
@@ -986,7 +1016,70 @@ export default function PennyPasserGame3D({
       
       coin.sorted = true;
     } else {
-      // Wrong placement - reset combo
+      // Wrong placement - but check for special cases
+      
+      // SPECIAL CASE: Wrong color but right shape = HUGE BONUS!
+      if (result.wrongColorRightShape) {
+        const shapeBonus = 2000;
+        scoreRef.current += shapeBonus;
+        setScore(scoreRef.current);
+        
+        // Calculate screen position
+        const screenX = 50 + (coin.x / 6) * 40;
+        const screenY = 50 - (coin.y / 6) * 40;
+        addPopup(shapeBonus, screenX, screenY, 'critical', 'SHAPE MATCH!');
+        
+        // Mark as sorted and remove coin with celebration animation
+        if (coin.mesh && result.quadrant) {
+          // Flash gold for big bonus
+          coin.mesh.traverse((child) => {
+            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshPhongMaterial) {
+              child.material.emissive.setHex(0xFFD700);
+              child.material.emissiveIntensity = 1.0;
+            }
+          });
+          
+          // Disappear animation
+          let celebrateFrame = 0;
+          const animateCelebrate = () => {
+            celebrateFrame++;
+            if (celebrateFrame < 20) {
+              coin.mesh.scale.multiplyScalar(1.05);
+              coin.mesh.rotation.z += 0.3;
+              coin.mesh.position.z += 0.1;
+              requestAnimationFrame(animateCelebrate);
+            } else {
+              sceneRef.current?.remove(coin.mesh);
+            }
+          };
+          animateCelebrate();
+        }
+        coin.sorted = true;
+        return; // Exit early - no penalty
+      }
+      
+      // Wrong color AND wrong shape = BIG PENALTY
+      if (result.wrongColorWrongShape) {
+        comboRef.current = 0;
+        setCombo(0);
+        
+        const penalty = 100;
+        scoreRef.current = Math.max(0, scoreRef.current - penalty);
+        setScore(scoreRef.current);
+        
+        // Return coin to center
+        coin.x = (getRandom() - 0.5) * 3;
+        coin.y = (getRandom() - 0.5) * 3;
+        coin.mesh.position.set(coin.x, coin.y, 0);
+        
+        // Show penalty popup
+        const screenX = 50 + (coin.x / 6) * 40;
+        const screenY = 50 - (coin.y / 6) * 40;
+        addPopup(-penalty, screenX, screenY, 'normal', 'WRONG!');
+        return;
+      }
+      
+      // Normal wrong placement - reset combo
       comboRef.current = 0;
       setCombo(0);
       
@@ -1022,7 +1115,7 @@ export default function PennyPasserGame3D({
       // Show negative points popup at coin position
       const screenX = 50 + (coin.x / 6) * 40; // Convert world X to screen %
       const screenY = 50 - (coin.y / 6) * 40; // Convert world Y to screen %
-      addPopup(-penalty, screenX, screenY, 'kill', result.wrongBonusPlacement ? 'WRONG!' : 'MISS');
+      addPopup(-penalty, screenX, screenY, 'normal', result.wrongBonusPlacement ? 'TRICK FAIL!' : 'MISS');
     }
     
     // Update accuracy
@@ -1050,7 +1143,7 @@ export default function PennyPasserGame3D({
     // Camera (orthographic for 2D-like view) - larger frustum for mobile compatibility
     const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
     const isMobileDevice = containerRef.current.clientWidth < 768;
-    const frustumSize = isMobileDevice ? 20 : 16; // Zoom out more on mobile
+    const frustumSize = isMobileDevice ? 24 : 16; // Zoom out even more on mobile to fit everything
     const camera = new THREE.OrthographicCamera(
       -frustumSize * aspect / 2,
       frustumSize * aspect / 2,
@@ -1267,7 +1360,7 @@ export default function PennyPasserGame3D({
       const height = containerRef.current.clientHeight;
       const newAspect = width / height;
       const isMobileNow = width < 768;
-      const newFrustumSize = isMobileNow ? 20 : 16;
+      const newFrustumSize = isMobileNow ? 24 : 16; // Match the init frustum size
       
       camera.left = -newFrustumSize * newAspect / 2;
       camera.right = newFrustumSize * newAspect / 2;
@@ -1448,7 +1541,7 @@ export default function PennyPasserGame3D({
     // Log to audit
     try {
       await logGameCompletion({
-        gameType: GAME_TYPES.PENNY_PASSERS || 'Penny Passer',
+        gameType: GAME_TYPES.PENNY_PASSER || 'Penny Passer',
         gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
         score: adjustedScore,
         accuracy: finalAccuracy,
