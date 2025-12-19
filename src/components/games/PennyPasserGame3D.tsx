@@ -933,23 +933,55 @@ export default function PennyPasserGame3D({
       const label = isPerfectPlacement ? 'PERFECT!' : comboRef.current > 1 ? `${comboRef.current}x COMBO` : isExactCenter ? 'CENTER!' : 'SORTED';
       addPopup(points, quadrantX, quadrantY, popupType, label);
       
-      // Visual feedback - coin disappears with effect
-      if (coin.mesh) {
-        const originalScale = coin.mesh.scale.clone();
+      // Visual feedback - coin drops into quadrant with animation, then disappears
+      if (coin.mesh && result.quadrant) {
+        const targetX = result.quadrant.centerX;
+        const targetY = result.quadrant.centerY;
+        const startX = coin.mesh.position.x;
+        const startY = coin.mesh.position.y;
+        const startZ = coin.mesh.position.z;
         
-        // Animate scale up then remove
-        let frame = 0;
-        const animateDisappear = () => {
-          frame++;
-          if (frame < 10) {
-            coin.mesh.scale.multiplyScalar(1.1);
-            coin.mesh.rotation.z += 0.3;
-            requestAnimationFrame(animateDisappear);
+        let dropFrame = 0;
+        const totalDropFrames = 15;
+        
+        // First animate the drop into the quadrant
+        const animateDrop = () => {
+          dropFrame++;
+          const progress = dropFrame / totalDropFrames;
+          const easeOut = 1 - Math.pow(1 - progress, 3); // Ease-out cubic
+          
+          // Move towards target
+          coin.mesh.position.x = startX + (targetX - startX) * easeOut;
+          coin.mesh.position.y = startY + (targetY - startY) * easeOut;
+          // Drop down (z goes negative) with bounce effect
+          const bounceProgress = Math.sin(progress * Math.PI);
+          coin.mesh.position.z = startZ + bounceProgress * 1.5 - progress * 0.5;
+          // Spin while dropping
+          coin.mesh.rotation.z += 0.15;
+          
+          if (dropFrame < totalDropFrames) {
+            requestAnimationFrame(animateDrop);
           } else {
-            sceneRef.current?.remove(coin.mesh);
+            // Now do the disappear animation
+            let disappearFrame = 0;
+            const animateDisappear = () => {
+              disappearFrame++;
+              if (disappearFrame < 10) {
+                coin.mesh.scale.multiplyScalar(1.08);
+                coin.mesh.rotation.z += 0.2;
+                coin.mesh.position.z -= 0.1;
+                requestAnimationFrame(animateDisappear);
+              } else {
+                sceneRef.current?.remove(coin.mesh);
+              }
+            };
+            animateDisappear();
           }
         };
-        animateDisappear();
+        animateDrop();
+      } else if (coin.mesh) {
+        // Fallback: just remove if no quadrant
+        sceneRef.current?.remove(coin.mesh);
       }
       
       coin.sorted = true;
@@ -1010,9 +1042,10 @@ export default function PennyPasserGame3D({
     scene.background = new THREE.Color(0x0a0a1a);
     sceneRef.current = scene;
     
-    // Camera (orthographic for 2D-like view)
+    // Camera (orthographic for 2D-like view) - larger frustum for mobile compatibility
     const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
-    const frustumSize = 15;
+    const isMobileDevice = containerRef.current.clientWidth < 768;
+    const frustumSize = isMobileDevice ? 20 : 16; // Zoom out more on mobile
     const camera = new THREE.OrthographicCamera(
       -frustumSize * aspect / 2,
       frustumSize * aspect / 2,
@@ -1228,9 +1261,13 @@ export default function PennyPasserGame3D({
       const width = containerRef.current.clientWidth;
       const height = containerRef.current.clientHeight;
       const newAspect = width / height;
+      const isMobileNow = width < 768;
+      const newFrustumSize = isMobileNow ? 20 : 16;
       
-      camera.left = -frustumSize * newAspect / 2;
-      camera.right = frustumSize * newAspect / 2;
+      camera.left = -newFrustumSize * newAspect / 2;
+      camera.right = newFrustumSize * newAspect / 2;
+      camera.top = newFrustumSize / 2;
+      camera.bottom = -newFrustumSize / 2;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
     };

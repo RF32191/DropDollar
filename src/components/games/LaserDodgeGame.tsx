@@ -1619,53 +1619,23 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           ))}
         </div>
         
-        {/* Instruction overlay */}
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-30 px-4 w-full max-w-md">
-          {/* Mobile Gyroscope Controls Section */}
-          {isMobile && (
-            <div className="mb-4">
-              {/* iOS needs permission - show prominent button */}
-              {gyroPermissionNeeded && !gyroscopeEnabled && (
-                <button
-                  onClick={requestGyroPermission}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg border-2 border-purple-400 animate-pulse"
-                >
-                  <p className="text-xl">📱 TAP TO ENABLE TILT CONTROLS</p>
-                  <p className="text-sm opacity-90">Required for mobile gameplay</p>
-                  <p className="text-xs opacity-70 mt-1">Tilt your phone to move the ship</p>
-                </button>
-              )}
-              
-              {/* Gyroscope enabled - show confirmation */}
-              {gyroscopeEnabled && (
-                <div className="w-full bg-green-600/70 text-white font-bold py-4 px-6 rounded-xl border-2 border-green-400 text-center shadow-lg">
-                  <p className="text-xl">✅ TILT CONTROLS ACTIVE</p>
-                  <p className="text-sm opacity-90">📱 Tilt phone to move ship</p>
-                  <p className="text-sm opacity-90">👆 Tap screen to shoot</p>
-                </div>
-              )}
-              
-              {/* Heads up for Android (auto-enabled) */}
-              {!gyroPermissionNeeded && !gyroscopeEnabled && (
-                <div className="w-full bg-blue-600/70 text-white font-bold py-4 px-6 rounded-xl border-2 border-blue-400 text-center shadow-lg animate-pulse">
-                  <p className="text-xl">📱 MOBILE DETECTED</p>
-                  <p className="text-sm opacity-90">Tilt controls will activate automatically</p>
-                </div>
-              )}
-            </div>
-          )}
-          
+        {/* Instruction overlay - simplified since gyro is in the circle */}
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-30 px-4 w-full max-w-md">
           <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-4 border-2 border-green-500 animate-pulse">
             <p className="text-green-400 text-xl sm:text-2xl font-bold text-center">
               🎯 TAP THE SHIP TO START! 🎯
             </p>
             <p className="text-gray-300 text-sm text-center mt-2">
-              {isMobile ? 'Tap ship to start • Tilt to move • Tap to shoot' : 'Click ship to start • Move mouse to move • Click to shoot'}
+              {isMobile 
+                ? gyroscopeEnabled 
+                  ? '✅ Tilt to move • Tap to shoot' 
+                  : '📱 Tap ship to enable tilt & start'
+                : 'Click ship to start • Move mouse to move • Click to shoot'}
             </p>
           </div>
         </div>
         
-        {/* Ship in center - clickable */}
+        {/* Ship in center - clickable with gyroscope button inside green circle */}
         <div
           className="absolute cursor-pointer transition-transform hover:scale-110"
           style={{
@@ -1677,20 +1647,53 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           onClick={handleShipClick}
           onTouchStart={(e) => {
             e.preventDefault();
-            handleShipClick();
+            // First enable gyro if needed (iOS), then start game
+            if (isMobile && gyroPermissionNeeded && !gyroscopeEnabled) {
+              requestGyroPermission().then(() => {
+                setTimeout(handleShipClick, 100);
+              });
+            } else {
+              handleShipClick();
+            }
           }}
         >
-          {/* Pulsing ring around ship - consistent sizing */}
+          {/* LARGE green circle containing ship and gyro controls */}
           <div
             className="absolute rounded-full border-4 border-green-400 animate-ping"
             style={{
               left: '50%',
               top: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '56px',
-              height: '56px',
+              width: isMobile ? '180px' : '120px',
+              height: isMobile ? '180px' : '120px',
             }}
           />
+          <div
+            className="absolute rounded-full border-2 border-green-400 bg-green-500/20"
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: isMobile ? '180px' : '120px',
+              height: isMobile ? '180px' : '120px',
+            }}
+          >
+            {/* Gyroscope status inside the circle - mobile only */}
+            {isMobile && (
+              <div 
+                className="absolute w-full text-center"
+                style={{ top: '10px', left: '50%', transform: 'translateX(-50%)' }}
+              >
+                {gyroPermissionNeeded && !gyroscopeEnabled ? (
+                  <span className="text-yellow-400 text-xs font-bold animate-pulse">📱 TAP FOR TILT</span>
+                ) : gyroscopeEnabled ? (
+                  <span className="text-green-400 text-xs font-bold">✅ TILT READY</span>
+                ) : (
+                  <span className="text-blue-400 text-xs font-bold animate-pulse">📱 TILT AUTO</span>
+                )}
+              </div>
+            )}
+          </div>
           <div
             className="absolute rounded-full border-2 border-green-400"
             style={{

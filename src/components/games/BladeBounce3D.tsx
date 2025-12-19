@@ -479,14 +479,15 @@ export default function BladeBounce3D({
     // Store background material for animation
     const bgMaterialRef = bgMaterial;
 
-    // Camera - use container dimensions
+    // Camera - use container dimensions, zoomed out further for better view
+    const isMobileDevice = width < 768;
     const camera = new THREE.PerspectiveCamera(
-      60,
+      isMobileDevice ? 70 : 65, // Wider FOV for mobile
       width / height,
       0.1,
       1000
     );
-    camera.position.z = 20;
+    camera.position.z = isMobileDevice ? 32 : 28; // Zoomed out more, even more on mobile
 
     // Renderer - use container dimensions
     const renderer = new THREE.WebGLRenderer({ 
