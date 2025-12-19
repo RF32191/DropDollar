@@ -22,6 +22,7 @@ interface GameCoin {
   vz: number;
   isStriker: boolean;
   isKnockedOff: boolean;
+  wasHitByStriker: boolean; // Track if hit by striker for scoring
   mesh: THREE.Group | null;
 }
 
@@ -275,6 +276,7 @@ export default function NeonStrikerGame({
         vz: 0, 
         isStriker: false, 
         isKnockedOff: false,
+        wasHitByStriker: false,
         mesh 
       });
     });
@@ -290,6 +292,7 @@ export default function NeonStrikerGame({
       vz: 0, 
       isStriker: true, 
       isKnockedOff: false,
+      wasHitByStriker: false,
       mesh: strikerMesh 
     });
 
@@ -420,10 +423,10 @@ export default function NeonStrikerGame({
           setScore(scoreRef.current);
           addPopup(-100, 50, 50, 'kill', '💀 STRIKER FELL! -100');
         } else {
-          // Target coin knocked off - points!
-          scoreRef.current += 100;
+          // Enemy coin fell off - PENALTY! (you want to hit them, not knock them off)
+          scoreRef.current -= 100;
           setScore(scoreRef.current);
-          addPopup(100, 50, 40, 'perfect', '🎯 KNOCKED OFF! +100');
+          addPopup(-100, 50, 40, 'kill', '💀 COIN FELL OFF! -100');
           setCoinsLeft(c => Math.max(0, c - 1));
         }
         return;
@@ -500,13 +503,31 @@ export default function NeonStrikerGame({
             b.x += overlap * nx * 0.5;
             b.z += overlap * nz * 0.5;
 
-            // SCORING: Enemy coins colliding with each other = penalty
-            if (!a.isStriker && !b.isStriker) {
+            // STRIKER hits an enemy coin = +100 points, coin DISAPPEARS!
+            if (a.isStriker && !b.isStriker && !b.wasHitByStriker) {
+              b.wasHitByStriker = true;
+              b.isKnockedOff = true;
+              if (b.mesh) b.mesh.visible = false;
+              scoreRef.current += 100;
+              setScore(scoreRef.current);
+              addPopup(100, 50, 35, 'perfect', '🎯 HIT! +100');
+              setCoinsLeft(c => Math.max(0, c - 1));
+            } else if (b.isStriker && !a.isStriker && !a.wasHitByStriker) {
+              a.wasHitByStriker = true;
+              a.isKnockedOff = true;
+              if (a.mesh) a.mesh.visible = false;
+              scoreRef.current += 100;
+              setScore(scoreRef.current);
+              addPopup(100, 50, 35, 'perfect', '🎯 HIT! +100');
+              setCoinsLeft(c => Math.max(0, c - 1));
+            }
+            // Enemy coins colliding with each other = -50 penalty
+            else if (!a.isStriker && !b.isStriker) {
               const speed = Math.sqrt(dvx * dvx + dvz * dvz);
-              if (speed > 0.1) { // Only penalize significant collisions
-                scoreRef.current -= 25;
+              if (speed > 0.08) { // Only penalize significant collisions
+                scoreRef.current -= 50;
                 setScore(scoreRef.current);
-                addPopup(-25, 50, 50, 'kill', '💥 CHAIN REACTION! -25');
+                addPopup(-50, 50, 50, 'kill', '💥 CHAIN HIT! -50');
               }
             }
           }
@@ -792,10 +813,10 @@ export default function NeonStrikerGame({
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-lg w-full text-center border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.3)]">
           <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent">⚡ NEON STRIKER</h1>
-          <p className="text-cyan-400 mb-4">Physics-Based Pool • Knock Coins Off!</p>
+          <p className="text-cyan-400 mb-4">Physics-Based Pool • Hit All Coins!</p>
 
           <div className="bg-black/50 rounded-xl p-4 mb-5 text-left text-sm text-gray-300 max-h-64 overflow-y-auto">
-            <p className="mb-2 text-cyan-400 font-bold text-center">🎯 KNOCK ALL COINS OFF THE TABLE!</p>
+            <p className="mb-2 text-cyan-400 font-bold text-center">🎯 HIT ALL COINS TO CLEAR THE LEVEL!</p>
             
             <div className="mb-3 p-2 bg-cyan-900/30 rounded-lg">
               <p className="text-cyan-300 font-bold mb-1">📱 CONTROLS:</p>
@@ -806,9 +827,10 @@ export default function NeonStrikerGame({
             
             <div className="mb-3 p-2 bg-green-900/30 rounded-lg">
               <p className="text-green-300 font-bold mb-1">💰 SCORING:</p>
-              <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Knock a coin off table</p>
+              <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Hit a coin with striker (disappears!)</p>
               <p className="mb-1"><span className="text-yellow-400 font-bold">+BONUS</span> Complete level fast!</p>
-              <p className="mb-1"><span className="text-red-400 font-bold">-25</span> Coins collide with each other</p>
+              <p className="mb-1"><span className="text-red-400 font-bold">-50</span> Enemy coins hit each other</p>
+              <p className="mb-1"><span className="text-red-400 font-bold">-100</span> Coin falls off table</p>
               <p><span className="text-red-400 font-bold">-100</span> Striker falls off</p>
             </div>
             
