@@ -64,7 +64,7 @@ const CashStackGame = dynamic(() => import('@/components/games/CashStackGame'), 
 
 const PennyPasserGame = dynamic(() => import('@/components/games/PennyPasserGame'), {
   ssr: false,
-  loading: () => <GameLoadingSkeleton name="Coin Sorter" color="amber" />
+  loading: () => <GameLoadingSkeleton name="Penny Passer" color="amber" />
 });
 
 const DeadShotGame = dynamic(() => import('@/components/games/DeadShotGame'), { 
@@ -209,7 +209,7 @@ const GAMES = [
   },
   {
     id: 'penny-passer',
-    name: 'Coin Sorter',
+    name: 'Penny Passer',
     description: 'Sort 3D coins into their matching colored quadrants! Match shapes & colors for bonus points in this fast-paced sorting challenge!',
     icon: BanknotesIcon,
     difficulty: 'Medium',
@@ -262,7 +262,7 @@ const GAMES = [
 // Debug: Log games array to ensure all games are included
 console.log('🎮 Available games for deployment:', GAMES.map(g => `${g.name} (${g.id})`));
 console.log('🚀 Laser Dodge game included:', GAMES.find(g => g.id === 'laser-dodge') ? '✅ YES' : '❌ NO');
-console.log('🪙 Coin Sorter game included:', GAMES.find(g => g.id === 'penny-passer') ? '✅ YES' : '❌ NO');
+console.log('🪙 Penny Passer game included:', GAMES.find(g => g.id === 'penny-passer') ? '✅ YES' : '❌ NO');
 console.log('⚡ Lightning Maze game included:', GAMES.find(g => g.id === 'lightning-maze') ? '✅ YES' : '❌ NO');
 console.log('📊 Total games available:', GAMES.length);
 

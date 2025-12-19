@@ -855,8 +855,8 @@ export default function TriumphStyleDashboard() {
       'falling_object': 'Falling Objects',
       'falling_objects': 'Falling Objects',
       'cash_stack': 'Cash Stack',
-      'penny_passer': 'Coin Sorter',
-      'coin_sorter': 'Coin Sorter',
+      'penny_passer': 'Penny Passer',
+      'coin_sorter': 'Penny Passer',
       'dead_shot': 'Dead Shot',
       'lightning_maze': 'Lightning Maze'
     };

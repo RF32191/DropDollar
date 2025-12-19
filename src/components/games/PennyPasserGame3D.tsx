@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
 
-interface CoinSorterGameProps {
+interface PennyPasserGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
@@ -109,7 +109,7 @@ export default function PennyPasserGame3D({
   gameMode = 'practice',
   rngSeed,
   competitionId 
-}: CoinSorterGameProps) {
+}: PennyPasserGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -1390,7 +1390,7 @@ export default function PennyPasserGame3D({
     // Log to audit
     try {
       await logGameCompletion({
-        gameType: GAME_TYPES.PENNY_PASSERS || 'Coin Sorter',
+        gameType: GAME_TYPES.PENNY_PASSERS || 'Penny Passer',
         gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
         score: adjustedScore,
         accuracy: finalAccuracy,
@@ -1472,7 +1472,7 @@ export default function PennyPasserGame3D({
             <div className="absolute bottom-4 left-4 w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 opacity-40 animate-bounce"></div>
             
             <h1 className="text-4xl font-black mb-2 bg-gradient-to-r from-cyan-400 via-purple-400 to-red-400 bg-clip-text text-transparent">
-              💰 COIN SORTER
+              💰 PENNY PASSER
             </h1>
             <p className="text-purple-200 text-sm mb-4 font-medium">
               Drag coins to matching quadrants by recognizing their SHAPE!
