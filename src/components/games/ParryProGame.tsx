@@ -1037,7 +1037,24 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
             <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-4" style={{ textShadow: '0 0 20px rgba(255, 0, 0, 0.5)' }}>
               PARRY PRO
             </h1>
-            <p className="text-gray-400 mb-6">Master combat against multiple enemies!</p>
+            <p className="text-gray-400 mb-4">Master combat against multiple enemies!</p>
+            
+            {/* Preview of action buttons */}
+            <div className="flex justify-center gap-3 mb-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-b from-cyan-500 to-cyan-700 flex flex-col items-center justify-center shadow-lg shadow-cyan-500/50">
+                <span className="text-2xl">💨</span>
+                <span className="text-white font-bold text-[10px]">DODGE</span>
+              </div>
+              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-amber-500 to-amber-700 flex flex-col items-center justify-center shadow-lg shadow-amber-500/50 border-2 border-yellow-400">
+                <span className="text-3xl">⚔️</span>
+                <span className="text-white font-bold text-xs">PARRY</span>
+              </div>
+              <div className="w-16 h-16 rounded-full bg-gradient-to-b from-red-500 to-red-700 flex flex-col items-center justify-center shadow-lg shadow-red-500/50">
+                <span className="text-2xl">🗡️</span>
+                <span className="text-white font-bold text-[10px]">STRIKE</span>
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs mb-4">↑ These buttons appear during gameplay!</p>
             
             <div className="bg-gray-900/80 rounded-xl p-4 mb-6 text-left border border-red-500/30">
               <p className="text-red-400 font-bold mb-3">⚔️ CONTROLS:</p>
