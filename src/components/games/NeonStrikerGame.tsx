@@ -22,7 +22,9 @@ interface GameCoin {
   vz: number;
   isStriker: boolean;
   isKnockedOff: boolean;
-  wasHitByStriker: boolean; // Track if hit by striker for scoring
+  wasHitByStriker: boolean; // Track if hit by striker
+  isSettled: boolean; // Track if coin has stopped moving after being hit
+  hitAnotherCoin: boolean; // Track if this coin hit another coin after being hit
   mesh: THREE.Group | null;
 }
 
@@ -277,6 +279,8 @@ export default function NeonStrikerGame({
         isStriker: false, 
         isKnockedOff: false,
         wasHitByStriker: false,
+        isSettled: false,
+        hitAnotherCoin: false,
         mesh 
       });
     });
@@ -293,6 +297,8 @@ export default function NeonStrikerGame({
       isStriker: true, 
       isKnockedOff: false,
       wasHitByStriker: false,
+      isSettled: false,
+      hitAnotherCoin: false,
       mesh: strikerMesh 
     });
 
@@ -466,7 +472,7 @@ export default function NeonStrikerGame({
       for (let j = i + 1; j < coins.length; j++) {
         const a = coins[i];
         const b = coins[j];
-        if (a.isKnockedOff || b.isKnockedOff) continue;
+        if (a.isKnockedOff || b.isKnockedOff || a.isSettled || b.isSettled) continue;
 
         const dx = b.x - a.x;
         const dz = b.z - a.z;
@@ -503,37 +509,79 @@ export default function NeonStrikerGame({
             b.x += overlap * nx * 0.5;
             b.z += overlap * nz * 0.5;
 
-            // STRIKER hits an enemy coin = +100 points, coin DISAPPEARS!
+            // STRIKER hits an enemy coin - mark it as hit and give it momentum!
             if (a.isStriker && !b.isStriker && !b.wasHitByStriker) {
               b.wasHitByStriker = true;
-              b.isKnockedOff = true;
-              if (b.mesh) b.mesh.visible = false;
-              scoreRef.current += 100;
-              setScore(scoreRef.current);
-              addPopup(100, 50, 35, 'perfect', '🎯 HIT! +100');
-              setCoinsLeft(c => Math.max(0, c - 1));
+              // Flash the coin to show it was hit
+              if (b.mesh) {
+                const coinMesh = b.mesh.children[0] as THREE.Mesh;
+                if (coinMesh && coinMesh.material) {
+                  (coinMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.5;
+                  setTimeout(() => {
+                    if (coinMesh.material) {
+                      (coinMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.7;
+                    }
+                  }, 200);
+                }
+              }
             } else if (b.isStriker && !a.isStriker && !a.wasHitByStriker) {
               a.wasHitByStriker = true;
-              a.isKnockedOff = true;
-              if (a.mesh) a.mesh.visible = false;
-              scoreRef.current += 100;
-              setScore(scoreRef.current);
-              addPopup(100, 50, 35, 'perfect', '🎯 HIT! +100');
-              setCoinsLeft(c => Math.max(0, c - 1));
+              // Flash the coin to show it was hit
+              if (a.mesh) {
+                const coinMesh = a.mesh.children[0] as THREE.Mesh;
+                if (coinMesh && coinMesh.material) {
+                  (coinMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.5;
+                  setTimeout(() => {
+                    if (coinMesh.material) {
+                      (coinMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.7;
+                    }
+                  }, 200);
+                }
+              }
             }
-            // Enemy coins colliding with each other = -50 penalty
+            // A coin that was hit by striker now hits another coin = -50 penalty
             else if (!a.isStriker && !b.isStriker) {
               const speed = Math.sqrt(dvx * dvx + dvz * dvz);
-              if (speed > 0.08) { // Only penalize significant collisions
-                scoreRef.current -= 50;
-                setScore(scoreRef.current);
-                addPopup(-50, 50, 50, 'kill', '💥 CHAIN HIT! -50');
+              if (speed > 0.05) {
+                // If a hit coin hits another coin
+                if (a.wasHitByStriker && !a.hitAnotherCoin) {
+                  a.hitAnotherCoin = true;
+                  scoreRef.current -= 50;
+                  setScore(scoreRef.current);
+                  addPopup(-50, 50, 50, 'kill', '💥 CHAIN HIT! -50');
+                }
+                if (b.wasHitByStriker && !b.hitAnotherCoin) {
+                  b.hitAnotherCoin = true;
+                  scoreRef.current -= 50;
+                  setScore(scoreRef.current);
+                  addPopup(-50, 50, 50, 'kill', '💥 CHAIN HIT! -50');
+                }
               }
             }
           }
         }
       }
     }
+
+    // Check if hit coins have stopped moving - award points if they stayed on board!
+    coins.forEach(coin => {
+      if (!coin.isStriker && coin.wasHitByStriker && !coin.isKnockedOff && !coin.isSettled) {
+        // Check if this coin has stopped moving
+        if (Math.abs(coin.vx) < 0.01 && Math.abs(coin.vz) < 0.01) {
+          coin.isSettled = true;
+          // Coin stayed on board after being hit = +100 points!
+          scoreRef.current += 100;
+          setScore(scoreRef.current);
+          addPopup(100, 50, 35, 'perfect', '🎯 CLEARED! +100');
+          setCoinsLeft(c => Math.max(0, c - 1));
+          // Remove the coin after a short delay
+          setTimeout(() => {
+            coin.isKnockedOff = true;
+            if (coin.mesh) coin.mesh.visible = false;
+          }, 300);
+        }
+      }
+    });
 
     // Check if shooting is complete (everything stopped)
     if (isShootingRef.current && !anyMoving) {
@@ -827,12 +875,14 @@ export default function NeonStrikerGame({
             
             <div className="mb-3 p-2 bg-green-900/30 rounded-lg">
               <p className="text-green-300 font-bold mb-1">💰 SCORING:</p>
-              <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Hit a coin with striker (disappears!)</p>
+              <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Hit coin & it stays on board!</p>
               <p className="mb-1"><span className="text-yellow-400 font-bold">+BONUS</span> Complete level fast!</p>
-              <p className="mb-1"><span className="text-red-400 font-bold">-50</span> Enemy coins hit each other</p>
+              <p className="mb-1"><span className="text-red-400 font-bold">-50</span> Hit coin hits another coin</p>
               <p className="mb-1"><span className="text-red-400 font-bold">-100</span> Coin falls off table</p>
               <p><span className="text-red-400 font-bold">-100</span> Striker falls off</p>
             </div>
+            
+            <p className="text-center text-gray-400 text-xs">Hit coins to make them move - if they stay on the board, you score!</p>
             
             <p className="text-center text-gray-400 text-xs">Coins have REAL PHYSICS - aim carefully!</p>
           </div>

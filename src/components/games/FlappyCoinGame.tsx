@@ -462,9 +462,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     sky.position.z = -15;
     scene.add(sky);
     
-    // Camera
-    const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(0, 0, 14);
+    // Camera - zoom out more on mobile
+    const isMobileDevice = window.innerWidth < 768 || 'ontouchstart' in window;
+    const fov = isMobileDevice ? 65 : 50; // Wider FOV on mobile
+    const cameraZ = isMobileDevice ? 20 : 14; // Further back on mobile
+    const camera = new THREE.PerspectiveCamera(fov, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 0, cameraZ);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
     
