@@ -20,6 +20,8 @@ interface GameCoin {
   z: number;
   vx: number;
   vz: number;
+  baseVx: number; // Base movement velocity
+  baseVz: number;
   isStriker: boolean;
   isRemoved: boolean;
   wasHitByStriker: boolean;
@@ -27,14 +29,14 @@ interface GameCoin {
   mesh: THREE.Group | null;
 }
 
-// Level configurations
+// Level configurations with speed multipliers
 const LEVELS = [
-  { name: 'Triangle', coins: [{ x: 0, z: -2 }, { x: -2, z: 1 }, { x: 2, z: 1 }], bumpers: [{ x: -4, z: 0 }, { x: 4, z: 0 }] },
-  { name: 'Diamond', coins: [{ x: 0, z: -4 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: 0, z: 2 }], bumpers: [{ x: -5, z: -2 }, { x: 5, z: -2 }] },
-  { name: 'The Line', coins: [{ x: -4, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }], bumpers: [{ x: 0, z: -3 }, { x: 0, z: 3 }] },
-  { name: 'Circle', coins: [{ x: 0, z: -3 }, { x: 2.6, z: -1.5 }, { x: 2.6, z: 1.5 }, { x: 0, z: 3 }, { x: -2.6, z: 1.5 }, { x: -2.6, z: -1.5 }], bumpers: [{ x: 0, z: 0 }] },
-  { name: 'Fortress', coins: [{ x: -4, z: -4 }, { x: 4, z: -4 }, { x: -4, z: 2 }, { x: 4, z: 2 }, { x: -2, z: -1 }, { x: 2, z: -1 }, { x: 0, z: 0 }], bumpers: [{ x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: -3 }] },
-  { name: 'Chaos', coins: [{ x: -5, z: -5 }, { x: 5, z: -5 }, { x: -3, z: -2 }, { x: 3, z: -2 }, { x: 0, z: 0 }, { x: -4, z: 3 }, { x: 4, z: 3 }, { x: 0, z: 5 }], bumpers: [{ x: -2, z: 0 }, { x: 2, z: 0 }, { x: 0, z: -4 }, { x: 0, z: 2 }] },
+  { name: 'Triangle', coins: [{ x: 0, z: -2 }, { x: -2, z: 1 }, { x: 2, z: 1 }], bumpers: [{ x: -4, z: 0 }, { x: 4, z: 0 }], speed: 0.02, timeLimit: 30 },
+  { name: 'Diamond', coins: [{ x: 0, z: -4 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: 0, z: 2 }], bumpers: [{ x: -5, z: -2 }, { x: 5, z: -2 }], speed: 0.025, timeLimit: 35 },
+  { name: 'The Line', coins: [{ x: -4, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }], bumpers: [{ x: 0, z: -3 }, { x: 0, z: 3 }], speed: 0.03, timeLimit: 40 },
+  { name: 'Circle', coins: [{ x: 0, z: -3 }, { x: 2.6, z: -1.5 }, { x: 2.6, z: 1.5 }, { x: 0, z: 3 }, { x: -2.6, z: 1.5 }, { x: -2.6, z: -1.5 }], bumpers: [{ x: 0, z: 0 }], speed: 0.035, timeLimit: 45 },
+  { name: 'Fortress', coins: [{ x: -4, z: -4 }, { x: 4, z: -4 }, { x: -4, z: 2 }, { x: 4, z: 2 }, { x: -2, z: -1 }, { x: 2, z: -1 }, { x: 0, z: 0 }], bumpers: [{ x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: -3 }], speed: 0.04, timeLimit: 50 },
+  { name: 'Chaos', coins: [{ x: -5, z: -5 }, { x: 5, z: -5 }, { x: -3, z: -2 }, { x: 3, z: -2 }, { x: 0, z: 0 }, { x: -4, z: 3 }, { x: 4, z: 3 }, { x: 0, z: 5 }], bumpers: [{ x: -2, z: 0 }, { x: 2, z: 0 }, { x: 0, z: -4 }, { x: 0, z: 2 }], speed: 0.045, timeLimit: 60 },
 ];
 
 export default function NeonStrikerGame({ 
@@ -48,9 +50,11 @@ export default function NeonStrikerGame({
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'charging' | 'shooting' | 'levelComplete' | 'complete'>('ready');
   const [score, setScore] = useState(0);
   const [shotsUsed, setShotsUsed] = useState(0);
+  const [hitsThisShot, setHitsThisShot] = useState(0);
   const [power, setPower] = useState(0);
   const [aimAngle, setAimAngle] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [levelTime, setLevelTime] = useState(0);
   const [coinsLeft, setCoinsLeft] = useState(0);
   const [currentLevel, setCurrentLevel] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -68,9 +72,11 @@ export default function NeonStrikerGame({
   const aimArrowRef = useRef<THREE.Mesh | null>(null);
   const animationRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const levelTimerRef = useRef<NodeJS.Timeout | null>(null);
   const powerTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isShootingRef = useRef(false);
   const scoreRef = useRef(0);
+  const hitsThisShotRef = useRef(0);
 
   const { popups, addPopup, removePopup } = useFloatingScores();
 
@@ -78,6 +84,7 @@ export default function NeonStrikerGame({
   const TABLE_D = 18;
   const COIN_R = 0.5;
   const FRICTION = 0.98;
+  const BOUNCE = 0.9;
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
@@ -168,14 +175,8 @@ export default function NeonStrikerGame({
     spot.position.set(0, 25, 5);
     spot.castShadow = true;
     scene.add(spot);
-    
-    const cyan = new THREE.PointLight(0x00ffff, 1.5, 40);
-    cyan.position.set(-10, 8, 0);
-    scene.add(cyan);
-    
-    const magenta = new THREE.PointLight(0xff00ff, 1.5, 40);
-    magenta.position.set(10, 8, 0);
-    scene.add(magenta);
+    scene.add(new THREE.PointLight(0x00ffff, 1.5, 40).translateX(-10).translateY(8));
+    scene.add(new THREE.PointLight(0xff00ff, 1.5, 40).translateX(10).translateY(8));
 
     // Table
     const tableGeo = new THREE.BoxGeometry(TABLE_W, 0.3, TABLE_D);
@@ -220,22 +221,51 @@ export default function NeonStrikerGame({
     });
     bumpersRef.current = bumperData;
 
-    // Coins
+    // Coins with RANDOM MOVEMENT
     const coins: GameCoin[] = [];
     level.coins.forEach((pos, i) => {
       const mesh = createCoin(scene, pos.x, pos.z, false);
-      coins.push({ id: i + 1, x: pos.x, z: pos.z, vx: 0, vz: 0, isStriker: false, isRemoved: false, wasHitByStriker: false, wasChainHit: false, mesh });
+      // Random direction for each coin
+      const angle = Math.random() * Math.PI * 2;
+      const speed = level.speed;
+      coins.push({ 
+        id: i + 1, 
+        x: pos.x, 
+        z: pos.z, 
+        vx: 0, 
+        vz: 0, 
+        baseVx: Math.cos(angle) * speed, // Base movement velocity
+        baseVz: Math.sin(angle) * speed,
+        isStriker: false, 
+        isRemoved: false, 
+        wasHitByStriker: false, 
+        wasChainHit: false, 
+        mesh 
+      });
     });
 
     // Striker
     const strikerZ = TABLE_D / 2 - 2;
     const strikerMesh = createCoin(scene, 0, strikerZ, true);
-    coins.push({ id: 0, x: 0, z: strikerZ, vx: 0, vz: 0, isStriker: true, isRemoved: false, wasHitByStriker: false, wasChainHit: false, mesh: strikerMesh });
+    coins.push({ 
+      id: 0, 
+      x: 0, 
+      z: strikerZ, 
+      vx: 0, 
+      vz: 0, 
+      baseVx: 0, 
+      baseVz: 0, 
+      isStriker: true, 
+      isRemoved: false, 
+      wasHitByStriker: false, 
+      wasChainHit: false, 
+      mesh: strikerMesh 
+    });
 
     coinsRef.current = coins;
     setCoinsLeft(level.coins.length);
 
-    // THICK AIM LINE (cylinder)
+    // Aim line
     const lineGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, 8);
     const lineMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9 });
     const aimLine = new THREE.Mesh(lineGeo, lineMat);
@@ -243,7 +273,6 @@ export default function NeonStrikerGame({
     scene.add(aimLine);
     aimLineRef.current = aimLine;
 
-    // Arrow head
     const arrowGeo = new THREE.ConeGeometry(0.2, 0.5, 8);
     const arrowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9 });
     const arrow = new THREE.Mesh(arrowGeo, arrowMat);
@@ -254,11 +283,17 @@ export default function NeonStrikerGame({
     setSceneReady(true);
     setAimLocked(false);
     setViewMode('full');
+    setLevelTime(0);
+    
+    // Start level timer
+    if (levelTimerRef.current) clearInterval(levelTimerRef.current);
+    levelTimerRef.current = setInterval(() => setLevelTime(t => t + 1), 1000);
+    
     renderer.render(scene, camera);
-    console.log('✅ Level', levelIndex + 1, 'ready');
+    console.log('✅ Level', levelIndex + 1, 'ready with MOVING targets');
   }, [createCoin, createBumper]);
 
-  // Update aim line - THICK and responsive to mouse
+  // Update aim line
   const updateAimLine = useCallback(() => {
     if (!aimLineRef.current || !aimArrowRef.current) return;
     const striker = coinsRef.current.find(c => c.isStriker);
@@ -270,16 +305,13 @@ export default function NeonStrikerGame({
     const endX = striker.x + Math.sin(aimAngle) * len;
     const endZ = striker.z - Math.cos(aimAngle) * len;
 
-    // Position and scale line
     aimLineRef.current.position.set(midX, 0.2, midZ);
     aimLineRef.current.scale.y = len;
     aimLineRef.current.rotation.z = -aimAngle;
 
-    // Position arrow
     aimArrowRef.current.position.set(endX, 0.2, endZ);
     aimArrowRef.current.rotation.z = -aimAngle;
 
-    // Color based on state
     const lineMat = aimLineRef.current.material as THREE.MeshBasicMaterial;
     const arrowMat = aimArrowRef.current.material as THREE.MeshBasicMaterial;
     
@@ -313,46 +345,60 @@ export default function NeonStrikerGame({
     }
   }, []);
 
-  // Physics - NEW SCORING: hit to remove, falling = penalty
+  // Physics with MOVING TARGETS
   const updatePhysics = useCallback(() => {
     const coins = coinsRef.current;
     const bumpers = bumpersRef.current;
     let anyMoving = false;
+    const halfW = TABLE_W / 2 - COIN_R;
+    const halfD = TABLE_D / 2 - COIN_R;
 
     coins.forEach(coin => {
       if (coin.isRemoved || !coin.mesh) return;
 
-      coin.x += coin.vx;
-      coin.z += coin.vz;
-      coin.vx *= FRICTION;
-      coin.vz *= FRICTION;
-
-      if (Math.abs(coin.vx) < 0.005 && Math.abs(coin.vz) < 0.005) {
-        coin.vx = 0;
-        coin.vz = 0;
-      } else {
-        anyMoving = true;
+      // Apply base movement for target coins (they keep moving!)
+      if (!coin.isStriker && !isShootingRef.current) {
+        coin.vx = coin.baseVx;
+        coin.vz = coin.baseVz;
       }
 
-      // Check if fell off table - PENALTY for all coins
-      const halfW = TABLE_W / 2 - COIN_R;
-      const halfD = TABLE_D / 2 - COIN_R;
+      // Apply velocity
+      coin.x += coin.vx;
+      coin.z += coin.vz;
 
-      if (Math.abs(coin.x) > halfW || Math.abs(coin.z) > halfD) {
+      // Friction only when shooting (targets keep moving otherwise)
+      if (isShootingRef.current || coin.isStriker) {
+        coin.vx *= FRICTION;
+        coin.vz *= FRICTION;
+        if (Math.abs(coin.vx) < 0.005 && Math.abs(coin.vz) < 0.005 && coin.isStriker) {
+          coin.vx = 0;
+          coin.vz = 0;
+        } else if (coin.isStriker && (Math.abs(coin.vx) > 0.005 || Math.abs(coin.vz) > 0.005)) {
+          anyMoving = true;
+        }
+      }
+
+      // Bounce off walls for target coins
+      if (!coin.isStriker) {
+        if (Math.abs(coin.x) > halfW) {
+          coin.x = Math.sign(coin.x) * halfW;
+          coin.vx *= -BOUNCE;
+          coin.baseVx *= -1;
+        }
+        if (Math.abs(coin.z) > halfD) {
+          coin.z = Math.sign(coin.z) * halfD;
+          coin.vz *= -BOUNCE;
+          coin.baseVz *= -1;
+        }
+      }
+
+      // Striker falls off = penalty
+      if (coin.isStriker && (Math.abs(coin.x) > halfW || Math.abs(coin.z) > halfD)) {
         coin.isRemoved = true;
         coin.mesh.visible = false;
-
-        if (coin.isStriker) {
-          scoreRef.current -= 100;
-          setScore(scoreRef.current);
-          addPopup(-100, 50, 50, 'kill', 'STRIKER FELL! -100');
-        } else {
-          // Target coin fell off - PENALTY
-          scoreRef.current -= 100;
-          setScore(scoreRef.current);
-          addPopup(-100, 50, 50, 'kill', 'COIN FELL! -100');
-          setCoinsLeft(c => Math.max(0, c - 1));
-        }
+        scoreRef.current -= 100;
+        setScore(scoreRef.current);
+        addPopup(-100, 50, 50, 'kill', 'STRIKER FELL! -100');
         return;
       }
 
@@ -365,8 +411,12 @@ export default function NeonStrikerGame({
           const nx = dx / dist;
           const nz = dz / dist;
           const dot = coin.vx * nx + coin.vz * nz;
-          coin.vx = (coin.vx - 2 * dot * nx) * 1.1;
-          coin.vz = (coin.vz - 2 * dot * nz) * 1.1;
+          coin.vx = (coin.vx - 2 * dot * nx) * BOUNCE;
+          coin.vz = (coin.vz - 2 * dot * nz) * BOUNCE;
+          if (!coin.isStriker) {
+            coin.baseVx = coin.vx;
+            coin.baseVz = coin.vz;
+          }
           coin.x = bumper.x + nx * (COIN_R + bumper.r + 0.1);
           coin.z = bumper.z + nz * (COIN_R + bumper.r + 0.1);
         }
@@ -375,7 +425,7 @@ export default function NeonStrikerGame({
       coin.mesh.position.set(coin.x, 0.12, coin.z);
     });
 
-    // Coin-coin collisions - HIT TO REMOVE
+    // Coin-coin collisions
     for (let i = 0; i < coins.length; i++) {
       for (let j = i + 1; j < coins.length; j++) {
         const a = coins[i];
@@ -395,11 +445,10 @@ export default function NeonStrikerGame({
           const dvn = dvx * nx + dvz * nz;
 
           if (dvn > 0) {
-            // Collision response
-            a.vx -= dvn * nx * 0.8;
-            a.vz -= dvn * nz * 0.8;
-            b.vx += dvn * nx * 0.8;
-            b.vz += dvn * nz * 0.8;
+            a.vx -= dvn * nx * BOUNCE;
+            a.vz -= dvn * nz * BOUNCE;
+            b.vx += dvn * nx * BOUNCE;
+            b.vz += dvn * nz * BOUNCE;
 
             const overlap = COIN_R * 2 - dist;
             a.x -= overlap * nx * 0.5;
@@ -407,39 +456,34 @@ export default function NeonStrikerGame({
             b.x += overlap * nx * 0.5;
             b.z += overlap * nz * 0.5;
 
-            // NEW SCORING: Striker hits target = +100 and remove
-            // Target hits target = -50 chain penalty (first target was already removed)
+            // SCORING LOGIC
             if (a.isStriker && !b.isStriker && !b.isRemoved && !b.wasHitByStriker) {
-              // Striker hit target - GOOD! Remove and score
+              // Striker hit target = +100
               b.wasHitByStriker = true;
               b.isRemoved = true;
               if (b.mesh) b.mesh.visible = false;
               scoreRef.current += 100;
+              hitsThisShotRef.current++;
+              setHitsThisShot(hitsThisShotRef.current);
               setScore(scoreRef.current);
               addPopup(100, 50, 40, 'perfect', 'HIT! +100');
               setCoinsLeft(c => Math.max(0, c - 1));
             } else if (b.isStriker && !a.isStriker && !a.isRemoved && !a.wasHitByStriker) {
-              // Striker hit target - GOOD!
+              // Striker hit target = +100
               a.wasHitByStriker = true;
               a.isRemoved = true;
               if (a.mesh) a.mesh.visible = false;
               scoreRef.current += 100;
+              hitsThisShotRef.current++;
+              setHitsThisShot(hitsThisShotRef.current);
               setScore(scoreRef.current);
               addPopup(100, 50, 40, 'perfect', 'HIT! +100');
               setCoinsLeft(c => Math.max(0, c - 1));
             } else if (!a.isStriker && !b.isStriker) {
-              // Two targets colliding - chain hit penalty
-              if ((a.wasHitByStriker || a.wasChainHit) && !b.wasChainHit && !b.isRemoved) {
-                b.wasChainHit = true;
-                scoreRef.current -= 50;
-                setScore(scoreRef.current);
-                addPopup(-50, 50, 50, 'kill', 'CHAIN! -50');
-              } else if ((b.wasHitByStriker || b.wasChainHit) && !a.wasChainHit && !a.isRemoved) {
-                a.wasChainHit = true;
-                scoreRef.current -= 50;
-                setScore(scoreRef.current);
-                addPopup(-50, 50, 50, 'kill', 'CHAIN! -50');
-              }
+              // Two targets colliding = -25 each time!
+              scoreRef.current -= 25;
+              setScore(scoreRef.current);
+              addPopup(-25, 50, 50, 'kill', 'ENEMY COLLISION! -25');
             }
           }
         }
@@ -449,6 +493,15 @@ export default function NeonStrikerGame({
     // Check if shooting done
     if (isShootingRef.current && !anyMoving) {
       isShootingRef.current = false;
+      
+      // -10 for missing (no hits this shot)
+      if (hitsThisShotRef.current === 0) {
+        scoreRef.current -= 10;
+        setScore(scoreRef.current);
+        addPopup(-10, 50, 50, 'kill', 'MISS! -10');
+      }
+      hitsThisShotRef.current = 0;
+      setHitsThisShot(0);
       
       const striker = coins.find(c => c.isStriker);
       if (striker && striker.isRemoved && striker.mesh) {
@@ -461,7 +514,7 @@ export default function NeonStrikerGame({
         striker.mesh.position.set(striker.x, 0.12, striker.z);
       }
 
-      // Reset chain tracking
+      // Reset hit tracking
       coins.forEach(c => {
         c.wasChainHit = false;
         if (!c.isRemoved && !c.isStriker) {
@@ -471,10 +524,21 @@ export default function NeonStrikerGame({
 
       const remaining = coins.filter(c => !c.isStriker && !c.isRemoved).length;
       if (remaining === 0) {
-        if (currentLevel < LEVELS.length - 1) {
-          scoreRef.current += 200;
-          setScore(scoreRef.current);
+        // SPEED BONUS based on time
+        const level = LEVELS[currentLevel];
+        const timeBonus = Math.max(0, (level.timeLimit - levelTime) * 10);
+        scoreRef.current += 200 + timeBonus;
+        setScore(scoreRef.current);
+        
+        if (levelTimerRef.current) clearInterval(levelTimerRef.current);
+        
+        if (timeBonus > 0) {
+          addPopup(200 + timeBonus, 50, 30, 'critical', `LEVEL DONE! +${200 + timeBonus}`);
+        } else {
           addPopup(200, 50, 30, 'critical', 'LEVEL COMPLETE! +200');
+        }
+        
+        if (currentLevel < LEVELS.length - 1) {
           setGameState('levelComplete');
         } else {
           endGame();
@@ -484,16 +548,15 @@ export default function NeonStrikerGame({
         setAimLocked(false);
       }
     }
-  }, [addPopup, currentLevel]);
+  }, [addPopup, currentLevel, levelTime]);
 
   // End game
   const endGame = useCallback(() => {
     setGameState('complete');
     if (timerRef.current) clearInterval(timerRef.current);
+    if (levelTimerRef.current) clearInterval(levelTimerRef.current);
 
-    const timeBonus = Math.max(0, 1000 - timeElapsed * 5);
-    const levelBonus = (currentLevel + 1) * 100;
-    const finalScore = Math.max(0, scoreRef.current + timeBonus + levelBonus);
+    const finalScore = scoreRef.current;
 
     try {
       logGameCompletion({
@@ -506,7 +569,7 @@ export default function NeonStrikerGame({
     } catch (e) { console.error('Audit failed:', e); }
 
     onGameEnd({ score: finalScore, accuracy: shotsUsed > 0 ? Math.min(100, ((currentLevel + 1) * 3 / shotsUsed) * 100) : 0 });
-  }, [timeElapsed, shotsUsed, currentLevel, isCompetitionMode, rngSeed, listingId, entryNumber, onGameEnd]);
+  }, [shotsUsed, timeElapsed, currentLevel, isCompetitionMode, rngSeed, listingId, entryNumber, onGameEnd]);
 
   // Animation
   useEffect(() => {
@@ -514,7 +577,7 @@ export default function NeonStrikerGame({
     if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
 
     const animate = () => {
-      if (isShootingRef.current) updatePhysics();
+      updatePhysics();
       updateAimLine();
 
       const time = Date.now() * 0.003;
@@ -535,12 +598,17 @@ export default function NeonStrikerGame({
   // Start game
   const startGame = useCallback(() => {
     scoreRef.current = 0;
+    hitsThisShotRef.current = 0;
     setScore(0);
     setShotsUsed(0);
+    setHitsThisShot(0);
     setTimeElapsed(0);
+    setLevelTime(0);
     setCurrentLevel(0);
     setSceneReady(false);
     setGameState('playing');
+    
+    timerRef.current = setInterval(() => setTimeElapsed(t => t + 1), 1000);
   }, []);
 
   // Next level
@@ -558,9 +626,6 @@ export default function NeonStrikerGame({
     const checkAndInit = () => {
       if (containerRef.current) {
         initScene(currentLevel);
-        if (!timerRef.current) {
-          timerRef.current = setInterval(() => setTimeElapsed(t => t + 1), 1000);
-        }
       } else {
         setTimeout(checkAndInit, 50);
       }
@@ -568,17 +633,16 @@ export default function NeonStrikerGame({
     setTimeout(checkAndInit, 50);
   }, [gameState, sceneReady, currentLevel, initScene]);
 
-  // Pointer handlers - BETTER AIMING with mouse position
+  // Pointer handlers
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (gameState === 'shooting') return;
     
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    // Direct mouse-to-angle conversion for responsive aiming
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    const newAngle = Math.atan2(x * 2, -y * 1.5); // Wider horizontal range
+    const newAngle = Math.atan2(x * 2, -y * 1.5);
     
     if (!aimLocked) {
       setAimAngle(newAngle);
@@ -622,6 +686,8 @@ export default function NeonStrikerGame({
     striker.vx = Math.sin(aimAngle) * launchPower;
     striker.vz = -Math.cos(aimAngle) * launchPower;
 
+    hitsThisShotRef.current = 0;
+    setHitsThisShot(0);
     isShootingRef.current = true;
     setGameState('shooting');
     setShotsUsed(s => s + 1);
@@ -641,6 +707,7 @@ export default function NeonStrikerGame({
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
+      if (levelTimerRef.current) clearInterval(levelTimerRef.current);
       if (powerTimerRef.current) clearInterval(powerTimerRef.current);
       if (rendererRef.current) rendererRef.current.dispose();
     };
@@ -652,16 +719,17 @@ export default function NeonStrikerGame({
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-lg w-full text-center border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.3)]">
           <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent">⚡ NEON STRIKER</h1>
-          <p className="text-cyan-400 mb-4">{LEVELS.length} Levels • Tap to Aim & Shoot</p>
+          <p className="text-cyan-400 mb-4">Moving Targets • Speed Bonus</p>
 
           <div className="bg-black/50 rounded-xl p-4 mb-5 text-left text-sm text-gray-300">
-            <p className="mb-2 text-cyan-400 font-bold">🎯 GOAL: Hit coins to remove them!</p>
-            <p className="mb-1">• Move to aim the <span className="text-cyan-400">arrow</span></p>
-            <p className="mb-1">• <span className="text-yellow-400">TAP & HOLD</span> to lock aim and charge</p>
+            <p className="mb-2 text-cyan-400 font-bold">🎯 Hit MOVING coins to remove them!</p>
+            <p className="mb-1">• <span className="text-yellow-400">TAP & HOLD</span> to aim and charge</p>
             <p className="mb-3">• <span className="text-red-400">RELEASE</span> to shoot!</p>
-            <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Hit a coin (removes it)</p>
-            <p className="mb-1"><span className="text-red-400 font-bold">-50</span> Hit causes chain reaction</p>
-            <p><span className="text-red-400 font-bold">-100</span> Any coin falls off table</p>
+            <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Hit a coin</p>
+            <p className="mb-1"><span className="text-yellow-400 font-bold">+SPEED BONUS</span> Complete level fast!</p>
+            <p className="mb-1"><span className="text-red-400 font-bold">-25</span> Enemy coins collide</p>
+            <p className="mb-1"><span className="text-red-400 font-bold">-10</span> Miss a shot</p>
+            <p><span className="text-red-400 font-bold">-100</span> Striker falls off</p>
           </div>
 
           <button onClick={startGame} className="w-full py-4 rounded-xl font-bold text-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:scale-105 transition-all">
@@ -678,11 +746,15 @@ export default function NeonStrikerGame({
 
   // LEVEL COMPLETE
   if (gameState === 'levelComplete') {
+    const level = LEVELS[currentLevel];
+    const timeBonus = Math.max(0, (level.timeLimit - levelTime) * 10);
+    
     return (
       <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full text-center border-2 border-green-500 shadow-[0_0_40px_rgba(0,255,0,0.3)]">
           <h1 className="text-3xl font-bold mb-2 text-green-400">✨ LEVEL {currentLevel + 1} COMPLETE!</h1>
-          <p className="text-gray-400 mb-4">{LEVELS[currentLevel].name}</p>
+          <p className="text-gray-400 mb-2">{LEVELS[currentLevel].name}</p>
+          <p className="text-yellow-400 mb-4">⏱️ Time: {levelTime}s {timeBonus > 0 && <span className="text-green-400">(+{timeBonus} speed bonus!)</span>}</p>
           <div className="text-2xl text-cyan-400 font-bold mb-4">Score: {score}</div>
           <p className="text-gray-300 mb-4">Next: Level {currentLevel + 2} - {LEVELS[currentLevel + 1]?.name}</p>
           <button onClick={nextLevel} className="w-full py-4 rounded-xl font-bold text-xl bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:scale-105 transition-all">
@@ -695,22 +767,11 @@ export default function NeonStrikerGame({
 
   // COMPLETE
   if (gameState === 'complete') {
-    const timeBonus = Math.max(0, 1000 - timeElapsed * 5);
-    const levelBonus = (currentLevel + 1) * 100;
-    const finalScore = Math.max(0, score + timeBonus + levelBonus);
-
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full text-center border-2 border-cyan-500">
           <h1 className="text-3xl font-bold mb-4 text-cyan-400">🏆 ALL LEVELS COMPLETE!</h1>
-          <div className="space-y-2 mb-4 text-lg">
-            <div className="flex justify-between p-2 bg-cyan-500/20 rounded"><span>Base Score</span><span className="text-cyan-400 font-bold">{score}</span></div>
-            <div className="flex justify-between p-2 bg-green-500/20 rounded"><span>Time Bonus</span><span className="text-green-400 font-bold">+{timeBonus}</span></div>
-            <div className="flex justify-between p-2 bg-purple-500/20 rounded"><span>Level Bonus</span><span className="text-purple-400 font-bold">+{levelBonus}</span></div>
-            <div className="flex justify-between p-3 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded border border-cyan-400">
-              <span className="font-bold">FINAL</span><span className="text-2xl text-cyan-300 font-bold">{finalScore}</span>
-            </div>
-          </div>
+          <div className="text-3xl text-cyan-300 font-bold mb-4">{score} pts</div>
           <p className="text-gray-400 text-sm">Levels: {currentLevel + 1}/{LEVELS.length} • Time: {timeElapsed}s • Shots: {shotsUsed}</p>
         </div>
       </div>
@@ -728,7 +789,7 @@ export default function NeonStrikerGame({
           <span className="text-green-400 font-bold">💰 {score}</span>
         </div>
         <div className="flex gap-3 text-sm">
-          <span className="text-yellow-400 font-bold">⏱️ {timeElapsed}s</span>
+          <span className="text-yellow-400 font-bold">⏱️ {levelTime}s</span>
           <span className="text-cyan-400 font-bold">🎱 {shotsUsed}</span>
           {!isCompetitionMode && onExit && (
             <button onClick={onExit} className="text-white hover:text-red-400 ml-2">✕</button>
@@ -754,7 +815,7 @@ export default function NeonStrikerGame({
 
       {/* Status */}
       <div className="absolute top-12 right-4 z-30 text-right">
-        {gameState === 'playing' && <div className="text-cyan-400 text-xs animate-pulse">Move to aim, TAP to shoot</div>}
+        {gameState === 'playing' && <div className="text-cyan-400 text-xs animate-pulse">Targets MOVING! TAP to shoot</div>}
         {gameState === 'charging' && <div className="text-orange-400 text-sm font-bold animate-pulse">🔥 CHARGING!</div>}
         {gameState === 'shooting' && <div className="text-cyan-400 text-lg font-bold animate-pulse">⚡ STRIKE!</div>}
       </div>
@@ -776,12 +837,15 @@ export default function NeonStrikerGame({
               }}
             />
           </div>
-          <p className="text-center text-orange-400 text-sm mt-1 font-bold">POWER: {power}% — RELEASE TO SHOOT!</p>
+          <p className="text-center text-orange-400 text-sm mt-1 font-bold">POWER: {power}%</p>
         </div>
       )}
 
-      {/* Level name */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 text-gray-500 text-xs">{LEVELS[currentLevel]?.name}</div>
+      {/* Level info */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 text-center">
+        <div className="text-gray-500 text-xs">{LEVELS[currentLevel]?.name}</div>
+        <div className="text-gray-600 text-[10px]">Time Limit: {LEVELS[currentLevel]?.timeLimit}s for speed bonus</div>
+      </div>
 
       {/* 3D Container */}
       <div 
