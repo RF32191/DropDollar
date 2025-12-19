@@ -148,87 +148,122 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const GAME_DURATION = 90; // seconds
   const CHECKPOINTS_PER_MAZE = 5;
 
-  // Create IC Chip checkpoint (circuit board theme)
+  // Create IC Chip checkpoint (circuit board theme) - TALL and PROMINENT
   const createTeslaCoil = useCallback((color: number = 0x222222) => {
     const group = new THREE.Group();
     
-    // IC Chip body (black rectangle)
-    const chipGeometry = new THREE.BoxGeometry(1.4, 0.35, 1.0);
+    // Base plate (PCB substrate)
+    const baseGeometry = new THREE.BoxGeometry(2.2, 0.15, 1.6);
+    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x0a3d0a }); // PCB green
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.y = 0.08;
+    group.add(base);
+    
+    // IC Chip body (black rectangle) - TALLER
+    const chipGeometry = new THREE.BoxGeometry(1.8, 0.8, 1.3);
     const chipMaterial = new THREE.MeshBasicMaterial({ color: 0x111111 });
     const chip = new THREE.Mesh(chipGeometry, chipMaterial);
-    chip.position.y = 0.25;
+    chip.position.y = 0.55;
     group.add(chip);
     
+    // Chip top bevel
+    const topBevelGeometry = new THREE.BoxGeometry(1.7, 0.1, 1.2);
+    const topBevelMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    const topBevel = new THREE.Mesh(topBevelGeometry, topBevelMaterial);
+    topBevel.position.y = 1.0;
+    group.add(topBevel);
+    
     // Chip label (silver/white marking)
-    const labelGeometry = new THREE.PlaneGeometry(0.9, 0.4);
-    const labelMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.8 });
+    const labelGeometry = new THREE.PlaneGeometry(1.2, 0.6);
+    const labelMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.9 });
     const label = new THREE.Mesh(labelGeometry, labelMaterial);
     label.rotation.x = -Math.PI / 2;
-    label.position.y = 0.44;
+    label.position.y = 1.06;
     group.add(label);
     
-    // IC Chip pins (legs) - left side
-    for (let i = 0; i < 5; i++) {
-      const pinGeometry = new THREE.BoxGeometry(0.35, 0.06, 0.1);
+    // IC Chip pins (legs) - left side - BIGGER & BENT
+    for (let i = 0; i < 6; i++) {
+      // Horizontal part
+      const pinHGeometry = new THREE.BoxGeometry(0.5, 0.08, 0.12);
       const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 }); // Silver pins
-      const pin = new THREE.Mesh(pinGeometry, pinMaterial);
-      pin.position.set(-0.85, 0.15, -0.35 + i * 0.18);
-      group.add(pin);
+      const pinH = new THREE.Mesh(pinHGeometry, pinMaterial);
+      pinH.position.set(-1.15, 0.3, -0.5 + i * 0.2);
+      group.add(pinH);
+      // Vertical part (bent down)
+      const pinVGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.12);
+      const pinV = new THREE.Mesh(pinVGeometry, pinMaterial.clone());
+      pinV.position.set(-1.35, 0.15, -0.5 + i * 0.2);
+      group.add(pinV);
     }
     
     // IC Chip pins - right side
-    for (let i = 0; i < 5; i++) {
-      const pinGeometry = new THREE.BoxGeometry(0.35, 0.06, 0.1);
+    for (let i = 0; i < 6; i++) {
+      const pinHGeometry = new THREE.BoxGeometry(0.5, 0.08, 0.12);
       const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
-      const pin = new THREE.Mesh(pinGeometry, pinMaterial);
-      pin.position.set(0.85, 0.15, -0.35 + i * 0.18);
-      group.add(pin);
+      const pinH = new THREE.Mesh(pinHGeometry, pinMaterial);
+      pinH.position.set(1.15, 0.3, -0.5 + i * 0.2);
+      group.add(pinH);
+      const pinVGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.12);
+      const pinV = new THREE.Mesh(pinVGeometry, pinMaterial.clone());
+      pinV.position.set(1.35, 0.15, -0.5 + i * 0.2);
+      group.add(pinV);
     }
     
-    // Glowing indicator LED on chip
-    const ledGeometry = new THREE.SphereGeometry(0.12, 12, 12);
+    // Glowing indicator LED on chip - BIGGER
+    const ledGeometry = new THREE.SphereGeometry(0.2, 16, 16);
     const ledMaterial = new THREE.MeshBasicMaterial({ 
       color: 0x00ff00, 
       transparent: true, 
-      opacity: 0.95 
+      opacity: 1.0 
     });
     const led = new THREE.Mesh(ledGeometry, ledMaterial);
-    led.position.set(0.4, 0.5, 0.2);
+    led.position.set(0.5, 1.2, 0.3);
     led.name = 'led';
     group.add(led);
     
-    // LED glow rings
-    for (let i = 0; i < 3; i++) {
-      const ringGeometry = new THREE.TorusGeometry(0.18 + i * 0.1, 0.025, 8, 32);
+    // LED dome (glass cover)
+    const domeGeometry = new THREE.SphereGeometry(0.25, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x88ff88, 
+      transparent: true, 
+      opacity: 0.3 
+    });
+    const dome = new THREE.Mesh(domeGeometry, domeMaterial);
+    dome.position.set(0.5, 1.15, 0.3);
+    group.add(dome);
+    
+    // LED glow rings - BIGGER and more visible
+    for (let i = 0; i < 4; i++) {
+      const ringGeometry = new THREE.TorusGeometry(0.3 + i * 0.15, 0.04, 8, 32);
       const ringMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x00ff00, 
         transparent: true, 
-        opacity: 0.5 - i * 0.15 
+        opacity: 0.6 - i * 0.12 
       });
       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
       ring.rotation.x = Math.PI / 2;
-      ring.position.set(0.4, 0.55 + i * 0.1, 0.2);
+      ring.position.set(0.5, 1.3 + i * 0.15, 0.3);
       ring.name = `ring${i}`;
       group.add(ring);
     }
     
-    // Spark particles for checkpoint effect
-    for (let i = 0; i < 6; i++) {
-      const sparkGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    // Spark particles for checkpoint effect - BIGGER
+    for (let i = 0; i < 8; i++) {
+      const sparkGeometry = new THREE.SphereGeometry(0.08, 8, 8);
       const sparkMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x00ff00, 
         transparent: true, 
-        opacity: 0.8 
+        opacity: 0.9 
       });
       const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
-      spark.position.y = 0.6;
+      spark.position.y = 1.5;
       spark.name = `spark${i}`;
       group.add(spark);
     }
     
-    // Point light (green glow)
-    const light = new THREE.PointLight(0x00ff00, 2, 5);
-    light.position.y = 0.6;
+    // Point light (green glow) - BRIGHTER
+    const light = new THREE.PointLight(0x00ff00, 4, 8);
+    light.position.y = 1.5;
     group.add(light);
     
     return group;
@@ -395,70 +430,104 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     group.rotation.z = Math.sin(time * 10) * 0.15;
   }, []);
 
-  // Create moving obstacle (capacitor - circuit board theme)
+  // Create moving obstacle (capacitor - circuit board theme) - TALL and PROMINENT
   const createObstacle = useCallback(() => {
     const group = new THREE.Group();
     
-    // Capacitor body (cylindrical, metallic blue)
-    const bodyGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.9, 16);
+    // Capacitor body (cylindrical, metallic blue) - MUCH TALLER
+    const bodyGeometry = new THREE.CylinderGeometry(0.6, 0.6, 2.0, 20);
     const bodyMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x1a1a5a, // Dark blue capacitor
+      color: 0x1a1a6a, // Dark blue capacitor
       transparent: true, 
       opacity: 0.95 
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 1.0;
     group.add(body);
     
-    // Capacitor top marking stripe
-    const stripeGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.12, 16);
-    const stripeMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xcccccc, 
-      transparent: true, 
-      opacity: 0.9 
-    });
-    const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
-    stripe.position.y = 0.4;
-    group.add(stripe);
+    // Capacitor top cap (silver)
+    const topCapGeometry = new THREE.CylinderGeometry(0.55, 0.6, 0.15, 20);
+    const topCapMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaaaa });
+    const topCap = new THREE.Mesh(topCapGeometry, topCapMaterial);
+    topCap.position.y = 2.08;
+    group.add(topCap);
     
-    // Capacitor minus stripe
-    const minusStripeGeometry = new THREE.CylinderGeometry(0.37, 0.37, 0.08, 16);
+    // Capacitor top vent (K pattern)
+    const ventGeometry = new THREE.BoxGeometry(0.4, 0.08, 0.08);
+    const ventMaterial = new THREE.MeshBasicMaterial({ color: 0x666666 });
+    const vent1 = new THREE.Mesh(ventGeometry, ventMaterial);
+    vent1.position.y = 2.17;
+    vent1.rotation.y = Math.PI / 4;
+    group.add(vent1);
+    const vent2 = new THREE.Mesh(ventGeometry, ventMaterial.clone());
+    vent2.position.y = 2.17;
+    vent2.rotation.y = -Math.PI / 4;
+    group.add(vent2);
+    
+    // Capacitor marking stripes (multiple)
+    for (let i = 0; i < 3; i++) {
+      const stripeGeometry = new THREE.CylinderGeometry(0.62, 0.62, 0.08, 20);
+      const stripeMaterial = new THREE.MeshBasicMaterial({ 
+        color: i === 0 ? 0xcccccc : 0x333333, 
+        transparent: true, 
+        opacity: 0.9 
+      });
+      const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+      stripe.position.y = 1.7 + i * 0.12;
+      group.add(stripe);
+    }
+    
+    // Capacitor minus stripe (big white band)
+    const minusStripeGeometry = new THREE.CylinderGeometry(0.63, 0.63, 0.25, 20);
     const minusStripeMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x333333, 
+      color: 0xeeeeee, 
       transparent: true, 
-      opacity: 0.9 
+      opacity: 0.95 
     });
     const minusStripe = new THREE.Mesh(minusStripeGeometry, minusStripeMaterial);
-    minusStripe.position.y = 0.32;
+    minusStripe.position.y = 1.85;
     group.add(minusStripe);
     
-    // Danger glow
-    const glowGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.0, 16);
+    // Capacitor legs (wires going down)
+    const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+    const legMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+    const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+    leg1.position.set(0.25, -0.2, 0);
+    group.add(leg1);
+    const leg2 = new THREE.Mesh(legGeometry, legMaterial.clone());
+    leg2.position.set(-0.25, -0.2, 0);
+    group.add(leg2);
+    
+    // Danger glow - BIGGER
+    const glowGeometry = new THREE.CylinderGeometry(0.9, 0.9, 2.4, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({ 
       color: 0xff4444, 
       transparent: true, 
-      opacity: 0.25 
+      opacity: 0.2 
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow.position.y = 1.0;
     glow.name = 'obstacleGlow';
     group.add(glow);
     
-    // Danger spark rings
-    for (let i = 0; i < 3; i++) {
-      const ringGeometry = new THREE.TorusGeometry(0.45 + i * 0.12, 0.025, 8, 32);
+    // Danger spark rings - MORE and BIGGER
+    for (let i = 0; i < 5; i++) {
+      const ringGeometry = new THREE.TorusGeometry(0.7 + i * 0.15, 0.04, 8, 32);
       const ringMaterial = new THREE.MeshBasicMaterial({ 
         color: 0xff6666, 
         transparent: true, 
-        opacity: 0.5 
+        opacity: 0.6 - i * 0.1 
       });
       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
       ring.rotation.x = Math.PI / 2;
-      ring.position.y = 0.1 * i - 0.1;
+      ring.position.y = 0.4 + i * 0.4;
       ring.name = `dangerRing${i}`;
       group.add(ring);
     }
     
-    // Point light (red warning)
-    const light = new THREE.PointLight(0xff4444, 1.5, 4);
+    // Point light (red warning) - BRIGHTER
+    const light = new THREE.PointLight(0xff4444, 3, 6);
+    light.position.y = 1.5;
     group.add(light);
     
     return group;
@@ -521,12 +590,12 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     return group;
   }, []);
 
-  // Create resistor path segment (slows player down) - full path with spiral animation
+  // Create resistor path segment (slows player down) - TALL and PROMINENT 3D
   const createResistor = useCallback(() => {
     const group = new THREE.Group();
     
     // Resistor path base (covers the full path cell - copper colored)
-    const pathGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.9, CELL_SIZE * 0.9);
+    const pathGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.95, CELL_SIZE * 0.95);
     const pathMaterial = new THREE.MeshBasicMaterial({ 
       color: 0x8b6914, // Darker copper for resistor path
       transparent: true,
@@ -534,118 +603,183 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     });
     const pathBase = new THREE.Mesh(pathGeometry, pathMaterial);
     pathBase.rotation.x = -Math.PI / 2;
-    pathBase.position.y = 0.025;
+    pathBase.position.y = 0.02;
     group.add(pathBase);
     
-    // Main resistor body (tan/beige - larger to span path)
-    const bodyGeometry = new THREE.CylinderGeometry(0.35, 0.35, CELL_SIZE * 0.7, 16);
+    // Mounting posts (ceramic standoffs)
+    const postGeometry = new THREE.CylinderGeometry(0.15, 0.2, 0.4, 12);
+    const postMaterial = new THREE.MeshBasicMaterial({ color: 0xf5f5dc }); // Beige ceramic
+    const post1 = new THREE.Mesh(postGeometry, postMaterial);
+    post1.position.set(-CELL_SIZE * 0.35, 0.2, 0);
+    group.add(post1);
+    const post2 = new THREE.Mesh(postGeometry, postMaterial.clone());
+    post2.position.set(CELL_SIZE * 0.35, 0.2, 0);
+    group.add(post2);
+    
+    // Main resistor body (tan/beige - MUCH BIGGER and TALLER)
+    const bodyGeometry = new THREE.CylinderGeometry(0.55, 0.55, CELL_SIZE * 0.8, 20);
     const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xd4a574 }); // Tan color
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.rotation.z = Math.PI / 2; // Lay flat across path
-    body.position.y = 0.4;
+    body.position.y = 0.8;
     body.name = 'resistorBody';
     group.add(body);
     
-    // Color bands (4-band resistor - bigger)
-    const bandColors = [0x8b4513, 0x000000, 0xff0000, 0xc0c0c0]; // Brown, Black, Red, Silver
+    // Color bands (4-band resistor - MUCH BIGGER and raised)
+    const bandColors = [0x8b4513, 0x000000, 0xff0000, 0xffd700]; // Brown, Black, Red, Gold
     for (let i = 0; i < 4; i++) {
-      const bandGeometry = new THREE.CylinderGeometry(0.38, 0.38, 0.12, 16);
+      const bandGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.15, 20);
       const bandMaterial = new THREE.MeshBasicMaterial({ color: bandColors[i] });
       const band = new THREE.Mesh(bandGeometry, bandMaterial);
       band.rotation.z = Math.PI / 2;
-      band.position.set(-0.4 + i * 0.27, 0.4, 0);
+      band.position.set(-0.5 + i * 0.35, 0.8, 0);
       group.add(band);
     }
     
-    // Wire leads (copper traces connecting to path)
-    const wireGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.15, 0.08, CELL_SIZE * 0.9);
+    // Wire leads (thick copper wires) - bent down to posts
+    const wireHGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.4, 8);
     const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xb87333 }); // Copper
-    const wire1 = new THREE.Mesh(wireGeometry, wireMaterial);
-    wire1.position.set(-CELL_SIZE * 0.35, 0.05, 0);
-    group.add(wire1);
-    const wire2 = new THREE.Mesh(wireGeometry, wireMaterial);
-    wire2.position.set(CELL_SIZE * 0.35, 0.05, 0);
-    group.add(wire2);
+    const wireH1 = new THREE.Mesh(wireHGeometry, wireMaterial);
+    wireH1.rotation.z = Math.PI / 2;
+    wireH1.position.set(-CELL_SIZE * 0.55, 0.8, 0);
+    group.add(wireH1);
+    const wireH2 = new THREE.Mesh(wireHGeometry, wireMaterial.clone());
+    wireH2.rotation.z = Math.PI / 2;
+    wireH2.position.set(CELL_SIZE * 0.55, 0.8, 0);
+    group.add(wireH2);
     
-    // Spiral path indicators (show the slowdown effect)
-    for (let i = 0; i < 8; i++) {
-      const spiralGeometry = new THREE.TorusGeometry(0.15 + i * 0.08, 0.02, 8, 32);
+    // Vertical wire parts (going down to posts)
+    const wireVGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8);
+    const wireV1 = new THREE.Mesh(wireVGeometry, wireMaterial.clone());
+    wireV1.position.set(-CELL_SIZE * 0.35, 0.5, 0);
+    group.add(wireV1);
+    const wireV2 = new THREE.Mesh(wireVGeometry, wireMaterial.clone());
+    wireV2.position.set(CELL_SIZE * 0.35, 0.5, 0);
+    group.add(wireV2);
+    
+    // Spiral path indicators (show the slowdown effect) - TALLER
+    for (let i = 0; i < 6; i++) {
+      const spiralGeometry = new THREE.TorusGeometry(0.25 + i * 0.12, 0.04, 8, 32);
       const spiralMaterial = new THREE.MeshBasicMaterial({ 
         color: 0xff8800, 
         transparent: true, 
-        opacity: 0.4 - i * 0.04
+        opacity: 0.5 - i * 0.07
       });
       const spiral = new THREE.Mesh(spiralGeometry, spiralMaterial);
       spiral.rotation.x = Math.PI / 2;
-      spiral.position.y = 0.1;
+      spiral.position.y = 0.15 + i * 0.1;
       spiral.name = `spiral${i}`;
       group.add(spiral);
     }
     
-    // Warning glow (orange - indicates slowdown zone)
-    const glowGeometry = new THREE.CylinderGeometry(CELL_SIZE * 0.5, CELL_SIZE * 0.5, 0.3, 16);
+    // Warning glow (orange - indicates slowdown zone) - TALLER
+    const glowGeometry = new THREE.CylinderGeometry(CELL_SIZE * 0.55, CELL_SIZE * 0.55, 1.5, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({ 
       color: 0xff6600, 
       transparent: true, 
-      opacity: 0.15 
+      opacity: 0.18 
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.y = 0.2;
+    glow.position.y = 0.6;
     glow.name = 'resistorGlow';
     group.add(glow);
     
-    // Point light for visibility
-    const light = new THREE.PointLight(0xff8800, 0.8, 4);
-    light.position.y = 0.5;
+    // Point light for visibility - BRIGHTER
+    const light = new THREE.PointLight(0xff8800, 2, 6);
+    light.position.y = 1.2;
     group.add(light);
     
     return group;
   }, []);
 
-  // Create diode (one-way path indicator) - circuit board theme
+  // Create diode (one-way path indicator) - circuit board theme - TALL and PROMINENT
   const createDiode = useCallback(() => {
     const group = new THREE.Group();
     
-    // Diode body (black cylinder with stripe)
-    const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.5, 12);
-    const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    // PCB mounting base
+    const baseGeometry = new THREE.BoxGeometry(1.2, 0.1, 0.6);
+    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x0a3d0a }); // PCB green
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.y = 0.05;
+    group.add(base);
+    
+    // Diode body (black cylinder with stripe) - BIGGER
+    const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.9, 16);
+    const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.rotation.z = Math.PI / 2;
-    body.position.y = 0.2;
+    body.position.y = 0.5;
     group.add(body);
     
-    // Cathode stripe (white band)
-    const stripeGeometry = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12);
-    const stripeMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+    // Cathode stripe (white band) - BIGGER
+    const stripeGeometry = new THREE.CylinderGeometry(0.27, 0.27, 0.12, 16);
+    const stripeMaterial = new THREE.MeshBasicMaterial({ color: 0xeeeeee });
     const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
     stripe.rotation.z = Math.PI / 2;
-    stripe.position.set(0.18, 0.2, 0);
+    stripe.position.set(0.35, 0.5, 0);
     group.add(stripe);
     
-    // Wire leads
-    const wireGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.35, 8);
-    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
-    const wire1 = new THREE.Mesh(wireGeometry, wireMaterial);
-    wire1.rotation.z = Math.PI / 2;
-    wire1.position.set(-0.42, 0.2, 0);
-    group.add(wire1);
-    const wire2 = new THREE.Mesh(wireGeometry, wireMaterial);
-    wire2.rotation.z = Math.PI / 2;
-    wire2.position.set(0.42, 0.2, 0);
-    group.add(wire2);
-    
-    // Arrow indicator (shows direction)
-    const arrowGeometry = new THREE.ConeGeometry(0.12, 0.25, 8);
-    const arrowMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff00, 
+    // Glass lens end (anode side)
+    const lensGeometry = new THREE.SphereGeometry(0.15, 12, 12, 0, Math.PI);
+    const lensMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x333333, 
       transparent: true, 
       opacity: 0.8 
     });
+    const lens = new THREE.Mesh(lensGeometry, lensMaterial);
+    lens.rotation.z = Math.PI / 2;
+    lens.position.set(-0.5, 0.5, 0);
+    group.add(lens);
+    
+    // Wire leads - THICKER with bent legs
+    const wireHGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.35, 8);
+    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+    const wireH1 = new THREE.Mesh(wireHGeometry, wireMaterial);
+    wireH1.rotation.z = Math.PI / 2;
+    wireH1.position.set(-0.75, 0.5, 0);
+    group.add(wireH1);
+    const wireH2 = new THREE.Mesh(wireHGeometry, wireMaterial.clone());
+    wireH2.rotation.z = Math.PI / 2;
+    wireH2.position.set(0.75, 0.5, 0);
+    group.add(wireH2);
+    
+    // Vertical wire parts
+    const wireVGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.4, 8);
+    const wireV1 = new THREE.Mesh(wireVGeometry, wireMaterial.clone());
+    wireV1.position.set(-0.5, 0.25, 0);
+    group.add(wireV1);
+    const wireV2 = new THREE.Mesh(wireVGeometry, wireMaterial.clone());
+    wireV2.position.set(0.5, 0.25, 0);
+    group.add(wireV2);
+    
+    // Arrow indicator (shows direction) - BIGGER and FLOATING
+    const arrowGeometry = new THREE.ConeGeometry(0.2, 0.4, 8);
+    const arrowMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.9 
+    });
     const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
     arrow.rotation.z = -Math.PI / 2;
-    arrow.position.set(0.15, 0.5, 0);
+    arrow.position.set(0.2, 1.0, 0);
     arrow.name = 'diodeArrow';
     group.add(arrow);
+    
+    // Direction glow trail
+    const trailGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
+    const trailMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.4 
+    });
+    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+    trail.position.set(-0.1, 1.0, 0);
+    group.add(trail);
+    
+    // Point light
+    const light = new THREE.PointLight(0x00ff00, 1, 3);
+    light.position.y = 1.0;
+    group.add(light);
     
     return group;
   }, []);
