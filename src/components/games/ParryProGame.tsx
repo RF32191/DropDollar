@@ -478,6 +478,14 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         }
       }
       
+      // Show strike hit popup (if not a kill)
+      if (targetEnemy.health > 0) {
+        const strikePoints = 25 + (comboRef.current * 10);
+        scoreRef.current += strikePoints;
+        setScore(scoreRef.current);
+        addPopup(strikePoints, 50, 45, 'normal', `HIT ${3 - targetEnemy.health}/3`);
+      }
+      
       if (targetEnemy.health <= 0) {
         // Enemy killed!
         targetEnemy.attackPhase = 'dying';
