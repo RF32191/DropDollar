@@ -17,52 +17,44 @@ interface NeonStrikerGameProps {
 interface Coin {
   id: number;
   mesh: THREE.Mesh;
+  glowMesh: THREE.Mesh;
   vx: number;
   vz: number;
-  isTarget: boolean; // Target coins to hit off
-  isPlayer: boolean; // Player's striker coin
-  hitBy: number | null; // ID of coin that hit this one
-  chainHit: boolean; // Was this a chain reaction hit?
-  fallen: boolean; // Has fallen off the table
-  glowMesh: THREE.Mesh;
+  isTarget: boolean;
+  isPlayer: boolean;
+  hitBy: number | null;
+  chainHit: boolean;
+  fallen: boolean;
 }
 
 interface Obstacle {
   mesh: THREE.Mesh;
   glowMesh: THREE.Mesh;
   type: 'bumper' | 'rail';
+  radius?: number;
 }
 
-// Seeded RNG (Mulberry32)
-function createSeededRNG(seed: number) {
-  let state = seed;
-  return {
-    next: () => {
-      state = (state + 0x6D2B79F5) | 0;
-      let t = Math.imul(state ^ (state >>> 15), 1 | state);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    },
-    nextFloat: (min: number, max: number) => {
-      const next = () => {
-        state = (state + 0x6D2B79F5) | 0;
-        let t = Math.imul(state ^ (state >>> 15), 1 | state);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-      return min + next() * (max - min);
-    },
-    nextInt: (min: number, max: number) => {
-      const next = () => {
-        state = (state + 0x6D2B79F5) | 0;
-        let t = Math.imul(state ^ (state >>> 15), 1 | state);
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-      };
-      return Math.floor(min + next() * (max - min + 1));
-    }
-  };
-}
+// Fixed coin positions - SAME FOR EVERYONE
+const FIXED_COIN_POSITIONS = [
+  { x: -4, z: -4 },
+  { x: 4, z: -4 },
+  { x: -2, z: -2 },
+  { x: 2, z: -2 },
+  { x: 0, z: 0 },
+  { x: -5, z: 2 },
+  { x: 5, z: 2 },
+  { x: -3, z: 4 },
+  { x: 3, z: 4 },
+  { x: 0, z: 5 },
+];
+
+// Fixed obstacle positions
+const FIXED_OBSTACLES = [
+  { x: -3, z: 0, type: 'bumper' as const },
+  { x: 3, z: 0, type: 'bumper' as const },
+  { x: 0, z: -3, type: 'rail' as const, rotation: 0.3 },
+  { x: 0, z: 3, type: 'rail' as const, rotation: -0.3 },
+];
 
 export default function NeonStrikerGame({ 
   onGameEnd, 
@@ -83,6 +75,8 @@ export default function NeonStrikerGame({
   const [errors, setErrors] = useState(0);
   const [perfectHits, setPerfectHits] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [viewMode, setViewMode] = useState<'full' | 'focus'>('full');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -92,8 +86,6 @@ export default function NeonStrikerGame({
   const obstaclesRef = useRef<Obstacle[]>([]);
   const strikerRef = useRef<Coin | null>(null);
   const animationRef = useRef<number>();
-  const seededRngRef = useRef<ReturnType<typeof createSeededRNG>>();
-  const gameStartTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout>();
   const powerIntervalRef = useRef<NodeJS.Timeout>();
   const scoreRef = useRef(0);
@@ -101,8 +93,17 @@ export default function NeonStrikerGame({
   const perfectHitsRef = useRef(0);
   const shotsUsedRef = useRef(0);
   const musicRef = useRef<HTMLAudioElement | null>(null);
+  const aimLineRef = useRef<THREE.Line | null>(null);
 
   const { popups, addPopup, removePopup } = useFloatingScores();
+
+  // Table dimensions
+  const TABLE_WIDTH = 16;
+  const TABLE_DEPTH = 24;
+  const COIN_RADIUS = 0.6;
+  const COIN_HEIGHT = 0.2;
+  const FRICTION = 0.982;
+  const BOUNCE_FACTOR = 0.75;
 
   // Detect mobile
   useEffect(() => {
@@ -114,22 +115,7 @@ export default function NeonStrikerGame({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Table dimensions
-  const TABLE_WIDTH = 16;
-  const TABLE_DEPTH = 20;
-  const COIN_RADIUS = 0.5;
-  const COIN_HEIGHT = 0.15;
-  const FRICTION = 0.985;
-  const BOUNCE_FACTOR = 0.7;
-
-  // Initialize seeded RNG
-  useEffect(() => {
-    const seed = rngSeed || Date.now();
-    seededRngRef.current = createSeededRNG(seed);
-    console.log('🎲 [NeonStriker] Initialized with seed:', seed);
-  }, [rngSeed]);
-
-  // Create coin mesh with neon glow
+  // Create 3D coin mesh with realistic appearance
   const createCoin = useCallback((
     x: number, 
     z: number, 
@@ -138,44 +124,83 @@ export default function NeonStrikerGame({
     scene: THREE.Scene,
     id: number
   ): Coin => {
+    // Create coin group
+    const coinGroup = new THREE.Group();
+    
+    // Main coin body - cylinder
     const geometry = new THREE.CylinderGeometry(COIN_RADIUS, COIN_RADIUS, COIN_HEIGHT, 32);
     
     // Neon colors
-    const color = isPlayer 
-      ? 0x00ffff // Cyan for player
-      : 0xff00ff; // Magenta for targets
+    const color = isPlayer ? 0x00ffff : 0xff00ff;
     
     const material = new THREE.MeshStandardMaterial({
       color,
       emissive: color,
-      emissiveIntensity: 0.5,
-      metalness: 0.8,
-      roughness: 0.2,
+      emissiveIntensity: 0.4,
+      metalness: 0.9,
+      roughness: 0.1,
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, COIN_HEIGHT / 2, z);
-    mesh.rotation.x = 0;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    
+    // Add edge ring for 3D depth
+    const edgeGeometry = new THREE.TorusGeometry(COIN_RADIUS, 0.05, 8, 32);
+    const edgeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: color,
+      emissiveIntensity: 0.8,
+      metalness: 1,
+      roughness: 0,
+    });
+    const topEdge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+    topEdge.rotation.x = Math.PI / 2;
+    topEdge.position.y = COIN_HEIGHT / 2;
+    mesh.add(topEdge);
+    
+    const bottomEdge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+    bottomEdge.rotation.x = Math.PI / 2;
+    bottomEdge.position.y = -COIN_HEIGHT / 2;
+    mesh.add(bottomEdge);
+
+    // Add center emblem
+    const emblemGeometry = new THREE.CircleGeometry(COIN_RADIUS * 0.5, 16);
+    const emblemMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: color,
+      emissiveIntensity: 0.6,
+      metalness: 0.8,
+      roughness: 0.2,
+      side: THREE.DoubleSide,
+    });
+    const topEmblem = new THREE.Mesh(emblemGeometry, emblemMaterial);
+    topEmblem.rotation.x = -Math.PI / 2;
+    topEmblem.position.y = COIN_HEIGHT / 2 + 0.01;
+    mesh.add(topEmblem);
+
+    mesh.position.set(x, COIN_HEIGHT / 2 + 0.01, z);
     scene.add(mesh);
 
-    // Add glow ring
-    const glowGeometry = new THREE.RingGeometry(COIN_RADIUS, COIN_RADIUS + 0.15, 32);
+    // Add glow ring on table
+    const glowGeometry = new THREE.RingGeometry(COIN_RADIUS + 0.1, COIN_RADIUS + 0.3, 32);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.5,
       side: THREE.DoubleSide,
     });
     const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-    glowMesh.position.set(x, 0.01, z);
+    glowMesh.position.set(x, 0.02, z);
     glowMesh.rotation.x = -Math.PI / 2;
     scene.add(glowMesh);
+
+    console.log(`🪙 Created coin ${id} at (${x.toFixed(1)}, ${z.toFixed(1)}) - ${isPlayer ? 'STRIKER' : 'TARGET'}`);
 
     return {
       id,
       mesh,
+      glowMesh,
       vx: 0,
       vz: 0,
       isTarget,
@@ -183,11 +208,10 @@ export default function NeonStrikerGame({
       hitBy: null,
       chainHit: false,
       fallen: false,
-      glowMesh,
     };
   }, []);
 
-  // Create obstacle with neon glow
+  // Create obstacle
   const createObstacle = useCallback((
     x: number, 
     z: number, 
@@ -196,37 +220,33 @@ export default function NeonStrikerGame({
     rotation: number = 0
   ): Obstacle => {
     let geometry: THREE.BufferGeometry;
-    let width = 0;
-    let height = 0;
+    let radius = 0;
 
     if (type === 'bumper') {
-      geometry = new THREE.CylinderGeometry(0.6, 0.6, 0.8, 16);
-      width = 0.6;
-      height = 0.8;
+      geometry = new THREE.CylinderGeometry(0.7, 0.7, 1, 16);
+      radius = 0.7;
     } else {
-      geometry = new THREE.BoxGeometry(3, 0.5, 0.3);
-      width = 3;
-      height = 0.5;
+      geometry = new THREE.BoxGeometry(4, 0.6, 0.4);
     }
 
     const material = new THREE.MeshStandardMaterial({
-      color: 0x00ff00, // Green for obstacles
+      color: 0x00ff00,
       emissive: 0x00ff00,
-      emissiveIntensity: 0.4,
+      emissiveIntensity: 0.5,
       metalness: 0.7,
       roughness: 0.3,
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, type === 'bumper' ? 0.4 : 0.25, z);
+    mesh.position.set(x, type === 'bumper' ? 0.5 : 0.3, z);
     mesh.rotation.y = rotation;
     mesh.castShadow = true;
     scene.add(mesh);
 
     // Glow effect
     const glowGeometry = type === 'bumper'
-      ? new THREE.RingGeometry(0.6, 0.8, 16)
-      : new THREE.PlaneGeometry(width + 0.2, 0.5);
+      ? new THREE.RingGeometry(0.7, 1.0, 16)
+      : new THREE.PlaneGeometry(4.5, 0.8);
     const glowMaterial = new THREE.MeshBasicMaterial({
       color: 0x00ff00,
       transparent: true,
@@ -239,15 +259,21 @@ export default function NeonStrikerGame({
     glowMesh.rotation.z = rotation;
     scene.add(glowMesh);
 
-    return { mesh, glowMesh, type };
+    return { mesh, glowMesh, type, radius };
   }, []);
 
-  // Initialize the game scene
+  // Initialize scene
   const initScene = useCallback(() => {
-    if (!containerRef.current || !seededRngRef.current) return;
+    if (!containerRef.current) {
+      console.error('❌ Container not found');
+      return;
+    }
 
-    // Clean up existing scene
-    if (rendererRef.current) {
+    console.log('🎮 Initializing Neon Striker scene...');
+
+    // Clean up existing
+    if (rendererRef.current && containerRef.current) {
+      containerRef.current.removeChild(rendererRef.current.domElement);
       rendererRef.current.dispose();
     }
 
@@ -257,13 +283,13 @@ export default function NeonStrikerGame({
 
     // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a15);
-    scene.fog = new THREE.Fog(0x0a0a15, 20, 50);
+    scene.background = new THREE.Color(0x050510);
+    scene.fog = new THREE.Fog(0x050510, 30, 60);
     sceneRef.current = scene;
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-    camera.position.set(0, 18, 14);
+    // Camera - start with full view
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+    camera.position.set(0, 25, 20);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
@@ -277,145 +303,168 @@ export default function NeonStrikerGame({
     rendererRef.current = renderer;
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x222233, 0.5);
+    const ambientLight = new THREE.AmbientLight(0x333344, 0.6);
     scene.add(ambientLight);
 
-    const spotLight = new THREE.SpotLight(0xffffff, 1);
-    spotLight.position.set(0, 20, 0);
+    const spotLight = new THREE.SpotLight(0xffffff, 1.5);
+    spotLight.position.set(0, 25, 0);
     spotLight.castShadow = true;
-    spotLight.shadow.mapSize.width = 1024;
-    spotLight.shadow.mapSize.height = 1024;
+    spotLight.shadow.mapSize.width = 2048;
+    spotLight.shadow.mapSize.height = 2048;
+    spotLight.angle = Math.PI / 4;
     scene.add(spotLight);
 
     // Neon accent lights
-    const cyanLight = new THREE.PointLight(0x00ffff, 0.5, 30);
-    cyanLight.position.set(-8, 5, 0);
+    const cyanLight = new THREE.PointLight(0x00ffff, 1, 40);
+    cyanLight.position.set(-10, 8, 10);
     scene.add(cyanLight);
 
-    const magentaLight = new THREE.PointLight(0xff00ff, 0.5, 30);
-    magentaLight.position.set(8, 5, 0);
+    const magentaLight = new THREE.PointLight(0xff00ff, 1, 40);
+    magentaLight.position.set(10, 8, -10);
     scene.add(magentaLight);
 
-    // Create table
+    const greenLight = new THREE.PointLight(0x00ff00, 0.5, 30);
+    greenLight.position.set(0, 5, 0);
+    scene.add(greenLight);
+
+    // Create table with neon edges
     const tableGeometry = new THREE.BoxGeometry(TABLE_WIDTH, 0.5, TABLE_DEPTH);
     const tableMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1a1a2e,
-      metalness: 0.3,
-      roughness: 0.7,
+      color: 0x0a0a1a,
+      metalness: 0.4,
+      roughness: 0.6,
     });
     const table = new THREE.Mesh(tableGeometry, tableMaterial);
     table.position.set(0, -0.25, 0);
     table.receiveShadow = true;
     scene.add(table);
 
-    // Table border glow
-    const borderGeometry = new THREE.EdgesGeometry(tableGeometry);
-    const borderMaterial = new THREE.LineBasicMaterial({ 
-      color: 0x00ffff,
-      linewidth: 2 
+    // Table surface pattern
+    const surfaceGeometry = new THREE.PlaneGeometry(TABLE_WIDTH - 0.5, TABLE_DEPTH - 0.5);
+    const surfaceMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111122,
+      metalness: 0.2,
+      roughness: 0.8,
     });
-    const border = new THREE.LineSegments(borderGeometry, borderMaterial);
-    border.position.copy(table.position);
-    scene.add(border);
+    const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+    surface.rotation.x = -Math.PI / 2;
+    surface.position.y = 0.01;
+    surface.receiveShadow = true;
+    scene.add(surface);
 
-    // Grid lines on table
-    const gridHelper = new THREE.GridHelper(TABLE_WIDTH - 1, 16, 0x333355, 0x222244);
-    gridHelper.position.y = 0.01;
+    // Neon border edges
+    const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+    
+    // Top edge
+    const topBorderGeom = new THREE.BoxGeometry(TABLE_WIDTH + 0.2, 0.3, 0.2);
+    const topBorder = new THREE.Mesh(topBorderGeom, borderMaterial);
+    topBorder.position.set(0, 0.15, -TABLE_DEPTH / 2);
+    scene.add(topBorder);
+    
+    // Bottom edge
+    const bottomBorder = new THREE.Mesh(topBorderGeom, borderMaterial);
+    bottomBorder.position.set(0, 0.15, TABLE_DEPTH / 2);
+    scene.add(bottomBorder);
+    
+    // Left edge
+    const sideBorderGeom = new THREE.BoxGeometry(0.2, 0.3, TABLE_DEPTH);
+    const leftBorder = new THREE.Mesh(sideBorderGeom, borderMaterial);
+    leftBorder.position.set(-TABLE_WIDTH / 2, 0.15, 0);
+    scene.add(leftBorder);
+    
+    // Right edge
+    const rightBorder = new THREE.Mesh(sideBorderGeom, borderMaterial);
+    rightBorder.position.set(TABLE_WIDTH / 2, 0.15, 0);
+    scene.add(rightBorder);
+
+    // Grid lines
+    const gridHelper = new THREE.GridHelper(Math.min(TABLE_WIDTH, TABLE_DEPTH) - 2, 12, 0x222244, 0x151530);
+    gridHelper.position.y = 0.02;
     scene.add(gridHelper);
 
-    const rng = seededRngRef.current;
-
-    // Create target coins (seeded positions for consistency)
+    // Create target coins at FIXED positions
     const targetCoins: Coin[] = [];
-    const numCoins = 8;
-    const positions: Array<{x: number, z: number}> = [];
-
-    // Generate non-overlapping positions
-    for (let i = 0; i < numCoins; i++) {
-      let attempts = 0;
-      let validPos = false;
-      let x = 0, z = 0;
-
-      while (!validPos && attempts < 100) {
-        x = rng.nextFloat(-TABLE_WIDTH / 2 + 2, TABLE_WIDTH / 2 - 2);
-        z = rng.nextFloat(-TABLE_DEPTH / 2 + 3, TABLE_DEPTH / 2 - 5);
-        
-        validPos = true;
-        for (const pos of positions) {
-          const dist = Math.sqrt((pos.x - x) ** 2 + (pos.z - z) ** 2);
-          if (dist < COIN_RADIUS * 3) {
-            validPos = false;
-            break;
-          }
-        }
-        attempts++;
-      }
-
-      positions.push({ x, z });
-      const coin = createCoin(x, z, true, false, scene, i + 1);
+    console.log('🎯 Creating', FIXED_COIN_POSITIONS.length, 'target coins...');
+    
+    FIXED_COIN_POSITIONS.forEach((pos, i) => {
+      const coin = createCoin(pos.x, pos.z, true, false, scene, i + 1);
       targetCoins.push(coin);
-    }
+    });
 
     coinsRef.current = targetCoins;
-    setCoinsRemaining(numCoins);
+    setCoinsRemaining(FIXED_COIN_POSITIONS.length);
 
-    // Create obstacles (seeded)
+    // Create obstacles at FIXED positions
     const obstacles: Obstacle[] = [];
-    
-    // Bumpers
-    obstacles.push(createObstacle(rng.nextFloat(-4, -2), rng.nextFloat(-3, 3), 'bumper', scene));
-    obstacles.push(createObstacle(rng.nextFloat(2, 4), rng.nextFloat(-3, 3), 'bumper', scene));
-    
-    // Rails
-    obstacles.push(createObstacle(0, rng.nextFloat(-5, -3), 'rail', scene, rng.nextFloat(-0.3, 0.3)));
-    obstacles.push(createObstacle(rng.nextFloat(-3, 3), rng.nextFloat(2, 4), 'rail', scene, rng.nextFloat(-0.5, 0.5)));
-
+    FIXED_OBSTACLES.forEach((obs) => {
+      const obstacle = createObstacle(obs.x, obs.z, obs.type, scene, obs.rotation || 0);
+      obstacles.push(obstacle);
+    });
     obstaclesRef.current = obstacles;
 
-    // Create striker coin (player's launching coin)
-    const striker = createCoin(0, TABLE_DEPTH / 2 - 1, false, true, scene, 0);
+    // Create striker coin
+    const striker = createCoin(0, TABLE_DEPTH / 2 - 2, false, true, scene, 0);
     strikerRef.current = striker;
     coinsRef.current.push(striker);
 
-    // Aim indicator line
-    const aimGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0.1, 0),
-      new THREE.Vector3(0, 0.1, -5)
-    ]);
+    // Create aim line
+    const aimGeometry = new THREE.BufferGeometry();
+    const aimPositions = new Float32Array([0, 0.2, 0, 0, 0.2, -6]);
+    aimGeometry.setAttribute('position', new THREE.BufferAttribute(aimPositions, 3));
     const aimMaterial = new THREE.LineBasicMaterial({ 
       color: 0x00ffff, 
       transparent: true, 
-      opacity: 0.8 
+      opacity: 0.9,
+      linewidth: 3
     });
     const aimLine = new THREE.Line(aimGeometry, aimMaterial);
-    aimLine.name = 'aimLine';
+    aimLine.visible = true;
     scene.add(aimLine);
+    aimLineRef.current = aimLine;
 
-    console.log('🎮 [NeonStriker] Scene initialized with', numCoins, 'coins and', obstacles.length, 'obstacles');
+    setIsInitialized(true);
+    console.log('✅ Scene initialized with', targetCoins.length, 'coins and', obstacles.length, 'obstacles');
+
   }, [createCoin, createObstacle]);
+
+  // Switch camera view
+  const switchView = useCallback((mode: 'full' | 'focus') => {
+    if (!cameraRef.current || !strikerRef.current) return;
+    
+    setViewMode(mode);
+    const camera = cameraRef.current;
+    
+    if (mode === 'full') {
+      // Full table view
+      camera.position.set(0, 25, 20);
+      camera.lookAt(0, 0, 0);
+    } else {
+      // Focus on striker for aiming
+      const striker = strikerRef.current.mesh.position;
+      camera.position.set(striker.x, 8, striker.z + 6);
+      camera.lookAt(striker.x, 0, striker.z - 5);
+    }
+  }, []);
 
   // Update aim line
   const updateAimLine = useCallback((angle: number, powerLevel: number) => {
-    if (!sceneRef.current || !strikerRef.current) return;
-
-    const aimLine = sceneRef.current.getObjectByName('aimLine') as THREE.Line;
-    if (!aimLine) return;
+    if (!aimLineRef.current || !strikerRef.current) return;
 
     const striker = strikerRef.current.mesh.position;
-    const length = 2 + (powerLevel / 100) * 8; // Length based on power
+    const length = 2 + (powerLevel / 100) * 10;
     
     const endX = striker.x + Math.sin(angle) * length;
     const endZ = striker.z - Math.cos(angle) * length;
 
     const positions = new Float32Array([
-      striker.x, 0.1, striker.z,
-      endX, 0.1, endZ
+      striker.x, 0.3, striker.z,
+      endX, 0.3, endZ
     ]);
-    aimLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    aimLine.geometry.attributes.position.needsUpdate = true;
+    aimLineRef.current.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    aimLineRef.current.geometry.attributes.position.needsUpdate = true;
     
     // Color based on power
-    const mat = aimLine.material as THREE.LineBasicMaterial;
+    const mat = aimLineRef.current.material as THREE.LineBasicMaterial;
     if (powerLevel < 30) {
       mat.color.setHex(0x00ffff);
     } else if (powerLevel < 70) {
@@ -427,12 +476,9 @@ export default function NeonStrikerGame({
 
   // Physics update
   const updatePhysics = useCallback(() => {
-    if (!sceneRef.current) return;
-
     const coins = coinsRef.current;
     const obstacles = obstaclesRef.current;
 
-    // Update coin positions
     for (const coin of coins) {
       if (coin.fallen) continue;
 
@@ -447,67 +493,29 @@ export default function NeonStrikerGame({
       coin.vz *= FRICTION;
 
       // Stop if very slow
-      if (Math.abs(coin.vx) < 0.001 && Math.abs(coin.vz) < 0.001) {
+      if (Math.abs(coin.vx) < 0.002 && Math.abs(coin.vz) < 0.002) {
         coin.vx = 0;
         coin.vz = 0;
       }
 
       // Check table bounds
-      const halfWidth = TABLE_WIDTH / 2;
-      const halfDepth = TABLE_DEPTH / 2;
+      const halfWidth = TABLE_WIDTH / 2 - 0.1;
+      const halfDepth = TABLE_DEPTH / 2 - 0.1;
 
-      if (coin.mesh.position.x < -halfWidth + COIN_RADIUS ||
-          coin.mesh.position.x > halfWidth - COIN_RADIUS) {
-        // Coin fell off sides
-        if (!coin.isPlayer) {
+      // Check if coin fell off
+      if (Math.abs(coin.mesh.position.x) > halfWidth || Math.abs(coin.mesh.position.z) > halfDepth) {
+        if (!coin.fallen) {
           coin.fallen = true;
           coin.mesh.visible = false;
           coin.glowMesh.visible = false;
-          
-          if (coin.isTarget) {
-            if (coin.chainHit) {
-              // Chain reaction - error!
-              errorsRef.current++;
-              setErrors(errorsRef.current);
-              scoreRef.current -= 50;
-              setScore(scoreRef.current);
-              addPopup(-50, 50, 50, 'kill', 'CHAIN REACTION! -50');
-            } else if (coin.hitBy === 0) {
-              // Direct hit from player - good!
-              perfectHitsRef.current++;
-              setPerfectHits(perfectHitsRef.current);
-              scoreRef.current += 100;
-              setScore(scoreRef.current);
-              addPopup(100, 50, 40, 'perfect', 'PERFECT! +100');
-            }
-            setCoinsRemaining(prev => prev - 1);
-          }
-        } else {
-          // Player coin fell - big penalty
-          coin.fallen = true;
-          errorsRef.current++;
-          setErrors(errorsRef.current);
-          scoreRef.current -= 100;
-          setScore(scoreRef.current);
-          addPopup(-100, 50, 50, 'kill', 'STRIKER FELL! -100');
-        }
-      }
 
-      if (coin.mesh.position.z < -halfDepth + COIN_RADIUS ||
-          coin.mesh.position.z > halfDepth - COIN_RADIUS) {
-        // Fell off front/back
-        if (!coin.isPlayer) {
-          coin.fallen = true;
-          coin.mesh.visible = false;
-          coin.glowMesh.visible = false;
-          
           if (coin.isTarget) {
             if (coin.chainHit) {
               errorsRef.current++;
               setErrors(errorsRef.current);
               scoreRef.current -= 50;
               setScore(scoreRef.current);
-              addPopup(-50, 50, 50, 'kill', 'CHAIN REACTION! -50');
+              addPopup(-50, 50, 50, 'kill', 'CHAIN! -50');
             } else if (coin.hitBy === 0) {
               perfectHitsRef.current++;
               setPerfectHits(perfectHitsRef.current);
@@ -515,42 +523,42 @@ export default function NeonStrikerGame({
               setScore(scoreRef.current);
               addPopup(100, 50, 40, 'perfect', 'PERFECT! +100');
             }
-            setCoinsRemaining(prev => prev - 1);
+            setCoinsRemaining(prev => Math.max(0, prev - 1));
+          } else if (coin.isPlayer) {
+            errorsRef.current++;
+            setErrors(errorsRef.current);
+            scoreRef.current -= 100;
+            setScore(scoreRef.current);
+            addPopup(-100, 50, 50, 'kill', 'STRIKER FELL! -100');
           }
-        } else {
-          coin.fallen = true;
-          errorsRef.current++;
-          setErrors(errorsRef.current);
-          scoreRef.current -= 100;
-          setScore(scoreRef.current);
-          addPopup(-100, 50, 50, 'kill', 'STRIKER FELL! -100');
         }
       }
 
       // Bounce off obstacles
       for (const obstacle of obstacles) {
         const obstaclePos = obstacle.mesh.position;
-        const dist = Math.sqrt(
-          (coin.mesh.position.x - obstaclePos.x) ** 2 +
-          (coin.mesh.position.z - obstaclePos.z) ** 2
-        );
+        
+        if (obstacle.type === 'bumper' && obstacle.radius) {
+          const dist = Math.sqrt(
+            (coin.mesh.position.x - obstaclePos.x) ** 2 +
+            (coin.mesh.position.z - obstaclePos.z) ** 2
+          );
 
-        if (obstacle.type === 'bumper' && dist < COIN_RADIUS + 0.6) {
-          // Bounce off bumper
-          const nx = (coin.mesh.position.x - obstaclePos.x) / dist;
-          const nz = (coin.mesh.position.z - obstaclePos.z) / dist;
-          
-          const dot = coin.vx * nx + coin.vz * nz;
-          coin.vx = (coin.vx - 2 * dot * nx) * BOUNCE_FACTOR * 1.2; // Bumpers add energy
-          coin.vz = (coin.vz - 2 * dot * nz) * BOUNCE_FACTOR * 1.2;
-          
-          // Push out of collision
-          coin.mesh.position.x = obstaclePos.x + nx * (COIN_RADIUS + 0.65);
-          coin.mesh.position.z = obstaclePos.z + nz * (COIN_RADIUS + 0.65);
-          
-          addPopup(10, 50, 50, 'bonus', 'BOUNCE! +10');
-          scoreRef.current += 10;
-          setScore(scoreRef.current);
+          if (dist < COIN_RADIUS + obstacle.radius) {
+            const nx = (coin.mesh.position.x - obstaclePos.x) / dist;
+            const nz = (coin.mesh.position.z - obstaclePos.z) / dist;
+            
+            const dot = coin.vx * nx + coin.vz * nz;
+            coin.vx = (coin.vx - 2 * dot * nx) * BOUNCE_FACTOR * 1.3;
+            coin.vz = (coin.vz - 2 * dot * nz) * BOUNCE_FACTOR * 1.3;
+            
+            coin.mesh.position.x = obstaclePos.x + nx * (COIN_RADIUS + obstacle.radius + 0.05);
+            coin.mesh.position.z = obstaclePos.z + nz * (COIN_RADIUS + obstacle.radius + 0.05);
+            
+            addPopup(15, 50, 50, 'bonus', 'BUMPER! +15');
+            scoreRef.current += 15;
+            setScore(scoreRef.current);
+          }
         }
       }
     }
@@ -567,32 +575,27 @@ export default function NeonStrikerGame({
         const dz = c2.mesh.position.z - c1.mesh.position.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
 
-        if (dist < COIN_RADIUS * 2 && dist > 0) {
-          // Collision!
+        if (dist < COIN_RADIUS * 2 && dist > 0.01) {
           const nx = dx / dist;
           const nz = dz / dist;
 
-          // Relative velocity
           const dvx = c1.vx - c2.vx;
           const dvz = c1.vz - c2.vz;
           const dvn = dvx * nx + dvz * nz;
 
-          // Don't resolve if separating
           if (dvn > 0) {
-            // Update velocities (elastic collision)
             c1.vx -= dvn * nx * BOUNCE_FACTOR;
             c1.vz -= dvn * nz * BOUNCE_FACTOR;
             c2.vx += dvn * nx * BOUNCE_FACTOR;
             c2.vz += dvn * nz * BOUNCE_FACTOR;
 
-            // Separate coins
             const overlap = COIN_RADIUS * 2 - dist;
             c1.mesh.position.x -= overlap * nx * 0.5;
             c1.mesh.position.z -= overlap * nz * 0.5;
             c2.mesh.position.x += overlap * nx * 0.5;
             c2.mesh.position.z += overlap * nz * 0.5;
 
-            // Track who hit who for scoring
+            // Track hit source
             if (c1.isPlayer && !c2.hitBy) {
               c2.hitBy = c1.id;
               c2.chainHit = false;
@@ -600,7 +603,6 @@ export default function NeonStrikerGame({
               c1.hitBy = c2.id;
               c1.chainHit = false;
             } else if (!c1.isPlayer && !c2.isPlayer) {
-              // Coin hit by another target coin = chain reaction
               if (c1.hitBy && !c2.hitBy) {
                 c2.hitBy = c1.id;
                 c2.chainHit = true;
@@ -614,40 +616,38 @@ export default function NeonStrikerGame({
       }
     }
 
-    // Check if all coins stopped moving
+    // Check if all coins stopped
     const allStopped = coins.every(c => 
-      c.fallen || (Math.abs(c.vx) < 0.001 && Math.abs(c.vz) < 0.001)
+      c.fallen || (Math.abs(c.vx) < 0.002 && Math.abs(c.vz) < 0.002)
     );
 
     if (allStopped && gameState === 'shooting') {
-      // Reset striker for next shot if not fallen
+      // Reset striker
       if (strikerRef.current && !strikerRef.current.fallen) {
-        strikerRef.current.mesh.position.set(0, COIN_HEIGHT / 2, TABLE_DEPTH / 2 - 1);
-        strikerRef.current.glowMesh.position.set(0, 0.01, TABLE_DEPTH / 2 - 1);
+        strikerRef.current.mesh.position.set(0, COIN_HEIGHT / 2 + 0.01, TABLE_DEPTH / 2 - 2);
+        strikerRef.current.glowMesh.position.set(0, 0.02, TABLE_DEPTH / 2 - 2);
         strikerRef.current.vx = 0;
         strikerRef.current.vz = 0;
       }
 
-      // Check win/lose condition
       const remainingTargets = coins.filter(c => c.isTarget && !c.fallen).length;
       setCoinsRemaining(remainingTargets);
 
       if (remainingTargets === 0) {
-        // All coins cleared!
         endGame();
       } else if (strikerRef.current?.fallen) {
-        // Striker fell, respawn it with penalty
         strikerRef.current.fallen = false;
         strikerRef.current.mesh.visible = true;
         strikerRef.current.glowMesh.visible = true;
-        strikerRef.current.mesh.position.set(0, COIN_HEIGHT / 2, TABLE_DEPTH / 2 - 1);
-        strikerRef.current.glowMesh.position.set(0, 0.01, TABLE_DEPTH / 2 - 1);
+        strikerRef.current.mesh.position.set(0, COIN_HEIGHT / 2 + 0.01, TABLE_DEPTH / 2 - 2);
+        strikerRef.current.glowMesh.position.set(0, 0.02, TABLE_DEPTH / 2 - 2);
         setGameState('aiming');
+        switchView('full');
       } else {
         setGameState('aiming');
       }
 
-      // Reset hit tracking for remaining coins
+      // Reset hit tracking
       for (const coin of coins) {
         if (!coin.fallen && coin.isTarget) {
           coin.hitBy = null;
@@ -655,27 +655,22 @@ export default function NeonStrikerGame({
         }
       }
     }
-  }, [gameState, addPopup]);
+  }, [gameState, addPopup, switchView]);
 
   // End game
   const endGame = useCallback(() => {
     setGameState('complete');
 
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
 
-    // Calculate final score
     const timeBonus = Math.max(0, 1000 - timeElapsed * 10);
     const accuracyBonus = perfectHitsRef.current * 50;
     const errorPenalty = errorsRef.current * 25;
     const finalScore = Math.max(0, scoreRef.current + timeBonus + accuracyBonus - errorPenalty);
 
-    // Calculate accuracy
     const totalShots = shotsUsedRef.current || 1;
     const accuracy = Math.min(100, (perfectHitsRef.current / totalShots) * 100);
 
-    // Log to audit
     const gameResult = { score: finalScore, accuracy };
     
     try {
@@ -695,10 +690,9 @@ export default function NeonStrikerGame({
         }
       });
     } catch (error) {
-      console.error('🎯 [NeonStriker] Audit logging failed:', error);
+      console.error('Audit logging failed:', error);
     }
 
-    // Stop music
     if (musicRef.current) {
       musicRef.current.pause();
       musicRef.current = null;
@@ -709,7 +703,7 @@ export default function NeonStrikerGame({
 
   // Animation loop
   useEffect(() => {
-    if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+    if (!isInitialized || !sceneRef.current || !cameraRef.current || !rendererRef.current) return;
 
     const animate = () => {
       if (gameState === 'shooting') {
@@ -721,7 +715,7 @@ export default function NeonStrikerGame({
       for (const coin of coinsRef.current) {
         if (!coin.fallen) {
           const mat = coin.glowMesh.material as THREE.MeshBasicMaterial;
-          mat.opacity = 0.4 + Math.sin(time + coin.id) * 0.2;
+          mat.opacity = 0.3 + Math.sin(time + coin.id) * 0.2;
         }
       }
 
@@ -732,11 +726,9 @@ export default function NeonStrikerGame({
     animate();
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [gameState, updatePhysics]);
+  }, [isInitialized, gameState, updatePhysics]);
 
   // Start game
   const startGame = useCallback(() => {
@@ -751,16 +743,12 @@ export default function NeonStrikerGame({
     perfectHitsRef.current = 0;
     shotsUsedRef.current = 0;
 
-    gameStartTimeRef.current = Date.now();
+    initScene();
     
-    // Start timer
     timerRef.current = setInterval(() => {
       setTimeElapsed(prev => prev + 1);
     }, 1000);
 
-    initScene();
-
-    // Start music
     try {
       musicRef.current = new Audio('/neon-striker.mp3');
       musicRef.current.loop = true;
@@ -780,24 +768,18 @@ export default function NeonStrikerGame({
     powerIntervalRef.current = setInterval(() => {
       setPower(prev => {
         const newPower = prev + 2;
-        if (newPower >= 100) {
-          return 0; // Loop back
-        }
-        return newPower;
+        return newPower >= 100 ? 0 : newPower;
       });
-    }, 30);
+    }, 25);
   }, [gameState]);
 
   const releaseShot = useCallback(() => {
     if (!isPowerCharging || !strikerRef.current) return;
     
     setIsPowerCharging(false);
-    if (powerIntervalRef.current) {
-      clearInterval(powerIntervalRef.current);
-    }
+    if (powerIntervalRef.current) clearInterval(powerIntervalRef.current);
 
-    // Launch striker
-    const launchPower = power / 100 * 0.8; // Max speed 0.8
+    const launchPower = (power / 100) * 0.9;
     strikerRef.current.vx = Math.sin(aimAngle) * launchPower;
     strikerRef.current.vz = -Math.cos(aimAngle) * launchPower;
 
@@ -805,23 +787,22 @@ export default function NeonStrikerGame({
     setShotsUsed(shotsUsedRef.current);
     setGameState('shooting');
     setPower(0);
-  }, [isPowerCharging, power, aimAngle]);
+    switchView('full');
+  }, [isPowerCharging, power, aimAngle, switchView]);
 
   // Handle aim
   const handleAim = useCallback((clientX: number, clientY: number) => {
-    if (gameState !== 'aiming' || !containerRef.current || !strikerRef.current) return;
+    if (gameState !== 'aiming' || !containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
     const x = (clientX - rect.left) / rect.width;
     const y = (clientY - rect.top) / rect.height;
 
-    // Calculate angle from striker to mouse position
     const angle = Math.atan2(x - 0.5, 0.5 - y);
     setAimAngle(angle);
     updateAimLine(angle, power);
   }, [gameState, power, updateAimLine]);
 
-  // Mouse/touch handlers
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     handleAim(e.clientX, e.clientY);
   }, [handleAim]);
@@ -832,7 +813,6 @@ export default function NeonStrikerGame({
     handleAim(touch.clientX, touch.clientY);
   }, [handleAim]);
 
-  // Update aim line when power changes
   useEffect(() => {
     if (gameState === 'aiming') {
       updateAimLine(aimAngle, power);
@@ -849,9 +829,7 @@ export default function NeonStrikerGame({
         musicRef.current.pause();
         musicRef.current = null;
       }
-      if (rendererRef.current) {
-        rendererRef.current.dispose();
-      }
+      if (rendererRef.current) rendererRef.current.dispose();
     };
   }, []);
 
@@ -865,27 +843,28 @@ export default function NeonStrikerGame({
           </h1>
           
           <div className="text-cyan-400 text-lg mb-6">
-            Precision Coin Flicking Game
+            Precision Coin Flicking
           </div>
 
           <div className="bg-black/50 rounded-xl p-4 mb-6 text-left text-sm text-gray-300 max-h-48 overflow-y-auto">
             <p className="mb-3">
-              <span className="text-cyan-400 font-bold">🎯 OBJECTIVE:</span> Knock all magenta coins off the table!
+              <span className="text-cyan-400 font-bold">🎯 OBJECTIVE:</span> Knock all <span className="text-pink-400">MAGENTA</span> coins off the table!
             </p>
             <p className="mb-3">
               <span className="text-green-400 font-bold">✅ SCORING:</span>
-              <br/>• <span className="text-cyan-300">+100</span> Direct hit (your coin pushes target off)
-              <br/>• <span className="text-green-300">+10</span> Bumper bounce
+              <br/>• <span className="text-cyan-300">+100</span> Direct hit (knock coin off)
+              <br/>• <span className="text-green-300">+15</span> Bumper bounce
             </p>
             <p className="mb-3">
               <span className="text-red-400 font-bold">❌ PENALTIES:</span>
-              <br/>• <span className="text-red-300">-50</span> Chain reaction (coin hits coin that pushes another off)
-              <br/>• <span className="text-red-300">-100</span> Your striker falls off
+              <br/>• <span className="text-red-300">-50</span> Chain reaction hit
+              <br/>• <span className="text-red-300">-100</span> Striker falls off
             </p>
             <p>
               <span className="text-yellow-400 font-bold">💡 CONTROLS:</span>
-              <br/>• Move mouse/touch to aim
-              <br/>• Hold to charge power, release to shoot
+              <br/>• Aim with mouse/touch
+              <br/>• Hold button to charge power
+              <br/>• Release to shoot!
             </p>
           </div>
 
@@ -897,10 +876,7 @@ export default function NeonStrikerGame({
           </button>
 
           {!isCompetitionMode && onExit && (
-            <button
-              onClick={onExit}
-              className="mt-4 text-gray-400 hover:text-white transition-colors"
-            >
+            <button onClick={onExit} className="mt-4 text-gray-400 hover:text-white transition-colors">
               ← Back to Games
             </button>
           )}
@@ -909,7 +885,7 @@ export default function NeonStrikerGame({
     );
   }
 
-  // Game complete screen
+  // Complete screen
   if (gameState === 'complete') {
     const timeBonus = Math.max(0, 1000 - timeElapsed * 10);
     const finalScore = Math.max(0, score + timeBonus + perfectHits * 50 - errors * 25);
@@ -918,84 +894,91 @@ export default function NeonStrikerGame({
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 sm:p-8 max-w-md w-full text-center border-2 border-cyan-500 shadow-[0_0_50px_rgba(0,255,255,0.3)]">
-          <h1 className="text-4xl font-bold mb-4 text-cyan-400">
-            🏆 GAME COMPLETE!
-          </h1>
+          <h1 className="text-4xl font-bold mb-4 text-cyan-400">🏆 COMPLETE!</h1>
           
           <div className="space-y-3 text-lg mb-6">
             <div className="flex justify-between p-3 bg-cyan-500/20 rounded-lg">
-              <span className="text-gray-300">Base Score</span>
+              <span>Base Score</span>
               <span className="text-cyan-400 font-bold">{score}</span>
             </div>
             <div className="flex justify-between p-3 bg-green-500/20 rounded-lg">
-              <span className="text-gray-300">Time Bonus</span>
+              <span>Time Bonus</span>
               <span className="text-green-400 font-bold">+{timeBonus}</span>
             </div>
             <div className="flex justify-between p-3 bg-purple-500/20 rounded-lg">
-              <span className="text-gray-300">Perfect Hits</span>
+              <span>Perfect Hits</span>
               <span className="text-purple-400 font-bold">{perfectHits} (+{perfectHits * 50})</span>
             </div>
             <div className="flex justify-between p-3 bg-red-500/20 rounded-lg">
-              <span className="text-gray-300">Errors</span>
+              <span>Errors</span>
               <span className="text-red-400 font-bold">{errors} (-{errors * 25})</span>
             </div>
             <div className="flex justify-between p-4 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-lg border border-cyan-400">
-              <span className="text-white font-bold">FINAL SCORE</span>
+              <span className="font-bold">FINAL SCORE</span>
               <span className="text-2xl text-cyan-300 font-bold">{finalScore}</span>
-            </div>
-            <div className="flex justify-between p-3 bg-yellow-500/20 rounded-lg">
-              <span className="text-gray-300">Accuracy</span>
-              <span className="text-yellow-400 font-bold">{accuracy.toFixed(1)}%</span>
             </div>
           </div>
 
           <div className="text-gray-400 text-sm">
-            Time: {timeElapsed}s • Shots: {shotsUsed}
+            Time: {timeElapsed}s • Shots: {shotsUsed} • Accuracy: {accuracy.toFixed(1)}%
           </div>
         </div>
       </div>
     );
   }
 
-  // Main game view
+  // Main game
   return (
-    <div 
-      className="fixed inset-0 bg-black z-50 overflow-hidden"
-      style={{ touchAction: 'none' }}
-    >
+    <div className="fixed inset-0 bg-black z-50 overflow-hidden" style={{ touchAction: 'none' }}>
       {/* HUD */}
       <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-3">
         <div className="flex justify-between items-center max-w-4xl mx-auto">
-          <div className="flex items-center gap-4">
-            <div className="text-cyan-400 font-bold">
-              🎯 {coinsRemaining} left
-            </div>
-            <div className="text-green-400 font-bold">
-              💰 {score}
-            </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="text-pink-400 font-bold text-sm sm:text-base">🎯 {coinsRemaining}</div>
+            <div className="text-green-400 font-bold text-sm sm:text-base">💰 {score}</div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-yellow-400 font-bold">
-              ⏱️ {timeElapsed}s
-            </div>
-            <div className="text-purple-400 font-bold">
-              🎱 {shotsUsed} shots
-            </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="text-yellow-400 font-bold text-sm sm:text-base">⏱️ {timeElapsed}s</div>
+            <div className="text-purple-400 font-bold text-sm sm:text-base">🎱 {shotsUsed}</div>
             {!isCompetitionMode && onExit && (
-              <button onClick={onExit} className="text-white hover:text-red-400 text-2xl">
-                ✕
-              </button>
+              <button onClick={onExit} className="text-white hover:text-red-400 text-xl sm:text-2xl">✕</button>
             )}
           </div>
         </div>
       </div>
 
+      {/* View toggle buttons */}
+      {gameState === 'aiming' && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          <button
+            onClick={() => switchView('full')}
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+              viewMode === 'full' 
+                ? 'bg-cyan-500 text-black' 
+                : 'bg-black/50 text-cyan-400 border border-cyan-500'
+            }`}
+          >
+            👁️ FULL VIEW
+          </button>
+          <button
+            onClick={() => switchView('focus')}
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+              viewMode === 'focus' 
+                ? 'bg-purple-500 text-white' 
+                : 'bg-black/50 text-purple-400 border border-purple-500'
+            }`}
+          >
+            🎯 FOCUS SHOT
+          </button>
+        </div>
+      )}
+
       {/* Power bar */}
       {gameState === 'aiming' && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 w-64">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-64">
           <div className="bg-black/70 rounded-full p-2 border border-cyan-500">
             <div 
-              className="h-4 rounded-full transition-all duration-75"
+              className="h-4 rounded-full transition-all duration-50"
               style={{
                 width: `${power}%`,
                 background: power < 30 
@@ -1007,12 +990,12 @@ export default function NeonStrikerGame({
             />
           </div>
           <div className="text-center text-cyan-400 text-sm mt-1">
-            {isPowerCharging ? 'CHARGING...' : 'HOLD TO CHARGE'}
+            {isPowerCharging ? `POWER: ${power}%` : 'HOLD TO CHARGE'}
           </div>
         </div>
       )}
 
-      {/* Shoot button / area */}
+      {/* Shoot button */}
       <div 
         className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20"
         onMouseDown={startCharging}
@@ -1027,11 +1010,10 @@ export default function NeonStrikerGame({
               ? 'bg-gradient-to-br from-orange-500 to-red-600 scale-110' 
               : 'bg-gradient-to-br from-cyan-500 to-purple-600 hover:scale-105'
           } shadow-lg`}
+          disabled={gameState !== 'aiming'}
         >
           {isPowerCharging ? '🔥' : '🎯'}
-          <div className="text-xs mt-1">
-            {isPowerCharging ? 'RELEASE!' : 'SHOOT'}
-          </div>
+          <div className="text-xs mt-1">{isPowerCharging ? 'RELEASE!' : 'SHOOT'}</div>
         </button>
       </div>
 
@@ -1042,7 +1024,7 @@ export default function NeonStrikerGame({
         onMouseMove={handleMouseMove}
         onTouchMove={handleTouchMove}
         style={{ 
-          transform: isMobile ? 'scale(0.9)' : 'scale(1)',
+          transform: isMobile ? 'scale(0.95)' : 'scale(1)',
           transformOrigin: 'center center'
         }}
       />
@@ -1050,15 +1032,14 @@ export default function NeonStrikerGame({
       {/* Floating scores */}
       <FloatingScore popups={popups} removePopup={removePopup} />
 
-      {/* Shooting overlay */}
+      {/* Shooting indicator */}
       {gameState === 'shooting' && (
         <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
-          <div className="text-4xl text-cyan-400 animate-pulse font-bold">
-            ⚡ STRIKING! ⚡
+          <div className="text-4xl text-cyan-400 animate-pulse font-bold drop-shadow-lg">
+            ⚡ STRIKE! ⚡
           </div>
         </div>
       )}
     </div>
   );
 }
-
