@@ -571,7 +571,7 @@ export default function NeonStrikerGame({
     };
   }, [sceneReady, gameState, updatePhysics, updateAimLine]);
 
-  // Start game
+  // Start game - just change state, useEffect will init scene
   const startGame = useCallback(() => {
     console.log('🎮 Starting game...');
     scoreRef.current = 0;
@@ -579,17 +579,33 @@ export default function NeonStrikerGame({
     setShotsUsed(0);
     setTimeElapsed(0);
     setSceneReady(false);
+    setGameState('playing');
+  }, []);
+
+  // Initialize scene when game state changes to playing and container exists
+  useEffect(() => {
+    if (gameState !== 'playing' && gameState !== 'shooting') return;
+    if (sceneReady) return; // Already initialized
+    
+    // Wait for container to be available
+    const checkAndInit = () => {
+      if (containerRef.current) {
+        console.log('📦 Container found, initializing scene...');
+        initScene();
+        
+        // Start timer
+        timerRef.current = setInterval(() => {
+          setTimeElapsed(t => t + 1);
+        }, 1000);
+      } else {
+        console.log('⏳ Waiting for container...');
+        setTimeout(checkAndInit, 50);
+      }
+    };
     
     // Small delay to ensure DOM is ready
-    setTimeout(() => {
-      initScene();
-      setGameState('playing');
-      
-      timerRef.current = setInterval(() => {
-        setTimeElapsed(t => t + 1);
-      }, 1000);
-    }, 100);
-  }, [initScene]);
+    setTimeout(checkAndInit, 50);
+  }, [gameState, sceneReady, initScene]);
 
   // Power charging
   const startCharging = useCallback(() => {
