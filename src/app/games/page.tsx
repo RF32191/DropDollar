@@ -86,6 +86,11 @@ const ParryProGame = dynamic(() => import('@/components/games/ParryProGame'), {
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Parry Pro" color="red" />
 });
+
+const NeonStrikerGame = dynamic(() => import('@/components/games/NeonStrikerGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Neon Striker" color="cyan" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -123,7 +128,8 @@ import {
   BoltIcon,
   ShieldExclamationIcon,
   BanknotesIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -256,6 +262,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Timing', 'Reflexes', 'Focus', 'Pattern Recognition'],
     component: ParryProGame
+  },
+  {
+    id: 'neon-striker',
+    name: 'Neon Striker',
+    description: 'Precision coin flicking! Strike neon coins off the table with physics-based gameplay. Avoid chain reactions!',
+    icon: SparklesIcon,
+    difficulty: 'Medium',
+    avgTime: '90s',
+    skills: ['Precision', 'Strategy', 'Physics', 'Timing'],
+    component: NeonStrikerGame
   }
 ];
 

@@ -214,7 +214,8 @@ export const GAME_TYPES = {
   ONE_V_ONE: 'one_v_one',
   WINNER_TAKES_ALL: 'winner_takes_all',
   HOT_SELL: 'hot_sell',
-  SUDDEN_DEATH: 'sudden_death'
+  SUDDEN_DEATH: 'sudden_death',
+  NEON_STRIKER: 'neon_striker'
 } as const;
 
 /**
