@@ -103,6 +103,8 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const mazeMeshesRef = useRef<THREE.Object3D[]>([]);
   const checkpointsRef = useRef<Checkpoint[]>([]);
   const obstaclesRef = useRef<MovingObstacle[]>([]);
+  const resistorsRef = useRef<{ mesh: THREE.Group; x: number; z: number }[]>([]);
+  const diodesRef = useRef<{ mesh: THREE.Group; x: number; z: number; direction: number }[]>([]);
   const startMarkerRef = useRef<THREE.Group | null>(null);
   const animationFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
@@ -146,63 +148,87 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const GAME_DURATION = 90; // seconds
   const CHECKPOINTS_PER_MAZE = 5;
 
-  // Create Tesla coil checkpoint
-  const createTeslaCoil = useCallback((color: number = 0xc0c0c0) => {
+  // Create IC Chip checkpoint (circuit board theme)
+  const createTeslaCoil = useCallback((color: number = 0x222222) => {
     const group = new THREE.Group();
     
-    // Base
-    const baseGeometry = new THREE.CylinderGeometry(0.5, 0.7, 0.3, 16);
-    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x444444 });
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.position.y = 0.15;
-    group.add(base);
+    // IC Chip body (black rectangle)
+    const chipGeometry = new THREE.BoxGeometry(1.4, 0.35, 1.0);
+    const chipMaterial = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const chip = new THREE.Mesh(chipGeometry, chipMaterial);
+    chip.position.y = 0.25;
+    group.add(chip);
     
-    // Main coil body
-    const coilGeometry = new THREE.CylinderGeometry(0.15, 0.4, 1.5, 16);
-    const coilMaterial = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9 });
-    const coil = new THREE.Mesh(coilGeometry, coilMaterial);
-    coil.position.y = 1.05;
-    group.add(coil);
+    // Chip label (silver/white marking)
+    const labelGeometry = new THREE.PlaneGeometry(0.9, 0.4);
+    const labelMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.8 });
+    const label = new THREE.Mesh(labelGeometry, labelMaterial);
+    label.rotation.x = -Math.PI / 2;
+    label.position.y = 0.44;
+    group.add(label);
     
-    // Top sphere
-    const sphereGeometry = new THREE.SphereGeometry(0.35, 16, 16);
-    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xe0e0e0, transparent: true, opacity: 0.95 });
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.position.y = 2;
-    group.add(sphere);
-    
-    // Electric rings around coil
+    // IC Chip pins (legs) - left side
     for (let i = 0; i < 5; i++) {
-      const ringGeometry = new THREE.TorusGeometry(0.25 + i * 0.05, 0.02, 8, 32);
+      const pinGeometry = new THREE.BoxGeometry(0.35, 0.06, 0.1);
+      const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 }); // Silver pins
+      const pin = new THREE.Mesh(pinGeometry, pinMaterial);
+      pin.position.set(-0.85, 0.15, -0.35 + i * 0.18);
+      group.add(pin);
+    }
+    
+    // IC Chip pins - right side
+    for (let i = 0; i < 5; i++) {
+      const pinGeometry = new THREE.BoxGeometry(0.35, 0.06, 0.1);
+      const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+      const pin = new THREE.Mesh(pinGeometry, pinMaterial);
+      pin.position.set(0.85, 0.15, -0.35 + i * 0.18);
+      group.add(pin);
+    }
+    
+    // Glowing indicator LED on chip
+    const ledGeometry = new THREE.SphereGeometry(0.12, 12, 12);
+    const ledMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.95 
+    });
+    const led = new THREE.Mesh(ledGeometry, ledMaterial);
+    led.position.set(0.4, 0.5, 0.2);
+    led.name = 'led';
+    group.add(led);
+    
+    // LED glow rings
+    for (let i = 0; i < 3; i++) {
+      const ringGeometry = new THREE.TorusGeometry(0.18 + i * 0.1, 0.025, 8, 32);
       const ringMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x88ccff, 
+        color: 0x00ff00, 
         transparent: true, 
-        opacity: 0.6 - i * 0.1 
+        opacity: 0.5 - i * 0.15 
       });
       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
       ring.rotation.x = Math.PI / 2;
-      ring.position.y = 0.6 + i * 0.3;
+      ring.position.set(0.4, 0.55 + i * 0.1, 0.2);
       ring.name = `ring${i}`;
       group.add(ring);
     }
     
-    // Spark particles at top
+    // Spark particles for checkpoint effect
     for (let i = 0; i < 6; i++) {
       const sparkGeometry = new THREE.SphereGeometry(0.05, 8, 8);
       const sparkMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ffff, 
+        color: 0x00ff00, 
         transparent: true, 
         opacity: 0.8 
       });
       const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
-      spark.position.y = 2;
+      spark.position.y = 0.6;
       spark.name = `spark${i}`;
       group.add(spark);
     }
     
-    // Point light
-    const light = new THREE.PointLight(0x88ccff, 2, 6);
-    light.position.y = 2;
+    // Point light (green glow)
+    const light = new THREE.PointLight(0x00ff00, 2, 5);
+    light.position.y = 0.6;
     group.add(light);
     
     return group;
@@ -233,23 +259,23 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     }
   }, []);
 
-  // Create animated lightning bolt (BIGGER)
+  // Create animated electrical current (circuit board theme - golden/yellow signal)
   const createLightningBolt = useCallback(() => {
     const group = new THREE.Group();
     
-    // Main bolt - jagged shape (MUCH BIGGER)
+    // Main electrical signal - smooth wave shape
     const points: THREE.Vector3[] = [];
-    const segments = 12;
+    const segments = 16;
     for (let i = 0; i <= segments; i++) {
-      const y = (i / segments) * 4 - 2; // -2 to 2 (taller)
-      const wiggle = i > 0 && i < segments ? (Math.random() - 0.5) * 0.6 : 0;
-      points.push(new THREE.Vector3(wiggle, y, 0));
+      const y = (i / segments) * 3.5 - 1.75; // taller
+      const wave = Math.sin(i * 0.8) * 0.15; // gentle wave
+      points.push(new THREE.Vector3(wave, y, 0));
     }
     
     const curve = new THREE.CatmullRomCurve3(points);
-    const tubeGeometry = new THREE.TubeGeometry(curve, 32, 0.2, 12, false);
+    const tubeGeometry = new THREE.TubeGeometry(curve, 32, 0.18, 12, false);
     const boltMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+      color: 0xffcc00, // Golden yellow (electrical current color)
       transparent: true,
       opacity: 1.0,
     });
@@ -257,8 +283,8 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     bolt.name = 'mainBolt';
     group.add(bolt);
     
-    // Bright white core
-    const coreGeometry = new THREE.TubeGeometry(curve, 32, 0.08, 12, false);
+    // Bright white hot core
+    const coreGeometry = new THREE.TubeGeometry(curve, 32, 0.07, 12, false);
     const coreMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
@@ -268,51 +294,51 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     core.name = 'core';
     group.add(core);
     
-    // Outer glow (bigger)
-    const glowGeometry = new THREE.TubeGeometry(curve, 32, 0.4, 12, false);
+    // Outer glow (electric orange/yellow)
+    const glowGeometry = new THREE.TubeGeometry(curve, 32, 0.35, 12, false);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
+      color: 0xffaa00, // Orange glow
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.35,
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     glow.name = 'glow';
     group.add(glow);
     
-    // Electric crackling branches (more and bigger)
-    for (let i = 0; i < 8; i++) {
+    // Electric spark branches (more subtle for circuit theme)
+    for (let i = 0; i < 6; i++) {
       const branchPoints: THREE.Vector3[] = [];
-      const startY = (Math.random() * 3) - 1.5;
-      const startX = Math.sin(startY) * 0.3;
+      const startY = (Math.random() * 2.5) - 1.25;
+      const startX = Math.sin(startY) * 0.15;
       branchPoints.push(new THREE.Vector3(startX, startY, 0));
       
       const direction = Math.random() > 0.5 ? 1 : -1;
-      const length = 0.5 + Math.random() * 0.7;
+      const length = 0.3 + Math.random() * 0.5;
       branchPoints.push(new THREE.Vector3(
         startX + direction * length * 0.5,
-        startY + (Math.random() - 0.5) * 0.4,
-        (Math.random() - 0.5) * 0.2
+        startY + (Math.random() - 0.5) * 0.3,
+        (Math.random() - 0.5) * 0.15
       ));
       branchPoints.push(new THREE.Vector3(
         startX + direction * length,
-        startY + (Math.random() - 0.5) * 0.6,
-        (Math.random() - 0.5) * 0.3
+        startY + (Math.random() - 0.5) * 0.4,
+        (Math.random() - 0.5) * 0.2
       ));
       
       const branchCurve = new THREE.CatmullRomCurve3(branchPoints);
-      const branchGeometry = new THREE.TubeGeometry(branchCurve, 12, 0.05, 6, false);
+      const branchGeometry = new THREE.TubeGeometry(branchCurve, 12, 0.04, 6, false);
       const branchMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
+        color: 0xffee00, // Yellow sparks
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.7,
       });
       const branch = new THREE.Mesh(branchGeometry, branchMaterial);
       branch.name = `branch${i}`;
       group.add(branch);
     }
     
-    // Point light (brighter)
-    const pointLight = new THREE.PointLight(0x00ffff, 4, 10);
+    // Point light (warm electrical glow)
+    const pointLight = new THREE.PointLight(0xffcc00, 4, 10);
     pointLight.position.set(0, 0, 0);
     group.add(pointLight);
     
@@ -369,47 +395,70 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     group.rotation.z = Math.sin(time * 10) * 0.15;
   }, []);
 
-  // Create moving obstacle (electric orb)
+  // Create moving obstacle (capacitor - circuit board theme)
   const createObstacle = useCallback(() => {
     const group = new THREE.Group();
     
-    // Core sphere
-    const coreGeometry = new THREE.SphereGeometry(0.4, 16, 16);
-    const coreMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xff0066, 
+    // Capacitor body (cylindrical, metallic blue)
+    const bodyGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.9, 16);
+    const bodyMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x1a1a5a, // Dark blue capacitor
+      transparent: true, 
+      opacity: 0.95 
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    group.add(body);
+    
+    // Capacitor top marking stripe
+    const stripeGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.12, 16);
+    const stripeMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xcccccc, 
       transparent: true, 
       opacity: 0.9 
     });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
-    group.add(core);
+    const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+    stripe.position.y = 0.4;
+    group.add(stripe);
     
-    // Outer glow
-    const glowGeometry = new THREE.SphereGeometry(0.6, 16, 16);
-    const glowMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xff0066, 
+    // Capacitor minus stripe
+    const minusStripeGeometry = new THREE.CylinderGeometry(0.37, 0.37, 0.08, 16);
+    const minusStripeMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x333333, 
       transparent: true, 
-      opacity: 0.3 
+      opacity: 0.9 
+    });
+    const minusStripe = new THREE.Mesh(minusStripeGeometry, minusStripeMaterial);
+    minusStripe.position.y = 0.32;
+    group.add(minusStripe);
+    
+    // Danger glow
+    const glowGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.0, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xff4444, 
+      transparent: true, 
+      opacity: 0.25 
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     glow.name = 'obstacleGlow';
     group.add(glow);
     
-    // Danger rings
+    // Danger spark rings
     for (let i = 0; i < 3; i++) {
-      const ringGeometry = new THREE.TorusGeometry(0.5 + i * 0.15, 0.03, 8, 32);
+      const ringGeometry = new THREE.TorusGeometry(0.45 + i * 0.12, 0.025, 8, 32);
       const ringMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xff3388, 
+        color: 0xff6666, 
         transparent: true, 
-        opacity: 0.6 
+        opacity: 0.5 
       });
       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-      ring.rotation.x = Math.PI / 2 + i * 0.3;
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.1 * i - 0.1;
       ring.name = `dangerRing${i}`;
       group.add(ring);
     }
     
-    // Point light
-    const light = new THREE.PointLight(0xff0066, 2, 5);
+    // Point light (red warning)
+    const light = new THREE.PointLight(0xff4444, 1.5, 4);
     group.add(light);
     
     return group;
@@ -468,6 +517,104 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     const light = new THREE.PointLight(0x00ff00, 3, 8);
     light.position.y = 1;
     group.add(light);
+    
+    return group;
+  }, []);
+
+  // Create resistor (slows player down) - circuit board theme
+  const createResistor = useCallback(() => {
+    const group = new THREE.Group();
+    
+    // Resistor body (tan/beige cylinder)
+    const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.8, 12);
+    const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xd4a574 }); // Tan color
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.rotation.z = Math.PI / 2; // Lay flat
+    body.position.y = 0.25;
+    group.add(body);
+    
+    // Color bands (4-band resistor)
+    const bandColors = [0x8b4513, 0x000000, 0xff0000, 0xc0c0c0]; // Brown, Black, Red, Silver
+    for (let i = 0; i < 4; i++) {
+      const bandGeometry = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 12);
+      const bandMaterial = new THREE.MeshBasicMaterial({ color: bandColors[i] });
+      const band = new THREE.Mesh(bandGeometry, bandMaterial);
+      band.rotation.z = Math.PI / 2;
+      band.position.set(-0.25 + i * 0.17, 0.25, 0);
+      group.add(band);
+    }
+    
+    // Wire leads
+    const wireGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+    const wire1 = new THREE.Mesh(wireGeometry, wireMaterial);
+    wire1.rotation.z = Math.PI / 2;
+    wire1.position.set(-0.6, 0.25, 0);
+    group.add(wire1);
+    const wire2 = new THREE.Mesh(wireGeometry, wireMaterial);
+    wire2.rotation.z = Math.PI / 2;
+    wire2.position.set(0.6, 0.25, 0);
+    group.add(wire2);
+    
+    // Warning glow (orange - indicates slowdown)
+    const glowGeometry = new THREE.SphereGeometry(0.5, 12, 12);
+    const glowMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xff8800, 
+      transparent: true, 
+      opacity: 0.2 
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow.position.y = 0.25;
+    glow.name = 'resistorGlow';
+    group.add(glow);
+    
+    return group;
+  }, []);
+
+  // Create diode (one-way path indicator) - circuit board theme
+  const createDiode = useCallback(() => {
+    const group = new THREE.Group();
+    
+    // Diode body (black cylinder with stripe)
+    const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.5, 12);
+    const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.rotation.z = Math.PI / 2;
+    body.position.y = 0.2;
+    group.add(body);
+    
+    // Cathode stripe (white band)
+    const stripeGeometry = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12);
+    const stripeMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+    const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+    stripe.rotation.z = Math.PI / 2;
+    stripe.position.set(0.18, 0.2, 0);
+    group.add(stripe);
+    
+    // Wire leads
+    const wireGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.35, 8);
+    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+    const wire1 = new THREE.Mesh(wireGeometry, wireMaterial);
+    wire1.rotation.z = Math.PI / 2;
+    wire1.position.set(-0.42, 0.2, 0);
+    group.add(wire1);
+    const wire2 = new THREE.Mesh(wireGeometry, wireMaterial);
+    wire2.rotation.z = Math.PI / 2;
+    wire2.position.set(0.42, 0.2, 0);
+    group.add(wire2);
+    
+    // Arrow indicator (shows direction)
+    const arrowGeometry = new THREE.ConeGeometry(0.12, 0.25, 8);
+    const arrowMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.8 
+    });
+    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+    arrow.rotation.z = -Math.PI / 2;
+    arrow.position.set(0.15, 0.5, 0);
+    arrow.name = 'diodeArrow';
+    group.add(arrow);
     
     return group;
   }, []);
@@ -557,6 +704,18 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     });
     obstaclesRef.current = [];
     
+    // Remove resistors
+    resistorsRef.current.forEach(res => {
+      scene.remove(res.mesh);
+    });
+    resistorsRef.current = [];
+    
+    // Remove diodes
+    diodesRef.current.forEach(diode => {
+      scene.remove(diode.mesh);
+    });
+    diodesRef.current = [];
+    
     // Remove start marker
     if (startMarkerRef.current) {
       scene.remove(startMarkerRef.current);
@@ -577,63 +736,89 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT, mazeRng);
     mazeRef.current = maze;
     
-    // Wall materials - better looking neon red
+    // PCB Green for walls (circuit board substrate)
     const wallMaterial = new THREE.MeshBasicMaterial({
-      color: 0xcc0000,
+      color: 0x0a3d0a, // Dark PCB green
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.95,
     });
     
-    // Create maze geometry with better visuals
+    // Create maze geometry - CIRCUIT BOARD THEME
     for (let z = 0; z < MAZE_HEIGHT; z++) {
       for (let x = 0; x < MAZE_WIDTH; x++) {
         const worldX = (x - MAZE_WIDTH / 2 + 0.5) * CELL_SIZE;
         const worldZ = (z - MAZE_HEIGHT / 2 + 0.5) * CELL_SIZE;
         
         if (maze[z][x] === 'wall') {
-          // Main wall block
-          const wallGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.92, 2, CELL_SIZE * 0.92);
+          // Main PCB wall block (dark green)
+          const wallGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.92, 1.5, CELL_SIZE * 0.92);
           const wall = new THREE.Mesh(wallGeometry, wallMaterial.clone());
-          wall.position.set(worldX, 1, worldZ);
+          wall.position.set(worldX, 0.75, worldZ);
           scene.add(wall);
           mazeMeshesRef.current.push(wall);
           
-          // Neon edge glow
-          const edgeGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.98, 2.1, CELL_SIZE * 0.98);
+          // PCB edge - lighter green border
+          const edgeGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.98, 1.55, CELL_SIZE * 0.98);
           const edgeMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff3333,
+            color: 0x1a5a1a, // Lighter PCB green edge
             transparent: true,
-            opacity: 0.25,
+            opacity: 0.3,
           });
           const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-          edge.position.set(worldX, 1, worldZ);
+          edge.position.set(worldX, 0.75, worldZ);
           scene.add(edge);
           mazeMeshesRef.current.push(edge);
           
-          // Top neon line
-          const topGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.9, 0.1, CELL_SIZE * 0.9);
-          const topMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff6666,
+          // Silkscreen markings (white lines on top)
+          const silkscreenGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.7, 0.05, CELL_SIZE * 0.7);
+          const silkscreenMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffee,
+            transparent: true,
+            opacity: 0.25,
+          });
+          const silkscreen = new THREE.Mesh(silkscreenGeometry, silkscreenMaterial);
+          silkscreen.position.set(worldX, 1.53, worldZ);
+          scene.add(silkscreen);
+          mazeMeshesRef.current.push(silkscreen);
+        } else {
+          // COPPER TRACE PATH
+          const copperGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.85, CELL_SIZE * 0.85);
+          const copperMaterial = new THREE.MeshBasicMaterial({
+            color: 0xb87333, // Copper color
             transparent: true,
             opacity: 0.9,
           });
-          const top = new THREE.Mesh(topGeometry, topMaterial);
-          top.position.set(worldX, 2.05, worldZ);
-          scene.add(top);
-          mazeMeshesRef.current.push(top);
-        } else {
-          // Path floor with subtle glow
-          const floorGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.95, CELL_SIZE * 0.95);
-          const floorMaterial = new THREE.MeshBasicMaterial({
-            color: 0x1a0505,
+          const copper = new THREE.Mesh(copperGeometry, copperMaterial);
+          copper.rotation.x = -Math.PI / 2;
+          copper.position.set(worldX, 0.02, worldZ);
+          scene.add(copper);
+          mazeMeshesRef.current.push(copper);
+          
+          // Copper shine effect
+          const shineGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.6, CELL_SIZE * 0.6);
+          const shineMaterial = new THREE.MeshBasicMaterial({
+            color: 0xdaa06d, // Lighter copper shine
             transparent: true,
-            opacity: 0.6,
+            opacity: 0.4,
           });
-          const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-          floor.rotation.x = -Math.PI / 2;
-          floor.position.set(worldX, 0.01, worldZ);
-          scene.add(floor);
-          mazeMeshesRef.current.push(floor);
+          const shine = new THREE.Mesh(shineGeometry, shineMaterial);
+          shine.rotation.x = -Math.PI / 2;
+          shine.position.set(worldX, 0.03, worldZ);
+          scene.add(shine);
+          mazeMeshesRef.current.push(shine);
+          
+          // PCB base under copper
+          const baseGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.95, CELL_SIZE * 0.95);
+          const baseMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0d2d0d, // Darker PCB green base
+            transparent: true,
+            opacity: 0.8,
+          });
+          const base = new THREE.Mesh(baseGeometry, baseMaterial);
+          base.rotation.x = -Math.PI / 2;
+          base.position.set(worldX, 0.01, worldZ);
+          scene.add(base);
+          mazeMeshesRef.current.push(base);
         }
       }
     }
@@ -753,11 +938,60 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       }
     }
     
+    // Place resistors on random path cells (slow down areas)
+    const numResistors = 3 + mazeNumber;
+    const resistorCells = new Set<string>();
+    for (let i = 0; i < numResistors; i++) {
+      let attempts = 0;
+      while (attempts < 20) {
+        const cell = pathCells[Math.floor(mazeRng.next() * pathCells.length)];
+        const key = `${cell.x},${cell.z}`;
+        if (!usedCells.has(key) && !resistorCells.has(key)) {
+          resistorCells.add(key);
+          const worldX = (cell.x - MAZE_WIDTH / 2 + 0.5) * CELL_SIZE;
+          const worldZ = (cell.z - MAZE_HEIGHT / 2 + 0.5) * CELL_SIZE;
+          
+          const resistorMesh = createResistor();
+          resistorMesh.position.set(worldX, 0, worldZ);
+          resistorMesh.rotation.y = mazeRng.next() * Math.PI; // Random rotation
+          scene.add(resistorMesh);
+          
+          resistorsRef.current.push({ mesh: resistorMesh, x: worldX, z: worldZ });
+          break;
+        }
+        attempts++;
+      }
+    }
+    
+    // Place diodes on some narrow paths (just decorative for now)
+    const numDiodes = 2 + Math.floor(mazeNumber / 2);
+    for (let i = 0; i < numDiodes; i++) {
+      let attempts = 0;
+      while (attempts < 20) {
+        const cell = pathCells[Math.floor(mazeRng.next() * pathCells.length)];
+        const key = `${cell.x},${cell.z}`;
+        if (!usedCells.has(key) && !resistorCells.has(key)) {
+          const worldX = (cell.x - MAZE_WIDTH / 2 + 0.5) * CELL_SIZE;
+          const worldZ = (cell.z - MAZE_HEIGHT / 2 + 0.5) * CELL_SIZE;
+          
+          const diodeMesh = createDiode();
+          const direction = mazeRng.next() * Math.PI * 2;
+          diodeMesh.position.set(worldX, 0, worldZ);
+          diodeMesh.rotation.y = direction;
+          scene.add(diodeMesh);
+          
+          diodesRef.current.push({ mesh: diodeMesh, x: worldX, z: worldZ, direction });
+          break;
+        }
+        attempts++;
+      }
+    }
+    
     // Update lightning position
     if (lightningRef.current) {
       lightningRef.current.position.copy(lightningPositionRef.current);
     }
-  }, [clearMaze, createStartMarker, createTeslaCoil, createObstacle]);
+  }, [clearMaze, createStartMarker, createTeslaCoil, createObstacle, createResistor, createDiode]);
 
   // Detect mobile device
   useEffect(() => {
@@ -774,8 +1008,8 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     if (!containerRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050505);
-    scene.fog = new THREE.Fog(0x050505, 25, 70);
+    scene.background = new THREE.Color(0x051505); // Dark PCB green tint
+    scene.fog = new THREE.Fog(0x051505, 25, 70);
     sceneRef.current = scene;
 
     // Create perspective camera for 3D mode
@@ -1096,7 +1330,25 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         
         if (distance > 0.1) {
           direction.normalize();
-          const moveSpeed = 10 * deltaTime;
+          
+          // Check if near a resistor - slow down!
+          let speedMultiplier = 1.0;
+          for (const res of resistorsRef.current) {
+            const dx = currentPos.x - res.x;
+            const dz = currentPos.z - res.z;
+            const distToResistor = Math.sqrt(dx * dx + dz * dz);
+            if (distToResistor < CELL_SIZE * 1.2) {
+              speedMultiplier = 0.4; // Slow down to 40% speed
+              // Animate resistor glow when player is near
+              const glow = res.mesh.getObjectByName('resistorGlow') as THREE.Mesh;
+              if (glow) {
+                (glow.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(lightningTimeRef.current * 10) * 0.2;
+              }
+              break;
+            }
+          }
+          
+          const moveSpeed = 10 * deltaTime * speedMultiplier;
           const moveAmount = Math.min(moveSpeed, distance);
           
           // Track direction for rotation - calculate target angle from movement direction
@@ -1161,7 +1413,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
                 if (mainBolt) {
                   (mainBolt.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
                   setTimeout(() => {
-                    (mainBolt.material as THREE.MeshBasicMaterial).color.setHex(0x00ffff);
+                    (mainBolt.material as THREE.MeshBasicMaterial).color.setHex(0xffcc00); // Golden yellow
                   }, 150);
                 }
               }
@@ -1214,7 +1466,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
               if (mainBolt) {
                 (mainBolt.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
                 setTimeout(() => {
-                  (mainBolt.material as THREE.MeshBasicMaterial).color.setHex(0x00ffff);
+                  (mainBolt.material as THREE.MeshBasicMaterial).color.setHex(0xffcc00); // Golden yellow
                 }, 200);
               }
             }
@@ -1391,8 +1643,8 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       
       {/* HUD - Responsive for mobile */}
       <div className="absolute top-8 sm:top-4 left-2 right-2 sm:left-4 sm:right-4 flex flex-wrap sm:flex-nowrap justify-between items-start gap-2 pointer-events-none z-10">
-        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-cyan-500/50 flex-1 min-w-[70px]">
-          <div className="text-cyan-400 text-xs sm:text-sm font-bold">SCORE</div>
+        <div className="bg-black/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-4 border border-amber-500/50 flex-1 min-w-[70px]">
+          <div className="text-amber-400 text-xs sm:text-sm font-bold">SCORE</div>
           <div className="text-white text-lg sm:text-3xl font-bold">{score.toLocaleString()}</div>
         </div>
         
@@ -1416,23 +1668,24 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       {gameState === 'ready' && (
         <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-10 p-4 overflow-y-auto">
           <div className="text-center max-w-xl w-full">
-            <div className="text-5xl sm:text-7xl mb-2 sm:mb-4">⚡</div>
-            <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              LIGHTNING MAZE
+            <div className="text-5xl sm:text-7xl mb-2 sm:mb-4">🔌</div>
+            <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500 bg-clip-text text-transparent">
+              CIRCUIT RUNNER
             </h1>
-            <div className="space-y-2 sm:space-y-3 text-left bg-black/60 rounded-xl p-4 sm:p-6 border border-cyan-500/30 mb-4 sm:mb-6">
-              <p className="text-cyan-300 font-bold text-base sm:text-xl">⚡ HOW TO PLAY:</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP</span> the lightning bolt to start</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• {isMobile ? 'Drag your finger' : 'Move your mouse'} to guide the bolt</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• Reach all <span className="text-gray-200 font-bold">Tesla coils</span> (+500 pts)</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• Avoid <span className="text-pink-400 font-bold">obstacles</span> (-25 pts)</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• Don't hit <span className="text-red-400 font-bold">walls</span> (-10 pts)</p>
+            <div className="space-y-2 sm:space-y-3 text-left bg-green-950/60 rounded-xl p-4 sm:p-6 border border-green-500/40 mb-4 sm:mb-6">
+              <p className="text-amber-300 font-bold text-base sm:text-xl">⚡ HOW TO PLAY:</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP</span> the electrical current to start</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• {isMobile ? 'Drag your finger' : 'Move your mouse'} to guide the signal</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Reach all <span className="text-gray-200 font-bold">IC Chips</span> (+500 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Avoid <span className="text-blue-400 font-bold">capacitors</span> (-25 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-orange-400 font-bold">Resistors</span> slow you down!</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Don't hit <span className="text-green-600 font-bold">PCB walls</span> (-10 pts)</p>
               <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-purple-400 font-bold">Odd mazes = 3D</span>, <span className="text-green-400 font-bold">Even mazes = 2D</span></p>
               <p className="text-yellow-300 font-bold text-sm sm:text-lg mt-2 sm:mt-4">⏱️ {GAME_DURATION} SECONDS FOR ALL 5 MAZES!</p>
             </div>
             <button
               onClick={startGame}
-              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xl sm:text-2xl rounded-xl transform hover:scale-105 transition-all shadow-lg shadow-cyan-500/50"
+              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xl sm:text-2xl rounded-xl transform hover:scale-105 transition-all shadow-lg shadow-amber-500/50"
             >
               START GAME
             </button>
@@ -1443,9 +1696,9 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       {/* Waiting for tap - Mobile Friendly */}
       {gameState === 'waiting' && (
         <div className="absolute bottom-16 sm:bottom-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-10 pointer-events-none">
-          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-4 sm:px-8 py-3 sm:py-4 border border-green-500 animate-pulse">
-            <p className="text-green-400 text-lg sm:text-2xl font-bold text-center">
-              ⚡ TAP THE LIGHTNING BOLT! ⚡
+          <div className="bg-green-950/80 backdrop-blur-sm rounded-xl px-4 sm:px-8 py-3 sm:py-4 border border-amber-500 animate-pulse">
+            <p className="text-amber-400 text-lg sm:text-2xl font-bold text-center">
+              ⚡ TAP THE SIGNAL! ⚡
             </p>
           </div>
         </div>
