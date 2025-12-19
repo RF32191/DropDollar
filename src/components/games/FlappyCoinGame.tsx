@@ -56,6 +56,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const gameStartTimeRef = useRef<number>(0);
   const gameStateRef = useRef<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
   const highScoreRef = useRef<number>(0);
+  const flipRotationRef = useRef<number>(0); // For the flip animation on tap
+  const targetFlipRef = useRef<number>(0); // Target flip rotation
   
   // Store callbacks in refs to avoid stale closures
   const onGameCompleteRef = useRef(onGameComplete);
@@ -97,119 +99,276 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const OBSTACLE_GAP = 5.5;
   const GAP_SIZE = 3.0;
   
-  // Create 3D coin
+  // Create beautiful 3D SILVER coin with detailed features
   const createCoin = useCallback(() => {
     const group = new THREE.Group();
     
-    const coinGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.12, 32);
+    // Main coin body - SILVER with high metallic shine
+    const coinGeometry = new THREE.CylinderGeometry(0.65, 0.65, 0.12, 64);
     const coinMaterial = new THREE.MeshPhongMaterial({
-      color: 0xFFD700,
-      emissive: 0xCC9900,
-      emissiveIntensity: 0.4,
-      shininess: 150,
+      color: 0xC0C0C0, // Silver base
+      emissive: 0x404040,
+      emissiveIntensity: 0.2,
+      shininess: 200, // Very shiny
       specular: 0xFFFFFF,
+      reflectivity: 1,
     });
     const coin = new THREE.Mesh(coinGeometry, coinMaterial);
     coin.rotation.x = Math.PI / 2;
     coin.castShadow = true;
+    coin.name = 'coinBody';
     group.add(coin);
     
-    const rimGeometry = new THREE.TorusGeometry(0.6, 0.04, 16, 32);
+    // Outer rim - darker silver edge
+    const rimGeometry = new THREE.TorusGeometry(0.65, 0.05, 16, 64);
     const rimMaterial = new THREE.MeshPhongMaterial({
-      color: 0xB8860B,
-      emissive: 0x8B6914,
-      emissiveIntensity: 0.3,
-      shininess: 100,
+      color: 0x808080,
+      emissive: 0x303030,
+      emissiveIntensity: 0.2,
+      shininess: 150,
     });
     const rim = new THREE.Mesh(rimGeometry, rimMaterial);
     rim.rotation.x = Math.PI / 2;
     group.add(rim);
     
-    // Dollar sign
-    const lineGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8);
-    const dollarMaterial = new THREE.MeshPhongMaterial({
-      color: 0x8B4513,
-      emissive: 0x4A2500,
+    // Inner decorative ring
+    const innerRimGeometry = new THREE.TorusGeometry(0.5, 0.02, 16, 64);
+    const innerRimMaterial = new THREE.MeshPhongMaterial({
+      color: 0xA0A0A0,
+      shininess: 180,
     });
+    const innerRim = new THREE.Mesh(innerRimGeometry, innerRimMaterial);
+    innerRim.rotation.x = Math.PI / 2;
+    innerRim.position.z = 0.065;
+    group.add(innerRim);
+    
+    // Dollar sign - etched look (front)
+    const dollarGroup = new THREE.Group();
+    dollarGroup.name = 'dollarSign';
+    
+    // S curve of dollar sign
+    const sCurve = new THREE.Shape();
+    sCurve.moveTo(0.12, 0.15);
+    sCurve.bezierCurveTo(0.2, 0.15, 0.2, 0.05, 0.1, 0);
+    sCurve.bezierCurveTo(0, -0.05, -0.2, -0.05, -0.12, 0);
+    sCurve.bezierCurveTo(-0.2, 0.05, -0.2, 0.15, -0.1, 0.15);
+    
+    const sGeometry = new THREE.ExtrudeGeometry(sCurve, { depth: 0.02, bevelEnabled: false });
+    const dollarMaterial = new THREE.MeshPhongMaterial({
+      color: 0x606060,
+      shininess: 100,
+    });
+    const sMesh = new THREE.Mesh(sGeometry, dollarMaterial);
+    sMesh.position.z = 0.05;
+    sMesh.rotation.z = Math.PI;
+    dollarGroup.add(sMesh);
+    
+    // Vertical lines through S
+    const lineGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.5, 12);
     const line = new THREE.Mesh(lineGeometry, dollarMaterial);
     line.position.z = 0.07;
-    group.add(line);
+    dollarGroup.add(line);
     
-    // Glow
-    const glowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+    group.add(dollarGroup);
+    
+    // Back side dollar sign (mirrored)
+    const backDollar = dollarGroup.clone();
+    backDollar.rotation.y = Math.PI;
+    backDollar.position.z = -0.14;
+    group.add(backDollar);
+    
+    // Sparkle/shine effect glow
+    const glowGeometry = new THREE.SphereGeometry(0.85, 16, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xFFD700,
+      color: 0xFFFFFF,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.1,
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
     glow.name = 'glow';
     group.add(glow);
     
+    // Secondary glow ring
+    const glowRingGeometry = new THREE.TorusGeometry(0.75, 0.1, 8, 32);
+    const glowRingMaterial = new THREE.MeshBasicMaterial({
+      color: 0xC0C0C0,
+      transparent: true,
+      opacity: 0.15,
+    });
+    const glowRing = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
+    glowRing.rotation.x = Math.PI / 2;
+    glowRing.name = 'glowRing';
+    group.add(glowRing);
+    
     return group;
   }, []);
   
-  // Create 3D hand
+  // Create realistic 3D hand with detailed features
   const createHand = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
+    // More realistic skin material with subsurface scattering effect
     const skinMaterial = new THREE.MeshPhongMaterial({
-      color: 0xE8C4A0,
-      emissive: 0x6B4423,
-      emissiveIntensity: 0.15,
-      shininess: 20,
+      color: 0xDEB887, // BurlyWood - more natural skin tone
+      emissive: 0x4A3728,
+      emissiveIntensity: 0.1,
+      shininess: 15,
+      specular: 0x664433,
     });
     
-    // Palm
-    const palmGeometry = new THREE.BoxGeometry(1.8, 2.2, 0.6);
+    // Darker skin for palm side
+    const palmMaterial = new THREE.MeshPhongMaterial({
+      color: 0xD4A574,
+      emissive: 0x3A2718,
+      emissiveIntensity: 0.1,
+      shininess: 10,
+    });
+    
+    // Palm - more anatomically correct shape
+    const palmGeometry = new THREE.BoxGeometry(2.0, 2.4, 0.7);
     const palm = new THREE.Mesh(palmGeometry, skinMaterial);
-    palm.position.y = isTop ? -1.2 : 1.2;
+    palm.position.y = isTop ? -1.3 : 1.3;
     group.add(palm);
     
-    // Fingers
-    const fingerXPositions = [-0.6, -0.2, 0.2, 0.6];
+    // Palm underside (darker)
+    const palmUnderGeometry = new THREE.BoxGeometry(1.8, 2.2, 0.3);
+    const palmUnder = new THREE.Mesh(palmUnderGeometry, palmMaterial);
+    palmUnder.position.y = isTop ? -1.3 : 1.3;
+    palmUnder.position.z = isTop ? 0.25 : -0.25;
+    group.add(palmUnder);
+    
+    // Knuckle ridge
+    const knuckleGeometry = new THREE.BoxGeometry(1.9, 0.3, 0.8);
+    const knuckle = new THREE.Mesh(knuckleGeometry, skinMaterial);
+    knuckle.position.y = isTop ? -2.5 : 2.5;
+    group.add(knuckle);
+    
+    // Fingers with joints (more realistic)
+    const fingerXPositions = [-0.65, -0.22, 0.22, 0.65];
+    const fingerLengths = [1.0, 1.3, 1.35, 1.1]; // Index, Middle, Ring, Pinky proportions
+    
     fingerXPositions.forEach((xPos, i) => {
-      const fingerLength = 1.2 + (i === 1 || i === 2 ? 0.25 : 0);
-      const fingerGeometry = new THREE.CapsuleGeometry(0.18, fingerLength, 8, 16);
-      const finger = new THREE.Mesh(fingerGeometry, skinMaterial);
-      finger.position.x = xPos;
-      finger.position.y = isTop ? -2.8 - fingerLength/2 : 2.8 + fingerLength/2;
-      group.add(finger);
+      const fingerLength = fingerLengths[i];
+      const fingerRadius = i === 0 || i === 3 ? 0.16 : 0.18; // Thinner index/pinky
+      
+      // First segment (closest to palm)
+      const seg1Geometry = new THREE.CapsuleGeometry(fingerRadius, fingerLength * 0.4, 8, 16);
+      const seg1 = new THREE.Mesh(seg1Geometry, skinMaterial);
+      const seg1Y = isTop ? -2.8 - fingerLength * 0.2 : 2.8 + fingerLength * 0.2;
+      seg1.position.set(xPos, seg1Y, 0);
+      group.add(seg1);
+      
+      // Second segment (middle)
+      const seg2Geometry = new THREE.CapsuleGeometry(fingerRadius * 0.95, fingerLength * 0.35, 8, 16);
+      const seg2 = new THREE.Mesh(seg2Geometry, skinMaterial);
+      const seg2Y = isTop ? seg1Y - fingerLength * 0.4 : seg1Y + fingerLength * 0.4;
+      seg2.position.set(xPos, seg2Y, 0);
+      group.add(seg2);
+      
+      // Third segment (fingertip)
+      const seg3Geometry = new THREE.CapsuleGeometry(fingerRadius * 0.85, fingerLength * 0.25, 8, 16);
+      const seg3 = new THREE.Mesh(seg3Geometry, skinMaterial);
+      const seg3Y = isTop ? seg2Y - fingerLength * 0.35 : seg2Y + fingerLength * 0.35;
+      seg3.position.set(xPos, seg3Y, 0);
+      group.add(seg3);
+      
+      // Fingernail
+      const nailGeometry = new THREE.BoxGeometry(fingerRadius * 1.4, fingerRadius * 1.8, 0.08);
+      const nailMaterial = new THREE.MeshPhongMaterial({
+        color: 0xFFE4E1, // Pinkish nail color
+        shininess: 80,
+        specular: 0xFFFFFF,
+      });
+      const nail = new THREE.Mesh(nailGeometry, nailMaterial);
+      const nailY = isTop ? seg3Y - fingerLength * 0.15 : seg3Y + fingerLength * 0.15;
+      nail.position.set(xPos, nailY, isTop ? -0.15 : 0.15);
+      group.add(nail);
     });
     
-    // Thumb
-    const thumbGeometry = new THREE.CapsuleGeometry(0.22, 0.9, 8, 16);
-    const thumb = new THREE.Mesh(thumbGeometry, skinMaterial);
-    thumb.position.x = isTop ? 1.1 : -1.1;
-    thumb.position.y = isTop ? -1 : 1;
-    thumb.rotation.z = isTop ? -0.8 : 0.8;
-    group.add(thumb);
+    // Thumb - more realistic with multiple segments
+    const thumbBase = new THREE.CapsuleGeometry(0.2, 0.5, 8, 16);
+    const thumbBaseMesh = new THREE.Mesh(thumbBase, skinMaterial);
+    thumbBaseMesh.position.set(isTop ? 1.0 : -1.0, isTop ? -0.8 : 0.8, 0);
+    thumbBaseMesh.rotation.z = isTop ? -0.6 : 0.6;
+    group.add(thumbBaseMesh);
     
-    // Wrist/Arm extension
-    const armGeometry = new THREE.BoxGeometry(1.6, 12, 0.5);
-    const armMaterial = new THREE.MeshPhongMaterial({
+    const thumbMid = new THREE.CapsuleGeometry(0.18, 0.5, 8, 16);
+    const thumbMidMesh = new THREE.Mesh(thumbMid, skinMaterial);
+    thumbMidMesh.position.set(isTop ? 1.35 : -1.35, isTop ? -1.5 : 1.5, 0);
+    thumbMidMesh.rotation.z = isTop ? -0.4 : 0.4;
+    group.add(thumbMidMesh);
+    
+    const thumbTip = new THREE.CapsuleGeometry(0.16, 0.35, 8, 16);
+    const thumbTipMesh = new THREE.Mesh(thumbTip, skinMaterial);
+    thumbTipMesh.position.set(isTop ? 1.55 : -1.55, isTop ? -2.0 : 2.0, 0);
+    thumbTipMesh.rotation.z = isTop ? -0.3 : 0.3;
+    group.add(thumbTipMesh);
+    
+    // Thumb nail
+    const thumbNailGeometry = new THREE.BoxGeometry(0.28, 0.32, 0.08);
+    const thumbNailMaterial = new THREE.MeshPhongMaterial({
+      color: 0xFFE4E1,
+      shininess: 80,
+    });
+    const thumbNail = new THREE.Mesh(thumbNailGeometry, thumbNailMaterial);
+    thumbNail.position.set(isTop ? 1.65 : -1.65, isTop ? -2.25 : 2.25, isTop ? -0.12 : 0.12);
+    thumbNail.rotation.z = isTop ? -0.3 : 0.3;
+    group.add(thumbNail);
+    
+    // Wrist and arm
+    const wristGeometry = new THREE.CylinderGeometry(0.9, 1.0, 1.5, 16);
+    const wristMaterial = new THREE.MeshPhongMaterial({
       color: 0xD4A574,
-      emissive: 0x5B3413,
+      emissive: 0x3A2718,
       emissiveIntensity: 0.1,
+      shininess: 12,
     });
-    const arm = new THREE.Mesh(armGeometry, armMaterial);
-    arm.position.y = isTop ? 6.5 : -6.5;
+    const wrist = new THREE.Mesh(wristGeometry, wristMaterial);
+    wrist.position.y = isTop ? 0.5 : -0.5;
+    group.add(wrist);
+    
+    // Forearm
+    const armGeometry = new THREE.CylinderGeometry(0.85, 0.9, 10, 16);
+    const arm = new THREE.Mesh(armGeometry, wristMaterial);
+    arm.position.y = isTop ? 6.0 : -6.0;
     group.add(arm);
     
-    // Sleeve
-    const cuffGeometry = new THREE.BoxGeometry(1.8, 0.6, 0.7);
+    // Sleeve/Cuff - fancy suit cuff
+    const cuffGeometry = new THREE.CylinderGeometry(1.0, 0.95, 0.8, 16);
     const cuffMaterial = new THREE.MeshPhongMaterial({
-      color: 0x1a1a2e,
-      shininess: 30,
+      color: 0x1a1a2e, // Dark navy
+      shininess: 40,
+      specular: 0x333344,
     });
     const cuff = new THREE.Mesh(cuffGeometry, cuffMaterial);
-    cuff.position.y = isTop ? 1.0 : -1.0;
+    cuff.position.y = isTop ? 1.3 : -1.3;
     group.add(cuff);
+    
+    // Cuff button
+    const buttonGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 12);
+    const buttonMaterial = new THREE.MeshPhongMaterial({
+      color: 0xC0C0C0, // Silver button
+      shininess: 100,
+    });
+    const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+    button.rotation.x = Math.PI / 2;
+    button.position.set(0.9, isTop ? 1.3 : -1.3, 0);
+    group.add(button);
+    
+    // Shirt visible under cuff
+    const shirtGeometry = new THREE.CylinderGeometry(0.88, 0.88, 0.3, 16);
+    const shirtMaterial = new THREE.MeshPhongMaterial({
+      color: 0xFFFFF0, // Ivory white shirt
+      shininess: 20,
+    });
+    const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
+    shirt.position.y = isTop ? 0.95 : -0.95;
+    group.add(shirt);
     
     return group;
   }, []);
   
-  // Handle jump
+  // Handle jump with dramatic flip animation
   const handleJump = useCallback(() => {
     console.log('🪙 Jump! State:', gameStateRef.current);
     
@@ -220,8 +379,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
       isAliveRef.current = true;
       gameStartTimeRef.current = Date.now();
       velocityRef.current = JUMP_VELOCITY;
+      // Trigger flip animation - full 360° rotation
+      targetFlipRef.current += Math.PI * 2;
     } else if (gameStateRef.current === 'playing' && isAliveRef.current) {
       velocityRef.current = JUMP_VELOCITY;
+      // Trigger flip animation on each tap - 360° flip
+      targetFlipRef.current += Math.PI * 2;
     }
   }, []);
   
@@ -250,7 +413,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     if (coinRef.current) {
       coinRef.current.position.y = 0;
       coinRef.current.rotation.z = 0;
+      coinRef.current.rotation.x = Math.PI / 2;
+      coinRef.current.rotation.y = 0;
     }
+    // Reset flip animation
+    flipRotationRef.current = 0;
+    targetFlipRef.current = 0;
   }, []);
   
   // Initialize scene
@@ -375,13 +543,35 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
       
       if (!coinRef.current || !sceneRef.current) return;
       
-      // Coin spinning
-      coinRef.current.rotation.y += deltaTime * 4;
+      // Smooth flip animation towards target
+      const flipDiff = targetFlipRef.current - flipRotationRef.current;
+      if (Math.abs(flipDiff) > 0.01) {
+        // Smooth interpolation for flip - faster for snappy feel
+        flipRotationRef.current += flipDiff * Math.min(1, deltaTime * 12);
+      } else {
+        flipRotationRef.current = targetFlipRef.current;
+      }
       
-      // Glow pulse
+      // Apply flip rotation (around X axis for proper coin flip)
+      coinRef.current.rotation.x = Math.PI / 2 + flipRotationRef.current;
+      
+      // Also add continuous slow spin for shimmer effect
+      coinRef.current.rotation.y += deltaTime * 0.5;
+      
+      // Glow pulse - more dynamic based on flip
       const glow = coinRef.current.getObjectByName('glow') as THREE.Mesh;
       if (glow && glow.material) {
-        (glow.material as THREE.MeshBasicMaterial).opacity = 0.12 + Math.sin(time / 200) * 0.08;
+        const flipSpeed = Math.abs(flipDiff);
+        const baseOpacity = 0.1 + Math.sin(time / 200) * 0.05;
+        const flipBoost = Math.min(0.3, flipSpeed * 0.1); // Brighter glow during flip
+        (glow.material as THREE.MeshBasicMaterial).opacity = baseOpacity + flipBoost;
+      }
+      
+      // Glow ring pulse
+      const glowRing = coinRef.current.getObjectByName('glowRing') as THREE.Mesh;
+      if (glowRing && glowRing.material) {
+        const flipSpeed = Math.abs(flipDiff);
+        (glowRing.material as THREE.MeshBasicMaterial).opacity = 0.1 + flipSpeed * 0.15;
       }
       
       // Move clouds
