@@ -997,14 +997,30 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
               
               <div className="space-y-3 pl-11">
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-red-300 font-semibold">Mouse = Sword:</span> Move mouse to control your blade position</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
-                  <p><span className="text-orange-300 font-semibold">Click to Slash:</span> Click/tap to destroy bright red attacks!</p>
-                </div>
+                {/* Mobile-specific instructions */}
+                {isMobile ? (
+                  <>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 animate-pulse"></div>
+                      <p><span className="text-purple-300 font-semibold">📱 TILT = Sword:</span> Tilt your phone to move the sword!</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full mt-2 animate-pulse"></div>
+                      <p><span className="text-cyan-300 font-semibold">👆 TAP = Slash:</span> Tap anywhere to slash and rotate sword!</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                      <p><span className="text-red-300 font-semibold">🖱️ Mouse = Sword:</span> Move mouse to control your blade position</p>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                      <p><span className="text-orange-300 font-semibold">Click to Slash:</span> Click to destroy bright red attacks!</p>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-start space-x-3">
                   <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 animate-pulse"></div>
                   <p><span className="text-yellow-300 font-semibold">Perfect Slashes:</span> Random chance for bonus points!</p>

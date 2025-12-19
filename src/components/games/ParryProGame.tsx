@@ -50,6 +50,9 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const animationFrameRef = useRef<number>(0);
   const initializedRef = useRef(false);
   
+  // Music ref
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  
   // Game state refs
   const enemiesRef = useRef<Enemy[]>([]);
   const scoreRef = useRef<number>(0);
@@ -552,6 +555,19 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     nextEnemyIdRef.current = 1;
     spawnCooldownRef.current = 0;
     
+    // Start background music
+    try {
+      if (!musicRef.current) {
+        musicRef.current = new Audio('/ParryPro.mp3');
+        musicRef.current.loop = true;
+        musicRef.current.volume = 0.4;
+      }
+      musicRef.current.currentTime = 0;
+      musicRef.current.play().catch(err => console.log('Music autoplay blocked:', err));
+    } catch (err) {
+      console.log('Music error:', err);
+    }
+    
     // Clear old enemies
     enemiesRef.current.forEach(e => {
       if (e.mesh && sceneRef.current) {
@@ -843,6 +859,12 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       gameStateRef.current = 'complete';
       setGameState('complete');
       
+      // Stop music
+      if (musicRef.current) {
+        musicRef.current.pause();
+        musicRef.current.currentTime = 0;
+      }
+      
       const duration = (Date.now() - gameStartTimeRef.current) / 1000;
       const accuracy = totalParriesRef.current > 0 
         ? Math.round((perfectParriesRef.current / totalParriesRef.current) * 100)
@@ -896,6 +918,11 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         container.removeChild(renderer.domElement);
       }
       initializedRef.current = false;
+      // Stop music on cleanup
+      if (musicRef.current) {
+        musicRef.current.pause();
+        musicRef.current = null;
+      }
     };
   }, [createSword, createEnemy, spawnEnemy]);
   

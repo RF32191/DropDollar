@@ -127,6 +127,7 @@ export default function DeadShotGame({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationIdRef = useRef<number | undefined>(undefined);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
   const bowRef = useRef<THREE.Group | null>(null);
   const bowStringRef = useRef<THREE.Line | null>(null);
   const arrowsRef = useRef<Arrow[]>([]);
@@ -2261,6 +2262,11 @@ export default function DeadShotGame({
       if (rendererRef.current) {
         rendererRef.current.dispose();
       }
+      // Stop music on cleanup
+      if (musicRef.current) {
+        musicRef.current.pause();
+        musicRef.current = null;
+      }
       sceneRef.current = null;
       cameraRef.current = null;
       rendererRef.current = null;
@@ -2850,6 +2856,20 @@ export default function DeadShotGame({
           setGameState('playing');
           gameStartTimeRef.current = Date.now();
           clockRef.current.start();
+          
+          // Start background music
+          try {
+            if (!musicRef.current) {
+              musicRef.current = new Audio('/dead-shot.mp3');
+              musicRef.current.loop = true;
+              musicRef.current.volume = 0.4;
+            }
+            musicRef.current.currentTime = 0;
+            musicRef.current.play().catch(err => console.log('Music autoplay blocked:', err));
+          } catch (err) {
+            console.log('Music error:', err);
+          }
+          
           return 0;
         }
         return prev - 1;
@@ -2884,6 +2904,12 @@ export default function DeadShotGame({
       cancelAnimationFrame(animationIdRef.current);
     }
     if (timerRef.current) clearInterval(timerRef.current);
+    
+    // Stop music
+    if (musicRef.current) {
+      musicRef.current.pause();
+      musicRef.current.currentTime = 0;
+    }
     
     // Clean up all meshes
     if (sceneRef.current) {
