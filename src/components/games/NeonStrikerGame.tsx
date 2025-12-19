@@ -27,16 +27,83 @@ interface GameCoin {
   mesh: THREE.Group | null;
 }
 
-// Fixed coin arrangement - same for everyone
-const TARGET_POSITIONS = [
-  { x: 0, z: 0 },
-  { x: -3, z: -2 },
-  { x: 3, z: -2 },
-  { x: -2, z: 1 },
-  { x: 2, z: 1 },
-  { x: -4, z: -4 },
-  { x: 4, z: -4 },
-  { x: 0, z: 3 },
+// Level configurations - Level 1 is always the same for everyone
+const LEVELS = [
+  // Level 1 - Easy triangle
+  {
+    name: 'Triangle',
+    coins: [
+      { x: 0, z: -2 },
+      { x: -2, z: 1 },
+      { x: 2, z: 1 },
+    ],
+    bumpers: [{ x: -4, z: 0 }, { x: 4, z: 0 }],
+  },
+  // Level 2 - Diamond
+  {
+    name: 'Diamond',
+    coins: [
+      { x: 0, z: -4 },
+      { x: -3, z: 0 },
+      { x: 3, z: 0 },
+      { x: 0, z: 2 },
+    ],
+    bumpers: [{ x: -5, z: -2 }, { x: 5, z: -2 }],
+  },
+  // Level 3 - Line
+  {
+    name: 'The Line',
+    coins: [
+      { x: -4, z: 0 },
+      { x: -2, z: 0 },
+      { x: 0, z: 0 },
+      { x: 2, z: 0 },
+      { x: 4, z: 0 },
+    ],
+    bumpers: [{ x: 0, z: -3 }, { x: 0, z: 3 }],
+  },
+  // Level 4 - Circle
+  {
+    name: 'Circle',
+    coins: [
+      { x: 0, z: -3 },
+      { x: 2.6, z: -1.5 },
+      { x: 2.6, z: 1.5 },
+      { x: 0, z: 3 },
+      { x: -2.6, z: 1.5 },
+      { x: -2.6, z: -1.5 },
+    ],
+    bumpers: [{ x: 0, z: 0 }],
+  },
+  // Level 5 - Fortress
+  {
+    name: 'Fortress',
+    coins: [
+      { x: -4, z: -4 },
+      { x: 4, z: -4 },
+      { x: -4, z: 2 },
+      { x: 4, z: 2 },
+      { x: -2, z: -1 },
+      { x: 2, z: -1 },
+      { x: 0, z: 0 },
+    ],
+    bumpers: [{ x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: -3 }],
+  },
+  // Level 6 - Chaos
+  {
+    name: 'Chaos',
+    coins: [
+      { x: -5, z: -5 },
+      { x: 5, z: -5 },
+      { x: -3, z: -2 },
+      { x: 3, z: -2 },
+      { x: 0, z: 0 },
+      { x: -4, z: 3 },
+      { x: 4, z: 3 },
+      { x: 0, z: 5 },
+    ],
+    bumpers: [{ x: -2, z: 0 }, { x: 2, z: 0 }, { x: 0, z: -4 }, { x: 0, z: 2 }],
+  },
 ];
 
 export default function NeonStrikerGame({ 
@@ -47,23 +114,24 @@ export default function NeonStrikerGame({
   isCompetitionMode, 
   rngSeed 
 }: NeonStrikerGameProps) {
-  const [gameState, setGameState] = useState<'ready' | 'playing' | 'shooting' | 'complete'>('ready');
+  const [gameState, setGameState] = useState<'ready' | 'playing' | 'aiming' | 'charging' | 'shooting' | 'levelComplete' | 'complete'>('ready');
   const [score, setScore] = useState(0);
   const [shotsUsed, setShotsUsed] = useState(0);
   const [power, setPower] = useState(0);
-  const [isCharging, setIsCharging] = useState(false);
   const [aimAngle, setAimAngle] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
-  const [coinsLeft, setCoinsLeft] = useState(TARGET_POSITIONS.length);
-  const [viewMode, setViewMode] = useState<'full' | 'focus'>('full');
+  const [coinsLeft, setCoinsLeft] = useState(0);
+  const [currentLevel, setCurrentLevel] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  const [aimLocked, setAimLocked] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const coinsRef = useRef<GameCoin[]>([]);
+  const bumpersRef = useRef<{ x: number; z: number; r: number }[]>([]);
   const aimLineRef = useRef<THREE.Line | null>(null);
   const animationRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,7 +155,6 @@ export default function NeonStrikerGame({
   const createCoin = useCallback((scene: THREE.Scene, x: number, z: number, isStriker: boolean): THREE.Group => {
     const group = new THREE.Group();
     
-    // Main coin body
     const geometry = new THREE.CylinderGeometry(COIN_R, COIN_R, 0.18, 32);
     const color = isStriker ? 0x00ffff : 0xff00ff;
     const material = new THREE.MeshStandardMaterial({
@@ -102,29 +169,20 @@ export default function NeonStrikerGame({
     coinMesh.receiveShadow = true;
     group.add(coinMesh);
 
-    // Edge ring top
+    // Rings
     const ringGeo = new THREE.TorusGeometry(COIN_R, 0.04, 8, 32);
     const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const topRing = new THREE.Mesh(ringGeo, ringMat);
     topRing.rotation.x = Math.PI / 2;
     topRing.position.y = 0.09;
     group.add(topRing);
-
-    // Edge ring bottom
+    
     const bottomRing = new THREE.Mesh(ringGeo, ringMat);
     bottomRing.rotation.x = Math.PI / 2;
     bottomRing.position.y = -0.09;
     group.add(bottomRing);
 
-    // Center emblem
-    const emblemGeo = new THREE.CircleGeometry(COIN_R * 0.4, 16);
-    const emblemMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-    const emblem = new THREE.Mesh(emblemGeo, emblemMat);
-    emblem.rotation.x = -Math.PI / 2;
-    emblem.position.y = 0.1;
-    group.add(emblem);
-
-    // Glow ring under coin
+    // Glow
     const glowGeo = new THREE.RingGeometry(COIN_R + 0.1, COIN_R + 0.3, 32);
     const glowMat = new THREE.MeshBasicMaterial({ 
       color, 
@@ -139,21 +197,45 @@ export default function NeonStrikerGame({
 
     group.position.set(x, 0.12, z);
     scene.add(group);
-
-    console.log(`🪙 Created ${isStriker ? 'STRIKER' : 'TARGET'} coin at (${x}, ${z})`);
     return group;
   }, []);
 
-  // Initialize the scene
-  const initScene = useCallback(() => {
-    console.log('🎮 Initializing scene...');
+  // Create bumper
+  const createBumper = useCallback((scene: THREE.Scene, x: number, z: number) => {
+    const bumperMat = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff00, 
+      emissive: 0x00ff00, 
+      emissiveIntensity: 0.5 
+    });
+    const bumperGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.8, 16);
+    const bumper = new THREE.Mesh(bumperGeo, bumperMat);
+    bumper.position.set(x, 0.4, z);
+    bumper.castShadow = true;
+    scene.add(bumper);
+    
+    const glowGeo = new THREE.RingGeometry(0.6, 0.9, 16);
+    const glowMat = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.4,
+      side: THREE.DoubleSide
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.set(x, 0.02, z);
+    scene.add(glow);
+  }, []);
+
+  // Initialize scene for a level
+  const initScene = useCallback((levelIndex: number) => {
+    console.log('🎮 Initializing level', levelIndex + 1);
     
     if (!containerRef.current) {
       console.error('❌ No container ref!');
       return;
     }
 
-    // Clean up old renderer
+    // Clean up
     if (rendererRef.current) {
       rendererRef.current.dispose();
       if (containerRef.current.contains(rendererRef.current.domElement)) {
@@ -165,145 +247,81 @@ export default function NeonStrikerGame({
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || window.innerHeight;
 
-    console.log(`📐 Container size: ${width}x${height}`);
-
-    // Create scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0a1a);
     sceneRef.current = scene;
 
-    // Create camera
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 22, 18);
     camera.lookAt(0, 0, 2);
     cameraRef.current = camera;
 
-    // Create renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    console.log('✅ Renderer created');
-
-    // Lighting
-    const ambient = new THREE.AmbientLight(0x555577, 1);
-    scene.add(ambient);
-
+    // Lights
+    scene.add(new THREE.AmbientLight(0x555577, 1));
     const spot = new THREE.SpotLight(0xffffff, 2);
     spot.position.set(0, 25, 5);
-    spot.angle = Math.PI / 4;
     spot.castShadow = true;
-    spot.shadow.mapSize.width = 1024;
-    spot.shadow.mapSize.height = 1024;
     scene.add(spot);
-
-    const cyanLight = new THREE.PointLight(0x00ffff, 1.5, 40);
-    cyanLight.position.set(-10, 8, 0);
-    scene.add(cyanLight);
-
-    const magentaLight = new THREE.PointLight(0xff00ff, 1.5, 40);
-    magentaLight.position.set(10, 8, 0);
-    scene.add(magentaLight);
-
-    console.log('💡 Lights added');
+    scene.add(new THREE.PointLight(0x00ffff, 1.5, 40).translateX(-10).translateY(8));
+    scene.add(new THREE.PointLight(0xff00ff, 1.5, 40).translateX(10).translateY(8));
 
     // Table
-    const tableGeo = new THREE.BoxGeometry(TABLE_W, 0.4, TABLE_D);
-    const tableMat = new THREE.MeshStandardMaterial({ 
-      color: 0x151525, 
-      roughness: 0.7,
-      metalness: 0.3
-    });
+    const tableGeo = new THREE.BoxGeometry(TABLE_W, 0.3, TABLE_D);
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x151525, roughness: 0.7 });
     const table = new THREE.Mesh(tableGeo, tableMat);
-    table.position.y = -0.2;
+    table.position.y = -0.15;
     table.receiveShadow = true;
     scene.add(table);
 
-    // Table surface
+    // Surface
     const surfaceGeo = new THREE.PlaneGeometry(TABLE_W - 0.5, TABLE_D - 0.5);
-    const surfaceMat = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a2e, 
-      roughness: 0.8 
-    });
+    const surfaceMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8 });
     const surface = new THREE.Mesh(surfaceGeo, surfaceMat);
     surface.rotation.x = -Math.PI / 2;
     surface.position.y = 0.01;
-    surface.receiveShadow = true;
     scene.add(surface);
 
-    // Neon borders
+    // Borders
     const borderMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const borderH = 0.3;
-    
-    // Top border
-    const topBorderGeo = new THREE.BoxGeometry(TABLE_W + 0.4, borderH, 0.25);
-    const topBorder = new THREE.Mesh(topBorderGeo, borderMat);
-    topBorder.position.set(0, borderH / 2, -TABLE_D / 2 - 0.1);
-    scene.add(topBorder);
-    
-    // Bottom border
-    const bottomBorder = new THREE.Mesh(topBorderGeo, borderMat);
-    bottomBorder.position.set(0, borderH / 2, TABLE_D / 2 + 0.1);
-    scene.add(bottomBorder);
-    
-    // Left border
-    const sideBorderGeo = new THREE.BoxGeometry(0.25, borderH, TABLE_D + 0.4);
-    const leftBorder = new THREE.Mesh(sideBorderGeo, borderMat);
-    leftBorder.position.set(-TABLE_W / 2 - 0.1, borderH / 2, 0);
-    scene.add(leftBorder);
-    
-    // Right border
-    const rightBorder = new THREE.Mesh(sideBorderGeo, borderMat);
-    rightBorder.position.set(TABLE_W / 2 + 0.1, borderH / 2, 0);
-    scene.add(rightBorder);
+    const borders = [
+      { w: TABLE_W + 0.4, d: 0.25, x: 0, z: -TABLE_D / 2 - 0.1 },
+      { w: TABLE_W + 0.4, d: 0.25, x: 0, z: TABLE_D / 2 + 0.1 },
+      { w: 0.25, d: TABLE_D + 0.4, x: -TABLE_W / 2 - 0.1, z: 0 },
+      { w: 0.25, d: TABLE_D + 0.4, x: TABLE_W / 2 + 0.1, z: 0 },
+    ];
+    borders.forEach(b => {
+      const geo = new THREE.BoxGeometry(b.w, 0.3, b.d);
+      const mesh = new THREE.Mesh(geo, borderMat);
+      mesh.position.set(b.x, 0.15, b.z);
+      scene.add(mesh);
+    });
 
     // Grid
     const grid = new THREE.GridHelper(12, 12, 0x333366, 0x222244);
     grid.position.y = 0.02;
     scene.add(grid);
 
-    console.log('🏓 Table created');
-
-    // Green bumpers
-    const bumperMat = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff00, 
-      emissive: 0x00ff00, 
-      emissiveIntensity: 0.5 
-    });
+    // Get level config
+    const level = LEVELS[levelIndex];
     
-    const bumperPositions = [{ x: -4, z: 0 }, { x: 4, z: 0 }];
-    bumperPositions.forEach(pos => {
-      const bumperGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.8, 16);
-      const bumper = new THREE.Mesh(bumperGeo, bumperMat);
-      bumper.position.set(pos.x, 0.4, pos.z);
-      bumper.castShadow = true;
-      scene.add(bumper);
-      
-      // Glow ring
-      const glowGeo = new THREE.RingGeometry(0.6, 0.9, 16);
-      const glowMat = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff00, 
-        transparent: true, 
-        opacity: 0.4,
-        side: THREE.DoubleSide
-      });
-      const glow = new THREE.Mesh(glowGeo, glowMat);
-      glow.rotation.x = -Math.PI / 2;
-      glow.position.set(pos.x, 0.02, pos.z);
-      scene.add(glow);
+    // Create bumpers
+    const bumperData: { x: number; z: number; r: number }[] = [];
+    level.bumpers.forEach(pos => {
+      createBumper(scene, pos.x, pos.z);
+      bumperData.push({ x: pos.x, z: pos.z, r: 0.6 });
     });
-
-    console.log('🔵 Bumpers created');
+    bumpersRef.current = bumperData;
 
     // Create coins
     const coins: GameCoin[] = [];
-
-    // Target coins
-    TARGET_POSITIONS.forEach((pos, i) => {
+    level.coins.forEach((pos, i) => {
       const mesh = createCoin(scene, pos.x, pos.z, false);
       coins.push({
         id: i + 1,
@@ -319,7 +337,7 @@ export default function NeonStrikerGame({
       });
     });
 
-    // Striker coin
+    // Striker
     const strikerX = 0;
     const strikerZ = TABLE_D / 2 - 2;
     const strikerMesh = createCoin(scene, strikerX, strikerZ, true);
@@ -337,7 +355,7 @@ export default function NeonStrikerGame({
     });
 
     coinsRef.current = coins;
-    console.log(`🪙 Created ${coins.length} coins total`);
+    setCoinsLeft(level.coins.length);
 
     // Aim line
     const lineGeo = new THREE.BufferGeometry();
@@ -349,13 +367,10 @@ export default function NeonStrikerGame({
     aimLineRef.current = aimLine;
 
     setSceneReady(true);
-    setCoinsLeft(TARGET_POSITIONS.length);
-
-    // Initial render
+    setAimLocked(false);
     renderer.render(scene, camera);
-    console.log('✅ Scene fully initialized and rendered');
-
-  }, [createCoin]);
+    console.log('✅ Level', levelIndex + 1, 'ready with', level.coins.length, 'coins');
+  }, [createCoin, createBumper]);
 
   // Update aim line
   const updateAimLine = useCallback(() => {
@@ -372,12 +387,19 @@ export default function NeonStrikerGame({
     aimLineRef.current.geometry.attributes.position.needsUpdate = true;
 
     const mat = aimLineRef.current.material as THREE.LineBasicMaterial;
-    mat.color.setHex(power < 30 ? 0x00ffff : power < 70 ? 0xffff00 : 0xff4400);
-  }, [power, aimAngle]);
+    if (aimLocked) {
+      mat.color.setHex(power < 30 ? 0xffff00 : power < 70 ? 0xff8800 : 0xff0000);
+      mat.opacity = 1;
+    } else {
+      mat.color.setHex(0x00ffff);
+      mat.opacity = 0.6;
+    }
+  }, [power, aimAngle, aimLocked]);
 
   // Physics
   const updatePhysics = useCallback(() => {
     const coins = coinsRef.current;
+    const bumpers = bumpersRef.current;
     let anyMoving = false;
 
     coins.forEach(coin => {
@@ -395,7 +417,6 @@ export default function NeonStrikerGame({
         anyMoving = true;
       }
 
-      // Bounds check
       const halfW = TABLE_W / 2 - COIN_R;
       const halfD = TABLE_D / 2 - COIN_R;
 
@@ -423,7 +444,7 @@ export default function NeonStrikerGame({
       }
 
       // Bumper collisions
-      [{ x: -4, z: 0, r: 0.6 }, { x: 4, z: 0, r: 0.6 }].forEach(bumper => {
+      bumpers.forEach(bumper => {
         const dx = coin.x - bumper.x;
         const dz = coin.z - bumper.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
@@ -486,7 +507,7 @@ export default function NeonStrikerGame({
       }
     }
 
-    // Check if done shooting
+    // Check if done
     if (isShootingRef.current && !anyMoving) {
       isShootingRef.current = false;
       
@@ -510,50 +531,60 @@ export default function NeonStrikerGame({
 
       const remaining = coins.filter(c => !c.isStriker && !c.isKnockedOff).length;
       if (remaining === 0) {
-        endGame();
+        // Level complete!
+        if (currentLevel < LEVELS.length - 1) {
+          // More levels
+          scoreRef.current += 200;
+          setScore(scoreRef.current);
+          addPopup(200, 50, 30, 'critical', 'LEVEL COMPLETE! +200');
+          setGameState('levelComplete');
+        } else {
+          // All levels done!
+          endGame();
+        }
       } else {
         setGameState('playing');
+        setAimLocked(false);
       }
     }
-  }, [addPopup]);
+  }, [addPopup, currentLevel]);
 
   // End game
   const endGame = useCallback(() => {
     setGameState('complete');
     if (timerRef.current) clearInterval(timerRef.current);
 
-    const timeBonus = Math.max(0, 500 - timeElapsed * 5);
-    const finalScore = Math.max(0, scoreRef.current + timeBonus);
+    const timeBonus = Math.max(0, 1000 - timeElapsed * 5);
+    const levelBonus = (currentLevel + 1) * 100;
+    const finalScore = Math.max(0, scoreRef.current + timeBonus + levelBonus);
 
     try {
       logGameCompletion({
         gameType: GAME_TYPES.NEON_STRIKER,
         gameMode: isCompetitionMode ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
         score: finalScore,
-        accuracy: shotsUsed > 0 ? Math.min(100, (TARGET_POSITIONS.length / shotsUsed) * 100) : 0,
-        gameData: { shotsUsed, timeElapsed, rngSeed, listingId, entryNumber }
+        accuracy: shotsUsed > 0 ? Math.min(100, ((currentLevel + 1) * 3 / shotsUsed) * 100) : 0,
+        gameData: { shotsUsed, timeElapsed, levelsCompleted: currentLevel + 1, rngSeed, listingId, entryNumber }
       });
     } catch (e) { console.error('Audit failed:', e); }
 
     onGameEnd({ 
       score: finalScore, 
-      accuracy: shotsUsed > 0 ? Math.min(100, (TARGET_POSITIONS.length / shotsUsed) * 100) : 0 
+      accuracy: shotsUsed > 0 ? Math.min(100, ((currentLevel + 1) * 3 / shotsUsed) * 100) : 0 
     });
-  }, [timeElapsed, shotsUsed, isCompetitionMode, rngSeed, listingId, entryNumber, onGameEnd]);
+  }, [timeElapsed, shotsUsed, currentLevel, isCompetitionMode, rngSeed, listingId, entryNumber, onGameEnd]);
 
   // Animation loop
   useEffect(() => {
-    if (!sceneReady || gameState === 'ready' || gameState === 'complete') return;
+    if (!sceneReady || gameState === 'ready' || gameState === 'complete' || gameState === 'levelComplete') return;
     if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
 
     const animate = () => {
       if (isShootingRef.current) {
         updatePhysics();
       }
-      
       updateAimLine();
 
-      // Pulse effect
       const time = Date.now() * 0.003;
       coinsRef.current.forEach(coin => {
         if (coin.mesh && !coin.isKnockedOff) {
@@ -571,61 +602,76 @@ export default function NeonStrikerGame({
     };
   }, [sceneReady, gameState, updatePhysics, updateAimLine]);
 
-  // Start game - just change state, useEffect will init scene
+  // Start game
   const startGame = useCallback(() => {
     console.log('🎮 Starting game...');
     scoreRef.current = 0;
     setScore(0);
     setShotsUsed(0);
     setTimeElapsed(0);
+    setCurrentLevel(0);
     setSceneReady(false);
     setGameState('playing');
   }, []);
 
-  // Initialize scene when game state changes to playing and container exists
+  // Next level
+  const nextLevel = useCallback(() => {
+    setCurrentLevel(prev => prev + 1);
+    setSceneReady(false);
+    setGameState('playing');
+  }, []);
+
+  // Init scene when ready
   useEffect(() => {
-    if (gameState !== 'playing' && gameState !== 'shooting') return;
-    if (sceneReady) return; // Already initialized
+    if (gameState !== 'playing' && gameState !== 'aiming' && gameState !== 'charging' && gameState !== 'shooting') return;
+    if (sceneReady) return;
     
-    // Wait for container to be available
     const checkAndInit = () => {
       if (containerRef.current) {
-        console.log('📦 Container found, initializing scene...');
-        initScene();
-        
-        // Start timer
-        timerRef.current = setInterval(() => {
-          setTimeElapsed(t => t + 1);
-        }, 1000);
+        initScene(currentLevel);
+        if (!timerRef.current) {
+          timerRef.current = setInterval(() => setTimeElapsed(t => t + 1), 1000);
+        }
       } else {
-        console.log('⏳ Waiting for container...');
         setTimeout(checkAndInit, 50);
       }
     };
-    
-    // Small delay to ensure DOM is ready
     setTimeout(checkAndInit, 50);
-  }, [gameState, sceneReady, initScene]);
+  }, [gameState, sceneReady, currentLevel, initScene]);
 
-  // Power charging
-  const startCharging = useCallback(() => {
-    if (gameState !== 'playing' || isShootingRef.current) return;
-    console.log('🔋 Start charging');
-    setIsCharging(true);
-    setPower(0);
+  // Handle tap/click - aim or shoot
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (gameState === 'shooting') return;
+    
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-    let p = 0;
-    powerTimerRef.current = setInterval(() => {
-      p += 3;
-      if (p > 100) p = 0;
-      setPower(p);
-    }, 30);
-  }, [gameState]);
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    const newAngle = Math.atan2(x, -y);
 
-  const releaseShot = useCallback(() => {
-    if (!isCharging) return;
-    console.log('🚀 Release shot with power:', power);
-    setIsCharging(false);
+    if (!aimLocked) {
+      // First tap - lock aim
+      setAimAngle(newAngle);
+      setAimLocked(true);
+      setGameState('aiming');
+    } else {
+      // Second tap - start charging
+      setGameState('charging');
+      setPower(0);
+      
+      let p = 0;
+      powerTimerRef.current = setInterval(() => {
+        p += 4;
+        if (p > 100) p = 0;
+        setPower(p);
+      }, 30);
+    }
+  }, [gameState, aimLocked]);
+
+  const handlePointerUp = useCallback(() => {
+    if (gameState !== 'charging') return;
+    
     if (powerTimerRef.current) clearInterval(powerTimerRef.current);
 
     const striker = coinsRef.current.find(c => c.isStriker);
@@ -639,33 +685,26 @@ export default function NeonStrikerGame({
     setGameState('shooting');
     setShotsUsed(s => s + 1);
     setPower(0);
-  }, [isCharging, power, aimAngle]);
+    setAimLocked(false);
+  }, [gameState, power, aimAngle]);
 
-  // Aim
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (gameState !== 'playing' || isShootingRef.current) return;
+    if (aimLocked || gameState === 'shooting') return;
+    
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
     setAimAngle(Math.atan2(x, -y));
-  }, [gameState]);
+  }, [aimLocked, gameState]);
 
-  // Camera
-  const switchCamera = useCallback((mode: 'full' | 'focus') => {
-    if (!cameraRef.current) return;
-    setViewMode(mode);
-    const cam = cameraRef.current;
-    const striker = coinsRef.current.find(c => c.isStriker);
-
-    if (mode === 'full') {
-      cam.position.set(0, 22, 18);
-      cam.lookAt(0, 0, 2);
-    } else if (striker) {
-      cam.position.set(striker.x, 6, striker.z + 5);
-      cam.lookAt(striker.x, 0, striker.z - 3);
-    }
+  // Cancel aim
+  const cancelAim = useCallback(() => {
+    if (powerTimerRef.current) clearInterval(powerTimerRef.current);
+    setAimLocked(false);
+    setPower(0);
+    setGameState('playing');
   }, []);
 
   // Cleanup
@@ -674,9 +713,7 @@ export default function NeonStrikerGame({
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
       if (powerTimerRef.current) clearInterval(powerTimerRef.current);
-      if (rendererRef.current) {
-        rendererRef.current.dispose();
-      }
+      if (rendererRef.current) rendererRef.current.dispose();
     };
   }, []);
 
@@ -689,14 +726,17 @@ export default function NeonStrikerGame({
             ⚡ NEON STRIKER
           </h1>
           
-          <p className="text-cyan-400 mb-4">Precision Coin Flicking Game</p>
+          <p className="text-cyan-400 mb-4">{LEVELS.length} Levels • Tap to Aim & Shoot</p>
 
           <div className="bg-black/50 rounded-xl p-4 mb-5 text-left text-sm text-gray-300">
-            <p className="mb-2"><span className="text-cyan-400 font-bold">🎯 GOAL:</span> Knock all <span className="text-pink-400">MAGENTA</span> coins off!</p>
+            <p className="mb-2 text-cyan-400 font-bold">🎯 HOW TO PLAY:</p>
+            <p className="mb-1">1️⃣ Move finger/mouse to aim</p>
+            <p className="mb-1">2️⃣ <span className="text-yellow-400">TAP</span> to lock your aim</p>
+            <p className="mb-1">3️⃣ <span className="text-orange-400">HOLD</span> to charge power</p>
+            <p className="mb-3">4️⃣ <span className="text-red-400">RELEASE</span> to shoot!</p>
             <p className="mb-2"><span className="text-green-400 font-bold">✅ +100</span> Direct hit</p>
-            <p className="mb-2"><span className="text-green-400 font-bold">✅ +10</span> Bumper bounce</p>
             <p className="mb-2"><span className="text-red-400 font-bold">❌ -50</span> Chain reaction</p>
-            <p><span className="text-red-400 font-bold">❌ -100</span> Striker falls off</p>
+            <p><span className="text-red-400 font-bold">❌ -100</span> Striker falls</p>
           </div>
 
           <button
@@ -714,15 +754,39 @@ export default function NeonStrikerGame({
     );
   }
 
+  // LEVEL COMPLETE
+  if (gameState === 'levelComplete') {
+    return (
+      <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+        <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full text-center border-2 border-green-500 shadow-[0_0_40px_rgba(0,255,0,0.3)]">
+          <h1 className="text-3xl font-bold mb-2 text-green-400">✨ LEVEL {currentLevel + 1} COMPLETE!</h1>
+          <p className="text-gray-400 mb-4">{LEVELS[currentLevel].name}</p>
+          
+          <div className="text-2xl text-cyan-400 font-bold mb-4">Score: {score}</div>
+          
+          <p className="text-gray-300 mb-4">Next: Level {currentLevel + 2} - {LEVELS[currentLevel + 1]?.name}</p>
+
+          <button
+            onClick={nextLevel}
+            className="w-full py-4 rounded-xl font-bold text-xl bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:scale-105 transition-all"
+          >
+            ▶️ NEXT LEVEL
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // COMPLETE SCREEN
   if (gameState === 'complete') {
-    const timeBonus = Math.max(0, 500 - timeElapsed * 5);
-    const finalScore = Math.max(0, score + timeBonus);
+    const timeBonus = Math.max(0, 1000 - timeElapsed * 5);
+    const levelBonus = (currentLevel + 1) * 100;
+    const finalScore = Math.max(0, score + timeBonus + levelBonus);
 
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full text-center border-2 border-cyan-500">
-          <h1 className="text-3xl font-bold mb-4 text-cyan-400">🏆 COMPLETE!</h1>
+          <h1 className="text-3xl font-bold mb-4 text-cyan-400">🏆 ALL LEVELS COMPLETE!</h1>
           
           <div className="space-y-2 mb-4 text-lg">
             <div className="flex justify-between p-2 bg-cyan-500/20 rounded">
@@ -731,12 +795,17 @@ export default function NeonStrikerGame({
             <div className="flex justify-between p-2 bg-green-500/20 rounded">
               <span>Time Bonus</span><span className="text-green-400 font-bold">+{timeBonus}</span>
             </div>
+            <div className="flex justify-between p-2 bg-purple-500/20 rounded">
+              <span>Level Bonus</span><span className="text-purple-400 font-bold">+{levelBonus}</span>
+            </div>
             <div className="flex justify-between p-3 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded border border-cyan-400">
               <span className="font-bold">FINAL</span><span className="text-2xl text-cyan-300 font-bold">{finalScore}</span>
             </div>
           </div>
 
-          <p className="text-gray-400 text-sm">Time: {timeElapsed}s • Shots: {shotsUsed}</p>
+          <p className="text-gray-400 text-sm">
+            Levels: {currentLevel + 1}/{LEVELS.length} • Time: {timeElapsed}s • Shots: {shotsUsed}
+          </p>
         </div>
       </div>
     );
@@ -748,92 +817,82 @@ export default function NeonStrikerGame({
       {/* HUD */}
       <div className="absolute top-0 left-0 right-0 z-30 bg-black/70 p-2 flex justify-between items-center">
         <div className="flex gap-3 text-sm">
+          <span className="text-purple-400 font-bold">LV{currentLevel + 1}</span>
           <span className="text-pink-400 font-bold">🎯 {coinsLeft}</span>
           <span className="text-green-400 font-bold">💰 {score}</span>
         </div>
         <div className="flex gap-3 text-sm">
           <span className="text-yellow-400 font-bold">⏱️ {timeElapsed}s</span>
-          <span className="text-purple-400 font-bold">🎱 {shotsUsed}</span>
+          <span className="text-cyan-400 font-bold">🎱 {shotsUsed}</span>
           {!isCompetitionMode && onExit && (
             <button onClick={onExit} className="text-white hover:text-red-400 ml-2">✕</button>
           )}
         </div>
       </div>
 
-      {/* View Toggle */}
-      {gameState === 'playing' && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 flex gap-2">
-          <button
-            onClick={() => switchCamera('full')}
-            className={`px-3 py-1.5 rounded text-xs font-bold ${viewMode === 'full' ? 'bg-cyan-500 text-black' : 'bg-black/50 text-cyan-400 border border-cyan-500'}`}
-          >
-            👁️ FULL
-          </button>
-          <button
-            onClick={() => switchCamera('focus')}
-            className={`px-3 py-1.5 rounded text-xs font-bold ${viewMode === 'focus' ? 'bg-purple-500 text-white' : 'bg-black/50 text-purple-400 border border-purple-500'}`}
-          >
-            🎯 FOCUS
-          </button>
-        </div>
+      {/* Status indicator */}
+      <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30 text-center">
+        {gameState === 'playing' && !aimLocked && (
+          <div className="text-cyan-400 text-sm animate-pulse">👆 Move to aim, TAP to lock</div>
+        )}
+        {aimLocked && gameState === 'aiming' && (
+          <div className="text-yellow-400 text-sm animate-pulse">🎯 Aim locked! TAP & HOLD to charge</div>
+        )}
+        {gameState === 'charging' && (
+          <div className="text-orange-400 text-sm font-bold">🔥 CHARGING... RELEASE TO SHOOT!</div>
+        )}
+        {gameState === 'shooting' && (
+          <div className="text-cyan-400 text-lg animate-pulse font-bold">⚡ STRIKE! ⚡</div>
+        )}
+      </div>
+
+      {/* Cancel button when aiming */}
+      {aimLocked && gameState !== 'shooting' && (
+        <button
+          onClick={cancelAim}
+          className="absolute top-12 right-4 z-30 px-3 py-1 bg-red-500/50 text-white rounded text-xs"
+        >
+          ✕ Cancel
+        </button>
       )}
 
-      {/* Power Bar */}
-      {(gameState === 'playing' || gameState === 'shooting') && (
-        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-30 w-56">
-          <div className="bg-black/70 rounded-full p-1.5 border border-cyan-500">
+      {/* Power bar */}
+      {(gameState === 'charging' || (aimLocked && power > 0)) && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-56">
+          <div className="bg-black/70 rounded-full p-1.5 border-2 border-orange-500">
             <div 
-              className="h-5 rounded-full transition-all"
+              className="h-6 rounded-full transition-all"
               style={{
                 width: `${Math.max(5, power)}%`,
-                background: power < 30 ? 'linear-gradient(90deg, #00ffff, #00aaff)' 
-                  : power < 70 ? 'linear-gradient(90deg, #ffff00, #ff8800)' 
-                  : 'linear-gradient(90deg, #ff4400, #ff0000)'
+                background: power < 30 ? 'linear-gradient(90deg, #ffff00, #ffaa00)' 
+                  : power < 70 ? 'linear-gradient(90deg, #ff8800, #ff4400)' 
+                  : 'linear-gradient(90deg, #ff0000, #cc0000)'
               }}
             />
           </div>
-          <p className="text-center text-cyan-400 text-xs mt-1">
-            {isCharging ? `POWER: ${power}%` : gameState === 'shooting' ? 'STRIKING...' : 'HOLD TO CHARGE'}
+          <p className="text-center text-orange-400 text-sm mt-1 font-bold">
+            POWER: {power}%
           </p>
         </div>
       )}
 
-      {/* Shoot Button */}
-      {gameState === 'playing' && (
-        <div 
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30"
-          onPointerDown={startCharging}
-          onPointerUp={releaseShot}
-          onPointerLeave={() => isCharging && releaseShot()}
-        >
-          <button
-            className={`w-20 h-20 rounded-full font-bold text-white transition-all shadow-lg ${
-              isCharging 
-                ? 'bg-gradient-to-br from-orange-500 to-red-600 scale-110' 
-                : 'bg-gradient-to-br from-cyan-500 to-purple-600 hover:scale-105'
-            }`}
-          >
-            {isCharging ? '🔥' : '🎯'}
-            <div className="text-[10px] mt-1">{isCharging ? 'RELEASE!' : 'SHOOT'}</div>
-          </button>
-        </div>
-      )}
-
-      {/* Shooting indicator */}
-      {gameState === 'shooting' && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-          <div className="text-3xl text-cyan-400 animate-pulse font-bold">⚡ STRIKE! ⚡</div>
-        </div>
-      )}
+      {/* Level name */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 text-gray-500 text-xs">
+        {LEVELS[currentLevel]?.name}
+      </div>
 
       {/* 3D Container */}
       <div 
         ref={containerRef} 
         className="absolute inset-0 w-full h-full"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
         onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerUp}
         style={{ 
           transform: isMobile ? 'scale(0.95)' : 'none', 
-          transformOrigin: 'center' 
+          transformOrigin: 'center',
+          cursor: aimLocked ? (gameState === 'charging' ? 'grabbing' : 'pointer') : 'crosshair'
         }}
       />
 
