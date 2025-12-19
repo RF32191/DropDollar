@@ -1231,8 +1231,8 @@ export default function BladeBounce3D({
       const deltaBeta = beta - gyroBaseRef.current.beta;
       const deltaGamma = gamma - gyroBaseRef.current.gamma;
 
-      // Convert to sword position (sensitivity adjusted for better control)
-      const sensitivity = 1.2; // Increased sensitivity
+      // Convert to sword position - lower sensitivity for smoother control
+      const sensitivity = 0.6; // Reduced for less twitchy movement
       const newX = Math.max(-SWORD_X_RANGE, Math.min(SWORD_X_RANGE, deltaGamma * sensitivity));
       const newY = Math.max(-SWORD_Y_RANGE, Math.min(SWORD_Y_RANGE, -deltaBeta * sensitivity));
 

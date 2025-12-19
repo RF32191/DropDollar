@@ -158,10 +158,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       setIsMobile(mobile);
       console.log('📱 [LaserDodge] Mobile detected:', mobile);
       
-      // Check if iOS requires permission
-      if (mobile && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      // All mobile devices should have explicit gyro enable button for better UX
+      // iOS requires permission, but we show button on all devices for consistency
+      if (mobile) {
         setGyroPermissionNeeded(true);
-        console.log('📱 [LaserDodge] iOS gyro permission needed');
+        console.log('📱 [LaserDodge] Mobile gyro - showing enable button');
       }
     };
     checkMobile();
@@ -187,8 +188,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const deltaBeta = beta - gyroBaseRef.current.beta;
     const deltaGamma = gamma - gyroBaseRef.current.gamma;
     
-    // Higher sensitivity for more responsive movement
-    const sensitivity = 3.0;
+    // Lower sensitivity for smoother, less twitchy movement
+    const sensitivity = 1.5;
     
     // Calculate new position
     // Tilt right (positive gamma) = move right
@@ -205,57 +206,56 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     setShip(newShipPos);
   };
   
-  // Request gyroscope permission (must be called from user gesture for iOS)
+  // Enable gyroscope - works for all mobile devices (iOS, Android, etc.)
   const requestGyroPermission = async () => {
-    console.log('📱 [LaserDodge] Requesting gyro permission...');
+    console.log('📱 [LaserDodge] Enabling gyroscope for all devices...');
     
+    // Reset gyro base for fresh calibration when user explicitly enables
+    gyroBaseRef.current = null;
+    
+    // iOS 13+ requires permission request
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
       try {
         const permission = await (DeviceOrientationEvent as any).requestPermission();
-        console.log('📱 [LaserDodge] Gyro permission result:', permission);
+        console.log('📱 [LaserDodge] iOS gyro permission result:', permission);
         if (permission === 'granted') {
           window.addEventListener('deviceorientation', handleOrientation);
           gyroListenerRef.current = handleOrientation;
           setGyroscopeEnabled(true);
-          setGyroPermissionNeeded(false);
           setShowGyroNotification(true);
           setTimeout(() => setShowGyroNotification(false), 3000);
-          console.log('✅ [LaserDodge] Gyroscope permission granted and enabled!');
+          console.log('✅ [LaserDodge] iOS gyroscope enabled!');
         }
       } catch (error) {
-        console.warn('⚠️ [LaserDodge] Gyroscope permission error:', error);
+        console.warn('⚠️ [LaserDodge] iOS gyro permission error:', error);
+        // Try enabling anyway - some browsers don't need permission
+        window.addEventListener('deviceorientation', handleOrientation);
+        gyroListenerRef.current = handleOrientation;
+        setGyroscopeEnabled(true);
+        setShowGyroNotification(true);
+        setTimeout(() => setShowGyroNotification(false), 3000);
       }
     } else {
-      // Non-iOS - just enable directly
+      // Android, Chrome, Firefox, Samsung, etc. - no permission needed
+      console.log('📱 [LaserDodge] Non-iOS device - enabling gyro directly');
       window.addEventListener('deviceorientation', handleOrientation);
       gyroListenerRef.current = handleOrientation;
       setGyroscopeEnabled(true);
       setShowGyroNotification(true);
       setTimeout(() => setShowGyroNotification(false), 3000);
-      console.log('✅ [LaserDodge] Gyroscope enabled (no permission needed)');
+      console.log('✅ [LaserDodge] Gyroscope enabled!');
     }
   };
   
-  // Auto-enable gyroscope for Android/non-permission devices when component mounts
+  // Cleanup gyroscope listener when component unmounts
   useEffect(() => {
-    if (!isMobile) return;
-    if (gyroPermissionNeeded) return; // iOS needs button click
-    if (gyroscopeEnabled) return; // Already enabled
-    
-    // For Android and other devices, enable directly when component mounts
-    window.addEventListener('deviceorientation', handleOrientation);
-    gyroListenerRef.current = handleOrientation;
-    setGyroscopeEnabled(true);
-    setShowGyroNotification(true);
-    setTimeout(() => setShowGyroNotification(false), 3000);
-    console.log('✅ [LaserDodge] Gyroscope auto-enabled for Android');
-    
     return () => {
       if (gyroListenerRef.current) {
         window.removeEventListener('deviceorientation', gyroListenerRef.current);
+        console.log('📱 [LaserDodge] Gyroscope listener cleaned up');
       }
     };
-  }, [isMobile, gyroPermissionNeeded, gyroscopeEnabled]);
+  }, []);
   
   // Reset gyro base when game starts
   useEffect(() => {
