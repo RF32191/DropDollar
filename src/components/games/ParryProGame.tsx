@@ -485,6 +485,13 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         setScore(scoreRef.current);
         setActionFeedback('kill');
         
+        // Give heart back on kill (max 3)
+        if (heartsRef.current < 3) {
+          heartsRef.current++;
+          setHearts(heartsRef.current);
+          addPopup(0, 50, 50, 'bonus', '❤️ +1 HEART!');
+        }
+        
         // Flash screen white
         setScreenFlash('white');
         setTimeout(() => setScreenFlash('none'), 100);
