@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 interface ParryProGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
@@ -27,12 +28,14 @@ class Mulberry32 {
 
 interface Enemy {
   id: number;
-  side: 'left' | 'right' | 'center';
-  attackPhase: 'idle' | 'windup' | 'strike' | 'recovery';
+  side: 'left' | 'right' | 'center' | 'far-left' | 'far-right';
+  attackPhase: 'idle' | 'windup' | 'strike' | 'recovery' | 'stunned' | 'dying';
   attackTimer: number;
   swordAngle: number;
   mesh: THREE.Group | null;
   nextAttackIn: number;
+  health: number; // 3 hits to kill
+  hitFlashTime: number;
 }
 
 export default function ParryProGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: ParryProGameProps) {
@@ -52,13 +55,19 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const maxComboRef = useRef<number>(0);
   const perfectParriesRef = useRef<number>(0);
   const totalParriesRef = useRef<number>(0);
+  const totalStrikesRef = useRef<number>(0);
+  const enemiesKilledRef = useRef<number>(0);
   const gameTimeRef = useRef<number>(0);
   const isParryingRef = useRef<boolean>(false);
+  const isDodgingRef = useRef<boolean>(false);
+  const isStrikingRef = useRef<boolean>(false);
   const parryWindowRef = useRef<number>(0);
-  const lastParryTimeRef = useRef<number>(0);
+  const lastActionTimeRef = useRef<number>(0);
   const gameStateRef = useRef<'ready' | 'playing' | 'complete'>('ready');
   const gameStartTimeRef = useRef<number>(0);
-  const secondEnemySpawnedRef = useRef<boolean>(false);
+  const nextEnemyIdRef = useRef<number>(1);
+  const spawnCooldownRef = useRef<number>(0);
+  const endGameRef = useRef<() => void>(() => {});
   
   // Callbacks ref
   const onGameCompleteRef = useRef(onGameComplete);
@@ -87,8 +96,13 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const [hearts, setHearts] = useState(3);
   const [combo, setCombo] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
-  const [parryFeedback, setParryFeedback] = useState<'none' | 'perfect' | 'good' | 'miss'>('none');
+  const [actionFeedback, setActionFeedback] = useState<'none' | 'perfect' | 'good' | 'miss' | 'dodge' | 'strike' | 'kill'>('none');
   const [isMobile, setIsMobile] = useState(false);
+  const [enemyCount, setEnemyCount] = useState(0);
+  const [screenFlash, setScreenFlash] = useState<'none' | 'red' | 'white'>('none');
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
   
   // Detect mobile
   useEffect(() => {
@@ -98,6 +112,17 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Get side positions for enemies
+  const getSidePosition = useCallback((side: Enemy['side']) => {
+    switch (side) {
+      case 'far-left': return { x: -5, rotation: 0.5 };
+      case 'left': return { x: -2.5, rotation: 0.3 };
+      case 'center': return { x: 0, rotation: 0 };
+      case 'right': return { x: 2.5, rotation: -0.3 };
+      case 'far-right': return { x: 5, rotation: -0.5 };
+    }
   }, []);
   
   // Create sword mesh
@@ -159,7 +184,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   }, []);
   
   // Create enemy figure
-  const createEnemy = useCallback((side: 'left' | 'right' | 'center') => {
+  const createEnemy = useCallback((side: Enemy['side']) => {
     const group = new THREE.Group();
     
     // Body
@@ -171,6 +196,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.6;
+    body.name = 'body';
     group.add(body);
     
     // Head
@@ -181,6 +207,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 1.5;
+    head.name = 'head';
     group.add(head);
     
     // Glowing red eyes
@@ -196,41 +223,87 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     rightEye.position.set(0.08, 1.5, 0.2);
     group.add(rightEye);
     
+    // Health bar background
+    const healthBgGeometry = new THREE.PlaneGeometry(0.8, 0.12);
+    const healthBgMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+    const healthBg = new THREE.Mesh(healthBgGeometry, healthBgMaterial);
+    healthBg.position.set(0, 2, 0);
+    healthBg.name = 'healthBg';
+    group.add(healthBg);
+    
+    // Health bar
+    const healthGeometry = new THREE.PlaneGeometry(0.75, 0.08);
+    const healthMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+    const healthBar = new THREE.Mesh(healthGeometry, healthMaterial);
+    healthBar.position.set(0, 2, 0.01);
+    healthBar.name = 'healthBar';
+    group.add(healthBar);
+    
     // Sword arm
     const sword = createSword(true);
-    sword.position.set(side === 'left' ? -0.5 : 0.5, 0.8, 0);
+    sword.position.set(side === 'left' || side === 'far-left' ? -0.5 : 0.5, 0.8, 0);
     sword.name = 'sword';
     group.add(sword);
     
     // Position based on side
-    if (side === 'left') {
-      group.position.x = -3;
-      group.rotation.y = 0.3;
-    } else if (side === 'right') {
-      group.position.x = 3;
-      group.rotation.y = -0.3;
-    } else {
-      group.position.x = 0;
-    }
+    const pos = getSidePosition(side);
+    group.position.x = pos.x;
+    group.rotation.y = pos.rotation;
     group.position.z = -3;
     group.position.y = 0;
     
     return group;
-  }, [createSword]);
+  }, [createSword, getSidePosition]);
+  
+  // Spawn new enemy
+  const spawnEnemy = useCallback(() => {
+    if (!sceneRef.current) return;
+    
+    const currentEnemies = enemiesRef.current.filter(e => e.attackPhase !== 'dying');
+    if (currentEnemies.length >= 5) return; // Max 5 enemies
+    
+    // Find available sides
+    const usedSides = currentEnemies.map(e => e.side);
+    const allSides: Enemy['side'][] = ['far-left', 'left', 'center', 'right', 'far-right'];
+    const availableSides = allSides.filter(s => !usedSides.includes(s));
+    
+    if (availableSides.length === 0) return;
+    
+    const side = availableSides[Math.floor(seededRngRef.current.next() * availableSides.length)];
+    const enemyMesh = createEnemy(side);
+    sceneRef.current.add(enemyMesh);
+    
+    const newEnemy: Enemy = {
+      id: nextEnemyIdRef.current++,
+      side: side,
+      attackPhase: 'idle',
+      attackTimer: 0,
+      swordAngle: 0,
+      mesh: enemyMesh,
+      nextAttackIn: 1.5 + seededRngRef.current.next() * 1.5,
+      health: 3,
+      hitFlashTime: 0,
+    };
+    
+    enemiesRef.current.push(newEnemy);
+    setEnemyCount(enemiesRef.current.filter(e => e.attackPhase !== 'dying').length);
+    
+    console.log('⚔️ [ParryPro] Enemy spawned on', side, '- Total:', enemiesRef.current.length);
+  }, [createEnemy]);
   
   // Handle parry input
   const handleParry = useCallback(() => {
     if (gameStateRef.current !== 'playing') return;
+    if (isDodgingRef.current || isStrikingRef.current) return;
     
     const now = Date.now();
-    // Prevent spam - minimum 200ms between parries
-    if (now - lastParryTimeRef.current < 200) return;
-    lastParryTimeRef.current = now;
+    if (now - lastActionTimeRef.current < 150) return;
+    lastActionTimeRef.current = now;
     
     isParryingRef.current = true;
-    parryWindowRef.current = 0.3; // 300ms parry window
+    parryWindowRef.current = 0.3;
     
-    // Animate player sword
+    // Animate player sword - parry swing
     if (playerSwordRef.current) {
       playerSwordRef.current.rotation.z = -0.8;
       setTimeout(() => {
@@ -247,7 +320,6 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         parried = true;
         totalParriesRef.current++;
         
-        // Calculate timing score - perfect if parried at peak of strike
         const strikeProgress = enemy.attackTimer;
         const isPerfect = strikeProgress > 0.3 && strikeProgress < 0.7;
         
@@ -262,34 +334,190 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
           scoreRef.current += points;
           setScore(scoreRef.current);
           setCombo(comboRef.current);
-          setParryFeedback('perfect');
+          setActionFeedback('perfect');
+          
+          addPopup(points, 50, 30, 'perfect', `${comboRef.current}x PERFECT`);
         } else {
           comboRef.current = Math.max(0, comboRef.current - 1);
           const points = 50;
           scoreRef.current += points;
           setScore(scoreRef.current);
           setCombo(comboRef.current);
-          setParryFeedback('good');
+          setActionFeedback('good');
+          
+          addPopup(points, 50, 30, 'normal', 'PARRIED');
         }
         
-        // Reset enemy attack
         enemy.attackPhase = 'recovery';
         enemy.attackTimer = 0;
         
-        setTimeout(() => setParryFeedback('none'), 500);
+        setTimeout(() => setActionFeedback('none'), 500);
       }
     });
     
     if (!parried) {
-      // Missed parry (no enemy attacking)
-      setParryFeedback('miss');
-      setTimeout(() => setParryFeedback('none'), 300);
+      setActionFeedback('miss');
+      setTimeout(() => setActionFeedback('none'), 300);
     }
     
     setTimeout(() => {
       isParryingRef.current = false;
     }, 300);
-  }, []);
+  }, [addPopup]);
+  
+  // Handle dodge input - dodges ALL incoming attacks
+  const handleDodge = useCallback(() => {
+    if (gameStateRef.current !== 'playing') return;
+    if (isParryingRef.current || isStrikingRef.current || isDodgingRef.current) return;
+    
+    const now = Date.now();
+    if (now - lastActionTimeRef.current < 300) return;
+    lastActionTimeRef.current = now;
+    
+    isDodgingRef.current = true;
+    
+    // Animate player - dodge roll
+    if (playerSwordRef.current) {
+      const originalZ = playerSwordRef.current.position.z;
+      playerSwordRef.current.position.z = originalZ + 1;
+      playerSwordRef.current.rotation.x = -1;
+      
+      setTimeout(() => {
+        if (playerSwordRef.current) {
+          playerSwordRef.current.position.z = originalZ;
+          playerSwordRef.current.rotation.x = -0.3;
+        }
+      }, 400);
+    }
+    
+    // Cancel ALL enemy strikes
+    let dodgedCount = 0;
+    enemiesRef.current.forEach(enemy => {
+      if (enemy.attackPhase === 'strike' || enemy.attackPhase === 'windup') {
+        dodgedCount++;
+        enemy.attackPhase = 'recovery';
+        enemy.attackTimer = 0;
+      }
+    });
+    
+    if (dodgedCount > 0) {
+      setActionFeedback('dodge');
+      const points = 25 * dodgedCount;
+      scoreRef.current += points;
+      setScore(scoreRef.current);
+      
+      addPopup(points, 50, 40, 'bonus', `DODGE x${dodgedCount}`);
+      
+      setTimeout(() => setActionFeedback('none'), 500);
+    }
+    
+    setTimeout(() => {
+      isDodgingRef.current = false;
+    }, 500);
+  }, [addPopup]);
+  
+  // Handle strike input - attack enemies
+  const handleStrike = useCallback(() => {
+    if (gameStateRef.current !== 'playing') return;
+    if (isParryingRef.current || isDodgingRef.current || isStrikingRef.current) return;
+    
+    const now = Date.now();
+    if (now - lastActionTimeRef.current < 200) return;
+    lastActionTimeRef.current = now;
+    
+    isStrikingRef.current = true;
+    totalStrikesRef.current++;
+    
+    // Animate player sword - attack swing
+    if (playerSwordRef.current) {
+      playerSwordRef.current.rotation.z = 0.8;
+      playerSwordRef.current.rotation.x = 0.3;
+      
+      setTimeout(() => {
+        if (playerSwordRef.current) {
+          playerSwordRef.current.rotation.z = 0;
+          playerSwordRef.current.rotation.x = -0.3;
+        }
+      }, 250);
+    }
+    
+    // Find closest enemy that's not attacking (idle or recovery)
+    let targetEnemy: Enemy | null = null;
+    let closestDistance = Infinity;
+    
+    enemiesRef.current.forEach(enemy => {
+      if (enemy.attackPhase === 'idle' || enemy.attackPhase === 'recovery' || enemy.attackPhase === 'stunned') {
+        const pos = getSidePosition(enemy.side);
+        const distance = Math.abs(pos.x);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          targetEnemy = enemy;
+        }
+      }
+    });
+    
+    if (targetEnemy) {
+      targetEnemy.health--;
+      targetEnemy.hitFlashTime = 0.3;
+      targetEnemy.attackPhase = 'stunned';
+      targetEnemy.attackTimer = 0;
+      
+      // Update health bar
+      if (targetEnemy.mesh) {
+        const healthBar = targetEnemy.mesh.getObjectByName('healthBar') as THREE.Mesh;
+        if (healthBar) {
+          healthBar.scale.x = targetEnemy.health / 3;
+          healthBar.position.x = -0.375 * (1 - targetEnemy.health / 3);
+        }
+      }
+      
+      if (targetEnemy.health <= 0) {
+        // Enemy killed!
+        targetEnemy.attackPhase = 'dying';
+        enemiesKilledRef.current++;
+        
+        const killPoints = 200 + (comboRef.current * 50);
+        scoreRef.current += killPoints;
+        setScore(scoreRef.current);
+        setActionFeedback('kill');
+        
+        // Flash screen white
+        setScreenFlash('white');
+        setTimeout(() => setScreenFlash('none'), 100);
+        
+        addPopup(killPoints, 50, 35, 'critical', 'KILL!');
+        
+        // Remove enemy mesh after animation
+        const enemyToRemove = targetEnemy;
+        setTimeout(() => {
+          if (enemyToRemove.mesh && sceneRef.current) {
+            sceneRef.current.remove(enemyToRemove.mesh);
+          }
+          enemiesRef.current = enemiesRef.current.filter(e => e.id !== enemyToRemove.id);
+          setEnemyCount(enemiesRef.current.filter(e => e.attackPhase !== 'dying').length);
+        }, 500);
+        
+        // Spawn replacement enemy quickly
+        spawnCooldownRef.current = 0.5;
+        
+        setTimeout(() => setActionFeedback('none'), 600);
+      } else {
+        setActionFeedback('strike');
+        
+        const hitPoints = 30;
+        scoreRef.current += hitPoints;
+        setScore(scoreRef.current);
+        
+        addPopup(hitPoints, 50, 35, 'normal', `HIT! (${3 - targetEnemy.health}/3)`);
+        
+        setTimeout(() => setActionFeedback('none'), 300);
+      }
+    }
+    
+    setTimeout(() => {
+      isStrikingRef.current = false;
+    }, 300);
+  }, [addPopup, getSidePosition]);
   
   // Start game
   const startGame = useCallback(() => {
@@ -305,9 +533,12 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     setTimeElapsed(0);
     perfectParriesRef.current = 0;
     totalParriesRef.current = 0;
+    totalStrikesRef.current = 0;
+    enemiesKilledRef.current = 0;
     maxComboRef.current = 0;
-    secondEnemySpawnedRef.current = false;
     gameStartTimeRef.current = Date.now();
+    nextEnemyIdRef.current = 1;
+    spawnCooldownRef.current = 0;
     
     // Clear old enemies
     enemiesRef.current.forEach(e => {
@@ -317,20 +548,40 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     });
     enemiesRef.current = [];
     
-    // Spawn first enemy (center)
+    // Spawn initial enemies (start with 2)
     if (sceneRef.current) {
-      const enemyMesh = createEnemy('center');
-      sceneRef.current.add(enemyMesh);
-      
+      // First enemy (center)
+      const centerMesh = createEnemy('center');
+      sceneRef.current.add(centerMesh);
       enemiesRef.current.push({
-        id: 1,
+        id: nextEnemyIdRef.current++,
         side: 'center',
         attackPhase: 'idle',
         attackTimer: 0,
         swordAngle: 0,
-        mesh: enemyMesh,
-        nextAttackIn: 1.5 + seededRngRef.current.next() * 1.0,
+        mesh: centerMesh,
+        nextAttackIn: 2.0 + seededRngRef.current.next() * 1.0,
+        health: 3,
+        hitFlashTime: 0,
       });
+      
+      // Second enemy (random side)
+      const side = seededRngRef.current.next() > 0.5 ? 'left' : 'right';
+      const sideMesh = createEnemy(side);
+      sceneRef.current.add(sideMesh);
+      enemiesRef.current.push({
+        id: nextEnemyIdRef.current++,
+        side: side,
+        attackPhase: 'idle',
+        attackTimer: 0,
+        swordAngle: 0,
+        mesh: sideMesh,
+        nextAttackIn: 3.0 + seededRngRef.current.next() * 1.5,
+        health: 3,
+        hitFlashTime: 0,
+      });
+      
+      setEnemyCount(2);
     }
   }, [createEnemy]);
   
@@ -376,7 +627,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     scene.add(backLight);
     
     // Floor (arena)
-    const floorGeometry = new THREE.CircleGeometry(8, 32);
+    const floorGeometry = new THREE.CircleGeometry(10, 32);
     const floorMaterial = new THREE.MeshPhongMaterial({
       color: 0x2a1a1a,
       emissive: 0x100505,
@@ -387,7 +638,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     scene.add(floor);
     
     // Arena ring
-    const ringGeometry = new THREE.TorusGeometry(7.5, 0.1, 8, 64);
+    const ringGeometry = new THREE.TorusGeometry(9.5, 0.1, 8, 64);
     const ringMaterial = new THREE.MeshBasicMaterial({
       color: 0xFF4444,
     });
@@ -425,24 +676,26 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         gameTimeRef.current += deltaTime;
         setTimeElapsed(Math.floor(gameTimeRef.current));
         
-        // Spawn second enemy after 10 seconds
-        if (!secondEnemySpawnedRef.current && gameTimeRef.current >= 10) {
-          secondEnemySpawnedRef.current = true;
-          const side = seededRngRef.current.next() > 0.5 ? 'left' : 'right';
-          const enemyMesh = createEnemy(side);
-          scene.add(enemyMesh);
-          
-          enemiesRef.current.push({
-            id: 2,
-            side: side,
-            attackPhase: 'idle',
-            attackTimer: 0,
-            swordAngle: 0,
-            mesh: enemyMesh,
-            nextAttackIn: 2.0 + seededRngRef.current.next() * 1.5,
-          });
-          
-          console.log('⚔️ [ParryPro] Second enemy spawned on', side);
+        // Spawn more enemies over time
+        spawnCooldownRef.current -= deltaTime;
+        
+        const aliveEnemies = enemiesRef.current.filter(e => e.attackPhase !== 'dying').length;
+        
+        // Spawn schedule based on time
+        if (spawnCooldownRef.current <= 0) {
+          if (gameTimeRef.current >= 5 && aliveEnemies < 2) {
+            spawnEnemy();
+            spawnCooldownRef.current = 2;
+          } else if (gameTimeRef.current >= 15 && aliveEnemies < 3) {
+            spawnEnemy();
+            spawnCooldownRef.current = 3;
+          } else if (gameTimeRef.current >= 30 && aliveEnemies < 4) {
+            spawnEnemy();
+            spawnCooldownRef.current = 4;
+          } else if (gameTimeRef.current >= 45 && aliveEnemies < 5) {
+            spawnEnemy();
+            spawnCooldownRef.current = 5;
+          }
         }
         
         // Update enemies
@@ -450,23 +703,29 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
           if (!enemy.mesh) return;
           
           const sword = enemy.mesh.getObjectByName('sword') as THREE.Group;
+          const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
           if (!sword) return;
+          
+          // Hit flash effect
+          if (enemy.hitFlashTime > 0) {
+            enemy.hitFlashTime -= deltaTime;
+            if (body && body.material instanceof THREE.MeshPhongMaterial) {
+              body.material.emissive.setHex(enemy.hitFlashTime > 0 ? 0xFFFFFF : 0x100000);
+            }
+          }
           
           switch (enemy.attackPhase) {
             case 'idle':
-              // Count down to next attack
               enemy.nextAttackIn -= deltaTime;
               if (enemy.nextAttackIn <= 0) {
                 enemy.attackPhase = 'windup';
                 enemy.attackTimer = 0;
               }
-              // Idle sword animation
               sword.rotation.z = Math.sin(time / 500) * 0.1;
               break;
               
             case 'windup':
-              // Pull sword back
-              enemy.attackTimer += deltaTime * 1.5;
+              enemy.attackTimer += deltaTime * (1.5 + gameTimeRef.current * 0.01); // Speed up over time
               sword.rotation.z = -1.5 * Math.min(1, enemy.attackTimer);
               sword.rotation.x = 0.3 * Math.min(1, enemy.attackTimer);
               
@@ -477,35 +736,50 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               break;
               
             case 'strike':
-              // Fast strike forward
-              enemy.attackTimer += deltaTime * 3;
+              enemy.attackTimer += deltaTime * (3 + gameTimeRef.current * 0.02);
               sword.rotation.z = -1.5 + (2.5 * Math.min(1, enemy.attackTimer));
               sword.rotation.x = 0.3 - (0.5 * Math.min(1, enemy.attackTimer));
               
               // Check if strike completed (hit player)
               if (enemy.attackTimer >= 1) {
-                // Player takes damage if not parried
-                heartsRef.current--;
-                setHearts(heartsRef.current);
-                comboRef.current = 0;
-                setCombo(0);
-                
-                setParryFeedback('miss');
-                setTimeout(() => setParryFeedback('none'), 500);
-                
-                if (heartsRef.current <= 0) {
-                  // Game over
-                  endGame();
-                  return;
+                // Check if dodging
+                if (isDodgingRef.current) {
+                  enemy.attackPhase = 'recovery';
+                  enemy.attackTimer = 0;
+                } else {
+                  // Player takes damage!
+                  heartsRef.current--;
+                  setHearts(heartsRef.current);
+                  comboRef.current = 0;
+                  setCombo(0);
+                  
+                  setActionFeedback('miss');
+                  setScreenFlash('red');
+                  setTimeout(() => setScreenFlash('none'), 200);
+                  setTimeout(() => setActionFeedback('none'), 500);
+                  
+                  if (heartsRef.current <= 0) {
+                    endGameRef.current();
+                    return;
+                  }
+                  
+                  enemy.attackPhase = 'recovery';
+                  enemy.attackTimer = 0;
                 }
-                
+              }
+              break;
+              
+            case 'stunned':
+              enemy.attackTimer += deltaTime * 2;
+              sword.rotation.z = 0.3 * Math.sin(time / 50); // Wobble
+              
+              if (enemy.attackTimer >= 0.5) {
                 enemy.attackPhase = 'recovery';
                 enemy.attackTimer = 0;
               }
               break;
               
             case 'recovery':
-              // Return to idle
               enemy.attackTimer += deltaTime * 2;
               sword.rotation.z = 1.0 - (1.0 * Math.min(1, enemy.attackTimer));
               sword.rotation.x = -0.2 + (0.2 * Math.min(1, enemy.attackTimer));
@@ -513,21 +787,31 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               if (enemy.attackTimer >= 1) {
                 enemy.attackPhase = 'idle';
                 enemy.attackTimer = 0;
-                // Random delay until next attack (shorter over time)
-                const minDelay = Math.max(0.8, 2.0 - gameTimeRef.current * 0.02);
-                const maxDelay = Math.max(1.5, 3.0 - gameTimeRef.current * 0.02);
+                const minDelay = Math.max(0.5, 1.5 - gameTimeRef.current * 0.015);
+                const maxDelay = Math.max(1.0, 2.5 - gameTimeRef.current * 0.02);
                 enemy.nextAttackIn = minDelay + seededRngRef.current.next() * (maxDelay - minDelay);
+              }
+              break;
+              
+            case 'dying':
+              // Death animation
+              enemy.mesh.position.y -= deltaTime * 2;
+              enemy.mesh.rotation.x += deltaTime * 3;
+              if (body && body.material instanceof THREE.MeshPhongMaterial) {
+                body.material.opacity = Math.max(0, body.material.opacity - deltaTime * 2);
               }
               break;
           }
           
           // Enemy body sway
-          enemy.mesh.rotation.z = Math.sin(time / 800 + enemy.id) * 0.05;
+          if (enemy.attackPhase !== 'dying') {
+            enemy.mesh.rotation.z = Math.sin(time / 800 + enemy.id) * 0.05;
+          }
         });
       }
       
       // Player sword idle animation
-      if (playerSwordRef.current && !isParryingRef.current) {
+      if (playerSwordRef.current && !isParryingRef.current && !isDodgingRef.current && !isStrikingRef.current) {
         playerSwordRef.current.rotation.z = Math.sin(time / 600) * 0.05;
       }
       
@@ -547,7 +831,8 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       const survivalBonus = Math.floor(gameTimeRef.current * 5);
       const comboBonus = maxComboRef.current * 50;
       const heartBonus = heartsRef.current * 100;
-      const finalScore = scoreRef.current + survivalBonus + comboBonus + heartBonus;
+      const killBonus = enemiesKilledRef.current * 150;
+      const finalScore = scoreRef.current + survivalBonus + comboBonus + heartBonus + killBonus;
       
       scoreRef.current = finalScore;
       setScore(finalScore);
@@ -561,6 +846,8 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         additionalData: {
           perfectParries: perfectParriesRef.current,
           totalParries: totalParriesRef.current,
+          totalStrikes: totalStrikesRef.current,
+          enemiesKilled: enemiesKilledRef.current,
           maxCombo: maxComboRef.current,
           survivalTime: Math.floor(gameTimeRef.current),
           rngSeed: rngSeedRef.current
@@ -576,6 +863,8 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       });
     };
     
+    endGameRef.current = endGame;
+    
     animate(0);
     
     return () => {
@@ -587,92 +876,154 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       }
       initializedRef.current = false;
     };
-  }, [createSword, createEnemy]);
-  
-  // Input handlers
-  const handleInput = useCallback((e: React.MouseEvent | React.TouchEvent | React.KeyboardEvent) => {
-    e.preventDefault();
-    handleParry();
-  }, [handleParry]);
+  }, [createSword, createEnemy, spawnEnemy]);
   
   // Keyboard handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'KeyP' || e.code === 'KeyX') {
+      if (e.code === 'Space' || e.code === 'KeyP') {
         e.preventDefault();
         handleParry();
+      } else if (e.code === 'KeyD' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        e.preventDefault();
+        handleDodge();
+      } else if (e.code === 'KeyS' || e.code === 'KeyX' || e.code === 'Enter') {
+        e.preventDefault();
+        handleStrike();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleParry]);
+  }, [handleParry, handleDodge, handleStrike]);
   
   return (
     <div 
       className="fixed inset-0 w-full h-full bg-black overflow-hidden"
       style={{ touchAction: 'none', WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
     >
+      {/* Screen flash effect */}
+      {screenFlash !== 'none' && (
+        <div 
+          className="absolute inset-0 z-40 pointer-events-none"
+          style={{ 
+            backgroundColor: screenFlash === 'red' ? 'rgba(255, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+          }}
+        />
+      )}
+      
+      {/* Floating score popups */}
+      {gameState === 'playing' && <FloatingScore popups={popups} onRemove={removePopup} />}
+      
       {/* Game canvas */}
       <div 
         ref={containerRef} 
         className="w-full h-full"
         style={{ touchAction: 'none' }}
-        onClick={handleInput}
-        onTouchStart={handleInput}
       />
       
       {/* HUD */}
       {gameState === 'playing' && (
         <>
           {/* Top HUD */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20 pointer-events-none">
-            <div className="flex items-center gap-2">
-              {[...Array(3)].map((_, i) => (
-                <span key={i} className={`text-3xl ${i < hearts ? 'text-red-500' : 'text-gray-700'}`}>
-                  ❤️
-                </span>
-              ))}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-20 pointer-events-none">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <span key={i} className={`text-2xl sm:text-3xl ${i < hearts ? 'text-red-500 animate-pulse' : 'text-gray-700'}`}>
+                    ❤️
+                  </span>
+                ))}
+              </div>
+              <div className="text-xs text-gray-400">Enemies: {enemyCount}</div>
             </div>
             <div className="text-center">
-              <div className="text-yellow-400 text-4xl font-bold" style={{ textShadow: '0 0 10px rgba(255, 200, 0, 0.5)' }}>
+              <div className="text-yellow-400 text-3xl sm:text-4xl font-bold" style={{ textShadow: '0 0 10px rgba(255, 200, 0, 0.5)' }}>
                 {score}
               </div>
               <div className="text-gray-400 text-sm">⏱️ {timeElapsed}s</div>
             </div>
             <div className="text-right">
               {combo > 0 && (
-                <div className="text-orange-400 text-2xl font-bold animate-pulse">
+                <div className="text-orange-400 text-xl sm:text-2xl font-bold animate-pulse">
                   {combo}x COMBO
                 </div>
               )}
+              <div className="text-xs text-gray-400">Kills: {enemiesKilledRef.current}</div>
             </div>
           </div>
           
-          {/* Parry feedback */}
-          {parryFeedback !== 'none' && (
-            <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
-              <div className={`text-4xl sm:text-6xl font-black animate-bounce ${
-                parryFeedback === 'perfect' ? 'text-yellow-400' :
-                parryFeedback === 'good' ? 'text-green-400' :
+          {/* Action feedback */}
+          {actionFeedback !== 'none' && (
+            <div className="absolute top-1/4 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
+              <div className={`text-3xl sm:text-5xl font-black animate-bounce ${
+                actionFeedback === 'perfect' ? 'text-yellow-400' :
+                actionFeedback === 'good' ? 'text-green-400' :
+                actionFeedback === 'dodge' ? 'text-cyan-400' :
+                actionFeedback === 'strike' ? 'text-orange-400' :
+                actionFeedback === 'kill' ? 'text-red-500' :
                 'text-red-500'
               }`} style={{ textShadow: '0 0 20px currentColor' }}>
-                {parryFeedback === 'perfect' ? '⚔️ PERFECT!' :
-                 parryFeedback === 'good' ? '✓ PARRIED!' :
+                {actionFeedback === 'perfect' ? '⚔️ PERFECT!' :
+                 actionFeedback === 'good' ? '✓ PARRIED!' :
+                 actionFeedback === 'dodge' ? '💨 DODGED!' :
+                 actionFeedback === 'strike' ? '⚔️ HIT!' :
+                 actionFeedback === 'kill' ? '💀 KILLED!' :
                  '💔 HIT!'}
               </div>
             </div>
           )}
           
-          {/* Bottom parry button area */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-            <div className="text-center">
-              <div className="text-white text-xl font-bold mb-2 opacity-50">
-                {isMobile ? '👆 TAP TO PARRY' : '⎵ SPACE TO PARRY'}
-              </div>
-              <div className="w-32 h-32 rounded-full border-4 border-white/30 flex items-center justify-center">
-                <div className="text-5xl">⚔️</div>
-              </div>
+          {/* Action buttons */}
+          <div className="absolute bottom-4 left-4 right-4 z-20">
+            <div className="flex justify-center gap-3 sm:gap-6">
+              {/* Dodge button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDodge(); }}
+                onTouchStart={(e) => { e.stopPropagation(); handleDodge(); }}
+                disabled={isDodgingRef.current}
+                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all active:scale-90 ${
+                  isDodgingRef.current 
+                    ? 'bg-gray-700 opacity-50' 
+                    : 'bg-gradient-to-b from-cyan-500 to-cyan-700 shadow-lg shadow-cyan-500/50 hover:from-cyan-400 hover:to-cyan-600'
+                }`}
+              >
+                <span className="text-3xl sm:text-4xl">💨</span>
+                <span className="text-white font-bold text-xs sm:text-sm">DODGE</span>
+                <span className="text-white/60 text-[10px] hidden sm:block">D / Shift</span>
+              </button>
+              
+              {/* Parry button (center, larger) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleParry(); }}
+                onTouchStart={(e) => { e.stopPropagation(); handleParry(); }}
+                disabled={isParryingRef.current}
+                className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex flex-col items-center justify-center transition-all active:scale-90 ${
+                  isParryingRef.current 
+                    ? 'bg-gray-700 opacity-50' 
+                    : 'bg-gradient-to-b from-amber-500 to-amber-700 shadow-lg shadow-amber-500/50 hover:from-amber-400 hover:to-amber-600 border-4 border-yellow-400'
+                }`}
+              >
+                <span className="text-4xl sm:text-5xl">⚔️</span>
+                <span className="text-white font-bold text-sm">PARRY</span>
+                <span className="text-white/60 text-xs hidden sm:block">Space / P</span>
+              </button>
+              
+              {/* Strike button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleStrike(); }}
+                onTouchStart={(e) => { e.stopPropagation(); handleStrike(); }}
+                disabled={isStrikingRef.current}
+                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex flex-col items-center justify-center transition-all active:scale-90 ${
+                  isStrikingRef.current 
+                    ? 'bg-gray-700 opacity-50' 
+                    : 'bg-gradient-to-b from-red-500 to-red-700 shadow-lg shadow-red-500/50 hover:from-red-400 hover:to-red-600'
+                }`}
+              >
+                <span className="text-3xl sm:text-4xl">🗡️</span>
+                <span className="text-white font-bold text-xs sm:text-sm">STRIKE</span>
+                <span className="text-white/60 text-[10px] hidden sm:block">S / X / Enter</span>
+              </button>
             </div>
           </div>
         </>
@@ -686,15 +1037,33 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
             <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-4" style={{ textShadow: '0 0 20px rgba(255, 0, 0, 0.5)' }}>
               PARRY PRO
             </h1>
-            <p className="text-gray-400 mb-6">Master the art of the perfect parry!</p>
+            <p className="text-gray-400 mb-6">Master combat against multiple enemies!</p>
             
             <div className="bg-gray-900/80 rounded-xl p-4 mb-6 text-left border border-red-500/30">
-              <p className="text-red-400 font-bold mb-2">⚔️ HOW TO PLAY:</p>
-              <p className="text-gray-300 text-sm mb-2">• Watch the enemy's sword wind up</p>
-              <p className="text-gray-300 text-sm mb-2">• {isMobile ? 'TAP' : 'Press SPACE'} at the right moment to parry</p>
-              <p className="text-gray-300 text-sm mb-2">• Perfect timing = PERFECT parry (more points!)</p>
-              <p className="text-gray-300 text-sm mb-2">• After 10 seconds, a 2nd enemy appears!</p>
-              <p className="text-gray-300 text-sm">• Survive as long as possible!</p>
+              <p className="text-red-400 font-bold mb-3">⚔️ CONTROLS:</p>
+              
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="text-center bg-cyan-900/50 rounded-lg p-2">
+                  <div className="text-2xl">💨</div>
+                  <div className="text-cyan-400 text-xs font-bold">DODGE</div>
+                  <div className="text-gray-400 text-[10px]">Avoid all attacks</div>
+                </div>
+                <div className="text-center bg-amber-900/50 rounded-lg p-2 border border-yellow-500">
+                  <div className="text-2xl">⚔️</div>
+                  <div className="text-amber-400 text-xs font-bold">PARRY</div>
+                  <div className="text-gray-400 text-[10px]">Block one attack</div>
+                </div>
+                <div className="text-center bg-red-900/50 rounded-lg p-2">
+                  <div className="text-2xl">🗡️</div>
+                  <div className="text-red-400 text-xs font-bold">STRIKE</div>
+                  <div className="text-gray-400 text-[10px]">Attack enemies</div>
+                </div>
+              </div>
+              
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-red-400">Strike</span> enemies 3 times to defeat them!</p>
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-cyan-400">Dodge</span> to avoid all incoming attacks</p>
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-yellow-400">Perfect parry</span> timing = more points!</p>
+              <p className="text-gray-300 text-sm">• More enemies spawn over time!</p>
             </div>
             
             <button
@@ -735,16 +1104,16 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
                   <div className="text-white font-bold">{timeElapsed}s</div>
                 </div>
                 <div>
+                  <div className="text-gray-500">Enemies Killed</div>
+                  <div className="text-red-400 font-bold">{enemiesKilledRef.current}</div>
+                </div>
+                <div>
                   <div className="text-gray-500">Max Combo</div>
                   <div className="text-orange-400 font-bold">{maxComboRef.current}x</div>
                 </div>
                 <div>
                   <div className="text-gray-500">Perfect Parries</div>
                   <div className="text-yellow-400 font-bold">{perfectParriesRef.current}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Total Parries</div>
-                  <div className="text-white font-bold">{totalParriesRef.current}</div>
                 </div>
               </div>
             </div>
@@ -771,4 +1140,3 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     </div>
   );
 }
-
