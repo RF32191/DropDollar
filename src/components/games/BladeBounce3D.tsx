@@ -1130,6 +1130,23 @@ export default function BladeBounce3D({
   // Start countdown when sword is clicked in waiting state
   const startCountdown = useCallback(() => {
     if (gameState === 'waiting') {
+      // Unlock audio on user gesture (critical for mobile)
+      unlockAudio();
+      
+      // Pre-start music so it's ready when game begins
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.play()
+          .then(() => {
+            console.log('✅ [BladeBounce] Music pre-started on countdown click');
+            // Pause immediately - will resume when game starts
+            backgroundMusicRef.current?.pause();
+            if (backgroundMusicRef.current) {
+              backgroundMusicRef.current.currentTime = 0;
+            }
+          })
+          .catch(e => console.log('Music pre-start blocked:', e));
+      }
+      
       setGameState('countdown');
       gameStateRef.current = 'countdown';
       let count = 3;
@@ -2266,8 +2283,22 @@ export default function BladeBounce3D({
         <div className="absolute inset-0 pointer-events-none">
           {/* Green pulsing circle around sword */}
           <div 
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer"
-            onClick={startCountdown}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex flex-col items-center justify-center"
+            onClick={() => {
+              unlockAudio();
+              if (isMobile && !gyroEnabledRef.current) {
+                enableGyroscope();
+              }
+              startCountdown();
+            }}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              unlockAudio();
+              if (isMobile && !gyroEnabledRef.current) {
+                enableGyroscope();
+              }
+              startCountdown();
+            }}
             style={{
               width: '200px',
               height: '200px',
@@ -2276,7 +2307,19 @@ export default function BladeBounce3D({
               boxShadow: '0 0 30px #00ff00, 0 0 60px #00ff00, inset 0 0 30px rgba(0,255,0,0.3)',
               animation: 'pulse 1.5s ease-in-out infinite',
             }}
-          />
+          >
+            {/* Gyroscope enable button inside the circle - mobile only */}
+            {isMobile && !gyroEnabledRef.current && (
+              <div className="bg-yellow-500/90 text-black text-xs font-bold px-3 py-2 rounded-lg shadow-lg animate-pulse">
+                📱 ENABLE TILT
+              </div>
+            )}
+            {isMobile && gyroEnabledRef.current && (
+              <div className="bg-green-900/70 text-green-400 text-xs font-bold px-2 py-1 rounded">
+                ✅ TILT READY
+              </div>
+            )}
+          </div>
           
           {/* Instruction text */}
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-4 rounded-xl border-2 border-green-500 pointer-events-none">

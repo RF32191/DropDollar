@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
 
@@ -34,6 +35,11 @@ interface HandObstacle {
   passed: boolean;
   topMesh: THREE.Group;
   bottomMesh: THREE.Group;
+  // Animation properties for staggered movement
+  topPhase: number;
+  bottomPhase: number;
+  topBaseY: number;
+  bottomBaseY: number;
 }
 
 export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: FlappyCoinGameProps) {
@@ -45,6 +51,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const animationFrameRef = useRef<number>(0);
   const cloudsRef = useRef<THREE.Group[]>([]);
   const initializedRef = useRef(false);
+  const handModelRef = useRef<THREE.Group | null>(null);
+  const handLoadedRef = useRef(false);
   
   // Game state refs
   const coinYRef = useRef<number>(0);
@@ -203,167 +211,74 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create realistic 3D hand with detailed features
+  // Create hand from loaded OBJ model
   const createHand = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
-    // More realistic skin material with subsurface scattering effect
-    const skinMaterial = new THREE.MeshPhongMaterial({
-      color: 0xDEB887, // BurlyWood - more natural skin tone
-      emissive: 0x4A3728,
-      emissiveIntensity: 0.1,
-      shininess: 15,
-      specular: 0x664433,
-    });
-    
-    // Darker skin for palm side
-    const palmMaterial = new THREE.MeshPhongMaterial({
-      color: 0xD4A574,
-      emissive: 0x3A2718,
-      emissiveIntensity: 0.1,
-      shininess: 10,
-    });
-    
-    // Palm - more anatomically correct shape
-    const palmGeometry = new THREE.BoxGeometry(2.0, 2.4, 0.7);
-    const palm = new THREE.Mesh(palmGeometry, skinMaterial);
-    palm.position.y = isTop ? -1.3 : 1.3;
-    group.add(palm);
-    
-    // Palm underside (darker)
-    const palmUnderGeometry = new THREE.BoxGeometry(1.8, 2.2, 0.3);
-    const palmUnder = new THREE.Mesh(palmUnderGeometry, palmMaterial);
-    palmUnder.position.y = isTop ? -1.3 : 1.3;
-    palmUnder.position.z = isTop ? 0.25 : -0.25;
-    group.add(palmUnder);
-    
-    // Knuckle ridge
-    const knuckleGeometry = new THREE.BoxGeometry(1.9, 0.3, 0.8);
-    const knuckle = new THREE.Mesh(knuckleGeometry, skinMaterial);
-    knuckle.position.y = isTop ? -2.5 : 2.5;
-    group.add(knuckle);
-    
-    // Fingers with joints (more realistic)
-    const fingerXPositions = [-0.65, -0.22, 0.22, 0.65];
-    const fingerLengths = [1.0, 1.3, 1.35, 1.1]; // Index, Middle, Ring, Pinky proportions
-    
-    fingerXPositions.forEach((xPos, i) => {
-      const fingerLength = fingerLengths[i];
-      const fingerRadius = i === 0 || i === 3 ? 0.16 : 0.18; // Thinner index/pinky
+    if (handModelRef.current) {
+      // Clone the loaded hand model
+      const handClone = handModelRef.current.clone();
       
-      // First segment (closest to palm)
-      const seg1Geometry = new THREE.CapsuleGeometry(fingerRadius, fingerLength * 0.4, 8, 16);
-      const seg1 = new THREE.Mesh(seg1Geometry, skinMaterial);
-      const seg1Y = isTop ? -2.8 - fingerLength * 0.2 : 2.8 + fingerLength * 0.2;
-      seg1.position.set(xPos, seg1Y, 0);
-      group.add(seg1);
-      
-      // Second segment (middle)
-      const seg2Geometry = new THREE.CapsuleGeometry(fingerRadius * 0.95, fingerLength * 0.35, 8, 16);
-      const seg2 = new THREE.Mesh(seg2Geometry, skinMaterial);
-      const seg2Y = isTop ? seg1Y - fingerLength * 0.4 : seg1Y + fingerLength * 0.4;
-      seg2.position.set(xPos, seg2Y, 0);
-      group.add(seg2);
-      
-      // Third segment (fingertip)
-      const seg3Geometry = new THREE.CapsuleGeometry(fingerRadius * 0.85, fingerLength * 0.25, 8, 16);
-      const seg3 = new THREE.Mesh(seg3Geometry, skinMaterial);
-      const seg3Y = isTop ? seg2Y - fingerLength * 0.35 : seg2Y + fingerLength * 0.35;
-      seg3.position.set(xPos, seg3Y, 0);
-      group.add(seg3);
-      
-      // Fingernail
-      const nailGeometry = new THREE.BoxGeometry(fingerRadius * 1.4, fingerRadius * 1.8, 0.08);
-      const nailMaterial = new THREE.MeshPhongMaterial({
-        color: 0xFFE4E1, // Pinkish nail color
-        shininess: 80,
-        specular: 0xFFFFFF,
+      // Apply nice skin-toned material to all meshes
+      const skinMaterial = new THREE.MeshPhongMaterial({
+        color: 0xE8C4A0, // Natural skin tone
+        emissive: 0x4A3020,
+        emissiveIntensity: 0.15,
+        shininess: 25,
+        specular: 0x886655,
       });
-      const nail = new THREE.Mesh(nailGeometry, nailMaterial);
-      const nailY = isTop ? seg3Y - fingerLength * 0.15 : seg3Y + fingerLength * 0.15;
-      nail.position.set(xPos, nailY, isTop ? -0.15 : 0.15);
-      group.add(nail);
-    });
+      
+      handClone.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material = skinMaterial;
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      
+      // Scale and position the hand appropriately
+      handClone.scale.setScalar(0.015); // Adjust scale for game
+      
+      if (isTop) {
+        // Top hand - fingers pointing down
+        handClone.rotation.x = Math.PI; // Flip upside down
+        handClone.rotation.z = Math.PI; // Rotate to face player
+      } else {
+        // Bottom hand - fingers pointing up
+        handClone.rotation.z = Math.PI;
+      }
+      
+      group.add(handClone);
+    } else {
+      // Fallback: simple placeholder if model not loaded
+      const placeholder = new THREE.Mesh(
+        new THREE.BoxGeometry(2, 4, 0.5),
+        new THREE.MeshPhongMaterial({ color: 0xE8C4A0 })
+      );
+      group.add(placeholder);
+    }
     
-    // Thumb - more realistic with multiple segments
-    const thumbBase = new THREE.CapsuleGeometry(0.2, 0.5, 8, 16);
-    const thumbBaseMesh = new THREE.Mesh(thumbBase, skinMaterial);
-    thumbBaseMesh.position.set(isTop ? 1.0 : -1.0, isTop ? -0.8 : 0.8, 0);
-    thumbBaseMesh.rotation.z = isTop ? -0.6 : 0.6;
-    group.add(thumbBaseMesh);
-    
-    const thumbMid = new THREE.CapsuleGeometry(0.18, 0.5, 8, 16);
-    const thumbMidMesh = new THREE.Mesh(thumbMid, skinMaterial);
-    thumbMidMesh.position.set(isTop ? 1.35 : -1.35, isTop ? -1.5 : 1.5, 0);
-    thumbMidMesh.rotation.z = isTop ? -0.4 : 0.4;
-    group.add(thumbMidMesh);
-    
-    const thumbTip = new THREE.CapsuleGeometry(0.16, 0.35, 8, 16);
-    const thumbTipMesh = new THREE.Mesh(thumbTip, skinMaterial);
-    thumbTipMesh.position.set(isTop ? 1.55 : -1.55, isTop ? -2.0 : 2.0, 0);
-    thumbTipMesh.rotation.z = isTop ? -0.3 : 0.3;
-    group.add(thumbTipMesh);
-    
-    // Thumb nail
-    const thumbNailGeometry = new THREE.BoxGeometry(0.28, 0.32, 0.08);
-    const thumbNailMaterial = new THREE.MeshPhongMaterial({
-      color: 0xFFE4E1,
-      shininess: 80,
-    });
-    const thumbNail = new THREE.Mesh(thumbNailGeometry, thumbNailMaterial);
-    thumbNail.position.set(isTop ? 1.65 : -1.65, isTop ? -2.25 : 2.25, isTop ? -0.12 : 0.12);
-    thumbNail.rotation.z = isTop ? -0.3 : 0.3;
-    group.add(thumbNail);
-    
-    // Wrist and arm
-    const wristGeometry = new THREE.CylinderGeometry(0.9, 1.0, 1.5, 16);
-    const wristMaterial = new THREE.MeshPhongMaterial({
+    // Add arm extension behind the hand
+    const armGeometry = new THREE.CylinderGeometry(0.8, 0.8, 8, 16);
+    const armMaterial = new THREE.MeshPhongMaterial({
       color: 0xD4A574,
       emissive: 0x3A2718,
       emissiveIntensity: 0.1,
       shininess: 12,
     });
-    const wrist = new THREE.Mesh(wristGeometry, wristMaterial);
-    wrist.position.y = isTop ? 0.5 : -0.5;
-    group.add(wrist);
-    
-    // Forearm
-    const armGeometry = new THREE.CylinderGeometry(0.85, 0.9, 10, 16);
-    const arm = new THREE.Mesh(armGeometry, wristMaterial);
-    arm.position.y = isTop ? 6.0 : -6.0;
+    const arm = new THREE.Mesh(armGeometry, armMaterial);
+    arm.position.y = isTop ? 6 : -6;
     group.add(arm);
     
-    // Sleeve/Cuff - fancy suit cuff
-    const cuffGeometry = new THREE.CylinderGeometry(1.0, 0.95, 0.8, 16);
+    // Sleeve cuff
+    const cuffGeometry = new THREE.CylinderGeometry(1.0, 0.9, 0.8, 16);
     const cuffMaterial = new THREE.MeshPhongMaterial({
-      color: 0x1a1a2e, // Dark navy
+      color: 0x1a1a2e,
       shininess: 40,
-      specular: 0x333344,
     });
     const cuff = new THREE.Mesh(cuffGeometry, cuffMaterial);
-    cuff.position.y = isTop ? 1.3 : -1.3;
+    cuff.position.y = isTop ? 2 : -2;
     group.add(cuff);
-    
-    // Cuff button
-    const buttonGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 12);
-    const buttonMaterial = new THREE.MeshPhongMaterial({
-      color: 0xC0C0C0, // Silver button
-      shininess: 100,
-    });
-    const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
-    button.rotation.x = Math.PI / 2;
-    button.position.set(0.9, isTop ? 1.3 : -1.3, 0);
-    group.add(button);
-    
-    // Shirt visible under cuff
-    const shirtGeometry = new THREE.CylinderGeometry(0.88, 0.88, 0.3, 16);
-    const shirtMaterial = new THREE.MeshPhongMaterial({
-      color: 0xFFFFF0, // Ivory white shirt
-      shininess: 20,
-    });
-    const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-    shirt.position.y = isTop ? 0.95 : -0.95;
-    group.add(shirt);
     
     return group;
   }, []);
@@ -480,6 +395,29 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     const sunLight = new THREE.DirectionalLight(0xFFFFCC, 1);
     sunLight.position.set(10, 15, 10);
     scene.add(sunLight);
+    
+    // Add fill light for hands
+    const fillLight = new THREE.DirectionalLight(0xFFE4C4, 0.5);
+    fillLight.position.set(-5, 0, 5);
+    scene.add(fillLight);
+    
+    // Load hand OBJ model
+    const objLoader = new OBJLoader();
+    objLoader.load(
+      '/hand.obj',
+      (object) => {
+        console.log('🖐️ [FlippyCoin] Hand model loaded successfully!');
+        handModelRef.current = object;
+        handLoadedRef.current = true;
+      },
+      (progress) => {
+        console.log('🖐️ [FlippyCoin] Loading hand model...', Math.round((progress.loaded / progress.total) * 100) + '%');
+      },
+      (error) => {
+        console.warn('🖐️ [FlippyCoin] Error loading hand model:', error);
+        // Game will use fallback procedural hands
+      }
+    );
     
     // Coin
     const coin = createCoin();
@@ -647,12 +585,22 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           const topHand = createHand(true);
           const bottomHand = createHand(false);
           
-          topHand.position.set(newX, gapY + GAP_SIZE/2 + 4.5, 0);
-          bottomHand.position.set(newX, gapY - GAP_SIZE/2 - 4.5, 0);
+          // Base positions for hands
+          const topBaseY = gapY + GAP_SIZE/2 + 4.5;
+          const bottomBaseY = gapY - GAP_SIZE/2 - 4.5;
+          
+          topHand.position.set(newX, topBaseY, 0);
+          bottomHand.position.set(newX, bottomBaseY, 0);
+          
+          // Top hand rotated (fingers pointing down)
           topHand.rotation.z = Math.PI;
           
           scene.add(topHand);
           scene.add(bottomHand);
+          
+          // Random phase offset for staggered movement
+          const topPhase = seededRngRef.current.next() * Math.PI * 2;
+          const bottomPhase = topPhase + Math.PI; // Opposite phase for staggered effect
           
           obstaclesRef.current.push({
             id: Date.now() + Math.random(),
@@ -662,6 +610,10 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             passed: false,
             topMesh: topHand,
             bottomMesh: bottomHand,
+            topPhase,
+            bottomPhase,
+            topBaseY,
+            bottomBaseY,
           });
         }
         
@@ -672,6 +624,15 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           obs.x -= gameSpeedRef.current * deltaTime;
           obs.topMesh.position.x = obs.x;
           obs.bottomMesh.position.x = obs.x;
+          
+          // Staggered up/down animation for hands
+          const animSpeed = 1.5; // Speed of oscillation
+          const animAmplitude = 0.4; // How far they move up/down
+          const topOffset = Math.sin(time / 1000 * animSpeed + obs.topPhase) * animAmplitude;
+          const bottomOffset = Math.sin(time / 1000 * animSpeed + obs.bottomPhase) * animAmplitude;
+          
+          obs.topMesh.position.y = obs.topBaseY + topOffset;
+          obs.bottomMesh.position.y = obs.bottomBaseY + bottomOffset;
           
           // Score
           if (!obs.passed && obs.x < COIN_X - 0.5) {

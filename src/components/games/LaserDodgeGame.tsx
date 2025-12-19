@@ -1332,6 +1332,23 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Handle clicking on ship to take control
   const handleShipClick = () => {
     if (gameState === 'waiting' && !hasControl) {
+      // Unlock audio on user gesture (critical for mobile)
+      unlockAudio();
+      
+      // Pre-start music so it's ready when game begins
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.play()
+          .then(() => {
+            console.log('✅ [LaserDodge] Music pre-started on ship click');
+            // Pause immediately - will resume when game starts
+            backgroundMusicRef.current?.pause();
+            if (backgroundMusicRef.current) {
+              backgroundMusicRef.current.currentTime = 0;
+            }
+          })
+          .catch(e => console.log('Music pre-start blocked:', e));
+      }
+      
       setHasControl(true);
       setCountdown(5);
       setGameState('countdown');
@@ -1647,8 +1664,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           onClick={handleShipClick}
           onTouchStart={(e) => {
             e.preventDefault();
-            // First enable gyro if needed (iOS), then start game
-            if (isMobile && gyroPermissionNeeded && !gyroscopeEnabled) {
+            // Unlock audio on touch gesture (critical for mobile)
+            unlockAudio();
+            
+            // First enable gyro if needed, then start game
+            if (isMobile && !gyroscopeEnabled) {
               requestGyroPermission().then(() => {
                 setTimeout(handleShipClick, 100);
               });
@@ -1669,7 +1689,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             }}
           />
           <div
-            className="absolute rounded-full border-2 border-green-400 bg-green-500/20"
+            className="absolute rounded-full border-2 border-green-400 bg-green-500/20 flex flex-col items-center justify-center"
             style={{
               left: '50%',
               top: '50%',
@@ -1678,19 +1698,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               height: isMobile ? '180px' : '120px',
             }}
           >
-            {/* Gyroscope status inside the circle - mobile only */}
-            {isMobile && (
-              <div 
-                className="absolute w-full text-center"
-                style={{ top: '10px', left: '50%', transform: 'translateX(-50%)' }}
+            {/* Gyroscope enable button inside the circle - mobile only */}
+            {isMobile && !gyroscopeEnabled && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  requestGyroPermission();
+                  // Also unlock audio on this user gesture
+                  unlockAudio();
+                }}
+                className="absolute bg-yellow-500/80 hover:bg-yellow-400 text-black text-xs font-bold px-3 py-2 rounded-lg animate-pulse shadow-lg"
+                style={{ top: '15px' }}
               >
-                {gyroPermissionNeeded && !gyroscopeEnabled ? (
-                  <span className="text-yellow-400 text-xs font-bold animate-pulse">📱 TAP FOR TILT</span>
-                ) : gyroscopeEnabled ? (
-                  <span className="text-green-400 text-xs font-bold">✅ TILT READY</span>
-                ) : (
-                  <span className="text-blue-400 text-xs font-bold animate-pulse">📱 TILT AUTO</span>
-                )}
+                📱 ENABLE TILT
+              </button>
+            )}
+            {isMobile && gyroscopeEnabled && (
+              <div 
+                className="absolute text-center"
+                style={{ top: '15px' }}
+              >
+                <span className="text-green-400 text-xs font-bold bg-green-900/50 px-2 py-1 rounded">✅ TILT READY</span>
               </div>
             )}
           </div>
