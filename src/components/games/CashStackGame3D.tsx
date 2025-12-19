@@ -365,14 +365,19 @@ export default function CashStackGame3D({
     scene.background = new THREE.Color(0x0a1628);
     scene.fog = new THREE.Fog(0x0a1628, 20, 50);
 
-    // Camera
+    // Camera - zoom out more on mobile for better visibility
+    const isMobileDevice = window.innerWidth < 768;
     const camera = new THREE.PerspectiveCamera(
-      50,
+      isMobileDevice ? 60 : 50, // Wider FOV on mobile
       window.innerWidth / window.innerHeight,
       0.1,
       1000
     );
-    camera.position.set(8, 12, 12);
+    camera.position.set(
+      isMobileDevice ? 10 : 8, 
+      isMobileDevice ? 16 : 12, 
+      isMobileDevice ? 16 : 12
+    );
     camera.lookAt(0, 0, 0);
 
     // Renderer
@@ -1463,6 +1468,13 @@ export default function CashStackGame3D({
       {/* Ready screen */}
       {gameState === 'ready' && (
         <div className="absolute inset-0 flex flex-col items-center bg-black/70 text-white overflow-y-auto p-4" style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem', minHeight: '100vh' }}>
+          {/* Mobile scroll indicator */}
+          <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-white/90 text-gray-800 px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
+            <span>👆</span>
+            <span className="text-sm font-bold">Scroll for more</span>
+            <span>👇</span>
+          </div>
+          
           <h1 className="text-6xl font-bold mb-4 animate-pulse" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
             💰 CASH STACK 3D
           </h1>

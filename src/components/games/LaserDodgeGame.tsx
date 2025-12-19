@@ -197,8 +197,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const deltaBeta = beta - gyroBaseRef.current.beta;
     const deltaGamma = gamma - gyroBaseRef.current.gamma;
     
-    // Very low sensitivity for smooth, non-twitchy movement
-    const sensitivity = 0.5;
+    // Moderate sensitivity for responsive but smooth movement
+    const sensitivity = 0.8;
     
     // Calculate new position
     // Tilt right (positive gamma) = move right

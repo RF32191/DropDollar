@@ -982,20 +982,18 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           >
             {/* Floating score popups */}
             <FloatingScore popups={popups} onRemove={removePopup} />
-            {/* HUD Overlay - Top of screen */}
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/70 backdrop-blur-sm px-6 py-3 rounded-xl text-white text-sm">
-              <div className="flex gap-8 items-center">
-                <div className="flex gap-4">
-                  <span>🪙 10pts</span>
-                  <span>💵 25pts</span>
-                  <span>🏆 50pts</span>
-                </div>
-                <div className="w-px h-6 bg-white/30"></div>
-                <div className="flex gap-4">
-                  <span>🟡 <span className="text-yellow-400 font-bold">CENTER +60%</span></span>
-                  <span>🔵 <span className="text-blue-400">OFF-CENTER +10-50%</span></span>
-                </div>
+            
+            {/* Compact HUD - Top corners only, doesn't block center */}
+            <div className="absolute top-2 left-2 z-50 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white text-xs sm:text-sm pointer-events-none">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-400 font-bold">💰 {score.toFixed(0)}</span>
+                <span className="text-gray-400">|</span>
+                <span className="text-green-400">✅ {caughtObjects}</span>
               </div>
+            </div>
+            
+            <div className="absolute top-2 right-2 z-50 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white text-xs sm:text-sm pointer-events-none">
+              <span>⏱️ {timer.timeLeft}s</span>
             </div>
             
             {/* FULLSCREEN Game Area */}

@@ -1177,13 +1177,18 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     if (!containerRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x051505); // Dark PCB green tint
-    scene.fog = new THREE.Fog(0x051505, 25, 70);
+    
+    // Detect mobile for brightness adjustments
+    const isMobileDevice = window.innerWidth < 768;
+    setIsMobile(isMobileDevice);
+    
+    // Brighter background and less fog on mobile for better visibility
+    const bgColor = isMobileDevice ? 0x0a2a0a : 0x051505; // Brighter on mobile
+    scene.background = new THREE.Color(bgColor);
+    scene.fog = new THREE.Fog(bgColor, isMobileDevice ? 40 : 25, isMobileDevice ? 100 : 70); // Less fog on mobile
     sceneRef.current = scene;
 
     // Create perspective camera for 3D mode - zoom out more on mobile
-    const isMobileDevice = window.innerWidth < 768;
-    setIsMobile(isMobileDevice);
     const camera = new THREE.PerspectiveCamera(
       isMobileDevice ? 70 : 55, // Wider FOV on mobile to see more
       containerRef.current.clientWidth / containerRef.current.clientHeight, 
@@ -1215,9 +1220,16 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Ambient light (brighter for 2D mode visibility)
-    const ambientLight = new THREE.AmbientLight(0x222222);
+    // Ambient light (brighter on mobile for better visibility)
+    const ambientLight = new THREE.AmbientLight(isMobileDevice ? 0x444444 : 0x222222);
     scene.add(ambientLight);
+    
+    // Add extra directional light on mobile for 3D depth
+    if (isMobileDevice) {
+      const mobileLight = new THREE.DirectionalLight(0xffffff, 0.3);
+      mobileLight.position.set(10, 30, 10);
+      scene.add(mobileLight);
+    }
 
     // Create lightning bolt
     const lightning = createLightningBolt();
