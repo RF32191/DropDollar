@@ -521,52 +521,83 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     return group;
   }, []);
 
-  // Create resistor (slows player down) - circuit board theme
+  // Create resistor path segment (slows player down) - full path with spiral animation
   const createResistor = useCallback(() => {
     const group = new THREE.Group();
     
-    // Resistor body (tan/beige cylinder)
-    const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.8, 12);
+    // Resistor path base (covers the full path cell - copper colored)
+    const pathGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.9, CELL_SIZE * 0.9);
+    const pathMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x8b6914, // Darker copper for resistor path
+      transparent: true,
+      opacity: 0.9
+    });
+    const pathBase = new THREE.Mesh(pathGeometry, pathMaterial);
+    pathBase.rotation.x = -Math.PI / 2;
+    pathBase.position.y = 0.025;
+    group.add(pathBase);
+    
+    // Main resistor body (tan/beige - larger to span path)
+    const bodyGeometry = new THREE.CylinderGeometry(0.35, 0.35, CELL_SIZE * 0.7, 16);
     const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0xd4a574 }); // Tan color
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.rotation.z = Math.PI / 2; // Lay flat
-    body.position.y = 0.25;
+    body.rotation.z = Math.PI / 2; // Lay flat across path
+    body.position.y = 0.4;
+    body.name = 'resistorBody';
     group.add(body);
     
-    // Color bands (4-band resistor)
+    // Color bands (4-band resistor - bigger)
     const bandColors = [0x8b4513, 0x000000, 0xff0000, 0xc0c0c0]; // Brown, Black, Red, Silver
     for (let i = 0; i < 4; i++) {
-      const bandGeometry = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 12);
+      const bandGeometry = new THREE.CylinderGeometry(0.38, 0.38, 0.12, 16);
       const bandMaterial = new THREE.MeshBasicMaterial({ color: bandColors[i] });
       const band = new THREE.Mesh(bandGeometry, bandMaterial);
       band.rotation.z = Math.PI / 2;
-      band.position.set(-0.25 + i * 0.17, 0.25, 0);
+      band.position.set(-0.4 + i * 0.27, 0.4, 0);
       group.add(band);
     }
     
-    // Wire leads
-    const wireGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
-    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+    // Wire leads (copper traces connecting to path)
+    const wireGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.15, 0.08, CELL_SIZE * 0.9);
+    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xb87333 }); // Copper
     const wire1 = new THREE.Mesh(wireGeometry, wireMaterial);
-    wire1.rotation.z = Math.PI / 2;
-    wire1.position.set(-0.6, 0.25, 0);
+    wire1.position.set(-CELL_SIZE * 0.35, 0.05, 0);
     group.add(wire1);
     const wire2 = new THREE.Mesh(wireGeometry, wireMaterial);
-    wire2.rotation.z = Math.PI / 2;
-    wire2.position.set(0.6, 0.25, 0);
+    wire2.position.set(CELL_SIZE * 0.35, 0.05, 0);
     group.add(wire2);
     
-    // Warning glow (orange - indicates slowdown)
-    const glowGeometry = new THREE.SphereGeometry(0.5, 12, 12);
+    // Spiral path indicators (show the slowdown effect)
+    for (let i = 0; i < 8; i++) {
+      const spiralGeometry = new THREE.TorusGeometry(0.15 + i * 0.08, 0.02, 8, 32);
+      const spiralMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xff8800, 
+        transparent: true, 
+        opacity: 0.4 - i * 0.04
+      });
+      const spiral = new THREE.Mesh(spiralGeometry, spiralMaterial);
+      spiral.rotation.x = Math.PI / 2;
+      spiral.position.y = 0.1;
+      spiral.name = `spiral${i}`;
+      group.add(spiral);
+    }
+    
+    // Warning glow (orange - indicates slowdown zone)
+    const glowGeometry = new THREE.CylinderGeometry(CELL_SIZE * 0.5, CELL_SIZE * 0.5, 0.3, 16);
     const glowMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xff8800, 
+      color: 0xff6600, 
       transparent: true, 
-      opacity: 0.2 
+      opacity: 0.15 
     });
     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.y = 0.25;
+    glow.position.y = 0.2;
     glow.name = 'resistorGlow';
     group.add(glow);
+    
+    // Point light for visibility
+    const light = new THREE.PointLight(0xff8800, 0.8, 4);
+    light.position.y = 0.5;
+    group.add(light);
     
     return group;
   }, []);
@@ -1278,6 +1309,18 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         }
       });
       
+      // Animate resistors - idle spiral animation
+      resistorsRef.current.forEach(res => {
+        // Subtle idle spinning animation for spirals
+        for (let i = 0; i < 8; i++) {
+          const spiral = res.mesh.getObjectByName(`spiral${i}`) as THREE.Mesh;
+          if (spiral) {
+            // Slow idle rotation
+            spiral.rotation.z += deltaTime * (i % 2 === 0 ? 0.5 : -0.5);
+          }
+        }
+      });
+      
       if (gameStateRef.current === 'playing') {
         // Update timer
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -1331,21 +1374,62 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         if (distance > 0.1) {
           direction.normalize();
           
-          // Check if near a resistor - slow down!
+          // Check if near a resistor - slow down with spiral animation!
           let speedMultiplier = 1.0;
+          let isInResistor = false;
           for (const res of resistorsRef.current) {
             const dx = currentPos.x - res.x;
             const dz = currentPos.z - res.z;
             const distToResistor = Math.sqrt(dx * dx + dz * dz);
-            if (distToResistor < CELL_SIZE * 1.2) {
-              speedMultiplier = 0.4; // Slow down to 40% speed
-              // Animate resistor glow when player is near
+            if (distToResistor < CELL_SIZE * 0.8) {
+              speedMultiplier = 0.35; // Slow down to 35% speed when on resistor
+              isInResistor = true;
+              
+              // Animate resistor glow pulsing
               const glow = res.mesh.getObjectByName('resistorGlow') as THREE.Mesh;
               if (glow) {
-                (glow.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(lightningTimeRef.current * 10) * 0.2;
+                (glow.material as THREE.MeshBasicMaterial).opacity = 0.4 + Math.sin(lightningTimeRef.current * 12) * 0.25;
+              }
+              
+              // Animate spiral rings - spin and pulse when player is inside
+              for (let i = 0; i < 8; i++) {
+                const spiral = res.mesh.getObjectByName(`spiral${i}`) as THREE.Mesh;
+                if (spiral) {
+                  // Rotate spirals in alternating directions
+                  spiral.rotation.z = lightningTimeRef.current * (i % 2 === 0 ? 5 : -5);
+                  // Pulse size
+                  const pulseScale = 1 + Math.sin(lightningTimeRef.current * 8 + i * 0.5) * 0.15;
+                  spiral.scale.set(pulseScale, pulseScale, 1);
+                  // Increase opacity when player is inside
+                  (spiral.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(lightningTimeRef.current * 10 + i) * 0.3;
+                }
+              }
+              
+              // Make the resistor body glow
+              const resistorBody = res.mesh.getObjectByName('resistorBody') as THREE.Mesh;
+              if (resistorBody) {
+                const glowIntensity = 0.8 + Math.sin(lightningTimeRef.current * 15) * 0.2;
+                (resistorBody.material as THREE.MeshBasicMaterial).color.setRGB(
+                  0.83 * glowIntensity + 0.17, 
+                  0.65 * glowIntensity, 
+                  0.46 * glowIntensity
+                );
               }
               break;
             }
+          }
+          
+          // Apply spiral rotation to lightning when in resistor
+          if (isInResistor && lightningRef.current) {
+            // Add spinning effect to the lightning bolt
+            lightningRef.current.rotation.z = Math.sin(lightningTimeRef.current * 6) * 0.3;
+            // Slightly compress and stretch for spiral feeling
+            const stretchFactor = 1 + Math.sin(lightningTimeRef.current * 10) * 0.1;
+            lightningRef.current.scale.set(1, stretchFactor, 1);
+          } else if (lightningRef.current) {
+            // Reset rotation and scale when not in resistor
+            lightningRef.current.rotation.z *= 0.9; // Smooth return
+            lightningRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
           }
           
           const moveSpeed = 10 * deltaTime * speedMultiplier;
