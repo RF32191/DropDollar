@@ -466,6 +466,13 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
           className="relative bg-white/10 backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full mx-4 my-8 max-h-[90vh] overflow-y-auto text-center border border-white/20 shadow-2xl z-10"
           style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem' }}
         >
+          {/* Mobile scroll indicator */}
+          <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-white/90 text-gray-800 px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2">
+            <span>👆</span>
+            <span className="text-sm font-bold">Scroll for more</span>
+            <span>👇</span>
+          </div>
+          
           {/* Animated background elements */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden">
             <div className="absolute top-0 left-0 w-32 h-32 bg-red-500/20 rounded-full blur-xl animate-pulse"></div>
@@ -681,20 +688,24 @@ export default function ColorSequenceGame({ onGameEnd, onExit, listingId, entryN
         )}
 
 
-        {/* Color Selection Grid */}
+        {/* Color Selection Grid - BIGGER buttons for mobile */}
         {gameState === 'input' && (
           <div className="mb-6">
-            <div className="text-sm font-semibold text-gray-900 mb-3 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>Click the colors in the same order:</div>
-            <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
+            <div className="text-base sm:text-sm font-semibold text-gray-900 mb-3 select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>Tap the colors in order:</div>
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-lg mx-auto px-2">
               {COLORS.map((color, index) => (
                 <button
                   key={index}
                   onClick={() => handleColorSelect(index)}
-                  className="w-16 h-16 rounded-lg border-2 border-gray-300 hover:border-gray-500 transition-all duration-200 transform hover:scale-105 shadow-lg"
-                  style={{ backgroundColor: color.color }}
+                  className="w-20 h-20 sm:w-16 sm:h-16 rounded-xl border-3 border-gray-300 hover:border-gray-500 transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-xl"
+                  style={{ 
+                    backgroundColor: color.color,
+                    minWidth: '70px',
+                    minHeight: '70px'
+                  }}
                   title={color.name}
                 >
-                  <span className="text-white font-bold text-xs drop-shadow-lg">
+                  <span className="text-white font-bold text-sm sm:text-xs drop-shadow-lg">
                     {color.name}
                   </span>
                 </button>

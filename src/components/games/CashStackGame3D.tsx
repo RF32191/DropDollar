@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251203-V10 🔥🔥🔥
 console.log('');
@@ -157,6 +158,9 @@ export default function CashStackGame3D({
   const [totalStacks, setTotalStacks] = useState(0); // Total stacks across all explosions
   const [gameTimer, setGameTimer] = useState(60);
   const [direction, setDirection] = useState(1);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
   const directionRef = useRef(1); // Use ref for smooth animation (no React state lag)
   
   // Sync game state to ref for animation loop
@@ -805,6 +809,9 @@ export default function CashStackGame3D({
       setScore(prev => parseFloat((prev + bonus).toFixed(2)));
       setExplosions(prev => prev + 1);
       
+      // Show explosion bonus popup
+      addPopup(Math.round(bonus), 50, 40, 'critical', '💥 EXPLOSION!');
+      
       // 🔥 SPEED BOOST ON EXPLOSION - increases difficulty!
       currentSpeedMultiplierRef.current += 0.25;
       console.log(`💥 EXPLOSION! Blocks: ${stackedBlocksRef.current.length}, Bonus: ${bonus.toFixed(2)}, Speed: ${currentSpeedMultiplierRef.current.toFixed(2)}x`);
@@ -1014,6 +1021,10 @@ export default function CashStackGame3D({
     setScore(prev => parseFloat((prev + finalPoints).toFixed(2)));
     setTowerHeight(stackedBlocksRef.current.length);
     setTotalStacks(prev => prev + 1); // Track total stacks across all explosions
+    
+    // Show +points popup with colored precision feedback
+    const popupType = overlapPercent >= 95 ? 'perfect' : overlapPercent >= 80 ? 'bonus' : overlapPercent >= 60 ? 'combo' : 'normal';
+    addPopup(Math.round(finalPoints), 50, 35, popupType, precisionLabel);
     
     console.log(`📦 Stack! ${precisionLabel} Overlap: ${overlapPercent.toFixed(1)}%, Precision: ${precisionMultiplier}x, Speed: ${speedMultiplier.toFixed(2)}x, Points: ${finalPoints.toFixed(2)}`);
     
@@ -1436,6 +1447,9 @@ export default function CashStackGame3D({
           </div>
         </div>
       </div>
+      
+      {/* Floating score popups */}
+      {gameState === 'playing' && <FloatingScore popups={popups} onRemove={removePopup} />}
       
       {/* Countdown */}
       {gameState === 'countdown' && (
