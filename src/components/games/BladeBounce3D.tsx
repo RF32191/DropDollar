@@ -129,16 +129,21 @@ export default function BladeBounce3D({
   const inputsRef = useRef<GameInput[]>([]);
   const gameStartTimeRef = useRef<number>(0);
   const isValidatingRef = useRef<boolean>(false);
-  const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const gameStateRef = useRef<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('ready');
   const lastClickTimeRef = useRef<number>(0); // For click debouncing
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null); // Background music during gameplay
   const audioUnlockedRef = useRef(false); // Track if audio is unlocked
+  const gyroEnabledRef = useRef<boolean>(false); // Gyroscope control enabled
+  const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null); // Base gyro position
   
   // In competition mode, skip ready screen and countdown - start playing immediately
   const initialGameState = isCompetitionMode ? 'playing' : 'ready';
   console.log('🎯 [BladeBounce3D] Initial game state:', initialGameState);
   
-  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>(initialGameState);
+  const [gameState, setGameState] = useState<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>(initialGameState);
+  const [gyroEnabled, setGyroEnabled] = useState(false);
+  const [showGyroNotification, setShowGyroNotification] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
@@ -1110,13 +1115,22 @@ export default function BladeBounce3D({
     }
   }, [gameState]);
 
-  // Start game
+  // Go to waiting state (show sword with green circle)
   const startGame = useCallback(() => {
     // Unlock audio on user interaction (clicking start)
     unlockAudio();
     
     if (gameState === 'ready') {
+      setGameState('waiting');
+      gameStateRef.current = 'waiting';
+    }
+  }, [gameState, unlockAudio]);
+
+  // Start countdown when sword is clicked in waiting state
+  const startCountdown = useCallback(() => {
+    if (gameState === 'waiting') {
       setGameState('countdown');
+      gameStateRef.current = 'countdown';
       let count = 3;
       
       const interval = setInterval(() => {
@@ -1127,6 +1141,7 @@ export default function BladeBounce3D({
         if (count === 0) {
           clearInterval(interval);
           setGameState('playing');
+          gameStateRef.current = 'playing';
           playSound(800, 0.2);
           const now = Date.now();
           lastFireballSpawnRef.current = now;
@@ -1139,7 +1154,79 @@ export default function BladeBounce3D({
         }
       }, 1000);
     }
-  }, [gameState, playSound, unlockAudio]);
+  }, [gameState, playSound]);
+
+  // Enable gyroscope controls
+  const enableGyroscope = useCallback(() => {
+    if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
+      // Check if we need to request permission (iOS 13+)
+      const requestPermission = (DeviceOrientationEvent as any).requestPermission;
+      if (typeof requestPermission === 'function') {
+        requestPermission()
+          .then((response: string) => {
+            if (response === 'granted') {
+              gyroEnabledRef.current = true;
+              setGyroEnabled(true);
+              setShowGyroNotification(true);
+              setTimeout(() => setShowGyroNotification(false), 3000);
+            }
+          })
+          .catch(console.error);
+      } else {
+        // Non-iOS or older iOS
+        gyroEnabledRef.current = true;
+        setGyroEnabled(true);
+        setShowGyroNotification(true);
+        setTimeout(() => setShowGyroNotification(false), 3000);
+      }
+    }
+  }, []);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Gyroscope control handler
+  useEffect(() => {
+    if (!gyroEnabled || gameState !== 'playing') return;
+
+    let lastUpdate = 0;
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      const now = Date.now();
+      if (now - lastUpdate < 16) return; // Throttle to ~60fps
+      lastUpdate = now;
+
+      const beta = event.beta ?? 0; // Front-back tilt (-180 to 180)
+      const gamma = event.gamma ?? 0; // Left-right tilt (-90 to 90)
+
+      // Set base position on first reading
+      if (!gyroBaseRef.current) {
+        gyroBaseRef.current = { beta, gamma };
+        return;
+      }
+
+      // Calculate delta from base position
+      const deltaBeta = beta - gyroBaseRef.current.beta;
+      const deltaGamma = gamma - gyroBaseRef.current.gamma;
+
+      // Convert to sword position (sensitivity adjusted)
+      const sensitivity = 0.8;
+      const newX = Math.max(-SWORD_X_RANGE, Math.min(SWORD_X_RANGE, deltaGamma * sensitivity));
+      const newY = Math.max(-SWORD_Y_RANGE, Math.min(SWORD_Y_RANGE, -deltaBeta * sensitivity));
+
+      setTargetX(newX);
+      setTargetY(newY);
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => window.removeEventListener('deviceorientation', handleOrientation);
+  }, [gyroEnabled, gameState]);
 
   // Initialize game start time for competition mode (starts immediately in 'playing' state)
   useEffect(() => {
@@ -2057,8 +2144,12 @@ export default function BladeBounce3D({
   // Keyboard control
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && gameState === 'ready') {
-        startGame();
+      if (e.code === 'Space') {
+        if (gameState === 'ready') {
+          startGame();
+        } else if (gameState === 'waiting') {
+          startCountdown();
+        }
       }
     };
     
@@ -2067,7 +2158,7 @@ export default function BladeBounce3D({
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [gameState, startGame]);
+  }, [gameState, startGame, startCountdown]);
 
   return (
     <div className="fixed inset-0 w-full h-full bg-[#0a0e1a] overflow-hidden" style={{ margin: 0, padding: 0 }}>
@@ -2134,6 +2225,63 @@ export default function BladeBounce3D({
         </div>
       )}
       
+      {/* Waiting screen - Green circle around sword, click to start countdown */}
+      {gameState === 'waiting' && (
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Green pulsing circle around sword */}
+          <div 
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer"
+            onClick={startCountdown}
+            style={{
+              width: '200px',
+              height: '200px',
+              borderRadius: '50%',
+              border: '6px solid #00ff00',
+              boxShadow: '0 0 30px #00ff00, 0 0 60px #00ff00, inset 0 0 30px rgba(0,255,0,0.3)',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }}
+          />
+          
+          {/* Instruction text */}
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-4 rounded-xl border-2 border-green-500 pointer-events-none">
+            <p className="text-green-400 text-2xl font-bold text-center animate-pulse">
+              ⚔️ TAP THE SWORD TO START! ⚔️
+            </p>
+            <p className="text-gray-300 text-lg text-center mt-2">
+              {isMobile ? 'Tap inside the green circle' : 'Click inside the green circle'}
+            </p>
+          </div>
+          
+          {/* Gyroscope notification */}
+          {showGyroNotification && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-green-600 px-6 py-3 rounded-xl pointer-events-none">
+              <p className="text-white text-xl font-bold">📱 Tilt Controls Active!</p>
+            </div>
+          )}
+          
+          {/* Gyroscope toggle in waiting state */}
+          {isMobile && !gyroEnabled && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-auto">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  enableGyroscope();
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold text-lg animate-pulse"
+              >
+                📱 TAP TO ENABLE TILT CONTROLS
+              </button>
+            </div>
+          )}
+          
+          {gyroEnabled && (
+            <div className="absolute top-32 left-1/2 -translate-x-1/2 bg-green-600/80 px-4 py-2 rounded-lg pointer-events-none">
+              <p className="text-white text-sm font-bold">✅ Gyroscope Enabled</p>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Ready screen - SCROLLABLE + CLICK TO START */}
       {gameState === 'ready' && (
         <div 
@@ -2150,6 +2298,23 @@ export default function BladeBounce3D({
             <p className="text-2xl mb-4 text-cyan-300">🖱️ Full screen range - move to all edges! Click to rotate 45°</p>
             <p className="text-3xl mb-4 text-pink-400 font-bold">📱 MOBILE: Touch & drag to move sword!</p>
             <p className="text-2xl mb-4 text-pink-400">📱 Tap anywhere to rotate 45°</p>
+            
+            {/* Gyroscope Toggle */}
+            {isMobile && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  enableGyroscope();
+                }}
+                className={`mb-4 px-6 py-3 rounded-xl font-bold text-lg transition-all ${
+                  gyroEnabled 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-purple-600 hover:bg-purple-700 text-white animate-pulse'
+                }`}
+              >
+                {gyroEnabled ? '✅ GYROSCOPE ENABLED' : '📱 TAP TO ENABLE TILT CONTROLS'}
+              </button>
+            )}
             
             {/* Gameplay Video */}
             <div className="mb-6 w-full max-w-2xl mx-auto">
