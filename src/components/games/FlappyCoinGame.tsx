@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
 
@@ -51,8 +50,6 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const animationFrameRef = useRef<number>(0);
   const cloudsRef = useRef<THREE.Group[]>([]);
   const initializedRef = useRef(false);
-  const handModelRef = useRef<THREE.Group | null>(null);
-  const handLoadedRef = useRef(false);
   
   // Game state refs
   const coinYRef = useRef<number>(0);
@@ -211,74 +208,119 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create hand from loaded OBJ model
+  // Create realistic procedural hand - fingers pointing towards gap
   const createHand = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
-    if (handModelRef.current) {
-      // Clone the loaded hand model
-      const handClone = handModelRef.current.clone();
+    // Skin material with realistic tones
+    const skinMaterial = new THREE.MeshPhongMaterial({
+      color: 0xE8B89D,
+      emissive: 0x4A2810,
+      emissiveIntensity: 0.1,
+      shininess: 20,
+      specular: 0x553322,
+    });
+    
+    // Palm - positioned to extend towards the gap
+    const palmGeometry = new THREE.BoxGeometry(2.2, 2.0, 0.6);
+    const palm = new THREE.Mesh(palmGeometry, skinMaterial);
+    palm.position.y = isTop ? 1.5 : -1.5; // Palm positioned away from gap
+    group.add(palm);
+    
+    // Knuckle ridge
+    const knuckleGeometry = new THREE.BoxGeometry(2.0, 0.35, 0.7);
+    const knuckle = new THREE.Mesh(knuckleGeometry, skinMaterial);
+    knuckle.position.y = isTop ? 0.3 : -0.3; // Just before fingers
+    group.add(knuckle);
+    
+    // Fingers with proper joints - pointing towards gap (y = 0)
+    const fingerXPositions = [-0.7, -0.23, 0.23, 0.7];
+    const fingerLengths = [1.2, 1.5, 1.4, 1.1];
+    
+    fingerXPositions.forEach((xPos, i) => {
+      const fingerLength = fingerLengths[i];
+      const fingerRadius = i === 0 || i === 3 ? 0.14 : 0.16;
       
-      // Apply nice skin-toned material to all meshes
-      const skinMaterial = new THREE.MeshPhongMaterial({
-        color: 0xE8C4A0, // Natural skin tone
-        emissive: 0x4A3020,
-        emissiveIntensity: 0.15,
-        shininess: 25,
-        specular: 0x886655,
-      });
-      
-      handClone.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.material = skinMaterial;
-          child.castShadow = true;
-          child.receiveShadow = true;
+      // Create finger segments pointing towards gap
+      for (let seg = 0; seg < 3; seg++) {
+        const segLength = fingerLength * (seg === 0 ? 0.4 : seg === 1 ? 0.35 : 0.25);
+        const segRadius = fingerRadius * (1 - seg * 0.1);
+        const segGeometry = new THREE.CapsuleGeometry(segRadius, segLength, 8, 12);
+        const segMesh = new THREE.Mesh(segGeometry, skinMaterial);
+        
+        // Position segments towards the gap (y = 0)
+        let segY;
+        if (isTop) {
+          // Top hand: fingers point down (towards gap at y=0)
+          segY = -0.2 - (seg * fingerLength * 0.35);
+        } else {
+          // Bottom hand: fingers point up (towards gap at y=0)
+          segY = 0.2 + (seg * fingerLength * 0.35);
         }
-      });
-      
-      // Scale and position the hand appropriately
-      handClone.scale.setScalar(0.015); // Adjust scale for game
-      
-      if (isTop) {
-        // Top hand - fingers pointing down
-        handClone.rotation.x = Math.PI; // Flip upside down
-        handClone.rotation.z = Math.PI; // Rotate to face player
-      } else {
-        // Bottom hand - fingers pointing up
-        handClone.rotation.z = Math.PI;
+        segMesh.position.set(xPos, segY, 0);
+        group.add(segMesh);
       }
       
-      group.add(handClone);
-    } else {
-      // Fallback: simple placeholder if model not loaded
-      const placeholder = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 4, 0.5),
-        new THREE.MeshPhongMaterial({ color: 0xE8C4A0 })
-      );
-      group.add(placeholder);
-    }
-    
-    // Add arm extension behind the hand
-    const armGeometry = new THREE.CylinderGeometry(0.8, 0.8, 8, 16);
-    const armMaterial = new THREE.MeshPhongMaterial({
-      color: 0xD4A574,
-      emissive: 0x3A2718,
-      emissiveIntensity: 0.1,
-      shininess: 12,
+      // Fingernail
+      const nailGeometry = new THREE.BoxGeometry(fingerRadius * 1.5, fingerRadius * 1.8, 0.06);
+      const nailMaterial = new THREE.MeshPhongMaterial({ color: 0xFFE4E1, shininess: 80 });
+      const nail = new THREE.Mesh(nailGeometry, nailMaterial);
+      const nailY = isTop ? -0.2 - fingerLength * 0.9 : 0.2 + fingerLength * 0.9;
+      nail.position.set(xPos, nailY, isTop ? -0.18 : 0.18);
+      group.add(nail);
     });
-    const arm = new THREE.Mesh(armGeometry, armMaterial);
-    arm.position.y = isTop ? 6 : -6;
+    
+    // Thumb
+    const thumbPositions = [
+      { y: isTop ? 0.8 : -0.8, x: isTop ? 1.1 : -1.1, rotZ: isTop ? -0.5 : 0.5 },
+      { y: isTop ? 0.2 : -0.2, x: isTop ? 1.4 : -1.4, rotZ: isTop ? -0.3 : 0.3 },
+      { y: isTop ? -0.2 : 0.2, x: isTop ? 1.6 : -1.6, rotZ: isTop ? -0.2 : 0.2 },
+    ];
+    thumbPositions.forEach((pos, i) => {
+      const thumbSeg = new THREE.CapsuleGeometry(0.18 - i * 0.02, 0.4, 8, 12);
+      const thumbMesh = new THREE.Mesh(thumbSeg, skinMaterial);
+      thumbMesh.position.set(pos.x, pos.y, 0);
+      thumbMesh.rotation.z = pos.rotZ;
+      group.add(thumbMesh);
+    });
+    
+    // Wrist
+    const wristGeometry = new THREE.CylinderGeometry(0.9, 1.0, 1.2, 16);
+    const wrist = new THREE.Mesh(wristGeometry, skinMaterial);
+    wrist.position.y = isTop ? 2.8 : -2.8;
+    group.add(wrist);
+    
+    // Arm (extends away from gap)
+    const armGeometry = new THREE.CylinderGeometry(0.85, 0.9, 8, 16);
+    const arm = new THREE.Mesh(armGeometry, skinMaterial);
+    arm.position.y = isTop ? 7.5 : -7.5;
     group.add(arm);
     
-    // Sleeve cuff
-    const cuffGeometry = new THREE.CylinderGeometry(1.0, 0.9, 0.8, 16);
+    // Suit sleeve cuff
+    const cuffGeometry = new THREE.CylinderGeometry(1.05, 0.95, 0.8, 16);
     const cuffMaterial = new THREE.MeshPhongMaterial({
       color: 0x1a1a2e,
       shininess: 40,
+      specular: 0x333344,
     });
     const cuff = new THREE.Mesh(cuffGeometry, cuffMaterial);
-    cuff.position.y = isTop ? 2 : -2;
+    cuff.position.y = isTop ? 3.5 : -3.5;
     group.add(cuff);
+    
+    // White shirt under cuff
+    const shirtGeometry = new THREE.CylinderGeometry(0.88, 0.88, 0.25, 16);
+    const shirtMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFF0, shininess: 20 });
+    const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
+    shirt.position.y = isTop ? 3.0 : -3.0;
+    group.add(shirt);
+    
+    // Silver cuff button
+    const buttonGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 12);
+    const buttonMaterial = new THREE.MeshPhongMaterial({ color: 0xC0C0C0, shininess: 100 });
+    const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+    button.rotation.x = Math.PI / 2;
+    button.position.set(0.95, isTop ? 3.5 : -3.5, 0);
+    group.add(button);
     
     return group;
   }, []);
@@ -400,24 +442,6 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     const fillLight = new THREE.DirectionalLight(0xFFE4C4, 0.5);
     fillLight.position.set(-5, 0, 5);
     scene.add(fillLight);
-    
-    // Load hand OBJ model
-    const objLoader = new OBJLoader();
-    objLoader.load(
-      '/hand.obj',
-      (object) => {
-        console.log('🖐️ [FlippyCoin] Hand model loaded successfully!');
-        handModelRef.current = object;
-        handLoadedRef.current = true;
-      },
-      (progress) => {
-        console.log('🖐️ [FlippyCoin] Loading hand model...', Math.round((progress.loaded / progress.total) * 100) + '%');
-      },
-      (error) => {
-        console.warn('🖐️ [FlippyCoin] Error loading hand model:', error);
-        // Game will use fallback procedural hands
-      }
-    );
     
     // Coin
     const coin = createCoin();
@@ -585,15 +609,16 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           const topHand = createHand(true);
           const bottomHand = createHand(false);
           
-          // Base positions for hands
-          const topBaseY = gapY + GAP_SIZE/2 + 4.5;
-          const bottomBaseY = gapY - GAP_SIZE/2 - 4.5;
+          // Base positions for hands - position so finger tips are at gap edges
+          // Top hand: fingers point down (towards y=0 locally), positioned above gap
+          // Bottom hand: fingers point up (towards y=0 locally), positioned below gap
+          // Finger tips extend about 1.5 units from the hand group origin
+          const fingerExtension = 1.5; // How far fingers extend towards gap
+          const topBaseY = gapY + GAP_SIZE/2 + fingerExtension;
+          const bottomBaseY = gapY - GAP_SIZE/2 - fingerExtension;
           
           topHand.position.set(newX, topBaseY, 0);
           bottomHand.position.set(newX, bottomBaseY, 0);
-          
-          // Top hand rotated (fingers pointing down)
-          topHand.rotation.z = Math.PI;
           
           scene.add(topHand);
           scene.add(bottomHand);

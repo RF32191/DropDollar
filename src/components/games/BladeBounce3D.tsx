@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GameInput, GameSession } from '@/types/gameSession';
 import SuspiciousActivityWarning from '@/components/warnings/SuspiciousActivityWarning';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
 console.log('');
@@ -148,6 +149,11 @@ export default function BladeBounce3D({
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
   const [enemiesDestroyed, setEnemiesDestroyed] = useState(0);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
+  const addPopupRef = useRef(addPopup);
+  addPopupRef.current = addPopup;
   const [gameTimer, setGameTimer] = useState(GAME_DURATION);
   const [targetAngle, setTargetAngle] = useState(0);
   const [targetX, setTargetX] = useState(0);
@@ -1133,18 +1139,19 @@ export default function BladeBounce3D({
       // Unlock audio on user gesture (critical for mobile)
       unlockAudio();
       
-      // Pre-start music so it's ready when game begins
+      // Start music immediately on user gesture - critical for mobile!
       if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.volume = 0.7;
+        backgroundMusicRef.current.loop = true;
         backgroundMusicRef.current.play()
           .then(() => {
-            console.log('✅ [BladeBounce] Music pre-started on countdown click');
-            // Pause immediately - will resume when game starts
-            backgroundMusicRef.current?.pause();
-            if (backgroundMusicRef.current) {
-              backgroundMusicRef.current.currentTime = 0;
-            }
+            console.log('✅ [BladeBounce] Music started on countdown click (mobile)');
+            audioUnlockedRef.current = true;
           })
-          .catch(e => console.log('Music pre-start blocked:', e));
+          .catch(e => {
+            console.log('Music start blocked:', e);
+            audioUnlockedRef.current = true;
+          });
       }
       
       setGameState('countdown');
@@ -1248,8 +1255,8 @@ export default function BladeBounce3D({
       const deltaBeta = beta - gyroBaseRef.current.beta;
       const deltaGamma = gamma - gyroBaseRef.current.gamma;
 
-      // Convert to sword position - lower sensitivity for smoother control
-      const sensitivity = 0.6; // Reduced for less twitchy movement
+      // Convert to sword position - very low sensitivity for smooth control
+      const sensitivity = 0.3; // Very low for non-twitchy movement
       const newX = Math.max(-SWORD_X_RANGE, Math.min(SWORD_X_RANGE, deltaGamma * sensitivity));
       const newY = Math.max(-SWORD_Y_RANGE, Math.min(SWORD_Y_RANGE, -deltaBeta * sensitivity));
 
@@ -1913,6 +1920,13 @@ export default function BladeBounce3D({
                 
                 const hitType = isTipHit ? '🎯 TIP HIT!' : 'Blade hit';
                 console.log(`${hitType} Fireball destroyed! Base: ${basePoints}, Tip dist: ${tipDistance.toFixed(2)}, Multiplier: ${precisionMultiplier.toFixed(2)}x, Points: ${points.toFixed(2)}`);
+                
+                // CoD-style floating score popup - convert 3D position to screen %
+                const screenX = 50 + (enemy.x / SWORD_X_RANGE) * 30; // Roughly center with offset
+                const screenY = 50 - (enemy.y / SWORD_Y_RANGE) * 30; // Invert Y for screen coords
+                const popupType = isTipHit ? 'perfect' : enemy.isGreenFireball ? 'bonus' : 'normal';
+                const label = isTipHit ? 'TIP!' : enemy.isGreenFireball ? 'GREEN!' : 'HIT';
+                addPopupRef.current(Math.round(points), screenX, screenY, popupType, label);
               } else if (enemy.type === 'enemy_sword') {
                 // Enemy swords: More points for tip hits
                 const basePoints = 35;
@@ -1921,6 +1935,13 @@ export default function BladeBounce3D({
                 
                 const hitType = isTipHit ? '🎯 TIP HIT!' : '';
                 console.log(`⚔️ ${hitType} Enemy sword destroyed: +${points.toFixed(2)} points`);
+                
+                // CoD-style floating score popup for sword destruction
+                const screenX = 50 + (enemy.x / SWORD_X_RANGE) * 30;
+                const screenY = 50 - (enemy.y / SWORD_Y_RANGE) * 30;
+                const popupType = isTipHit ? 'perfect' : 'kill';
+                const label = isTipHit ? 'PARRY!' : 'SLASH';
+                addPopupRef.current(Math.round(points), screenX, screenY, popupType, label);
               } else if (enemy.type === 'laser') {
                 // Lasers: Give points only if blue (safe), lose heart if red (dangerous)
                 if (!enemy.isDangerous) {
@@ -1929,6 +1950,11 @@ export default function BladeBounce3D({
                   createParticles(enemy.x, enemy.y, 0x00aaff, 30);
                   playSound(1100, 0.1, 'sine');
                   console.log(`⚡ Blue laser destroyed: +${LASER_POINTS} points!`);
+                  
+                  // CoD-style floating score popup for blue laser
+                  const screenX = 50 + (enemy.x / SWORD_X_RANGE) * 30;
+                  const screenY = 50 - (enemy.y / SWORD_Y_RANGE) * 30;
+                  addPopupRef.current(LASER_POINTS, screenX, screenY, 'bonus', 'LASER');
                 } else {
                   // RED laser - hitting it hurts you!
                   setHearts(prev => {
@@ -2268,6 +2294,11 @@ export default function BladeBounce3D({
           </div>
         )}
       </div>
+      
+      {/* CoD-style floating score popups */}
+      {gameState === 'playing' && (
+        <FloatingScore popups={popups} onRemove={removePopup} />
+      )}
       
       {/* Countdown */}
       {gameState === 'countdown' && (

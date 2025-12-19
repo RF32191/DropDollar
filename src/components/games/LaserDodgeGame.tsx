@@ -188,8 +188,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const deltaBeta = beta - gyroBaseRef.current.beta;
     const deltaGamma = gamma - gyroBaseRef.current.gamma;
     
-    // Lower sensitivity for smoother, less twitchy movement
-    const sensitivity = 1.5;
+    // Very low sensitivity for smooth, non-twitchy movement
+    const sensitivity = 0.8;
     
     // Calculate new position
     // Tilt right (positive gamma) = move right
@@ -1335,18 +1335,21 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       // Unlock audio on user gesture (critical for mobile)
       unlockAudio();
       
-      // Pre-start music so it's ready when game begins
+      // Start music immediately on user gesture - this is critical for mobile!
+      // We play it now because this is a user gesture context
       if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.volume = 0.7;
+        backgroundMusicRef.current.loop = true;
         backgroundMusicRef.current.play()
           .then(() => {
-            console.log('✅ [LaserDodge] Music pre-started on ship click');
-            // Pause immediately - will resume when game starts
-            backgroundMusicRef.current?.pause();
-            if (backgroundMusicRef.current) {
-              backgroundMusicRef.current.currentTime = 0;
-            }
+            console.log('✅ [LaserDodge] Music started on ship click (mobile)');
+            audioUnlockedRef.current = true;
           })
-          .catch(e => console.log('Music pre-start blocked:', e));
+          .catch(e => {
+            console.log('Music start blocked:', e);
+            // Mark as unlocked anyway so we can retry
+            audioUnlockedRef.current = true;
+          });
       }
       
       setHasControl(true);
