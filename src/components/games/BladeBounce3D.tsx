@@ -1158,27 +1158,37 @@ export default function BladeBounce3D({
 
   // Enable gyroscope controls
   const enableGyroscope = useCallback(() => {
+    console.log('📱 [BladeBounce3D] enableGyroscope called');
     if (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window) {
       // Check if we need to request permission (iOS 13+)
       const requestPermission = (DeviceOrientationEvent as any).requestPermission;
       if (typeof requestPermission === 'function') {
+        console.log('📱 [BladeBounce3D] Requesting iOS permission...');
         requestPermission()
           .then((response: string) => {
+            console.log('📱 [BladeBounce3D] iOS permission response:', response);
             if (response === 'granted') {
               gyroEnabledRef.current = true;
+              gyroBaseRef.current = null; // Reset base
               setGyroEnabled(true);
               setShowGyroNotification(true);
               setTimeout(() => setShowGyroNotification(false), 3000);
             }
           })
-          .catch(console.error);
+          .catch((err) => {
+            console.error('📱 [BladeBounce3D] iOS permission error:', err);
+          });
       } else {
-        // Non-iOS or older iOS
+        // Non-iOS or older iOS - enable directly
+        console.log('📱 [BladeBounce3D] Enabling gyroscope (non-iOS)');
         gyroEnabledRef.current = true;
+        gyroBaseRef.current = null; // Reset base
         setGyroEnabled(true);
         setShowGyroNotification(true);
         setTimeout(() => setShowGyroNotification(false), 3000);
       }
+    } else {
+      console.log('📱 [BladeBounce3D] DeviceOrientationEvent not supported');
     }
   }, []);
 
@@ -1192,9 +1202,13 @@ export default function BladeBounce3D({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Gyroscope control handler
+  // Gyroscope control handler - works during waiting and playing states
   useEffect(() => {
-    if (!gyroEnabled || gameState !== 'playing') return;
+    // Only run if gyroscope is enabled and we're in a state where movement matters
+    if (!gyroEnabled) return;
+    if (gameState !== 'waiting' && gameState !== 'playing') return;
+
+    console.log('📱 [BladeBounce3D] Gyroscope handler active for state:', gameState);
 
     let lastUpdate = 0;
     const handleOrientation = (event: DeviceOrientationEvent) => {
@@ -1208,6 +1222,7 @@ export default function BladeBounce3D({
       // Set base position on first reading
       if (!gyroBaseRef.current) {
         gyroBaseRef.current = { beta, gamma };
+        console.log('📱 [BladeBounce3D] Gyro base set:', gyroBaseRef.current);
         return;
       }
 
@@ -1215,18 +1230,38 @@ export default function BladeBounce3D({
       const deltaBeta = beta - gyroBaseRef.current.beta;
       const deltaGamma = gamma - gyroBaseRef.current.gamma;
 
-      // Convert to sword position (sensitivity adjusted)
-      const sensitivity = 0.8;
+      // Convert to sword position (sensitivity adjusted for better control)
+      const sensitivity = 1.2; // Increased sensitivity
       const newX = Math.max(-SWORD_X_RANGE, Math.min(SWORD_X_RANGE, deltaGamma * sensitivity));
       const newY = Math.max(-SWORD_Y_RANGE, Math.min(SWORD_Y_RANGE, -deltaBeta * sensitivity));
 
       setTargetX(newX);
       setTargetY(newY);
+      
+      // Also directly update sword position for immediate feedback
+      if (swordGroupRef.current) {
+        const lerpFactor = 0.3;
+        swordGroupRef.current.position.x += (newX - swordGroupRef.current.position.x) * lerpFactor;
+        swordGroupRef.current.position.y += (newY - swordGroupRef.current.position.y) * lerpFactor;
+      }
     };
 
     window.addEventListener('deviceorientation', handleOrientation);
-    return () => window.removeEventListener('deviceorientation', handleOrientation);
+    console.log('📱 [BladeBounce3D] Gyroscope listener attached');
+    
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation);
+      console.log('📱 [BladeBounce3D] Gyroscope listener removed');
+    };
   }, [gyroEnabled, gameState]);
+
+  // Reset gyro base when transitioning to playing state
+  useEffect(() => {
+    if (gameState === 'playing' && gyroEnabled) {
+      gyroBaseRef.current = null; // Reset base so next reading becomes the new base
+      console.log('📱 [BladeBounce3D] Gyro base reset for game start');
+    }
+  }, [gameState, gyroEnabled]);
 
   // Initialize game start time for competition mode (starts immediately in 'playing' state)
   useEffect(() => {
