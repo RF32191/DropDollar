@@ -63,7 +63,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     ? FairRNGService.getSwordSlashConfig(listingId, entryNumber)
     : null;
     
-  const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [gameState, setGameState] = useState<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('ready');
+  const [hasControl, setHasControl] = useState(false);
   const [attacks, setAttacks] = useState<Attack[]>([]);
   const [optionalTargets, setOptionalTargets] = useState<OptionalTarget[]>([]);
   const [mousePos, setMousePos] = useState<MousePosition>({ x: 50, y: 50, angle: 0 });
@@ -862,12 +863,25 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     onGameEnd(gameResult);
   }, [totalAttacks, destroyedAttacks, listingId, entryNumber, isCompetitionMode, onGameEnd]);
 
-  // Start game
+  // Start game - go to waiting state first
   const handleStartGame = () => {
     // Unlock audio on user interaction (clicking start)
     unlockAudio();
-    setCountdown(3);
-    setGameState('countdown');
+    // Reset sword to center
+    const newPos = { x: 50, y: 50, angle: 0 };
+    mousePosRef.current = newPos;
+    setMousePos(newPos);
+    setHasControl(false);
+    setGameState('waiting');
+  };
+  
+  // Handle clicking on sword to take control and start countdown
+  const handleSwordClick = () => {
+    if (gameState === 'waiting' && !hasControl) {
+      setHasControl(true);
+      setCountdown(3);
+      setGameState('countdown');
+    }
   };
 
   const handleCountdownComplete = () => {
@@ -1047,42 +1061,38 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            {/* Mobile Gyroscope Controls Section - ALWAYS show on mobile */}
-            {isMobile && (
-              <div className="mb-4">
-                {/* Show enable button if gyroscope not enabled */}
-                {!gyroscopeEnabled && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      requestGyroPermission();
-                    }}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-5 px-6 rounded-xl transition-all shadow-lg border-4 border-purple-400 pointer-events-auto animate-pulse"
-                  >
-                    <p className="text-2xl">📱 TAP TO ENABLE TILT CONTROLS</p>
-                    <p className="text-base opacity-90 mt-1">Required for mobile gameplay</p>
-                    <p className="text-sm opacity-70 mt-1">Tilt your phone to move the sword</p>
-                  </button>
-                )}
-                
-                {/* Gyroscope enabled - show confirmation */}
-                {gyroscopeEnabled && (
-                  <div className="w-full bg-green-600/70 text-white font-bold py-4 px-6 rounded-xl border-2 border-green-400 text-center shadow-lg">
-                    <p className="text-xl">✅ TILT CONTROLS ACTIVE</p>
-                    <p className="text-sm opacity-90">📱 Tilt phone to move sword</p>
-                    <p className="text-sm opacity-90">👆 Tap screen to slash enemies</p>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* GYROSCOPE CONTROLS SECTION - ALWAYS VISIBLE */}
+            <div className="mb-4 w-full">
+              {/* Show enable button if gyroscope not enabled */}
+              {!gyroscopeEnabled ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestGyroPermission();
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-6 px-6 rounded-xl transition-all shadow-lg border-4 border-purple-400 pointer-events-auto animate-pulse"
+                >
+                  <p className="text-3xl">📱 TAP TO ENABLE GYROSCOPE</p>
+                  <p className="text-lg opacity-90 mt-2">Tilt your device to move the sword!</p>
+                  <p className="text-base opacity-70 mt-1">Required for mobile • Works on phones & tablets</p>
+                </button>
+              ) : (
+                <div className="w-full bg-green-600/70 text-white font-bold py-5 px-6 rounded-xl border-4 border-green-400 text-center shadow-lg">
+                  <p className="text-2xl">✅ GYROSCOPE ACTIVE</p>
+                  <p className="text-base opacity-90 mt-1">📱 Tilt device to move sword</p>
+                  <p className="text-base opacity-90">👆 Tap screen to slash enemies</p>
+                </div>
+              )}
+            </div>
             
-            {/* Desktop indicator */}
-            {!isMobile && (
-              <div className="mb-4 w-full bg-gray-700/50 text-white font-bold py-3 px-6 rounded-xl border border-gray-500 text-center">
-                <p className="text-base">🖱️ MOUSE CONTROLS</p>
-                <p className="text-sm opacity-80">Move mouse to control sword • Click to slash</p>
-              </div>
-            )}
+            {/* Current control mode indicator */}
+            <div className="mb-4 w-full bg-gray-800/80 text-white py-3 px-6 rounded-xl border border-gray-600 text-center">
+              <p className="text-sm opacity-80">
+                {gyroscopeEnabled 
+                  ? '🎮 Using: GYROSCOPE (tilt to move)' 
+                  : '🖱️ Using: MOUSE/TOUCH (drag to move)'}
+              </p>
+            </div>
             
             {!isCompetitionMode && onExit && (
               <div className="flex justify-center gap-4">
@@ -1120,6 +1130,138 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // WAITING STATE - Tap sword to start (like Laser Dodge)
+  if (gameState === 'waiting') {
+    return (
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-gray-900 via-red-900 to-black z-50 overflow-hidden"
+        style={{ touchAction: 'none' }}
+      >
+        {/* Background effects */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-red-500/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        {/* Title */}
+        <div className="absolute top-8 left-0 right-0 text-center z-10">
+          <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-500">
+            ⚔️ MOUSE BLADE ⚔️
+          </h1>
+        </div>
+        
+        {/* Gyroscope Controls Section - ALWAYS VISIBLE */}
+        <div className="absolute top-24 left-4 right-4 sm:left-1/4 sm:right-1/4 z-20">
+          {!gyroscopeEnabled ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                requestGyroPermission();
+              }}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg border-4 border-purple-400 pointer-events-auto animate-pulse"
+            >
+              <p className="text-xl sm:text-2xl">📱 TAP TO ENABLE GYROSCOPE</p>
+              <p className="text-sm opacity-90 mt-1">Tilt your device to move the sword!</p>
+            </button>
+          ) : (
+            <div className="w-full bg-green-600/80 text-white font-bold py-3 px-6 rounded-xl border-2 border-green-400 text-center shadow-lg">
+              <p className="text-lg">✅ GYROSCOPE ACTIVE</p>
+              <p className="text-sm opacity-90">📱 Tilt to move • 👆 Tap to slash</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Instruction to tap sword */}
+        <div className="absolute bottom-32 left-0 right-0 z-10">
+          <div className="bg-black/80 backdrop-blur-sm rounded-xl px-6 py-4 mx-4 border-2 border-green-500 animate-pulse">
+            <p className="text-green-400 text-xl sm:text-2xl font-bold text-center">
+              🎯 TAP THE SWORD TO START! 🎯
+            </p>
+            <p className="text-gray-300 text-sm text-center mt-2">
+              {gyroscopeEnabled 
+                ? '📱 Tilt to move sword • Tap to slash attacks' 
+                : '🖱️ Move mouse to control sword • Click to slash'}
+            </p>
+          </div>
+        </div>
+        
+        {/* Exit button */}
+        {onExit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onExit();
+            }}
+            className="absolute top-4 left-4 z-30 bg-gray-800/80 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg border border-gray-600"
+          >
+            ← Back
+          </button>
+        )}
+        
+        {/* Sword in center with pulsing green ring */}
+        <div
+          className="absolute cursor-pointer"
+          style={{
+            width: '120px',
+            height: '120px',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20,
+          }}
+          onClick={handleSwordClick}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            handleSwordClick();
+          }}
+        >
+          {/* Pulsing ring around sword */}
+          <div
+            className="absolute rounded-full border-4 border-green-400 animate-ping"
+            style={{
+              width: '120px',
+              height: '120px',
+              left: '0',
+              top: '0',
+            }}
+          />
+          <div
+            className="absolute rounded-full border-4 border-green-500"
+            style={{
+              width: '120px',
+              height: '120px',
+              left: '0',
+              top: '0',
+              boxShadow: '0 0 30px rgba(34, 197, 94, 0.6), inset 0 0 20px rgba(34, 197, 94, 0.3)',
+            }}
+          />
+          
+          {/* Sword icon */}
+          <div 
+            className="absolute flex items-center justify-center"
+            style={{
+              width: '100px',
+              height: '100px',
+              left: '10px',
+              top: '10px',
+            }}
+          >
+            <span className="text-6xl">⚔️</span>
+          </div>
+        </div>
+        
+        {/* Control mode indicator */}
+        <div className="absolute bottom-8 left-0 right-0 text-center z-10">
+          <p className="text-gray-400 text-sm">
+            {gyroscopeEnabled 
+              ? '🎮 Using: GYROSCOPE (tilt to move)' 
+              : '🖱️ Using: MOUSE/TOUCH (drag to move)'}
+          </p>
         </div>
       </div>
     );
