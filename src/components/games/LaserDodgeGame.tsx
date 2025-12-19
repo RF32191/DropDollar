@@ -1832,7 +1832,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         WebkitTouchCallout: 'none', // Prevent iOS callout
         WebkitUserSelect: 'none', // Prevent text selection
         userSelect: 'none',
-        WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
+        WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
+        // Zoom out on mobile for better visibility
+        transform: isMobile ? 'scale(0.85)' : 'scale(1)',
+        transformOrigin: 'center center'
       }}
       onMouseMove={handleMouseMove}
       onClick={handleMouseClick}
