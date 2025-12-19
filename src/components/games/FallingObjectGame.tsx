@@ -6,6 +6,7 @@ import { GameAudio } from '@/utils/gameAudio';
 import GameCountdown from './GameCountdown';
 import { FairRNGService, FallingObjectRNGConfig } from '@/lib/fairRNGService';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import FloatingScore, { useFloatingScores } from './FloatingScore';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
 console.log('');
@@ -65,10 +66,26 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
   const [caughtObjects, setCaughtObjects] = useState(0);
   const [keysPressed, setKeysPressed] = useState<Set<string>>(new Set());
   const [suitcaseGlow, setSuitcaseGlow] = useState<'none' | 'blue' | 'gold'>('none'); // Removed 'green' for performance
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // CoD-style floating score indicators
+  const { popups, addPopup, removePopup } = useFloatingScores();
+  const addPopupRef = useRef(addPopup);
+  addPopupRef.current = addPopup;
   
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const currentScoreRef = useRef(0); // Track current score for accurate game end reporting
+  
+  // Detect mobile for zoom adjustments
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const glowTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Track glow timeout
   const lastFrameTimeRef = useRef<number>(Date.now()); // Track frame timing for smoothness
   const paddleXRef = useRef<number>(50); // Track paddle position for animation loop (avoid re-renders)
@@ -497,6 +514,14 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
           const totalPoints = obj.value + locationBonus + timingBonus + randomBonus;
           
           caughtThisFrame += totalPoints;
+          
+          // Show floating +points popup
+          const popupType = zoneDescription === 'perfect-center' ? 'perfect' : 
+                           obj.type === 'bonus-coin' ? 'bonus' : 'normal';
+          const label = zoneDescription === 'perfect-center' ? 'PERFECT!' : 
+                       obj.type === 'bonus-coin' ? 'BONUS!' : 
+                       obj.type === 'dollar' ? 'CATCH!' : 'COIN!';
+          addPopupRef.current(Math.round(totalPoints), obj.x, obj.y, popupType, label);
           
           return null; // Will be filtered out
         }
@@ -948,7 +973,15 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
         )}
 
         {gameState === 'playing' && (
-          <div className="fixed inset-0 w-screen h-screen">
+          <div 
+            className="fixed inset-0 w-screen h-screen"
+            style={{ 
+              transform: isMobile ? 'scale(0.85)' : 'scale(1)', 
+              transformOrigin: 'center center' 
+            }}
+          >
+            {/* Floating score popups */}
+            <FloatingScore popups={popups} onRemove={removePopup} />
             {/* HUD Overlay - Top of screen */}
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/70 backdrop-blur-sm px-6 py-3 rounded-xl text-white text-sm">
               <div className="flex gap-8 items-center">

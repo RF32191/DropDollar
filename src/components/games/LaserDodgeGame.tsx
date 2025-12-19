@@ -118,6 +118,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [gyroscopeEnabled, setGyroscopeEnabled] = useState(false);
   const [gyroPermissionNeeded, setGyroPermissionNeeded] = useState(false);
   const [showGyroNotification, setShowGyroNotification] = useState(false);
+  const [gyroConfirmStep, setGyroConfirmStep] = useState(0); // 0 = not clicked, 1 = first tap, 2 = confirmed
   const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
   const lastGyroUpdateRef = useRef<number>(0);
   const gyroListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
@@ -1710,24 +1711,54 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             }}
           >
             {/* Gyroscope enable button - LARGE and covering the circle - mobile only */}
+            {/* Two-tap confirmation: first tap shows "TAP AGAIN", second tap enables */}
             {isMobile && !gyroscopeEnabled && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  requestGyroPermission();
-                  // Also unlock audio on this user gesture
-                  unlockAudio();
+                  e.preventDefault();
+                  if (gyroConfirmStep === 0) {
+                    // First tap - show confirmation
+                    setGyroConfirmStep(1);
+                    // Reset after 3 seconds if no second tap
+                    setTimeout(() => setGyroConfirmStep(0), 3000);
+                  } else {
+                    // Second tap - actually enable gyroscope
+                    setGyroConfirmStep(2);
+                    requestGyroPermission();
+                    unlockAudio();
+                  }
                 }}
-                className="absolute inset-0 flex items-center justify-center bg-yellow-500/90 hover:bg-yellow-400 text-black font-bold rounded-full animate-pulse shadow-2xl border-4 border-yellow-300"
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (gyroConfirmStep === 0) {
+                    setGyroConfirmStep(1);
+                    setTimeout(() => setGyroConfirmStep(0), 3000);
+                  } else {
+                    setGyroConfirmStep(2);
+                    requestGyroPermission();
+                    unlockAudio();
+                  }
+                }}
+                className={`absolute inset-0 flex items-center justify-center font-bold rounded-full shadow-2xl border-4 ${
+                  gyroConfirmStep === 1 
+                    ? 'bg-green-500/95 hover:bg-green-400 text-white border-green-300 animate-bounce' 
+                    : 'bg-yellow-500/90 hover:bg-yellow-400 text-black border-yellow-300 animate-pulse'
+                }`}
                 style={{ 
                   fontSize: '18px',
-                  zIndex: 100 
+                  zIndex: 100,
+                  touchAction: 'manipulation'
                 }}
               >
                 <div className="flex flex-col items-center">
-                  <span className="text-3xl mb-1">📱</span>
-                  <span>TAP TO</span>
-                  <span>ENABLE TILT</span>
+                  <span className="text-3xl mb-1">{gyroConfirmStep === 1 ? '👆' : '📱'}</span>
+                  <span>{gyroConfirmStep === 1 ? 'TAP AGAIN' : 'TAP TO'}</span>
+                  <span>{gyroConfirmStep === 1 ? 'TO CONFIRM' : 'ENABLE TILT'}</span>
                 </div>
               </button>
             )}

@@ -104,8 +104,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const COIN_X = -4;
   const FLOOR_Y = -4.5;
   const CEILING_Y = 4.5;
-  const OBSTACLE_GAP = 8.0; // Increased gap between obstacles for back/forth movement
-  const GAP_SIZE = 3.8; // Larger opening to pass through
+  const OBSTACLE_GAP = 12.0; // Much larger gap between obstacles for back/forth movement
+  const GAP_SIZE = 4.2; // Larger opening to pass through
   
   // Create beautiful 3D SILVER coin with detailed features
   const createCoin = useCallback(() => {

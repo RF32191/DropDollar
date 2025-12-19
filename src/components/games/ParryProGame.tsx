@@ -478,12 +478,17 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         }
       }
       
-      // Show strike hit popup (if not a kill)
+      // Show strike hit popup with colored precision rating (if not a kill)
       if (targetEnemy.health > 0) {
         const strikePoints = 25 + (comboRef.current * 10);
         scoreRef.current += strikePoints;
         setScore(scoreRef.current);
-        addPopup(strikePoints, 50, 45, 'normal', `HIT ${3 - targetEnemy.health}/3`);
+        
+        // Color based on hits - more hits = better precision
+        const hitsLanded = 3 - targetEnemy.health;
+        const popupType = hitsLanded === 2 ? 'bonus' : comboRef.current >= 2 ? 'combo' : 'normal';
+        const hitLabel = hitsLanded === 1 ? 'STRIKE!' : hitsLanded === 2 ? 'CRITICAL!' : 'HIT!';
+        addPopup(strikePoints, 50, 45, popupType, `${hitLabel} ${hitsLanded}/3`);
       }
       
       if (targetEnemy.health <= 0) {

@@ -145,6 +145,7 @@ export default function BladeBounce3D({
   const [gyroEnabled, setGyroEnabled] = useState(false);
   const [showGyroNotification, setShowGyroNotification] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [gyroConfirmStep, setGyroConfirmStep] = useState(0); // 0 = not clicked, 1 = first tap, 2 = confirmed
   const [countdown, setCountdown] = useState(3);
   const [score, setScore] = useState(0);
   const [hearts, setHearts] = useState(3);
@@ -2340,15 +2341,42 @@ export default function BladeBounce3D({
             }}
           >
             {/* Gyroscope enable button - LARGE and filling the circle - mobile only */}
+            {/* Two-tap confirmation: first tap shows "TAP AGAIN", second tap enables */}
             {isMobile && !gyroEnabledRef.current && (
               <div 
-                className="absolute inset-4 flex items-center justify-center bg-yellow-500/95 text-black font-bold rounded-full animate-pulse shadow-2xl border-4 border-yellow-300"
-                style={{ fontSize: '16px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (gyroConfirmStep === 0) {
+                    setGyroConfirmStep(1);
+                    setTimeout(() => setGyroConfirmStep(0), 3000);
+                  } else {
+                    setGyroConfirmStep(2);
+                    enableGyroscope();
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (gyroConfirmStep === 0) {
+                    setGyroConfirmStep(1);
+                    setTimeout(() => setGyroConfirmStep(0), 3000);
+                  } else {
+                    setGyroConfirmStep(2);
+                    enableGyroscope();
+                  }
+                }}
+                className={`absolute inset-4 flex items-center justify-center font-bold rounded-full shadow-2xl border-4 cursor-pointer ${
+                  gyroConfirmStep === 1 
+                    ? 'bg-green-500/95 text-white border-green-300 animate-bounce' 
+                    : 'bg-yellow-500/95 text-black border-yellow-300 animate-pulse'
+                }`}
+                style={{ fontSize: '16px', touchAction: 'manipulation' }}
               >
                 <div className="flex flex-col items-center text-center px-2">
-                  <span className="text-4xl mb-2">📱</span>
-                  <span className="text-lg">TAP TO</span>
-                  <span className="text-lg">ENABLE TILT</span>
+                  <span className="text-4xl mb-2">{gyroConfirmStep === 1 ? '👆' : '📱'}</span>
+                  <span className="text-lg">{gyroConfirmStep === 1 ? 'TAP AGAIN' : 'TAP TO'}</span>
+                  <span className="text-lg">{gyroConfirmStep === 1 ? 'TO CONFIRM' : 'ENABLE TILT'}</span>
                 </div>
               </div>
             )}
