@@ -110,6 +110,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const [isMobile, setIsMobile] = useState(false);
   const [gyroscopeEnabled, setGyroscopeEnabled] = useState(false);
   const [gyroPermissionNeeded, setGyroPermissionNeeded] = useState(false);
+  const [showGyroNotification, setShowGyroNotification] = useState(false);
   const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
   const lastGyroUpdateRef = useRef<number>(0);
   const gyroListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
@@ -211,6 +212,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           gyroListenerRef.current = handleOrientation;
           setGyroscopeEnabled(true);
           setGyroPermissionNeeded(false);
+          setShowGyroNotification(true);
+          setTimeout(() => setShowGyroNotification(false), 3000);
           console.log('✅ [LaserDodge] Gyroscope permission granted and enabled!');
         }
       } catch (error) {
@@ -221,20 +224,24 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       window.addEventListener('deviceorientation', handleOrientation);
       gyroListenerRef.current = handleOrientation;
       setGyroscopeEnabled(true);
+      setShowGyroNotification(true);
+      setTimeout(() => setShowGyroNotification(false), 3000);
       console.log('✅ [LaserDodge] Gyroscope enabled (no permission needed)');
     }
   };
   
-  // Enable gyroscope for Android/non-permission devices when playing
+  // Auto-enable gyroscope for Android/non-permission devices when component mounts
   useEffect(() => {
-    if (!isMobile || gameState !== 'playing') return;
+    if (!isMobile) return;
     if (gyroPermissionNeeded) return; // iOS needs button click
     if (gyroscopeEnabled) return; // Already enabled
     
-    // For Android and other devices, enable directly
+    // For Android and other devices, enable directly when component mounts
     window.addEventListener('deviceorientation', handleOrientation);
     gyroListenerRef.current = handleOrientation;
     setGyroscopeEnabled(true);
+    setShowGyroNotification(true);
+    setTimeout(() => setShowGyroNotification(false), 3000);
     console.log('✅ [LaserDodge] Gyroscope auto-enabled for Android');
     
     return () => {
@@ -242,7 +249,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         window.removeEventListener('deviceorientation', gyroListenerRef.current);
       }
     };
-  }, [isMobile, gameState, gyroPermissionNeeded, gyroscopeEnabled]);
+  }, [isMobile, gyroPermissionNeeded, gyroscopeEnabled]);
   
   // Reset gyro base when game starts
   useEffect(() => {
@@ -1602,22 +1609,37 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         
         {/* Instruction overlay */}
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-30 px-4 w-full max-w-md">
-          {/* iOS Gyroscope Permission Button */}
-          {isMobile && gyroPermissionNeeded && !gyroscopeEnabled && (
-            <button
-              onClick={requestGyroPermission}
-              className="w-full mb-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg border-2 border-purple-400"
-            >
-              <p className="text-lg">📱 Enable Tilt Controls</p>
-              <p className="text-xs opacity-80">Tilt phone to move ship</p>
-            </button>
-          )}
-          
-          {/* Gyroscope status */}
-          {isMobile && gyroscopeEnabled && (
-            <div className="w-full mb-4 bg-green-600/50 text-white font-bold py-3 px-6 rounded-xl border-2 border-green-400 text-center">
-              <p className="text-lg">✅ Tilt Controls Active!</p>
-              <p className="text-xs opacity-80">Tilt phone to move • Tap to shoot</p>
+          {/* Mobile Gyroscope Controls Section */}
+          {isMobile && (
+            <div className="mb-4">
+              {/* iOS needs permission - show prominent button */}
+              {gyroPermissionNeeded && !gyroscopeEnabled && (
+                <button
+                  onClick={requestGyroPermission}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg border-2 border-purple-400 animate-pulse"
+                >
+                  <p className="text-xl">📱 TAP TO ENABLE TILT CONTROLS</p>
+                  <p className="text-sm opacity-90">Required for mobile gameplay</p>
+                  <p className="text-xs opacity-70 mt-1">Tilt your phone to move the ship</p>
+                </button>
+              )}
+              
+              {/* Gyroscope enabled - show confirmation */}
+              {gyroscopeEnabled && (
+                <div className="w-full bg-green-600/70 text-white font-bold py-4 px-6 rounded-xl border-2 border-green-400 text-center shadow-lg">
+                  <p className="text-xl">✅ TILT CONTROLS ACTIVE</p>
+                  <p className="text-sm opacity-90">📱 Tilt phone to move ship</p>
+                  <p className="text-sm opacity-90">👆 Tap screen to shoot</p>
+                </div>
+              )}
+              
+              {/* Heads up for Android (auto-enabled) */}
+              {!gyroPermissionNeeded && !gyroscopeEnabled && (
+                <div className="w-full bg-blue-600/70 text-white font-bold py-4 px-6 rounded-xl border-2 border-blue-400 text-center shadow-lg animate-pulse">
+                  <p className="text-xl">📱 MOBILE DETECTED</p>
+                  <p className="text-sm opacity-90">Tilt controls will activate automatically</p>
+                </div>
+              )}
             </div>
           )}
           
