@@ -1255,8 +1255,8 @@ export default function BladeBounce3D({
       const deltaBeta = beta - gyroBaseRef.current.beta;
       const deltaGamma = gamma - gyroBaseRef.current.gamma;
 
-      // Convert to sword position - very low sensitivity for smooth control
-      const sensitivity = 0.3; // Very low for non-twitchy movement
+      // Convert to sword position - ultra low sensitivity for smooth control
+      const sensitivity = 0.15; // Ultra low for very smooth movement
       const newX = Math.max(-SWORD_X_RANGE, Math.min(SWORD_X_RANGE, deltaGamma * sensitivity));
       const newY = Math.max(-SWORD_Y_RANGE, Math.min(SWORD_Y_RANGE, -deltaBeta * sensitivity));
 
@@ -2312,7 +2312,7 @@ export default function BladeBounce3D({
       {/* Waiting screen - Green circle around sword, click to start countdown */}
       {gameState === 'waiting' && (
         <div className="absolute inset-0 pointer-events-none">
-          {/* Green pulsing circle around sword */}
+          {/* Green pulsing circle around sword - with LARGE gyro button on mobile */}
           <div 
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer flex flex-col items-center justify-center"
             onClick={() => {
@@ -2331,23 +2331,35 @@ export default function BladeBounce3D({
               startCountdown();
             }}
             style={{
-              width: '200px',
-              height: '200px',
+              width: isMobile ? '240px' : '200px',
+              height: isMobile ? '240px' : '200px',
               borderRadius: '50%',
               border: '6px solid #00ff00',
               boxShadow: '0 0 30px #00ff00, 0 0 60px #00ff00, inset 0 0 30px rgba(0,255,0,0.3)',
               animation: 'pulse 1.5s ease-in-out infinite',
             }}
           >
-            {/* Gyroscope enable button inside the circle - mobile only */}
+            {/* Gyroscope enable button - LARGE and filling the circle - mobile only */}
             {isMobile && !gyroEnabledRef.current && (
-              <div className="bg-yellow-500/90 text-black text-xs font-bold px-3 py-2 rounded-lg shadow-lg animate-pulse">
-                📱 ENABLE TILT
+              <div 
+                className="absolute inset-4 flex items-center justify-center bg-yellow-500/95 text-black font-bold rounded-full animate-pulse shadow-2xl border-4 border-yellow-300"
+                style={{ fontSize: '16px' }}
+              >
+                <div className="flex flex-col items-center text-center px-2">
+                  <span className="text-4xl mb-2">📱</span>
+                  <span className="text-lg">TAP TO</span>
+                  <span className="text-lg">ENABLE TILT</span>
+                </div>
               </div>
             )}
             {isMobile && gyroEnabledRef.current && (
-              <div className="bg-green-900/70 text-green-400 text-xs font-bold px-2 py-1 rounded">
-                ✅ TILT READY
+              <div 
+                className="absolute inset-4 flex items-center justify-center bg-green-600/90 rounded-full border-4 border-green-400"
+              >
+                <div className="flex flex-col items-center text-white font-bold">
+                  <span className="text-4xl mb-2">✅</span>
+                  <span className="text-xl">TILT READY</span>
+                </div>
               </div>
             )}
           </div>

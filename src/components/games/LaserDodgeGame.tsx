@@ -103,6 +103,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const instantBonusRef = useRef(0); // Track accumulated instant bonuses from blue lasers
   const enemyDestroyedPointsRef = useRef(0); // Track accumulated points from destroyed enemy ships
   const isGameRunningRef = useRef(false);
+  const gameStateRef = useRef<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('ready');
   const extremeModeTriggeredRef = useRef(false); // Track if extreme mode audio played
   const crazyModeTriggeredRef = useRef(false); // Track if crazy mode audio played
   const lastShotRef = useRef<number>(0);
@@ -170,9 +171,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  // Gyroscope handler function
+  // Keep gameStateRef in sync with gameState
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+  
+  // Gyroscope handler function - works during waiting, countdown, and playing states
   const handleOrientation = (event: DeviceOrientationEvent) => {
-    if (!isGameRunningRef.current) return;
+    // Allow gyroscope during waiting/countdown for testing, and during gameplay
+    const gameStateNow = gameStateRef.current;
+    if (gameStateNow !== 'waiting' && gameStateNow !== 'countdown' && gameStateNow !== 'playing') return;
     
     const beta = event.beta ?? 0;
     const gamma = event.gamma ?? 0;
@@ -189,7 +197,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     const deltaGamma = gamma - gyroBaseRef.current.gamma;
     
     // Very low sensitivity for smooth, non-twitchy movement
-    const sensitivity = 0.8;
+    const sensitivity = 0.5;
     
     // Calculate new position
     // Tilt right (positive gamma) = move right
@@ -1697,11 +1705,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               left: '50%',
               top: '50%',
               transform: 'translate(-50%, -50%)',
-              width: isMobile ? '180px' : '120px',
-              height: isMobile ? '180px' : '120px',
+              width: isMobile ? '220px' : '120px',
+              height: isMobile ? '220px' : '120px',
             }}
           >
-            {/* Gyroscope enable button inside the circle - mobile only */}
+            {/* Gyroscope enable button - LARGE and covering the circle - mobile only */}
             {isMobile && !gyroscopeEnabled && (
               <button
                 onClick={(e) => {
@@ -1710,18 +1718,27 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   // Also unlock audio on this user gesture
                   unlockAudio();
                 }}
-                className="absolute bg-yellow-500/80 hover:bg-yellow-400 text-black text-xs font-bold px-3 py-2 rounded-lg animate-pulse shadow-lg"
-                style={{ top: '15px' }}
+                className="absolute inset-0 flex items-center justify-center bg-yellow-500/90 hover:bg-yellow-400 text-black font-bold rounded-full animate-pulse shadow-2xl border-4 border-yellow-300"
+                style={{ 
+                  fontSize: '18px',
+                  zIndex: 100 
+                }}
               >
-                📱 ENABLE TILT
+                <div className="flex flex-col items-center">
+                  <span className="text-3xl mb-1">📱</span>
+                  <span>TAP TO</span>
+                  <span>ENABLE TILT</span>
+                </div>
               </button>
             )}
             {isMobile && gyroscopeEnabled && (
               <div 
-                className="absolute text-center"
-                style={{ top: '15px' }}
+                className="absolute inset-0 flex items-center justify-center bg-green-600/80 rounded-full border-4 border-green-400"
               >
-                <span className="text-green-400 text-xs font-bold bg-green-900/50 px-2 py-1 rounded">✅ TILT READY</span>
+                <div className="flex flex-col items-center text-white font-bold">
+                  <span className="text-3xl mb-1">✅</span>
+                  <span className="text-lg">TILT READY</span>
+                </div>
               </div>
             )}
           </div>
