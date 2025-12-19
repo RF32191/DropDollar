@@ -133,6 +133,9 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const [wallHits, setWallHits] = useState(0);
   const [is2DMode, setIs2DMode] = useState(false); // Alternating 2D/3D modes
   const [isMobile, setIsMobile] = useState(false); // Detect mobile for responsive layout
+  const [gyroEnabled, setGyroEnabled] = useState(false); // Gyroscope control for mobile
+  const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
+  const gyroEnabledRef = useRef(false);
   
   const scoreRef = useRef(0);
   const gameStateRef = useRef<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
@@ -1178,20 +1181,22 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     scene.fog = new THREE.Fog(0x051505, 25, 70);
     sceneRef.current = scene;
 
-    // Create perspective camera for 3D mode
+    // Create perspective camera for 3D mode - zoom out more on mobile
+    const isMobileDevice = window.innerWidth < 768;
+    setIsMobile(isMobileDevice);
     const camera = new THREE.PerspectiveCamera(
-      55, 
+      isMobileDevice ? 70 : 55, // Wider FOV on mobile to see more
       containerRef.current.clientWidth / containerRef.current.clientHeight, 
       0.1, 
       150
     );
-    camera.position.set(0, 40, 25);
+    camera.position.set(0, isMobileDevice ? 55 : 40, isMobileDevice ? 35 : 25);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
-    // Create orthographic camera for 2D mode (top-down view)
+    // Create orthographic camera for 2D mode (top-down view) - larger on mobile
     const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
-    const frustumSize = 30;
+    const frustumSize = isMobileDevice ? 40 : 30; // Zoom out more on mobile
     const orthoCamera = new THREE.OrthographicCamera(
       frustumSize * aspect / -2,
       frustumSize * aspect / 2,
@@ -1385,6 +1390,76 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       }
     };
     containerRef.current.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    // Gyroscope handler for mobile - tilt to move lightning bolt
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (!hasControlRef.current || gameStateRef.current !== 'playing') return;
+      if (!gyroEnabledRef.current) return;
+      
+      const beta = event.beta ?? 0; // Front-back tilt
+      const gamma = event.gamma ?? 0; // Left-right tilt
+      
+      // Set base position on first reading
+      if (!gyroBaseRef.current) {
+        gyroBaseRef.current = { beta, gamma };
+        return;
+      }
+      
+      // Calculate delta from base
+      const deltaBeta = beta - gyroBaseRef.current.beta;
+      const deltaGamma = gamma - gyroBaseRef.current.gamma;
+      
+      // Very low sensitivity for smooth control
+      const sensitivity = 0.15;
+      
+      // Convert tilt to movement direction in maze
+      const moveX = deltaGamma * sensitivity;
+      const moveZ = deltaBeta * sensitivity;
+      
+      // Update target position
+      const newTarget = new THREE.Vector3(
+        lightningPositionRef.current.x + moveX,
+        0.5,
+        lightningPositionRef.current.z + moveZ
+      );
+      
+      targetPositionRef.current = findClosestValidPosition(
+        newTarget.x,
+        newTarget.z,
+        lightningPositionRef.current
+      );
+    };
+    
+    // Enable gyroscope function
+    const enableGyroscope = async () => {
+      console.log('⚡ [LightningMaze] Enabling gyroscope...');
+      gyroBaseRef.current = null; // Reset base
+      
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        try {
+          const permission = await (DeviceOrientationEvent as any).requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+            gyroEnabledRef.current = true;
+            setGyroEnabled(true);
+          }
+        } catch (error) {
+          console.warn('Gyro permission error:', error);
+          window.addEventListener('deviceorientation', handleOrientation);
+          gyroEnabledRef.current = true;
+          setGyroEnabled(true);
+        }
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation);
+        gyroEnabledRef.current = true;
+        setGyroEnabled(true);
+      }
+    };
+    
+    // Auto-enable gyro on mobile when game starts
+    if (isMobileDevice) {
+      enableGyroscope();
+    }
 
     // Animation loop
     const animate = (time: number) => {

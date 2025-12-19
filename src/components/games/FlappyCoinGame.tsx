@@ -56,6 +56,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const velocityRef = useRef<number>(0);
   const obstaclesRef = useRef<HandObstacle[]>([]);
   const gameSpeedRef = useRef<number>(4);
+  const movingForwardRef = useRef<boolean>(true); // Direction: true = forward, false = reverse
   const scoreRef = useRef<number>(0);
   const isAliveRef = useRef<boolean>(true);
   const gameStartTimeRef = useRef<number>(0);
@@ -63,6 +64,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const highScoreRef = useRef<number>(0);
   const flipRotationRef = useRef<number>(0); // For the flip animation on tap
   const targetFlipRef = useRef<number>(0); // Target flip rotation
+  const lastGapTimeRef = useRef<number>(0); // For speed bonus calculation
+  const gapAccuracyRef = useRef<number>(0); // Track how centered through gaps
   
   // Store callbacks in refs to avoid stale closures
   const onGameCompleteRef = useRef(onGameComplete);
@@ -325,9 +328,9 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Handle jump with dramatic flip animation
-  const handleJump = useCallback(() => {
-    console.log('🪙 Jump! State:', gameStateRef.current);
+  // Handle jump forward - moves coin up and keeps moving forward
+  const handleJumpForward = useCallback(() => {
+    console.log('🪙 Jump Forward! State:', gameStateRef.current);
     
     if (gameStateRef.current === 'waiting') {
       console.log('🪙 Starting game from waiting state');
@@ -335,13 +338,35 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
       setGameState('playing');
       isAliveRef.current = true;
       gameStartTimeRef.current = Date.now();
+      lastGapTimeRef.current = Date.now();
+      movingForwardRef.current = true;
       velocityRef.current = JUMP_VELOCITY;
-      // Trigger flip animation - full 360° rotation
       targetFlipRef.current += Math.PI * 2;
     } else if (gameStateRef.current === 'playing' && isAliveRef.current) {
+      movingForwardRef.current = true;
       velocityRef.current = JUMP_VELOCITY;
-      // Trigger flip animation on each tap - 360° flip
       targetFlipRef.current += Math.PI * 2;
+    }
+  }, []);
+  
+  // Handle reverse - moves coin up but reverses horizontal direction
+  const handleReverse = useCallback(() => {
+    console.log('🪙 Reverse! State:', gameStateRef.current);
+    
+    if (gameStateRef.current === 'waiting') {
+      console.log('🪙 Starting game from waiting state (reverse)');
+      gameStateRef.current = 'playing';
+      setGameState('playing');
+      isAliveRef.current = true;
+      gameStartTimeRef.current = Date.now();
+      lastGapTimeRef.current = Date.now();
+      movingForwardRef.current = false;
+      velocityRef.current = JUMP_VELOCITY;
+      targetFlipRef.current -= Math.PI * 2; // Reverse flip
+    } else if (gameStateRef.current === 'playing' && isAliveRef.current) {
+      movingForwardRef.current = false;
+      velocityRef.current = JUMP_VELOCITY;
+      targetFlipRef.current -= Math.PI * 2; // Reverse flip
     }
   }, []);
   
@@ -355,6 +380,9 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     coinYRef.current = 0;
     velocityRef.current = 0;
     gameSpeedRef.current = 4;
+    movingForwardRef.current = true;
+    lastGapTimeRef.current = 0;
+    gapAccuracyRef.current = 0;
     isAliveRef.current = true;
     
     // Clear obstacles
@@ -642,11 +670,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           });
         }
         
-        // Move and check obstacles
+        // Move and check obstacles - direction affects movement
         const toRemove: number[] = [];
+        const moveDirection = movingForwardRef.current ? -1 : 1; // Forward = obstacles come at you, Reverse = you go back
         for (let i = 0; i < obstaclesRef.current.length; i++) {
           const obs = obstaclesRef.current[i];
-          obs.x -= gameSpeedRef.current * deltaTime;
+          obs.x += moveDirection * gameSpeedRef.current * deltaTime;
           obs.topMesh.position.x = obs.x;
           obs.bottomMesh.position.x = obs.x;
           
@@ -659,16 +688,39 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           obs.topMesh.position.y = obs.topBaseY + topOffset;
           obs.bottomMesh.position.y = obs.bottomBaseY + bottomOffset;
           
-          // Score
+          // Score - ONLY for crossing gaps, with accuracy and speed bonuses
           if (!obs.passed && obs.x < COIN_X - 0.5) {
             obs.passed = true;
-            scoreRef.current += 1;
+            
+            // Calculate accuracy bonus - how centered through the gap
+            const gapCenter = obs.gapY;
+            const coinY = coinYRef.current;
+            const distFromCenter = Math.abs(coinY - gapCenter);
+            const maxDist = obs.gapSize / 2;
+            const accuracy = Math.max(0, 1 - (distFromCenter / maxDist));
+            gapAccuracyRef.current = (gapAccuracyRef.current + accuracy) / 2; // Running average
+            
+            // Base points: 10 per gap
+            let points = 10;
+            
+            // Accuracy bonus: up to +20 for perfect center
+            const accuracyBonus = Math.floor(accuracy * 20);
+            points += accuracyBonus;
+            
+            // Speed bonus: faster time between gaps = more points (up to +15)
+            const now = Date.now();
+            const timeSinceLastGap = (now - lastGapTimeRef.current) / 1000;
+            const speedBonus = Math.max(0, Math.min(15, Math.floor(15 - timeSinceLastGap * 2)));
+            points += speedBonus;
+            lastGapTimeRef.current = now;
+            
+            scoreRef.current += points;
             setScore(scoreRef.current);
             
             // CoD-style floating score popup
-            const popupType = scoreRef.current >= 20 ? 'perfect' : scoreRef.current >= 10 ? 'combo' : scoreRef.current >= 5 ? 'bonus' : 'normal';
-            const label = scoreRef.current % 10 === 0 ? 'MILESTONE!' : scoreRef.current % 5 === 0 ? 'STREAK!' : 'PASS';
-            addPopupRef.current(1, 50, 40, popupType, label);
+            const popupType = accuracy > 0.9 ? 'perfect' : accuracy > 0.7 ? 'bonus' : speedBonus > 10 ? 'combo' : 'normal';
+            const label = accuracy > 0.9 ? 'PERFECT!' : accuracy > 0.7 ? 'CENTERED!' : speedBonus > 10 ? 'FAST!' : 'GAP';
+            addPopupRef.current(points, 50, 40, popupType, label);
           }
           
           // Collision
@@ -740,17 +792,17 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     };
   }, [createCoin, createHand]);
   
-  // Click/touch handler for the whole screen
+  // Screen tap is disabled - use the two buttons instead
   const handleScreenTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    // Don't handle if ready state (buttons will handle)
+    // Don't handle - use dedicated buttons
     if (gameStateRef.current === 'ready' || gameStateRef.current === 'complete') {
       return;
     }
-    
     e.preventDefault();
     e.stopPropagation();
-    handleJump();
-  }, [handleJump]);
+    // Default to forward on screen tap
+    handleJumpForward();
+  }, [handleJumpForward]);
   
   return (
     <div 
@@ -784,10 +836,43 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div className="text-center animate-bounce">
             <div className="text-white text-3xl sm:text-4xl font-bold mb-4" style={{ textShadow: '2px 2px 0 #000' }}>
-              TAP TO FLY!
+              TAP A BUTTON!
             </div>
-            <div className="text-6xl">👆</div>
+            <div className="text-white text-lg" style={{ textShadow: '1px 1px 0 #000' }}>
+              ⬅️ Reverse • Forward ➡️
+            </div>
           </div>
+        </div>
+      )}
+      
+      {/* Control Buttons - during waiting and playing */}
+      {(gameState === 'waiting' || gameState === 'playing') && (
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-8 z-20 px-4">
+          {/* Reverse Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleReverse(); }}
+            onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); handleReverse(); }}
+            className="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-xl border-4 border-blue-300 active:scale-90 transition-transform"
+            style={{ touchAction: 'none' }}
+          >
+            <div className="text-center">
+              <div className="text-4xl sm:text-5xl">⬅️</div>
+              <div className="text-white text-sm font-bold mt-1" style={{ textShadow: '1px 1px 0 #000' }}>REVERSE</div>
+            </div>
+          </button>
+          
+          {/* Forward Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleJumpForward(); }}
+            onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); handleJumpForward(); }}
+            className="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-b from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-xl border-4 border-green-300 active:scale-90 transition-transform"
+            style={{ touchAction: 'none' }}
+          >
+            <div className="text-center">
+              <div className="text-4xl sm:text-5xl">➡️</div>
+              <div className="text-white text-sm font-bold mt-1" style={{ textShadow: '1px 1px 0 #000' }}>FORWARD</div>
+            </div>
+          </button>
         </div>
       )}
       
@@ -807,9 +892,11 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/30">
               <div className="space-y-2 text-left text-white">
-                <p className="flex items-center gap-2"><span className="text-2xl">👆</span><span><strong>TAP</strong> to fly up</span></p>
+                <p className="flex items-center gap-2"><span className="text-2xl">➡️</span><span><strong>FORWARD</strong> - Jump & move forward</span></p>
+                <p className="flex items-center gap-2"><span className="text-2xl">⬅️</span><span><strong>REVERSE</strong> - Jump & go back</span></p>
                 <p className="flex items-center gap-2"><span className="text-2xl">🤚</span><span>Avoid <strong>grabbing hands</strong></span></p>
-                <p className="flex items-center gap-2"><span className="text-2xl">🎯</span><span>Pass through gaps to <strong>score</strong></span></p>
+                <p className="flex items-center gap-2"><span className="text-2xl">🎯</span><span>Points for <strong>crossing gaps</strong> only!</span></p>
+                <p className="flex items-center gap-2"><span className="text-2xl">⚡</span><span><strong>Speed + Accuracy</strong> = Bonus points!</span></p>
               </div>
             </div>
             

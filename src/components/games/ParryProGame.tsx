@@ -626,9 +626,13 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     scene.fog = new THREE.Fog(0x1a0a0a, 5, 20);
     sceneRef.current = scene;
     
-    // Camera
-    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(0, 2, 5);
+    // Camera - wider FOV and further back on mobile to see all enemies
+    const isMobileDevice = window.innerWidth < 768;
+    const fov = isMobileDevice ? 85 : 60; // Wider FOV on mobile
+    const camZ = isMobileDevice ? 8 : 5; // Further back on mobile
+    const camY = isMobileDevice ? 3 : 2; // Higher up on mobile
+    const camera = new THREE.PerspectiveCamera(fov, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, camY, camZ);
     camera.lookAt(0, 1, -3);
     cameraRef.current = camera;
     

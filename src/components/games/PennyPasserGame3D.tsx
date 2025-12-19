@@ -1018,6 +1018,11 @@ export default function PennyPasserGame3D({
       }
       scoreRef.current = Math.max(0, scoreRef.current - penalty);
       setScore(scoreRef.current);
+      
+      // Show negative points popup at coin position
+      const screenX = 50 + (coin.x / 6) * 40; // Convert world X to screen %
+      const screenY = 50 - (coin.y / 6) * 40; // Convert world Y to screen %
+      addPopup(-penalty, screenX, screenY, 'kill', result.wrongBonusPlacement ? 'WRONG!' : 'MISS');
     }
     
     // Update accuracy
