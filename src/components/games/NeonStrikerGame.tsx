@@ -29,14 +29,14 @@ interface GameCoin {
   mesh: THREE.Group | null;
 }
 
-// Level configurations with speed multipliers
+// Level configurations - coins are STILL in levels 1-2, start MOVING from level 3
 const LEVELS = [
-  { name: 'Triangle', coins: [{ x: 0, z: -2 }, { x: -2, z: 1 }, { x: 2, z: 1 }], bumpers: [{ x: -4, z: 0 }, { x: 4, z: 0 }], speed: 0.02, timeLimit: 30 },
-  { name: 'Diamond', coins: [{ x: 0, z: -4 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: 0, z: 2 }], bumpers: [{ x: -5, z: -2 }, { x: 5, z: -2 }], speed: 0.025, timeLimit: 35 },
-  { name: 'The Line', coins: [{ x: -4, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }], bumpers: [{ x: 0, z: -3 }, { x: 0, z: 3 }], speed: 0.03, timeLimit: 40 },
-  { name: 'Circle', coins: [{ x: 0, z: -3 }, { x: 2.6, z: -1.5 }, { x: 2.6, z: 1.5 }, { x: 0, z: 3 }, { x: -2.6, z: 1.5 }, { x: -2.6, z: -1.5 }], bumpers: [{ x: 0, z: 0 }], speed: 0.035, timeLimit: 45 },
-  { name: 'Fortress', coins: [{ x: -4, z: -4 }, { x: 4, z: -4 }, { x: -4, z: 2 }, { x: 4, z: 2 }, { x: -2, z: -1 }, { x: 2, z: -1 }, { x: 0, z: 0 }], bumpers: [{ x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: -3 }], speed: 0.04, timeLimit: 50 },
-  { name: 'Chaos', coins: [{ x: -5, z: -5 }, { x: 5, z: -5 }, { x: -3, z: -2 }, { x: 3, z: -2 }, { x: 0, z: 0 }, { x: -4, z: 3 }, { x: 4, z: 3 }, { x: 0, z: 5 }], bumpers: [{ x: -2, z: 0 }, { x: 2, z: 0 }, { x: 0, z: -4 }, { x: 0, z: 2 }], speed: 0.045, timeLimit: 60 },
+  { name: 'Triangle', coins: [{ x: 0, z: -2 }, { x: -2, z: 1 }, { x: 2, z: 1 }], bumpers: [{ x: -4, z: 0 }, { x: 4, z: 0 }], speed: 0, timeLimit: 30 },
+  { name: 'Diamond', coins: [{ x: 0, z: -4 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: 0, z: 2 }], bumpers: [{ x: -5, z: -2 }, { x: 5, z: -2 }], speed: 0, timeLimit: 35 },
+  { name: 'The Line', coins: [{ x: -4, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }], bumpers: [{ x: 0, z: -3 }, { x: 0, z: 3 }], speed: 0.02, timeLimit: 40 },
+  { name: 'Circle', coins: [{ x: 0, z: -3 }, { x: 2.6, z: -1.5 }, { x: 2.6, z: 1.5 }, { x: 0, z: 3 }, { x: -2.6, z: 1.5 }, { x: -2.6, z: -1.5 }], bumpers: [{ x: 0, z: 0 }], speed: 0.025, timeLimit: 45 },
+  { name: 'Fortress', coins: [{ x: -4, z: -4 }, { x: 4, z: -4 }, { x: -4, z: 2 }, { x: 4, z: 2 }, { x: -2, z: -1 }, { x: 2, z: -1 }, { x: 0, z: 0 }], bumpers: [{ x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: -3 }], speed: 0.03, timeLimit: 50 },
+  { name: 'Chaos', coins: [{ x: -5, z: -5 }, { x: 5, z: -5 }, { x: -3, z: -2 }, { x: 3, z: -2 }, { x: 0, z: 0 }, { x: -4, z: 3 }, { x: 4, z: 3 }, { x: 0, z: 5 }], bumpers: [{ x: -2, z: 0 }, { x: 2, z: 0 }, { x: 0, z: -4 }, { x: 0, z: 2 }], speed: 0.035, timeLimit: 60 },
 ];
 
 export default function NeonStrikerGame({ 
@@ -221,11 +221,11 @@ export default function NeonStrikerGame({
     });
     bumpersRef.current = bumperData;
 
-    // Coins with RANDOM MOVEMENT
+    // Coins - STILL until hit, or moving from level 3+
     const coins: GameCoin[] = [];
     level.coins.forEach((pos, i) => {
       const mesh = createCoin(scene, pos.x, pos.z, false);
-      // Random direction for each coin
+      // Only assign base movement if level has speed > 0 (level 3+)
       const angle = Math.random() * Math.PI * 2;
       const speed = level.speed;
       coins.push({ 
@@ -234,8 +234,8 @@ export default function NeonStrikerGame({
         z: pos.z, 
         vx: 0, 
         vz: 0, 
-        baseVx: Math.cos(angle) * speed, // Base movement velocity
-        baseVz: Math.sin(angle) * speed,
+        baseVx: speed > 0 ? Math.cos(angle) * speed : 0, // Only move if level has speed
+        baseVz: speed > 0 ? Math.sin(angle) * speed : 0,
         isStriker: false, 
         isRemoved: false, 
         wasHitByStriker: false, 
@@ -356,8 +356,10 @@ export default function NeonStrikerGame({
     coins.forEach(coin => {
       if (coin.isRemoved || !coin.mesh) return;
 
-      // Apply base movement for target coins (they keep moving!)
-      if (!coin.isStriker && !isShootingRef.current) {
+      // Apply base autonomous movement ONLY for coins with baseVx/baseVz (level 3+)
+      // and only when not being actively shot around
+      if (!coin.isStriker && coin.baseVx !== 0 && coin.baseVz !== 0 && 
+          Math.abs(coin.vx) < 0.01 && Math.abs(coin.vz) < 0.01) {
         coin.vx = coin.baseVx;
         coin.vz = coin.baseVz;
       }
@@ -366,29 +368,35 @@ export default function NeonStrikerGame({
       coin.x += coin.vx;
       coin.z += coin.vz;
 
-      // Friction only when shooting (targets keep moving otherwise)
-      if (isShootingRef.current || coin.isStriker) {
-        coin.vx *= FRICTION;
-        coin.vz *= FRICTION;
-        if (Math.abs(coin.vx) < 0.005 && Math.abs(coin.vz) < 0.005 && coin.isStriker) {
+      // Apply friction to all moving coins
+      coin.vx *= FRICTION;
+      coin.vz *= FRICTION;
+      
+      // Check if coin is moving significantly
+      if (Math.abs(coin.vx) < 0.005 && Math.abs(coin.vz) < 0.005) {
+        // Stop completely if no base movement, otherwise return to base
+        if (coin.baseVx === 0 && coin.baseVz === 0) {
           coin.vx = 0;
           coin.vz = 0;
-        } else if (coin.isStriker && (Math.abs(coin.vx) > 0.005 || Math.abs(coin.vz) > 0.005)) {
-          anyMoving = true;
         }
       }
+      
+      // Track if striker is still moving
+      if (coin.isStriker && (Math.abs(coin.vx) > 0.01 || Math.abs(coin.vz) > 0.01)) {
+        anyMoving = true;
+      }
 
-      // Bounce off walls for target coins
-      if (!coin.isStriker) {
+      // Bounce off walls for target coins (only if moving)
+      if (!coin.isStriker && (Math.abs(coin.vx) > 0.001 || Math.abs(coin.vz) > 0.001)) {
         if (Math.abs(coin.x) > halfW) {
           coin.x = Math.sign(coin.x) * halfW;
           coin.vx *= -BOUNCE;
-          coin.baseVx *= -1;
+          if (coin.baseVx !== 0) coin.baseVx *= -1;
         }
         if (Math.abs(coin.z) > halfD) {
           coin.z = Math.sign(coin.z) * halfD;
           coin.vz *= -BOUNCE;
-          coin.baseVz *= -1;
+          if (coin.baseVz !== 0) coin.baseVz *= -1;
         }
       }
 
@@ -719,10 +727,11 @@ export default function NeonStrikerGame({
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-lg w-full text-center border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.3)]">
           <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent">⚡ NEON STRIKER</h1>
-          <p className="text-cyan-400 mb-4">Moving Targets • Speed Bonus</p>
+          <p className="text-cyan-400 mb-4">Physics-Based • Speed Bonus</p>
 
           <div className="bg-black/50 rounded-xl p-4 mb-5 text-left text-sm text-gray-300">
-            <p className="mb-2 text-cyan-400 font-bold">🎯 Hit MOVING coins to remove them!</p>
+            <p className="mb-2 text-cyan-400 font-bold">🎯 Hit coins to remove them!</p>
+            <p className="mb-2 text-gray-400 text-xs">Levels 1-2: Coins stay still • Level 3+: Coins move!</p>
             <p className="mb-1">• <span className="text-yellow-400">TAP & HOLD</span> to aim and charge</p>
             <p className="mb-3">• <span className="text-red-400">RELEASE</span> to shoot!</p>
             <p className="mb-1"><span className="text-green-400 font-bold">+100</span> Hit a coin</p>
@@ -815,7 +824,7 @@ export default function NeonStrikerGame({
 
       {/* Status */}
       <div className="absolute top-12 right-4 z-30 text-right">
-        {gameState === 'playing' && <div className="text-cyan-400 text-xs animate-pulse">Targets MOVING! TAP to shoot</div>}
+        {gameState === 'playing' && <div className="text-cyan-400 text-xs animate-pulse">{currentLevel < 2 ? 'Targets STILL - TAP to aim & shoot' : 'Targets MOVING! TAP to shoot'}</div>}
         {gameState === 'charging' && <div className="text-orange-400 text-sm font-bold animate-pulse">🔥 CHARGING!</div>}
         {gameState === 'shooting' && <div className="text-cyan-400 text-lg font-bold animate-pulse">⚡ STRIKE!</div>}
       </div>
