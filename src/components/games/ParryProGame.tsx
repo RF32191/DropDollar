@@ -115,6 +115,12 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   // CoD-style floating score indicators
   const { popups, addPopup, removePopup } = useFloatingScores();
   
+  // Snow particles for Christmas perfect parry
+  const snowParticlesRef = useRef<THREE.Points | null>(null);
+  const snowParticlePositionsRef = useRef<Float32Array | null>(null);
+  const snowActiveRef = useRef<boolean>(false);
+  const snowTimerRef = useRef<number>(0);
+  
   // Detect mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -124,6 +130,45 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+  // Spawn snow particles for Christmas perfect parry
+  const spawnSnowParticles = useCallback(() => {
+    if (!sceneRef.current || currentTheme !== 'christmas') return;
+    
+    // Remove existing snow if any
+    if (snowParticlesRef.current) {
+      sceneRef.current.remove(snowParticlesRef.current);
+    }
+    
+    // Create new snow particles (light, doesn't ruin view)
+    const particleCount = 50; // Light amount
+    const positions = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 12; // X spread
+      positions[i * 3 + 1] = 5 + Math.random() * 3; // Y (start above)
+      positions[i * 3 + 2] = -5 + Math.random() * 8; // Z spread
+    }
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const material = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.08,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true,
+    });
+    
+    const snow = new THREE.Points(geometry, material);
+    snow.name = 'perfectParrySnow';
+    sceneRef.current.add(snow);
+    snowParticlesRef.current = snow;
+    snowParticlePositionsRef.current = positions;
+    snowActiveRef.current = true;
+    snowTimerRef.current = 0;
+  }, [currentTheme]);
   
   // Get side positions for enemies
   const getSidePosition = useCallback((side: Enemy['side']) => {
@@ -140,71 +185,189 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const createSword = useCallback((isEnemy: boolean = false) => {
     const group = new THREE.Group();
     
-    // Blade
-    const bladeGeometry = new THREE.BoxGeometry(0.15, 2.5, 0.05);
-    const bladeMaterial = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x8B0000 : 0xC0C0C0,
-      emissive: isEnemy ? 0x400000 : 0x404040,
-      emissiveIntensity: 0.3,
-      shininess: 100,
-      specular: 0xFFFFFF,
-    });
-    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
-    blade.position.y = 1.25;
-    blade.name = 'blade';
-    group.add(blade);
-    
-    // Blade edge glow
-    const edgeGeometry = new THREE.BoxGeometry(0.02, 2.5, 0.06);
-    const edgeMaterial = new THREE.MeshBasicMaterial({
-      color: isEnemy ? 0xFF4444 : 0x88CCFF,
-      transparent: true,
-      opacity: 0.6,
-    });
-    const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-    edge.position.y = 1.25;
-    edge.position.x = 0.08;
-    edge.name = 'edge';
-    group.add(edge);
-    
-    // Guard (crossguard)
-    const guardGeometry = new THREE.BoxGeometry(0.8, 0.15, 0.1);
-    const guardMaterial = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x4A0000 : 0xDAA520,
-      emissive: isEnemy ? 0x200000 : 0x554400,
-      shininess: 80,
-    });
-    const guard = new THREE.Mesh(guardGeometry, guardMaterial);
-    group.add(guard);
-    
-    // Handle
-    const handleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8);
-    const handleMaterial = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x2A0000 : 0x8B4513,
-      emissive: isEnemy ? 0x100000 : 0x3A1A05,
-    });
-    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-    handle.position.y = -0.3;
-    group.add(handle);
-    
-    // Pommel
-    const pommelGeometry = new THREE.SphereGeometry(0.12, 16, 16);
-    const pommel = new THREE.Mesh(pommelGeometry, guardMaterial);
-    pommel.position.y = -0.65;
-    group.add(pommel);
+    if (currentTheme === 'halloween' && isEnemy) {
+      // HALLOWEEN: Scythe weapon for enemies
+      // Long curved blade
+      const bladePoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        const curve = Math.sin(t * Math.PI) * 0.8;
+        bladePoints.push(new THREE.Vector3(curve, t * 2.5, 0));
+      }
+      const bladeCurve = new THREE.CatmullRomCurve3(bladePoints);
+      const bladeGeometry = new THREE.TubeGeometry(bladeCurve, 20, 0.06, 8, false);
+      const bladeMaterial = new THREE.MeshPhongMaterial({
+        color: 0x2a2a2a,
+        emissive: 0x1a0000,
+        emissiveIntensity: 0.4,
+        shininess: 120,
+        specular: 0x888888,
+      });
+      const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+      blade.name = 'blade';
+      group.add(blade);
+      
+      // Blade edge (sharp glowing edge)
+      const edgeGeometry = new THREE.TubeGeometry(bladeCurve, 20, 0.02, 4, false);
+      const edgeMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff4400, // Orange glow
+        transparent: true,
+        opacity: 0.8,
+      });
+      const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+      edge.position.x = 0.04;
+      edge.name = 'edge';
+      group.add(edge);
+      
+      // Long wooden handle
+      const handleGeometry = new THREE.CylinderGeometry(0.06, 0.08, 3.5, 8);
+      const handleMaterial = new THREE.MeshPhongMaterial({
+        color: 0x3a2a1a,
+        emissive: 0x1a0a00,
+      });
+      const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+      handle.position.y = -1.5;
+      group.add(handle);
+      
+      // Metal cap
+      const capGeometry = new THREE.ConeGeometry(0.1, 0.2, 8);
+      const capMaterial = new THREE.MeshPhongMaterial({ color: 0x555555 });
+      const cap = new THREE.Mesh(capGeometry, capMaterial);
+      cap.position.y = -3.3;
+      cap.rotation.x = Math.PI;
+      group.add(cap);
+      
+    } else if (currentTheme === 'christmas' && isEnemy) {
+      // CHRISTMAS: Candy cane weapon for enemies
+      // Curved candy cane shape
+      const canePoints: THREE.Vector3[] = [];
+      // Straight part
+      for (let i = 0; i <= 10; i++) {
+        canePoints.push(new THREE.Vector3(0, i * 0.2, 0));
+      }
+      // Curved hook
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const angle = t * Math.PI;
+        canePoints.push(new THREE.Vector3(
+          -Math.sin(angle) * 0.4,
+          2 + Math.cos(angle) * 0.4,
+          0
+        ));
+      }
+      const caneCurve = new THREE.CatmullRomCurve3(canePoints);
+      
+      // Red part
+      const redGeometry = new THREE.TubeGeometry(caneCurve, 32, 0.12, 12, false);
+      const redMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff0000,
+        emissive: 0x440000,
+        shininess: 80,
+      });
+      const redCane = new THREE.Mesh(redGeometry, redMaterial);
+      redCane.name = 'blade';
+      group.add(redCane);
+      
+      // White stripes (spiraling)
+      for (let stripe = 0; stripe < 8; stripe++) {
+        const stripeGeometry = new THREE.TorusGeometry(0.13, 0.03, 8, 6, Math.PI * 0.3);
+        const stripeMaterial = new THREE.MeshPhongMaterial({
+          color: 0xffffff,
+          emissive: 0x444444,
+          shininess: 60,
+        });
+        const stripeRing = new THREE.Mesh(stripeGeometry, stripeMaterial);
+        stripeRing.position.y = stripe * 0.3;
+        stripeRing.rotation.x = Math.PI / 2;
+        stripeRing.rotation.z = stripe * 0.5;
+        group.add(stripeRing);
+      }
+      
+      // Sparkle on top
+      const sparkleGeometry = new THREE.OctahedronGeometry(0.08, 0);
+      const sparkleMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const sparkle = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
+      sparkle.position.set(-0.4, 2.4, 0);
+      sparkle.name = 'edge';
+      group.add(sparkle);
+      
+    } else {
+      // STANDARD: Regular sword
+      const bladeGeometry = new THREE.BoxGeometry(0.15, 2.5, 0.05);
+      const bladeMaterial = new THREE.MeshPhongMaterial({
+        color: isEnemy ? 0x8B0000 : 0xC0C0C0,
+        emissive: isEnemy ? 0x400000 : 0x404040,
+        emissiveIntensity: 0.3,
+        shininess: 100,
+        specular: 0xFFFFFF,
+      });
+      const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+      blade.position.y = 1.25;
+      blade.name = 'blade';
+      group.add(blade);
+      
+      const edgeGeometry = new THREE.BoxGeometry(0.02, 2.5, 0.06);
+      const edgeMaterial = new THREE.MeshBasicMaterial({
+        color: isEnemy ? 0xFF4444 : 0x88CCFF,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+      edge.position.y = 1.25;
+      edge.position.x = 0.08;
+      edge.name = 'edge';
+      group.add(edge);
+      
+      const guardGeometry = new THREE.BoxGeometry(0.8, 0.15, 0.1);
+      const guardMaterial = new THREE.MeshPhongMaterial({
+        color: isEnemy ? 0x4A0000 : 0xDAA520,
+        emissive: isEnemy ? 0x200000 : 0x554400,
+        shininess: 80,
+      });
+      const guard = new THREE.Mesh(guardGeometry, guardMaterial);
+      group.add(guard);
+      
+      const handleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8);
+      const handleMaterial = new THREE.MeshPhongMaterial({
+        color: isEnemy ? 0x2A0000 : 0x8B4513,
+        emissive: isEnemy ? 0x100000 : 0x3A1A05,
+      });
+      const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+      handle.position.y = -0.3;
+      group.add(handle);
+      
+      const pommelGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const pommel = new THREE.Mesh(pommelGeometry, guardMaterial);
+      pommel.position.y = -0.65;
+      group.add(pommel);
+    }
     
     return group;
-  }, []);
+  }, [currentTheme]);
   
   // Create enemy figure
   const createEnemy = useCallback((side: Enemy['side']) => {
     const group = new THREE.Group();
     
-    // Body
+    // Body - themed
+    let bodyColor = 0x2C2C2C;
+    let bodyEmissive = 0x100000;
+    if (currentTheme === 'halloween') {
+      bodyColor = 0x1a1a2a; // Darker purple tint
+      bodyEmissive = 0x1a0a2a;
+    } else if (currentTheme === 'christmas') {
+      bodyColor = 0x1a3a1a; // Dark green (elf-like)
+      bodyEmissive = 0x0a1a0a;
+    }
+    
     const bodyGeometry = new THREE.CapsuleGeometry(0.4, 1.2, 8, 16);
     const bodyMaterial = new THREE.MeshPhongMaterial({
-      color: 0x2C2C2C,
-      emissive: 0x100000,
+      color: bodyColor,
+      emissive: bodyEmissive,
       emissiveIntensity: 0.3,
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
@@ -212,29 +375,176 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     body.name = 'body';
     group.add(body);
     
-    // Head
-    const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
-    const headMaterial = new THREE.MeshPhongMaterial({
-      color: 0x1A1A1A,
-      emissive: 0x0A0000,
-    });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 1.5;
-    head.name = 'head';
-    group.add(head);
-    
-    // Glowing red eyes
-    const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
-    const eyeMaterial = new THREE.MeshBasicMaterial({
-      color: 0xFF0000,
-    });
-    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    leftEye.position.set(-0.08, 1.5, 0.2);
-    group.add(leftEye);
-    
-    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    rightEye.position.set(0.08, 1.5, 0.2);
-    group.add(rightEye);
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: 3D Flaming Pumpkin Head
+      // Main pumpkin shape
+      const pumpkinGeometry = new THREE.SphereGeometry(0.35, 16, 12);
+      pumpkinGeometry.scale(1, 0.85, 0.9);
+      const pumpkinMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff6600,
+        emissive: 0xff3300,
+        emissiveIntensity: 0.4,
+        shininess: 30,
+      });
+      const pumpkin = new THREE.Mesh(pumpkinGeometry, pumpkinMaterial);
+      pumpkin.position.y = 1.5;
+      pumpkin.name = 'head';
+      group.add(pumpkin);
+      
+      // Pumpkin ridges
+      for (let i = 0; i < 8; i++) {
+        const ridgeGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4);
+        const ridgeMaterial = new THREE.MeshPhongMaterial({ color: 0xcc5500 });
+        const ridge = new THREE.Mesh(ridgeGeometry, ridgeMaterial);
+        const angle = (i / 8) * Math.PI * 2;
+        ridge.position.set(Math.cos(angle) * 0.32, 1.5, Math.sin(angle) * 0.28);
+        ridge.rotation.z = Math.PI / 2;
+        ridge.rotation.y = angle;
+        group.add(ridge);
+      }
+      
+      // Stem
+      const stemGeometry = new THREE.CylinderGeometry(0.06, 0.08, 0.2, 8);
+      const stemMaterial = new THREE.MeshPhongMaterial({ color: 0x3a5a2a });
+      const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+      stem.position.y = 1.9;
+      group.add(stem);
+      
+      // Glowing carved eyes (triangles)
+      const eyeShape = new THREE.Shape();
+      eyeShape.moveTo(0, 0.08);
+      eyeShape.lineTo(-0.06, -0.04);
+      eyeShape.lineTo(0.06, -0.04);
+      eyeShape.closePath();
+      const eyeGeometry = new THREE.ShapeGeometry(eyeShape);
+      const eyeMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.95,
+      });
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      leftEye.position.set(-0.12, 1.55, 0.32);
+      group.add(leftEye);
+      
+      const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial.clone());
+      rightEye.position.set(0.12, 1.55, 0.32);
+      group.add(rightEye);
+      
+      // Carved mouth (jagged)
+      const mouthShape = new THREE.Shape();
+      mouthShape.moveTo(-0.15, 0);
+      mouthShape.lineTo(-0.1, 0.06);
+      mouthShape.lineTo(-0.05, 0);
+      mouthShape.lineTo(0, 0.06);
+      mouthShape.lineTo(0.05, 0);
+      mouthShape.lineTo(0.1, 0.06);
+      mouthShape.lineTo(0.15, 0);
+      mouthShape.lineTo(0.1, -0.06);
+      mouthShape.lineTo(-0.1, -0.06);
+      mouthShape.closePath();
+      const mouthGeometry = new THREE.ShapeGeometry(mouthShape);
+      const mouth = new THREE.Mesh(mouthGeometry, eyeMaterial.clone());
+      mouth.position.set(0, 1.4, 0.32);
+      group.add(mouth);
+      
+      // Fire/flames on top
+      for (let i = 0; i < 5; i++) {
+        const flameGeometry = new THREE.ConeGeometry(0.08, 0.25, 6);
+        const flameMaterial = new THREE.MeshBasicMaterial({
+          color: i < 2 ? 0xff4400 : (i < 4 ? 0xff8800 : 0xffcc00),
+          transparent: true,
+          opacity: 0.8,
+        });
+        const flame = new THREE.Mesh(flameGeometry, flameMaterial);
+        const offsetX = (Math.random() - 0.5) * 0.2;
+        const offsetZ = (Math.random() - 0.5) * 0.15;
+        flame.position.set(offsetX, 2.0 + Math.random() * 0.1, offsetZ);
+        flame.name = `flame${i}`;
+        group.add(flame);
+      }
+      
+      // Inner fire glow light
+      const fireLight = new THREE.PointLight(0xff6600, 1.5, 3);
+      fireLight.position.set(0, 1.5, 0);
+      group.add(fireLight);
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Regular head with Santa hat
+      const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+      const headMaterial = new THREE.MeshPhongMaterial({
+        color: 0x2a4a2a, // Green-ish for elf
+        emissive: 0x0a1a0a,
+      });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 1.5;
+      head.name = 'head';
+      group.add(head);
+      
+      // Santa Hat - cone shape
+      const hatGeometry = new THREE.ConeGeometry(0.28, 0.5, 12);
+      const hatMaterial = new THREE.MeshPhongMaterial({
+        color: 0xff0000,
+        emissive: 0x440000,
+        shininess: 40,
+      });
+      const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+      hat.position.set(0, 1.85, 0);
+      hat.rotation.x = 0.15; // Slight tilt
+      hat.rotation.z = 0.1;
+      group.add(hat);
+      
+      // White fur trim at base
+      const trimGeometry = new THREE.TorusGeometry(0.26, 0.06, 8, 24);
+      const trimMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        emissive: 0x444444,
+        shininess: 20,
+      });
+      const trim = new THREE.Mesh(trimGeometry, trimMaterial);
+      trim.position.y = 1.68;
+      trim.rotation.x = Math.PI / 2;
+      group.add(trim);
+      
+      // White pompom on top
+      const pompomGeometry = new THREE.SphereGeometry(0.1, 12, 12);
+      const pompom = new THREE.Mesh(pompomGeometry, trimMaterial.clone());
+      pompom.position.set(0.08, 2.1, 0.05);
+      group.add(pompom);
+      
+      // Glowing green eyes (festive)
+      const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      leftEye.position.set(-0.08, 1.52, 0.2);
+      group.add(leftEye);
+      
+      const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial.clone());
+      rightEye.position.set(0.08, 1.52, 0.2);
+      group.add(rightEye);
+      
+    } else {
+      // STANDARD: Regular head
+      const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+      const headMaterial = new THREE.MeshPhongMaterial({
+        color: 0x1A1A1A,
+        emissive: 0x0A0000,
+      });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 1.5;
+      head.name = 'head';
+      group.add(head);
+      
+      // Glowing red eyes
+      const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      leftEye.position.set(-0.08, 1.5, 0.2);
+      group.add(leftEye);
+      
+      const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial.clone());
+      rightEye.position.set(0.08, 1.5, 0.2);
+      group.add(rightEye);
+    }
     
     // Health bar background
     const healthBgGeometry = new THREE.PlaneGeometry(0.8, 0.12);
@@ -266,7 +576,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     group.position.y = 0;
     
     return group;
-  }, [createSword, getSidePosition]);
+  }, [createSword, getSidePosition, currentTheme]);
   
   // Spawn new enemy
   const spawnEnemy = useCallback(() => {
@@ -351,6 +661,9 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
           setActionFeedback('perfect');
           
           addPopup(points, 50, 30, 'perfect', `⚡ PERFECT! +${points}`);
+          
+          // Spawn snow effect for Christmas theme
+          spawnSnowParticles();
           
           // Give heart back on perfect parry (max 3)
           if (heartsRef.current < 3) {
@@ -921,6 +1234,53 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       // Player sword idle animation
       if (playerSwordRef.current && !isParryingRef.current && !isDodgingRef.current && !isStrikingRef.current) {
         playerSwordRef.current.rotation.z = Math.sin(time / 600) * 0.05;
+      }
+      
+      // Animate snow particles (Christmas perfect parry effect)
+      if (snowActiveRef.current && snowParticlesRef.current && snowParticlePositionsRef.current) {
+        const positions = snowParticlePositionsRef.current;
+        snowTimerRef.current += deltaTime;
+        
+        for (let i = 0; i < positions.length / 3; i++) {
+          // Fall down gently
+          positions[i * 3 + 1] -= deltaTime * 2; // Fall speed
+          // Slight drift
+          positions[i * 3] += Math.sin(time / 500 + i) * 0.003;
+          
+          // Reset if below ground
+          if (positions[i * 3 + 1] < -1) {
+            positions[i * 3 + 1] = 5 + Math.random() * 2;
+          }
+        }
+        
+        snowParticlesRef.current.geometry.attributes.position.needsUpdate = true;
+        
+        // Fade out after 2 seconds
+        if (snowTimerRef.current > 2) {
+          const material = snowParticlesRef.current.material as THREE.PointsMaterial;
+          material.opacity -= deltaTime * 0.5;
+          
+          if (material.opacity <= 0) {
+            scene.remove(snowParticlesRef.current);
+            snowParticlesRef.current = null;
+            snowActiveRef.current = false;
+          }
+        }
+      }
+      
+      // Animate pumpkin flames (Halloween theme)
+      if (gameStateRef.current === 'playing') {
+        enemiesRef.current.forEach(enemy => {
+          if (!enemy.mesh) return;
+          for (let i = 0; i < 5; i++) {
+            const flame = enemy.mesh.getObjectByName(`flame${i}`) as THREE.Mesh;
+            if (flame) {
+              flame.position.y = 2.0 + Math.sin(time / 100 + i * 1.2) * 0.15;
+              flame.scale.y = 0.8 + Math.sin(time / 80 + i) * 0.3;
+              flame.rotation.z = Math.sin(time / 120 + i * 0.5) * 0.2;
+            }
+          }
+        });
       }
       
       renderer.render(scene, camera);
