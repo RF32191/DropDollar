@@ -444,7 +444,11 @@ export default function NeonStrikerGame({
   }, [power, aimAngle, aimLocked]);
 
   const switchView = useCallback((mode: 'full' | 'focus') => {
-    if (!cameraRef.current) return;
+    console.log('👁️ [NeonStriker] Switching view to:', mode);
+    if (!cameraRef.current) {
+      console.warn('⚠️ [NeonStriker] Camera not available for view switch');
+      return;
+    }
     setViewMode(mode);
     const cam = cameraRef.current;
     const striker = coinsRef.current.find(c => c.isStriker);
@@ -452,9 +456,18 @@ export default function NeonStrikerGame({
     if (mode === 'full') {
       cam.position.set(0, isMobile ? 28 : 24, isMobile ? 22 : 18);
       cam.lookAt(0, 0, 0);
-    } else if (striker && !striker.isKnockedOff) {
-      cam.position.set(striker.x, 10, striker.z + 8);
-      cam.lookAt(striker.x, 0, striker.z - 6);
+      console.log('✅ [NeonStriker] Switched to FULL view');
+    } else if (mode === 'focus') {
+      if (striker && !striker.isKnockedOff) {
+        cam.position.set(striker.x, 10, striker.z + 8);
+        cam.lookAt(striker.x, 0, striker.z - 6);
+        console.log('✅ [NeonStriker] Switched to FOCUS view on striker at:', striker.x, striker.z);
+      } else {
+        // If no striker, focus on center
+        cam.position.set(0, 10, 8);
+        cam.lookAt(0, 0, -2);
+        console.log('⚠️ [NeonStriker] No striker found, focusing on center');
+      }
     }
   }, [isMobile]);
 
@@ -726,6 +739,8 @@ export default function NeonStrikerGame({
       setCoinsLeft(remaining);
       
       if (remaining === 0) {
+        console.log('🏆 [NeonStriker] Level', currentLevelRef.current + 1, 'complete! Moving to next level...');
+        
         const levelBonus = 200 + (currentLevelRef.current * 50);
         scoreRef.current += levelBonus;
         setScore(scoreRef.current);
@@ -735,6 +750,7 @@ export default function NeonStrikerGame({
         if (currentLevelRef.current < LEVELS.length - 1) {
           currentLevelRef.current++;
           setCurrentLevel(currentLevelRef.current);
+          console.log('⏭️ [NeonStriker] Advancing to level', currentLevelRef.current + 1);
         } else {
           // Loop back to first level with bonus
           currentLevelRef.current = 0;
@@ -742,21 +758,25 @@ export default function NeonStrikerGame({
           scoreRef.current += 500;
           setScore(scoreRef.current);
           addPopup(500, 50, 25, 'critical', '🌟 ALL LEVELS CLEARED! +500');
+          console.log('🔄 [NeonStriker] All levels cleared! Restarting from level 1');
         }
         
-        // Reset for next level
+        // Reset for next level - use setTimeout to ensure state updates are applied
         isShootingRef.current = false;
         hitsThisShotRef.current = 0;
         setAimLocked(false);
+        setGameState('playing'); // Ensure gameState is playing for scene reinitialization
         
-        // Cancel current animation frame to prevent conflicts
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-          animationRef.current = null;
-        }
-        
-        // Immediately trigger scene reinitialization
-        setSceneReady(false);
+        // Delay scene reset to allow state updates and show level complete message
+        setTimeout(() => {
+          console.log('🔧 [NeonStriker] Reinitializing scene for level', currentLevelRef.current + 1);
+          // Cancel any pending animation
+          if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+            animationRef.current = null;
+          }
+          setSceneReady(false);
+        }, 300);
       } else {
         setGameState('playing');
         setAimLocked(false);
