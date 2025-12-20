@@ -742,13 +742,19 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
             spawnCooldownRef.current = 2;
           } else if (gameTimeRef.current >= 15 && aliveEnemies < 3) {
             spawnEnemy();
-            spawnCooldownRef.current = 3;
-          } else if (gameTimeRef.current >= 30 && aliveEnemies < 4) {
+            spawnCooldownRef.current = 2.5;
+          } else if (gameTimeRef.current >= 30 && aliveEnemies < 5) {
+            // After 30 seconds: spawn up to 5 enemies, faster spawns
             spawnEnemy();
-            spawnCooldownRef.current = 4;
-          } else if (gameTimeRef.current >= 45 && aliveEnemies < 5) {
+            spawnCooldownRef.current = 1.5;
+          } else if (gameTimeRef.current >= 45 && aliveEnemies < 6) {
+            // After 45 seconds: spawn up to 6 enemies, even faster
             spawnEnemy();
-            spawnCooldownRef.current = 5;
+            spawnCooldownRef.current = 1.2;
+          } else if (gameTimeRef.current >= 50 && aliveEnemies < 7) {
+            // After 50 seconds: spawn up to 7 enemies, very fast
+            spawnEnemy();
+            spawnCooldownRef.current = 1.0;
           }
         }
         
