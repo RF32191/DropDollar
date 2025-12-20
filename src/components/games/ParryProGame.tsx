@@ -53,6 +53,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const playerSwordRef = useRef<THREE.Group | null>(null);
   const animationFrameRef = useRef<number>(0);
   const initializedRef = useRef(false);
+  const teslaLightningRef = useRef<THREE.Line[]>([]); // For animated lightning
   
   // Music ref
   const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -1132,6 +1133,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       scene.add(wall);
       
       // TESLA COILS
+      const teslaTopPositions: THREE.Vector3[] = [];
       for (let i = 0; i < 2; i++) {
         const coilX = i === 0 ? -12 : 12;
         // Base
@@ -1145,22 +1147,83 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         const towerCoil = new THREE.Mesh(towerCoilGeo, baseMat);
         towerCoil.position.set(coilX, 3, -12);
         scene.add(towerCoil);
-        // Top sphere
+        // Copper coil rings
+        for (let r = 0; r < 6; r++) {
+          const ringGeo = new THREE.TorusGeometry(0.45 - r * 0.02, 0.05, 8, 16);
+          const ringMat = new THREE.MeshStandardMaterial({ color: 0xcc6600, metalness: 0.9 });
+          const ring = new THREE.Mesh(ringGeo, ringMat);
+          ring.position.set(coilX, 1.5 + r * 0.4, -12);
+          ring.rotation.x = Math.PI / 2;
+          scene.add(ring);
+        }
+        // Top sphere (glowing)
         const topGeo = new THREE.SphereGeometry(0.6, 16, 16);
-        const topMat = new THREE.MeshStandardMaterial({ color: 0x6666ff, emissive: 0x4400ff, emissiveIntensity: 0.5 });
+        const topMat = new THREE.MeshStandardMaterial({ 
+          color: 0x4488ff, 
+          emissive: 0x2244ff, 
+          emissiveIntensity: 0.8,
+          metalness: 0.3,
+        });
         const top = new THREE.Mesh(topGeo, topMat);
         top.position.set(coilX, 5.3, -12);
         scene.add(top);
-        // Electricity arcs (static)
-        for (let j = 0; j < 3; j++) {
-          const arcGeo = new THREE.BoxGeometry(0.05, 1.5, 0.05);
-          const arcMat = new THREE.MeshBasicMaterial({ color: 0x8888ff });
-          const arc = new THREE.Mesh(arcGeo, arcMat);
-          arc.position.set(coilX + (Math.random() - 0.5) * 0.8, 5.8 + j * 0.4, -12);
-          arc.rotation.z = (Math.random() - 0.5) * 1;
-          scene.add(arc);
-        }
+        teslaTopPositions.push(new THREE.Vector3(coilX, 5.3, -12));
+        
+        // Glow around sphere
+        const glowGeo = new THREE.SphereGeometry(0.8, 16, 16);
+        const glowMat = new THREE.MeshBasicMaterial({ 
+          color: 0x4488ff, 
+          transparent: true, 
+          opacity: 0.3 
+        });
+        const glow = new THREE.Mesh(glowGeo, glowMat);
+        glow.position.set(coilX, 5.3, -12);
+        scene.add(glow);
       }
+      
+      // ANIMATED LIGHTNING BOLTS between Tesla coils
+      teslaLightningRef.current = [];
+      const createLightningBolt = () => {
+        const points: THREE.Vector3[] = [];
+        const startPos = teslaTopPositions[0];
+        const endPos = teslaTopPositions[1];
+        const segments = 12;
+        
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const x = startPos.x + (endPos.x - startPos.x) * t;
+          const y = startPos.y + (Math.random() - 0.5) * 1.5; // Random vertical offset
+          const z = startPos.z + (Math.random() - 0.5) * 0.5;
+          points.push(new THREE.Vector3(x, y, z));
+        }
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ 
+          color: 0x44aaff,
+          transparent: true,
+          opacity: 0.9,
+          linewidth: 2,
+        });
+        const lightning = new THREE.Line(geometry, material);
+        scene.add(lightning);
+        return lightning;
+      };
+      
+      // Create 3 lightning bolts
+      for (let b = 0; b < 3; b++) {
+        teslaLightningRef.current.push(createLightningBolt());
+      }
+      
+      // Add lightning glow line (thicker, more transparent)
+      const glowPoints = [teslaTopPositions[0], teslaTopPositions[1]];
+      const glowGeometry = new THREE.BufferGeometry().setFromPoints(glowPoints);
+      const glowLineMat = new THREE.LineBasicMaterial({
+        color: 0x4488ff,
+        transparent: true,
+        opacity: 0.2,
+      });
+      const glowLine = new THREE.Line(glowGeometry, glowLineMat);
+      scene.add(glowLine);
       
       // TOMBSTONES
       const tombMat = new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.9 });
@@ -1580,6 +1643,37 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
             }
           }
         });
+      }
+      
+      // Animate Tesla coil lightning bolts (Halloween theme)
+      if (currentTheme === 'halloween' && teslaLightningRef.current.length > 0) {
+        // Regenerate lightning paths every 100ms for crackling effect
+        if (Math.floor(time / 100) % 2 === 0) {
+          teslaLightningRef.current.forEach((lightning, idx) => {
+            const points: THREE.Vector3[] = [];
+            const startX = -12;
+            const endX = 12;
+            const baseY = 5.3;
+            const segments = 12;
+            
+            for (let i = 0; i <= segments; i++) {
+              const t = i / segments;
+              const x = startX + (endX - startX) * t;
+              // Add jagged random offsets for lightning effect
+              const yOffset = (Math.random() - 0.5) * 1.8;
+              const zOffset = (Math.random() - 0.5) * 0.6;
+              const y = baseY + yOffset + Math.sin(t * Math.PI) * 0.5 * (idx - 1); // Slight arc
+              const z = -12 + zOffset;
+              points.push(new THREE.Vector3(x, y, z));
+            }
+            
+            lightning.geometry.setFromPoints(points);
+            lightning.geometry.attributes.position.needsUpdate = true;
+            
+            // Flicker opacity
+            (lightning.material as THREE.LineBasicMaterial).opacity = 0.6 + Math.random() * 0.4;
+          });
+        }
       }
       
       renderer.render(scene, camera);
