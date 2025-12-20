@@ -673,101 +673,113 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       group.add(pointLight);
       
     } else if (currentTheme === 'reproductive') {
-      // SPERM RACE: Realistic 3D Sperm Cell
+      // SPERM RACE: BIG WHITE 3D Sperm Cell
       
-      // Main head - big round 3D sphere
-      const headGeometry = new THREE.SphereGeometry(0.6, 24, 24);
+      // Main head - BIG round 3D white sphere
+      const headGeometry = new THREE.SphereGeometry(1.0, 32, 32); // BIGGER!
       const headMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffeedd, // Cream white
-        emissive: 0x332211,
+        color: 0xffffff, // Pure white
+        emissive: 0xffffff,
+        emissiveIntensity: 0.3,
+        shininess: 100,
+        transparent: true,
+        opacity: 0.98,
+      });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 0.5;
+      head.name = 'mainBolt';
+      group.add(head);
+      
+      // Outer glow for visibility
+      const glowGeometry = new THREE.SphereGeometry(1.15, 24, 24);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.3,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.position.y = 0.5;
+      group.add(glow);
+      
+      // Acrosomal cap (front of head) - distinct rounded white cap
+      const acrosomeGeometry = new THREE.SphereGeometry(0.7, 20, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+      const acrosomeMaterial = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        emissive: 0xeeeeee,
         emissiveIntensity: 0.2,
         shininess: 80,
         transparent: true,
         opacity: 0.95,
       });
-      const head = new THREE.Mesh(headGeometry, headMaterial);
-      head.position.y = 0.3;
-      head.name = 'mainBolt';
-      group.add(head);
-      
-      // Acrosomal cap (front of head) - distinct rounded cap
-      const acrosomeGeometry = new THREE.SphereGeometry(0.45, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-      const acrosomeMaterial = new THREE.MeshPhongMaterial({
-        color: 0xeeddcc,
-        emissive: 0x221111,
-        emissiveIntensity: 0.15,
-        shininess: 60,
-        transparent: true,
-        opacity: 0.9,
-      });
       const acrosome = new THREE.Mesh(acrosomeGeometry, acrosomeMaterial);
-      acrosome.position.set(0, 0.75, 0);
+      acrosome.position.set(0, 1.2, 0);
       acrosome.name = 'core';
       group.add(acrosome);
       
-      // Nucleus inside head (visible as darker spot)
-      const nucleusGeometry = new THREE.SphereGeometry(0.25, 12, 12);
+      // Nucleus inside head (visible as lighter center)
+      const nucleusGeometry = new THREE.SphereGeometry(0.4, 16, 16);
       const nucleusMaterial = new THREE.MeshBasicMaterial({
-        color: 0x886655,
+        color: 0xf8f8ff, // Ghost white with slight blue
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.6,
       });
       const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
-      nucleus.position.y = 0.2;
+      nucleus.position.y = 0.4;
       group.add(nucleus);
       
-      // Midpiece (connection between head and tail)
-      const midpieceGeometry = new THREE.CylinderGeometry(0.15, 0.12, 0.5, 12);
+      // Midpiece (connection between head and tail) - white
+      const midpieceGeometry = new THREE.CylinderGeometry(0.22, 0.18, 0.7, 16);
       const midpieceMaterial = new THREE.MeshPhongMaterial({
-        color: 0xddccbb,
-        emissive: 0x110000,
-        shininess: 40,
+        color: 0xf5f5f5,
+        emissive: 0xdddddd,
+        emissiveIntensity: 0.15,
+        shininess: 60,
       });
       const midpiece = new THREE.Mesh(midpieceGeometry, midpieceMaterial);
-      midpiece.position.y = -0.5;
+      midpiece.position.y = -0.6;
       group.add(midpiece);
       
-      // Mitochondrial spiral around midpiece
+      // Mitochondrial spiral around midpiece - subtle white
       const spiralPoints: THREE.Vector3[] = [];
-      for (let i = 0; i <= 20; i++) {
-        const t = i / 20;
-        const angle = t * Math.PI * 6;
-        const radius = 0.18;
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24;
+        const angle = t * Math.PI * 8;
+        const radius = 0.25;
         spiralPoints.push(new THREE.Vector3(
           Math.cos(angle) * radius,
-          -0.25 - t * 0.5,
+          -0.25 - t * 0.7,
           Math.sin(angle) * radius
         ));
       }
       const spiralCurve = new THREE.CatmullRomCurve3(spiralPoints);
-      const spiralGeometry = new THREE.TubeGeometry(spiralCurve, 40, 0.025, 6, false);
+      const spiralGeometry = new THREE.TubeGeometry(spiralCurve, 50, 0.035, 8, false);
       const spiralMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff6644, // Mitochondria orange-red
+        color: 0xeeeeee, // Light grey-white
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.7,
       });
       const spiral = new THREE.Mesh(spiralGeometry, spiralMaterial);
       group.add(spiral);
       
-      // Flagellum tail - long wavy animated tail
+      // Flagellum tail - LONGER white wavy animated tail
       const tailPoints: THREE.Vector3[] = [];
-      for (let i = 0; i <= 40; i++) {
-        const t = i / 40;
-        // Smooth wave that gets smaller towards the end
-        const wave = Math.sin(t * Math.PI * 5) * 0.25 * (1 - t * 0.7);
-        const zwave = Math.cos(t * Math.PI * 5) * 0.1 * (1 - t * 0.7);
-        tailPoints.push(new THREE.Vector3(wave, -0.75 - t * 3.5, zwave));
+      for (let i = 0; i <= 50; i++) {
+        const t = i / 50;
+        // Smooth wave that gets smaller towards the end - MORE VISIBLE
+        const wave = Math.sin(t * Math.PI * 6) * 0.4 * (1 - t * 0.6);
+        const zwave = Math.cos(t * Math.PI * 6) * 0.15 * (1 - t * 0.6);
+        tailPoints.push(new THREE.Vector3(wave, -0.95 - t * 4.5, zwave)); // LONGER tail
       }
       const tailCurve = new THREE.CatmullRomCurve3(tailPoints);
-      // Tail gets thinner towards the end
-      const tailGeometry = new THREE.TubeGeometry(tailCurve, 48, 0.06, 8, false);
+      // Tail gets thinner towards the end - THICKER base
+      const tailGeometry = new THREE.TubeGeometry(tailCurve, 60, 0.1, 10, false);
       const tailMaterial = new THREE.MeshPhongMaterial({
-        color: 0xeeddcc,
-        emissive: 0x221100,
-        emissiveIntensity: 0.1,
-        shininess: 30,
+        color: 0xffffff, // Pure white
+        emissive: 0xffffff,
+        emissiveIntensity: 0.15,
+        shininess: 50,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95,
       });
       const tail = new THREE.Mesh(tailGeometry, tailMaterial);
       tail.name = 'glow'; // Used for animation

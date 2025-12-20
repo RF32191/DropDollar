@@ -6,6 +6,8 @@ import { GameInput, GameSession } from '@/types/gameSession';
 import SuspiciousActivityWarning from '@/components/warnings/SuspiciousActivityWarning';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
 console.log('');
@@ -61,6 +63,7 @@ interface BladeBounce3DProps {
   isCompetitionMode?: boolean;
   gameId?: string;
   gameSession?: GameSession; // For server-side validation
+  theme?: GameTheme;
 }
 
 const GAME_DURATION = 60;
@@ -99,7 +102,9 @@ export default function BladeBounce3D({
   isCompetitionMode = false,
   gameId,
   gameSession,
+  theme: initialTheme,
 }: BladeBounce3DProps) {
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   console.log('🎯 [BladeBounce3D] Component initialized', {
     isCompetitionMode,
@@ -529,9 +534,163 @@ export default function BladeBounce3D({
     swordLight.position.set(0, 0, 2);
     scene.add(swordLight);
 
-    // Create sword
+    // Create sword - THEMED based on currentTheme
     const swordGroup = new THREE.Group();
     
+    if (currentTheme === 'christmas') {
+      // CANDY CANE sword!
+      // Main candy cane body (curved J shape simulated with cylinder)
+      const caneGeometry = new THREE.CylinderGeometry(0.2, 0.2, 4, 16);
+      const caneMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.1,
+        roughness: 0.3,
+        emissive: 0xffdddd,
+        emissiveIntensity: 0.2,
+      });
+      const cane = new THREE.Mesh(caneGeometry, caneMaterial);
+      cane.position.y = 2;
+      swordGroup.add(cane);
+      
+      // Red spiral stripes on candy cane
+      for (let i = 0; i < 8; i++) {
+        const stripeGeometry = new THREE.BoxGeometry(0.25, 0.4, 0.08);
+        const stripeMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+        });
+        const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+        stripe.position.y = 0.3 + i * 0.5;
+        stripe.position.z = 0.15;
+        stripe.rotation.z = i * 0.2; // Slight spiral effect
+        swordGroup.add(stripe);
+      }
+      
+      // Curved hook at top
+      const hookGeometry = new THREE.TorusGeometry(0.4, 0.15, 12, 16, Math.PI);
+      const hookMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.1,
+        roughness: 0.3,
+      });
+      const hook = new THREE.Mesh(hookGeometry, hookMaterial);
+      hook.position.y = 4.0;
+      hook.position.x = 0.4;
+      hook.rotation.z = Math.PI / 2;
+      swordGroup.add(hook);
+      
+      // Red stripe on hook
+      const hookStripe = new THREE.TorusGeometry(0.42, 0.08, 8, 12, Math.PI * 0.6);
+      const hookStripeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const hookStripeMesh = new THREE.Mesh(hookStripe, hookStripeMat);
+      hookStripeMesh.position.y = 4.0;
+      hookStripeMesh.position.x = 0.4;
+      hookStripeMesh.position.z = 0.1;
+      hookStripeMesh.rotation.z = Math.PI / 2;
+      swordGroup.add(hookStripeMesh);
+      
+      // Festive bow at bottom
+      const bowMaterial = new THREE.MeshStandardMaterial({ color: 0x00aa00, roughness: 0.5 });
+      const bowLoop1 = new THREE.TorusGeometry(0.25, 0.08, 8, 16, Math.PI * 1.5);
+      const bow1 = new THREE.Mesh(bowLoop1, bowMaterial);
+      bow1.position.y = -0.2;
+      bow1.position.x = 0.2;
+      bow1.rotation.z = Math.PI / 4;
+      swordGroup.add(bow1);
+      
+      const bow2 = new THREE.Mesh(bowLoop1.clone(), bowMaterial);
+      bow2.position.y = -0.2;
+      bow2.position.x = -0.2;
+      bow2.rotation.z = -Math.PI / 4;
+      swordGroup.add(bow2);
+      
+    } else if (currentTheme === 'halloween') {
+      // SCYTHE weapon!
+      // Long handle (staff)
+      const staffGeometry = new THREE.CylinderGeometry(0.1, 0.12, 4.5, 12);
+      const staffMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3a2a1a,
+        metalness: 0.2,
+        roughness: 0.8,
+      });
+      const staff = new THREE.Mesh(staffGeometry, staffMaterial);
+      staff.position.y = 1.5;
+      swordGroup.add(staff);
+      
+      // Metal collar at top of staff
+      const collarGeometry = new THREE.CylinderGeometry(0.15, 0.12, 0.2, 12);
+      const metalMaterial = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        metalness: 0.9,
+        roughness: 0.2,
+      });
+      const collar = new THREE.Mesh(collarGeometry, metalMaterial);
+      collar.position.y = 3.8;
+      swordGroup.add(collar);
+      
+      // Curved scythe blade
+      const bladeShape = new THREE.Shape();
+      bladeShape.moveTo(0, 0);
+      bladeShape.quadraticCurveTo(1.5, 0.5, 2.5, -0.5);
+      bladeShape.quadraticCurveTo(2.8, -0.8, 2.5, -1.0);
+      bladeShape.quadraticCurveTo(1.5, -0.2, 0, -0.1);
+      bladeShape.lineTo(0, 0);
+      
+      const bladeExtrudeSettings = { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 };
+      const bladeGeometry = new THREE.ExtrudeGeometry(bladeShape, bladeExtrudeSettings);
+      const bladeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x444444,
+        metalness: 0.95,
+        roughness: 0.1,
+        emissive: 0x660066,
+        emissiveIntensity: 0.3,
+      });
+      const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+      blade.position.y = 3.9;
+      blade.position.x = -0.1;
+      blade.rotation.z = Math.PI;
+      swordGroup.add(blade);
+      
+      // Purple glowing edge
+      const edgeShape = new THREE.Shape();
+      edgeShape.moveTo(0.1, -0.05);
+      edgeShape.quadraticCurveTo(1.5, 0.4, 2.4, -0.5);
+      edgeShape.quadraticCurveTo(1.5, 0.2, 0.1, -0.08);
+      const edgeGeometry = new THREE.ExtrudeGeometry(edgeShape, { depth: 0.02, bevelEnabled: false });
+      const edgeMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff00ff,
+        transparent: true,
+        opacity: 0.7,
+      });
+      const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+      edge.position.y = 3.9;
+      edge.position.x = -0.1;
+      edge.position.z = 0.06;
+      edge.rotation.z = Math.PI;
+      swordGroup.add(edge);
+      
+      // Skull decoration at bottom
+      const skullGeometry = new THREE.SphereGeometry(0.2, 12, 12);
+      const skullMaterial = new THREE.MeshStandardMaterial({
+        color: 0xddddcc,
+        roughness: 0.6,
+      });
+      const skull = new THREE.Mesh(skullGeometry, skullMaterial);
+      skull.position.y = -0.8;
+      skull.scale.set(1, 1.2, 0.8);
+      swordGroup.add(skull);
+      
+      // Eye sockets
+      const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      leftEye.position.set(-0.08, -0.75, 0.15);
+      swordGroup.add(leftEye);
+      const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+      rightEye.position.set(0.08, -0.75, 0.15);
+      swordGroup.add(rightEye);
+      
+    } else {
+      // STANDARD sword
     // Blade (main body)
     const bladeGeometry = new THREE.BoxGeometry(0.3, 4, 0.1);
     const bladeMaterial = new THREE.MeshStandardMaterial({
@@ -590,6 +749,7 @@ export default function BladeBounce3D({
     const pommel = new THREE.Mesh(pommelGeometry, pommelMaterial);
     pommel.position.y = -1.3;
     swordGroup.add(pommel);
+    }
     
     // Create danger zones ONLY on handle (MUCH LARGER red circles with glow)
     const dangerZones: THREE.Mesh[] = [];
@@ -667,72 +827,220 @@ export default function BladeBounce3D({
     if (!sceneRef.current) return;
 
     if (type === 'fireball') {
-      // ULTRA-REALISTIC FIRE SPRITE - Multi-layered with smoke and embers
-      // 20% chance for GREEN FIREBALL (high value)
-      const isGreen = Math.random() < 0.2;
-      const fireballSize = 0.45 + Math.random() * 0.2;
+      // THEMED PROJECTILES based on currentTheme
+      // 20% chance for special variant
+      const isSpecial = Math.random() < 0.2;
+      const projectileSize = 0.45 + Math.random() * 0.2;
       
-      // Spawn from edges (needed for both types)
+      // Spawn from edges
       const side = Math.random() < 0.5 ? -1 : 1;
       const x = side * (10 + Math.random() * 5);
       const y = (Math.random() - 0.5) * 8;
       
-      // Create fire sprite group for layering
       const fireGroup = new THREE.Group();
       
-      if (isGreen) {
-        // NEON GREEN FLAME FIREBALL - Ultra bright magical appearance!
-        // Inner BLAZING white core
-        const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.25, 12, 12);
-        const coreMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 1.0,
+      if (currentTheme === 'christmas') {
+        // SNOWBALLS for Christmas
+        if (isSpecial) {
+          // YELLOW/GOLDEN SNOWBALL (high value)
+          const coreGeo = new THREE.SphereGeometry(projectileSize * 0.5, 16, 16);
+          const coreMat = new THREE.MeshStandardMaterial({
+            color: 0xffff00,
+            emissive: 0xffaa00,
+            emissiveIntensity: 0.5,
+            roughness: 0.3,
+          });
+          fireGroup.add(new THREE.Mesh(coreGeo, coreMat));
+          
+          const sparkleGeo = new THREE.SphereGeometry(projectileSize * 0.7, 20, 20);
+          const sparkleMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.6 });
+          fireGroup.add(new THREE.Mesh(sparkleGeo, sparkleMat));
+          
+          const glowGeo = new THREE.SphereGeometry(projectileSize * 1.2, 24, 24);
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0xffdd00, transparent: true, opacity: 0.3 });
+          const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+          glowMesh.position.set(x, y, 0);
+          sceneRef.current.add(glowMesh);
+          
+          fireGroup.position.set(x, y, 0);
+          sceneRef.current.add(fireGroup);
+          
+          const speed = 0.06 + Math.random() * 0.04;
+          enemiesRef.current.push({
+            mesh: fireGroup as any, glowMesh, x, y,
+            velocityX: -side * speed, velocityY: (Math.random() - 0.5) * 0.03,
+            type: 'fireball', health: 1, rotation: 0,
+            pulsePhase: Math.random() * Math.PI * 2, trailParticles: [],
+            isGreenFireball: true, basePoints: 25,
+          });
+          return;
+        }
+        
+        // WHITE SNOWBALL (regular)
+        const snowGeo = new THREE.SphereGeometry(projectileSize * 0.6, 16, 16);
+        const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+        fireGroup.add(new THREE.Mesh(snowGeo, snowMat));
+        
+        const iceGeo = new THREE.SphereGeometry(projectileSize * 0.75, 20, 20);
+        const iceMat = new THREE.MeshStandardMaterial({ color: 0xe8f4ff, transparent: true, opacity: 0.8, roughness: 0.2 });
+        fireGroup.add(new THREE.Mesh(iceGeo, iceMat));
+        
+        // Snowflake crystals
+        for (let i = 0; i < 5; i++) {
+          const crystalGeo = new THREE.OctahedronGeometry(0.05, 0);
+          const crystalMat = new THREE.MeshBasicMaterial({ color: 0xaaddff });
+          const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+          crystal.position.set((Math.random() - 0.5) * projectileSize, (Math.random() - 0.5) * projectileSize, 0);
+          fireGroup.add(crystal);
+        }
+        
+        const glowGeo = new THREE.SphereGeometry(projectileSize * 1.2, 24, 24);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.2 });
+        const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+        glowMesh.position.set(x, y, 0);
+        
+        fireGroup.position.set(x, y, 0);
+        sceneRef.current.add(fireGroup);
+        sceneRef.current.add(glowMesh);
+        
+        const speed = 0.06 + Math.random() * 0.04;
+        enemiesRef.current.push({
+          mesh: fireGroup as any, glowMesh, x, y,
+          velocityX: -side * speed, velocityY: (Math.random() - 0.5) * 0.03,
+          type: 'fireball', health: 1, rotation: 0,
+          pulsePhase: Math.random() * Math.PI * 2, trailParticles: [],
+          isGreenFireball: false, basePoints: 10,
         });
+        
+      } else if (currentTheme === 'halloween') {
+        // FLAMING PUMPKINS for Halloween
+        if (isSpecial) {
+          // GREEN FLAMING PUMPKIN
+          const pumpkinGeo = new THREE.SphereGeometry(projectileSize * 0.6, 16, 12);
+          const pumpkinMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.7 });
+          const pumpkin = new THREE.Mesh(pumpkinGeo, pumpkinMat);
+          pumpkin.scale.set(1.2, 1, 1.2);
+          fireGroup.add(pumpkin);
+          
+          // Stem
+          const stemGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.15, 8);
+          const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a });
+          const stem = new THREE.Mesh(stemGeo, stemMat);
+          stem.position.y = projectileSize * 0.6;
+          fireGroup.add(stem);
+          
+          // GREEN flames
+          for (let i = 0; i < 4; i++) {
+            const flameGeo = new THREE.ConeGeometry(0.1, 0.3, 8);
+            const flameMat = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00ff00 : 0x44ff44, transparent: true, opacity: 0.9 });
+            const flame = new THREE.Mesh(flameGeo, flameMat);
+            flame.position.set((Math.random() - 0.5) * 0.2, projectileSize * 0.7 + Math.random() * 0.2, 0);
+            flame.rotation.z = (Math.random() - 0.5) * 0.5;
+            fireGroup.add(flame);
+          }
+          
+          const glowGeo = new THREE.SphereGeometry(projectileSize * 1.4, 24, 24);
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3 });
+          const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+          glowMesh.position.set(x, y, 0);
+          sceneRef.current.add(glowMesh);
+          
+          fireGroup.position.set(x, y, 0);
+          sceneRef.current.add(fireGroup);
+          
+          const speed = 0.06 + Math.random() * 0.04;
+          enemiesRef.current.push({
+            mesh: fireGroup as any, glowMesh, x, y,
+            velocityX: -side * speed, velocityY: (Math.random() - 0.5) * 0.03,
+            type: 'fireball', health: 1, rotation: 0,
+            pulsePhase: Math.random() * Math.PI * 2, trailParticles: [],
+            isGreenFireball: true, basePoints: 25,
+          });
+          return;
+        }
+        
+        // RED FLAMING PUMPKIN
+        const pumpkinGeo = new THREE.SphereGeometry(projectileSize * 0.6, 16, 12);
+        const pumpkinMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.7, emissive: 0x331100, emissiveIntensity: 0.3 });
+        const pumpkin = new THREE.Mesh(pumpkinGeo, pumpkinMat);
+        pumpkin.scale.set(1.2, 1, 1.2);
+        fireGroup.add(pumpkin);
+        
+        // Carved face
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const eyeGeo = new THREE.BoxGeometry(0.08, 0.08, 0.1);
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.12, 0.05, projectileSize * 0.55);
+        leftEye.rotation.z = Math.PI / 4;
+        fireGroup.add(leftEye);
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.12, 0.05, projectileSize * 0.55);
+        rightEye.rotation.z = Math.PI / 4;
+        fireGroup.add(rightEye);
+        
+        // Stem
+        const stemGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.15, 8);
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a });
+        fireGroup.add(new THREE.Mesh(stemGeo, stemMat)).position.y = projectileSize * 0.6;
+        
+        // RED flames
+        for (let i = 0; i < 4; i++) {
+          const flameGeo = new THREE.ConeGeometry(0.1, 0.3, 8);
+          const flameMat = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xff0000 : 0xff4400, transparent: true, opacity: 0.9 });
+          const flame = new THREE.Mesh(flameGeo, flameMat);
+          flame.position.set((Math.random() - 0.5) * 0.2, projectileSize * 0.7 + Math.random() * 0.2, 0);
+          flame.rotation.z = (Math.random() - 0.5) * 0.5;
+          fireGroup.add(flame);
+        }
+        
+        const glowGeo = new THREE.SphereGeometry(projectileSize * 1.4, 24, 24);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.25 });
+        const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+        glowMesh.position.set(x, y, 0);
+        
+        fireGroup.position.set(x, y, 0);
+        sceneRef.current.add(fireGroup);
+        sceneRef.current.add(glowMesh);
+        
+        const speed = 0.06 + Math.random() * 0.04;
+        enemiesRef.current.push({
+          mesh: fireGroup as any, glowMesh, x, y,
+          velocityX: -side * speed, velocityY: (Math.random() - 0.5) * 0.03,
+          type: 'fireball', health: 1, rotation: 0,
+          pulsePhase: Math.random() * Math.PI * 2, trailParticles: [],
+          isGreenFireball: false, basePoints: 10,
+        });
+        
+      } else {
+        // STANDARD fireballs
+        if (isSpecial) {
+          // GREEN fireball
+          const coreGeometry = new THREE.SphereGeometry(projectileSize * 0.25, 12, 12);
+          const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
         const core = new THREE.Mesh(coreGeometry, coreMaterial);
         core.scale.set(1, 1.2, 1);
         fireGroup.add(core);
         
-        // NEON CYAN inner layer (electric!)
-        const cyanGeometry = new THREE.SphereGeometry(fireballSize * 0.45, 16, 16);
-        const cyanMaterial = new THREE.MeshBasicMaterial({
-          color: 0x00ffff,
-          transparent: true,
-          opacity: 1.0, // FULLY OPAQUE for max brightness
-        });
+          const cyanGeometry = new THREE.SphereGeometry(projectileSize * 0.45, 16, 16);
+          const cyanMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 1.0 });
         const cyan = new THREE.Mesh(cyanGeometry, cyanMaterial);
         cyan.scale.set(1, 1.3, 1);
         fireGroup.add(cyan);
         
-        // NEON LIME layer (super vivid!)
-        const limeGeometry = new THREE.SphereGeometry(fireballSize * 0.7, 20, 20);
-        const limeMaterial = new THREE.MeshBasicMaterial({
-          color: 0xaaff00, // Brighter lime
-          transparent: true,
-          opacity: 1.0, // FULLY OPAQUE
-        });
+          const limeGeometry = new THREE.SphereGeometry(projectileSize * 0.7, 20, 20);
+          const limeMaterial = new THREE.MeshBasicMaterial({ color: 0xaaff00, transparent: true, opacity: 1.0 });
         const lime = new THREE.Mesh(limeGeometry, limeMaterial);
         lime.scale.set(1, 1.4, 1);
         fireGroup.add(lime);
         
-        // NEON GREEN outer layer (glowing!)
-        const greenGeometry = new THREE.SphereGeometry(fireballSize, 24, 24);
-        const greenMaterial = new THREE.MeshBasicMaterial({
-          color: 0x00ff00, // Pure bright green
-          transparent: true,
-          opacity: 0.95, // Almost fully opaque
-        });
+          const greenGeometry = new THREE.SphereGeometry(projectileSize, 24, 24);
+          const greenMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.95 });
         const green = new THREE.Mesh(greenGeometry, greenMaterial);
         green.scale.set(1, 1.5, 1);
         fireGroup.add(green);
         
-        // BRIGHT outer glow (neon green aura)
-        const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.6, 32, 32);
-        const glowMaterial = new THREE.MeshBasicMaterial({
-          color: 0x66ff00,
-          transparent: true,
-          opacity: 0.5, // Brighter glow!
-        });
+          const glowGeometry = new THREE.SphereGeometry(projectileSize * 1.6, 32, 32);
+          const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x66ff00, transparent: true, opacity: 0.5 });
         const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
         glowMesh.scale.set(1, 1.6, 1);
         glowMesh.position.set(x, y, 0);
@@ -742,108 +1050,60 @@ export default function BladeBounce3D({
         sceneRef.current.add(fireGroup);
         
         const speed = 0.06 + Math.random() * 0.04;
-        const velocityX = -side * speed;
-        const velocityY = (Math.random() - 0.5) * 0.03;
-        
         enemiesRef.current.push({
-          mesh: fireGroup as any,
-          glowMesh,
-          x,
-          y,
-          velocityX,
-          velocityY,
-          type: 'fireball',
-          health: 1,
-          rotation: 0,
-          pulsePhase: Math.random() * Math.PI * 2,
-          trailParticles: [],
-          isGreenFireball: true,
-          basePoints: 25, // GREEN = 25 base points
-        });
-        return; // Exit early for green fireball
-      }
-      
-      // NEON BRIGHT FLAME FIREBALL - Ultra bright with flashing!
-      // Inner NEON white core (blazing bright!)
-      const coreGeometry = new THREE.SphereGeometry(fireballSize * 0.25, 12, 12);
-      const coreMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 1.0,
-      });
+            mesh: fireGroup as any, glowMesh, x, y,
+            velocityX: -side * speed, velocityY: (Math.random() - 0.5) * 0.03,
+            type: 'fireball', health: 1, rotation: 0,
+            pulsePhase: Math.random() * Math.PI * 2, trailParticles: [],
+            isGreenFireball: true, basePoints: 25,
+          });
+          return;
+        }
+        
+        // ORANGE/RED fireball
+        const coreGeometry = new THREE.SphereGeometry(projectileSize * 0.25, 12, 12);
+        const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
       const core = new THREE.Mesh(coreGeometry, coreMaterial);
       core.scale.set(1, 1.2, 1);
       fireGroup.add(core);
       
-      // NEON BRIGHT yellow layer (intense!)
-      const yellowGeometry = new THREE.SphereGeometry(fireballSize * 0.45, 16, 16);
-      const yellowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffff00,
-        transparent: true,
-        opacity: 1.0, // FULLY OPAQUE for brightness
-      });
+        const yellowGeometry = new THREE.SphereGeometry(projectileSize * 0.45, 16, 16);
+        const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 1.0 });
       const yellow = new THREE.Mesh(yellowGeometry, yellowMaterial);
       yellow.scale.set(1, 1.3, 1);
       fireGroup.add(yellow);
       
-      // NEON BRIGHT orange layer (super vivid!)
-      const orangeGeometry = new THREE.SphereGeometry(fireballSize * 0.7, 20, 20);
-      const orangeMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff6600, // Brighter orange
-        transparent: true,
-        opacity: 1.0, // FULLY OPAQUE
-      });
+        const orangeGeometry = new THREE.SphereGeometry(projectileSize * 0.7, 20, 20);
+        const orangeMaterial = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 1.0 });
       const orange = new THREE.Mesh(orangeGeometry, orangeMaterial);
       orange.scale.set(1, 1.4, 1);
       fireGroup.add(orange);
       
-      // NEON BRIGHT red outer layer (electric!)
-      const redGeometry = new THREE.SphereGeometry(fireballSize, 24, 24);
-      const redMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff0000, // Pure bright red
-        transparent: true,
-        opacity: 0.95, // Almost fully opaque
-      });
+        const redGeometry = new THREE.SphereGeometry(projectileSize, 24, 24);
+        const redMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.95 });
       const red = new THREE.Mesh(redGeometry, redMaterial);
       red.scale.set(1, 1.5, 1);
       fireGroup.add(red);
       
-      // Outer glow (orange-yellow aura)
-      const glowGeometry = new THREE.SphereGeometry(fireballSize * 1.4, 32, 32);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff9900,
-        transparent: true,
-        opacity: 0.25,
-      });
+        const glowGeometry = new THREE.SphereGeometry(projectileSize * 1.4, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xff9900, transparent: true, opacity: 0.25 });
       const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-      glowMesh.scale.set(1, 1.6, 1); // Match flame elongation
+        glowMesh.scale.set(1, 1.6, 1);
       
-      // Position using variables already declared at top
       fireGroup.position.set(x, y, 0);
       glowMesh.position.set(x, y, 0);
       sceneRef.current.add(fireGroup);
       sceneRef.current.add(glowMesh);
       
-      // Fast velocity towards sword
       const speed = 0.06 + Math.random() * 0.04;
-      const velocityX = -side * speed;
-      const velocityY = (Math.random() - 0.5) * 0.03;
-      
       enemiesRef.current.push({
-        mesh: fireGroup as any, // Store the group as mesh
-        glowMesh,
-        x,
-        y,
-        velocityX,
-        velocityY,
-        type: 'fireball',
-        health: 1,
-        rotation: 0,
-        pulsePhase: Math.random() * Math.PI * 2,
-        trailParticles: [],
-        isGreenFireball: false,
-        basePoints: 10, // ORANGE/RED = 10 base points
-      });
+          mesh: fireGroup as any, glowMesh, x, y,
+          velocityX: -side * speed, velocityY: (Math.random() - 0.5) * 0.03,
+          type: 'fireball', health: 1, rotation: 0,
+          pulsePhase: Math.random() * Math.PI * 2, trailParticles: [],
+          isGreenFireball: false, basePoints: 10,
+        });
+      }
     } else if (type === 'enemy_sword') {
       // ENEMY SWORDS - Horizontal scrolling with gap (like Flappy Bird)
       // Create BOTH top and bottom enemy swords at once
@@ -1021,11 +1281,11 @@ export default function BladeBounce3D({
         pulsePhase: Math.random() * Math.PI * 2,
       });
     } else if (type === 'laser') {
-      // LASER DODGE STYLE LASERS - Blue warning, then red danger
-      const isVertical = Math.random() > 0.5; // 50% chance vertical or horizontal
+      // THEMED LASERS - Warning then danger phase
+      const isVertical = Math.random() > 0.5;
       
       // Random position
-      const x = (Math.random() - 0.5) * (SWORD_X_RANGE * 1.5); // Spread across play area
+      const x = (Math.random() - 0.5) * (SWORD_X_RANGE * 1.5);
       const y = (Math.random() - 0.5) * (SWORD_Y_RANGE * 1.5);
       
       // Create laser beam
@@ -1033,24 +1293,32 @@ export default function BladeBounce3D({
         ? new THREE.BoxGeometry(LASER_WIDTH, LASER_LENGTH, 0.1)
         : new THREE.BoxGeometry(LASER_LENGTH, LASER_WIDTH, 0.1);
       
+      // Themed laser colors - warning phase
+      let warningColor = 0x00ffff; // Default cyan
+      if (currentTheme === 'christmas') {
+        warningColor = 0x00ff00; // Green for Christmas
+      } else if (currentTheme === 'halloween') {
+        warningColor = 0xaa00ff; // Purple for Halloween
+      }
+      
       const laserMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff, // Start BRIGHT CYAN (more visible!)
+        color: warningColor,
         transparent: true,
-        opacity: 0.9, // Much brighter!
+        opacity: 0.9,
       });
       
       const laser = new THREE.Mesh(laserGeometry, laserMaterial);
       laser.position.set(x, y, 0);
       
-      // Create BRIGHTER glow effect
+      // Create glow effect
       const glowGeometry = isVertical
         ? new THREE.BoxGeometry(LASER_WIDTH * 3, LASER_LENGTH * 1.1, 0.2)
         : new THREE.BoxGeometry(LASER_LENGTH * 1.1, LASER_WIDTH * 3, 0.2);
       
       const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
+        color: warningColor,
         transparent: true,
-        opacity: 0.6, // Brighter glow!
+        opacity: 0.6,
       });
       
       const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -1065,17 +1333,15 @@ export default function BladeBounce3D({
         glowMesh: glowMesh,
         x,
         y,
-        velocityX: 0, // Lasers don't move
+        velocityX: 0,
         velocityY: 0,
         type: 'laser',
-        health: 1, // One hit to destroy
+        health: 1,
         rotation: 0,
         isVertical,
         spawnTime: Date.now(),
-        isDangerous: false, // Starts as blue (safe)
+        isDangerous: false,
       });
-      
-      // Laser spawned (log removed for performance)
     }
   }, [playSound]);
 
@@ -1738,16 +2004,22 @@ export default function BladeBounce3D({
               (enemy.glowMesh.material as THREE.MeshBasicMaterial).opacity = 0.7 * pulse; // Brighter glow!
             }
           } else if (timeAlive < LASER_WARNING_TIME + LASER_ACTIVE_TIME) {
-            // RED PHASE (Dangerous!) - VERY BRIGHT!
+            // DANGER PHASE - THEMED COLORS
             if (!enemy.isDangerous) {
               enemy.isDangerous = true;
-              // Change to BRIGHT RED
-              (enemy.mesh.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
-              if (enemy.glowMesh) {
-                (enemy.glowMesh.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+              // Themed danger color
+              let dangerColor = 0xff0000; // Default red
+              if (currentTheme === 'christmas') {
+                dangerColor = 0xff0000; // Red for Christmas
+              } else if (currentTheme === 'halloween') {
+                dangerColor = 0xff6600; // Orange for Halloween
               }
-              playSound(900, 0.15, 'square'); // Louder warning sound
-              console.log('⚡ ⚠️ LASER TURNED RED (DANGEROUS!) ⚠️');
+              (enemy.mesh.material as THREE.MeshBasicMaterial).color.setHex(dangerColor);
+              if (enemy.glowMesh) {
+                (enemy.glowMesh.material as THREE.MeshBasicMaterial).color.setHex(dangerColor);
+              }
+              playSound(900, 0.15, 'square');
+              console.log('⚡ ⚠️ LASER TURNED DANGEROUS! ⚠️');
             }
             
             // Flash rapidly when red - VERY VISIBLE!
@@ -2226,7 +2498,7 @@ export default function BladeBounce3D({
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         if (gameState === 'ready') {
-          startGame();
+        startGame();
         } else if (gameState === 'waiting') {
           startCountdown();
         }
@@ -2517,6 +2789,14 @@ export default function BladeBounce3D({
             </div>
             <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
             <p className="text-3xl font-bold text-yellow-400 mb-8 animate-pulse">{GAME_DURATION} seconds - Survive & Score!</p>
+            
+            {/* Theme Selector */}
+            <div className="mb-6 w-full max-w-2xl mx-auto">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+              />
+            </div>
             
             {/* Start Game Button */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
