@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 import * as THREE from 'three';
 import { logGameCompletion } from '@/lib/gameAudit';
 import { GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
@@ -13,6 +15,7 @@ interface DeadShotGameProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   rngSeed?: number;
+  theme?: GameTheme;
 }
 
 interface Arrow {
@@ -93,11 +96,13 @@ export default function DeadShotGame({
   listingId, 
   entryNumber, 
   isCompetitionMode, 
-  rngSeed 
+  rngSeed,
+  theme: initialTheme
 }: DeadShotGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const gameStateRef = useRef<'ready' | 'countdown' | 'playing' | 'ended'>('ready');
   const [score, setScore] = useState(0);
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const [timeLeft, setTimeLeft] = useState(60);
   const [countdown, setCountdown] = useState(3);
   const [comboMultiplier, setComboMultiplier] = useState(1);
@@ -3161,6 +3166,15 @@ export default function DeadShotGame({
                 <p>• <span className="text-red-400">Stay mobile!</span> Corner camping = auto-push to center</p>
                 <p>• <span className="text-purple-400">Enemies intensify</span> - waves get faster over time!</p>
               </div>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/20 rounded-xl p-3">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
             </div>
             
             <div className="flex gap-4">

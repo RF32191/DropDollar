@@ -4,12 +4,15 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 interface PennyPasserGameProps {
   onGameEnd: (result: { score: number; accuracy: number }) => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
   competitionId?: string;
+  theme?: GameTheme;
 }
 
 type CoinType = 'penny' | 'nickel' | 'dime' | 'quarter';
@@ -108,8 +111,10 @@ export default function PennyPasserGame3D({
   onGameEnd, 
   gameMode = 'practice',
   rngSeed,
-  competitionId 
+  competitionId,
+  theme: initialTheme
 }: PennyPasserGameProps) {
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
@@ -1673,6 +1678,15 @@ export default function PennyPasserGame3D({
                 <p>• <span className="text-green-400">Target crosshair</span> shows perfect placement spot</p>
                 <p>• <span className="text-red-400">Trick shapes</span> in target = match THAT shape for +200 bonus!</p>
               </div>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/20 rounded-xl p-3">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
             </div>
             
             <button
