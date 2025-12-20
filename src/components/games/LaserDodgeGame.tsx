@@ -1908,48 +1908,28 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         </>
       )}
       
-      {/* Christmas Theme Decorations */}
+      {/* Christmas Theme Decorations - Clean white snow only */}
       {currentTheme === 'christmas' && (
         <>
-          {/* Gentle snow effect - just a few particles */}
-          {[...Array(8)].map((_, i) => (
+          {/* White snowball snowfall effect - gentle and not too many */}
+          {[...Array(12)].map((_, i) => (
             <div 
-              key={`snow-${i}`}
+              key={`snowball-${i}`}
               className="absolute pointer-events-none"
               style={{
-                top: '-5%',
-                left: `${i * 12 + 5}%`,
-                width: '4px',
-                height: '4px',
+                top: '-8%',
+                left: `${(i * 8) + 3}%`,
+                width: `${8 + (i % 3) * 3}px`,
+                height: `${8 + (i % 3) * 3}px`,
                 borderRadius: '50%',
-                backgroundColor: 'white',
-                opacity: 0.6,
-                animation: `snowfall ${8 + i}s linear infinite`,
-                animationDelay: `${i * 0.8}s`,
+                background: 'radial-gradient(circle at 30% 30%, #ffffff, #e8e8e8 60%, #d0d0d0 100%)',
+                boxShadow: '0 0 6px rgba(255, 255, 255, 0.8), inset -1px -1px 3px rgba(200, 200, 200, 0.5)',
+                opacity: 0.85,
+                animation: `snowfall ${10 + (i % 5) * 2}s linear infinite`,
+                animationDelay: `${i * 0.6}s`,
               }}
             />
           ))}
-          {/* Christmas trees at corners */}
-          <div className="absolute bottom-0 left-4 text-5xl opacity-60 pointer-events-none">🎄</div>
-          <div className="absolute bottom-0 right-4 text-5xl opacity-60 pointer-events-none">🎄</div>
-          {/* Stars */}
-          {[...Array(5)].map((_, i) => (
-            <div 
-              key={`star-${i}`}
-              className="absolute pointer-events-none animate-pulse"
-              style={{
-                top: `${8 + i * 10}%`,
-                left: `${15 + i * 18}%`,
-                fontSize: '14px',
-                opacity: 0.4,
-              }}
-            >
-              ⭐
-            </div>
-          ))}
-          {/* Candy canes */}
-          <div className="absolute bottom-2 left-1/4 text-3xl opacity-50 pointer-events-none" style={{ transform: 'rotate(30deg)' }}>🍬</div>
-          <div className="absolute bottom-2 right-1/4 text-3xl opacity-50 pointer-events-none" style={{ transform: 'rotate(-30deg)' }}>🍬</div>
         </>
       )}
       
@@ -2065,7 +2045,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
 
               {/* Horizontal Lasers - Same size on all devices */}
-              {lasers.filter(l => l.type === 'horizontal').map((laser) => (
+              {lasers.filter(l => l.type === 'horizontal').map((laser) => {
+                // Determine colors based on theme
+                const safeColor = currentTheme === 'christmas' ? 'bg-green-500' : 'bg-blue-400';
+                const safeShadow = currentTheme === 'christmas' 
+                  ? '0 0 15px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                  : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)';
+                
+                return (
                 <div key={laser.id} className="absolute w-full h-4" style={{
                   left: '0%',
                   top: `${laser.position}%`,
@@ -2076,12 +2063,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     className={`absolute w-full h-full transition-all duration-300 ${
                       laser.isHarmful 
                         ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                        : 'bg-blue-400 shadow-lg shadow-blue-400/30'
+                        : `${safeColor} shadow-lg ${currentTheme === 'christmas' ? 'shadow-green-500/30' : 'shadow-blue-400/30'}`
                     }`}
                     style={{
                       boxShadow: laser.isHarmful 
                         ? '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
-                        : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                        : safeShadow
                     }}
                   />
                   {/* Neon center line */}
@@ -2097,10 +2084,17 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     }}
                   />
                 </div>
-              ))}
+              );})}
 
               {/* Vertical Lasers - Same size on all devices */}
-              {lasers.filter(l => l.type === 'vertical').map((laser) => (
+              {lasers.filter(l => l.type === 'vertical').map((laser) => {
+                // Determine colors based on theme
+                const safeColor = currentTheme === 'christmas' ? 'bg-green-500' : 'bg-blue-400';
+                const safeShadow = currentTheme === 'christmas' 
+                  ? '0 0 15px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                  : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)';
+                
+                return (
                 <div key={laser.id} className="absolute h-full w-4" style={{
                   left: `${laser.position}%`,
                   top: '0%',
@@ -2111,12 +2105,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     className={`absolute h-full w-full transition-all duration-300 ${
                       laser.isHarmful 
                         ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                        : 'bg-blue-400 shadow-lg shadow-blue-400/30'
+                        : `${safeColor} shadow-lg ${currentTheme === 'christmas' ? 'shadow-green-500/30' : 'shadow-blue-400/30'}`
                     }`}
                     style={{
                       boxShadow: laser.isHarmful 
                         ? '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
-                        : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                        : safeShadow
                     }}
                   />
                   {/* Neon center line */}
@@ -2132,7 +2126,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     }}
                   />
                 </div>
-              ))}
+              );})}
               
               {/* Enemy Ships - Themed based on current theme */}
               {enemyShips.map((enemy) => (
@@ -2269,12 +2263,12 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     background: currentTheme === 'halloween'
                       ? 'linear-gradient(180deg, rgba(150, 255, 150, 0.95), rgba(0, 255, 68, 0.9), rgba(0, 200, 50, 0.7))'
                       : currentTheme === 'christmas'
-                      ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 100, 100, 0.8), rgba(255, 50, 50, 0.6))'
+                      ? 'linear-gradient(180deg, rgba(200, 255, 200, 0.95), rgba(34, 197, 94, 0.9), rgba(22, 163, 74, 0.7))'
                       : 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 191, 36, 0.8), rgba(251, 191, 36, 0.6))',
                     boxShadow: currentTheme === 'halloween'
                       ? '0 0 12px rgba(0, 255, 68, 0.9), 0 0 24px rgba(0, 255, 68, 0.5), inset 0 0 4px rgba(150, 255, 150, 0.4)'
                       : currentTheme === 'christmas'
-                      ? '0 0 12px rgba(255, 100, 100, 0.8), 0 0 24px rgba(255, 50, 50, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)'
+                      ? '0 0 12px rgba(34, 197, 94, 0.9), 0 0 24px rgba(34, 197, 94, 0.5), inset 0 0 4px rgba(200, 255, 200, 0.4)'
                       : '0 0 12px rgba(251, 191, 36, 0.8), 0 0 24px rgba(251, 191, 36, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)',
                     animation: 'pulse 0.5s ease-in-out infinite alternate'
                   }}
@@ -2431,8 +2425,94 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                       }}
                     />
                   </div>
+                ) : currentTheme === 'christmas' ? (
+                  // Christmas: Christmas Tree ship
+                  <div
+                    className="absolute"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '40px',
+                      height: '44px',
+                      zIndex: 10,
+                    }}
+                  >
+                    {/* Star on top */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '12px',
+                        height: '12px',
+                        left: '14px',
+                        top: '-2px',
+                        background: '#FFD700',
+                        clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+                        filter: 'drop-shadow(0 0 4px #FFD700)',
+                      }}
+                    />
+                    {/* Top tree triangle */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '12px solid transparent',
+                        borderRight: '12px solid transparent',
+                        borderBottom: '14px solid #228B22',
+                        left: '8px',
+                        top: '8px',
+                        filter: 'drop-shadow(0 0 3px #00ff00)',
+                      }}
+                    />
+                    {/* Middle tree triangle */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '16px solid transparent',
+                        borderRight: '16px solid transparent',
+                        borderBottom: '16px solid #2E8B2E',
+                        left: '4px',
+                        top: '16px',
+                        filter: 'drop-shadow(0 0 3px #00ff00)',
+                      }}
+                    />
+                    {/* Bottom tree triangle */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '20px solid transparent',
+                        borderRight: '20px solid transparent',
+                        borderBottom: '16px solid #1a6b1a',
+                        left: '0px',
+                        top: '26px',
+                        filter: 'drop-shadow(0 0 3px #00ff00)',
+                      }}
+                    />
+                    {/* Tree trunk */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '8px',
+                        height: '6px',
+                        background: '#8B4513',
+                        left: '16px',
+                        top: '40px',
+                        borderRadius: '0 0 2px 2px',
+                      }}
+                    />
+                    {/* Ornaments */}
+                    <div style={{ position: 'absolute', width: '4px', height: '4px', borderRadius: '50%', background: '#ff0000', left: '12px', top: '22px', boxShadow: '0 0 3px #ff0000' }} />
+                    <div style={{ position: 'absolute', width: '4px', height: '4px', borderRadius: '50%', background: '#FFD700', left: '24px', top: '24px', boxShadow: '0 0 3px #FFD700' }} />
+                    <div style={{ position: 'absolute', width: '4px', height: '4px', borderRadius: '50%', background: '#ff0000', left: '16px', top: '32px', boxShadow: '0 0 3px #ff0000' }} />
+                    <div style={{ position: 'absolute', width: '3px', height: '3px', borderRadius: '50%', background: '#00BFFF', left: '22px', top: '18px', boxShadow: '0 0 2px #00BFFF' }} />
+                  </div>
                 ) : (
-                  // Standard/Christmas: Normal ship
+                  // Standard: Normal ship
                   <div
                     className="absolute w-8 h-8"
                     style={{
@@ -2443,9 +2523,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                       backgroundSize: 'contain',
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'center',
-                      filter: currentTheme === 'christmas'
-                        ? 'drop-shadow(0 0 8px rgba(255, 50, 50, 0.6))'
-                        : 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))',
+                      filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))',
                       zIndex: 10,
                     }}
                   />
