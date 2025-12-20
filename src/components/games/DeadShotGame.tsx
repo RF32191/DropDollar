@@ -246,7 +246,7 @@ export default function DeadShotGame({
     return new Mulberry32(rngSeed);
   }, [rngSeed]);
 
-  // Create realistic virus enemy - spherical capsid with protein spikes (like coronavirus)
+  // Create themed enemy - virus, alien, or Christmas light
   // Returns group, capsid mesh, legs array, and zones
   const createAlienShip = useCallback((x: number, y: number, z: number, size: number, type: ShipType = 'common'): { 
     group: THREE.Group; 
@@ -255,195 +255,419 @@ export default function DeadShotGame({
     zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> 
   } => {
     const shipGroup = new THREE.Group();
-    
-    // Virus colors
-    const capsidColor = 0x00ffff; // Cyan/white center capsid - 100 points
-    const spikeColor = 0xff4444; // Red protein spikes
-    const bodyColor = 0x8844ff; // Purple body
-    
-    // Main capsid (spherical center) - CYAN/WHITE - 100 points if hit
-    const capsidGeometry = new THREE.IcosahedronGeometry(size * 0.4, 1); // More detail
-    const capsidMaterial = new THREE.MeshStandardMaterial({
-      color: capsidColor,
-      emissive: capsidColor,
-      emissiveIntensity: 5.0,
-      metalness: 0.9,
-      roughness: 0.1
-    });
-    const capsid = new THREE.Mesh(capsidGeometry, capsidMaterial);
-    capsid.position.set(0, 0, 0);
-    shipGroup.add(capsid);
-    
-    // Protein spikes around capsid (like coronavirus) - RED
-    const spikeCount = 20;
-    for (let i = 0; i < spikeCount; i++) {
-      const phi = Math.acos(-1 + (2 * i) / spikeCount);
-      const theta = Math.sqrt(spikeCount * Math.PI) * phi;
-      
-      const spikeGeometry = new THREE.ConeGeometry(size * 0.05, size * 0.3, 6);
-      const spikeMaterial = new THREE.MeshStandardMaterial({
-        color: spikeColor,
-        emissive: spikeColor,
-        emissiveIntensity: 4.0
-      });
-      const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
-      
-      const xPos = size * 0.45 * Math.cos(theta) * Math.sin(phi);
-      const yPos = size * 0.45 * Math.sin(theta) * Math.sin(phi);
-      const zPos = size * 0.45 * Math.cos(phi);
-      
-      spike.position.set(xPos, yPos, zPos);
-      spike.lookAt(xPos * 1.5, yPos * 1.5, zPos * 1.5); // Point outward
-      shipGroup.add(spike);
-    }
-    
-    // 4 legs on bottom that can be destroyed individually - RED
-    const legCount = 4;
     const legs: VirusLeg[] = [];
-    for (let i = 0; i < legCount; i++) {
-      const angle = (Math.PI * 2 * i) / legCount;
-      const legGeometry = new THREE.CylinderGeometry(size * 0.06, size * 0.08, size * 0.5, 8);
-      const legMaterial = new THREE.MeshStandardMaterial({
-        color: spikeColor,
-        emissive: spikeColor,
-        emissiveIntensity: 4.0
-      });
-      const leg = new THREE.Mesh(legGeometry, legMaterial);
-      leg.position.set(
-        Math.cos(angle) * size * 0.3,
-        -size * 0.35,
-        Math.sin(angle) * size * 0.3
-      );
-      leg.rotation.z = Math.PI / 2;
-      leg.rotation.y = angle;
-      shipGroup.add(leg);
-      legs.push({ mesh: leg, destroyed: false });
-    }
-    
-    // Body membrane (purple) - surrounds capsid
-    const bodyGeometry = new THREE.SphereGeometry(size * 0.5, 16, 16);
-    const bodyMaterial = new THREE.MeshStandardMaterial({
-      color: bodyColor,
-      emissive: bodyColor,
-      emissiveIntensity: 2.0,
-      transparent: true,
-      opacity: 0.6,
-      metalness: 0.5,
-      roughness: 0.5
-    });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    shipGroup.add(body);
-    
-    // Glow effect around virus
-    const glowGeometry = new THREE.SphereGeometry(size * 0.6, 16, 16);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: bodyColor,
-      transparent: true,
-      opacity: 0.3
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    shipGroup.add(glow);
-    
-    // Add colored scoring zones
     const zones: Array<{ mesh: THREE.Mesh; radius: number; multiplier: number; color: number }> = [];
+    let capsid: THREE.Mesh;
     
-    // Center capsid zone (CYAN) - 100 points
-    const capsidZoneGeometry = new THREE.RingGeometry(0, size * 0.2, 16);
-    const capsidZoneMaterial = new THREE.MeshBasicMaterial({
-      color: capsidColor,
-      transparent: true,
-      opacity: 0.8,
-      side: THREE.DoubleSide
-    });
-    const capsidZone = new THREE.Mesh(capsidZoneGeometry, capsidZoneMaterial);
-    capsidZone.rotation.x = Math.PI / 2;
-    shipGroup.add(capsidZone);
-    zones.push({ mesh: capsidZone, radius: size * 0.2, multiplier: 1.0, color: capsidColor });
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: Green alien with big eyes
+      const alienColor = 0x00ff00; // Bright green
+      const eyeColor = 0x000000; // Black eyes
+      
+      // Alien head (elongated skull)
+      const headGeo = new THREE.SphereGeometry(size * 0.45, 16, 16);
+      const headMat = new THREE.MeshStandardMaterial({
+        color: alienColor,
+        emissive: 0x00aa00,
+        emissiveIntensity: 3.0,
+        metalness: 0.3,
+        roughness: 0.6
+      });
+      capsid = new THREE.Mesh(headGeo, headMat);
+      capsid.scale.set(0.8, 1.2, 0.9); // Elongated
+      shipGroup.add(capsid);
+      
+      // Big black eyes
+      const eyeGeo = new THREE.SphereGeometry(size * 0.18, 16, 16);
+      const eyeMat = new THREE.MeshStandardMaterial({
+        color: eyeColor,
+        emissive: 0x222222,
+        emissiveIntensity: 1.0
+      });
+      const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+      leftEye.position.set(-size * 0.18, size * 0.15, size * 0.35);
+      leftEye.scale.set(1, 1.3, 0.5);
+      shipGroup.add(leftEye);
+      const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+      rightEye.position.set(size * 0.18, size * 0.15, size * 0.35);
+      rightEye.scale.set(1, 1.3, 0.5);
+      shipGroup.add(rightEye);
+      
+      // Eye shine
+      const shineGeo = new THREE.SphereGeometry(size * 0.05, 8, 8);
+      const shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const leftShine = new THREE.Mesh(shineGeo, shineMat);
+      leftShine.position.set(-size * 0.15, size * 0.2, size * 0.4);
+      shipGroup.add(leftShine);
+      const rightShine = new THREE.Mesh(shineGeo, shineMat);
+      rightShine.position.set(size * 0.21, size * 0.2, size * 0.4);
+      shipGroup.add(rightShine);
+      
+      // Antennae
+      for (let i = 0; i < 2; i++) {
+        const antennaGeo = new THREE.CylinderGeometry(0.02, 0.02, size * 0.4, 8);
+        const antennaMat = new THREE.MeshStandardMaterial({ color: alienColor, emissive: 0x00aa00 });
+        const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+        antenna.position.set(i === 0 ? -size * 0.2 : size * 0.2, size * 0.5, 0);
+        antenna.rotation.z = i === 0 ? 0.3 : -0.3;
+        shipGroup.add(antenna);
+        // Ball on top
+        const ballGeo = new THREE.SphereGeometry(0.05, 8, 8);
+        const ballMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+        const ball = new THREE.Mesh(ballGeo, ballMat);
+        ball.position.set(i === 0 ? -size * 0.28 : size * 0.28, size * 0.65, 0);
+        shipGroup.add(ball);
+      }
+      
+      // Glow
+      const glowGeo = new THREE.SphereGeometry(size * 0.55, 16, 16);
+      const glowMat = new THREE.MeshBasicMaterial({ color: alienColor, transparent: true, opacity: 0.2 });
+      shipGroup.add(new THREE.Mesh(glowGeo, glowMat));
+      
+      // Scoring zone
+      const zoneGeo = new THREE.RingGeometry(0, size * 0.2, 16);
+      const zoneMat = new THREE.MeshBasicMaterial({ color: alienColor, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+      const zone = new THREE.Mesh(zoneGeo, zoneMat);
+      zone.rotation.x = Math.PI / 2;
+      shipGroup.add(zone);
+      zones.push({ mesh: zone, radius: size * 0.2, multiplier: 1.0, color: alienColor });
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Christmas light bulb enemy
+      const isRed = Math.random() > 0.5;
+      const lightColor = isRed ? 0xff0000 : 0x00ff00;
+      const lightEmissive = isRed ? 0xaa0000 : 0x00aa00;
+      
+      // Light bulb base (silver cap)
+      const baseGeo = new THREE.CylinderGeometry(size * 0.15, size * 0.18, size * 0.15, 12);
+      const baseMat = new THREE.MeshStandardMaterial({
+        color: 0xaaaaaa,
+        metalness: 0.9,
+        roughness: 0.2
+      });
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.position.y = size * 0.35;
+      shipGroup.add(base);
+      
+      // Threading on base
+      for (let t = 0; t < 3; t++) {
+        const threadGeo = new THREE.TorusGeometry(size * 0.16, 0.015, 8, 16);
+        const threadMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.8 });
+        const thread = new THREE.Mesh(threadGeo, threadMat);
+        thread.position.y = size * 0.3 + t * 0.04;
+        thread.rotation.x = Math.PI / 2;
+        shipGroup.add(thread);
+      }
+      
+      // Light bulb (teardrop shape)
+      const bulbGeo = new THREE.SphereGeometry(size * 0.35, 16, 16);
+      const bulbMat = new THREE.MeshStandardMaterial({
+        color: lightColor,
+        emissive: lightEmissive,
+        emissiveIntensity: 4.0,
+        transparent: true,
+        opacity: 0.9
+      });
+      capsid = new THREE.Mesh(bulbGeo, bulbMat);
+      capsid.scale.set(0.9, 1.2, 0.9);
+      shipGroup.add(capsid);
+      
+      // Inner glow filament
+      const filamentGeo = new THREE.CylinderGeometry(0.02, 0.02, size * 0.3, 8);
+      const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffff88 });
+      const filament = new THREE.Mesh(filamentGeo, filamentMat);
+      shipGroup.add(filament);
+      
+      // Bright shine
+      const shineGeo = new THREE.SphereGeometry(size * 0.1, 8, 8);
+      const shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+      const shine = new THREE.Mesh(shineGeo, shineMat);
+      shine.position.set(-size * 0.15, size * 0.1, size * 0.25);
+      shipGroup.add(shine);
+      
+      // Glow effect
+      const glowGeo = new THREE.SphereGeometry(size * 0.5, 16, 16);
+      const glowMat = new THREE.MeshBasicMaterial({ color: lightColor, transparent: true, opacity: 0.3 });
+      shipGroup.add(new THREE.Mesh(glowGeo, glowMat));
+      
+      // Scoring zone
+      const zoneGeo = new THREE.RingGeometry(0, size * 0.2, 16);
+      const zoneMat = new THREE.MeshBasicMaterial({ color: lightColor, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+      const zone = new THREE.Mesh(zoneGeo, zoneMat);
+      zone.rotation.x = Math.PI / 2;
+      shipGroup.add(zone);
+      zones.push({ mesh: zone, radius: size * 0.2, multiplier: 1.0, color: lightColor });
+      
+    } else {
+      // STANDARD: Virus with spikes
+      const capsidColor = 0x00ffff;
+      const spikeColor = 0xff4444;
+      const bodyColor = 0x8844ff;
+      
+      // Main capsid
+      const capsidGeometry = new THREE.IcosahedronGeometry(size * 0.4, 1);
+      const capsidMaterial = new THREE.MeshStandardMaterial({
+        color: capsidColor,
+        emissive: capsidColor,
+        emissiveIntensity: 5.0,
+        metalness: 0.9,
+        roughness: 0.1
+      });
+      capsid = new THREE.Mesh(capsidGeometry, capsidMaterial);
+      shipGroup.add(capsid);
+      
+      // Protein spikes
+      const spikeCount = 20;
+      for (let i = 0; i < spikeCount; i++) {
+        const phi = Math.acos(-1 + (2 * i) / spikeCount);
+        const theta = Math.sqrt(spikeCount * Math.PI) * phi;
+        const spikeGeometry = new THREE.ConeGeometry(size * 0.05, size * 0.3, 6);
+        const spikeMaterial = new THREE.MeshStandardMaterial({
+          color: spikeColor,
+          emissive: spikeColor,
+          emissiveIntensity: 4.0
+        });
+        const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+        const xPos = size * 0.45 * Math.cos(theta) * Math.sin(phi);
+        const yPos = size * 0.45 * Math.sin(theta) * Math.sin(phi);
+        const zPos = size * 0.45 * Math.cos(phi);
+        spike.position.set(xPos, yPos, zPos);
+        spike.lookAt(xPos * 1.5, yPos * 1.5, zPos * 1.5);
+        shipGroup.add(spike);
+      }
+      
+      // 4 legs
+      const legCount = 4;
+      for (let i = 0; i < legCount; i++) {
+        const angle = (Math.PI * 2 * i) / legCount;
+        const legGeometry = new THREE.CylinderGeometry(size * 0.06, size * 0.08, size * 0.5, 8);
+        const legMaterial = new THREE.MeshStandardMaterial({
+          color: spikeColor,
+          emissive: spikeColor,
+          emissiveIntensity: 4.0
+        });
+        const leg = new THREE.Mesh(legGeometry, legMaterial);
+        leg.position.set(Math.cos(angle) * size * 0.3, -size * 0.35, Math.sin(angle) * size * 0.3);
+        leg.rotation.z = Math.PI / 2;
+        leg.rotation.y = angle;
+        shipGroup.add(leg);
+        legs.push({ mesh: leg, destroyed: false });
+      }
+      
+      // Body membrane
+      const bodyGeometry = new THREE.SphereGeometry(size * 0.5, 16, 16);
+      const bodyMaterial = new THREE.MeshStandardMaterial({
+        color: bodyColor,
+        emissive: bodyColor,
+        emissiveIntensity: 2.0,
+        transparent: true,
+        opacity: 0.6
+      });
+      shipGroup.add(new THREE.Mesh(bodyGeometry, bodyMaterial));
+      
+      // Glow
+      const glowGeometry = new THREE.SphereGeometry(size * 0.6, 16, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({ color: bodyColor, transparent: true, opacity: 0.3 });
+      shipGroup.add(new THREE.Mesh(glowGeometry, glowMaterial));
+      
+      // Scoring zone
+      const capsidZoneGeometry = new THREE.RingGeometry(0, size * 0.2, 16);
+      const capsidZoneMaterial = new THREE.MeshBasicMaterial({
+        color: capsidColor,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+      });
+      const capsidZone = new THREE.Mesh(capsidZoneGeometry, capsidZoneMaterial);
+      capsidZone.rotation.x = Math.PI / 2;
+      shipGroup.add(capsidZone);
+      zones.push({ mesh: capsidZone, radius: size * 0.2, multiplier: 1.0, color: capsidColor });
+    }
     
     shipGroup.position.set(x, y, z);
     return { group: shipGroup, capsid, legs, zones };
-  }, []);
+  }, [currentTheme]);
 
-  // Create arrow with proper 3D geometry - more arrow-shaped and neon
+  // Create arrow with proper 3D geometry - themed projectiles
   const createArrow = useCallback((): THREE.Group => {
     const arrowGroup = new THREE.Group();
     
-    // Arrow shaft (neon cyan cylinder - MUCH brighter and animated)
-    const shaftGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 12);
-    const shaftMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ffff,
-      emissive: 0x00ffff,
-      emissiveIntensity: 5.0, // MUCH brighter
-      metalness: 0.9,
-      roughness: 0.1
-    });
-    const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-    shaft.rotation.z = Math.PI / 2;
-    arrowGroup.add(shaft);
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: Little candy with wrapper
+      // Candy body (orange ellipse)
+      const candyGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+      const candyMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff6600,
+        emissive: 0xff3300,
+        emissiveIntensity: 3.0,
+        metalness: 0.3,
+        roughness: 0.4
+      });
+      const candy = new THREE.Mesh(candyGeometry, candyMaterial);
+      candy.scale.set(1.3, 0.8, 0.8);
+      arrowGroup.add(candy);
+      
+      // Wrapper twist left
+      const wrapperGeo = new THREE.ConeGeometry(0.08, 0.15, 6);
+      const wrapperMat = new THREE.MeshStandardMaterial({
+        color: 0xffdd00,
+        emissive: 0xffaa00,
+        emissiveIntensity: 2.0
+      });
+      const wrapperLeft = new THREE.Mesh(wrapperGeo, wrapperMat);
+      wrapperLeft.position.x = -0.18;
+      wrapperLeft.rotation.z = Math.PI / 2;
+      arrowGroup.add(wrapperLeft);
+      
+      // Wrapper twist right
+      const wrapperRight = new THREE.Mesh(wrapperGeo, wrapperMat);
+      wrapperRight.position.x = 0.18;
+      wrapperRight.rotation.z = -Math.PI / 2;
+      arrowGroup.add(wrapperRight);
+      
+      // White stripes on candy
+      for (let i = 0; i < 3; i++) {
+        const stripeGeo = new THREE.TorusGeometry(0.1, 0.015, 8, 16, Math.PI * 0.5);
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+        stripe.position.x = -0.06 + i * 0.06;
+        stripe.rotation.y = Math.PI / 2;
+        arrowGroup.add(stripe);
+      }
+      
+      // Trail glow
+      const trailGeo = new THREE.SphereGeometry(0.08, 8, 8);
+      const trailMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.6 });
+      const trail = new THREE.Mesh(trailGeo, trailMat);
+      trail.position.x = -0.25;
+      arrowGroup.add(trail);
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Candy cane projectile
+      // Main candy cane curve
+      const canePoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        canePoints.push(new THREE.Vector3(t * 0.4 - 0.2, 0, 0));
+      }
+      const caneCurve = new THREE.CatmullRomCurve3(canePoints);
+      const caneGeo = new THREE.TubeGeometry(caneCurve, 12, 0.04, 8, false);
+      const caneMat = new THREE.MeshStandardMaterial({
+        color: 0xff0000,
+        emissive: 0xaa0000,
+        emissiveIntensity: 2.0
+      });
+      const cane = new THREE.Mesh(caneGeo, caneMat);
+      arrowGroup.add(cane);
+      
+      // White stripes on candy cane
+      for (let s = 0; s < 6; s++) {
+        const stripeGeo = new THREE.TorusGeometry(0.045, 0.015, 8, 8, Math.PI * 0.8);
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+        stripe.position.x = -0.15 + s * 0.06;
+        stripe.rotation.y = Math.PI / 2;
+        stripe.rotation.z = s * 0.3;
+        arrowGroup.add(stripe);
+      }
+      
+      // Hook at top
+      const hookGeo = new THREE.TorusGeometry(0.06, 0.03, 8, 16, Math.PI);
+      const hookMat = new THREE.MeshStandardMaterial({
+        color: 0xff0000,
+        emissive: 0xaa0000,
+        emissiveIntensity: 2.0
+      });
+      const hook = new THREE.Mesh(hookGeo, hookMat);
+      hook.position.set(0.22, 0.04, 0);
+      hook.rotation.z = Math.PI;
+      arrowGroup.add(hook);
+      
+      // Trail glow
+      const trailGeo = new THREE.SphereGeometry(0.06, 8, 8);
+      const trailMat = new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.6 });
+      const trail = new THREE.Mesh(trailGeo, trailMat);
+      trail.position.x = -0.25;
+      arrowGroup.add(trail);
+      
+    } else {
+      // STANDARD: Neon arrow
+      // Arrow shaft (neon cyan cylinder - MUCH brighter and animated)
+      const shaftGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.5, 12);
+      const shaftMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 5.0,
+        metalness: 0.9,
+        roughness: 0.1
+      });
+      const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+      shaft.rotation.z = Math.PI / 2;
+      arrowGroup.add(shaft);
+      
+      // Arrow head (sharp pyramid - VERY bright)
+      const headGeometry = new THREE.ConeGeometry(0.08, 0.2, 8);
+      const headMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 6.0,
+        metalness: 0.95,
+        roughness: 0.05
+      });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.x = 0.25;
+      arrowGroup.add(head);
+      
+      // Arrow tip point (extra sharp tip - BRIGHTEST)
+      const tipGeometry = new THREE.ConeGeometry(0.02, 0.05, 6);
+      const tipMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff
+      });
+      const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+      tip.position.x = 0.35;
+      arrowGroup.add(tip);
+      
+      // Fletching (feathers at back - brighter)
+      const fletchGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.03);
+      const fletchMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ffff,
+        emissive: 0x00ffff,
+        emissiveIntensity: 4.0
+      });
+      
+      const fletch1 = new THREE.Mesh(fletchGeometry, fletchMaterial);
+      fletch1.position.set(-0.2, 0.06, 0);
+      fletch1.rotation.z = 0.3;
+      arrowGroup.add(fletch1);
+      
+      const fletch2 = new THREE.Mesh(fletchGeometry, fletchMaterial);
+      fletch2.position.set(-0.2, -0.06, 0);
+      fletch2.rotation.z = -0.3;
+      arrowGroup.add(fletch2);
+      
+      const fletch3 = new THREE.Mesh(fletchGeometry, fletchMaterial);
+      fletch3.position.set(-0.2, 0, 0.06);
+      fletch3.rotation.y = Math.PI / 2;
+      arrowGroup.add(fletch3);
+      
+      // Trail effect - MUCH brighter animated glow
+      const trailGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+      const trailMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 1.0
+      });
+      const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+      trail.position.x = -0.15;
+      arrowGroup.add(trail);
+    }
     
-    // Arrow head (sharp pyramid - VERY bright)
-    const headGeometry = new THREE.ConeGeometry(0.08, 0.2, 8);
-    const headMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 6.0, // VERY bright
-      metalness: 0.95,
-      roughness: 0.05
-    });
-    const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.x = 0.25; // Further forward
-    arrowGroup.add(head);
-    
-    // Arrow tip point (extra sharp tip - BRIGHTEST)
-    const tipGeometry = new THREE.ConeGeometry(0.02, 0.05, 6);
-    const tipMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 8.0 // BRIGHTEST
-    });
-    const tip = new THREE.Mesh(tipGeometry, tipMaterial);
-    tip.position.x = 0.35;
-    arrowGroup.add(tip);
-    
-    // Fletching (feathers at back - brighter)
-    const fletchGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.03);
-    const fletchMaterial = new THREE.MeshStandardMaterial({
-      color: 0x00ffff,
-      emissive: 0x00ffff,
-      emissiveIntensity: 4.0 // Brighter
-    });
-    
-    const fletch1 = new THREE.Mesh(fletchGeometry, fletchMaterial);
-    fletch1.position.set(-0.2, 0.06, 0);
-    fletch1.rotation.z = 0.3;
-    arrowGroup.add(fletch1);
-    
-    const fletch2 = new THREE.Mesh(fletchGeometry, fletchMaterial);
-    fletch2.position.set(-0.2, -0.06, 0);
-    fletch2.rotation.z = -0.3;
-    arrowGroup.add(fletch2);
-    
-    const fletch3 = new THREE.Mesh(fletchGeometry, fletchMaterial);
-    fletch3.position.set(-0.2, 0, 0.06);
-    fletch3.rotation.y = Math.PI / 2;
-    arrowGroup.add(fletch3);
-    
-    // Trail effect - MUCH brighter animated glow
-    const trailGeometry = new THREE.SphereGeometry(0.06, 8, 8);
-    const trailMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
-      transparent: true,
-      opacity: 1.0 // Fully opaque for brightness
-    });
-    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-    trail.position.x = -0.15;
-    arrowGroup.add(trail);
-    
-    // Multiple glow rings for pulsing effect
+    // Multiple glow rings for pulsing effect (all themes)
+    const glowColor = currentTheme === 'halloween' ? 0xff6600 : currentTheme === 'christmas' ? 0xff0000 : 0x00ffff;
     for (let i = 0; i < 3; i++) {
       const glowRingGeometry = new THREE.RingGeometry(0.05 + i * 0.02, 0.08 + i * 0.02, 16);
       const glowRingMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
+        color: glowColor,
         transparent: true,
         opacity: 0.7 - i * 0.2,
         side: THREE.DoubleSide
@@ -926,63 +1150,189 @@ export default function DeadShotGame({
     
     // Test cube removed - ships should be visible instead
     
-    // Create white blood cell bow - spherical with nucleus and organelles
+    // Create themed player character
     const bowGroup = new THREE.Group();
     
-    // Main cell body (spherical, white/blue neon)
-    const cellBodyGeometry = new THREE.SphereGeometry(0.6, 32, 32);
-    const cellBodyMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xffffff,
-      emissive: 0x88ccff, // Light blue neon glow
-      emissiveIntensity: 3.0,
-      metalness: 0.3,
-      roughness: 0.7,
-      transparent: true,
-      opacity: 0.9
-    });
-    const cellBody = new THREE.Mesh(cellBodyGeometry, cellBodyMaterial);
-    bowGroup.add(cellBody);
-    
-    // Nucleus (darker center, blue tint)
-    const nucleusGeometry = new THREE.SphereGeometry(0.25, 16, 16);
-    const nucleusMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4488ff,
-      emissive: 0x4488ff,
-      emissiveIntensity: 4.0,
-      metalness: 0.5,
-      roughness: 0.5
-    });
-    const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
-    nucleus.position.set(0, 0, 0.3);
-    bowGroup.add(nucleus);
-    
-    // Organelles (smaller spheres floating inside)
-    for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI * 2 * i) / 6;
-      const organelleGeometry = new THREE.SphereGeometry(0.08, 12, 12);
-      const organelleMaterial = new THREE.MeshStandardMaterial({
-        color: 0xaaccff,
-        emissive: 0xaaccff,
-        emissiveIntensity: 3.5
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: Pumpkin with glowing green eyes
+      // Main pumpkin body
+      const pumpkinGeo = new THREE.SphereGeometry(0.55, 16, 12);
+      const pumpkinMat = new THREE.MeshStandardMaterial({
+        color: 0xff6600,
+        emissive: 0x662200,
+        emissiveIntensity: 2.0,
+        roughness: 0.7
       });
-      const organelle = new THREE.Mesh(organelleGeometry, organelleMaterial);
-      organelle.position.set(
-        Math.cos(angle) * 0.35,
-        Math.sin(angle) * 0.35,
-        Math.sin(angle * 2) * 0.2
-      );
-      bowGroup.add(organelle);
+      const pumpkin = new THREE.Mesh(pumpkinGeo, pumpkinMat);
+      pumpkin.scale.set(1.1, 0.9, 1.0);
+      bowGroup.add(pumpkin);
+      
+      // Pumpkin ridges
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 * i) / 8;
+        const ridgeGeo = new THREE.CapsuleGeometry(0.04, 0.8, 4, 8);
+        const ridgeMat = new THREE.MeshStandardMaterial({ color: 0xdd5500, roughness: 0.8 });
+        const ridge = new THREE.Mesh(ridgeGeo, ridgeMat);
+        ridge.position.set(Math.cos(angle) * 0.48, 0, Math.sin(angle) * 0.48);
+        ridge.rotation.z = Math.PI / 2;
+        bowGroup.add(ridge);
+      }
+      
+      // Glowing green eyes (triangles)
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      // Left eye
+      const leftEyeGeo = new THREE.ConeGeometry(0.12, 0.15, 3);
+      const leftEye = new THREE.Mesh(leftEyeGeo, eyeMat);
+      leftEye.position.set(-0.18, 0.12, 0.45);
+      leftEye.rotation.x = Math.PI;
+      bowGroup.add(leftEye);
+      // Right eye
+      const rightEye = new THREE.Mesh(leftEyeGeo.clone(), eyeMat);
+      rightEye.position.set(0.18, 0.12, 0.45);
+      rightEye.rotation.x = Math.PI;
+      bowGroup.add(rightEye);
+      
+      // Glowing mouth (jagged)
+      const mouthGeo = new THREE.BoxGeometry(0.35, 0.08, 0.1);
+      const mouth = new THREE.Mesh(mouthGeo, eyeMat);
+      mouth.position.set(0, -0.12, 0.45);
+      bowGroup.add(mouth);
+      // Teeth
+      for (let t = 0; t < 4; t++) {
+        const toothGeo = new THREE.BoxGeometry(0.06, 0.06, 0.08);
+        const tooth = new THREE.Mesh(toothGeo, eyeMat);
+        tooth.position.set(-0.12 + t * 0.08, -0.08, 0.48);
+        bowGroup.add(tooth);
+      }
+      
+      // Stem
+      const stemGeo = new THREE.CylinderGeometry(0.06, 0.1, 0.2, 8);
+      const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.9 });
+      const stem = new THREE.Mesh(stemGeo, stemMat);
+      stem.position.y = 0.55;
+      stem.rotation.z = 0.2;
+      bowGroup.add(stem);
+      
+      // Green glow around pumpkin
+      const glowGeo = new THREE.RingGeometry(0.5, 1.0, 32);
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.rotation.x = Math.PI / 2;
+      bowGroup.add(glow);
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Flashing Christmas light
+      // Light bulb base (silver cap)
+      const baseGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.2, 12);
+      const baseMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.2 });
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.position.y = 0.5;
+      bowGroup.add(base);
+      
+      // Threading on base
+      for (let t = 0; t < 3; t++) {
+        const threadGeo = new THREE.TorusGeometry(0.22, 0.02, 8, 16);
+        const threadMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.8 });
+        const thread = new THREE.Mesh(threadGeo, threadMat);
+        thread.position.y = 0.42 + t * 0.05;
+        thread.rotation.x = Math.PI / 2;
+        bowGroup.add(thread);
+      }
+      
+      // Light bulb (teardrop) - will flash green/red
+      const bulbGeo = new THREE.SphereGeometry(0.5, 16, 16);
+      const bulbMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff00, // Start green
+        emissive: 0x00aa00,
+        emissiveIntensity: 4.0,
+        transparent: true,
+        opacity: 0.9
+      });
+      const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+      bulb.scale.set(0.9, 1.2, 0.9);
+      bulb.name = 'christmasBulb'; // For animation
+      bowGroup.add(bulb);
+      
+      // Inner filament
+      const filamentGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+      const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffff88 });
+      const filament = new THREE.Mesh(filamentGeo, filamentMat);
+      bowGroup.add(filament);
+      
+      // Shine highlight
+      const shineGeo = new THREE.SphereGeometry(0.12, 8, 8);
+      const shineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+      const shine = new THREE.Mesh(shineGeo, shineMat);
+      shine.position.set(-0.2, 0.15, 0.35);
+      bowGroup.add(shine);
+      
+      // Glow ring
+      const glowGeo = new THREE.RingGeometry(0.5, 1.0, 32);
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.rotation.x = Math.PI / 2;
+      glow.name = 'christmasGlow'; // For animation
+      bowGroup.add(glow);
+      
+    } else {
+      // STANDARD: White blood cell
+      // Main cell body (spherical, white/blue neon)
+      const cellBodyGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+      const cellBodyMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff,
+        emissive: 0x88ccff,
+        emissiveIntensity: 3.0,
+        metalness: 0.3,
+        roughness: 0.7,
+        transparent: true,
+        opacity: 0.9
+      });
+      const cellBody = new THREE.Mesh(cellBodyGeometry, cellBodyMaterial);
+      bowGroup.add(cellBody);
+      
+      // Nucleus
+      const nucleusGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+      const nucleusMaterial = new THREE.MeshStandardMaterial({
+        color: 0x4488ff,
+        emissive: 0x4488ff,
+        emissiveIntensity: 4.0
+      });
+      const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
+      nucleus.position.set(0, 0, 0.3);
+      bowGroup.add(nucleus);
+      
+      // Organelles
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI * 2 * i) / 6;
+        const organelleGeometry = new THREE.SphereGeometry(0.08, 12, 12);
+        const organelleMaterial = new THREE.MeshStandardMaterial({
+          color: 0xaaccff,
+          emissive: 0xaaccff,
+          emissiveIntensity: 3.5
+        });
+        const organelle = new THREE.Mesh(organelleGeometry, organelleMaterial);
+        organelle.position.set(Math.cos(angle) * 0.35, Math.sin(angle) * 0.35, Math.sin(angle * 2) * 0.2);
+        bowGroup.add(organelle);
+      }
+      
+      // Energy glow
+      const glowGeometry = new THREE.RingGeometry(0.5, 1.0, 32);
+      const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.rotation.x = Math.PI / 2;
+      bowGroup.add(glow);
     }
     
-    // Energy wire/string (laser beam) - THIS IS WHERE ARROWS SPAWN
+    // Energy wire/string (laser beam) - THIS IS WHERE ARROWS SPAWN (all themes)
+    const stringColor = currentTheme === 'halloween' ? 0x00ff00 : currentTheme === 'christmas' ? 0xff0000 : 0x88ccff;
     const stringPoints = [
       new THREE.Vector3(-0.5, 0, 0),
-      new THREE.Vector3(0, 0, 0), // Center point - arrow spawn location
+      new THREE.Vector3(0, 0, 0),
       new THREE.Vector3(0.5, 0, 0)
     ];
     const stringGeometry = new THREE.BufferGeometry().setFromPoints(stringPoints);
     const stringMaterial = new THREE.LineBasicMaterial({ 
-      color: 0x88ccff, 
+      color: stringColor, 
       linewidth: 8,
       transparent: true,
       opacity: 1.0
@@ -991,34 +1341,20 @@ export default function DeadShotGame({
     bowGroup.add(bowString);
     bowStringRef.current = bowString;
     
-    // Aim path preview (trajectory line like Peggle) - initially hidden
+    // Aim path preview (themed)
+    const aimColor = currentTheme === 'halloween' ? 0x00ff00 : currentTheme === 'christmas' ? 0xff0000 : 0x00ffff;
     const aimPathPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
     const aimPathGeometry = new THREE.BufferGeometry().setFromPoints(aimPathPoints);
     const aimPathMaterial = new THREE.LineBasicMaterial({
-      color: 0x00ffff, // Cyan laser color
-      linewidth: 4, // Thicker line
+      color: aimColor,
+      linewidth: 4,
       transparent: true,
-      opacity: 0.8, // More visible
-      emissive: 0x00ffff, // Glowing effect
-      emissiveIntensity: 2.0
+      opacity: 0.8
     });
     const aimPath = new THREE.Line(aimPathGeometry, aimPathMaterial);
     aimPath.visible = false;
     scene.add(aimPath);
     aimPathRef.current = aimPath;
-    
-    // Energy glow around white blood cell
-    const glowGeometry = new THREE.RingGeometry(0.5, 1.0, 32);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x88ccff,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.set(0, 0, 0);
-    glow.rotation.x = Math.PI / 2;
-    bowGroup.add(glow);
     
     // Initialize string center position
     stringCenterRef.current.set(0, 0, 0);
@@ -1230,6 +1566,22 @@ export default function DeadShotGame({
       if (bowRef.current && bowStringRef.current) {
         const drawProgress = bowPowerRef.current / 100;
         bowRef.current.rotation.z = -aimAngleRef.current * Math.PI / 180;
+        
+        // Christmas light flash animation (green <-> red)
+        if (currentTheme === 'christmas') {
+          const bulb = bowRef.current.getObjectByName('christmasBulb') as THREE.Mesh;
+          const glowRing = bowRef.current.getObjectByName('christmasGlow') as THREE.Mesh;
+          if (bulb && bulb.material) {
+            const flashSpeed = 0.003; // Flash every ~2 seconds
+            const isGreen = Math.sin(Date.now() * flashSpeed) > 0;
+            const mat = bulb.material as THREE.MeshStandardMaterial;
+            mat.color.setHex(isGreen ? 0x00ff00 : 0xff0000);
+            mat.emissive.setHex(isGreen ? 0x00aa00 : 0xaa0000);
+            if (glowRing && glowRing.material) {
+              (glowRing.material as THREE.MeshBasicMaterial).color.setHex(isGreen ? 0x00ff00 : 0xff0000);
+            }
+          }
+        }
         
         // Animate bow string when drawing (white blood cell wire)
         const stringPoints = [
