@@ -483,8 +483,8 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       
       // Show strike hit popup with colored precision rating (if not a kill)
       if (targetEnemy.health > 0) {
-        // STRIKE = 200 points per hit!
-        const strikePoints = 200;
+        // STRIKE = 50 points per hit
+        const strikePoints = 50;
         scoreRef.current += strikePoints;
         setScore(scoreRef.current);
         
@@ -492,7 +492,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         const hitsLanded = 3 - targetEnemy.health;
         const popupType = hitsLanded === 2 ? 'critical' : comboRef.current >= 2 ? 'bonus' : 'normal';
         const hitLabel = hitsLanded === 1 ? '⚔️ STRIKE!' : hitsLanded === 2 ? '⚔️ CRITICAL!' : '⚔️ HIT!';
-        addPopup(strikePoints, 50, 45, popupType, `${hitLabel} +200`);
+        addPopup(strikePoints, 50, 45, popupType, `${hitLabel} +50`);
       }
       
       if (targetEnemy.health <= 0) {
@@ -1152,7 +1152,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               <div className="bg-black/40 rounded-lg p-2 mb-3">
                 <div className="grid grid-cols-2 gap-1 text-xs">
                   <div className="text-red-400">⚔️ Strike Hit</div>
-                  <div className="text-green-400 text-right font-bold">+200</div>
+                  <div className="text-green-400 text-right font-bold">+50</div>
                   <div className="text-cyan-400">🏃 Dodge</div>
                   <div className="text-green-400 text-right font-bold">+200</div>
                   <div className="text-purple-400">🛡️ Parry</div>
