@@ -8,7 +8,7 @@ import FloatingScore, { useFloatingScores } from './FloatingScore';
 import GameThemeSelector from './GameThemeSelector';
 import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
-// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251220-HALLOWEEN-PURPLE-ORANGE 🔥🔥🔥
 console.log('');
 console.log('🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀');
 console.log('🚀 LASER DODGE v8.0 - BUILD 20251127-1900');
