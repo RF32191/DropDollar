@@ -347,6 +347,13 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
           setActionFeedback('perfect');
           
           addPopup(points, 50, 30, 'perfect', `⚡ PERFECT! +${points}`);
+          
+          // Give heart back on perfect parry (max 3)
+          if (heartsRef.current < 3) {
+            heartsRef.current++;
+            setHearts(heartsRef.current);
+            addPopup(0, 50, 45, 'bonus', '❤️ +1 HEART!');
+          }
         } else {
           comboRef.current = Math.max(0, comboRef.current - 1);
           // Normal PARRY = 500 points
@@ -850,6 +857,9 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
                   setScreenFlash('red');
                   setTimeout(() => setScreenFlash('none'), 200);
                   setTimeout(() => setActionFeedback('none'), 500);
+                  
+                  // Show heart loss popup
+                  addPopup(0, 50, 35, 'kill', `💔 -1 HEART! (${heartsRef.current} left)`);
                   
                   if (heartsRef.current <= 0) {
                     setEndReason('defeated');
