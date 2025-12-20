@@ -554,6 +554,9 @@ export default function GamesPage() {
   const [practiceAttempts, setPracticeAttempts] = useState<{[key: string]: number}>({});
   const [bestScores, setBestScores] = useState<{[key: string]: number}>({});
   const [lastScores, setLastScores] = useState<{[key: string]: number}>({});
+  const [selectedTheme, setSelectedTheme] = useState<'standard' | 'halloween' | 'christmas'>('standard');
+  const [showThemeSelector, setShowThemeSelector] = useState<boolean>(false);
+  const [pendingGame, setPendingGame] = useState<string | null>(null);
   const [gamePopularity, setGamePopularity] = useState<{[key: string]: GamePopularity}>({});
   const [showPopularityStats, setShowPopularityStats] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
@@ -843,6 +846,7 @@ export default function GamesPage() {
     return () => clearInterval(gameSoundInterval);
   }, []);
 
+  // Show theme selector before starting game
   const handleGameStart = (gameId: string) => {
     console.log('🎮 Game start requested:', gameId);
     console.log('🎮 Competition mode:', isCompetitionMode);
@@ -857,6 +861,16 @@ export default function GamesPage() {
       return; // Location check failed, modal will be shown or user is restricted
     }
     
+    // Show theme selector
+    setPendingGame(gameId);
+    setShowThemeSelector(true);
+  };
+  
+  // Proceed with game start after theme is selected
+  const proceedWithGameStart = (gameId: string) => {
+    setShowThemeSelector(false);
+    setPendingGame(null);
+    
     // For competition mode, start immediately without ads
     if (isCompetitionMode) {
       console.log('🏆 Competition mode - starting game immediately');
@@ -867,7 +881,7 @@ export default function GamesPage() {
 
     // For practice mode, show ad for 10 seconds
     console.log('🎮 Practice mode - showing ad for 10 seconds');
-      setPendingGameStart(gameId);
+    setPendingGameStart(gameId);
     setShowAd(true);
     
     // Auto-hide ad after 10 seconds
@@ -1195,7 +1209,7 @@ export default function GamesPage() {
     if (!game) return null;
 
     const GameComponent = game.component;
-    console.log('Rendering game:', currentGame, 'Component:', GameComponent);
+    console.log('Rendering game:', currentGame, 'Component:', GameComponent, 'Theme:', selectedTheme);
     
     try {
       return (
@@ -1205,6 +1219,7 @@ export default function GamesPage() {
           listingId={listingId || undefined}
           entryNumber={entryNumber}
           rngSeed={Math.floor(Math.random() * 10) + 1} // Random seed 1-10 for fairness
+          theme={selectedTheme} // Pass theme to game
         />
       );
     } catch (error) {
@@ -1243,6 +1258,101 @@ export default function GamesPage() {
         onLocationGranted={handleLocationGranted}
         onLocationDenied={handleLocationDenied}
       />
+
+      {/* Theme Selector Modal */}
+      {showThemeSelector && pendingGame && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 max-w-md w-full border border-purple-500/30 shadow-2xl">
+            <h2 className="text-2xl font-bold text-white text-center mb-2">
+              🎨 Choose Your Theme
+            </h2>
+            <p className="text-gray-400 text-center text-sm mb-6">
+              Select a visual style for {GAMES.find(g => g.id === pendingGame)?.name}
+            </p>
+            
+            <div className="grid grid-cols-1 gap-3 mb-6">
+              {/* Standard Theme */}
+              <button
+                onClick={() => {
+                  setSelectedTheme('standard');
+                  proceedWithGameStart(pendingGame);
+                }}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  selectedTheme === 'standard' 
+                    ? 'border-blue-500 bg-blue-500/20' 
+                    : 'border-gray-600 hover:border-blue-400 bg-gray-800/50'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center text-2xl">
+                    🎮
+                  </div>
+                  <div className="text-left">
+                    <div className="text-white font-bold">Standard</div>
+                    <div className="text-gray-400 text-sm">Classic game experience</div>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Halloween Theme */}
+              <button
+                onClick={() => {
+                  setSelectedTheme('halloween');
+                  proceedWithGameStart(pendingGame);
+                }}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  selectedTheme === 'halloween' 
+                    ? 'border-orange-500 bg-orange-500/20' 
+                    : 'border-gray-600 hover:border-orange-400 bg-gray-800/50'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-orange-600 to-purple-900 flex items-center justify-center text-2xl">
+                    🎃
+                  </div>
+                  <div className="text-left">
+                    <div className="text-orange-400 font-bold">Halloween</div>
+                    <div className="text-gray-400 text-sm">Spooky skeleton hands, full moon</div>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Christmas Theme */}
+              <button
+                onClick={() => {
+                  setSelectedTheme('christmas');
+                  proceedWithGameStart(pendingGame);
+                }}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  selectedTheme === 'christmas' 
+                    ? 'border-red-500 bg-red-500/20' 
+                    : 'border-gray-600 hover:border-red-400 bg-gray-800/50'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-red-600 to-green-700 flex items-center justify-center text-2xl">
+                    🎄
+                  </div>
+                  <div className="text-left">
+                    <div className="text-red-400 font-bold">Christmas</div>
+                    <div className="text-gray-400 text-sm">Santa mittens, snowy wonderland</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowThemeSelector(false);
+                setPendingGame(null);
+              }}
+              className="w-full py-2 text-gray-400 hover:text-white transition-colors text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Audio Initializer - Enables audio on first user interaction */}
       <AudioInitializer />

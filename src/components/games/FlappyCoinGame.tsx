@@ -5,11 +5,14 @@ import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
 
+type GameTheme = 'standard' | 'halloween' | 'christmas';
+
 interface FlappyCoinGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
+  theme?: GameTheme;
 }
 
 // Seeded random number generator
@@ -49,7 +52,7 @@ interface BonusCoin {
   mesh: THREE.Group;
 }
 
-export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: FlappyCoinGameProps) {
+export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme = 'standard' }: FlappyCoinGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -271,8 +274,232 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create highly realistic procedural hand - fingers pointing towards gap
-  const createHand = useCallback((isTop: boolean) => {
+  // Create skeleton bone hand for Halloween theme
+  const createSkeletonHand = useCallback((isTop: boolean) => {
+    const group = new THREE.Group();
+    
+    // Bone material - aged ivory with cracks
+    const boneMaterial = new THREE.MeshStandardMaterial({
+      color: 0xF5F5DC, // Bone white
+      roughness: 0.6,
+      metalness: 0.0,
+      emissive: 0x222211,
+      emissiveIntensity: 0.1,
+    });
+    
+    const boneJointMaterial = new THREE.MeshStandardMaterial({
+      color: 0xE8E4D4, // Slightly darker for joints
+      roughness: 0.7,
+      metalness: 0.0,
+    });
+    
+    // Metacarpal bones (palm area)
+    const fingerXPositions = [-0.7, -0.25, 0.25, 0.7];
+    fingerXPositions.forEach((xPos) => {
+      const metacarpalGeo = new THREE.CapsuleGeometry(0.1, 0.8, 8, 12);
+      const metacarpal = new THREE.Mesh(metacarpalGeo, boneMaterial);
+      metacarpal.position.set(xPos, isTop ? 1.3 : -1.3, 0);
+      group.add(metacarpal);
+      
+      // Joint at knuckle
+      const jointGeo = new THREE.SphereGeometry(0.15, 12, 12);
+      const joint = new THREE.Mesh(jointGeo, boneJointMaterial);
+      joint.position.set(xPos, isTop ? 0.7 : -0.7, 0);
+      group.add(joint);
+    });
+    
+    // Finger bones (phalanges) - pointing towards gap
+    const fingerLengths = [0.9, 1.3, 1.25, 0.9];
+    fingerXPositions.forEach((xPos, i) => {
+      const fingerLength = fingerLengths[i];
+      let cumulativeY = 0;
+      
+      // 3 phalanges per finger
+      for (let seg = 0; seg < 3; seg++) {
+        const segLength = fingerLength * (seg === 0 ? 0.4 : seg === 1 ? 0.35 : 0.25);
+        const segRadius = 0.08 - seg * 0.015;
+        
+        const boneGeo = new THREE.CapsuleGeometry(segRadius, segLength, 8, 12);
+        const bone = new THREE.Mesh(boneGeo, boneMaterial);
+        
+        cumulativeY += segLength * 0.6;
+        const segY = isTop ? -cumulativeY : cumulativeY;
+        bone.position.set(xPos, segY, 0);
+        group.add(bone);
+        
+        // Joint between segments
+        if (seg < 2) {
+          const jointGeo = new THREE.SphereGeometry(0.1, 8, 8);
+          const joint = new THREE.Mesh(jointGeo, boneJointMaterial);
+          const jointY = isTop ? -(cumulativeY + segLength * 0.3) : cumulativeY + segLength * 0.3;
+          joint.position.set(xPos, jointY, 0);
+          group.add(joint);
+        }
+      }
+    });
+    
+    // Thumb bones
+    const thumbJoint = new THREE.SphereGeometry(0.12, 10, 10);
+    const thumbJointMesh = new THREE.Mesh(thumbJoint, boneJointMaterial);
+    thumbJointMesh.position.set(isTop ? 1.0 : -1.0, isTop ? 0.9 : -0.9, 0);
+    group.add(thumbJointMesh);
+    
+    const thumbBone1 = new THREE.CapsuleGeometry(0.09, 0.35, 8, 12);
+    const thumb1 = new THREE.Mesh(thumbBone1, boneMaterial);
+    thumb1.position.set(isTop ? 1.2 : -1.2, isTop ? 0.5 : -0.5, 0);
+    thumb1.rotation.z = isTop ? -0.5 : 0.5;
+    group.add(thumb1);
+    
+    const thumbBone2 = new THREE.CapsuleGeometry(0.07, 0.3, 8, 12);
+    const thumb2 = new THREE.Mesh(thumbBone2, boneMaterial);
+    thumb2.position.set(isTop ? 1.45 : -1.45, isTop ? 0.1 : -0.1, 0);
+    thumb2.rotation.z = isTop ? -0.4 : 0.4;
+    group.add(thumb2);
+    
+    // Carpal bones (wrist)
+    for (let c = 0; c < 4; c++) {
+      const carpalGeo = new THREE.BoxGeometry(0.25, 0.25, 0.2);
+      const carpal = new THREE.Mesh(carpalGeo, boneMaterial);
+      carpal.position.set(-0.4 + c * 0.27, isTop ? 2.0 : -2.0, 0);
+      carpal.rotation.z = Math.random() * 0.2 - 0.1;
+      group.add(carpal);
+    }
+    
+    // Radius and Ulna (forearm bones)
+    const radiusGeo = new THREE.CapsuleGeometry(0.12, 5, 10, 16);
+    const radius = new THREE.Mesh(radiusGeo, boneMaterial);
+    radius.position.set(0.2, isTop ? 5.0 : -5.0, 0.1);
+    group.add(radius);
+    
+    const ulnaGeo = new THREE.CapsuleGeometry(0.1, 5.2, 10, 16);
+    const ulna = new THREE.Mesh(ulnaGeo, boneMaterial);
+    ulna.position.set(-0.2, isTop ? 5.1 : -5.1, -0.1);
+    group.add(ulna);
+    
+    // Tattered black robe sleeve
+    const robeGeo = new THREE.ConeGeometry(1.5, 4, 16, 1, true);
+    const robeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      roughness: 0.9,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+    });
+    const robe = new THREE.Mesh(robeGeo, robeMaterial);
+    robe.position.y = isTop ? 6.5 : -6.5;
+    robe.rotation.x = isTop ? 0 : Math.PI;
+    group.add(robe);
+    
+    return group;
+  }, []);
+  
+  // Create Santa mitten for Christmas theme
+  const createSantaMitten = useCallback((isTop: boolean) => {
+    const group = new THREE.Group();
+    
+    // Red fuzzy mitten material
+    const redMittenMaterial = new THREE.MeshStandardMaterial({
+      color: 0xCC0000, // Christmas red
+      roughness: 0.8,
+      metalness: 0.0,
+    });
+    
+    // White fur trim material
+    const whiteFurMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFFFFF,
+      roughness: 0.95,
+      metalness: 0.0,
+      emissive: 0xDDDDDD,
+      emissiveIntensity: 0.1,
+    });
+    
+    // Main mitten body (rounded box shape)
+    const mittenShape = new THREE.Shape();
+    mittenShape.moveTo(-1.0, -1.2);
+    mittenShape.quadraticCurveTo(-1.3, 0, -1.0, 1.0);
+    mittenShape.quadraticCurveTo(-0.5, 1.5, 0.5, 1.5);
+    mittenShape.quadraticCurveTo(1.0, 1.0, 1.2, 0);
+    mittenShape.quadraticCurveTo(1.0, -1.0, 0.5, -1.2);
+    mittenShape.lineTo(-1.0, -1.2);
+    
+    const mittenExtrudeSettings = { depth: 0.8, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.1, bevelSegments: 5 };
+    const mittenGeo = new THREE.ExtrudeGeometry(mittenShape, mittenExtrudeSettings);
+    const mitten = new THREE.Mesh(mittenGeo, redMittenMaterial);
+    mitten.rotation.x = Math.PI / 2;
+    mitten.position.y = isTop ? 0.5 : -0.5;
+    mitten.position.z = -0.4;
+    group.add(mitten);
+    
+    // Thumb
+    const thumbGeo = new THREE.CapsuleGeometry(0.35, 0.8, 12, 16);
+    const thumb = new THREE.Mesh(thumbGeo, redMittenMaterial);
+    thumb.position.set(isTop ? 1.3 : -1.3, isTop ? 0.3 : -0.3, 0);
+    thumb.rotation.z = isTop ? -0.5 : 0.5;
+    group.add(thumb);
+    
+    // White fur cuff - fluffy looking
+    const cuffGeo = new THREE.TorusGeometry(1.1, 0.35, 16, 32);
+    const cuff = new THREE.Mesh(cuffGeo, whiteFurMaterial);
+    cuff.position.y = isTop ? 2.0 : -2.0;
+    cuff.rotation.x = Math.PI / 2;
+    group.add(cuff);
+    
+    // Extra fur puffs for fluffy look
+    for (let p = 0; p < 12; p++) {
+      const angle = (p / 12) * Math.PI * 2;
+      const puffGeo = new THREE.SphereGeometry(0.25, 8, 8);
+      const puff = new THREE.Mesh(puffGeo, whiteFurMaterial);
+      puff.position.set(
+        Math.cos(angle) * 1.1,
+        isTop ? 2.0 : -2.0,
+        Math.sin(angle) * 1.1
+      );
+      group.add(puff);
+    }
+    
+    // Red arm/sleeve
+    const armGeo = new THREE.CylinderGeometry(0.9, 1.0, 5, 20);
+    const arm = new THREE.Mesh(armGeo, redMittenMaterial);
+    arm.position.y = isTop ? 5.0 : -5.0;
+    group.add(arm);
+    
+    // Another fur cuff at elbow
+    const elbowCuffGeo = new THREE.TorusGeometry(0.95, 0.25, 12, 24);
+    const elbowCuff = new THREE.Mesh(elbowCuffGeo, whiteFurMaterial);
+    elbowCuff.position.y = isTop ? 7.5 : -7.5;
+    elbowCuff.rotation.x = Math.PI / 2;
+    group.add(elbowCuff);
+    
+    // Gold jingle bells on cuff
+    const bellMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      roughness: 0.2,
+      metalness: 0.8,
+    });
+    for (let b = 0; b < 3; b++) {
+      const bellGeo = new THREE.SphereGeometry(0.15, 12, 12);
+      const bell = new THREE.Mesh(bellGeo, bellMaterial);
+      const bellAngle = (b / 3) * Math.PI * 2 + Math.PI / 6;
+      bell.position.set(
+        Math.cos(bellAngle) * 1.2,
+        isTop ? 2.3 : -2.3,
+        Math.sin(bellAngle) * 1.2
+      );
+      group.add(bell);
+      
+      // Bell slit
+      const slitGeo = new THREE.BoxGeometry(0.08, 0.12, 0.02);
+      const slitMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const slit = new THREE.Mesh(slitGeo, slitMat);
+      slit.position.copy(bell.position);
+      slit.position.y -= isTop ? 0.1 : -0.1;
+      group.add(slit);
+    }
+    
+    return group;
+  }, []);
+  
+  // Create standard realistic hand
+  const createStandardHand = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
     // Multiple skin materials for realistic color variation
@@ -345,7 +572,6 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     
     // Detailed fingers with proper joints - pointing towards gap (y = 0)
     const fingerLengths = [1.0, 1.4, 1.35, 1.0];
-    const fingerNames = ['pinky', 'ring', 'middle', 'index'];
     
     fingerXPositions.forEach((xPos, i) => {
       const fingerLength = fingerLengths[i];
@@ -399,29 +625,6 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
       const nailY = isTop ? -(cumulativeY + fingerLength * 0.08) : cumulativeY + fingerLength * 0.08;
       nail.position.set(xPos, nailY, isTop ? -0.12 : 0.12);
       group.add(nail);
-      
-      // Nail highlight (glossy strip)
-      const highlightGeo = new THREE.BoxGeometry(baseRadius * 0.5, baseRadius * 1.2, 0.02);
-      const highlightMat = new THREE.MeshStandardMaterial({ 
-        color: 0xFFFFFF, 
-        roughness: 0.0, 
-        metalness: 0.3,
-        transparent: true,
-        opacity: 0.4
-      });
-      const highlight = new THREE.Mesh(highlightGeo, highlightMat);
-      highlight.position.set(xPos - baseRadius * 0.25, nailY, isTop ? -0.15 : 0.15);
-      group.add(highlight);
-      
-      // Cuticle
-      const cuticleGeo = new THREE.TorusGeometry(baseRadius * 0.8, 0.02, 8, 12, Math.PI);
-      const cuticleMat = new THREE.MeshStandardMaterial({ color: 0xE8D0C8, roughness: 0.6 });
-      const cuticle = new THREE.Mesh(cuticleGeo, cuticleMat);
-      const cuticleY = isTop ? -(cumulativeY - fingerLength * 0.1) : cumulativeY - fingerLength * 0.1;
-      cuticle.position.set(xPos, cuticleY, isTop ? -0.13 : 0.13);
-      cuticle.rotation.x = isTop ? Math.PI : 0;
-      cuticle.rotation.z = Math.PI / 2;
-      group.add(cuticle);
     });
     
     // Detailed thumb with anatomically correct positioning
@@ -443,15 +646,6 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     thumbTipMesh.rotation.z = isTop ? -0.25 : 0.25;
     group.add(thumbTipMesh);
     
-    // Thumb nail
-    const thumbNailGeo = new THREE.BoxGeometry(0.22, 0.25, 0.04);
-    const thumbNail = new THREE.Mesh(thumbNailGeo, new THREE.MeshStandardMaterial({ 
-      color: 0xFFE8E0, roughness: 0.2, metalness: 0.1 
-    }));
-    thumbNail.position.set(isTop ? 1.65 : -1.65, isTop ? -0.35 : 0.35, isTop ? -0.08 : 0.25);
-    thumbNail.rotation.z = isTop ? -0.25 : 0.25;
-    group.add(thumbNail);
-    
     // Thenar eminence (thumb muscle on palm)
     const thenarGeo = new THREE.SphereGeometry(0.35, 12, 12);
     const thenar = new THREE.Mesh(thenarGeo, skinMaterial);
@@ -464,14 +658,6 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     const wrist = new THREE.Mesh(wristGeometry, skinMaterial);
     wrist.position.y = isTop ? 2.6 : -2.6;
     group.add(wrist);
-    
-    // Wrist tendon lines
-    for (let t = 0; t < 4; t++) {
-      const tendonGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 8);
-      const tendon = new THREE.Mesh(tendonGeo, creaseMaterial);
-      tendon.position.set(-0.4 + t * 0.27, isTop ? 2.6 : -2.6, -0.35);
-      group.add(tendon);
-    }
     
     // Forearm (extends away from gap)
     const armGeometry = new THREE.CylinderGeometry(0.8, 0.85, 7, 20);
@@ -542,6 +728,18 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     
     return group;
   }, []);
+  
+  // Theme-aware hand creation
+  const createHand = useCallback((isTop: boolean) => {
+    switch (theme) {
+      case 'halloween':
+        return createSkeletonHand(isTop);
+      case 'christmas':
+        return createSantaMitten(isTop);
+      default:
+        return createStandardHand(isTop);
+    }
+  }, [theme, createSkeletonHand, createSantaMitten, createStandardHand]);
   
   // Handle jump forward - moves coin up and keeps moving forward
   const handleJumpForward = useCallback(() => {
@@ -651,12 +849,28 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     
+    // Theme-based sky colors
+    let topColor, bottomColor;
+    switch (theme) {
+      case 'halloween':
+        topColor = new THREE.Color(0x0a0a1a); // Dark night sky
+        bottomColor = new THREE.Color(0x2a1a3a); // Purple mist
+        break;
+      case 'christmas':
+        topColor = new THREE.Color(0x1a2a4a); // Winter night blue
+        bottomColor = new THREE.Color(0x4a5a7a); // Lighter winter blue
+        break;
+      default:
+        topColor = new THREE.Color(0x1e90ff);
+        bottomColor = new THREE.Color(0x87CEEB);
+    }
+    
     // Sky gradient
     const skyGeometry = new THREE.PlaneGeometry(100, 100);
     const skyMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        topColor: { value: new THREE.Color(0x1e90ff) },
-        bottomColor: { value: new THREE.Color(0x87CEEB) },
+        topColor: { value: topColor },
+        bottomColor: { value: bottomColor },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -679,6 +893,157 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     sky.position.z = -15;
     scene.add(sky);
     
+    // Halloween: Add large full moon
+    if (theme === 'halloween') {
+      // Full moon
+      const moonGeo = new THREE.CircleGeometry(4, 64);
+      const moonMat = new THREE.MeshBasicMaterial({
+        color: 0xFFF8DC,
+        transparent: true,
+        opacity: 0.95,
+      });
+      const moon = new THREE.Mesh(moonGeo, moonMat);
+      moon.position.set(8, 6, -14);
+      scene.add(moon);
+      
+      // Moon glow
+      const moonGlowGeo = new THREE.CircleGeometry(5, 64);
+      const moonGlowMat = new THREE.MeshBasicMaterial({
+        color: 0xFFFFCC,
+        transparent: true,
+        opacity: 0.3,
+      });
+      const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
+      moonGlow.position.set(8, 6, -14.1);
+      scene.add(moonGlow);
+      
+      // Moon craters
+      const craterMat = new THREE.MeshBasicMaterial({
+        color: 0xE8E0C8,
+        transparent: true,
+        opacity: 0.4,
+      });
+      for (let c = 0; c < 6; c++) {
+        const craterGeo = new THREE.CircleGeometry(0.3 + Math.random() * 0.4, 16);
+        const crater = new THREE.Mesh(craterGeo, craterMat);
+        crater.position.set(
+          7 + (Math.random() - 0.5) * 4,
+          5 + (Math.random() - 0.5) * 4,
+          -13.9
+        );
+        scene.add(crater);
+      }
+      
+      // Spooky stars
+      for (let s = 0; s < 50; s++) {
+        const starGeo = new THREE.CircleGeometry(0.05 + Math.random() * 0.08, 8);
+        const starMat = new THREE.MeshBasicMaterial({
+          color: 0xFFFFFF,
+          transparent: true,
+          opacity: 0.4 + Math.random() * 0.6,
+        });
+        const star = new THREE.Mesh(starGeo, starMat);
+        star.position.set(
+          (Math.random() - 0.5) * 40,
+          Math.random() * 10,
+          -14.5
+        );
+        scene.add(star);
+      }
+      
+      // Bats silhouettes
+      for (let b = 0; b < 5; b++) {
+        const batGroup = new THREE.Group();
+        const batMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        
+        // Body
+        const bodyGeo = new THREE.SphereGeometry(0.15, 8, 8);
+        const body = new THREE.Mesh(bodyGeo, batMat);
+        batGroup.add(body);
+        
+        // Wings
+        const wingShape = new THREE.Shape();
+        wingShape.moveTo(0, 0);
+        wingShape.quadraticCurveTo(0.3, 0.2, 0.5, 0);
+        wingShape.quadraticCurveTo(0.3, -0.1, 0, 0);
+        const wingGeo = new THREE.ShapeGeometry(wingShape);
+        
+        const leftWing = new THREE.Mesh(wingGeo, batMat);
+        leftWing.position.x = -0.1;
+        leftWing.scale.x = -1;
+        batGroup.add(leftWing);
+        
+        const rightWing = new THREE.Mesh(wingGeo, batMat);
+        rightWing.position.x = 0.1;
+        batGroup.add(rightWing);
+        
+        batGroup.position.set(
+          -8 + b * 4 + Math.random() * 2,
+          3 + Math.random() * 4,
+          -10
+        );
+        batGroup.scale.setScalar(0.5 + Math.random() * 0.5);
+        scene.add(batGroup);
+      }
+    }
+    
+    // Christmas: Add snowy background elements
+    if (theme === 'christmas') {
+      // Stars
+      for (let s = 0; s < 40; s++) {
+        const starGeo = new THREE.CircleGeometry(0.06 + Math.random() * 0.06, 6);
+        const starMat = new THREE.MeshBasicMaterial({
+          color: 0xFFFFFF,
+          transparent: true,
+          opacity: 0.5 + Math.random() * 0.5,
+        });
+        const star = new THREE.Mesh(starGeo, starMat);
+        star.position.set(
+          (Math.random() - 0.5) * 40,
+          Math.random() * 10,
+          -14.5
+        );
+        scene.add(star);
+      }
+      
+      // Snowflakes (floating in the background)
+      for (let f = 0; f < 100; f++) {
+        const flakeGeo = new THREE.CircleGeometry(0.08 + Math.random() * 0.1, 6);
+        const flakeMat = new THREE.MeshBasicMaterial({
+          color: 0xFFFFFF,
+          transparent: true,
+          opacity: 0.6 + Math.random() * 0.4,
+        });
+        const flake = new THREE.Mesh(flakeGeo, flakeMat);
+        flake.position.set(
+          (Math.random() - 0.5) * 50,
+          (Math.random() - 0.5) * 20,
+          -12 - Math.random() * 3
+        );
+        flake.userData.fallSpeed = 0.01 + Math.random() * 0.02;
+        flake.userData.swaySpeed = Math.random() * 0.02;
+        flake.userData.swayOffset = Math.random() * Math.PI * 2;
+        scene.add(flake);
+      }
+      
+      // Distant snow-capped mountains
+      const mountainMat = new THREE.MeshBasicMaterial({ color: 0x3a4a5a });
+      for (let m = 0; m < 5; m++) {
+        const mountainGeo = new THREE.ConeGeometry(3 + Math.random() * 2, 5 + Math.random() * 3, 4);
+        const mountain = new THREE.Mesh(mountainGeo, mountainMat);
+        mountain.position.set(-12 + m * 6, -3, -13);
+        scene.add(mountain);
+        
+        // Snow cap
+        const snowCapGeo = new THREE.ConeGeometry(1 + Math.random() * 0.5, 2, 4);
+        const snowCapMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+        const snowCap = new THREE.Mesh(snowCapGeo, snowCapMat);
+        snowCap.position.copy(mountain.position);
+        snowCap.position.y += 2.5;
+        scene.add(snowCap);
+      }
+    }
+    
     // Camera - zoom out more on mobile
     const isMobileDevice = window.innerWidth < 768 || 'ontouchstart' in window;
     const fov = isMobileDevice ? 65 : 50; // Wider FOV on mobile
@@ -695,16 +1060,34 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.7);
+    // Theme-based lighting
+    let ambientColor, ambientIntensity, mainLightColor;
+    switch (theme) {
+      case 'halloween':
+        ambientColor = 0x4444AA; // Eerie blue
+        ambientIntensity = 0.4;
+        mainLightColor = 0xFFFFCC; // Moonlight
+        break;
+      case 'christmas':
+        ambientColor = 0x8888FF; // Cool winter light
+        ambientIntensity = 0.6;
+        mainLightColor = 0xFFFFFF; // Bright snow reflection
+        break;
+      default:
+        ambientColor = 0xFFFFFF;
+        ambientIntensity = 0.7;
+        mainLightColor = 0xFFFFCC;
+    }
+    
+    const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     scene.add(ambientLight);
     
-    const sunLight = new THREE.DirectionalLight(0xFFFFCC, 1);
-    sunLight.position.set(10, 15, 10);
+    const sunLight = new THREE.DirectionalLight(mainLightColor, theme === 'halloween' ? 0.6 : 1);
+    sunLight.position.set(theme === 'halloween' ? 8 : 10, 15, 10);
     scene.add(sunLight);
     
     // Add fill light for hands
-    const fillLight = new THREE.DirectionalLight(0xFFE4C4, 0.5);
+    const fillLight = new THREE.DirectionalLight(theme === 'christmas' ? 0xAABBFF : 0xFFE4C4, 0.5);
     fillLight.position.set(-5, 0, 5);
     scene.add(fillLight);
     
@@ -715,38 +1098,130 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     scene.add(coin);
     coinRef.current = coin;
     
-    // Clouds
-    for (let i = 0; i < 5; i++) {
-      const cloudGroup = new THREE.Group();
-      const cloudMaterial = new THREE.MeshPhongMaterial({
-        color: 0xFFFFFF,
-        transparent: true,
-        opacity: 0.85,
-      });
-      
-      for (let j = 0; j < 4; j++) {
-        const sphereGeometry = new THREE.SphereGeometry(0.4 + Math.random() * 0.3, 12, 12);
-        const sphere = new THREE.Mesh(sphereGeometry, cloudMaterial);
-        sphere.position.set((j - 1.5) * 0.4, Math.random() * 0.2, 0);
-        cloudGroup.add(sphere);
+    // Theme-based clouds
+    if (theme !== 'halloween') { // No clouds for spooky night sky
+      const cloudColor = theme === 'christmas' ? 0xDDDDEE : 0xFFFFFF;
+      for (let i = 0; i < 5; i++) {
+        const cloudGroup = new THREE.Group();
+        const cloudMaterial = new THREE.MeshPhongMaterial({
+          color: cloudColor,
+          transparent: true,
+          opacity: 0.85,
+        });
+        
+        for (let j = 0; j < 4; j++) {
+          const sphereGeometry = new THREE.SphereGeometry(0.4 + Math.random() * 0.3, 12, 12);
+          const sphere = new THREE.Mesh(sphereGeometry, cloudMaterial);
+          sphere.position.set((j - 1.5) * 0.4, Math.random() * 0.2, 0);
+          cloudGroup.add(sphere);
+        }
+        
+        cloudGroup.position.set(-10 + i * 5, 3 + Math.random() * 2, -5);
+        cloudGroup.scale.setScalar(0.8 + Math.random() * 0.5);
+        scene.add(cloudGroup);
+        cloudsRef.current.push(cloudGroup);
       }
-      
-      cloudGroup.position.set(-10 + i * 5, 3 + Math.random() * 2, -5);
-      cloudGroup.scale.setScalar(0.8 + Math.random() * 0.5);
-      scene.add(cloudGroup);
-      cloudsRef.current.push(cloudGroup);
     }
     
-    // Ground
+    // Theme-based ground
+    let groundColor, dirtColor;
+    switch (theme) {
+      case 'halloween':
+        groundColor = 0x1a1a1a; // Dark dead grass
+        dirtColor = 0x2a1a0a; // Dark soil
+        break;
+      case 'christmas':
+        groundColor = 0xFFFFFF; // Snow
+        dirtColor = 0xE8E8F0; // Light snow/ice
+        break;
+      default:
+        groundColor = 0x228B22; // Green grass
+        dirtColor = 0x8B4513; // Brown dirt
+    }
+    
     const groundGeometry = new THREE.PlaneGeometry(50, 2);
-    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: groundColor });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.position.y = FLOOR_Y - 0.5;
     scene.add(ground);
     
+    // Halloween: Add tombstones
+    if (theme === 'halloween') {
+      for (let t = 0; t < 8; t++) {
+        const tombGroup = new THREE.Group();
+        const tombMat = new THREE.MeshPhongMaterial({ color: 0x555555 });
+        
+        // Tombstone body
+        const tombGeo = new THREE.BoxGeometry(0.8, 1.2, 0.2);
+        const tomb = new THREE.Mesh(tombGeo, tombMat);
+        tomb.position.y = 0.6;
+        tombGroup.add(tomb);
+        
+        // Rounded top
+        const topGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 16, 1, false, 0, Math.PI);
+        const top = new THREE.Mesh(topGeo, tombMat);
+        top.rotation.z = Math.PI / 2;
+        top.rotation.y = Math.PI / 2;
+        top.position.y = 1.2;
+        tombGroup.add(top);
+        
+        tombGroup.position.set(-15 + t * 4, FLOOR_Y, -2 - Math.random() * 3);
+        tombGroup.rotation.y = (Math.random() - 0.5) * 0.3;
+        tombGroup.scale.setScalar(0.5 + Math.random() * 0.3);
+        scene.add(tombGroup);
+      }
+    }
+    
+    // Christmas: Add snow mounds and candy canes
+    if (theme === 'christmas') {
+      // Snow mounds
+      for (let s = 0; s < 10; s++) {
+        const moundGeo = new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 12, 12);
+        const moundMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+        const mound = new THREE.Mesh(moundGeo, moundMat);
+        mound.position.set(-20 + s * 4, FLOOR_Y - 0.3, -1 - Math.random() * 2);
+        mound.scale.y = 0.4;
+        scene.add(mound);
+      }
+      
+      // Candy canes
+      for (let c = 0; c < 5; c++) {
+        const caneGroup = new THREE.Group();
+        
+        // Straight part (red and white stripes)
+        const caneGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 12);
+        const caneMat = new THREE.MeshPhongMaterial({ color: 0xFF0000 });
+        const cane = new THREE.Mesh(caneGeo, caneMat);
+        cane.position.y = 0.75;
+        caneGroup.add(cane);
+        
+        // White stripes
+        for (let stripe = 0; stripe < 5; stripe++) {
+          const stripeGeo = new THREE.TorusGeometry(0.085, 0.02, 8, 16);
+          const stripeMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+          const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
+          stripeMesh.position.y = 0.2 + stripe * 0.3;
+          stripeMesh.rotation.x = Math.PI / 2;
+          caneGroup.add(stripeMesh);
+        }
+        
+        // Curved top
+        const hookGeo = new THREE.TorusGeometry(0.15, 0.08, 8, 12, Math.PI);
+        const hookMat = new THREE.MeshPhongMaterial({ color: 0xFF0000 });
+        const hook = new THREE.Mesh(hookGeo, hookMat);
+        hook.position.set(0.15, 1.5, 0);
+        hook.rotation.z = Math.PI / 2;
+        caneGroup.add(hook);
+        
+        caneGroup.position.set(-15 + c * 8, FLOOR_Y, -1.5);
+        caneGroup.rotation.z = 0.1 + Math.random() * 0.1;
+        scene.add(caneGroup);
+      }
+    }
+    
     // Dirt layer
     const dirtGeometry = new THREE.PlaneGeometry(50, 1);
-    const dirtMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+    const dirtMaterial = new THREE.MeshPhongMaterial({ color: dirtColor });
     const dirt = new THREE.Mesh(dirtGeometry, dirtMaterial);
     dirt.position.y = FLOOR_Y - 1.2;
     scene.add(dirt);
