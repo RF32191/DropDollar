@@ -361,9 +361,21 @@ export default function CashStackGame3D({
     }
   }, [gameState]);
 
-  // Initialize Three.js scene
+  // Initialize Three.js scene - reinitialize when theme changes
   useEffect(() => {
-    if (!containerRef.current || sceneRef.current) return;
+    if (!containerRef.current) return;
+    
+    // Clean up existing scene if theme changed
+    if (sceneRef.current && rendererRef.current) {
+      rendererRef.current.dispose();
+      if (containerRef.current.contains(rendererRef.current.domElement)) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+      }
+      sceneRef.current = null;
+      rendererRef.current = null;
+    }
+    
+    if (sceneRef.current) return;
 
     // Theme-based colors
     let bgColor, fogColor, ambientColor, ambientIntensity, gridColor, groundColor;
@@ -581,7 +593,7 @@ export default function CashStackGame3D({
         containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [currentTheme]); // Reinitialize when theme changes
 
   // Create a 3D block
   const createBlock = useCallback((
@@ -1657,33 +1669,44 @@ export default function CashStackGame3D({
             />
           </div>
           
-          {/* Color selector - only show in practice mode */}
+          {/* Color selector - only show in practice mode - BIGGER and easier to use */}
           {!gameSession && (
-            <div className="grid grid-cols-4 gap-2 mb-6 max-h-64 overflow-y-auto p-4">
-              {GAME_VARIATIONS.map(variation => (
-                <button
-                  key={variation.id}
-                  onClick={() => setCurrentVariation(variation)}
-                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all pointer-events-auto ${
-                    currentVariation.id === variation.id 
-                      ? 'ring-4 ring-white scale-110' 
-                      : 'opacity-70 hover:opacity-100'
-                  }`}
-                  style={{ backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}` }}
-                >
-                  {variation.name}
-                </button>
-              ))}
+            <div className="w-full max-w-2xl mb-6">
+              <p className="text-gray-400 text-sm mb-3 text-center">🎨 Choose Block Color</p>
+              <div className="bg-black/40 rounded-xl p-4 border border-gray-600">
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-80 overflow-y-auto">
+                  {GAME_VARIATIONS.map(variation => (
+                    <button
+                      key={variation.id}
+                      onClick={() => setCurrentVariation(variation)}
+                      className={`px-4 py-3 rounded-xl font-bold text-sm transition-all pointer-events-auto shadow-lg hover:shadow-xl ${
+                        currentVariation.id === variation.id 
+                          ? 'ring-4 ring-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)]' 
+                          : 'opacity-80 hover:opacity-100 hover:scale-105'
+                      }`}
+                      style={{ 
+                        backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}`,
+                        textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+                      }}
+                    >
+                      {variation.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
           
           <p className="text-2xl font-bold text-yellow-400 mb-4">60 seconds - Go for high score!</p>
           <button
             onClick={startGame}
-            className="px-12 py-6 text-white text-3xl font-bold rounded-lg transition-all transform hover:scale-110 pointer-events-auto mb-4"
-            style={{ backgroundColor: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}
+            className="px-16 py-8 text-white text-4xl font-bold rounded-2xl transition-all transform hover:scale-110 pointer-events-auto mb-4 shadow-2xl animate-pulse border-4 border-white/30"
+            style={{ 
+              backgroundColor: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}`,
+              boxShadow: `0 0 40px #${currentVariation.blockColor.toString(16).padStart(6, '0')}80`
+            }}
           >
-            START GAME
+            🚀 START GAME
           </button>
         </div>
       )}

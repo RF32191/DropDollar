@@ -4,12 +4,15 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 interface ParryProGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
+  theme?: GameTheme;
 }
 
 // Seeded RNG
@@ -41,7 +44,8 @@ interface Enemy {
   hitFlashTime: number;
 }
 
-export default function ParryProGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: ParryProGameProps) {
+export default function ParryProGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: ParryProGameProps) {
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -1215,6 +1219,15 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
               
               <p className="text-gray-400 text-xs text-center">Perfect timing on parry = more points + combo bonus!</p>
               <p className="text-gray-400 text-xs text-center">Kill enemies for heart recovery!</p>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/30 rounded-xl p-3">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
             </div>
             
             <button

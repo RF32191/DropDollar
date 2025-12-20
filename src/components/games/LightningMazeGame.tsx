@@ -3,12 +3,18 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
+
+// Extended theme type for Lightning Maze special themes
+type LightningMazeTheme = GameTheme | 'reproductive';
 
 interface LightningMazeGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
+  theme?: GameTheme;
 }
 
 // Seeded random number generator for fair gameplay
@@ -88,7 +94,8 @@ function generateMaze(width: number, height: number, rng: Mulberry32): CellType[
   return maze;
 }
 
-export default function LightningMazeGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: LightningMazeGameProps) {
+export default function LightningMazeGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: LightningMazeGameProps) {
+  const [currentTheme, setCurrentTheme] = useState<LightningMazeTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -2047,21 +2054,65 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       {gameState === 'ready' && (
         <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-10 p-4 overflow-y-auto">
           <div className="text-center max-w-xl w-full">
-            <div className="text-5xl sm:text-7xl mb-2 sm:mb-4">🔌</div>
+            <div className="text-5xl sm:text-7xl mb-2 sm:mb-4">
+              {currentTheme === 'reproductive' ? '🧬' : '🔌'}
+            </div>
             <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500 bg-clip-text text-transparent">
-              CIRCUIT RUNNER
+              {currentTheme === 'reproductive' ? 'SPERM RACE' : 'CIRCUIT RUNNER'}
             </h1>
             <div className="space-y-2 sm:space-y-3 text-left bg-green-950/60 rounded-xl p-4 sm:p-6 border border-green-500/40 mb-4 sm:mb-6">
-              <p className="text-amber-300 font-bold text-base sm:text-xl">⚡ HOW TO PLAY:</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP</span> the electrical current to start</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• {isMobile ? 'Drag your finger' : 'Move your mouse'} to guide the signal</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• Reach all <span className="text-gray-200 font-bold">IC Chips</span> (+500 pts)</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• Avoid <span className="text-blue-400 font-bold">capacitors</span> (-25 pts)</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-orange-400 font-bold">Resistors</span> slow you down!</p>
-              <p className="text-gray-300 text-sm sm:text-lg">• Don't hit <span className="text-green-600 font-bold">PCB walls</span> (-10 pts)</p>
+              <p className="text-amber-300 font-bold text-base sm:text-xl">
+                {currentTheme === 'reproductive' ? '🏊 HOW TO PLAY:' : '⚡ HOW TO PLAY:'}
+              </p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP</span> the {currentTheme === 'reproductive' ? 'sperm cell' : 'electrical current'} to start</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• {isMobile ? 'Drag your finger' : 'Move your mouse'} to guide {currentTheme === 'reproductive' ? 'the swimmer' : 'the signal'}</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Reach all <span className="text-gray-200 font-bold">{currentTheme === 'reproductive' ? 'Ovaries 🥚' : 'IC Chips'}</span> (+500 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Avoid <span className="text-blue-400 font-bold">{currentTheme === 'reproductive' ? 'IUDs 💉' : 'capacitors'}</span> (-25 pts)</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-orange-400 font-bold">{currentTheme === 'reproductive' ? 'Plan B pills 💊' : 'Resistors'}</span> slow you down!</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• Don't hit <span className="text-pink-400 font-bold">{currentTheme === 'reproductive' ? 'uterine walls' : 'PCB walls'}</span> (-10 pts)</p>
               <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-purple-400 font-bold">Odd mazes = 3D</span>, <span className="text-green-400 font-bold">Even mazes = 2D</span></p>
               <p className="text-yellow-300 font-bold text-sm sm:text-lg mt-2 sm:mt-4">⏱️ {GAME_DURATION} SECONDS FOR ALL 5 MAZES!</p>
             </div>
+            
+            {/* Theme Selector with Special Reproductive Theme */}
+            <div className="mb-4 bg-black/40 rounded-xl p-4 border border-gray-600">
+              <p className="text-gray-400 text-sm mb-3">🎨 Select Game Theme</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  onClick={() => setCurrentTheme('standard')}
+                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'standard' ? 'bg-blue-500 text-white ring-2 ring-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  🎮 Standard
+                </button>
+                <button
+                  onClick={() => setCurrentTheme('halloween')}
+                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'halloween' ? 'bg-orange-600 text-white ring-2 ring-orange-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  🎃 Halloween
+                </button>
+                <button
+                  onClick={() => setCurrentTheme('christmas')}
+                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'christmas' ? 'bg-red-600 text-white ring-2 ring-green-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  🎄 Christmas
+                </button>
+                <button
+                  onClick={() => setCurrentTheme('reproductive')}
+                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'reproductive' ? 'bg-pink-600 text-white ring-2 ring-pink-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  🧬 Sperm Race
+                </button>
+              </div>
+            </div>
+            
             <button
               onClick={startGame}
               className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xl sm:text-2xl rounded-xl transform hover:scale-105 transition-all shadow-lg shadow-amber-500/50"

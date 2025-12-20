@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 
@@ -12,6 +14,7 @@ interface NeonStrikerGameProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   rngSeed?: number;
+  theme?: GameTheme;
 }
 
 // Seeded RNG for fair skill-based gaming
@@ -64,9 +67,11 @@ export default function NeonStrikerGame({
   listingId, 
   entryNumber, 
   isCompetitionMode, 
-  rngSeed 
+  rngSeed,
+  theme: initialTheme
 }: NeonStrikerGameProps) {
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'charging' | 'shooting' | 'complete'>('ready');
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const [score, setScore] = useState(0);
   const [shotsUsed, setShotsUsed] = useState(0);
   const [power, setPower] = useState(0);
@@ -1059,6 +1064,15 @@ export default function NeonStrikerGame({
             </div>
             
             <p className="text-center text-gray-400 text-xs">Level 3+ has MOVING targets! Patterns are consistent for fair play.</p>
+          </div>
+
+          {/* Theme Selector */}
+          <div className="mb-4 bg-black/30 rounded-xl p-3">
+            <GameThemeSelector
+              currentTheme={currentTheme}
+              onThemeChange={setCurrentTheme}
+              compact={true}
+            />
           </div>
 
           <button onClick={startGame} className="w-full py-4 rounded-xl font-bold text-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:scale-105 transition-all shadow-lg shadow-cyan-500/30">

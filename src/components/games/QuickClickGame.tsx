@@ -5,6 +5,8 @@ import { playCountdownBeep, playCountdownFinalBeep, playQuickClickSuccess, playQ
 import { FairRNGService, QuickClickRNGConfig } from '@/lib/fairRNGService';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 interface GameResult {
   score: number;
@@ -19,6 +21,7 @@ interface QuickClickGameProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   rngSeed?: number; // RNG seed (1-20) for deterministic spawns
+  theme?: GameTheme;
 }
 
 interface Round {
@@ -33,8 +36,9 @@ interface Round {
   roundScore?: number; // Points scored this round
 }
 
-export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: QuickClickGameProps) {
+export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed, theme: initialTheme }: QuickClickGameProps) {
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   
   // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
   console.log('');
@@ -569,6 +573,15 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
                   Average human reaction time is ~250ms. Can you beat it?
                 </p>
               </div>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/30 rounded-xl p-3">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
             </div>
             
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
