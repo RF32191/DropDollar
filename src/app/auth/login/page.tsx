@@ -54,22 +54,23 @@ export default function SimpleLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col justify-center py-16 sm:py-12 px-4 sm:px-6 lg:px-8">
       {/* Navigation */}
-      <nav className="absolute top-0 left-0 right-0 p-6">
+      <nav className="absolute top-0 left-0 right-0 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
+          <Link href="/" className="flex items-center space-x-2 sm:space-x-3 group">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
               <img
                 src="/DropCoin.png"
                 alt="DropDollar Logo"
-                className="w-6 h-6 object-contain"
+                className="w-5 h-5 sm:w-6 sm:h-6 object-contain"
               />
             </div>
-            <span className="text-xl font-extrabold text-white group-hover:text-yellow-300 transition-colors drop-shadow-lg">DropDollar</span>
+            <span className="text-lg sm:text-xl font-extrabold text-white group-hover:text-yellow-300 transition-colors drop-shadow-lg">DropDollar</span>
           </Link>
           
-          <div className="flex items-center space-x-4">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-4">
             <Link href="/" className="text-white hover:text-yellow-300 font-medium transition-colors">
               Home
             </Link>
@@ -85,6 +86,13 @@ export default function SimpleLoginPage() {
             <Link href="/buy-tokens" className="text-green-300 hover:text-green-200 font-medium transition-colors">
               💰 Buy Tokens
             </Link>
+          </div>
+          
+          {/* Mobile Navigation - Icons only */}
+          <div className="flex md:hidden items-center space-x-3">
+            <Link href="/" className="text-white hover:text-yellow-300 text-xl transition-colors">🏠</Link>
+            <Link href="/games" className="text-purple-300 hover:text-purple-200 text-xl transition-colors">🎮</Link>
+            <Link href="/hot-sell" className="text-red-300 hover:text-red-200 text-xl transition-colors">🔥</Link>
           </div>
         </div>
       </nav>

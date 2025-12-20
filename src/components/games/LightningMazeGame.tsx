@@ -134,8 +134,11 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const [is2DMode, setIs2DMode] = useState(false); // Alternating 2D/3D modes
   const [isMobile, setIsMobile] = useState(false); // Detect mobile for responsive layout
   const [gyroEnabled, setGyroEnabled] = useState(false); // Gyroscope control for mobile
+  const [gyroConfirmStep, setGyroConfirmStep] = useState(0); // 0 = not clicked, 1 = first tap, 2 = confirmed
+  const [showGyroNotification, setShowGyroNotification] = useState(false);
   const gyroBaseRef = useRef<{ beta: number; gamma: number } | null>(null);
   const gyroEnabledRef = useRef(false);
+  const gyroListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
   
   const scoreRef = useRef(0);
   const gameStateRef = useRef<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
@@ -149,6 +152,87 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const MAZE_HEIGHT = 17;
   const CELL_SIZE = 2.5;
   const TOTAL_MAZES = 5;
+
+  // Gyroscope handler function (needs to be defined outside useEffect for UI access)
+  const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
+    if (!hasControlRef.current || gameStateRef.current !== 'playing') return;
+    if (!gyroEnabledRef.current) return;
+    
+    const beta = event.beta ?? 0;
+    const gamma = event.gamma ?? 0;
+    
+    if (!gyroBaseRef.current) {
+      gyroBaseRef.current = { beta, gamma };
+      return;
+    }
+    
+    const deltaBeta = beta - gyroBaseRef.current.beta;
+    const deltaGamma = gamma - gyroBaseRef.current.gamma;
+    
+    const sensitivity = 0.15;
+    const speed = 0.3;
+    
+    const moveX = deltaGamma * sensitivity * speed;
+    const moveZ = deltaBeta * sensitivity * speed;
+    
+    const newTarget = new THREE.Vector3(
+      targetPositionRef.current.x + moveX,
+      0.5,
+      targetPositionRef.current.z + moveZ
+    );
+    
+    if (isValidPosition(newTarget.x, newTarget.z, mazeRef.current)) {
+      targetPositionRef.current.copy(newTarget);
+    }
+  }, []);
+
+  // Enable gyroscope function - available for UI to call
+  const requestGyroPermission = useCallback(async () => {
+    console.log('⚡ [LightningMaze] Enabling gyroscope...');
+    gyroBaseRef.current = null;
+    
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        console.log('⚡ [LightningMaze] iOS gyro permission result:', permission);
+        if (permission === 'granted') {
+          window.addEventListener('deviceorientation', handleGyroOrientation);
+          gyroListenerRef.current = handleGyroOrientation;
+          gyroEnabledRef.current = true;
+          setGyroEnabled(true);
+          setShowGyroNotification(true);
+          setTimeout(() => setShowGyroNotification(false), 3000);
+          console.log('✅ [LightningMaze] iOS gyroscope enabled!');
+        }
+      } catch (error) {
+        console.warn('⚠️ [LightningMaze] iOS gyro permission error:', error);
+        window.addEventListener('deviceorientation', handleGyroOrientation);
+        gyroListenerRef.current = handleGyroOrientation;
+        gyroEnabledRef.current = true;
+        setGyroEnabled(true);
+        setShowGyroNotification(true);
+        setTimeout(() => setShowGyroNotification(false), 3000);
+      }
+    } else {
+      console.log('⚡ [LightningMaze] Non-iOS device - enabling gyro directly');
+      window.addEventListener('deviceorientation', handleGyroOrientation);
+      gyroListenerRef.current = handleGyroOrientation;
+      gyroEnabledRef.current = true;
+      setGyroEnabled(true);
+      setShowGyroNotification(true);
+      setTimeout(() => setShowGyroNotification(false), 3000);
+    }
+  }, [handleGyroOrientation]);
+
+  // Cleanup gyroscope listener when component unmounts
+  useEffect(() => {
+    return () => {
+      if (gyroListenerRef.current) {
+        window.removeEventListener('deviceorientation', gyroListenerRef.current);
+        gyroListenerRef.current = null;
+      }
+    };
+  }, []);
   const GAME_DURATION = 90; // seconds
   const CHECKPOINTS_PER_MAZE = 5;
 
@@ -1402,76 +1486,9 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       }
     };
     containerRef.current.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-    // Gyroscope handler for mobile - tilt to move lightning bolt
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (!hasControlRef.current || gameStateRef.current !== 'playing') return;
-      if (!gyroEnabledRef.current) return;
-      
-      const beta = event.beta ?? 0; // Front-back tilt
-      const gamma = event.gamma ?? 0; // Left-right tilt
-      
-      // Set base position on first reading
-      if (!gyroBaseRef.current) {
-        gyroBaseRef.current = { beta, gamma };
-        return;
-      }
-      
-      // Calculate delta from base
-      const deltaBeta = beta - gyroBaseRef.current.beta;
-      const deltaGamma = gamma - gyroBaseRef.current.gamma;
-      
-      // Very low sensitivity for smooth control
-      const sensitivity = 0.15;
-      
-      // Convert tilt to movement direction in maze
-      const moveX = deltaGamma * sensitivity;
-      const moveZ = deltaBeta * sensitivity;
-      
-      // Update target position
-      const newTarget = new THREE.Vector3(
-        lightningPositionRef.current.x + moveX,
-        0.5,
-        lightningPositionRef.current.z + moveZ
-      );
-      
-      targetPositionRef.current = findClosestValidPosition(
-        newTarget.x,
-        newTarget.z,
-        lightningPositionRef.current
-      );
-    };
     
-    // Enable gyroscope function
-    const enableGyroscope = async () => {
-      console.log('⚡ [LightningMaze] Enabling gyroscope...');
-      gyroBaseRef.current = null; // Reset base
-      
-      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-        try {
-          const permission = await (DeviceOrientationEvent as any).requestPermission();
-          if (permission === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation);
-            gyroEnabledRef.current = true;
-            setGyroEnabled(true);
-          }
-        } catch (error) {
-          console.warn('Gyro permission error:', error);
-          window.addEventListener('deviceorientation', handleOrientation);
-          gyroEnabledRef.current = true;
-          setGyroEnabled(true);
-        }
-      } else {
-        window.addEventListener('deviceorientation', handleOrientation);
-        gyroEnabledRef.current = true;
-        setGyroEnabled(true);
-      }
-    };
-    
-    // Auto-enable gyro on mobile when game starts
-    if (isMobileDevice) {
-      enableGyroscope();
-    }
+    // Note: Gyroscope is now enabled via the UI button (requestGyroPermission)
+    // which provides a better user experience with confirmation
 
     // Animation loop
     const animate = (time: number) => {
@@ -2027,15 +2044,70 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         </div>
       )}
 
-      {/* Waiting for tap - Mobile Friendly */}
+      {/* Waiting for tap - Mobile Friendly with Gyroscope Button */}
       {gameState === 'waiting' && (
-        <div className="absolute bottom-16 sm:bottom-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-10 pointer-events-none">
-          <div className="bg-green-950/80 backdrop-blur-sm rounded-xl px-4 sm:px-8 py-3 sm:py-4 border border-amber-500 animate-pulse">
-            <p className="text-amber-400 text-lg sm:text-2xl font-bold text-center">
-              ⚡ TAP THE SIGNAL! ⚡
-            </p>
+        <>
+          {/* Gyroscope notification */}
+          {showGyroNotification && (
+            <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+              <div className="bg-green-600/90 backdrop-blur-sm rounded-xl px-6 py-3 border-2 border-green-400 shadow-lg shadow-green-500/50">
+                <p className="text-white text-lg font-bold text-center">
+                  ✅ TILT CONTROLS ENABLED!
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Green Gyroscope Enable Button - Mobile Only */}
+          {isMobile && !gyroEnabled && (
+            <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (gyroConfirmStep === 0) {
+                    setGyroConfirmStep(1);
+                    setTimeout(() => setGyroConfirmStep(0), 3000);
+                  } else {
+                    setGyroConfirmStep(2);
+                    requestGyroPermission();
+                  }
+                }}
+                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-green-500 to-green-700 border-4 border-green-300 shadow-lg shadow-green-500/50 flex flex-col items-center justify-center transition-all hover:scale-110 animate-pulse"
+              >
+                <span className="text-4xl sm:text-5xl mb-1">📱</span>
+                <span className="text-white font-bold text-sm sm:text-base text-center px-2">
+                  {gyroConfirmStep === 1 ? 'TAP AGAIN!' : 'ENABLE TILT'}
+                </span>
+              </button>
+            </div>
+          )}
+          
+          {/* Gyro Enabled Indicator */}
+          {isMobile && gyroEnabled && (
+            <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-green-600 to-green-800 border-4 border-green-400 shadow-lg shadow-green-500/50 flex flex-col items-center justify-center">
+                <span className="text-4xl sm:text-5xl mb-1">✅</span>
+                <span className="text-white font-bold text-sm sm:text-base text-center px-2">
+                  TILT READY!
+                </span>
+              </div>
+            </div>
+          )}
+          
+          <div className="absolute bottom-16 sm:bottom-20 left-4 right-4 sm:left-1/2 sm:right-auto sm:transform sm:-translate-x-1/2 z-10 pointer-events-none">
+            <div className="bg-green-950/80 backdrop-blur-sm rounded-xl px-4 sm:px-8 py-3 sm:py-4 border border-amber-500 animate-pulse">
+              <p className="text-amber-400 text-lg sm:text-2xl font-bold text-center">
+                ⚡ TAP THE SIGNAL! ⚡
+              </p>
+              {isMobile && (
+                <p className="text-gray-300 text-sm text-center mt-1">
+                  {gyroEnabled ? '✅ Tilt to move' : '👆 Enable tilt controls above'}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Complete Screen - Mobile Friendly */}

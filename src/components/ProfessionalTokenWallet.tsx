@@ -642,81 +642,86 @@ export default function ProfessionalTokenWallet() {
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-6xl font-extrabold mb-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16">
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-extrabold mb-4 sm:mb-6">
             <span className="bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 bg-clip-text text-transparent animate-pulse">
               {activeTab === 'wallet' ? 'My Token Wallet' : activeTab === 'purchase' ? 'Buy DropTokens' : 'Transaction History'}
             </span>
           </h1>
-          <div className="w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-6"></div>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+          <div className="w-24 sm:w-32 h-1 bg-gradient-to-r from-green-400 to-teal-500 mx-auto rounded-full animate-pulse mb-4 sm:mb-6"></div>
+          <p className="text-base sm:text-xl text-gray-300 max-w-3xl mx-auto px-2">
             {activeTab === 'wallet' && 'Manage your DropTokens, view your balance, and track your activity.'}
-            {activeTab === 'purchase' && 'Fuel your competitive spirit! Purchase DropTokens to enter competitions and unlock features.'}
+            {activeTab === 'purchase' && 'Purchase DropTokens to enter competitions and unlock features.'}
             {activeTab === 'history' && 'Review your past token purchases and spending activities.'}
           </p>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex justify-center space-x-4 mb-12">
+        {/* Tab Navigation - Mobile optimized */}
+        <div className="flex justify-center space-x-2 sm:space-x-4 mb-8 sm:mb-12 overflow-x-auto px-2">
           <button
             onClick={() => setActiveTab('wallet')}
-            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+            className={`px-4 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-sm sm:text-lg transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
               activeTab === 'wallet'
                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg scale-105'
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
             }`}
           >
-            <CurrencyDollarIcon className="h-6 w-6 inline-block mr-2" /> Wallet
+            <CurrencyDollarIcon className="h-5 w-5 sm:h-6 sm:w-6 inline-block sm:mr-2" />
+            <span className="hidden sm:inline">Wallet</span>
           </button>
           <button
             onClick={() => setActiveTab('purchase')}
-            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+            className={`px-4 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-sm sm:text-lg transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
               activeTab === 'purchase'
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 shadow-lg scale-105'
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
             }`}
           >
-            <CreditCardIcon className="h-6 w-6 inline-block mr-2" /> Purchase
+            <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6 inline-block sm:mr-2" />
+            <span className="hidden sm:inline">Purchase</span>
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
+            className={`px-4 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-sm sm:text-lg transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
               activeTab === 'history'
                 ? 'bg-gradient-to-r from-yellow-600 to-orange-600 shadow-lg scale-105'
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
             }`}
           >
-            <ClockIcon className="h-6 w-6 inline-block mr-2" /> History
+            <ClockIcon className="h-5 w-5 sm:h-6 sm:w-6 inline-block sm:mr-2" />
+            <span className="hidden sm:inline">History</span>
           </button>
         </div>
 
         {/* Wallet Tab Content */}
         {activeTab === 'wallet' && (
-          <div className="max-w-3xl mx-auto bg-gray-800 rounded-2xl p-10 shadow-2xl border border-gray-700">
-            <div className="text-center mb-8">
-              <h2 className="text-4xl font-bold text-white mb-4">Your DropToken Balance</h2>
-              <div className="flex items-center justify-center space-x-4">
-                <span className="text-6xl font-extrabold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+          <div className="max-w-3xl mx-auto bg-gray-800 rounded-2xl p-6 sm:p-10 shadow-2xl border border-gray-700">
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3 sm:mb-4">Your DropToken Balance</h2>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:space-x-4">
+                <span className="text-4xl sm:text-6xl font-extrabold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                   {showBalance ? ((userProfile.purchased_tokens || 0) + (userProfile.won_tokens || 0)).toFixed(2) : '••••'}
                 </span>
-                <span className="text-4xl font-bold text-gray-400">Tokens</span>
-                <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-white transition-colors">
-                  {showBalance ? <EyeSlashIcon className="h-8 w-8" /> : <EyeIcon className="h-8 w-8" />}
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl sm:text-4xl font-bold text-gray-400">Tokens</span>
+                  <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-white transition-colors">
+                    {showBalance ? <EyeSlashIcon className="h-6 w-6 sm:h-8 sm:w-8" /> : <EyeIcon className="h-6 w-6 sm:h-8 sm:w-8" />}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-              <Link href="/dashboard" className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
-                <UserIcon className="h-6 w-6" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-6 sm:mt-8">
+              <Link href="/dashboard" className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-xl flex items-center justify-center space-x-2 sm:space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm sm:text-base">
+                <UserIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 <span>Go to Dashboard</span>
               </Link>
               <button
                 onClick={() => setActiveTab('purchase')}
-                className="bg-green-700 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                className="bg-green-700 hover:bg-green-600 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-xl flex items-center justify-center space-x-2 sm:space-x-3 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 text-sm sm:text-base"
               >
-                <CreditCardIcon className="h-6 w-6" />
+                <CreditCardIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 <span>Buy More Tokens</span>
               </button>
             </div>

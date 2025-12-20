@@ -1115,35 +1115,39 @@ export default function TriumphStyleDashboard() {
         {/* Tab Navigation */}
         <div className="mb-6">
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20">
-            <div className="flex border-b border-white/20 overflow-x-auto">
+            {/* Mobile: Scrollable icons, Desktop: Full labels */}
+            <div className="flex border-b border-white/20 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
               {[
-                { id: 'recent', label: 'Recent Games', icon: ClockIcon },
-                { id: 'practice', label: 'Practice History', icon: StarIcon },
-                { id: 'competition', label: 'Competition History', icon: TrophyIcon },
-                { id: 'stats', label: 'Statistics', icon: ChartBarIcon },
-                { id: 'transactions', label: 'Token History', icon: BanknotesIcon },
-                { id: 'messages', label: 'Messages', icon: EnvelopeIcon },
-                { id: 'profile', label: 'Shipping Address', icon: HomeIcon }
+                { id: 'recent', label: 'Recent', shortLabel: '🕐', icon: ClockIcon },
+                { id: 'practice', label: 'Practice', shortLabel: '⭐', icon: StarIcon },
+                { id: 'competition', label: 'Competition', shortLabel: '🏆', icon: TrophyIcon },
+                { id: 'stats', label: 'Stats', shortLabel: '📊', icon: ChartBarIcon },
+                { id: 'transactions', label: 'Tokens', shortLabel: '💰', icon: BanknotesIcon },
+                { id: 'messages', label: 'Messages', shortLabel: '✉️', icon: EnvelopeIcon },
+                { id: 'profile', label: 'Address', shortLabel: '🏠', icon: HomeIcon }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center px-6 py-4 text-sm font-medium transition-all duration-300 relative ${
+                  className={`flex items-center justify-center px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-all duration-300 relative whitespace-nowrap flex-shrink-0 min-w-[48px] sm:min-w-0 ${
                     activeTab === tab.id
                       ? 'text-blue-400 border-b-2 border-blue-400 bg-white/5'
                       : 'text-purple-200 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  {/* Icon with indicator for messages */}
-                  <div className="relative mr-2">
-                    <tab.icon className="w-5 h-5" />
-                    {tab.id === 'messages' && unreadMessageCount > 0 && (
-                      <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50 border border-white"></div>
-                    )}
+                  {/* Mobile: Emoji only, Desktop: Icon + Label */}
+                  <span className="sm:hidden text-lg">{tab.shortLabel}</span>
+                  <div className="hidden sm:flex items-center">
+                    <div className="relative mr-2">
+                      <tab.icon className="w-5 h-5" />
+                      {tab.id === 'messages' && unreadMessageCount > 0 && (
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50 border border-white"></div>
+                      )}
+                    </div>
+                    {tab.label}
                   </div>
-                  {tab.label}
                   {tab.id === 'messages' && unreadMessageCount > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-2 shadow-lg animate-pulse">
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-5 flex items-center justify-center px-1 sm:px-2 shadow-lg animate-pulse">
                       {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
                     </div>
                   )}
