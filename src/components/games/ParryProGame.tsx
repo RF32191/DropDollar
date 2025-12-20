@@ -337,22 +337,24 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
             maxComboRef.current = comboRef.current;
           }
           
-          const points = 100 + (comboRef.current * 25);
+          // PERFECT PARRY = 750 points + combo bonus!
+          const points = 750 + (comboRef.current * 50);
           scoreRef.current += points;
           setScore(scoreRef.current);
           setCombo(comboRef.current);
           setActionFeedback('perfect');
           
-          addPopup(points, 50, 30, 'perfect', `${comboRef.current}x PERFECT`);
+          addPopup(points, 50, 30, 'perfect', `⚡ PERFECT! +${points}`);
         } else {
           comboRef.current = Math.max(0, comboRef.current - 1);
-          const points = 50;
+          // Normal PARRY = 500 points
+          const points = 500;
           scoreRef.current += points;
           setScore(scoreRef.current);
           setCombo(comboRef.current);
           setActionFeedback('good');
           
-          addPopup(points, 50, 30, 'normal', 'PARRIED');
+          addPopup(points, 50, 30, 'bonus', '🛡️ PARRY! +500');
         }
         
         enemy.attackPhase = 'recovery';
@@ -409,11 +411,12 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     
     if (dodgedCount > 0) {
       setActionFeedback('dodge');
-      const points = 25 * dodgedCount;
+      // DODGE = 200 points per dodge!
+      const points = 200 * dodgedCount;
       scoreRef.current += points;
       setScore(scoreRef.current);
       
-      addPopup(points, 50, 40, 'bonus', `DODGE x${dodgedCount}`);
+      addPopup(points, 50, 40, 'bonus', `🏃 DODGE! +${points}`);
       
       setTimeout(() => setActionFeedback('none'), 500);
     }
@@ -480,23 +483,24 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       
       // Show strike hit popup with colored precision rating (if not a kill)
       if (targetEnemy.health > 0) {
-        const strikePoints = 25 + (comboRef.current * 10);
+        // STRIKE = 200 points per hit!
+        const strikePoints = 200;
         scoreRef.current += strikePoints;
         setScore(scoreRef.current);
         
         // Color based on hits - more hits = better precision
         const hitsLanded = 3 - targetEnemy.health;
-        const popupType = hitsLanded === 2 ? 'bonus' : comboRef.current >= 2 ? 'combo' : 'normal';
-        const hitLabel = hitsLanded === 1 ? 'STRIKE!' : hitsLanded === 2 ? 'CRITICAL!' : 'HIT!';
-        addPopup(strikePoints, 50, 45, popupType, `${hitLabel} ${hitsLanded}/3`);
+        const popupType = hitsLanded === 2 ? 'critical' : comboRef.current >= 2 ? 'bonus' : 'normal';
+        const hitLabel = hitsLanded === 1 ? '⚔️ STRIKE!' : hitsLanded === 2 ? '⚔️ CRITICAL!' : '⚔️ HIT!';
+        addPopup(strikePoints, 50, 45, popupType, `${hitLabel} +200`);
       }
       
       if (targetEnemy.health <= 0) {
-        // Enemy killed!
+        // Enemy killed! Bonus points for the kill
         targetEnemy.attackPhase = 'dying';
         enemiesKilledRef.current++;
         
-        const killPoints = 200 + (comboRef.current * 50);
+        const killPoints = 500 + (comboRef.current * 100); // Kill bonus
         scoreRef.current += killPoints;
         setScore(scoreRef.current);
         setActionFeedback('kill');
@@ -531,11 +535,8 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       } else {
         setActionFeedback('strike');
         
-        const hitPoints = 30;
-        scoreRef.current += hitPoints;
-        setScore(scoreRef.current);
-        
-        addPopup(hitPoints, 50, 35, 'normal', `HIT! (${3 - targetEnemy.health}/3)`);
+        // Already awarded 200 points above, this is just visual feedback
+        addPopup(0, 50, 35, 'normal', `⚔️ ${3 - targetEnemy.health}/3 HITS`);
         
         setTimeout(() => setActionFeedback('none'), 300);
       }
@@ -1147,9 +1148,10 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
                 </div>
               </div>
               
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-red-400">Strike</span> enemies 3 times to defeat them!</p>
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-cyan-400">Dodge</span> to avoid all incoming attacks</p>
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-yellow-400">Perfect parry</span> timing = more points!</p>
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-red-400">Strike</span> = <span className="text-green-400">+200 pts</span> (3 hits to defeat!)</p>
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-cyan-400">Dodge</span> = <span className="text-green-400">+200 pts</span> per attack dodged</p>
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-purple-400">Parry</span> = <span className="text-green-400">+500 pts</span></p>
+              <p className="text-gray-300 text-sm mb-2">• <span className="text-yellow-400">Perfect Parry</span> = <span className="text-green-400">+750 pts</span> + combo!</p>
               <p className="text-gray-300 text-sm">• More enemies spawn over time!</p>
             </div>
             
