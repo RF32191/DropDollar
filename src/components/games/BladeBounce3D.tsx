@@ -9,7 +9,7 @@ import FloatingScore, { useFloatingScores } from './FloatingScore';
 import GameThemeSelector from './GameThemeSelector';
 import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
-// 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
+// 🔥🔥🔥 CACHE BUSTER - BUILD 20251220-XMAS-HALLOWEEN-THEMES 🔥🔥🔥
 console.log('');
 console.log('🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️🗡️');
 console.log('🗡️ BLADE BOUNCE v8.0 - BUILD 20251127-1900');
