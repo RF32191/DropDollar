@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme, THEME_CONFIGS } from '@/lib/gameThemes';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251203-V10 🔥🔥🔥
 console.log('');
@@ -80,6 +82,7 @@ interface CashStackGame3DProps {
   isCompetitionMode?: boolean;
   gameId?: string;
   gameSession?: GameSession; // For server-side RNG patterns
+  theme?: GameTheme; // Visual theme for the game
 }
 
 const INITIAL_SIZE = 4;
@@ -129,8 +132,10 @@ export default function CashStackGame3D({
   onGameEnd,
   onExit,
   gameSession,
+  theme: initialTheme,
 }: CashStackGame3DProps) {
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -360,10 +365,38 @@ export default function CashStackGame3D({
   useEffect(() => {
     if (!containerRef.current || sceneRef.current) return;
 
+    // Theme-based colors
+    let bgColor, fogColor, ambientColor, ambientIntensity, gridColor, groundColor;
+    switch (currentTheme) {
+      case 'halloween':
+        bgColor = 0x0a0a1a;
+        fogColor = 0x1a0a2a;
+        ambientColor = 0x4444AA;
+        ambientIntensity = 0.3;
+        gridColor = 0xFF6600;
+        groundColor = 0x1a0a1a;
+        break;
+      case 'christmas':
+        bgColor = 0x1a2a4a;
+        fogColor = 0x2a3a5a;
+        ambientColor = 0x8888FF;
+        ambientIntensity = 0.5;
+        gridColor = 0xFF0000;
+        groundColor = 0xE8E8F0;
+        break;
+      default:
+        bgColor = 0x0a1628;
+        fogColor = 0x0a1628;
+        ambientColor = 0xffffff;
+        ambientIntensity = 0.4;
+        gridColor = 0x32CD32;
+        groundColor = 0x1a2845;
+    }
+
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a1628);
-    scene.fog = new THREE.Fog(0x0a1628, 20, 50);
+    scene.background = new THREE.Color(bgColor);
+    scene.fog = new THREE.Fog(fogColor, 20, 50);
 
     // Camera - zoom out more on mobile for better visibility
     const isMobileDevice = window.innerWidth < 768;
@@ -392,10 +425,13 @@ export default function CashStackGame3D({
     containerRef.current.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new THREE.DirectionalLight(
+      currentTheme === 'halloween' ? 0xFFFFCC : 0xffffff, 
+      currentTheme === 'halloween' ? 0.5 : 0.8
+    );
     directionalLight.position.set(10, 20, 10);
     directionalLight.castShadow = true;
     directionalLight.shadow.camera.left = -20;
@@ -406,15 +442,109 @@ export default function CashStackGame3D({
     directionalLight.shadow.mapSize.height = 2048;
     scene.add(directionalLight);
 
-    // Rim light for neon effect
-    const rimLight = new THREE.PointLight(0x32CD32, 1.5, 50);
+    // Rim light for neon effect (themed)
+    const rimLight = new THREE.PointLight(gridColor, 1.5, 50);
     rimLight.position.set(0, 10, 5);
     scene.add(rimLight);
+
+    // Halloween: Add moon and spooky elements
+    if (currentTheme === 'halloween') {
+      // Large moon
+      const moonGeo = new THREE.CircleGeometry(8, 64);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xFFF8DC, transparent: true, opacity: 0.9 });
+      const moon = new THREE.Mesh(moonGeo, moonMat);
+      moon.position.set(20, 25, -30);
+      scene.add(moon);
+      
+      // Moon glow
+      const moonGlowGeo = new THREE.CircleGeometry(10, 64);
+      const moonGlowMat = new THREE.MeshBasicMaterial({ color: 0xFFFFCC, transparent: true, opacity: 0.2 });
+      const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
+      moonGlow.position.set(20, 25, -30.1);
+      scene.add(moonGlow);
+      
+      // Spooky stars
+      for (let s = 0; s < 100; s++) {
+        const starGeo = new THREE.CircleGeometry(0.1 + Math.random() * 0.15, 8);
+        const starMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.3 + Math.random() * 0.5 });
+        const star = new THREE.Mesh(starGeo, starMat);
+        star.position.set((Math.random() - 0.5) * 80, 10 + Math.random() * 30, -30 - Math.random() * 10);
+        scene.add(star);
+      }
+      
+      // Flying bats
+      for (let b = 0; b < 8; b++) {
+        const batGroup = new THREE.Group();
+        const batMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const bodyGeo = new THREE.SphereGeometry(0.3, 8, 8);
+        const body = new THREE.Mesh(bodyGeo, batMat);
+        batGroup.add(body);
+        
+        const wingShape = new THREE.Shape();
+        wingShape.moveTo(0, 0);
+        wingShape.quadraticCurveTo(0.5, 0.3, 0.8, 0);
+        wingShape.quadraticCurveTo(0.5, -0.15, 0, 0);
+        const wingGeo = new THREE.ShapeGeometry(wingShape);
+        const leftWing = new THREE.Mesh(wingGeo, batMat);
+        leftWing.position.x = -0.2;
+        leftWing.scale.x = -1;
+        batGroup.add(leftWing);
+        const rightWing = new THREE.Mesh(wingGeo, batMat);
+        rightWing.position.x = 0.2;
+        batGroup.add(rightWing);
+        
+        batGroup.position.set(-15 + b * 4, 12 + Math.random() * 8, -15);
+        batGroup.scale.setScalar(0.8 + Math.random() * 0.4);
+        scene.add(batGroup);
+      }
+    }
+    
+    // Christmas: Add snow and festive elements
+    if (currentTheme === 'christmas') {
+      // Stars
+      for (let s = 0; s < 60; s++) {
+        const starGeo = new THREE.CircleGeometry(0.1 + Math.random() * 0.1, 6);
+        const starMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.4 + Math.random() * 0.4 });
+        const star = new THREE.Mesh(starGeo, starMat);
+        star.position.set((Math.random() - 0.5) * 80, 10 + Math.random() * 30, -30);
+        scene.add(star);
+      }
+      
+      // Snowflakes (static background)
+      for (let f = 0; f < 150; f++) {
+        const flakeGeo = new THREE.CircleGeometry(0.08 + Math.random() * 0.12, 6);
+        const flakeMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.5 + Math.random() * 0.4 });
+        const flake = new THREE.Mesh(flakeGeo, flakeMat);
+        flake.position.set(
+          (Math.random() - 0.5) * 60,
+          (Math.random() - 0.3) * 40,
+          -20 - Math.random() * 10
+        );
+        scene.add(flake);
+      }
+      
+      // Distant snow mountains
+      for (let m = 0; m < 5; m++) {
+        const mountainGeo = new THREE.ConeGeometry(4 + Math.random() * 3, 8 + Math.random() * 5, 4);
+        const mountainMat = new THREE.MeshBasicMaterial({ color: 0x3a4a5a });
+        const mountain = new THREE.Mesh(mountainGeo, mountainMat);
+        mountain.position.set(-20 + m * 10, -2, -35);
+        scene.add(mountain);
+        
+        // Snow cap
+        const snowCapGeo = new THREE.ConeGeometry(1.5 + Math.random() * 0.5, 3, 4);
+        const snowCapMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+        const snowCap = new THREE.Mesh(snowCapGeo, snowCapMat);
+        snowCap.position.copy(mountain.position);
+        snowCap.position.y += 4;
+        scene.add(snowCap);
+      }
+    }
 
     // Ground plane with grid
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1a2845,
+      color: groundColor,
       roughness: 0.8,
       metalness: 0.2,
     });
@@ -424,8 +554,8 @@ export default function CashStackGame3D({
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Grid helper
-    const gridHelper = new THREE.GridHelper(50, 50, 0x32CD32, 0x1a4f1a);
+    // Grid helper (themed color)
+    const gridHelper = new THREE.GridHelper(50, 50, gridColor, currentTheme === 'halloween' ? 0x4a1a0a : currentTheme === 'christmas' ? 0x4a1a2a : 0x1a4f1a);
     gridHelper.position.y = -4.99;
     (gridHelper.material as THREE.Material).opacity = 0.2;
     (gridHelper.material as THREE.Material).transparent = true;
@@ -1517,6 +1647,15 @@ export default function CashStackGame3D({
           <p className="text-lg mb-2">⏱️ &lt;0.5s = 2.0x | &lt;1s = 1.5x | &lt;2s = 1.2x</p>
           <p className="text-lg mb-2">🎯 <span className="text-green-400">Decimal scores</span> prevent ties!</p>
           <p className="text-lg mb-6">Align $ signs for 💥 EXPLOSION BONUS!</p>
+          
+          {/* Theme selector - available for all modes */}
+          <div className="mb-6 w-full max-w-md">
+            <GameThemeSelector
+              currentTheme={currentTheme}
+              onThemeChange={setCurrentTheme}
+              compact={true}
+            />
+          </div>
           
           {/* Color selector - only show in practice mode */}
           {!gameSession && (

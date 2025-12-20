@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 type GameTheme = 'standard' | 'halloween' | 'christmas';
 
@@ -52,7 +54,8 @@ interface BonusCoin {
   mesh: THREE.Group;
 }
 
-export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme = 'standard' }: FlappyCoinGameProps) {
+export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: FlappyCoinGameProps) {
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -731,7 +734,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   
   // Theme-aware hand creation
   const createHand = useCallback((isTop: boolean) => {
-    switch (theme) {
+    switch (currentTheme) {
       case 'halloween':
         return createSkeletonHand(isTop);
       case 'christmas':
@@ -739,7 +742,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
       default:
         return createStandardHand(isTop);
     }
-  }, [theme, createSkeletonHand, createSantaMitten, createStandardHand]);
+  }, [currentTheme, createSkeletonHand, createSantaMitten, createStandardHand]);
   
   // Handle jump forward - moves coin up and keeps moving forward
   const handleJumpForward = useCallback(() => {
@@ -851,7 +854,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     
     // Theme-based sky colors
     let topColor, bottomColor;
-    switch (theme) {
+    switch (currentTheme) {
       case 'halloween':
         topColor = new THREE.Color(0x0a0a1a); // Dark night sky
         bottomColor = new THREE.Color(0x2a1a3a); // Purple mist
@@ -894,7 +897,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     scene.add(sky);
     
     // Halloween: Add large full moon
-    if (theme === 'halloween') {
+    if (currentTheme === 'halloween') {
       // Full moon
       const moonGeo = new THREE.CircleGeometry(4, 64);
       const moonMat = new THREE.MeshBasicMaterial({
@@ -988,7 +991,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     }
     
     // Christmas: Add snowy background elements
-    if (theme === 'christmas') {
+    if (currentTheme === 'christmas') {
       // Stars
       for (let s = 0; s < 40; s++) {
         const starGeo = new THREE.CircleGeometry(0.06 + Math.random() * 0.06, 6);
@@ -1062,7 +1065,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     
     // Theme-based lighting
     let ambientColor, ambientIntensity, mainLightColor;
-    switch (theme) {
+    switch (currentTheme) {
       case 'halloween':
         ambientColor = 0x4444AA; // Eerie blue
         ambientIntensity = 0.4;
@@ -1082,12 +1085,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     const ambientLight = new THREE.AmbientLight(ambientColor, ambientIntensity);
     scene.add(ambientLight);
     
-    const sunLight = new THREE.DirectionalLight(mainLightColor, theme === 'halloween' ? 0.6 : 1);
-    sunLight.position.set(theme === 'halloween' ? 8 : 10, 15, 10);
+    const sunLight = new THREE.DirectionalLight(mainLightColor, currentTheme === 'halloween' ? 0.6 : 1);
+    sunLight.position.set(currentTheme === 'halloween' ? 8 : 10, 15, 10);
     scene.add(sunLight);
     
     // Add fill light for hands
-    const fillLight = new THREE.DirectionalLight(theme === 'christmas' ? 0xAABBFF : 0xFFE4C4, 0.5);
+    const fillLight = new THREE.DirectionalLight(currentTheme === 'christmas' ? 0xAABBFF : 0xFFE4C4, 0.5);
     fillLight.position.set(-5, 0, 5);
     scene.add(fillLight);
     
@@ -1099,8 +1102,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     coinRef.current = coin;
     
     // Theme-based clouds
-    if (theme !== 'halloween') { // No clouds for spooky night sky
-      const cloudColor = theme === 'christmas' ? 0xDDDDEE : 0xFFFFFF;
+    if (currentTheme !== 'halloween') { // No clouds for spooky night sky
+      const cloudColor = currentTheme === 'christmas' ? 0xDDDDEE : 0xFFFFFF;
       for (let i = 0; i < 5; i++) {
         const cloudGroup = new THREE.Group();
         const cloudMaterial = new THREE.MeshPhongMaterial({
@@ -1125,7 +1128,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     
     // Theme-based ground
     let groundColor, dirtColor;
-    switch (theme) {
+    switch (currentTheme) {
       case 'halloween':
         groundColor = 0x1a1a1a; // Dark dead grass
         dirtColor = 0x2a1a0a; // Dark soil
@@ -1146,7 +1149,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     scene.add(ground);
     
     // Halloween: Add tombstones
-    if (theme === 'halloween') {
+    if (currentTheme === 'halloween') {
       for (let t = 0; t < 8; t++) {
         const tombGroup = new THREE.Group();
         const tombMat = new THREE.MeshPhongMaterial({ color: 0x555555 });
@@ -1173,7 +1176,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     }
     
     // Christmas: Add snow mounds and candy canes
-    if (theme === 'christmas') {
+    if (currentTheme === 'christmas') {
       // Snow mounds
       for (let s = 0; s < 10; s++) {
         const moundGeo = new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 12, 12);
@@ -1672,6 +1675,15 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
                 🏆 Best: {highScore}
               </div>
             )}
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/20 rounded-xl p-3">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
+            </div>
             
             <button
               onClick={(e) => { e.stopPropagation(); startGame(); }}
