@@ -432,9 +432,23 @@ export default function BladeBounce3D({
     oscillator.stop(ctx.currentTime + duration);
   }, []);
 
-  // Initialize Three.js scene
+  // Initialize Three.js scene - recreate when theme changes
   useEffect(() => {
-    if (!containerRef.current || sceneRef.current) return;
+    if (!containerRef.current) return;
+    
+    // If scene already exists, dispose it first (for theme changes)
+    if (sceneRef.current && rendererRef.current) {
+      console.log('🔄 [BladeBounce3D] Theme changed, recreating scene...');
+      rendererRef.current.dispose();
+      if (containerRef.current.contains(rendererRef.current.domElement)) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+      }
+      sceneRef.current = null;
+      rendererRef.current = null;
+      swordGroupRef.current = null;
+      enemiesRef.current = [];
+      dangerZonesRef.current = [];
+    }
 
     console.log('🎨 [BladeBounce3D] Initializing Three.js scene');
 
@@ -820,7 +834,7 @@ export default function BladeBounce3D({
       }
       console.log('🧹 [BladeBounce3D] Cleaned up Three.js scene');
     };
-  }, []);
+  }, [currentTheme]); // Recreate scene when theme changes
 
   // Create enemy - FIREBALLS, ENEMY SWORDS, and LASERS
   const createEnemy = useCallback((type: 'fireball' | 'enemy_sword' | 'laser') => {
@@ -1343,7 +1357,7 @@ export default function BladeBounce3D({
         isDangerous: false,
       });
     }
-  }, [playSound]);
+  }, [playSound, currentTheme]);
 
   // Create particle effect
   const createParticles = useCallback((x: number, y: number, color: number, count: number) => {
