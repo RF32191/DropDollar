@@ -165,38 +165,53 @@ export default function NeonStrikerGame({
 
     // Add GREEN BONUS SECTION on the side of enemy coins (not striker)
     if (!isStriker) {
-      // Create a small green wedge on the edge
-      const bonusGeo = new THREE.CylinderGeometry(COIN_R * 0.3, COIN_R * 0.3, 0.22, 8);
+      // Create a larger, more visible green bonus section on the edge
+      const bonusGeo = new THREE.CylinderGeometry(COIN_R * 0.35, COIN_R * 0.35, 0.25, 12);
       const bonusMat = new THREE.MeshStandardMaterial({
         color: 0x00ff00,
         emissive: 0x00ff00,
-        emissiveIntensity: 0.8,
-        metalness: 0.8,
+        emissiveIntensity: 1.2,
+        metalness: 0.5,
         roughness: 0.2
       });
       const bonusSection = new THREE.Mesh(bonusGeo, bonusMat);
       bonusSection.name = 'bonusSection';
       
       // Position it on the edge of the coin based on the angle
-      bonusSection.position.x = Math.cos(bonusAngle) * (COIN_R * 0.75);
-      bonusSection.position.z = Math.sin(bonusAngle) * (COIN_R * 0.75);
-      bonusSection.position.y = 0;
+      bonusSection.position.x = Math.cos(bonusAngle) * (COIN_R * 0.7);
+      bonusSection.position.z = Math.sin(bonusAngle) * (COIN_R * 0.7);
+      bonusSection.position.y = 0.05;
       group.add(bonusSection);
       
-      // Add a glow ring around the bonus section
-      const bonusGlowGeo = new THREE.RingGeometry(COIN_R * 0.32, COIN_R * 0.5, 16);
+      // Add a bright glow ring around the bonus section
+      const bonusGlowGeo = new THREE.RingGeometry(COIN_R * 0.35, COIN_R * 0.55, 16);
       const bonusGlowMat = new THREE.MeshBasicMaterial({
         color: 0x00ff00,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.8,
         side: THREE.DoubleSide
       });
       const bonusGlow = new THREE.Mesh(bonusGlowGeo, bonusGlowMat);
       bonusGlow.rotation.x = -Math.PI / 2;
-      bonusGlow.position.x = Math.cos(bonusAngle) * (COIN_R * 0.75);
-      bonusGlow.position.z = Math.sin(bonusAngle) * (COIN_R * 0.75);
-      bonusGlow.position.y = 0.12;
+      bonusGlow.position.x = Math.cos(bonusAngle) * (COIN_R * 0.7);
+      bonusGlow.position.z = Math.sin(bonusAngle) * (COIN_R * 0.7);
+      bonusGlow.position.y = 0.18;
       group.add(bonusGlow);
+      
+      // Add a second glow above for visibility
+      const topGlowGeo = new THREE.CircleGeometry(COIN_R * 0.25, 16);
+      const topGlowMat = new THREE.MeshBasicMaterial({
+        color: 0x44ff44,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide
+      });
+      const topGlow = new THREE.Mesh(topGlowGeo, topGlowMat);
+      topGlow.rotation.x = -Math.PI / 2;
+      topGlow.position.x = Math.cos(bonusAngle) * (COIN_R * 0.7);
+      topGlow.position.z = Math.sin(bonusAngle) * (COIN_R * 0.7);
+      topGlow.position.y = 0.2;
+      group.add(topGlow);
     }
 
     group.position.set(x, 0.15, z);
@@ -708,6 +723,8 @@ export default function NeonStrikerGame({
 
       // Check level complete
       const remaining = coins.filter(c => !c.isStriker && !c.isKnockedOff).length;
+      setCoinsLeft(remaining);
+      
       if (remaining === 0) {
         const levelBonus = 200 + (currentLevelRef.current * 50);
         scoreRef.current += levelBonus;
@@ -727,16 +744,19 @@ export default function NeonStrikerGame({
           addPopup(500, 50, 25, 'critical', '🌟 ALL LEVELS CLEARED! +500');
         }
         
-        // Reset for next level - set state BEFORE sceneReady to ensure proper reinitialization
-        setGameState('playing');
-        setAimLocked(false);
+        // Reset for next level
         isShootingRef.current = false;
         hitsThisShotRef.current = 0;
+        setAimLocked(false);
         
-        // Small delay before reinitializing to show the level complete message
-        setTimeout(() => {
-          setSceneReady(false);
-        }, 500);
+        // Cancel current animation frame to prevent conflicts
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+        
+        // Immediately trigger scene reinitialization
+        setSceneReady(false);
       } else {
         setGameState('playing');
         setAimLocked(false);
@@ -775,7 +795,11 @@ export default function NeonStrikerGame({
     if (!sceneReady || gameState === 'ready' || gameState === 'complete') return;
     if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
 
+    let isAnimating = true;
+    
     const animate = () => {
+      if (!isAnimating || !sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+      
       updatePhysics();
       updateAimLine();
 
@@ -784,15 +808,27 @@ export default function NeonStrikerGame({
         if (coin.mesh && !coin.isKnockedOff) {
           coin.mesh.position.y = 0.15 + Math.sin(time + coin.id) * 0.02;
           coin.mesh.rotation.y += 0.002;
+          
+          // Pulse the green bonus section for visibility
+          if (!coin.isStriker && !coin.bonusHit) {
+            const bonusSection = coin.mesh.getObjectByName('bonusSection') as THREE.Mesh;
+            if (bonusSection && bonusSection.material) {
+              const mat = bonusSection.material as THREE.MeshStandardMaterial;
+              mat.emissiveIntensity = 1.0 + Math.sin(time * 4) * 0.5; // Pulse effect
+            }
+          }
         }
       });
 
-      rendererRef.current!.render(sceneRef.current!, cameraRef.current!);
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
       animationRef.current = requestAnimationFrame(animate);
     };
 
     animate();
-    return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
+    return () => { 
+      isAnimating = false;
+      if (animationRef.current) cancelAnimationFrame(animationRef.current); 
+    };
   }, [sceneReady, gameState, updatePhysics, updateAimLine]);
 
   // Countdown timer
