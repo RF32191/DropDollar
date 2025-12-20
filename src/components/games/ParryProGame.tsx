@@ -147,6 +147,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     });
     const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
     blade.position.y = 1.25;
+    blade.name = 'blade';
     group.add(blade);
     
     // Blade edge glow
@@ -159,6 +160,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
     edge.position.y = 1.25;
     edge.position.x = 0.08;
+    edge.name = 'edge';
     group.add(edge);
     
     // Guard (crossguard)
@@ -765,6 +767,37 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
           const sword = enemy.mesh.getObjectByName('sword') as THREE.Group;
           const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
           if (!sword) return;
+          
+          // Sword glow based on attack phase
+          const blade = sword.getObjectByName('blade') as THREE.Mesh;
+          const edge = sword.getObjectByName('edge') as THREE.Mesh;
+          if (blade && blade.material instanceof THREE.MeshPhongMaterial) {
+            if (enemy.attackPhase === 'strike') {
+              // RED GLOW when attacking/hitting - small but visible
+              blade.material.emissive.setHex(0xFF2200);
+              blade.material.emissiveIntensity = 0.6;
+              if (edge && edge.material instanceof THREE.MeshBasicMaterial) {
+                edge.material.color.setHex(0xFF4444);
+                edge.material.opacity = 0.9;
+              }
+            } else if (enemy.attackPhase === 'windup') {
+              // BLUE GLOW when about to attack - small warning
+              blade.material.emissive.setHex(0x2244FF);
+              blade.material.emissiveIntensity = 0.4;
+              if (edge && edge.material instanceof THREE.MeshBasicMaterial) {
+                edge.material.color.setHex(0x4488FF);
+                edge.material.opacity = 0.7;
+              }
+            } else {
+              // Default - subtle dark red
+              blade.material.emissive.setHex(0x400000);
+              blade.material.emissiveIntensity = 0.3;
+              if (edge && edge.material instanceof THREE.MeshBasicMaterial) {
+                edge.material.color.setHex(0xFF4444);
+                edge.material.opacity = 0.6;
+              }
+            }
+          }
           
           // Hit flash effect
           if (enemy.hitFlashTime > 0) {
