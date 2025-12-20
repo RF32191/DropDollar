@@ -108,6 +108,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const [gameState, setGameState] = useState<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60); // 60 second timer
+  const GAME_DURATION = 60; // 1 minute game duration
   
   // CoD-style floating score indicators
   const { popups, addPopup, removePopup } = useFloatingScores();
@@ -395,121 +397,144 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create Santa mitten for Christmas theme - ENHANCED
+  // Create Santa mitten for Christmas theme - ROUND PUFFY MITTENS
   const createSantaMitten = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
     // Rich velvet red mitten material
     const redMittenMaterial = new THREE.MeshStandardMaterial({
       color: 0xCC0000,
-      roughness: 0.7,
+      roughness: 0.6,
       metalness: 0.05,
-      emissive: 0x220000,
-      emissiveIntensity: 0.1,
-    });
-    
-    // Darker red for shading
-    const darkRedMaterial = new THREE.MeshStandardMaterial({
-      color: 0x990000,
-      roughness: 0.8,
-      metalness: 0.0,
+      emissive: 0x330000,
+      emissiveIntensity: 0.15,
     });
     
     // Luxurious white fur trim material
     const whiteFurMaterial = new THREE.MeshStandardMaterial({
-      color: 0xFFFFF5,
+      color: 0xFFFFF8,
       roughness: 0.95,
       metalness: 0.0,
       emissive: 0xEEEEEE,
-      emissiveIntensity: 0.15,
+      emissiveIntensity: 0.2,
     });
     
-    // Main mitten body - thicker, more 3D
-    const mittenShape = new THREE.Shape();
-    mittenShape.moveTo(-1.2, -1.4);
-    mittenShape.quadraticCurveTo(-1.5, 0, -1.2, 1.2);
-    mittenShape.quadraticCurveTo(-0.6, 1.8, 0.6, 1.8);
-    mittenShape.quadraticCurveTo(1.2, 1.2, 1.4, 0);
-    mittenShape.quadraticCurveTo(1.2, -1.2, 0.6, -1.4);
-    mittenShape.lineTo(-1.2, -1.4);
+    // ROUND puffy mitten body - using spheres for a soft look
+    // Main mitten palm - big round sphere
+    const palmGeo = new THREE.SphereGeometry(1.4, 24, 24);
+    const palm = new THREE.Mesh(palmGeo, redMittenMaterial);
+    palm.scale.set(1.1, 1.0, 0.8); // Slightly flattened for mitten shape
+    palm.position.y = isTop ? 0.2 : -0.2;
+    group.add(palm);
     
-    const mittenExtrudeSettings = { depth: 1.0, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.15, bevelSegments: 6 };
-    const mittenGeo = new THREE.ExtrudeGeometry(mittenShape, mittenExtrudeSettings);
-    const mitten = new THREE.Mesh(mittenGeo, redMittenMaterial);
-    mitten.rotation.x = Math.PI / 2;
-    mitten.position.y = isTop ? 0.6 : -0.6;
-    mitten.position.z = -0.5;
-    group.add(mitten);
+    // Puffy finger section (like a mitten's round top)
+    const fingerGeo = new THREE.SphereGeometry(1.1, 20, 20);
+    const fingers = new THREE.Mesh(fingerGeo, redMittenMaterial);
+    fingers.scale.set(1.0, 0.9, 0.7);
+    fingers.position.y = isTop ? -1.0 : 1.0; // Fingers point toward gap
+    group.add(fingers);
     
-    // Quilted pattern on mitten (stitching lines)
-    const stitchMaterial = new THREE.MeshBasicMaterial({ color: 0x880000 });
-    for (let i = 0; i < 4; i++) {
-      const stitchGeo = new THREE.BoxGeometry(0.04, 2.8, 0.02);
-      const stitch = new THREE.Mesh(stitchGeo, stitchMaterial);
-      stitch.position.set(-0.8 + i * 0.5, isTop ? 0.6 : -0.6, 0.55);
-      group.add(stitch);
-    }
+    // Connect palm and fingers
+    const bridgeGeo = new THREE.CapsuleGeometry(0.8, 0.6, 12, 16);
+    const bridge = new THREE.Mesh(bridgeGeo, redMittenMaterial);
+    bridge.position.y = isTop ? -0.4 : 0.4;
+    group.add(bridge);
     
-    // Chubby thumb with joint
-    const thumbBaseGeo = new THREE.CapsuleGeometry(0.4, 0.6, 12, 16);
-    const thumbBase = new THREE.Mesh(thumbBaseGeo, redMittenMaterial);
-    thumbBase.position.set(isTop ? 1.4 : -1.4, isTop ? 0.5 : -0.5, 0);
-    thumbBase.rotation.z = isTop ? -0.4 : 0.4;
-    group.add(thumbBase);
+    // Round puffy thumb
+    const thumbGeo = new THREE.SphereGeometry(0.5, 16, 16);
+    const thumb = new THREE.Mesh(thumbGeo, redMittenMaterial);
+    thumb.scale.set(1.2, 1.5, 1.0);
+    thumb.position.set(isTop ? 1.5 : -1.5, isTop ? 0.3 : -0.3, 0);
+    group.add(thumb);
     
-    const thumbTipGeo = new THREE.CapsuleGeometry(0.35, 0.4, 12, 16);
+    // Thumb tip (more round)
+    const thumbTipGeo = new THREE.SphereGeometry(0.35, 12, 12);
     const thumbTip = new THREE.Mesh(thumbTipGeo, redMittenMaterial);
-    thumbTip.position.set(isTop ? 1.8 : -1.8, isTop ? 0.1 : -0.1, 0);
-    thumbTip.rotation.z = isTop ? -0.3 : 0.3;
+    thumbTip.position.set(isTop ? 1.9 : -1.9, isTop ? 0.0 : 0.0, 0);
     group.add(thumbTip);
     
-    // Luxurious fur cuff - multiple layers for fluffiness
-    for (let layer = 0; layer < 3; layer++) {
-      const cuffGeo = new THREE.TorusGeometry(1.2 - layer * 0.1, 0.35 - layer * 0.05, 16, 32);
+    // Luxurious fluffy fur cuff - EXTRA FLUFFY with many spheres
+    const cuffY = isTop ? 2.0 : -2.0;
+    
+    // Main cuff ring
+    for (let layer = 0; layer < 4; layer++) {
+      const cuffGeo = new THREE.TorusGeometry(1.3 - layer * 0.08, 0.4 - layer * 0.05, 16, 32);
       const cuff = new THREE.Mesh(cuffGeo, whiteFurMaterial);
-      cuff.position.y = isTop ? 2.2 + layer * 0.1 : -2.2 - layer * 0.1;
+      cuff.position.y = cuffY + (isTop ? layer * 0.08 : -layer * 0.08);
       cuff.rotation.x = Math.PI / 2;
       group.add(cuff);
     }
     
-    // Extra fluffy fur puffs
-    for (let p = 0; p < 18; p++) {
-      const angle = (p / 18) * Math.PI * 2;
-      const puffGeo = new THREE.SphereGeometry(0.2 + Math.random() * 0.1, 8, 8);
+    // Extra fluffy fur puffs - more of them!
+    for (let p = 0; p < 24; p++) {
+      const angle = (p / 24) * Math.PI * 2;
+      const puffSize = 0.25 + Math.random() * 0.15;
+      const puffGeo = new THREE.SphereGeometry(puffSize, 10, 10);
       const puff = new THREE.Mesh(puffGeo, whiteFurMaterial);
+      const radiusVar = 1.2 + Math.random() * 0.3;
       puff.position.set(
-        Math.cos(angle) * (1.1 + Math.random() * 0.2),
-        isTop ? 2.2 + Math.random() * 0.3 : -2.2 - Math.random() * 0.3,
-        Math.sin(angle) * (1.1 + Math.random() * 0.2)
+        Math.cos(angle) * radiusVar,
+        cuffY + (isTop ? Math.random() * 0.4 : -Math.random() * 0.4),
+        Math.sin(angle) * radiusVar
       );
       group.add(puff);
     }
     
-    // Red velvet arm/sleeve with gold trim
-    const armGeo = new THREE.CylinderGeometry(0.95, 1.05, 5.5, 24);
+    // Inner fur puffs for extra fluffiness
+    for (let p = 0; p < 12; p++) {
+      const angle = (p / 12) * Math.PI * 2 + 0.2;
+      const puffGeo = new THREE.SphereGeometry(0.2, 8, 8);
+      const puff = new THREE.Mesh(puffGeo, whiteFurMaterial);
+      puff.position.set(
+        Math.cos(angle) * 0.9,
+        cuffY + (isTop ? 0.15 : -0.15),
+        Math.sin(angle) * 0.9
+      );
+      group.add(puff);
+    }
+    
+    // Red velvet arm/sleeve
+    const armGeo = new THREE.CylinderGeometry(1.0, 1.1, 5.5, 24);
     const arm = new THREE.Mesh(armGeo, redMittenMaterial);
     arm.position.y = isTop ? 5.5 : -5.5;
     group.add(arm);
     
-    // Gold band on arm
+    // Gold band decorations on arm
     const goldBandMaterial = new THREE.MeshStandardMaterial({
       color: 0xFFD700,
       roughness: 0.15,
       metalness: 0.9,
     });
-    const goldBandGeo = new THREE.TorusGeometry(1.0, 0.08, 12, 32);
-    const goldBand = new THREE.Mesh(goldBandGeo, goldBandMaterial);
-    goldBand.position.y = isTop ? 4.0 : -4.0;
-    goldBand.rotation.x = Math.PI / 2;
-    group.add(goldBand);
+    
+    // Two gold bands
+    for (let i = 0; i < 2; i++) {
+      const bandGeo = new THREE.TorusGeometry(1.05, 0.06, 12, 32);
+      const band = new THREE.Mesh(bandGeo, goldBandMaterial);
+      band.position.y = isTop ? 3.8 + i * 0.8 : -3.8 - i * 0.8;
+      band.rotation.x = Math.PI / 2;
+      group.add(band);
+    }
     
     // Fur cuff at top of arm
-    for (let layer = 0; layer < 2; layer++) {
-      const elbowCuffGeo = new THREE.TorusGeometry(1.0 - layer * 0.08, 0.3 - layer * 0.05, 12, 24);
+    for (let layer = 0; layer < 3; layer++) {
+      const elbowCuffGeo = new THREE.TorusGeometry(1.05 - layer * 0.06, 0.35 - layer * 0.05, 12, 24);
       const elbowCuff = new THREE.Mesh(elbowCuffGeo, whiteFurMaterial);
-      elbowCuff.position.y = isTop ? 8.0 + layer * 0.08 : -8.0 - layer * 0.08;
+      elbowCuff.position.y = isTop ? 8.0 + layer * 0.06 : -8.0 - layer * 0.06;
       elbowCuff.rotation.x = Math.PI / 2;
       group.add(elbowCuff);
+    }
+    
+    // More fur puffs at elbow
+    for (let p = 0; p < 16; p++) {
+      const angle = (p / 16) * Math.PI * 2;
+      const puffGeo = new THREE.SphereGeometry(0.18, 8, 8);
+      const puff = new THREE.Mesh(puffGeo, whiteFurMaterial);
+      puff.position.set(
+        Math.cos(angle) * 1.1,
+        isTop ? 8.0 + Math.random() * 0.3 : -8.0 - Math.random() * 0.3,
+        Math.sin(angle) * 1.1
+      );
+      group.add(puff);
     }
     
     // Big gold jingle bells with detail
@@ -974,6 +999,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     setGameState('waiting');
     scoreRef.current = 0;
     setScore(0);
+    setTimeLeft(GAME_DURATION); // Reset timer to 60 seconds
     gapsPassedRef.current = 0; // Reset gaps counter
     bonusCoinsRef.current = []; // Clear bonus coins
     coinYRef.current = 0;
@@ -1021,6 +1047,63 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleJumpForward, handleReverse]);
+  
+  // Game timer - 60 second countdown
+  useEffect(() => {
+    if (gameState !== 'playing') {
+      // Reset timer when not playing
+      if (gameState === 'ready' || gameState === 'waiting') {
+        setTimeLeft(GAME_DURATION);
+      }
+      return;
+    }
+    
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // Time's up - end game
+          clearInterval(timer);
+          isAliveRef.current = false;
+          gameStateRef.current = 'complete';
+          setGameState('complete');
+          
+          const duration = GAME_DURATION;
+          const finalScore = scoreRef.current;
+          const accuracy = Math.min(100, finalScore * 10);
+          
+          console.log('🪙 Time up! Final Score:', finalScore);
+          
+          // Log to audit
+          logGameCompletion({
+            gameType: GAME_TYPES.FLIPPY_COIN,
+            mode: gameModeRef.current === 'competition' ? GAME_MODES.COMPETITION : GAME_MODES.PRACTICE,
+            score: finalScore,
+            accuracy,
+            duration,
+            userId: undefined,
+            metadata: {
+              gapsPassed: gapsPassedRef.current,
+              endReason: 'timer',
+            }
+          });
+          
+          // Call completion handler
+          if (onGameCompleteRef.current) {
+            onGameCompleteRef.current({
+              score: finalScore,
+              accuracy,
+              avgReactionTime: duration / Math.max(1, gapsPassedRef.current) * 1000,
+            });
+          }
+          
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [gameState]);
   
   // Initialize scene
   useEffect(() => {
@@ -1772,12 +1855,21 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
         onTouchStart={handleScreenTap}
       />
       
-      {/* Score Display */}
+      {/* HUD - Score and Timer */}
       {(gameState === 'playing' || gameState === 'waiting') && (
-        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-          <div className="text-white text-6xl sm:text-8xl font-bold" 
-               style={{ textShadow: '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}>
-            {score}
+        <div className="absolute top-6 left-0 right-0 z-20 pointer-events-none px-4">
+          <div className="flex justify-between items-start">
+            {/* Score */}
+            <div className="text-white text-4xl sm:text-6xl font-bold" 
+                 style={{ textShadow: '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}>
+              🪙 {score}
+            </div>
+            
+            {/* Timer */}
+            <div className={`text-white text-3xl sm:text-5xl font-bold ${timeLeft <= 10 ? 'text-red-400 animate-pulse' : ''}`}
+                 style={{ textShadow: '3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' }}>
+              ⏱️ {timeLeft}s
+            </div>
           </div>
         </div>
       )}
