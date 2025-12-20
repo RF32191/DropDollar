@@ -2047,10 +2047,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               {/* Horizontal Lasers - Same size on all devices */}
               {lasers.filter(l => l.type === 'horizontal').map((laser) => {
                 // Determine colors based on theme
-                const safeColor = currentTheme === 'christmas' ? 'bg-green-500' : 'bg-blue-400';
+                const safeColor = currentTheme === 'christmas' 
+                  ? 'bg-green-500' 
+                  : currentTheme === 'halloween'
+                  ? 'bg-purple-500'
+                  : 'bg-blue-400';
                 const safeShadow = currentTheme === 'christmas' 
                   ? '0 0 15px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                  : currentTheme === 'halloween'
+                  ? '0 0 15px rgba(168, 85, 247, 0.7), 0 0 30px rgba(168, 85, 247, 0.4), inset 0 0 8px rgba(255, 255, 255, 0.2)'
                   : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)';
+                const harmfulColor = currentTheme === 'halloween' ? 'bg-orange-500' : 'bg-red-500';
+                const harmfulShadow = currentTheme === 'halloween'
+                  ? '0 0 20px rgba(249, 115, 22, 0.8), 0 0 40px rgba(249, 115, 22, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
+                  : '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)';
                 
                 return (
                 <div key={laser.id} className="absolute w-full h-4" style={{
@@ -2062,13 +2072,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   <div
                     className={`absolute w-full h-full transition-all duration-300 ${
                       laser.isHarmful 
-                        ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                        : `${safeColor} shadow-lg ${currentTheme === 'christmas' ? 'shadow-green-500/30' : 'shadow-blue-400/30'}`
+                        ? `${harmfulColor} shadow-lg ${currentTheme === 'halloween' ? 'shadow-orange-500/50' : 'shadow-red-500/50'} animate-pulse` 
+                        : `${safeColor} shadow-lg ${currentTheme === 'christmas' ? 'shadow-green-500/30' : currentTheme === 'halloween' ? 'shadow-purple-500/30' : 'shadow-blue-400/30'}`
                     }`}
                     style={{
-                      boxShadow: laser.isHarmful 
-                        ? '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
-                        : safeShadow
+                      boxShadow: laser.isHarmful ? harmfulShadow : safeShadow
                     }}
                   />
                   {/* Neon center line */}
@@ -2089,10 +2097,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               {/* Vertical Lasers - Same size on all devices */}
               {lasers.filter(l => l.type === 'vertical').map((laser) => {
                 // Determine colors based on theme
-                const safeColor = currentTheme === 'christmas' ? 'bg-green-500' : 'bg-blue-400';
+                const safeColor = currentTheme === 'christmas' 
+                  ? 'bg-green-500' 
+                  : currentTheme === 'halloween'
+                  ? 'bg-purple-500'
+                  : 'bg-blue-400';
                 const safeShadow = currentTheme === 'christmas' 
                   ? '0 0 15px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)'
+                  : currentTheme === 'halloween'
+                  ? '0 0 15px rgba(168, 85, 247, 0.7), 0 0 30px rgba(168, 85, 247, 0.4), inset 0 0 8px rgba(255, 255, 255, 0.2)'
                   : '0 0 15px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.3), inset 0 0 8px rgba(255, 255, 255, 0.2)';
+                const harmfulColor = currentTheme === 'halloween' ? 'bg-orange-500' : 'bg-red-500';
+                const harmfulShadow = currentTheme === 'halloween'
+                  ? '0 0 20px rgba(249, 115, 22, 0.8), 0 0 40px rgba(249, 115, 22, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
+                  : '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)';
                 
                 return (
                 <div key={laser.id} className="absolute h-full w-4" style={{
@@ -2104,13 +2122,11 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   <div
                     className={`absolute h-full w-full transition-all duration-300 ${
                       laser.isHarmful 
-                        ? 'bg-red-500 shadow-lg shadow-red-500/50 animate-pulse' 
-                        : `${safeColor} shadow-lg ${currentTheme === 'christmas' ? 'shadow-green-500/30' : 'shadow-blue-400/30'}`
+                        ? `${harmfulColor} shadow-lg ${currentTheme === 'halloween' ? 'shadow-orange-500/50' : 'shadow-red-500/50'} animate-pulse` 
+                        : `${safeColor} shadow-lg ${currentTheme === 'christmas' ? 'shadow-green-500/30' : currentTheme === 'halloween' ? 'shadow-purple-500/30' : 'shadow-blue-400/30'}`
                     }`}
                     style={{
-                      boxShadow: laser.isHarmful 
-                        ? '0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3)'
-                        : safeShadow
+                      boxShadow: laser.isHarmful ? harmfulShadow : safeShadow
                     }}
                   />
                   {/* Neon center line */}
