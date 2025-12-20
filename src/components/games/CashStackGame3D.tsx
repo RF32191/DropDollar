@@ -509,6 +509,64 @@ export default function CashStackGame3D({
         batGroup.scale.setScalar(0.8 + Math.random() * 0.4);
         scene.add(batGroup);
       }
+      
+      // Full Moon
+      const moonGeo = new THREE.CircleGeometry(6, 64);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xFFF8DC, transparent: true, opacity: 0.95 });
+      const moon = new THREE.Mesh(moonGeo, moonMat);
+      moon.position.set(18, 22, -35);
+      scene.add(moon);
+      
+      // Moon glow
+      const moonGlowGeo = new THREE.CircleGeometry(8, 64);
+      const moonGlowMat = new THREE.MeshBasicMaterial({ color: 0xFFFFCC, transparent: true, opacity: 0.25 });
+      const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
+      moonGlow.position.set(18, 22, -35.1);
+      scene.add(moonGlow);
+      
+      // Tombstones around the play area
+      const tombstonePositions = [
+        { x: -12, z: -8, rot: 0.1 },
+        { x: -10, z: 8, rot: -0.15 },
+        { x: 12, z: -6, rot: 0.05 },
+        { x: 14, z: 6, rot: -0.1 },
+        { x: -15, z: 0, rot: 0.2 },
+        { x: 15, z: -2, rot: -0.12 },
+      ];
+      
+      tombstonePositions.forEach(pos => {
+        const tombGroup = new THREE.Group();
+        
+        // Main tombstone body
+        const tombGeo = new THREE.BoxGeometry(1.2, 2.5, 0.4);
+        const tombMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9 });
+        const tombstone = new THREE.Mesh(tombGeo, tombMat);
+        tombstone.position.y = 1.25;
+        tombGroup.add(tombstone);
+        
+        // Rounded top
+        const topGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16, 1, false, 0, Math.PI);
+        const top = new THREE.Mesh(topGeo, tombMat);
+        top.rotation.x = Math.PI / 2;
+        top.rotation.z = Math.PI / 2;
+        top.position.set(0, 2.5, 0);
+        tombGroup.add(top);
+        
+        // RIP text (simple cross)
+        const crossV = new THREE.BoxGeometry(0.08, 0.8, 0.1);
+        const crossH = new THREE.BoxGeometry(0.5, 0.08, 0.1);
+        const crossMat = new THREE.MeshBasicMaterial({ color: 0x2a2a2a });
+        const crossVertical = new THREE.Mesh(crossV, crossMat);
+        crossVertical.position.set(0, 1.8, 0.22);
+        const crossHorizontal = new THREE.Mesh(crossH, crossMat);
+        crossHorizontal.position.set(0, 2.0, 0.22);
+        tombGroup.add(crossVertical);
+        tombGroup.add(crossHorizontal);
+        
+        tombGroup.position.set(pos.x, -4.5, pos.z);
+        tombGroup.rotation.y = pos.rot;
+        scene.add(tombGroup);
+      });
     }
     
     // Christmas: Add snow and festive elements
@@ -551,6 +609,89 @@ export default function CashStackGame3D({
         snowCap.position.y += 4;
         scene.add(snowCap);
       }
+      
+      // Gift boxes around the play area
+      const giftColors = [
+        { box: 0xFF0000, ribbon: 0xFFD700 }, // Red with gold
+        { box: 0x00AA00, ribbon: 0xFF0000 }, // Green with red
+        { box: 0x0066FF, ribbon: 0xFFFFFF }, // Blue with white
+        { box: 0xFF00FF, ribbon: 0x00FFFF }, // Magenta with cyan
+        { box: 0xFFD700, ribbon: 0xFF0000 }, // Gold with red
+        { box: 0x8B0000, ribbon: 0x00FF00 }, // Dark red with green
+      ];
+      
+      const giftPositions = [
+        { x: -11, z: -7, scale: 1.0 },
+        { x: -9, z: 7, scale: 0.8 },
+        { x: 11, z: -5, scale: 1.2 },
+        { x: 13, z: 5, scale: 0.9 },
+        { x: -14, z: 1, scale: 1.1 },
+        { x: 14, z: -3, scale: 0.85 },
+      ];
+      
+      giftPositions.forEach((pos, i) => {
+        const giftGroup = new THREE.Group();
+        const colors = giftColors[i % giftColors.length];
+        
+        // Gift box
+        const boxSize = 1.2 * pos.scale;
+        const boxGeo = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+        const boxMat = new THREE.MeshStandardMaterial({ 
+          color: colors.box, 
+          roughness: 0.3,
+          metalness: 0.1
+        });
+        const box = new THREE.Mesh(boxGeo, boxMat);
+        box.position.y = boxSize / 2;
+        giftGroup.add(box);
+        
+        // Ribbon vertical
+        const ribbonV = new THREE.BoxGeometry(boxSize * 0.15, boxSize * 1.02, boxSize * 1.02);
+        const ribbonMat = new THREE.MeshStandardMaterial({ 
+          color: colors.ribbon, 
+          roughness: 0.2,
+          metalness: 0.3
+        });
+        const ribbonVertical = new THREE.Mesh(ribbonV, ribbonMat);
+        ribbonVertical.position.y = boxSize / 2;
+        giftGroup.add(ribbonVertical);
+        
+        // Ribbon horizontal
+        const ribbonH = new THREE.BoxGeometry(boxSize * 1.02, boxSize * 0.15, boxSize * 1.02);
+        const ribbonHorizontal = new THREE.Mesh(ribbonH, ribbonMat);
+        ribbonHorizontal.position.y = boxSize / 2;
+        giftGroup.add(ribbonHorizontal);
+        
+        // Bow on top
+        const bowLoopGeo = new THREE.TorusGeometry(boxSize * 0.2, boxSize * 0.06, 8, 16);
+        const bowMat = new THREE.MeshStandardMaterial({ 
+          color: colors.ribbon, 
+          roughness: 0.2,
+          metalness: 0.4
+        });
+        
+        // Left bow loop
+        const bowLeft = new THREE.Mesh(bowLoopGeo, bowMat);
+        bowLeft.position.set(-boxSize * 0.15, boxSize + boxSize * 0.1, 0);
+        bowLeft.rotation.y = Math.PI / 4;
+        giftGroup.add(bowLeft);
+        
+        // Right bow loop
+        const bowRight = new THREE.Mesh(bowLoopGeo, bowMat);
+        bowRight.position.set(boxSize * 0.15, boxSize + boxSize * 0.1, 0);
+        bowRight.rotation.y = -Math.PI / 4;
+        giftGroup.add(bowRight);
+        
+        // Bow center knot
+        const knotGeo = new THREE.SphereGeometry(boxSize * 0.12, 8, 8);
+        const knot = new THREE.Mesh(knotGeo, bowMat);
+        knot.position.set(0, boxSize + boxSize * 0.05, 0);
+        giftGroup.add(knot);
+        
+        giftGroup.position.set(pos.x, -4.5, pos.z);
+        giftGroup.rotation.y = Math.random() * Math.PI * 0.5;
+        scene.add(giftGroup);
+      });
     }
 
     // Ground plane with grid
