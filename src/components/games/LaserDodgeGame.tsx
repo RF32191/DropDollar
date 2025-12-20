@@ -5,6 +5,8 @@ import { FairRNGService, LaserDodgeRNGConfig } from '@/lib/fairRNGService';
 import { playLaserWarning, playExtremeModeActivation, playCrazyModeActivation, playCollision, playGameEnd, playShootSound, playExplosionSound, playEnemyHitSound } from '@/lib/gameAudio';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 // 🔥🔥🔥 CACHE BUSTER - BUILD 20251127-V8 🔥🔥🔥
 console.log('');
@@ -28,6 +30,7 @@ interface LaserDodgeGameProps {
   entryNumber?: number;
   isCompetitionMode?: boolean;
   rngSeed?: number; // RNG seed (1-20) for deterministic spawns
+  theme?: GameTheme; // Visual theme for the game
 }
 
 interface Laser {
@@ -69,13 +72,14 @@ interface Explosion {
   type: 'enemy' | 'ship';
 }
 
-export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed }: LaserDodgeGameProps) {
+export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumber, isCompetitionMode, rngSeed, theme: initialTheme }: LaserDodgeGameProps) {
   // DON'T use pre-generated configs - causes gameplay issues (stacking, repetition)
   // Instead, use rngSeed to initialize engine for runtime generation
   const rngConfig = null; // Disabled - using runtime RNG instead
   
   const [gameState, setGameState] = useState<'ready' | 'waiting' | 'countdown' | 'playing' | 'ended'>('ready');
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [ship, setShip] = useState<Ship>({ x: 50, y: 50 });
   const [enemyShips, setEnemyShips] = useState<EnemyShip[]>([]);
@@ -1568,6 +1572,15 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   You get <span className="text-cyan-300 font-bold">+200 points instantly</span> when you first touch a blue laser, PLUS 60+ points per second while staying on it! In extreme mode, they take 2.4-4 seconds to turn red, giving you time to rack up huge scores before escaping.
                 </p>
               </div>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-4 bg-black/20 rounded-xl p-3">
+              <GameThemeSelector
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
