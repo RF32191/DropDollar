@@ -153,7 +153,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const CELL_SIZE = 2.5;
   const TOTAL_MAZES = 5;
 
-  // Gyroscope handler function (needs to be defined outside useEffect for UI access)
+  // Gyroscope handler function - inline validation to avoid dependency issues
   const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
     if (!hasControlRef.current || gameStateRef.current !== 'playing') return;
     if (!gyroEnabledRef.current) return;
@@ -163,26 +163,38 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     
     if (!gyroBaseRef.current) {
       gyroBaseRef.current = { beta, gamma };
+      console.log('📱 [LightningMaze] Gyro base calibrated:', { beta, gamma });
       return;
     }
     
     const deltaBeta = beta - gyroBaseRef.current.beta;
     const deltaGamma = gamma - gyroBaseRef.current.gamma;
     
-    const sensitivity = 0.15;
-    const speed = 0.3;
+    const sensitivity = 0.2; // Slightly higher for responsiveness
+    const speed = 0.35;
     
     const moveX = deltaGamma * sensitivity * speed;
     const moveZ = deltaBeta * sensitivity * speed;
     
-    const newTarget = new THREE.Vector3(
-      targetPositionRef.current.x + moveX,
-      0.5,
-      targetPositionRef.current.z + moveZ
-    );
+    const newX = targetPositionRef.current.x + moveX;
+    const newZ = targetPositionRef.current.z + moveZ;
     
-    if (isValidPosition(newTarget.x, newTarget.z, mazeRef.current)) {
-      targetPositionRef.current.copy(newTarget);
+    // Inline position validation using mazeRef directly
+    const maze = mazeRef.current;
+    if (maze.length > 0) {
+      const CELL_SIZE_LOCAL = 2.5;
+      const halfMazeWidth = (maze[0].length * CELL_SIZE_LOCAL) / 2;
+      const halfMazeHeight = (maze.length * CELL_SIZE_LOCAL) / 2;
+      
+      const cellX = Math.floor((newX + halfMazeWidth) / CELL_SIZE_LOCAL);
+      const cellZ = Math.floor((newZ + halfMazeHeight) / CELL_SIZE_LOCAL);
+      
+      if (cellZ >= 0 && cellZ < maze.length && cellX >= 0 && cellX < maze[0].length) {
+        const cell = maze[cellZ][cellX];
+        if (cell === 'path' || cell === 'checkpoint' || cell === 'start' || cell === 'end') {
+          targetPositionRef.current.set(newX, 0.5, newZ);
+        }
+      }
     }
   }, []);
 
