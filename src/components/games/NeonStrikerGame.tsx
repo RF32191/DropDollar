@@ -42,6 +42,8 @@ interface GameCoin {
   isSettled: boolean;
   hitAnotherCoin: boolean;
   mesh: THREE.Group | null;
+  bonusAngle: number; // Angle where the green bonus section is located
+  bonusHit: boolean; // Whether the bonus was already claimed
 }
 
 // Level configurations - coins start MOVING from level 3
@@ -121,8 +123,8 @@ export default function NeonStrikerGame({
     setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
   }, []);
 
-  // Create 3D coin with glow effects
-  const createCoin = useCallback((scene: THREE.Scene, x: number, z: number, isStriker: boolean): THREE.Group => {
+  // Create 3D coin with glow effects and green bonus section
+  const createCoin = useCallback((scene: THREE.Scene, x: number, z: number, isStriker: boolean, bonusAngle: number = 0): THREE.Group => {
     const group = new THREE.Group();
     const color = isStriker ? 0x00ffff : 0xff00ff;
     
@@ -160,6 +162,42 @@ export default function NeonStrikerGame({
     topEmblem.rotation.x = -Math.PI / 2;
     topEmblem.position.y = 0.11;
     group.add(topEmblem);
+
+    // Add GREEN BONUS SECTION on the side of enemy coins (not striker)
+    if (!isStriker) {
+      // Create a small green wedge on the edge
+      const bonusGeo = new THREE.CylinderGeometry(COIN_R * 0.3, COIN_R * 0.3, 0.22, 8);
+      const bonusMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        emissive: 0x00ff00,
+        emissiveIntensity: 0.8,
+        metalness: 0.8,
+        roughness: 0.2
+      });
+      const bonusSection = new THREE.Mesh(bonusGeo, bonusMat);
+      bonusSection.name = 'bonusSection';
+      
+      // Position it on the edge of the coin based on the angle
+      bonusSection.position.x = Math.cos(bonusAngle) * (COIN_R * 0.75);
+      bonusSection.position.z = Math.sin(bonusAngle) * (COIN_R * 0.75);
+      bonusSection.position.y = 0;
+      group.add(bonusSection);
+      
+      // Add a glow ring around the bonus section
+      const bonusGlowGeo = new THREE.RingGeometry(COIN_R * 0.32, COIN_R * 0.5, 16);
+      const bonusGlowMat = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+      });
+      const bonusGlow = new THREE.Mesh(bonusGlowGeo, bonusGlowMat);
+      bonusGlow.rotation.x = -Math.PI / 2;
+      bonusGlow.position.x = Math.cos(bonusAngle) * (COIN_R * 0.75);
+      bonusGlow.position.z = Math.sin(bonusAngle) * (COIN_R * 0.75);
+      bonusGlow.position.y = 0.12;
+      group.add(bonusGlow);
+    }
 
     group.position.set(x, 0.15, z);
     scene.add(group);
@@ -270,13 +308,16 @@ export default function NeonStrikerGame({
     // Create coins with DETERMINISTIC movement patterns using seeded RNG
     const coins: GameCoin[] = [];
     level.coins.forEach((pos, i) => {
-      const mesh = createCoin(scene, pos.x, pos.z, false);
-      
       // Deterministic movement direction based on seeded RNG
       // Uses consistent pattern based on coin index and level
       const angleBase = (i / level.coins.length) * Math.PI * 2; // Evenly distributed
       const angleOffset = (rngRef.current.next() - 0.5) * 0.5; // Small random offset
       const angle = angleBase + angleOffset;
+      
+      // Generate a random bonus angle for the green section (deterministic)
+      const bonusAngle = rngRef.current.next() * Math.PI * 2;
+      
+      const mesh = createCoin(scene, pos.x, pos.z, false, bonusAngle);
       
       const hasMovement = level.moving;
       const speed = hasMovement ? COIN_SPEED : 0;
@@ -294,13 +335,15 @@ export default function NeonStrikerGame({
         wasHitByStriker: false,
         isSettled: false,
         hitAnotherCoin: false,
-        mesh 
+        mesh,
+        bonusAngle,
+        bonusHit: false
       });
     });
 
     // Striker
     const strikerZ = TABLE_D / 2 - 2;
-    const strikerMesh = createCoin(scene, 0, strikerZ, true);
+    const strikerMesh = createCoin(scene, 0, strikerZ, true, 0);
     coins.push({ 
       id: 0, 
       x: 0, 
@@ -314,7 +357,9 @@ export default function NeonStrikerGame({
       wasHitByStriker: false,
       isSettled: false,
       hitAnotherCoin: false,
-      mesh: strikerMesh 
+      mesh: strikerMesh,
+      bonusAngle: 0,
+      bonusHit: false
     });
 
     coinsRef.current = coins;
@@ -529,6 +574,17 @@ export default function NeonStrikerGame({
               setComboCount(newCombo);
               setComboMultiplier(newCombo);
               
+              // Check if striker hit the GREEN BONUS SECTION! (+100 bonus)
+              // Calculate the angle of impact from the striker to the target coin
+              const hitAngle = Math.atan2(-nz, -nx); // Direction from b to a (striker)
+              const angleDiff = Math.abs(((hitAngle - b.bonusAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+              if (angleDiff < 0.5 && !b.bonusHit) { // Within ~30 degrees of bonus section
+                b.bonusHit = true;
+                scoreRef.current += 100;
+                setScore(scoreRef.current);
+                addPopup(100, 50, 20, 'perfect', '💚 BONUS ZONE! +100');
+              }
+              
               // Flash effect
               if (b.mesh) {
                 const coinMesh = b.mesh.children[0] as THREE.Mesh;
@@ -552,6 +608,16 @@ export default function NeonStrikerGame({
               const newCombo = comboCountRef.current;
               setComboCount(newCombo);
               setComboMultiplier(newCombo);
+              
+              // Check if striker hit the GREEN BONUS SECTION! (+100 bonus)
+              const hitAngle = Math.atan2(nz, nx); // Direction from a to b (striker)
+              const angleDiff = Math.abs(((hitAngle - a.bonusAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+              if (angleDiff < 0.5 && !a.bonusHit) { // Within ~30 degrees of bonus section
+                a.bonusHit = true;
+                scoreRef.current += 100;
+                setScore(scoreRef.current);
+                addPopup(100, 50, 20, 'perfect', '💚 BONUS ZONE! +100');
+              }
               
               if (a.mesh) {
                 const coinMesh = a.mesh.children[0] as THREE.Mesh;
@@ -652,7 +718,6 @@ export default function NeonStrikerGame({
         if (currentLevelRef.current < LEVELS.length - 1) {
           currentLevelRef.current++;
           setCurrentLevel(currentLevelRef.current);
-          setSceneReady(false);
         } else {
           // Loop back to first level with bonus
           currentLevelRef.current = 0;
@@ -660,8 +725,18 @@ export default function NeonStrikerGame({
           scoreRef.current += 500;
           setScore(scoreRef.current);
           addPopup(500, 50, 25, 'critical', '🌟 ALL LEVELS CLEARED! +500');
-          setSceneReady(false);
         }
+        
+        // Reset for next level - set state BEFORE sceneReady to ensure proper reinitialization
+        setGameState('playing');
+        setAimLocked(false);
+        isShootingRef.current = false;
+        hitsThisShotRef.current = 0;
+        
+        // Small delay before reinitializing to show the level complete message
+        setTimeout(() => {
+          setSceneReady(false);
+        }, 500);
       } else {
         setGameState('playing');
         setAimLocked(false);
