@@ -1879,23 +1879,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
               opacity: 0.9,
             }}
           />
-          {/* Bats flying */}
-          {[...Array(6)].map((_, i) => (
-            <div 
-              key={`bat-${i}`}
-              className="absolute pointer-events-none animate-pulse"
-              style={{
-                top: `${10 + i * 12}%`,
-                left: `${5 + i * 15}%`,
-                fontSize: '24px',
-                opacity: 0.6,
-                animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
-                animationDelay: `${i * 0.3}s`,
-              }}
-            >
-              🦇
-            </div>
-          ))}
+          {/* Spider webs in corners */}
+          <div className="absolute top-0 left-0 text-6xl opacity-40 pointer-events-none" style={{ transform: 'rotate(0deg)' }}>🕸️</div>
+          <div className="absolute top-0 right-0 text-6xl opacity-40 pointer-events-none" style={{ transform: 'scaleX(-1)' }}>🕸️</div>
+          <div className="absolute bottom-20 left-0 text-5xl opacity-30 pointer-events-none" style={{ transform: 'rotate(90deg)' }}>🕸️</div>
+          <div className="absolute bottom-20 right-0 text-5xl opacity-30 pointer-events-none" style={{ transform: 'rotate(-90deg) scaleX(-1)' }}>🕸️</div>
+          {/* Spiders */}
+          <div className="absolute top-16 left-8 text-2xl opacity-50 pointer-events-none">🕷️</div>
+          <div className="absolute top-20 right-12 text-2xl opacity-50 pointer-events-none">🕷️</div>
           {/* Tombstones at bottom */}
           {[...Array(5)].map((_, i) => (
             <div 
@@ -1920,48 +1911,57 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       {/* Christmas Theme Decorations */}
       {currentTheme === 'christmas' && (
         <>
-          {/* Snowflakes */}
-          {[...Array(20)].map((_, i) => (
+          {/* Gentle snow effect - just a few particles */}
+          {[...Array(8)].map((_, i) => (
             <div 
               key={`snow-${i}`}
               className="absolute pointer-events-none"
               style={{
-                top: `${Math.random() * 80}%`,
-                left: `${Math.random() * 100}%`,
-                fontSize: `${12 + Math.random() * 16}px`,
-                opacity: 0.4 + Math.random() * 0.4,
-                animation: `fall ${5 + Math.random() * 5}s linear infinite`,
-                animationDelay: `${Math.random() * 5}s`,
+                top: '-5%',
+                left: `${i * 12 + 5}%`,
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                backgroundColor: 'white',
+                opacity: 0.6,
+                animation: `snowfall ${8 + i}s linear infinite`,
+                animationDelay: `${i * 0.8}s`,
               }}
-            >
-              ❄️
-            </div>
+            />
           ))}
-          {/* Gift boxes at corners */}
-          <div className="absolute bottom-4 left-4 text-4xl opacity-70 pointer-events-none">🎁</div>
-          <div className="absolute bottom-4 right-4 text-4xl opacity-70 pointer-events-none">🎁</div>
-          <div className="absolute bottom-8 left-20 text-3xl opacity-60 pointer-events-none">🎄</div>
-          <div className="absolute bottom-8 right-20 text-3xl opacity-60 pointer-events-none">🎄</div>
+          {/* Christmas trees at corners */}
+          <div className="absolute bottom-0 left-4 text-5xl opacity-60 pointer-events-none">🎄</div>
+          <div className="absolute bottom-0 right-4 text-5xl opacity-60 pointer-events-none">🎄</div>
           {/* Stars */}
-          {[...Array(8)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div 
               key={`star-${i}`}
               className="absolute pointer-events-none animate-pulse"
               style={{
-                top: `${5 + i * 8}%`,
-                left: `${10 + i * 12}%`,
-                fontSize: '16px',
-                opacity: 0.5,
+                top: `${8 + i * 10}%`,
+                left: `${15 + i * 18}%`,
+                fontSize: '14px',
+                opacity: 0.4,
               }}
             >
               ⭐
             </div>
           ))}
           {/* Candy canes */}
-          <div className="absolute bottom-2 left-1/4 text-3xl opacity-60 pointer-events-none" style={{ transform: 'rotate(30deg)' }}>🍬</div>
-          <div className="absolute bottom-2 right-1/4 text-3xl opacity-60 pointer-events-none" style={{ transform: 'rotate(-30deg)' }}>🍬</div>
+          <div className="absolute bottom-2 left-1/4 text-3xl opacity-50 pointer-events-none" style={{ transform: 'rotate(30deg)' }}>🍬</div>
+          <div className="absolute bottom-2 right-1/4 text-3xl opacity-50 pointer-events-none" style={{ transform: 'rotate(-30deg)' }}>🍬</div>
         </>
       )}
+      
+      {/* CSS Animations for themes */}
+      <style jsx>{`
+        @keyframes snowfall {
+          0% { transform: translateY(-10px) translateX(0); opacity: 0; }
+          10% { opacity: 0.6; }
+          90% { opacity: 0.6; }
+          100% { transform: translateY(100vh) translateX(20px); opacity: 0; }
+        }
+      `}</style>
       
       {/* HUD Overlay - Always visible at top */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
@@ -2126,23 +2126,44 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 </div>
               ))}
               
-              {/* Enemy Ships - Same size on all devices */}
+              {/* Enemy Ships - Themed based on current theme */}
               {enemyShips.map((enemy) => (
                 <div
                   key={enemy.id}
-                  className="absolute w-6 h-6"
+                  className="absolute"
                   style={{
                     left: `${enemy.x}%`,
                     top: `${enemy.y}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 5,
-                    backgroundImage: 'url("/SHIP.png")',
-                    backgroundSize: 'contain',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))'
+                    width: currentTheme === 'christmas' ? '28px' : '24px',
+                    height: currentTheme === 'christmas' ? '28px' : '24px',
+                    ...(currentTheme === 'halloween' ? {
+                      // Halloween: Intense red glowing enemy ship
+                      backgroundImage: 'url("/SHIP.png")',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      filter: 'drop-shadow(0 0 12px rgba(255, 0, 0, 1)) drop-shadow(0 0 24px rgba(255, 50, 0, 0.8)) hue-rotate(-20deg) saturate(2)',
+                    } : currentTheme === 'christmas' ? {
+                      // Christmas: Red glowing gift box
+                      fontSize: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      filter: 'drop-shadow(0 0 10px rgba(255, 0, 0, 1)) drop-shadow(0 0 20px rgba(255, 0, 0, 0.6))',
+                    } : {
+                      // Standard: Normal enemy ship
+                      backgroundImage: 'url("/SHIP.png")',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))',
+                    })
                   }}
-                />
+                >
+                  {currentTheme === 'christmas' && '🎁'}
+                </div>
               ))}
 
               {/* Bullets */}
