@@ -395,107 +395,182 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create Santa mitten for Christmas theme
+  // Create Santa mitten for Christmas theme - ENHANCED
   const createSantaMitten = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
-    // Red fuzzy mitten material
+    // Rich velvet red mitten material
     const redMittenMaterial = new THREE.MeshStandardMaterial({
-      color: 0xCC0000, // Christmas red
+      color: 0xCC0000,
+      roughness: 0.7,
+      metalness: 0.05,
+      emissive: 0x220000,
+      emissiveIntensity: 0.1,
+    });
+    
+    // Darker red for shading
+    const darkRedMaterial = new THREE.MeshStandardMaterial({
+      color: 0x990000,
       roughness: 0.8,
       metalness: 0.0,
     });
     
-    // White fur trim material
+    // Luxurious white fur trim material
     const whiteFurMaterial = new THREE.MeshStandardMaterial({
-      color: 0xFFFFFF,
+      color: 0xFFFFF5,
       roughness: 0.95,
       metalness: 0.0,
-      emissive: 0xDDDDDD,
-      emissiveIntensity: 0.1,
+      emissive: 0xEEEEEE,
+      emissiveIntensity: 0.15,
     });
     
-    // Main mitten body (rounded box shape)
+    // Main mitten body - thicker, more 3D
     const mittenShape = new THREE.Shape();
-    mittenShape.moveTo(-1.0, -1.2);
-    mittenShape.quadraticCurveTo(-1.3, 0, -1.0, 1.0);
-    mittenShape.quadraticCurveTo(-0.5, 1.5, 0.5, 1.5);
-    mittenShape.quadraticCurveTo(1.0, 1.0, 1.2, 0);
-    mittenShape.quadraticCurveTo(1.0, -1.0, 0.5, -1.2);
-    mittenShape.lineTo(-1.0, -1.2);
+    mittenShape.moveTo(-1.2, -1.4);
+    mittenShape.quadraticCurveTo(-1.5, 0, -1.2, 1.2);
+    mittenShape.quadraticCurveTo(-0.6, 1.8, 0.6, 1.8);
+    mittenShape.quadraticCurveTo(1.2, 1.2, 1.4, 0);
+    mittenShape.quadraticCurveTo(1.2, -1.2, 0.6, -1.4);
+    mittenShape.lineTo(-1.2, -1.4);
     
-    const mittenExtrudeSettings = { depth: 0.8, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.1, bevelSegments: 5 };
+    const mittenExtrudeSettings = { depth: 1.0, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.15, bevelSegments: 6 };
     const mittenGeo = new THREE.ExtrudeGeometry(mittenShape, mittenExtrudeSettings);
     const mitten = new THREE.Mesh(mittenGeo, redMittenMaterial);
     mitten.rotation.x = Math.PI / 2;
-    mitten.position.y = isTop ? 0.5 : -0.5;
-    mitten.position.z = -0.4;
+    mitten.position.y = isTop ? 0.6 : -0.6;
+    mitten.position.z = -0.5;
     group.add(mitten);
     
-    // Thumb
-    const thumbGeo = new THREE.CapsuleGeometry(0.35, 0.8, 12, 16);
-    const thumb = new THREE.Mesh(thumbGeo, redMittenMaterial);
-    thumb.position.set(isTop ? 1.3 : -1.3, isTop ? 0.3 : -0.3, 0);
-    thumb.rotation.z = isTop ? -0.5 : 0.5;
-    group.add(thumb);
+    // Quilted pattern on mitten (stitching lines)
+    const stitchMaterial = new THREE.MeshBasicMaterial({ color: 0x880000 });
+    for (let i = 0; i < 4; i++) {
+      const stitchGeo = new THREE.BoxGeometry(0.04, 2.8, 0.02);
+      const stitch = new THREE.Mesh(stitchGeo, stitchMaterial);
+      stitch.position.set(-0.8 + i * 0.5, isTop ? 0.6 : -0.6, 0.55);
+      group.add(stitch);
+    }
     
-    // White fur cuff - fluffy looking
-    const cuffGeo = new THREE.TorusGeometry(1.1, 0.35, 16, 32);
-    const cuff = new THREE.Mesh(cuffGeo, whiteFurMaterial);
-    cuff.position.y = isTop ? 2.0 : -2.0;
-    cuff.rotation.x = Math.PI / 2;
-    group.add(cuff);
+    // Chubby thumb with joint
+    const thumbBaseGeo = new THREE.CapsuleGeometry(0.4, 0.6, 12, 16);
+    const thumbBase = new THREE.Mesh(thumbBaseGeo, redMittenMaterial);
+    thumbBase.position.set(isTop ? 1.4 : -1.4, isTop ? 0.5 : -0.5, 0);
+    thumbBase.rotation.z = isTop ? -0.4 : 0.4;
+    group.add(thumbBase);
     
-    // Extra fur puffs for fluffy look
-    for (let p = 0; p < 12; p++) {
-      const angle = (p / 12) * Math.PI * 2;
-      const puffGeo = new THREE.SphereGeometry(0.25, 8, 8);
+    const thumbTipGeo = new THREE.CapsuleGeometry(0.35, 0.4, 12, 16);
+    const thumbTip = new THREE.Mesh(thumbTipGeo, redMittenMaterial);
+    thumbTip.position.set(isTop ? 1.8 : -1.8, isTop ? 0.1 : -0.1, 0);
+    thumbTip.rotation.z = isTop ? -0.3 : 0.3;
+    group.add(thumbTip);
+    
+    // Luxurious fur cuff - multiple layers for fluffiness
+    for (let layer = 0; layer < 3; layer++) {
+      const cuffGeo = new THREE.TorusGeometry(1.2 - layer * 0.1, 0.35 - layer * 0.05, 16, 32);
+      const cuff = new THREE.Mesh(cuffGeo, whiteFurMaterial);
+      cuff.position.y = isTop ? 2.2 + layer * 0.1 : -2.2 - layer * 0.1;
+      cuff.rotation.x = Math.PI / 2;
+      group.add(cuff);
+    }
+    
+    // Extra fluffy fur puffs
+    for (let p = 0; p < 18; p++) {
+      const angle = (p / 18) * Math.PI * 2;
+      const puffGeo = new THREE.SphereGeometry(0.2 + Math.random() * 0.1, 8, 8);
       const puff = new THREE.Mesh(puffGeo, whiteFurMaterial);
       puff.position.set(
-        Math.cos(angle) * 1.1,
-        isTop ? 2.0 : -2.0,
-        Math.sin(angle) * 1.1
+        Math.cos(angle) * (1.1 + Math.random() * 0.2),
+        isTop ? 2.2 + Math.random() * 0.3 : -2.2 - Math.random() * 0.3,
+        Math.sin(angle) * (1.1 + Math.random() * 0.2)
       );
       group.add(puff);
     }
     
-    // Red arm/sleeve
-    const armGeo = new THREE.CylinderGeometry(0.9, 1.0, 5, 20);
+    // Red velvet arm/sleeve with gold trim
+    const armGeo = new THREE.CylinderGeometry(0.95, 1.05, 5.5, 24);
     const arm = new THREE.Mesh(armGeo, redMittenMaterial);
-    arm.position.y = isTop ? 5.0 : -5.0;
+    arm.position.y = isTop ? 5.5 : -5.5;
     group.add(arm);
     
-    // Another fur cuff at elbow
-    const elbowCuffGeo = new THREE.TorusGeometry(0.95, 0.25, 12, 24);
-    const elbowCuff = new THREE.Mesh(elbowCuffGeo, whiteFurMaterial);
-    elbowCuff.position.y = isTop ? 7.5 : -7.5;
-    elbowCuff.rotation.x = Math.PI / 2;
-    group.add(elbowCuff);
+    // Gold band on arm
+    const goldBandMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      roughness: 0.15,
+      metalness: 0.9,
+    });
+    const goldBandGeo = new THREE.TorusGeometry(1.0, 0.08, 12, 32);
+    const goldBand = new THREE.Mesh(goldBandGeo, goldBandMaterial);
+    goldBand.position.y = isTop ? 4.0 : -4.0;
+    goldBand.rotation.x = Math.PI / 2;
+    group.add(goldBand);
     
-    // Gold jingle bells on cuff
+    // Fur cuff at top of arm
+    for (let layer = 0; layer < 2; layer++) {
+      const elbowCuffGeo = new THREE.TorusGeometry(1.0 - layer * 0.08, 0.3 - layer * 0.05, 12, 24);
+      const elbowCuff = new THREE.Mesh(elbowCuffGeo, whiteFurMaterial);
+      elbowCuff.position.y = isTop ? 8.0 + layer * 0.08 : -8.0 - layer * 0.08;
+      elbowCuff.rotation.x = Math.PI / 2;
+      group.add(elbowCuff);
+    }
+    
+    // Big gold jingle bells with detail
     const bellMaterial = new THREE.MeshStandardMaterial({
       color: 0xFFD700,
-      roughness: 0.2,
-      metalness: 0.8,
+      roughness: 0.15,
+      metalness: 0.9,
+      emissive: 0x332200,
+      emissiveIntensity: 0.1,
     });
-    for (let b = 0; b < 3; b++) {
-      const bellGeo = new THREE.SphereGeometry(0.15, 12, 12);
+    for (let b = 0; b < 4; b++) {
+      const bellGeo = new THREE.SphereGeometry(0.18, 16, 16);
       const bell = new THREE.Mesh(bellGeo, bellMaterial);
-      const bellAngle = (b / 3) * Math.PI * 2 + Math.PI / 6;
+      const bellAngle = (b / 4) * Math.PI * 2;
       bell.position.set(
-        Math.cos(bellAngle) * 1.2,
-        isTop ? 2.3 : -2.3,
-        Math.sin(bellAngle) * 1.2
+        Math.cos(bellAngle) * 1.3,
+        isTop ? 2.5 : -2.5,
+        Math.sin(bellAngle) * 1.3
       );
       group.add(bell);
       
+      // Bell loop (attachment)
+      const loopGeo = new THREE.TorusGeometry(0.06, 0.02, 8, 12);
+      const loop = new THREE.Mesh(loopGeo, bellMaterial);
+      loop.position.copy(bell.position);
+      loop.position.y += isTop ? 0.2 : -0.2;
+      group.add(loop);
+      
       // Bell slit
-      const slitGeo = new THREE.BoxGeometry(0.08, 0.12, 0.02);
-      const slitMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const slitGeo = new THREE.BoxGeometry(0.1, 0.14, 0.02);
+      const slitMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
       const slit = new THREE.Mesh(slitGeo, slitMat);
       slit.position.copy(bell.position);
-      slit.position.y -= isTop ? 0.1 : -0.1;
+      slit.position.y -= isTop ? 0.12 : -0.12;
       group.add(slit);
+    }
+    
+    // Holly decoration on mitten
+    const hollyLeafMaterial = new THREE.MeshStandardMaterial({ color: 0x1a5a1a, roughness: 0.5 });
+    const hollyBerryMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3 });
+    
+    // Leaves
+    for (let l = 0; l < 2; l++) {
+      const leafShape = new THREE.Shape();
+      leafShape.moveTo(0, -0.2);
+      leafShape.quadraticCurveTo(0.15, 0, 0, 0.2);
+      leafShape.quadraticCurveTo(-0.15, 0, 0, -0.2);
+      const leafGeo = new THREE.ExtrudeGeometry(leafShape, { depth: 0.03, bevelEnabled: false });
+      const leaf = new THREE.Mesh(leafGeo, hollyLeafMaterial);
+      leaf.rotation.x = Math.PI / 2;
+      leaf.rotation.z = l * 0.8 - 0.4;
+      leaf.position.set(0.3, isTop ? 1.2 : -1.2, 0.6);
+      group.add(leaf);
+    }
+    
+    // Berries
+    for (let b = 0; b < 3; b++) {
+      const berryGeo = new THREE.SphereGeometry(0.08, 8, 8);
+      const berry = new THREE.Mesh(berryGeo, hollyBerryMaterial);
+      berry.position.set(0.3 + (b - 1) * 0.1, isTop ? 1.2 : -1.2, 0.65);
+      group.add(berry);
     }
     
     return group;
@@ -668,66 +743,172 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     arm.position.y = isTop ? 7.0 : -7.0;
     group.add(arm);
     
-    // Elegant suit sleeve
-    const cuffGeometry = new THREE.CylinderGeometry(1.0, 0.92, 1.0, 20);
-    const cuffMaterial = new THREE.MeshStandardMaterial({
+    // Premium navy suit sleeve with texture
+    const suitMaterial = new THREE.MeshStandardMaterial({
       color: 0x1a1a2e,
-      roughness: 0.4,
-      metalness: 0.1,
+      roughness: 0.35,
+      metalness: 0.15,
+      emissive: 0x050510,
+      emissiveIntensity: 0.1,
     });
-    const cuff = new THREE.Mesh(cuffGeometry, cuffMaterial);
-    cuff.position.y = isTop ? 3.3 : -3.3;
+    
+    // Suit jacket cuff with tapered elegance
+    const cuffGeometry = new THREE.CylinderGeometry(1.02, 0.94, 1.2, 24);
+    const cuff = new THREE.Mesh(cuffGeometry, suitMaterial);
+    cuff.position.y = isTop ? 3.4 : -3.4;
     group.add(cuff);
     
-    // Suit jacket sleeve extending up
-    const sleeveGeometry = new THREE.CylinderGeometry(0.95, 1.0, 5, 20);
-    const sleeve = new THREE.Mesh(sleeveGeometry, cuffMaterial);
-    sleeve.position.y = isTop ? 6.0 : -6.0;
+    // Suit button at cuff
+    const buttonMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2a2a3e,
+      roughness: 0.2,
+      metalness: 0.3,
+    });
+    for (let b = 0; b < 2; b++) {
+      const buttonGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.02, 12);
+      const button = new THREE.Mesh(buttonGeo, buttonMaterial);
+      button.rotation.x = Math.PI / 2;
+      button.position.set(0.95, isTop ? 3.1 + b * 0.25 : -3.1 - b * 0.25, 0.1);
+      group.add(button);
+    }
+    
+    // Suit jacket sleeve extending up with subtle pinstripe
+    const sleeveGeometry = new THREE.CylinderGeometry(0.96, 1.02, 5.5, 24);
+    const sleeve = new THREE.Mesh(sleeveGeometry, suitMaterial);
+    sleeve.position.y = isTop ? 6.5 : -6.5;
     group.add(sleeve);
     
-    // Crisp white dress shirt cuff
-    const shirtGeometry = new THREE.CylinderGeometry(0.88, 0.88, 0.35, 20);
+    // Subtle pinstripe on sleeve
+    const stripeMaterial = new THREE.MeshBasicMaterial({ color: 0x2a2a4e, transparent: true, opacity: 0.3 });
+    for (let s = 0; s < 6; s++) {
+      const stripeGeo = new THREE.BoxGeometry(0.01, 5.5, 0.02);
+      const stripe = new THREE.Mesh(stripeGeo, stripeMaterial);
+      const angle = (s / 6) * Math.PI * 2;
+      stripe.position.set(
+        Math.cos(angle) * 0.98,
+        isTop ? 6.5 : -6.5,
+        Math.sin(angle) * 0.98
+      );
+      stripe.rotation.y = angle;
+      group.add(stripe);
+    }
+    
+    // Crisp white dress shirt cuff with French fold
     const shirtMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xFFFFF5, 
-      roughness: 0.3,
-      metalness: 0.0
+      color: 0xFFFFF8, 
+      roughness: 0.25,
+      metalness: 0.05,
+      emissive: 0xEEEEEE,
+      emissiveIntensity: 0.05,
     });
-    const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-    shirt.position.y = isTop ? 2.9 : -2.9;
-    group.add(shirt);
     
-    // French cuff with gold cufflinks
-    const cufflinkBase = new THREE.CylinderGeometry(0.1, 0.1, 0.04, 16);
-    const cufflinkMat = new THREE.MeshStandardMaterial({ 
+    // Double-folded French cuff
+    const shirtCuff1 = new THREE.CylinderGeometry(0.89, 0.89, 0.25, 24);
+    const shirt1 = new THREE.Mesh(shirtCuff1, shirtMaterial);
+    shirt1.position.y = isTop ? 2.85 : -2.85;
+    group.add(shirt1);
+    
+    const shirtCuff2 = new THREE.CylinderGeometry(0.91, 0.91, 0.2, 24);
+    const shirt2 = new THREE.Mesh(shirtCuff2, shirtMaterial);
+    shirt2.position.y = isTop ? 3.0 : -3.0;
+    group.add(shirt2);
+    
+    // Elegant gold cufflinks with diamond setting
+    const cufflinkBaseMat = new THREE.MeshStandardMaterial({ 
       color: 0xFFD700, 
-      roughness: 0.1, 
-      metalness: 0.9 
+      roughness: 0.08, 
+      metalness: 0.95,
+      emissive: 0x332200,
+      emissiveIntensity: 0.1,
     });
     
-    // Front cufflink
-    const cufflink1 = new THREE.Mesh(cufflinkBase, cufflinkMat);
-    cufflink1.rotation.x = Math.PI / 2;
-    cufflink1.position.set(0.85, isTop ? 3.3 : -3.3, 0.15);
-    group.add(cufflink1);
+    // Cufflink base (octagonal for elegance)
+    for (let side = 0; side < 2; side++) {
+      const zPos = side === 0 ? 0.2 : -0.2;
+      
+      // Outer ring
+      const ringGeo = new THREE.TorusGeometry(0.1, 0.025, 8, 8);
+      const ring = new THREE.Mesh(ringGeo, cufflinkBaseMat);
+      ring.rotation.y = Math.PI / 2;
+      ring.position.set(0.88, isTop ? 3.0 : -3.0, zPos);
+      group.add(ring);
+      
+      // Center piece
+      const centerGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.03, 8);
+      const center = new THREE.Mesh(centerGeo, cufflinkBaseMat);
+      center.rotation.x = Math.PI / 2;
+      center.position.set(0.88, isTop ? 3.0 : -3.0, zPos);
+      group.add(center);
+    }
     
-    // Back cufflink
-    const cufflink2 = new THREE.Mesh(cufflinkBase, cufflinkMat);
-    cufflink2.rotation.x = Math.PI / 2;
-    cufflink2.position.set(0.85, isTop ? 3.3 : -3.3, -0.15);
-    group.add(cufflink2);
-    
-    // Cufflink gem (small blue stone)
-    const gemGeo = new THREE.SphereGeometry(0.06, 12, 12);
-    const gemMat = new THREE.MeshStandardMaterial({ 
-      color: 0x1e3a5f, 
+    // Diamond/gemstone in cufflink
+    const diamondMat = new THREE.MeshStandardMaterial({ 
+      color: 0xE8F4FF,
       roughness: 0.0, 
-      metalness: 0.2,
-      emissive: 0x0a1525,
-      emissiveIntensity: 0.3
+      metalness: 0.1,
+      emissive: 0xCCDDFF,
+      emissiveIntensity: 0.4,
+      transparent: true,
+      opacity: 0.9,
     });
-    const gem = new THREE.Mesh(gemGeo, gemMat);
-    gem.position.set(0.85, isTop ? 3.3 : -3.3, 0.18);
-    group.add(gem);
+    const diamondGeo = new THREE.OctahedronGeometry(0.05, 0);
+    const diamond = new THREE.Mesh(diamondGeo, diamondMat);
+    diamond.position.set(0.92, isTop ? 3.0 : -3.0, 0.2);
+    diamond.rotation.z = Math.PI / 4;
+    group.add(diamond);
+    
+    // Luxury watch on wrist
+    const watchBandMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      roughness: 0.6,
+      metalness: 0.2,
+    });
+    const watchFaceMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0a1a,
+      roughness: 0.1,
+      metalness: 0.3,
+      emissive: 0x001122,
+      emissiveIntensity: 0.2,
+    });
+    const watchGoldMat = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      roughness: 0.1,
+      metalness: 0.9,
+    });
+    
+    // Watch band
+    const bandGeo = new THREE.BoxGeometry(0.3, 0.8, 0.08);
+    const band = new THREE.Mesh(bandGeo, watchBandMat);
+    band.position.set(-0.95, isTop ? 2.6 : -2.6, 0);
+    group.add(band);
+    
+    // Watch case (gold)
+    const caseGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 24);
+    const watchCase = new THREE.Mesh(caseGeo, watchGoldMat);
+    watchCase.rotation.x = Math.PI / 2;
+    watchCase.position.set(-0.95, isTop ? 2.6 : -2.6, 0.08);
+    group.add(watchCase);
+    
+    // Watch face
+    const faceGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.02, 24);
+    const face = new THREE.Mesh(faceGeo, watchFaceMat);
+    face.rotation.x = Math.PI / 2;
+    face.position.set(-0.95, isTop ? 2.6 : -2.6, 0.13);
+    group.add(face);
+    
+    // Watch hands
+    const handMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+    const hourHandGeo = new THREE.BoxGeometry(0.02, 0.1, 0.01);
+    const hourHand = new THREE.Mesh(hourHandGeo, handMat);
+    hourHand.position.set(-0.95, isTop ? 2.63 : -2.57, 0.14);
+    hourHand.rotation.z = 0.5;
+    group.add(hourHand);
+    
+    const minHandGeo = new THREE.BoxGeometry(0.015, 0.14, 0.01);
+    const minHand = new THREE.Mesh(minHandGeo, handMat);
+    minHand.position.set(-0.95, isTop ? 2.57 : -2.63, 0.14);
+    minHand.rotation.z = -0.8;
+    group.add(minHand);
     
     return group;
   }, []);

@@ -1961,6 +1961,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           90% { opacity: 0.6; }
           100% { transform: translateY(100vh) translateX(20px); opacity: 0; }
         }
+        @keyframes batWingLeft {
+          0% { transform: rotate(-15deg) scaleY(1); }
+          100% { transform: rotate(-30deg) scaleY(0.85); }
+        }
+        @keyframes batWingRight {
+          0% { transform: rotate(15deg) scaleY(1); }
+          100% { transform: rotate(30deg) scaleY(0.85); }
+        }
       `}</style>
       
       {/* HUD Overlay - Always visible at top */}
@@ -2136,15 +2144,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     top: `${enemy.y}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 5,
-                    width: currentTheme === 'christmas' ? '28px' : '24px',
-                    height: currentTheme === 'christmas' ? '28px' : '24px',
+                    width: currentTheme === 'halloween' ? '32px' : currentTheme === 'christmas' ? '28px' : '24px',
+                    height: currentTheme === 'halloween' ? '32px' : currentTheme === 'christmas' ? '28px' : '24px',
                     ...(currentTheme === 'halloween' ? {
-                      // Halloween: Intense red glowing enemy ship
-                      backgroundImage: 'url("/SHIP.png")',
-                      backgroundSize: 'contain',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'center',
-                      filter: 'drop-shadow(0 0 12px rgba(255, 0, 0, 1)) drop-shadow(0 0 24px rgba(255, 50, 0, 0.8)) hue-rotate(-20deg) saturate(2)',
+                      // Halloween: Flying bat enemy
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     } : currentTheme === 'christmas' ? {
                       // Christmas: Red glowing gift box
                       fontSize: '24px',
@@ -2162,11 +2168,95 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     })
                   }}
                 >
+                  {currentTheme === 'halloween' && (
+                    // Detailed CSS bat
+                    <div style={{ position: 'relative', width: '32px', height: '20px' }}>
+                      {/* Bat body */}
+                      <div style={{
+                        position: 'absolute',
+                        width: '12px',
+                        height: '14px',
+                        background: 'radial-gradient(ellipse at center, #2a2a3a, #1a1a2a)',
+                        borderRadius: '50%',
+                        left: '10px',
+                        top: '3px',
+                        boxShadow: '0 0 8px rgba(255, 0, 0, 0.6)',
+                      }} />
+                      {/* Left wing */}
+                      <div style={{
+                        position: 'absolute',
+                        width: '14px',
+                        height: '18px',
+                        background: 'linear-gradient(135deg, #3a2a4a, #2a1a3a)',
+                        borderRadius: '0 80% 20% 50%',
+                        left: '-2px',
+                        top: '1px',
+                        transform: 'rotate(-15deg)',
+                        boxShadow: '0 0 6px rgba(100, 0, 150, 0.5)',
+                        animation: 'batWingLeft 0.3s ease-in-out infinite alternate',
+                      }} />
+                      {/* Right wing */}
+                      <div style={{
+                        position: 'absolute',
+                        width: '14px',
+                        height: '18px',
+                        background: 'linear-gradient(-135deg, #3a2a4a, #2a1a3a)',
+                        borderRadius: '80% 0 50% 20%',
+                        right: '-2px',
+                        top: '1px',
+                        transform: 'rotate(15deg)',
+                        boxShadow: '0 0 6px rgba(100, 0, 150, 0.5)',
+                        animation: 'batWingRight 0.3s ease-in-out infinite alternate',
+                      }} />
+                      {/* Ears */}
+                      <div style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '3px solid transparent',
+                        borderRight: '3px solid transparent',
+                        borderBottom: '6px solid #2a2a3a',
+                        left: '10px',
+                        top: '-2px',
+                      }} />
+                      <div style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '3px solid transparent',
+                        borderRight: '3px solid transparent',
+                        borderBottom: '6px solid #2a2a3a',
+                        right: '10px',
+                        top: '-2px',
+                      }} />
+                      {/* Red glowing eyes */}
+                      <div style={{
+                        position: 'absolute',
+                        width: '4px',
+                        height: '4px',
+                        background: '#ff0000',
+                        borderRadius: '50%',
+                        left: '12px',
+                        top: '7px',
+                        boxShadow: '0 0 4px #ff0000, 0 0 8px #ff0000',
+                      }} />
+                      <div style={{
+                        position: 'absolute',
+                        width: '4px',
+                        height: '4px',
+                        background: '#ff0000',
+                        borderRadius: '50%',
+                        right: '12px',
+                        top: '7px',
+                        boxShadow: '0 0 4px #ff0000, 0 0 8px #ff0000',
+                      }} />
+                    </div>
+                  )}
                   {currentTheme === 'christmas' && '🎁'}
                 </div>
               ))}
 
-              {/* Bullets */}
+              {/* Bullets - Themed */}
               {bullets.map((bullet) => (
                 <div
                   key={bullet.id}
@@ -2176,8 +2266,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     top: `${bullet.y}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 8,
-                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 191, 36, 0.8), rgba(251, 191, 36, 0.6))',
-                    boxShadow: '0 0 12px rgba(251, 191, 36, 0.8), 0 0 24px rgba(251, 191, 36, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)',
+                    background: currentTheme === 'halloween'
+                      ? 'linear-gradient(180deg, rgba(150, 255, 150, 0.95), rgba(0, 255, 68, 0.9), rgba(0, 200, 50, 0.7))'
+                      : currentTheme === 'christmas'
+                      ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 100, 100, 0.8), rgba(255, 50, 50, 0.6))'
+                      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 191, 36, 0.8), rgba(251, 191, 36, 0.6))',
+                    boxShadow: currentTheme === 'halloween'
+                      ? '0 0 12px rgba(0, 255, 68, 0.9), 0 0 24px rgba(0, 255, 68, 0.5), inset 0 0 4px rgba(150, 255, 150, 0.4)'
+                      : currentTheme === 'christmas'
+                      ? '0 0 12px rgba(255, 100, 100, 0.8), 0 0 24px rgba(255, 50, 50, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)'
+                      : '0 0 12px rgba(251, 191, 36, 0.8), 0 0 24px rgba(251, 191, 36, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)',
                     animation: 'pulse 0.5s ease-in-out infinite alternate'
                   }}
                 />
@@ -2214,7 +2312,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 );
               })}
 
-              {/* Ship - Using SHIP.png - Same size on all devices */}
+              {/* Ship - Themed based on current theme */}
               <div
                 className="absolute"
                 style={{
@@ -2224,7 +2322,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   zIndex: 10,
                 }}
               >
-                {/* Light blue shield/hitbox indicator */}
+                {/* Shield/hitbox indicator - themed color */}
                 <div
                   className="absolute rounded-full border-2"
                   style={{
@@ -2233,28 +2331,125 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                     transform: 'translate(-50%, -50%)',
                     width: '32px',
                     height: '32px',
-                    borderColor: 'rgba(173, 216, 230, 0.6)',
-                    backgroundColor: 'rgba(173, 216, 230, 0.15)',
-                    boxShadow: '0 0 8px rgba(173, 216, 230, 0.5), inset 0 0 8px rgba(173, 216, 230, 0.3)',
+                    borderColor: currentTheme === 'halloween' 
+                      ? 'rgba(0, 255, 100, 0.6)' 
+                      : currentTheme === 'christmas'
+                      ? 'rgba(255, 100, 100, 0.6)'
+                      : 'rgba(173, 216, 230, 0.6)',
+                    backgroundColor: currentTheme === 'halloween'
+                      ? 'rgba(0, 255, 100, 0.15)'
+                      : currentTheme === 'christmas'
+                      ? 'rgba(255, 100, 100, 0.15)'
+                      : 'rgba(173, 216, 230, 0.15)',
+                    boxShadow: currentTheme === 'halloween'
+                      ? '0 0 8px rgba(0, 255, 100, 0.5), inset 0 0 8px rgba(0, 255, 100, 0.3)'
+                      : currentTheme === 'christmas'
+                      ? '0 0 8px rgba(255, 100, 100, 0.5), inset 0 0 8px rgba(255, 100, 100, 0.3)'
+                      : '0 0 8px rgba(173, 216, 230, 0.5), inset 0 0 8px rgba(173, 216, 230, 0.3)',
                     pointerEvents: 'none',
                     zIndex: 9,
                   }}
                 />
-                {/* Ship sprite - same size on all devices */}
-                <div
-                  className="absolute w-8 h-8"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    backgroundImage: 'url("/SHIP.png")',
-                    backgroundSize: 'contain',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))',
-                    zIndex: 10,
-                  }}
-                />
+                {/* Ship sprite - themed */}
+                {currentTheme === 'halloween' ? (
+                  // Halloween: Pumpkin ship
+                  <div
+                    className="absolute"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '36px',
+                      height: '36px',
+                      zIndex: 10,
+                    }}
+                  >
+                    {/* Pumpkin body */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '32px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(ellipse at 30% 30%, #ff8c00, #ff6600 50%, #cc4400 100%)',
+                        boxShadow: '0 0 15px rgba(255, 102, 0, 0.8), inset -3px -3px 8px rgba(0,0,0,0.3)',
+                        left: '2px',
+                        top: '4px',
+                      }}
+                    />
+                    {/* Stem */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '8px',
+                        height: '8px',
+                        background: '#2a5a2a',
+                        borderRadius: '2px',
+                        left: '14px',
+                        top: '0px',
+                      }}
+                    />
+                    {/* Left eye */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '4px solid transparent',
+                        borderRight: '4px solid transparent',
+                        borderBottom: '7px solid #00ff44',
+                        left: '7px',
+                        top: '12px',
+                        filter: 'drop-shadow(0 0 3px #00ff44)',
+                      }}
+                    />
+                    {/* Right eye */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '0',
+                        height: '0',
+                        borderLeft: '4px solid transparent',
+                        borderRight: '4px solid transparent',
+                        borderBottom: '7px solid #00ff44',
+                        left: '21px',
+                        top: '12px',
+                        filter: 'drop-shadow(0 0 3px #00ff44)',
+                      }}
+                    />
+                    {/* Mouth */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        width: '14px',
+                        height: '5px',
+                        background: '#00ff44',
+                        left: '11px',
+                        top: '22px',
+                        clipPath: 'polygon(0% 0%, 20% 100%, 40% 0%, 60% 100%, 80% 0%, 100% 100%, 100% 0%)',
+                        filter: 'drop-shadow(0 0 3px #00ff44)',
+                      }}
+                    />
+                  </div>
+                ) : (
+                  // Standard/Christmas: Normal ship
+                  <div
+                    className="absolute w-8 h-8"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      backgroundImage: 'url("/SHIP.png")',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      filter: currentTheme === 'christmas'
+                        ? 'drop-shadow(0 0 8px rgba(255, 50, 50, 0.6))'
+                        : 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))',
+                      zIndex: 10,
+                    }}
+                  />
+                )}
               </div>
           </div>
         </div>
