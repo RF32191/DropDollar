@@ -722,6 +722,9 @@ export default function CashStackGame3D({
     };
   }, [currentTheme]); // Reinitialize when theme changes
 
+  // Track block index for alternating colors
+  const blockIndexRef = useRef(0);
+  
   // Create a 3D block
   const createBlock = useCallback((
     x: number,
@@ -733,10 +736,28 @@ export default function CashStackGame3D({
   ): Block3D => {
     const geometry = new THREE.BoxGeometry(width, BLOCK_HEIGHT, depth);
     
-    // Use current variation's color scheme
+    // Determine block color based on theme
+    let blockColor = currentVariation.blockColor;
+    let emissiveColor = currentVariation.emissive;
+    let isOrangeBlock = false; // For Halloween
+    let isRedBlock = false; // For Christmas
+    
+    if (currentTheme === 'halloween') {
+      // Alternate between orange and purple
+      isOrangeBlock = blockIndexRef.current % 2 === 0;
+      blockColor = isOrangeBlock ? 0xFF6600 : 0x8800AA; // Orange or Purple
+      emissiveColor = isOrangeBlock ? 0x662200 : 0x440055;
+    } else if (currentTheme === 'christmas') {
+      // Alternate between red and green
+      isRedBlock = blockIndexRef.current % 2 === 0;
+      blockColor = isRedBlock ? 0xCC0000 : 0x00AA00; // Red or Green
+      emissiveColor = isRedBlock ? 0x440000 : 0x004400;
+    }
+    blockIndexRef.current++;
+    
     const material = new THREE.MeshStandardMaterial({
-      color: currentVariation.blockColor,
-      emissive: currentVariation.emissive,
+      color: blockColor,
+      emissive: emissiveColor,
       emissiveIntensity: 0.3,
       roughness: 0.3,
       metalness: 0.8,
@@ -751,27 +772,109 @@ export default function CashStackGame3D({
       sceneRef.current.add(mesh);
     }
 
-    // Add dollar sign as sprite
+    // Add themed symbol as sprite
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d')!;
     
-    // Draw yellow circle
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(64, 64, 50, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw $ sign
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 72px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('$', 64, 64);
+    if (currentTheme === 'halloween') {
+      // Draw CANDY instead of dollar sign
+      // Candy wrapper shape
+      ctx.fillStyle = '#FF4400'; // Orange candy
+      ctx.beginPath();
+      ctx.ellipse(64, 64, 35, 25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Wrapper ends (twisted)
+      ctx.fillStyle = '#FFDD00';
+      // Left wrapper twist
+      ctx.beginPath();
+      ctx.moveTo(28, 54);
+      ctx.lineTo(10, 44);
+      ctx.lineTo(10, 84);
+      ctx.lineTo(28, 74);
+      ctx.closePath();
+      ctx.fill();
+      // Right wrapper twist
+      ctx.beginPath();
+      ctx.moveTo(100, 54);
+      ctx.lineTo(118, 44);
+      ctx.lineTo(118, 84);
+      ctx.lineTo(100, 74);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Candy stripes
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 4;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(44 + i * 15, 44);
+        ctx.lineTo(44 + i * 15, 84);
+        ctx.stroke();
+      }
+      
+    } else if (currentTheme === 'christmas') {
+      // Draw CHRISTMAS LIGHT bulb
+      // Light color: Green on red block, Red on green block
+      const lightColor = isRedBlock ? '#00FF00' : '#FF0000';
+      const glowColor = isRedBlock ? '#88FF88' : '#FF8888';
+      
+      // Glow effect
+      const gradient = ctx.createRadialGradient(64, 70, 5, 64, 70, 45);
+      gradient.addColorStop(0, lightColor);
+      gradient.addColorStop(0.5, glowColor);
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 128, 128);
+      
+      // Light bulb base (silver cap)
+      ctx.fillStyle = '#AAAAAA';
+      ctx.beginPath();
+      ctx.rect(52, 30, 24, 15);
+      ctx.fill();
+      // Threading on base
+      ctx.strokeStyle = '#666666';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(52, 33 + i * 4);
+        ctx.lineTo(76, 33 + i * 4);
+        ctx.stroke();
+      }
+      
+      // Light bulb (teardrop shape)
+      ctx.fillStyle = lightColor;
+      ctx.beginPath();
+      ctx.moveTo(64, 45);
+      ctx.bezierCurveTo(45, 55, 40, 80, 64, 100);
+      ctx.bezierCurveTo(88, 80, 83, 55, 64, 45);
+      ctx.fill();
+      
+      // Shine highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath();
+      ctx.ellipse(55, 60, 6, 10, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      
+    } else {
+      // STANDARD: Draw yellow circle with $ sign
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(64, 64, 50, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw $ sign
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 72px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', 64, 64);
+    }
     
     const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
     const sprite = new THREE.Sprite(spriteMaterial);
     
     const dollarX = (Math.random() - 0.5) * width * 0.8;
@@ -795,7 +898,7 @@ export default function CashStackGame3D({
       dollarX,
       dollarZ,
     };
-  }, [currentVariation]);
+  }, [currentVariation, currentTheme]);
 
   // Create particle effect
   const createParticles = useCallback((x: number, y: number, z: number, count: number) => {
@@ -999,6 +1102,9 @@ export default function CashStackGame3D({
           setGameState('playing');
           gameStartTimeRef.current = Date.now();
           
+          // Reset block index for consistent alternating colors
+          blockIndexRef.current = 0;
+          
           // Create base block
           const baseBlock = createBlock(0, 0, INITIAL_SIZE, INITIAL_SIZE, 0, 'x');
           baseBlock.isDropping = false;
@@ -1091,6 +1197,8 @@ export default function CashStackGame3D({
       console.log(`💥 EXPLOSION! Blocks: ${stackedBlocksRef.current.length}, Bonus: ${bonus.toFixed(2)}, Speed: ${currentSpeedMultiplierRef.current.toFixed(2)}x`);
       
       setTimeout(() => {
+        // Reset block index for consistent alternating colors
+        blockIndexRef.current = 0;
         const baseBlock = createBlock(0, 0, INITIAL_SIZE, INITIAL_SIZE, 0, 'x');
         baseBlock.isDropping = false;
         baseBlock.currentY = 0;
