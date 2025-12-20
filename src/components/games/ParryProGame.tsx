@@ -238,62 +238,109 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       group.add(cap);
       
     } else if (currentTheme === 'christmas' && isEnemy) {
-      // CHRISTMAS: Candy cane weapon for enemies
-      // Curved candy cane shape
-      const canePoints: THREE.Vector3[] = [];
-      // Straight part
-      for (let i = 0; i <= 10; i++) {
-        canePoints.push(new THREE.Vector3(0, i * 0.2, 0));
-      }
-      // Curved hook
-      for (let i = 0; i <= 10; i++) {
-        const t = i / 10;
-        const angle = t * Math.PI;
-        canePoints.push(new THREE.Vector3(
-          -Math.sin(angle) * 0.4,
-          2 + Math.cos(angle) * 0.4,
-          0
-        ));
-      }
-      const caneCurve = new THREE.CatmullRomCurve3(canePoints);
+      // CHRISTMAS: CANDY CANE SWORD for enemies
+      // Main candy cane blade (straight sword shape with candy cane texture)
+      const bladeLength = 2.8;
+      const bladeWidth = 0.2;
       
-      // Red part
-      const redGeometry = new THREE.TubeGeometry(caneCurve, 32, 0.12, 12, false);
-      const redMaterial = new THREE.MeshPhongMaterial({
-        color: 0xff0000,
+      // Red candy base
+      const bladeGeo = new THREE.CylinderGeometry(bladeWidth, bladeWidth, bladeLength, 16);
+      const bladeMat = new THREE.MeshPhongMaterial({
+        color: 0xee0000,
         emissive: 0x440000,
-        shininess: 80,
+        shininess: 90,
       });
-      const redCane = new THREE.Mesh(redGeometry, redMaterial);
-      redCane.name = 'blade';
-      group.add(redCane);
+      const blade = new THREE.Mesh(bladeGeo, bladeMat);
+      blade.position.y = bladeLength / 2;
+      blade.name = 'blade';
+      group.add(blade);
       
-      // White stripes (spiraling)
-      for (let stripe = 0; stripe < 8; stripe++) {
-        const stripeGeometry = new THREE.TorusGeometry(0.13, 0.03, 8, 6, Math.PI * 0.3);
-        const stripeMaterial = new THREE.MeshPhongMaterial({
+      // White spiral stripes - thick and visible
+      for (let stripe = 0; stripe < 12; stripe++) {
+        const stripeGeo = new THREE.TorusGeometry(bladeWidth + 0.02, 0.06, 8, 16, Math.PI * 0.6);
+        const stripeMat = new THREE.MeshPhongMaterial({
           color: 0xffffff,
-          emissive: 0x444444,
-          shininess: 60,
+          emissive: 0x888888,
+          shininess: 80,
         });
-        const stripeRing = new THREE.Mesh(stripeGeometry, stripeMaterial);
-        stripeRing.position.y = stripe * 0.3;
+        const stripeRing = new THREE.Mesh(stripeGeo, stripeMat);
+        stripeRing.position.y = 0.2 + stripe * 0.22;
         stripeRing.rotation.x = Math.PI / 2;
-        stripeRing.rotation.z = stripe * 0.5;
+        stripeRing.rotation.z = stripe * 0.6; // Spiral effect
         group.add(stripeRing);
       }
       
-      // Sparkle on top
-      const sparkleGeometry = new THREE.OctahedronGeometry(0.08, 0);
-      const sparkleMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.9,
-      });
-      const sparkle = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
-      sparkle.position.set(-0.4, 2.4, 0);
-      sparkle.name = 'edge';
-      group.add(sparkle);
+      // Curved hook at the top (candy cane style)
+      const hookPoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 12; i++) {
+        const t = i / 12;
+        const angle = t * Math.PI * 0.8;
+        hookPoints.push(new THREE.Vector3(
+          -Math.sin(angle) * 0.5,
+          bladeLength + Math.cos(angle) * 0.5 - 0.3,
+          0
+        ));
+      }
+      const hookCurve = new THREE.CatmullRomCurve3(hookPoints);
+      const hookGeo = new THREE.TubeGeometry(hookCurve, 16, bladeWidth * 0.9, 12, false);
+      const hookMesh = new THREE.Mesh(hookGeo, bladeMat);
+      group.add(hookMesh);
+      
+      // White stripes on hook
+      for (let s = 0; s < 4; s++) {
+        const stripeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+        const t = (s + 0.5) / 4;
+        const angle = t * Math.PI * 0.8;
+        stripe.position.set(-Math.sin(angle) * 0.5, bladeLength + Math.cos(angle) * 0.5 - 0.3, 0.15);
+        group.add(stripe);
+      }
+      
+      // Handle/Guard with festive ribbon
+      const guardGeo = new THREE.BoxGeometry(0.8, 0.15, 0.15);
+      const guardMat = new THREE.MeshStandardMaterial({ color: 0x00aa00, metalness: 0.3 });
+      const guard = new THREE.Mesh(guardGeo, guardMat);
+      guard.position.y = 0;
+      group.add(guard);
+      
+      // Handle with ribbon wrap
+      const handleGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.6, 12);
+      const handleMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
+      const handle = new THREE.Mesh(handleGeo, handleMat);
+      handle.position.y = -0.35;
+      group.add(handle);
+      
+      // Gold ribbon on handle
+      for (let r = 0; r < 3; r++) {
+        const ribbonGeo = new THREE.TorusGeometry(0.14, 0.02, 8, 16, Math.PI);
+        const ribbonMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+        const ribbon = new THREE.Mesh(ribbonGeo, ribbonMat);
+        ribbon.position.y = -0.2 - r * 0.15;
+        ribbon.rotation.x = Math.PI / 2;
+        ribbon.rotation.z = r * 0.8;
+        group.add(ribbon);
+      }
+      
+      // Festive bow on guard
+      const bowMat = new THREE.MeshBasicMaterial({ color: 0x00cc00 });
+      const bowLoop1 = new THREE.TorusGeometry(0.12, 0.03, 8, 16, Math.PI * 1.5);
+      const bow1 = new THREE.Mesh(bowLoop1, bowMat);
+      bow1.position.set(0.3, 0, 0.1);
+      bow1.rotation.z = Math.PI / 4;
+      group.add(bow1);
+      const bow2 = new THREE.Mesh(bowLoop1.clone(), bowMat);
+      bow2.position.set(-0.3, 0, 0.1);
+      bow2.rotation.z = -Math.PI / 4;
+      group.add(bow2);
+      
+      // Glowing tip
+      const tipGeo = new THREE.SphereGeometry(0.1, 12, 12);
+      const tipMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const tip = new THREE.Mesh(tipGeo, tipMat);
+      tip.position.set(-0.45, bladeLength + 0.1, 0);
+      tip.name = 'edge';
+      group.add(tip);
       
     } else {
       // STANDARD: Regular sword
@@ -953,17 +1000,43 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     }
   }, [createEnemy]);
   
-  // Initialize scene
+  // Initialize scene - recreate when theme changes
   useEffect(() => {
-    if (!containerRef.current || initializedRef.current) return;
+    if (!containerRef.current) return;
+    
+    // If scene exists, dispose it first (for theme changes)
+    if (sceneRef.current && rendererRef.current) {
+      console.log('🔄 [ParryPro] Theme changed, recreating scene...');
+      rendererRef.current.dispose();
+      if (containerRef.current.contains(rendererRef.current.domElement)) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+      }
+      sceneRef.current = null;
+      rendererRef.current = null;
+      playerSwordRef.current = null;
+      enemiesRef.current = [];
+      initializedRef.current = false;
+    }
+    
+    if (initializedRef.current) return;
     initializedRef.current = true;
     
     const container = containerRef.current;
     
-    // Scene
+    // Scene - THEMED backgrounds
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a0a0a);
-    scene.fog = new THREE.Fog(0x1a0a0a, 5, 20);
+    
+    // Theme-based background colors
+    if (currentTheme === 'halloween') {
+      scene.background = new THREE.Color(0x0a0015); // Dark purple night
+      scene.fog = new THREE.Fog(0x0a0015, 8, 25);
+    } else if (currentTheme === 'christmas') {
+      scene.background = new THREE.Color(0x0a1a2a); // Dark winter night
+      scene.fog = new THREE.Fog(0x0a1a2a, 10, 30);
+    } else {
+      scene.background = new THREE.Color(0x1a0a0a);
+      scene.fog = new THREE.Fog(0x1a0a0a, 5, 20);
+    }
     sceneRef.current = scene;
     
     // Camera - wider FOV and further back on mobile to see all enemies
@@ -984,35 +1057,261 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x442222, 0.5);
-    scene.add(ambientLight);
+    // Lighting - themed
+    if (currentTheme === 'halloween') {
+      const ambientLight = new THREE.AmbientLight(0x2211aa, 0.4);
+      scene.add(ambientLight);
+      const spotlight = new THREE.SpotLight(0x8844FF, 1.5);
+      spotlight.position.set(0, 8, 2);
+      spotlight.angle = Math.PI / 4;
+      spotlight.castShadow = true;
+      scene.add(spotlight);
+      const backLight = new THREE.DirectionalLight(0x6622FF, 0.4);
+      backLight.position.set(-5, 3, -5);
+      scene.add(backLight);
+    } else if (currentTheme === 'christmas') {
+      const ambientLight = new THREE.AmbientLight(0x334466, 0.5);
+      scene.add(ambientLight);
+      const spotlight = new THREE.SpotLight(0xFFFFDD, 1.2);
+      spotlight.position.set(0, 8, 2);
+      spotlight.angle = Math.PI / 4;
+      spotlight.castShadow = true;
+      scene.add(spotlight);
+      const backLight = new THREE.DirectionalLight(0x4488FF, 0.3);
+      backLight.position.set(-5, 3, -5);
+      scene.add(backLight);
+    } else {
+      const ambientLight = new THREE.AmbientLight(0x442222, 0.5);
+      scene.add(ambientLight);
+      const spotlight = new THREE.SpotLight(0xFF4444, 1.5);
+      spotlight.position.set(0, 8, 2);
+      spotlight.angle = Math.PI / 4;
+      spotlight.castShadow = true;
+      scene.add(spotlight);
+      const backLight = new THREE.DirectionalLight(0x4444FF, 0.3);
+      backLight.position.set(-5, 3, -5);
+      scene.add(backLight);
+    }
     
-    const spotlight = new THREE.SpotLight(0xFF4444, 1.5);
-    spotlight.position.set(0, 8, 2);
-    spotlight.angle = Math.PI / 4;
-    spotlight.castShadow = true;
-    scene.add(spotlight);
+    // === HALLOWEEN THEMED BACKGROUND ===
+    if (currentTheme === 'halloween') {
+      // FULL MOON
+      const moonGeo = new THREE.CircleGeometry(3, 32);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
+      const moon = new THREE.Mesh(moonGeo, moonMat);
+      moon.position.set(8, 10, -20);
+      scene.add(moon);
+      // Moon glow
+      const moonGlowGeo = new THREE.CircleGeometry(4, 32);
+      const moonGlowMat = new THREE.MeshBasicMaterial({ color: 0xffffcc, transparent: true, opacity: 0.3 });
+      const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
+      moonGlow.position.set(8, 10, -20.1);
+      scene.add(moonGlow);
+      
+      // FRANKENSTEIN'S CASTLE silhouette
+      const castleMat = new THREE.MeshBasicMaterial({ color: 0x0a0010 });
+      // Main tower
+      const towerGeo = new THREE.BoxGeometry(4, 12, 2);
+      const tower = new THREE.Mesh(towerGeo, castleMat);
+      tower.position.set(-8, 4, -18);
+      scene.add(tower);
+      // Tower top
+      const towerTopGeo = new THREE.ConeGeometry(2.5, 3, 4);
+      const towerTop = new THREE.Mesh(towerTopGeo, castleMat);
+      towerTop.position.set(-8, 11.5, -18);
+      scene.add(towerTop);
+      // Second tower
+      const tower2 = new THREE.Mesh(towerGeo.clone(), castleMat);
+      tower2.scale.set(0.8, 0.7, 1);
+      tower2.position.set(-4, 2.5, -16);
+      scene.add(tower2);
+      // Castle wall
+      const wallGeo = new THREE.BoxGeometry(8, 5, 1);
+      const wall = new THREE.Mesh(wallGeo, castleMat);
+      wall.position.set(-6, 1.5, -15);
+      scene.add(wall);
+      
+      // TESLA COILS
+      for (let i = 0; i < 2; i++) {
+        const coilX = i === 0 ? -12 : 12;
+        // Base
+        const baseGeo = new THREE.CylinderGeometry(0.8, 1, 1, 8);
+        const baseMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8 });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.set(coilX, 0.5, -12);
+        scene.add(base);
+        // Tower
+        const towerCoilGeo = new THREE.CylinderGeometry(0.3, 0.5, 4, 8);
+        const towerCoil = new THREE.Mesh(towerCoilGeo, baseMat);
+        towerCoil.position.set(coilX, 3, -12);
+        scene.add(towerCoil);
+        // Top sphere
+        const topGeo = new THREE.SphereGeometry(0.6, 16, 16);
+        const topMat = new THREE.MeshStandardMaterial({ color: 0x6666ff, emissive: 0x4400ff, emissiveIntensity: 0.5 });
+        const top = new THREE.Mesh(topGeo, topMat);
+        top.position.set(coilX, 5.3, -12);
+        scene.add(top);
+        // Electricity arcs (static)
+        for (let j = 0; j < 3; j++) {
+          const arcGeo = new THREE.BoxGeometry(0.05, 1.5, 0.05);
+          const arcMat = new THREE.MeshBasicMaterial({ color: 0x8888ff });
+          const arc = new THREE.Mesh(arcGeo, arcMat);
+          arc.position.set(coilX + (Math.random() - 0.5) * 0.8, 5.8 + j * 0.4, -12);
+          arc.rotation.z = (Math.random() - 0.5) * 1;
+          scene.add(arc);
+        }
+      }
+      
+      // TOMBSTONES
+      const tombMat = new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.9 });
+      const tombPositions = [[-6, -10], [-3, -11], [3, -10], [6, -11], [0, -12]];
+      tombPositions.forEach(([x, z]) => {
+        const tombGeo = new THREE.BoxGeometry(0.8, 1.2, 0.2);
+        const tomb = new THREE.Mesh(tombGeo, tombMat);
+        tomb.position.set(x, 0.6, z);
+        tomb.rotation.y = (Math.random() - 0.5) * 0.3;
+        scene.add(tomb);
+        // Top curve
+        const topCurveGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 16, 1, false, 0, Math.PI);
+        const topCurve = new THREE.Mesh(topCurveGeo, tombMat);
+        topCurve.rotation.x = Math.PI / 2;
+        topCurve.rotation.z = Math.PI / 2;
+        topCurve.position.set(x, 1.2, z);
+        scene.add(topCurve);
+      });
+    }
     
-    const backLight = new THREE.DirectionalLight(0x4444FF, 0.3);
-    backLight.position.set(-5, 3, -5);
-    scene.add(backLight);
+    // === CHRISTMAS THEMED BACKGROUND ===
+    if (currentTheme === 'christmas') {
+      // Gentle snowfall particles
+      const snowCount = 100;
+      const snowGeometry = new THREE.BufferGeometry();
+      const snowPositions = new Float32Array(snowCount * 3);
+      for (let i = 0; i < snowCount * 3; i += 3) {
+        snowPositions[i] = (Math.random() - 0.5) * 40;
+        snowPositions[i + 1] = Math.random() * 15;
+        snowPositions[i + 2] = (Math.random() - 0.5) * 30 - 5;
+      }
+      snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+      const snowMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.8 });
+      const snow = new THREE.Points(snowGeometry, snowMaterial);
+      scene.add(snow);
+      
+      // CHRISTMAS TREES
+      const treePositions = [[-10, -12], [-6, -14], [6, -14], [10, -12], [0, -16]];
+      treePositions.forEach(([x, z]) => {
+        const treeGroup = new THREE.Group();
+        // Trunk
+        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 1, 8);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3728 });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = 0.5;
+        treeGroup.add(trunk);
+        // Tree layers
+        for (let i = 0; i < 3; i++) {
+          const coneGeo = new THREE.ConeGeometry(1.5 - i * 0.3, 2, 8);
+          const coneMat = new THREE.MeshStandardMaterial({ color: 0x1a5a1a, emissive: 0x0a2a0a, emissiveIntensity: 0.2 });
+          const cone = new THREE.Mesh(coneGeo, coneMat);
+          cone.position.y = 1.5 + i * 1.2;
+          treeGroup.add(cone);
+        }
+        // Star on top
+        const starGeo = new THREE.OctahedronGeometry(0.3, 0);
+        const starMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const star = new THREE.Mesh(starGeo, starMat);
+        star.position.y = 5;
+        treeGroup.add(star);
+        // Ornaments
+        const ornamentColors = [0xff0000, 0x0000ff, 0xffff00, 0xff00ff];
+        for (let o = 0; o < 6; o++) {
+          const ornGeo = new THREE.SphereGeometry(0.12, 8, 8);
+          const ornMat = new THREE.MeshBasicMaterial({ color: ornamentColors[o % 4] });
+          const orn = new THREE.Mesh(ornGeo, ornMat);
+          const angle = (o / 6) * Math.PI * 2;
+          const height = 1.5 + (o % 3) * 1.2;
+          orn.position.set(Math.cos(angle) * (1.3 - (o % 3) * 0.2), height, Math.sin(angle) * (1.3 - (o % 3) * 0.2));
+          treeGroup.add(orn);
+        }
+        treeGroup.position.set(x, 0, z);
+        scene.add(treeGroup);
+      });
+      
+      // GIFT BOXES
+      const giftPositions = [[-4, -10], [4, -10], [-2, -11], [2, -11]];
+      const giftColors = [0xff0000, 0x00ff00, 0x0000ff, 0xff00ff];
+      giftPositions.forEach(([x, z], i) => {
+        const giftGroup = new THREE.Group();
+        // Box
+        const boxGeo = new THREE.BoxGeometry(0.8, 0.6, 0.8);
+        const boxMat = new THREE.MeshStandardMaterial({ color: giftColors[i] });
+        const box = new THREE.Mesh(boxGeo, boxMat);
+        box.position.y = 0.3;
+        giftGroup.add(box);
+        // Ribbon
+        const ribbonMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+        const ribbon1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.65, 0.85), ribbonMat);
+        ribbon1.position.y = 0.3;
+        giftGroup.add(ribbon1);
+        const ribbon2 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.65, 0.1), ribbonMat);
+        ribbon2.position.y = 0.3;
+        giftGroup.add(ribbon2);
+        // Bow
+        const bowGeo = new THREE.TorusGeometry(0.15, 0.05, 8, 16, Math.PI);
+        const bow1 = new THREE.Mesh(bowGeo, ribbonMat);
+        bow1.position.set(0.1, 0.65, 0);
+        bow1.rotation.z = Math.PI / 4;
+        giftGroup.add(bow1);
+        const bow2 = new THREE.Mesh(bowGeo, ribbonMat);
+        bow2.position.set(-0.1, 0.65, 0);
+        bow2.rotation.z = -Math.PI / 4;
+        giftGroup.add(bow2);
+        giftGroup.position.set(x, 0, z);
+        giftGroup.rotation.y = Math.random() * 0.5;
+        scene.add(giftGroup);
+      });
+      
+      // CHRISTMAS LIGHTS string
+      const lightsColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
+      for (let i = 0; i < 20; i++) {
+        const bulbGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const bulbMat = new THREE.MeshBasicMaterial({ color: lightsColors[i % 5] });
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        const angle = (i / 20) * Math.PI + Math.PI;
+        bulb.position.set(Math.cos(angle) * 12, 6 + Math.sin(i * 0.5) * 0.5, -10);
+        scene.add(bulb);
+      }
+    }
     
-    // Floor (arena)
+    // Floor (arena) - themed
     const floorGeometry = new THREE.CircleGeometry(10, 32);
+    let floorColor = 0x2a1a1a;
+    let floorEmissive = 0x100505;
+    if (currentTheme === 'halloween') {
+      floorColor = 0x1a1020;
+      floorEmissive = 0x0a0510;
+    } else if (currentTheme === 'christmas') {
+      floorColor = 0xddddee; // Snowy ground
+      floorEmissive = 0x222233;
+    }
     const floorMaterial = new THREE.MeshPhongMaterial({
-      color: 0x2a1a1a,
-      emissive: 0x100505,
+      color: floorColor,
+      emissive: floorEmissive,
     });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
     
-    // Arena ring
+    // Arena ring - themed
     const ringGeometry = new THREE.TorusGeometry(9.5, 0.1, 8, 64);
+    let ringColor = 0xFF4444;
+    if (currentTheme === 'halloween') {
+      ringColor = 0x8844FF; // Purple
+    } else if (currentTheme === 'christmas') {
+      ringColor = 0x00FF00; // Green
+    }
     const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0xFF4444,
+      color: ringColor,
     });
     const ring = new THREE.Mesh(ringGeometry, ringMaterial);
     ring.rotation.x = -Math.PI / 2;
@@ -1355,7 +1654,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         musicRef.current = null;
       }
     };
-  }, [createSword, createEnemy, spawnEnemy]);
+  }, [createSword, createEnemy, spawnEnemy, currentTheme]);
   
   // Keyboard handler
   useEffect(() => {

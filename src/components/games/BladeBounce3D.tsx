@@ -854,24 +854,45 @@ export default function BladeBounce3D({
       const fireGroup = new THREE.Group();
       
       if (currentTheme === 'christmas') {
-        // SNOWBALLS for Christmas
+        // REALISTIC SNOWBALLS for Christmas
         if (isSpecial) {
-          // YELLOW/GOLDEN SNOWBALL (high value)
-          const coreGeo = new THREE.SphereGeometry(projectileSize * 0.5, 16, 16);
+          // GOLDEN SNOWBALL (high value) - sparkly and magical
+          // Core packed snow
+          const coreGeo = new THREE.SphereGeometry(projectileSize * 0.55, 24, 24);
           const coreMat = new THREE.MeshStandardMaterial({
-            color: 0xffff00,
-            emissive: 0xffaa00,
-            emissiveIntensity: 0.5,
-            roughness: 0.3,
+            color: 0xffffd0,
+            roughness: 0.85,
+            metalness: 0.1,
+            emissive: 0xffcc00,
+            emissiveIntensity: 0.4,
           });
-          fireGroup.add(new THREE.Mesh(coreGeo, coreMat));
+          const core = new THREE.Mesh(coreGeo, coreMat);
+          fireGroup.add(core);
           
-          const sparkleGeo = new THREE.SphereGeometry(projectileSize * 0.7, 20, 20);
-          const sparkleMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.6 });
-          fireGroup.add(new THREE.Mesh(sparkleGeo, sparkleMat));
+          // Bumpy snow texture - random small bumps
+          for (let i = 0; i < 12; i++) {
+            const bumpGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 8, 8);
+            const bumpMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, roughness: 0.9 });
+            const bump = new THREE.Mesh(bumpGeo, bumpMat);
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI;
+            const r = projectileSize * 0.5;
+            bump.position.set(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+            fireGroup.add(bump);
+          }
           
-          const glowGeo = new THREE.SphereGeometry(projectileSize * 1.2, 24, 24);
-          const glowMat = new THREE.MeshBasicMaterial({ color: 0xffdd00, transparent: true, opacity: 0.3 });
+          // Golden sparkle particles
+          for (let i = 0; i < 8; i++) {
+            const sparkGeo = new THREE.OctahedronGeometry(0.04, 0);
+            const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+            const spark = new THREE.Mesh(sparkGeo, sparkMat);
+            const angle = (i / 8) * Math.PI * 2;
+            spark.position.set(Math.cos(angle) * projectileSize * 0.7, Math.sin(angle) * projectileSize * 0.7, 0.1);
+            fireGroup.add(spark);
+          }
+          
+          const glowGeo = new THREE.SphereGeometry(projectileSize * 1.3, 24, 24);
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0xffdd00, transparent: true, opacity: 0.25 });
           const glowMesh = new THREE.Mesh(glowGeo, glowMat);
           glowMesh.position.set(x, y, 0);
           sceneRef.current.add(glowMesh);
@@ -890,26 +911,51 @@ export default function BladeBounce3D({
           return;
         }
         
-        // WHITE SNOWBALL (regular)
-        const snowGeo = new THREE.SphereGeometry(projectileSize * 0.6, 16, 16);
-        const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
-        fireGroup.add(new THREE.Mesh(snowGeo, snowMat));
+        // WHITE SNOWBALL (regular) - realistic packed snow
+        // Main snowball - slightly imperfect sphere
+        const snowGeo = new THREE.SphereGeometry(projectileSize * 0.6, 20, 20);
+        const snowMat = new THREE.MeshStandardMaterial({ 
+          color: 0xffffff, 
+          roughness: 0.95,
+          metalness: 0.0,
+        });
+        const snowball = new THREE.Mesh(snowGeo, snowMat);
+        snowball.scale.set(1, 0.95, 0.9); // Slightly squished like real snowball
+        fireGroup.add(snowball);
         
-        const iceGeo = new THREE.SphereGeometry(projectileSize * 0.75, 20, 20);
-        const iceMat = new THREE.MeshStandardMaterial({ color: 0xe8f4ff, transparent: true, opacity: 0.8, roughness: 0.2 });
-        fireGroup.add(new THREE.Mesh(iceGeo, iceMat));
-        
-        // Snowflake crystals
-        for (let i = 0; i < 5; i++) {
-          const crystalGeo = new THREE.OctahedronGeometry(0.05, 0);
-          const crystalMat = new THREE.MeshBasicMaterial({ color: 0xaaddff });
-          const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-          crystal.position.set((Math.random() - 0.5) * projectileSize, (Math.random() - 0.5) * projectileSize, 0);
-          fireGroup.add(crystal);
+        // Bumpy snow texture - packed snow lumps
+        for (let i = 0; i < 15; i++) {
+          const bumpSize = 0.06 + Math.random() * 0.08;
+          const bumpGeo = new THREE.SphereGeometry(bumpSize, 6, 6);
+          const bumpMat = new THREE.MeshStandardMaterial({ 
+            color: 0xf8f8ff, 
+            roughness: 0.9 
+          });
+          const bump = new THREE.Mesh(bumpGeo, bumpMat);
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.random() * Math.PI;
+          const r = projectileSize * 0.55;
+          bump.position.set(
+            r * Math.sin(phi) * Math.cos(theta), 
+            r * Math.sin(phi) * Math.sin(theta) * 0.95, 
+            r * Math.cos(phi) * 0.9
+          );
+          fireGroup.add(bump);
         }
         
-        const glowGeo = new THREE.SphereGeometry(projectileSize * 1.2, 24, 24);
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.2 });
+        // Icy sparkles on surface
+        for (let i = 0; i < 6; i++) {
+          const iceGeo = new THREE.OctahedronGeometry(0.03, 0);
+          const iceMat = new THREE.MeshBasicMaterial({ color: 0xaaddff, transparent: true, opacity: 0.8 });
+          const ice = new THREE.Mesh(iceGeo, iceMat);
+          const angle = (i / 6) * Math.PI * 2;
+          ice.position.set(Math.cos(angle) * projectileSize * 0.5, Math.sin(angle) * projectileSize * 0.45, projectileSize * 0.3);
+          fireGroup.add(ice);
+        }
+        
+        // Cold mist glow
+        const glowGeo = new THREE.SphereGeometry(projectileSize * 1.1, 24, 24);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xccddff, transparent: true, opacity: 0.15 });
         const glowMesh = new THREE.Mesh(glowGeo, glowMat);
         glowMesh.position.set(x, y, 0);
         
@@ -927,34 +973,83 @@ export default function BladeBounce3D({
         });
         
       } else if (currentTheme === 'halloween') {
-        // FLAMING PUMPKINS for Halloween
+        // REALISTIC FLAMING PUMPKINS for Halloween
         if (isSpecial) {
-          // GREEN FLAMING PUMPKIN
-          const pumpkinGeo = new THREE.SphereGeometry(projectileSize * 0.6, 16, 12);
-          const pumpkinMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.7 });
-          const pumpkin = new THREE.Mesh(pumpkinGeo, pumpkinMat);
-          pumpkin.scale.set(1.2, 1, 1.2);
-          fireGroup.add(pumpkin);
+          // GREEN FLAMING PUMPKIN (special - high value)
+          // Pumpkin body with ridges
+          const pumpkinGeo = new THREE.SphereGeometry(projectileSize * 0.55, 16, 12);
+          const pumpkinMat = new THREE.MeshStandardMaterial({ 
+            color: 0xff6600, 
+            roughness: 0.7,
+            emissive: 0x331100,
+            emissiveIntensity: 0.2,
+          });
+          const pumpkinBody = new THREE.Mesh(pumpkinGeo, pumpkinMat);
+          pumpkinBody.scale.set(1.2, 0.9, 1.2); // Pumpkin shape - wide and short
+          fireGroup.add(pumpkinBody);
           
-          // Stem
-          const stemGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.15, 8);
-          const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a });
+          // Pumpkin ridges (vertical segments)
+          for (let i = 0; i < 8; i++) {
+            const ridgeGeo = new THREE.CapsuleGeometry(0.03, projectileSize * 0.7, 4, 8);
+            const ridgeMat = new THREE.MeshStandardMaterial({ color: 0xdd5500, roughness: 0.8 });
+            const ridge = new THREE.Mesh(ridgeGeo, ridgeMat);
+            const angle = (i / 8) * Math.PI * 2;
+            ridge.position.set(Math.cos(angle) * projectileSize * 0.5, 0, Math.sin(angle) * projectileSize * 0.5);
+            ridge.rotation.z = Math.PI / 2;
+            fireGroup.add(ridge);
+          }
+          
+          // Carved glowing face
+          const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.9 });
+          // Triangle eyes
+          const eyeShape = new THREE.Shape();
+          eyeShape.moveTo(0, 0.08);
+          eyeShape.lineTo(-0.06, -0.04);
+          eyeShape.lineTo(0.06, -0.04);
+          eyeShape.lineTo(0, 0.08);
+          const eyeGeo = new THREE.ExtrudeGeometry(eyeShape, { depth: 0.05, bevelEnabled: false });
+          const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+          leftEye.position.set(-0.15, 0.08, projectileSize * 0.5);
+          fireGroup.add(leftEye);
+          const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+          rightEye.position.set(0.15, 0.08, projectileSize * 0.5);
+          fireGroup.add(rightEye);
+          
+          // Jagged mouth
+          const mouthMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.9 });
+          const mouthGeo = new THREE.BoxGeometry(0.25, 0.06, 0.05);
+          const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+          mouth.position.set(0, -0.1, projectileSize * 0.5);
+          fireGroup.add(mouth);
+          
+          // Green stem
+          const stemGeo = new THREE.CylinderGeometry(0.04, 0.07, 0.18, 8);
+          const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.9 });
           const stem = new THREE.Mesh(stemGeo, stemMat);
-          stem.position.y = projectileSize * 0.6;
+          stem.position.y = projectileSize * 0.5;
+          stem.rotation.z = 0.2;
           fireGroup.add(stem);
           
-          // GREEN flames
-          for (let i = 0; i < 4; i++) {
-            const flameGeo = new THREE.ConeGeometry(0.1, 0.3, 8);
-            const flameMat = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00ff00 : 0x44ff44, transparent: true, opacity: 0.9 });
+          // GREEN flames erupting from top
+          for (let i = 0; i < 6; i++) {
+            const flameGeo = new THREE.ConeGeometry(0.08 + Math.random() * 0.04, 0.25 + Math.random() * 0.15, 8);
+            const flameMat = new THREE.MeshBasicMaterial({ 
+              color: i % 2 === 0 ? 0x00ff00 : 0x44ff44, 
+              transparent: true, 
+              opacity: 0.85 
+            });
             const flame = new THREE.Mesh(flameGeo, flameMat);
-            flame.position.set((Math.random() - 0.5) * 0.2, projectileSize * 0.7 + Math.random() * 0.2, 0);
-            flame.rotation.z = (Math.random() - 0.5) * 0.5;
+            flame.position.set(
+              (Math.random() - 0.5) * 0.25, 
+              projectileSize * 0.6 + Math.random() * 0.15, 
+              (Math.random() - 0.5) * 0.1
+            );
+            flame.rotation.z = (Math.random() - 0.5) * 0.4;
             fireGroup.add(flame);
           }
           
           const glowGeo = new THREE.SphereGeometry(projectileSize * 1.4, 24, 24);
-          const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3 });
+          const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.25 });
           const glowMesh = new THREE.Mesh(glowGeo, glowMat);
           glowMesh.position.set(x, y, 0);
           sceneRef.current.add(glowMesh);
@@ -973,37 +1068,75 @@ export default function BladeBounce3D({
           return;
         }
         
-        // RED FLAMING PUMPKIN
-        const pumpkinGeo = new THREE.SphereGeometry(projectileSize * 0.6, 16, 12);
-        const pumpkinMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.7, emissive: 0x331100, emissiveIntensity: 0.3 });
-        const pumpkin = new THREE.Mesh(pumpkinGeo, pumpkinMat);
-        pumpkin.scale.set(1.2, 1, 1.2);
-        fireGroup.add(pumpkin);
+        // ORANGE/RED FLAMING PUMPKIN (regular)
+        // Pumpkin body with ridges
+        const pumpkinGeo = new THREE.SphereGeometry(projectileSize * 0.55, 16, 12);
+        const pumpkinMat = new THREE.MeshStandardMaterial({ 
+          color: 0xff6600, 
+          roughness: 0.7,
+          emissive: 0x331100,
+          emissiveIntensity: 0.3,
+        });
+        const pumpkinBody = new THREE.Mesh(pumpkinGeo, pumpkinMat);
+        pumpkinBody.scale.set(1.2, 0.9, 1.2);
+        fireGroup.add(pumpkinBody);
         
-        // Carved face
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const eyeGeo = new THREE.BoxGeometry(0.08, 0.08, 0.1);
+        // Pumpkin ridges
+        for (let i = 0; i < 8; i++) {
+          const ridgeGeo = new THREE.CapsuleGeometry(0.03, projectileSize * 0.7, 4, 8);
+          const ridgeMat = new THREE.MeshStandardMaterial({ color: 0xdd5500, roughness: 0.8 });
+          const ridge = new THREE.Mesh(ridgeGeo, ridgeMat);
+          const angle = (i / 8) * Math.PI * 2;
+          ridge.position.set(Math.cos(angle) * projectileSize * 0.5, 0, Math.sin(angle) * projectileSize * 0.5);
+          ridge.rotation.z = Math.PI / 2;
+          fireGroup.add(ridge);
+        }
+        
+        // Carved glowing face - YELLOW/ORANGE glow
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.95 });
+        const eyeShape = new THREE.Shape();
+        eyeShape.moveTo(0, 0.08);
+        eyeShape.lineTo(-0.06, -0.04);
+        eyeShape.lineTo(0.06, -0.04);
+        eyeShape.lineTo(0, 0.08);
+        const eyeGeo = new THREE.ExtrudeGeometry(eyeShape, { depth: 0.05, bevelEnabled: false });
         const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-        leftEye.position.set(-0.12, 0.05, projectileSize * 0.55);
-        leftEye.rotation.z = Math.PI / 4;
+        leftEye.position.set(-0.15, 0.08, projectileSize * 0.5);
         fireGroup.add(leftEye);
         const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-        rightEye.position.set(0.12, 0.05, projectileSize * 0.55);
-        rightEye.rotation.z = Math.PI / 4;
+        rightEye.position.set(0.15, 0.08, projectileSize * 0.5);
         fireGroup.add(rightEye);
         
-        // Stem
-        const stemGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.15, 8);
-        const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a });
-        fireGroup.add(new THREE.Mesh(stemGeo, stemMat)).position.y = projectileSize * 0.6;
+        // Jagged mouth
+        const mouthMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.95 });
+        const mouthGeo = new THREE.BoxGeometry(0.25, 0.06, 0.05);
+        const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+        mouth.position.set(0, -0.1, projectileSize * 0.5);
+        fireGroup.add(mouth);
         
-        // RED flames
-        for (let i = 0; i < 4; i++) {
-          const flameGeo = new THREE.ConeGeometry(0.1, 0.3, 8);
-          const flameMat = new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xff0000 : 0xff4400, transparent: true, opacity: 0.9 });
+        // Stem
+        const stemGeo = new THREE.CylinderGeometry(0.04, 0.07, 0.18, 8);
+        const stemMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.9 });
+        const stem = new THREE.Mesh(stemGeo, stemMat);
+        stem.position.y = projectileSize * 0.5;
+        stem.rotation.z = 0.2;
+        fireGroup.add(stem);
+        
+        // ORANGE/RED flames erupting from top
+        for (let i = 0; i < 6; i++) {
+          const flameGeo = new THREE.ConeGeometry(0.08 + Math.random() * 0.04, 0.25 + Math.random() * 0.15, 8);
+          const flameMat = new THREE.MeshBasicMaterial({ 
+            color: i % 2 === 0 ? 0xff3300 : 0xff6600, 
+            transparent: true, 
+            opacity: 0.85 
+          });
           const flame = new THREE.Mesh(flameGeo, flameMat);
-          flame.position.set((Math.random() - 0.5) * 0.2, projectileSize * 0.7 + Math.random() * 0.2, 0);
-          flame.rotation.z = (Math.random() - 0.5) * 0.5;
+          flame.position.set(
+            (Math.random() - 0.5) * 0.25, 
+            projectileSize * 0.6 + Math.random() * 0.15, 
+            (Math.random() - 0.5) * 0.1
+          );
+          flame.rotation.z = (Math.random() - 0.5) * 0.4;
           fireGroup.add(flame);
         }
         
