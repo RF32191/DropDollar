@@ -288,46 +288,45 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     }
     
     if (currentTheme === 'halloween') {
-      // HALLOWEEN: Glowing pumpkin/skull
-      const pumpkinGeometry = new THREE.SphereGeometry(0.8, 16, 12);
-      pumpkinGeometry.scale(1, 0.9, 1);
-      const pumpkinMaterial = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.9 });
-      const pumpkin = new THREE.Mesh(pumpkinGeometry, pumpkinMaterial);
-      pumpkin.position.y = 0.9;
-      group.add(pumpkin);
+      // FRANKENSTEIN: Mini Tesla Coil checkpoint
+      // Base
+      const baseGeometry = new THREE.CylinderGeometry(0.7, 0.9, 0.3, 12);
+      const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x3a3a4a });
+      const base = new THREE.Mesh(baseGeometry, baseMaterial);
+      base.position.y = 0.15;
+      group.add(base);
       
-      // Stem
-      const stemGeometry = new THREE.CylinderGeometry(0.15, 0.2, 0.4, 8);
-      const stemMaterial = new THREE.MeshBasicMaterial({ color: 0x2a5a2a });
-      const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-      stem.position.y = 1.6;
-      group.add(stem);
+      // Tower
+      const towerGeometry = new THREE.CylinderGeometry(0.25, 0.35, 1.5, 12);
+      const towerMaterial = new THREE.MeshBasicMaterial({ color: 0x4a4a5a });
+      const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+      tower.position.y = 1.05;
+      group.add(tower);
       
-      // Glowing eyes
-      for (let i = -1; i <= 1; i += 2) {
-        const eyeGeometry = new THREE.ConeGeometry(0.15, 0.25, 3);
-        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.95 });
-        const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        eye.rotation.z = Math.PI;
-        eye.position.set(i * 0.25, 1.0, 0.6);
-        group.add(eye);
+      // Top electrode sphere
+      const topGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+      const topMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00aaff,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const top = new THREE.Mesh(topGeometry, topMaterial);
+      top.position.y = 2.0;
+      group.add(top);
+      
+      // Electric coil rings
+      for (let i = 0; i < 5; i++) {
+        const coilGeometry = new THREE.TorusGeometry(0.3, 0.03, 8, 24);
+        const coilMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff6600, // Orange coil
+          transparent: true,
+          opacity: 0.8,
+        });
+        const coil = new THREE.Mesh(coilGeometry, coilMaterial);
+        coil.position.y = 0.4 + i * 0.25;
+        coil.rotation.x = Math.PI / 2;
+        group.add(coil);
       }
-      
-      // Mouth
-      const mouthShape = new THREE.Shape();
-      mouthShape.moveTo(-0.25, 0);
-      mouthShape.lineTo(-0.15, 0.15);
-      mouthShape.lineTo(0, 0);
-      mouthShape.lineTo(0.15, 0.15);
-      mouthShape.lineTo(0.25, 0);
-      mouthShape.lineTo(0.15, -0.1);
-      mouthShape.lineTo(-0.15, -0.1);
-      mouthShape.closePath();
-      const mouthGeometry = new THREE.ShapeGeometry(mouthShape);
-      const mouthMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.95 });
-      const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
-      mouth.position.set(0, 0.6, 0.65);
-      group.add(mouth);
       
     } else if (currentTheme === 'christmas') {
       // CHRISTMAS: Gift box with bow
@@ -516,70 +515,92 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     const group = new THREE.Group();
     
     if (currentTheme === 'halloween') {
-      // HALLOWEEN: Ghostly wisp/spirit
-      // Ghost body - elongated oval shape
-      const ghostGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-      ghostGeometry.scale(1, 1.5, 0.8);
-      const ghostMaterial = new THREE.MeshBasicMaterial({
-        color: 0x88ff88, // Eerie green
-        transparent: true,
-        opacity: 0.85,
-      });
-      const ghost = new THREE.Mesh(ghostGeometry, ghostMaterial);
-      ghost.name = 'mainBolt';
-      group.add(ghost);
-      
-      // Ghost tail (wavy bottom)
-      const tailPoints: THREE.Vector3[] = [];
-      for (let i = 0; i <= 12; i++) {
-        const t = i / 12;
-        const wave = Math.sin(t * Math.PI * 3) * 0.2;
-        tailPoints.push(new THREE.Vector3(wave, -0.7 - t * 0.8, 0));
+      // HALLOWEEN: Electric blue Frankenstein lightning bolt
+      // Main bolt body - jagged lightning shape
+      const boltPoints: THREE.Vector3[] = [];
+      const segments = 12;
+      for (let i = 0; i <= segments; i++) {
+        const y = (i / segments) * 4 - 2; // Taller bolt
+        // Jagged zigzag pattern for classic lightning
+        const zigzag = (i % 2 === 0) ? 0.3 : -0.3;
+        const noise = Math.sin(i * 1.5) * 0.1;
+        boltPoints.push(new THREE.Vector3(zigzag + noise, y, 0));
       }
-      const tailCurve = new THREE.CatmullRomCurve3(tailPoints);
-      const tailGeometry = new THREE.TubeGeometry(tailCurve, 16, 0.2 - 0.1, 8, false);
-      const tailMaterial = new THREE.MeshBasicMaterial({
-        color: 0x66dd66,
-        transparent: true,
-        opacity: 0.6,
-      });
-      const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-      tail.name = 'glow';
-      group.add(tail);
       
-      // Glowing core
-      const coreGeometry = new THREE.SphereGeometry(0.25, 12, 12);
+      const boltCurve = new THREE.CatmullRomCurve3(boltPoints);
+      const boltGeometry = new THREE.TubeGeometry(boltCurve, 32, 0.25, 12, false);
+      const boltMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00aaff, // Electric blue
+        transparent: true,
+        opacity: 1.0,
+      });
+      const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+      bolt.name = 'mainBolt';
+      group.add(bolt);
+      
+      // Hot white core (inner glow)
+      const coreGeometry = new THREE.TubeGeometry(boltCurve, 32, 0.1, 8, false);
       const coreMaterial = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.9,
+        opacity: 1.0,
       });
       const core = new THREE.Mesh(coreGeometry, coreMaterial);
       core.name = 'core';
       group.add(core);
       
-      // Spooky eye sockets (dark hollow)
-      for (let i = -1; i <= 1; i += 2) {
-        const eyeGeometry = new THREE.SphereGeometry(0.12, 8, 8);
-        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-        eye.position.set(i * 0.2, 0.2, 0.4);
-        eye.name = `branch${i === -1 ? 0 : 1}`;
-        group.add(eye);
+      // Outer electric glow
+      const glowGeometry = new THREE.TubeGeometry(boltCurve, 32, 0.45, 12, false);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x4488ff, // Light blue glow
+        transparent: true,
+        opacity: 0.35,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.name = 'glow';
+      group.add(glow);
+      
+      // Electric spark branches (Frankenstein electricity)
+      for (let i = 0; i < 6; i++) {
+        const branchPoints: THREE.Vector3[] = [];
+        const startY = (Math.random() * 3) - 1.5;
+        const startX = (i % 2 === 0 ? 0.3 : -0.3) + Math.sin(startY) * 0.1;
+        branchPoints.push(new THREE.Vector3(startX, startY, 0));
         
-        // Glowing eye pupils
-        const pupilGeometry = new THREE.SphereGeometry(0.05, 6, 6);
-        const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.9 });
-        const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-        pupil.position.set(i * 0.2, 0.2, 0.45);
-        pupil.name = `branch${i === -1 ? 2 : 3}`;
-        group.add(pupil);
+        const direction = i % 2 === 0 ? 1 : -1;
+        const length = 0.4 + Math.random() * 0.4;
+        branchPoints.push(new THREE.Vector3(
+          startX + direction * length * 0.5,
+          startY + (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.2
+        ));
+        branchPoints.push(new THREE.Vector3(
+          startX + direction * length,
+          startY + (Math.random() - 0.5) * 0.4,
+          (Math.random() - 0.5) * 0.25
+        ));
+        
+        const branchCurve = new THREE.CatmullRomCurve3(branchPoints);
+        const branchGeometry = new THREE.TubeGeometry(branchCurve, 12, 0.05, 6, false);
+        const branchMaterial = new THREE.MeshBasicMaterial({
+          color: 0x88ccff, // Lighter blue sparks
+          transparent: true,
+          opacity: 0.8,
+        });
+        const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+        branch.name = `branch${i}`;
+        group.add(branch);
       }
       
-      // Ghost light (eerie green glow)
-      const pointLight = new THREE.PointLight(0x00ff44, 4, 12);
+      // Electric blue point light
+      const pointLight = new THREE.PointLight(0x00aaff, 5, 15);
       pointLight.position.set(0, 0, 0);
       group.add(pointLight);
+      
+      // Secondary purple glow (Frankenstein lab)
+      const purpleLight = new THREE.PointLight(0x8844ff, 2, 8);
+      purpleLight.position.set(0, 1, 0);
+      group.add(purpleLight);
       
     } else if (currentTheme === 'christmas') {
       // CHRISTMAS: Glowing snowflake/star
@@ -652,54 +673,125 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
       group.add(pointLight);
       
     } else if (currentTheme === 'reproductive') {
-      // SPERM RACE: Sperm cell
-      // Head (oval)
-      const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-      headGeometry.scale(0.7, 1.2, 0.5);
-      const headMaterial = new THREE.MeshBasicMaterial({
+      // SPERM RACE: Realistic 3D Sperm Cell
+      
+      // Main head - big round 3D sphere
+      const headGeometry = new THREE.SphereGeometry(0.6, 24, 24);
+      const headMaterial = new THREE.MeshPhongMaterial({
         color: 0xffeedd, // Cream white
+        emissive: 0x332211,
+        emissiveIntensity: 0.2,
+        shininess: 80,
         transparent: true,
         opacity: 0.95,
       });
       const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.y = 0.3;
       head.name = 'mainBolt';
       group.add(head);
       
-      // Acrosome (cap on head)
-      const capGeometry = new THREE.SphereGeometry(0.35, 12, 12);
-      capGeometry.scale(0.8, 0.6, 0.6);
-      const capMaterial = new THREE.MeshBasicMaterial({
-        color: 0xddccbb,
+      // Acrosomal cap (front of head) - distinct rounded cap
+      const acrosomeGeometry = new THREE.SphereGeometry(0.45, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+      const acrosomeMaterial = new THREE.MeshPhongMaterial({
+        color: 0xeeddcc,
+        emissive: 0x221111,
+        emissiveIntensity: 0.15,
+        shininess: 60,
         transparent: true,
         opacity: 0.9,
       });
-      const cap = new THREE.Mesh(capGeometry, capMaterial);
-      cap.position.set(0, 0.5, 0);
-      cap.name = 'core';
-      group.add(cap);
+      const acrosome = new THREE.Mesh(acrosomeGeometry, acrosomeMaterial);
+      acrosome.position.set(0, 0.75, 0);
+      acrosome.name = 'core';
+      group.add(acrosome);
       
-      // Tail (wavy flagellum)
+      // Nucleus inside head (visible as darker spot)
+      const nucleusGeometry = new THREE.SphereGeometry(0.25, 12, 12);
+      const nucleusMaterial = new THREE.MeshBasicMaterial({
+        color: 0x886655,
+        transparent: true,
+        opacity: 0.7,
+      });
+      const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
+      nucleus.position.y = 0.2;
+      group.add(nucleus);
+      
+      // Midpiece (connection between head and tail)
+      const midpieceGeometry = new THREE.CylinderGeometry(0.15, 0.12, 0.5, 12);
+      const midpieceMaterial = new THREE.MeshPhongMaterial({
+        color: 0xddccbb,
+        emissive: 0x110000,
+        shininess: 40,
+      });
+      const midpiece = new THREE.Mesh(midpieceGeometry, midpieceMaterial);
+      midpiece.position.y = -0.5;
+      group.add(midpiece);
+      
+      // Mitochondrial spiral around midpiece
+      const spiralPoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        const angle = t * Math.PI * 6;
+        const radius = 0.18;
+        spiralPoints.push(new THREE.Vector3(
+          Math.cos(angle) * radius,
+          -0.25 - t * 0.5,
+          Math.sin(angle) * radius
+        ));
+      }
+      const spiralCurve = new THREE.CatmullRomCurve3(spiralPoints);
+      const spiralGeometry = new THREE.TubeGeometry(spiralCurve, 40, 0.025, 6, false);
+      const spiralMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff6644, // Mitochondria orange-red
+        transparent: true,
+        opacity: 0.8,
+      });
+      const spiral = new THREE.Mesh(spiralGeometry, spiralMaterial);
+      group.add(spiral);
+      
+      // Flagellum tail - long wavy animated tail
       const tailPoints: THREE.Vector3[] = [];
-      for (let i = 0; i <= 24; i++) {
-        const t = i / 24;
-        const wave = Math.sin(t * Math.PI * 4) * 0.15 * (1 - t * 0.5);
-        tailPoints.push(new THREE.Vector3(wave, -0.6 - t * 2.5, 0));
+      for (let i = 0; i <= 40; i++) {
+        const t = i / 40;
+        // Smooth wave that gets smaller towards the end
+        const wave = Math.sin(t * Math.PI * 5) * 0.25 * (1 - t * 0.7);
+        const zwave = Math.cos(t * Math.PI * 5) * 0.1 * (1 - t * 0.7);
+        tailPoints.push(new THREE.Vector3(wave, -0.75 - t * 3.5, zwave));
       }
       const tailCurve = new THREE.CatmullRomCurve3(tailPoints);
-      const tailGeometry = new THREE.TubeGeometry(tailCurve, 32, 0.08, 6, false);
-      const tailMaterial = new THREE.MeshBasicMaterial({
-        color: 0xddccbb,
+      // Tail gets thinner towards the end
+      const tailGeometry = new THREE.TubeGeometry(tailCurve, 48, 0.06, 8, false);
+      const tailMaterial = new THREE.MeshPhongMaterial({
+        color: 0xeeddcc,
+        emissive: 0x221100,
+        emissiveIntensity: 0.1,
+        shininess: 30,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.9,
       });
       const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-      tail.name = 'glow';
+      tail.name = 'glow'; // Used for animation
       group.add(tail);
       
-      // Warm glow
-      const pointLight = new THREE.PointLight(0xffeecc, 3, 10);
-      pointLight.position.set(0, 0, 0);
+      // Add ambient light for 3D shading
+      const ambLight = new THREE.AmbientLight(0xffeedd, 0.4);
+      group.add(ambLight);
+      
+      // Warm point light
+      const pointLight = new THREE.PointLight(0xffeecc, 3, 12);
+      pointLight.position.set(0, 0.5, 0);
       group.add(pointLight);
+      
+      // Subtle glow around head
+      const headGlowGeometry = new THREE.SphereGeometry(0.75, 16, 16);
+      const headGlowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffeedd,
+        transparent: true,
+        opacity: 0.15,
+      });
+      const headGlow = new THREE.Mesh(headGlowGeometry, headGlowMaterial);
+      headGlow.position.y = 0.3;
+      group.add(headGlow);
       
     } else {
       // STANDARD: Golden electrical current (circuit board theme)
@@ -1305,12 +1397,13 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     let wallColor: number, wallEdgeColor: number, pathColor: number, pathShineColor: number, baseColor: number, markingColor: number;
     switch (currentTheme) {
       case 'halloween':
-        wallColor = 0x2a1a3a; // Dark purple walls
-        wallEdgeColor = 0x4a2a5a; // Purple edge
-        pathColor = 0x553366; // Dim purple path
-        pathShineColor = 0x774488; // Lighter purple shine
-        baseColor = 0x1a0a2a; // Dark purple base
-        markingColor = 0xff6600; // Orange markings (pumpkin)
+        // FRANKENSTEIN LAB - Purple and Orange
+        wallColor = 0x3a1a4a; // Rich purple walls
+        wallEdgeColor = 0x6a2a7a; // Bright purple edge
+        pathColor = 0xff6600; // Orange path (Frankenstein electricity)
+        pathShineColor = 0xffaa44; // Bright orange shine
+        baseColor = 0x2a0a3a; // Deep purple base
+        markingColor = 0x00aaff; // Electric blue markings
         break;
       case 'christmas':
         wallColor = 0x0a3a3a; // Dark cyan/ice walls
@@ -1701,44 +1794,97 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     
     // Theme-specific decorations
     if (currentTheme === 'halloween') {
-      // Add floating pumpkins/skulls in corners
-      const decorPositions = [
+      // FRANKENSTEIN LAB - Tesla coils and electrical equipment
+      const coilPositions = [
         { x: -18, z: -18 }, { x: 18, z: -18 },
         { x: -18, z: 18 }, { x: 18, z: 18 }
       ];
-      decorPositions.forEach((pos, i) => {
-        // Glowing jack-o-lantern sphere
-        const pumpkinGeometry = new THREE.SphereGeometry(1.5, 12, 12);
-        pumpkinGeometry.scale(1, 0.8, 1);
-        const pumpkinMaterial = new THREE.MeshBasicMaterial({
-          color: 0xff6600,
-          transparent: true,
-          opacity: 0.7,
-        });
-        const pumpkin = new THREE.Mesh(pumpkinGeometry, pumpkinMaterial);
-        pumpkin.position.set(pos.x, 3, pos.z);
-        pumpkin.name = `pumpkin_${i}`;
-        scene.add(pumpkin);
+      coilPositions.forEach((pos, i) => {
+        // Tesla coil base
+        const baseGeometry = new THREE.CylinderGeometry(1.2, 1.5, 0.5, 12);
+        const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x3a3a4a });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.set(pos.x, 0.25, pos.z);
+        scene.add(base);
         
-        // Pumpkin glow
-        const pumpkinLight = new THREE.PointLight(0xff4400, 1.5, 8);
-        pumpkinLight.position.set(pos.x, 3, pos.z);
-        scene.add(pumpkinLight);
+        // Tesla coil tower
+        const towerGeometry = new THREE.CylinderGeometry(0.4, 0.6, 6, 12);
+        const towerMaterial = new THREE.MeshBasicMaterial({ color: 0x4a4a5a });
+        const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+        tower.position.set(pos.x, 3.25, pos.z);
+        scene.add(tower);
+        
+        // Tesla coil top sphere
+        const topGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+        const topMaterial = new THREE.MeshBasicMaterial({
+          color: 0x888899,
+          transparent: true,
+          opacity: 0.9,
+        });
+        const top = new THREE.Mesh(topGeometry, topMaterial);
+        top.position.set(pos.x, 6.5, pos.z);
+        top.name = `teslaTop_${i}`;
+        scene.add(top);
+        
+        // Electricity rings around top
+        for (let j = 0; j < 3; j++) {
+          const ringGeometry = new THREE.TorusGeometry(1 + j * 0.3, 0.05, 8, 32);
+          const ringMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00aaff, // Electric blue
+            transparent: true,
+            opacity: 0.6 - j * 0.15,
+          });
+          const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+          ring.position.set(pos.x, 6.5, pos.z);
+          ring.rotation.x = Math.PI / 2;
+          ring.name = `teslaRing_${i}_${j}`;
+          scene.add(ring);
+        }
+        
+        // Electric blue glow
+        const coilLight = new THREE.PointLight(0x00aaff, 2, 12);
+        coilLight.position.set(pos.x, 6.5, pos.z);
+        scene.add(coilLight);
+        
+        // Purple secondary glow
+        const purpleLight = new THREE.PointLight(0x8844ff, 1, 8);
+        purpleLight.position.set(pos.x, 4, pos.z);
+        scene.add(purpleLight);
       });
       
-      // Full moon in sky
-      const moonGeometry = new THREE.CircleGeometry(5, 32);
-      const moonMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffcc,
+      // Lightning bolt in sky (Frankenstein energy)
+      const skyBoltPoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        const x = -10 + t * 20 + (Math.random() - 0.5) * 4;
+        const y = 35 + (Math.random() - 0.5) * 5;
+        const z = -25;
+        skyBoltPoints.push(new THREE.Vector3(x, y, z));
+      }
+      const skyBoltCurve = new THREE.CatmullRomCurve3(skyBoltPoints);
+      const skyBoltGeometry = new THREE.TubeGeometry(skyBoltCurve, 32, 0.3, 8, false);
+      const skyBoltMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00aaff,
         transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide,
+        opacity: 0.5,
       });
-      const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-      moon.position.set(15, 40, -30);
-      moon.lookAt(0, 0, 0);
-      moon.name = 'moon';
-      scene.add(moon);
+      const skyBolt = new THREE.Mesh(skyBoltGeometry, skyBoltMaterial);
+      skyBolt.name = 'skyBolt';
+      scene.add(skyBolt);
+      
+      // Storm clouds
+      for (let i = 0; i < 5; i++) {
+        const cloudGeometry = new THREE.SphereGeometry(3 + Math.random() * 2, 8, 8);
+        cloudGeometry.scale(2, 0.5, 1);
+        const cloudMaterial = new THREE.MeshBasicMaterial({
+          color: 0x2a1a3a,
+          transparent: true,
+          opacity: 0.6,
+        });
+        const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        cloud.position.set(-15 + i * 8, 38 + Math.random() * 4, -28);
+        scene.add(cloud);
+      }
       
     } else if (currentTheme === 'christmas') {
       // Add Christmas trees in corners
