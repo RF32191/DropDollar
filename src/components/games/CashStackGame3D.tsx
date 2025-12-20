@@ -510,20 +510,6 @@ export default function CashStackGame3D({
         scene.add(batGroup);
       }
       
-      // Full Moon
-      const moonGeo = new THREE.CircleGeometry(6, 64);
-      const moonMat = new THREE.MeshBasicMaterial({ color: 0xFFF8DC, transparent: true, opacity: 0.95 });
-      const moon = new THREE.Mesh(moonGeo, moonMat);
-      moon.position.set(18, 22, -35);
-      scene.add(moon);
-      
-      // Moon glow
-      const moonGlowGeo = new THREE.CircleGeometry(8, 64);
-      const moonGlowMat = new THREE.MeshBasicMaterial({ color: 0xFFFFCC, transparent: true, opacity: 0.25 });
-      const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
-      moonGlow.position.set(18, 22, -35.1);
-      scene.add(moonGlow);
-      
       // Tombstones around the play area
       const tombstonePositions = [
         { x: -12, z: -8, rot: 0.1 },

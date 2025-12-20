@@ -1838,7 +1838,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   return (
     <div 
       ref={gameAreaRef}
-      className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 overflow-hidden"
+      className={`fixed inset-0 z-50 overflow-hidden ${
+        currentTheme === 'halloween' 
+          ? 'bg-gradient-to-br from-purple-950 via-black to-orange-950' 
+          : currentTheme === 'christmas'
+          ? 'bg-gradient-to-br from-blue-950 via-slate-900 to-blue-950'
+          : 'bg-gradient-to-br from-gray-900 via-black to-gray-900'
+      }`}
       style={{ 
         touchAction: 'none',
         cursor: 'crosshair',
@@ -1856,6 +1862,107 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Halloween Theme Decorations */}
+      {currentTheme === 'halloween' && (
+        <>
+          {/* Full Moon */}
+          <div 
+            className="absolute pointer-events-none"
+            style={{
+              top: '8%',
+              right: '10%',
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #FFF8DC 0%, #FFD700 50%, transparent 70%)',
+              boxShadow: '0 0 60px 30px rgba(255, 215, 0, 0.3), 0 0 100px 60px rgba(255, 165, 0, 0.15)',
+              opacity: 0.9,
+            }}
+          />
+          {/* Bats flying */}
+          {[...Array(6)].map((_, i) => (
+            <div 
+              key={`bat-${i}`}
+              className="absolute pointer-events-none animate-pulse"
+              style={{
+                top: `${10 + i * 12}%`,
+                left: `${5 + i * 15}%`,
+                fontSize: '24px',
+                opacity: 0.6,
+                animation: `float ${3 + i * 0.5}s ease-in-out infinite`,
+                animationDelay: `${i * 0.3}s`,
+              }}
+            >
+              🦇
+            </div>
+          ))}
+          {/* Tombstones at bottom */}
+          {[...Array(5)].map((_, i) => (
+            <div 
+              key={`tomb-${i}`}
+              className="absolute bottom-0 pointer-events-none"
+              style={{
+                left: `${10 + i * 20}%`,
+                fontSize: '40px',
+                opacity: 0.5,
+                transform: `rotate(${-5 + i * 2}deg)`,
+              }}
+            >
+              🪦
+            </div>
+          ))}
+          {/* Pumpkins */}
+          <div className="absolute bottom-2 left-4 text-4xl opacity-60 pointer-events-none">🎃</div>
+          <div className="absolute bottom-4 right-8 text-3xl opacity-50 pointer-events-none">🎃</div>
+        </>
+      )}
+      
+      {/* Christmas Theme Decorations */}
+      {currentTheme === 'christmas' && (
+        <>
+          {/* Snowflakes */}
+          {[...Array(20)].map((_, i) => (
+            <div 
+              key={`snow-${i}`}
+              className="absolute pointer-events-none"
+              style={{
+                top: `${Math.random() * 80}%`,
+                left: `${Math.random() * 100}%`,
+                fontSize: `${12 + Math.random() * 16}px`,
+                opacity: 0.4 + Math.random() * 0.4,
+                animation: `fall ${5 + Math.random() * 5}s linear infinite`,
+                animationDelay: `${Math.random() * 5}s`,
+              }}
+            >
+              ❄️
+            </div>
+          ))}
+          {/* Gift boxes at corners */}
+          <div className="absolute bottom-4 left-4 text-4xl opacity-70 pointer-events-none">🎁</div>
+          <div className="absolute bottom-4 right-4 text-4xl opacity-70 pointer-events-none">🎁</div>
+          <div className="absolute bottom-8 left-20 text-3xl opacity-60 pointer-events-none">🎄</div>
+          <div className="absolute bottom-8 right-20 text-3xl opacity-60 pointer-events-none">🎄</div>
+          {/* Stars */}
+          {[...Array(8)].map((_, i) => (
+            <div 
+              key={`star-${i}`}
+              className="absolute pointer-events-none animate-pulse"
+              style={{
+                top: `${5 + i * 8}%`,
+                left: `${10 + i * 12}%`,
+                fontSize: '16px',
+                opacity: 0.5,
+              }}
+            >
+              ⭐
+            </div>
+          ))}
+          {/* Candy canes */}
+          <div className="absolute bottom-2 left-1/4 text-3xl opacity-60 pointer-events-none" style={{ transform: 'rotate(30deg)' }}>🍬</div>
+          <div className="absolute bottom-2 right-1/4 text-3xl opacity-60 pointer-events-none" style={{ transform: 'rotate(-30deg)' }}>🍬</div>
+        </>
+      )}
+      
       {/* HUD Overlay - Always visible at top */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/80 to-transparent p-4">
         <div className="flex justify-between items-center">
