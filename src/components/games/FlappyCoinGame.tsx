@@ -271,119 +271,274 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create realistic procedural hand - fingers pointing towards gap
+  // Create highly realistic procedural hand - fingers pointing towards gap
   const createHand = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
-    // Skin material with realistic tones
-    const skinMaterial = new THREE.MeshPhongMaterial({
-      color: 0xE8B89D,
-      emissive: 0x4A2810,
-      emissiveIntensity: 0.1,
-      shininess: 20,
-      specular: 0x553322,
+    // Multiple skin materials for realistic color variation
+    const skinColorBase = 0xE8B89D;
+    const skinColorDark = 0xD4A088;
+    const skinColorLight = 0xF5C9B8;
+    
+    const skinMaterial = new THREE.MeshStandardMaterial({
+      color: skinColorBase,
+      roughness: 0.7,
+      metalness: 0.0,
+      emissive: 0x3A1505,
+      emissiveIntensity: 0.05,
     });
     
-    // Palm - positioned to extend towards the gap
-    const palmGeometry = new THREE.BoxGeometry(2.2, 2.0, 0.6);
+    const skinMaterialDark = new THREE.MeshStandardMaterial({
+      color: skinColorDark,
+      roughness: 0.75,
+      metalness: 0.0,
+    });
+    
+    const skinMaterialLight = new THREE.MeshStandardMaterial({
+      color: skinColorLight,
+      roughness: 0.65,
+      metalness: 0.0,
+    });
+    
+    const creaseMaterial = new THREE.MeshStandardMaterial({
+      color: 0xB88A70,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+    
+    // Palm - more anatomically correct with curved shape
+    const palmShape = new THREE.Shape();
+    palmShape.moveTo(-1.0, -0.8);
+    palmShape.quadraticCurveTo(-1.2, 0, -1.0, 0.8);
+    palmShape.quadraticCurveTo(-0.5, 1.1, 0, 1.1);
+    palmShape.quadraticCurveTo(0.5, 1.1, 1.0, 0.8);
+    palmShape.quadraticCurveTo(1.2, 0, 1.0, -0.8);
+    palmShape.quadraticCurveTo(0, -1.0, -1.0, -0.8);
+    
+    const palmExtrudeSettings = { depth: 0.5, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.05, bevelSegments: 3 };
+    const palmGeometry = new THREE.ExtrudeGeometry(palmShape, palmExtrudeSettings);
     const palm = new THREE.Mesh(palmGeometry, skinMaterial);
-    palm.position.y = isTop ? 1.5 : -1.5; // Palm positioned away from gap
+    palm.rotation.x = Math.PI / 2;
+    palm.position.y = isTop ? 1.5 : -1.5;
+    palm.position.z = -0.25;
     group.add(palm);
     
-    // Knuckle ridge
-    const knuckleGeometry = new THREE.BoxGeometry(2.0, 0.35, 0.7);
-    const knuckle = new THREE.Mesh(knuckleGeometry, skinMaterial);
-    knuckle.position.y = isTop ? 0.3 : -0.3; // Just before fingers
-    group.add(knuckle);
+    // Palm creases
+    const creaseGeo = new THREE.BoxGeometry(1.6, 0.02, 0.05);
+    for (let i = 0; i < 3; i++) {
+      const crease = new THREE.Mesh(creaseGeo, creaseMaterial);
+      crease.position.y = isTop ? 1.2 - i * 0.3 : -1.2 + i * 0.3;
+      crease.position.z = -0.28;
+      crease.rotation.z = (i - 1) * 0.1;
+      group.add(crease);
+    }
     
-    // Fingers with proper joints - pointing towards gap (y = 0)
-    const fingerXPositions = [-0.7, -0.23, 0.23, 0.7];
-    const fingerLengths = [1.2, 1.5, 1.4, 1.1];
+    // Knuckle ridge with bumps for each finger
+    const fingerXPositions = [-0.7, -0.25, 0.25, 0.7];
+    fingerXPositions.forEach((xPos) => {
+      const knuckleGeo = new THREE.SphereGeometry(0.22, 12, 12);
+      const knuckle = new THREE.Mesh(knuckleGeo, skinMaterial);
+      knuckle.position.set(xPos, isTop ? 0.35 : -0.35, 0.05);
+      knuckle.scale.set(1, 0.7, 0.8);
+      group.add(knuckle);
+    });
+    
+    // Detailed fingers with proper joints - pointing towards gap (y = 0)
+    const fingerLengths = [1.0, 1.4, 1.35, 1.0];
+    const fingerNames = ['pinky', 'ring', 'middle', 'index'];
     
     fingerXPositions.forEach((xPos, i) => {
       const fingerLength = fingerLengths[i];
-      const fingerRadius = i === 0 || i === 3 ? 0.14 : 0.16;
+      const baseRadius = i === 0 || i === 3 ? 0.12 : 0.14;
       
-      // Create finger segments pointing towards gap
+      // 3 phalanges per finger with decreasing size
+      const segmentLengths = [fingerLength * 0.38, fingerLength * 0.32, fingerLength * 0.25];
+      let cumulativeY = 0;
+      
       for (let seg = 0; seg < 3; seg++) {
-        const segLength = fingerLength * (seg === 0 ? 0.4 : seg === 1 ? 0.35 : 0.25);
-        const segRadius = fingerRadius * (1 - seg * 0.1);
-        const segGeometry = new THREE.CapsuleGeometry(segRadius, segLength, 8, 12);
-        const segMesh = new THREE.Mesh(segGeometry, skinMaterial);
+        const segLength = segmentLengths[seg];
+        const segRadius = baseRadius * (1 - seg * 0.12);
+        
+        // Each segment is a capsule
+        const segGeometry = new THREE.CapsuleGeometry(segRadius, segLength, 12, 16);
+        const segMesh = new THREE.Mesh(segGeometry, seg === 0 ? skinMaterialDark : skinMaterial);
         
         // Position segments towards the gap (y = 0)
-        let segY;
-        if (isTop) {
-          // Top hand: fingers point down (towards gap at y=0)
-          segY = -0.2 - (seg * fingerLength * 0.35);
-        } else {
-          // Bottom hand: fingers point up (towards gap at y=0)
-          segY = 0.2 + (seg * fingerLength * 0.35);
-        }
+        cumulativeY += segLength * 0.6;
+        const segY = isTop ? -cumulativeY : cumulativeY;
         segMesh.position.set(xPos, segY, 0);
         group.add(segMesh);
+        
+        // Joint between segments (small darker ring)
+        if (seg < 2) {
+          const jointGeo = new THREE.TorusGeometry(segRadius * 0.9, 0.02, 8, 16);
+          const joint = new THREE.Mesh(jointGeo, creaseMaterial);
+          const jointY = isTop ? -(cumulativeY + segLength * 0.4) : cumulativeY + segLength * 0.4;
+          joint.position.set(xPos, jointY, 0);
+          joint.rotation.x = Math.PI / 2;
+          group.add(joint);
+        }
       }
       
-      // Fingernail
-      const nailGeometry = new THREE.BoxGeometry(fingerRadius * 1.5, fingerRadius * 1.8, 0.06);
-      const nailMaterial = new THREE.MeshPhongMaterial({ color: 0xFFE4E1, shininess: 80 });
-      const nail = new THREE.Mesh(nailGeometry, nailMaterial);
-      const nailY = isTop ? -0.2 - fingerLength * 0.9 : 0.2 + fingerLength * 0.9;
-      nail.position.set(xPos, nailY, isTop ? -0.18 : 0.18);
+      // Fingertip (rounded end)
+      const tipGeo = new THREE.SphereGeometry(baseRadius * 0.7, 12, 12);
+      const tip = new THREE.Mesh(tipGeo, skinMaterialLight);
+      const tipY = isTop ? -(cumulativeY + fingerLength * 0.15) : cumulativeY + fingerLength * 0.15;
+      tip.position.set(xPos, tipY, 0);
+      tip.scale.set(1, 1.3, 0.8);
+      group.add(tip);
+      
+      // Fingernail with cuticle detail
+      const nailGeo = new THREE.BoxGeometry(baseRadius * 1.4, baseRadius * 1.6, 0.04);
+      const nailMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xFFE8E0, 
+        roughness: 0.2, 
+        metalness: 0.1 
+      });
+      const nail = new THREE.Mesh(nailGeo, nailMaterial);
+      const nailY = isTop ? -(cumulativeY + fingerLength * 0.08) : cumulativeY + fingerLength * 0.08;
+      nail.position.set(xPos, nailY, isTop ? -0.12 : 0.12);
       group.add(nail);
+      
+      // Nail highlight (glossy strip)
+      const highlightGeo = new THREE.BoxGeometry(baseRadius * 0.5, baseRadius * 1.2, 0.02);
+      const highlightMat = new THREE.MeshStandardMaterial({ 
+        color: 0xFFFFFF, 
+        roughness: 0.0, 
+        metalness: 0.3,
+        transparent: true,
+        opacity: 0.4
+      });
+      const highlight = new THREE.Mesh(highlightGeo, highlightMat);
+      highlight.position.set(xPos - baseRadius * 0.25, nailY, isTop ? -0.15 : 0.15);
+      group.add(highlight);
+      
+      // Cuticle
+      const cuticleGeo = new THREE.TorusGeometry(baseRadius * 0.8, 0.02, 8, 12, Math.PI);
+      const cuticleMat = new THREE.MeshStandardMaterial({ color: 0xE8D0C8, roughness: 0.6 });
+      const cuticle = new THREE.Mesh(cuticleGeo, cuticleMat);
+      const cuticleY = isTop ? -(cumulativeY - fingerLength * 0.1) : cumulativeY - fingerLength * 0.1;
+      cuticle.position.set(xPos, cuticleY, isTop ? -0.13 : 0.13);
+      cuticle.rotation.x = isTop ? Math.PI : 0;
+      cuticle.rotation.z = Math.PI / 2;
+      group.add(cuticle);
     });
     
-    // Thumb
-    const thumbPositions = [
-      { y: isTop ? 0.8 : -0.8, x: isTop ? 1.1 : -1.1, rotZ: isTop ? -0.5 : 0.5 },
-      { y: isTop ? 0.2 : -0.2, x: isTop ? 1.4 : -1.4, rotZ: isTop ? -0.3 : 0.3 },
-      { y: isTop ? -0.2 : 0.2, x: isTop ? 1.6 : -1.6, rotZ: isTop ? -0.2 : 0.2 },
-    ];
-    thumbPositions.forEach((pos, i) => {
-      const thumbSeg = new THREE.CapsuleGeometry(0.18 - i * 0.02, 0.4, 8, 12);
-      const thumbMesh = new THREE.Mesh(thumbSeg, skinMaterial);
-      thumbMesh.position.set(pos.x, pos.y, 0);
-      thumbMesh.rotation.z = pos.rotZ;
-      group.add(thumbMesh);
-    });
+    // Detailed thumb with anatomically correct positioning
+    const thumbBase = new THREE.CapsuleGeometry(0.2, 0.5, 12, 16);
+    const thumbBaseMesh = new THREE.Mesh(thumbBase, skinMaterialDark);
+    thumbBaseMesh.position.set(isTop ? 1.0 : -1.0, isTop ? 0.8 : -0.8, 0.1);
+    thumbBaseMesh.rotation.z = isTop ? -0.6 : 0.6;
+    group.add(thumbBaseMesh);
     
-    // Wrist
-    const wristGeometry = new THREE.CylinderGeometry(0.9, 1.0, 1.2, 16);
+    const thumbMid = new THREE.CapsuleGeometry(0.17, 0.45, 12, 16);
+    const thumbMidMesh = new THREE.Mesh(thumbMid, skinMaterial);
+    thumbMidMesh.position.set(isTop ? 1.35 : -1.35, isTop ? 0.3 : -0.3, 0.1);
+    thumbMidMesh.rotation.z = isTop ? -0.4 : 0.4;
+    group.add(thumbMidMesh);
+    
+    const thumbTip = new THREE.CapsuleGeometry(0.14, 0.35, 12, 16);
+    const thumbTipMesh = new THREE.Mesh(thumbTip, skinMaterialLight);
+    thumbTipMesh.position.set(isTop ? 1.55 : -1.55, isTop ? -0.15 : 0.15, 0.1);
+    thumbTipMesh.rotation.z = isTop ? -0.25 : 0.25;
+    group.add(thumbTipMesh);
+    
+    // Thumb nail
+    const thumbNailGeo = new THREE.BoxGeometry(0.22, 0.25, 0.04);
+    const thumbNail = new THREE.Mesh(thumbNailGeo, new THREE.MeshStandardMaterial({ 
+      color: 0xFFE8E0, roughness: 0.2, metalness: 0.1 
+    }));
+    thumbNail.position.set(isTop ? 1.65 : -1.65, isTop ? -0.35 : 0.35, isTop ? -0.08 : 0.25);
+    thumbNail.rotation.z = isTop ? -0.25 : 0.25;
+    group.add(thumbNail);
+    
+    // Thenar eminence (thumb muscle on palm)
+    const thenarGeo = new THREE.SphereGeometry(0.35, 12, 12);
+    const thenar = new THREE.Mesh(thenarGeo, skinMaterial);
+    thenar.position.set(isTop ? 0.9 : -0.9, isTop ? 1.0 : -1.0, 0.15);
+    thenar.scale.set(1.2, 1.5, 0.6);
+    group.add(thenar);
+    
+    // Wrist with tendons detail
+    const wristGeometry = new THREE.CylinderGeometry(0.85, 0.95, 1.0, 20);
     const wrist = new THREE.Mesh(wristGeometry, skinMaterial);
-    wrist.position.y = isTop ? 2.8 : -2.8;
+    wrist.position.y = isTop ? 2.6 : -2.6;
     group.add(wrist);
     
-    // Arm (extends away from gap)
-    const armGeometry = new THREE.CylinderGeometry(0.85, 0.9, 8, 16);
+    // Wrist tendon lines
+    for (let t = 0; t < 4; t++) {
+      const tendonGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.8, 8);
+      const tendon = new THREE.Mesh(tendonGeo, creaseMaterial);
+      tendon.position.set(-0.4 + t * 0.27, isTop ? 2.6 : -2.6, -0.35);
+      group.add(tendon);
+    }
+    
+    // Forearm (extends away from gap)
+    const armGeometry = new THREE.CylinderGeometry(0.8, 0.85, 7, 20);
     const arm = new THREE.Mesh(armGeometry, skinMaterial);
-    arm.position.y = isTop ? 7.5 : -7.5;
+    arm.position.y = isTop ? 7.0 : -7.0;
     group.add(arm);
     
-    // Suit sleeve cuff
-    const cuffGeometry = new THREE.CylinderGeometry(1.05, 0.95, 0.8, 16);
-    const cuffMaterial = new THREE.MeshPhongMaterial({
+    // Elegant suit sleeve
+    const cuffGeometry = new THREE.CylinderGeometry(1.0, 0.92, 1.0, 20);
+    const cuffMaterial = new THREE.MeshStandardMaterial({
       color: 0x1a1a2e,
-      shininess: 40,
-      specular: 0x333344,
+      roughness: 0.4,
+      metalness: 0.1,
     });
     const cuff = new THREE.Mesh(cuffGeometry, cuffMaterial);
-    cuff.position.y = isTop ? 3.5 : -3.5;
+    cuff.position.y = isTop ? 3.3 : -3.3;
     group.add(cuff);
     
-    // White shirt under cuff
-    const shirtGeometry = new THREE.CylinderGeometry(0.88, 0.88, 0.25, 16);
-    const shirtMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFF0, shininess: 20 });
+    // Suit jacket sleeve extending up
+    const sleeveGeometry = new THREE.CylinderGeometry(0.95, 1.0, 5, 20);
+    const sleeve = new THREE.Mesh(sleeveGeometry, cuffMaterial);
+    sleeve.position.y = isTop ? 6.0 : -6.0;
+    group.add(sleeve);
+    
+    // Crisp white dress shirt cuff
+    const shirtGeometry = new THREE.CylinderGeometry(0.88, 0.88, 0.35, 20);
+    const shirtMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFFFF5, 
+      roughness: 0.3,
+      metalness: 0.0
+    });
     const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
-    shirt.position.y = isTop ? 3.0 : -3.0;
+    shirt.position.y = isTop ? 2.9 : -2.9;
     group.add(shirt);
     
-    // Silver cuff button
-    const buttonGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.05, 12);
-    const buttonMaterial = new THREE.MeshPhongMaterial({ color: 0xC0C0C0, shininess: 100 });
-    const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
-    button.rotation.x = Math.PI / 2;
-    button.position.set(0.95, isTop ? 3.5 : -3.5, 0);
-    group.add(button);
+    // French cuff with gold cufflinks
+    const cufflinkBase = new THREE.CylinderGeometry(0.1, 0.1, 0.04, 16);
+    const cufflinkMat = new THREE.MeshStandardMaterial({ 
+      color: 0xFFD700, 
+      roughness: 0.1, 
+      metalness: 0.9 
+    });
+    
+    // Front cufflink
+    const cufflink1 = new THREE.Mesh(cufflinkBase, cufflinkMat);
+    cufflink1.rotation.x = Math.PI / 2;
+    cufflink1.position.set(0.85, isTop ? 3.3 : -3.3, 0.15);
+    group.add(cufflink1);
+    
+    // Back cufflink
+    const cufflink2 = new THREE.Mesh(cufflinkBase, cufflinkMat);
+    cufflink2.rotation.x = Math.PI / 2;
+    cufflink2.position.set(0.85, isTop ? 3.3 : -3.3, -0.15);
+    group.add(cufflink2);
+    
+    // Cufflink gem (small blue stone)
+    const gemGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const gemMat = new THREE.MeshStandardMaterial({ 
+      color: 0x1e3a5f, 
+      roughness: 0.0, 
+      metalness: 0.2,
+      emissive: 0x0a1525,
+      emissiveIntensity: 0.3
+    });
+    const gem = new THREE.Mesh(gemGeo, gemMat);
+    gem.position.set(0.85, isTop ? 3.3 : -3.3, 0.18);
+    group.add(gem);
     
     return group;
   }, []);

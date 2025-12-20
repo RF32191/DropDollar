@@ -155,23 +155,27 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
 
   // Gyroscope handler function - inline validation to avoid dependency issues
   const handleGyroOrientation = useCallback((event: DeviceOrientationEvent) => {
-    if (!hasControlRef.current || gameStateRef.current !== 'playing') return;
+    // Allow gyro during waiting state for calibration, but only move during playing
     if (!gyroEnabledRef.current) return;
     
     const beta = event.beta ?? 0;
     const gamma = event.gamma ?? 0;
     
+    // Calibrate on first reading or when base is null
     if (!gyroBaseRef.current) {
       gyroBaseRef.current = { beta, gamma };
       console.log('📱 [LightningMaze] Gyro base calibrated:', { beta, gamma });
       return;
     }
     
+    // Only move the bolt if we have control and are playing
+    if (!hasControlRef.current || gameStateRef.current !== 'playing') return;
+    
     const deltaBeta = beta - gyroBaseRef.current.beta;
     const deltaGamma = gamma - gyroBaseRef.current.gamma;
     
-    const sensitivity = 0.2; // Slightly higher for responsiveness
-    const speed = 0.35;
+    const sensitivity = 0.25; // Increased for better responsiveness
+    const speed = 0.4;
     
     const moveX = deltaGamma * sensitivity * speed;
     const moveZ = deltaBeta * sensitivity * speed;
@@ -1385,6 +1389,12 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             setGameState('playing');
             startTimeRef.current = Date.now();
             
+            // Reset gyro base for fresh calibration when control is taken
+            if (gyroEnabledRef.current) {
+              gyroBaseRef.current = null;
+              console.log('📱 [LightningMaze] Gyro base reset for new calibration');
+            }
+            
             // Start background music
             if (!backgroundMusicRef.current) {
               backgroundMusicRef.current = new Audio('/lightning-maze.mp3');
@@ -1428,6 +1438,12 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             gameStateRef.current = 'playing';
             setGameState('playing');
             startTimeRef.current = Date.now();
+            
+            // Reset gyro base for fresh calibration when control is taken
+            if (gyroEnabledRef.current) {
+              gyroBaseRef.current = null;
+              console.log('📱 [LightningMaze] Gyro base reset for new calibration (touch)');
+            }
             
             // Start background music
             if (!backgroundMusicRef.current) {
