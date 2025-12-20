@@ -259,126 +259,232 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
   const GAME_DURATION = 90; // seconds
   const CHECKPOINTS_PER_MAZE = 5;
 
-  // Create IC Chip checkpoint (circuit board theme) - TALL and PROMINENT
+  // Create themed checkpoint
   const createTeslaCoil = useCallback((color: number = 0x222222) => {
     const group = new THREE.Group();
     
-    // Base plate (PCB substrate)
-    const baseGeometry = new THREE.BoxGeometry(2.2, 0.15, 1.6);
-    const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x0a3d0a }); // PCB green
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.position.y = 0.08;
-    group.add(base);
-    
-    // IC Chip body (black rectangle) - TALLER
-    const chipGeometry = new THREE.BoxGeometry(1.8, 0.8, 1.3);
-    const chipMaterial = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const chip = new THREE.Mesh(chipGeometry, chipMaterial);
-    chip.position.y = 0.55;
-    group.add(chip);
-    
-    // Chip top bevel
-    const topBevelGeometry = new THREE.BoxGeometry(1.7, 0.1, 1.2);
-    const topBevelMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
-    const topBevel = new THREE.Mesh(topBevelGeometry, topBevelMaterial);
-    topBevel.position.y = 1.0;
-    group.add(topBevel);
-    
-    // Chip label (silver/white marking)
-    const labelGeometry = new THREE.PlaneGeometry(1.2, 0.6);
-    const labelMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.9 });
-    const label = new THREE.Mesh(labelGeometry, labelMaterial);
-    label.rotation.x = -Math.PI / 2;
-    label.position.y = 1.06;
-    group.add(label);
-    
-    // IC Chip pins (legs) - left side - BIGGER & BENT
-    for (let i = 0; i < 6; i++) {
-      // Horizontal part
-      const pinHGeometry = new THREE.BoxGeometry(0.5, 0.08, 0.12);
-      const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 }); // Silver pins
-      const pinH = new THREE.Mesh(pinHGeometry, pinMaterial);
-      pinH.position.set(-1.15, 0.3, -0.5 + i * 0.2);
-      group.add(pinH);
-      // Vertical part (bent down)
-      const pinVGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.12);
-      const pinV = new THREE.Mesh(pinVGeometry, pinMaterial.clone());
-      pinV.position.set(-1.35, 0.15, -0.5 + i * 0.2);
-      group.add(pinV);
+    // Theme-based colors
+    let baseColor: number, glowColor: number, accentColor: number;
+    switch (currentTheme) {
+      case 'halloween':
+        baseColor = 0x3a2a4a; // Purple
+        glowColor = 0xff6600; // Orange (pumpkin glow)
+        accentColor = 0xffaa00;
+        break;
+      case 'christmas':
+        baseColor = 0x2a4a4a; // Dark cyan
+        glowColor = 0xff0000; // Red (festive)
+        accentColor = 0xffd700; // Gold
+        break;
+      case 'reproductive':
+        baseColor = 0x4a2a3a; // Pink
+        glowColor = 0xff66cc; // Bright pink (ovary)
+        accentColor = 0xffccff;
+        break;
+      default:
+        baseColor = 0x0a3d0a; // PCB green
+        glowColor = 0x00ff00; // Green LED
+        accentColor = 0x88ff88;
     }
     
-    // IC Chip pins - right side
-    for (let i = 0; i < 6; i++) {
-      const pinHGeometry = new THREE.BoxGeometry(0.5, 0.08, 0.12);
-      const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
-      const pinH = new THREE.Mesh(pinHGeometry, pinMaterial);
-      pinH.position.set(1.15, 0.3, -0.5 + i * 0.2);
-      group.add(pinH);
-      const pinVGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.12);
-      const pinV = new THREE.Mesh(pinVGeometry, pinMaterial.clone());
-      pinV.position.set(1.35, 0.15, -0.5 + i * 0.2);
-      group.add(pinV);
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: Glowing pumpkin/skull
+      const pumpkinGeometry = new THREE.SphereGeometry(0.8, 16, 12);
+      pumpkinGeometry.scale(1, 0.9, 1);
+      const pumpkinMaterial = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.9 });
+      const pumpkin = new THREE.Mesh(pumpkinGeometry, pumpkinMaterial);
+      pumpkin.position.y = 0.9;
+      group.add(pumpkin);
+      
+      // Stem
+      const stemGeometry = new THREE.CylinderGeometry(0.15, 0.2, 0.4, 8);
+      const stemMaterial = new THREE.MeshBasicMaterial({ color: 0x2a5a2a });
+      const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+      stem.position.y = 1.6;
+      group.add(stem);
+      
+      // Glowing eyes
+      for (let i = -1; i <= 1; i += 2) {
+        const eyeGeometry = new THREE.ConeGeometry(0.15, 0.25, 3);
+        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.95 });
+        const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        eye.rotation.z = Math.PI;
+        eye.position.set(i * 0.25, 1.0, 0.6);
+        group.add(eye);
+      }
+      
+      // Mouth
+      const mouthShape = new THREE.Shape();
+      mouthShape.moveTo(-0.25, 0);
+      mouthShape.lineTo(-0.15, 0.15);
+      mouthShape.lineTo(0, 0);
+      mouthShape.lineTo(0.15, 0.15);
+      mouthShape.lineTo(0.25, 0);
+      mouthShape.lineTo(0.15, -0.1);
+      mouthShape.lineTo(-0.15, -0.1);
+      mouthShape.closePath();
+      const mouthGeometry = new THREE.ShapeGeometry(mouthShape);
+      const mouthMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.95 });
+      const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+      mouth.position.set(0, 0.6, 0.65);
+      group.add(mouth);
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Gift box with bow
+      const boxGeometry = new THREE.BoxGeometry(1.2, 1.0, 1.2);
+      const boxMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const box = new THREE.Mesh(boxGeometry, boxMaterial);
+      box.position.y = 0.5;
+      group.add(box);
+      
+      // Ribbon vertical
+      const ribbonVGeometry = new THREE.BoxGeometry(0.15, 1.05, 1.25);
+      const ribbonMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+      const ribbonV = new THREE.Mesh(ribbonVGeometry, ribbonMaterial);
+      ribbonV.position.y = 0.5;
+      group.add(ribbonV);
+      
+      // Ribbon horizontal
+      const ribbonHGeometry = new THREE.BoxGeometry(1.25, 1.05, 0.15);
+      const ribbonH = new THREE.Mesh(ribbonHGeometry, ribbonMaterial.clone());
+      ribbonH.position.y = 0.5;
+      group.add(ribbonH);
+      
+      // Bow loops
+      for (let i = -1; i <= 1; i += 2) {
+        const loopGeometry = new THREE.TorusGeometry(0.2, 0.08, 8, 16);
+        const loopMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+        const loop = new THREE.Mesh(loopGeometry, loopMaterial);
+        loop.position.set(i * 0.2, 1.1, 0);
+        loop.rotation.y = Math.PI / 2;
+        group.add(loop);
+      }
+      
+    } else if (currentTheme === 'reproductive') {
+      // REPRODUCTIVE: Ovary/egg
+      const ovaryGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+      ovaryGeometry.scale(1.2, 0.9, 1);
+      const ovaryMaterial = new THREE.MeshBasicMaterial({ color: 0xff6699, transparent: true, opacity: 0.85 });
+      const ovary = new THREE.Mesh(ovaryGeometry, ovaryMaterial);
+      ovary.position.y = 0.8;
+      group.add(ovary);
+      
+      // Egg cell inside
+      const eggGeometry = new THREE.SphereGeometry(0.35, 12, 12);
+      const eggMaterial = new THREE.MeshBasicMaterial({ color: 0xffeeee, transparent: true, opacity: 0.9 });
+      const egg = new THREE.Mesh(eggGeometry, eggMaterial);
+      egg.position.y = 0.8;
+      group.add(egg);
+      
+      // Nucleus
+      const nucleusGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+      const nucleusMaterial = new THREE.MeshBasicMaterial({ color: 0xcc4477 });
+      const nucleus = new THREE.Mesh(nucleusGeometry, nucleusMaterial);
+      nucleus.position.y = 0.8;
+      group.add(nucleus);
+      
+    } else {
+      // STANDARD: IC Chip
+      const baseGeometry = new THREE.BoxGeometry(2.2, 0.15, 1.6);
+      const baseMaterial = new THREE.MeshBasicMaterial({ color: baseColor });
+      const base = new THREE.Mesh(baseGeometry, baseMaterial);
+      base.position.y = 0.08;
+      group.add(base);
+      
+      const chipGeometry = new THREE.BoxGeometry(1.8, 0.8, 1.3);
+      const chipMaterial = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const chip = new THREE.Mesh(chipGeometry, chipMaterial);
+      chip.position.y = 0.55;
+      group.add(chip);
+      
+      const topBevelGeometry = new THREE.BoxGeometry(1.7, 0.1, 1.2);
+      const topBevelMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+      const topBevel = new THREE.Mesh(topBevelGeometry, topBevelMaterial);
+      topBevel.position.y = 1.0;
+      group.add(topBevel);
+      
+      const labelGeometry = new THREE.PlaneGeometry(1.2, 0.6);
+      const labelMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.9 });
+      const label = new THREE.Mesh(labelGeometry, labelMaterial);
+      label.rotation.x = -Math.PI / 2;
+      label.position.y = 1.06;
+      group.add(label);
+      
+      // IC Chip pins
+      for (let side = -1; side <= 1; side += 2) {
+        for (let i = 0; i < 6; i++) {
+          const pinHGeometry = new THREE.BoxGeometry(0.5, 0.08, 0.12);
+          const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xc0c0c0 });
+          const pinH = new THREE.Mesh(pinHGeometry, pinMaterial);
+          pinH.position.set(side * 1.15, 0.3, -0.5 + i * 0.2);
+          group.add(pinH);
+          const pinVGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.12);
+          const pinV = new THREE.Mesh(pinVGeometry, pinMaterial.clone());
+          pinV.position.set(side * 1.35, 0.15, -0.5 + i * 0.2);
+          group.add(pinV);
+        }
+      }
     }
     
-    // Glowing indicator LED on chip - BIGGER
+    // Glowing indicator LED
     const ledGeometry = new THREE.SphereGeometry(0.2, 16, 16);
     const ledMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff00, 
+      color: glowColor, 
       transparent: true, 
       opacity: 1.0 
     });
     const led = new THREE.Mesh(ledGeometry, ledMaterial);
-    led.position.set(0.5, 1.2, 0.3);
+    led.position.set(currentTheme === 'standard' ? 0.5 : 0, currentTheme === 'standard' ? 1.2 : 1.8, currentTheme === 'standard' ? 0.3 : 0);
     led.name = 'led';
     group.add(led);
     
-    // LED dome (glass cover)
+    // LED dome
     const domeGeometry = new THREE.SphereGeometry(0.25, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const domeMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0x88ff88, 
+      color: accentColor, 
       transparent: true, 
       opacity: 0.3 
     });
     const dome = new THREE.Mesh(domeGeometry, domeMaterial);
-    dome.position.set(0.5, 1.15, 0.3);
+    dome.position.set(currentTheme === 'standard' ? 0.5 : 0, currentTheme === 'standard' ? 1.15 : 1.75, currentTheme === 'standard' ? 0.3 : 0);
     group.add(dome);
     
-    // LED glow rings - BIGGER and more visible
+    // LED glow rings
     for (let i = 0; i < 4; i++) {
       const ringGeometry = new THREE.TorusGeometry(0.3 + i * 0.15, 0.04, 8, 32);
       const ringMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff00, 
+        color: glowColor, 
         transparent: true, 
         opacity: 0.6 - i * 0.12 
       });
       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
       ring.rotation.x = Math.PI / 2;
-      ring.position.set(0.5, 1.3 + i * 0.15, 0.3);
+      ring.position.set(currentTheme === 'standard' ? 0.5 : 0, (currentTheme === 'standard' ? 1.3 : 1.9) + i * 0.15, currentTheme === 'standard' ? 0.3 : 0);
       ring.name = `ring${i}`;
       group.add(ring);
     }
     
-    // Spark particles for checkpoint effect - BIGGER
+    // Spark particles
     for (let i = 0; i < 8; i++) {
       const sparkGeometry = new THREE.SphereGeometry(0.08, 8, 8);
       const sparkMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff00, 
+        color: glowColor, 
         transparent: true, 
         opacity: 0.9 
       });
       const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
-      spark.position.y = 1.5;
+      spark.position.y = currentTheme === 'standard' ? 1.5 : 2.0;
       spark.name = `spark${i}`;
       group.add(spark);
     }
     
-    // Point light (green glow) - BRIGHTER
-    const light = new THREE.PointLight(0x00ff00, 4, 8);
-    light.position.y = 1.5;
+    // Point light
+    const light = new THREE.PointLight(glowColor, 4, 8);
+    light.position.y = currentTheme === 'standard' ? 1.5 : 2.0;
     group.add(light);
     
     return group;
-  }, []);
+  }, [currentTheme]);
 
   // Animate Tesla coil
   const animateTeslaCoil = useCallback((coil: THREE.Group, time: number) => {
@@ -405,99 +511,282 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     }
   }, []);
 
-  // Create animated electrical current (circuit board theme - golden/yellow signal)
+  // Create themed player character based on current theme
   const createLightningBolt = useCallback(() => {
     const group = new THREE.Group();
     
-    // Main electrical signal - smooth wave shape
-    const points: THREE.Vector3[] = [];
-    const segments = 16;
-    for (let i = 0; i <= segments; i++) {
-      const y = (i / segments) * 3.5 - 1.75; // taller
-      const wave = Math.sin(i * 0.8) * 0.15; // gentle wave
-      points.push(new THREE.Vector3(wave, y, 0));
-    }
-    
-    const curve = new THREE.CatmullRomCurve3(points);
-    const tubeGeometry = new THREE.TubeGeometry(curve, 32, 0.18, 12, false);
-    const boltMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffcc00, // Golden yellow (electrical current color)
-      transparent: true,
-      opacity: 1.0,
-    });
-    const bolt = new THREE.Mesh(tubeGeometry, boltMaterial);
-    bolt.name = 'mainBolt';
-    group.add(bolt);
-    
-    // Bright white hot core
-    const coreGeometry = new THREE.TubeGeometry(curve, 32, 0.07, 12, false);
-    const coreMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 1.0,
-    });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
-    core.name = 'core';
-    group.add(core);
-    
-    // Outer glow (electric orange/yellow)
-    const glowGeometry = new THREE.TubeGeometry(curve, 32, 0.35, 12, false);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffaa00, // Orange glow
-      transparent: true,
-      opacity: 0.35,
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.name = 'glow';
-    group.add(glow);
-    
-    // Electric spark branches (more subtle for circuit theme)
-    for (let i = 0; i < 6; i++) {
-      const branchPoints: THREE.Vector3[] = [];
-      const startY = (Math.random() * 2.5) - 1.25;
-      const startX = Math.sin(startY) * 0.15;
-      branchPoints.push(new THREE.Vector3(startX, startY, 0));
-      
-      const direction = Math.random() > 0.5 ? 1 : -1;
-      const length = 0.3 + Math.random() * 0.5;
-      branchPoints.push(new THREE.Vector3(
-        startX + direction * length * 0.5,
-        startY + (Math.random() - 0.5) * 0.3,
-        (Math.random() - 0.5) * 0.15
-      ));
-      branchPoints.push(new THREE.Vector3(
-        startX + direction * length,
-        startY + (Math.random() - 0.5) * 0.4,
-        (Math.random() - 0.5) * 0.2
-      ));
-      
-      const branchCurve = new THREE.CatmullRomCurve3(branchPoints);
-      const branchGeometry = new THREE.TubeGeometry(branchCurve, 12, 0.04, 6, false);
-      const branchMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffee00, // Yellow sparks
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: Ghostly wisp/spirit
+      // Ghost body - elongated oval shape
+      const ghostGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+      ghostGeometry.scale(1, 1.5, 0.8);
+      const ghostMaterial = new THREE.MeshBasicMaterial({
+        color: 0x88ff88, // Eerie green
         transparent: true,
-        opacity: 0.7,
+        opacity: 0.85,
       });
-      const branch = new THREE.Mesh(branchGeometry, branchMaterial);
-      branch.name = `branch${i}`;
-      group.add(branch);
+      const ghost = new THREE.Mesh(ghostGeometry, ghostMaterial);
+      ghost.name = 'mainBolt';
+      group.add(ghost);
+      
+      // Ghost tail (wavy bottom)
+      const tailPoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 12; i++) {
+        const t = i / 12;
+        const wave = Math.sin(t * Math.PI * 3) * 0.2;
+        tailPoints.push(new THREE.Vector3(wave, -0.7 - t * 0.8, 0));
+      }
+      const tailCurve = new THREE.CatmullRomCurve3(tailPoints);
+      const tailGeometry = new THREE.TubeGeometry(tailCurve, 16, 0.2 - 0.1, 8, false);
+      const tailMaterial = new THREE.MeshBasicMaterial({
+        color: 0x66dd66,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+      tail.name = 'glow';
+      group.add(tail);
+      
+      // Glowing core
+      const coreGeometry = new THREE.SphereGeometry(0.25, 12, 12);
+      const coreMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const core = new THREE.Mesh(coreGeometry, coreMaterial);
+      core.name = 'core';
+      group.add(core);
+      
+      // Spooky eye sockets (dark hollow)
+      for (let i = -1; i <= 1; i += 2) {
+        const eyeGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+        const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const eye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        eye.position.set(i * 0.2, 0.2, 0.4);
+        eye.name = `branch${i === -1 ? 0 : 1}`;
+        group.add(eye);
+        
+        // Glowing eye pupils
+        const pupilGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+        const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.9 });
+        const pupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+        pupil.position.set(i * 0.2, 0.2, 0.45);
+        pupil.name = `branch${i === -1 ? 2 : 3}`;
+        group.add(pupil);
+      }
+      
+      // Ghost light (eerie green glow)
+      const pointLight = new THREE.PointLight(0x00ff44, 4, 12);
+      pointLight.position.set(0, 0, 0);
+      group.add(pointLight);
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Glowing snowflake/star
+      // Main star shape
+      const starShape = new THREE.Shape();
+      const outerRadius = 0.6;
+      const innerRadius = 0.25;
+      const points = 6;
+      for (let i = 0; i < points * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        if (i === 0) starShape.moveTo(x, y);
+        else starShape.lineTo(x, y);
+      }
+      starShape.closePath();
+      
+      const starGeometry = new THREE.ExtrudeGeometry(starShape, { depth: 0.2, bevelEnabled: false });
+      const starMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ddff, // Ice blue
+        transparent: true,
+        opacity: 0.9,
+      });
+      const star = new THREE.Mesh(starGeometry, starMaterial);
+      star.rotation.x = Math.PI / 2;
+      star.name = 'mainBolt';
+      group.add(star);
+      
+      // Glowing white center
+      const coreGeometry = new THREE.SphereGeometry(0.2, 12, 12);
+      const coreMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 1.0,
+      });
+      const core = new THREE.Mesh(coreGeometry, coreMaterial);
+      core.name = 'core';
+      group.add(core);
+      
+      // Outer frost glow
+      const glowGeometry = new THREE.SphereGeometry(0.9, 16, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x88ddff,
+        transparent: true,
+        opacity: 0.25,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.name = 'glow';
+      group.add(glow);
+      
+      // Sparkle particles
+      for (let i = 0; i < 6; i++) {
+        const sparkleGeometry = new THREE.SphereGeometry(0.06, 6, 6);
+        const sparkleMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const sparkle = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
+        const angle = (i / 6) * Math.PI * 2;
+        sparkle.position.set(Math.cos(angle) * 0.5, 0, Math.sin(angle) * 0.5);
+        sparkle.name = `branch${i}`;
+        group.add(sparkle);
+      }
+      
+      // Cold blue light
+      const pointLight = new THREE.PointLight(0x66ccff, 4, 12);
+      pointLight.position.set(0, 0, 0);
+      group.add(pointLight);
+      
+    } else if (currentTheme === 'reproductive') {
+      // SPERM RACE: Sperm cell
+      // Head (oval)
+      const headGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+      headGeometry.scale(0.7, 1.2, 0.5);
+      const headMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffeedd, // Cream white
+        transparent: true,
+        opacity: 0.95,
+      });
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.name = 'mainBolt';
+      group.add(head);
+      
+      // Acrosome (cap on head)
+      const capGeometry = new THREE.SphereGeometry(0.35, 12, 12);
+      capGeometry.scale(0.8, 0.6, 0.6);
+      const capMaterial = new THREE.MeshBasicMaterial({
+        color: 0xddccbb,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const cap = new THREE.Mesh(capGeometry, capMaterial);
+      cap.position.set(0, 0.5, 0);
+      cap.name = 'core';
+      group.add(cap);
+      
+      // Tail (wavy flagellum)
+      const tailPoints: THREE.Vector3[] = [];
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24;
+        const wave = Math.sin(t * Math.PI * 4) * 0.15 * (1 - t * 0.5);
+        tailPoints.push(new THREE.Vector3(wave, -0.6 - t * 2.5, 0));
+      }
+      const tailCurve = new THREE.CatmullRomCurve3(tailPoints);
+      const tailGeometry = new THREE.TubeGeometry(tailCurve, 32, 0.08, 6, false);
+      const tailMaterial = new THREE.MeshBasicMaterial({
+        color: 0xddccbb,
+        transparent: true,
+        opacity: 0.85,
+      });
+      const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+      tail.name = 'glow';
+      group.add(tail);
+      
+      // Warm glow
+      const pointLight = new THREE.PointLight(0xffeecc, 3, 10);
+      pointLight.position.set(0, 0, 0);
+      group.add(pointLight);
+      
+    } else {
+      // STANDARD: Golden electrical current (circuit board theme)
+      const points: THREE.Vector3[] = [];
+      const segments = 16;
+      for (let i = 0; i <= segments; i++) {
+        const y = (i / segments) * 3.5 - 1.75;
+        const wave = Math.sin(i * 0.8) * 0.15;
+        points.push(new THREE.Vector3(wave, y, 0));
+      }
+      
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tubeGeometry = new THREE.TubeGeometry(curve, 32, 0.18, 12, false);
+      const boltMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffcc00,
+        transparent: true,
+        opacity: 1.0,
+      });
+      const bolt = new THREE.Mesh(tubeGeometry, boltMaterial);
+      bolt.name = 'mainBolt';
+      group.add(bolt);
+      
+      const coreGeometry = new THREE.TubeGeometry(curve, 32, 0.07, 12, false);
+      const coreMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 1.0,
+      });
+      const core = new THREE.Mesh(coreGeometry, coreMaterial);
+      core.name = 'core';
+      group.add(core);
+      
+      const glowGeometry = new THREE.TubeGeometry(curve, 32, 0.35, 12, false);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffaa00,
+        transparent: true,
+        opacity: 0.35,
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.name = 'glow';
+      group.add(glow);
+      
+      for (let i = 0; i < 6; i++) {
+        const branchPoints: THREE.Vector3[] = [];
+        const startY = (Math.random() * 2.5) - 1.25;
+        const startX = Math.sin(startY) * 0.15;
+        branchPoints.push(new THREE.Vector3(startX, startY, 0));
+        
+        const direction = Math.random() > 0.5 ? 1 : -1;
+        const length = 0.3 + Math.random() * 0.5;
+        branchPoints.push(new THREE.Vector3(
+          startX + direction * length * 0.5,
+          startY + (Math.random() - 0.5) * 0.3,
+          (Math.random() - 0.5) * 0.15
+        ));
+        branchPoints.push(new THREE.Vector3(
+          startX + direction * length,
+          startY + (Math.random() - 0.5) * 0.4,
+          (Math.random() - 0.5) * 0.2
+        ));
+        
+        const branchCurve = new THREE.CatmullRomCurve3(branchPoints);
+        const branchGeometry = new THREE.TubeGeometry(branchCurve, 12, 0.04, 6, false);
+        const branchMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffee00,
+          transparent: true,
+          opacity: 0.7,
+        });
+        const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+        branch.name = `branch${i}`;
+        group.add(branch);
+      }
+      
+      const pointLight = new THREE.PointLight(0xffcc00, 4, 10);
+      pointLight.position.set(0, 0, 0);
+      group.add(pointLight);
+      
+      const glowLight = new THREE.PointLight(0x0088ff, 2, 8);
+      glowLight.position.set(0, 1, 0);
+      group.add(glowLight);
     }
     
-    // Point light (warm electrical glow)
-    const pointLight = new THREE.PointLight(0xffcc00, 4, 10);
-    pointLight.position.set(0, 0, 0);
-    group.add(pointLight);
-    
-    // Secondary glow light
-    const glowLight = new THREE.PointLight(0x0088ff, 2, 8);
-    glowLight.position.set(0, 1, 0);
-    group.add(glowLight);
-    
-    group.scale.set(1.2, 1.2, 1.2); // Scaled up
+    group.scale.set(1.2, 1.2, 1.2);
     group.rotation.x = -Math.PI / 2;
     
     return group;
-  }, []);
+  }, [currentTheme]);
 
   // Update lightning animation
   const updateLightningAnimation = useCallback((group: THREE.Group, time: number) => {
@@ -1012,31 +1301,66 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT, mazeRng);
     mazeRef.current = maze;
     
-    // PCB Green for walls (circuit board substrate)
+    // Theme-based wall and path colors
+    let wallColor: number, wallEdgeColor: number, pathColor: number, pathShineColor: number, baseColor: number, markingColor: number;
+    switch (currentTheme) {
+      case 'halloween':
+        wallColor = 0x2a1a3a; // Dark purple walls
+        wallEdgeColor = 0x4a2a5a; // Purple edge
+        pathColor = 0x553366; // Dim purple path
+        pathShineColor = 0x774488; // Lighter purple shine
+        baseColor = 0x1a0a2a; // Dark purple base
+        markingColor = 0xff6600; // Orange markings (pumpkin)
+        break;
+      case 'christmas':
+        wallColor = 0x0a3a3a; // Dark cyan/ice walls
+        wallEdgeColor = 0x1a5a5a; // Ice edge
+        pathColor = 0x336699; // Blue/ice path
+        pathShineColor = 0x88bbdd; // Lighter ice shine
+        baseColor = 0x0a2a3a; // Dark blue base
+        markingColor = 0xff3333; // Red markings (festive)
+        break;
+      case 'reproductive':
+        wallColor = 0x4a1a2a; // Dark red/pink walls (uterine)
+        wallEdgeColor = 0x6a2a4a; // Pink edge
+        pathColor = 0x993366; // Pink path
+        pathShineColor = 0xcc6699; // Lighter pink shine
+        baseColor = 0x3a0a1a; // Dark pink base
+        markingColor = 0xffcccc; // Light pink markings
+        break;
+      default:
+        wallColor = 0x0a3d0a; // Dark PCB green
+        wallEdgeColor = 0x1a5a1a; // Lighter PCB green edge
+        pathColor = 0xb87333; // Copper color
+        pathShineColor = 0xdaa06d; // Lighter copper shine
+        baseColor = 0x0d2d0d; // Darker PCB green base
+        markingColor = 0xffffee; // White markings
+    }
+    
     const wallMaterial = new THREE.MeshBasicMaterial({
-      color: 0x0a3d0a, // Dark PCB green
+      color: wallColor,
       transparent: true,
       opacity: 0.95,
     });
     
-    // Create maze geometry - CIRCUIT BOARD THEME
+    // Create maze geometry - themed
     for (let z = 0; z < MAZE_HEIGHT; z++) {
       for (let x = 0; x < MAZE_WIDTH; x++) {
         const worldX = (x - MAZE_WIDTH / 2 + 0.5) * CELL_SIZE;
         const worldZ = (z - MAZE_HEIGHT / 2 + 0.5) * CELL_SIZE;
         
         if (maze[z][x] === 'wall') {
-          // Main PCB wall block (dark green)
+          // Main wall block
           const wallGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.92, 1.5, CELL_SIZE * 0.92);
           const wall = new THREE.Mesh(wallGeometry, wallMaterial.clone());
           wall.position.set(worldX, 0.75, worldZ);
           scene.add(wall);
           mazeMeshesRef.current.push(wall);
           
-          // PCB edge - lighter green border
+          // Wall edge - lighter border
           const edgeGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.98, 1.55, CELL_SIZE * 0.98);
           const edgeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x1a5a1a, // Lighter PCB green edge
+            color: wallEdgeColor,
             transparent: true,
             opacity: 0.3,
           });
@@ -1045,10 +1369,10 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           scene.add(edge);
           mazeMeshesRef.current.push(edge);
           
-          // Silkscreen markings (white lines on top)
+          // Themed markings on top
           const silkscreenGeometry = new THREE.BoxGeometry(CELL_SIZE * 0.7, 0.05, CELL_SIZE * 0.7);
           const silkscreenMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffee,
+            color: markingColor,
             transparent: true,
             opacity: 0.25,
           });
@@ -1057,10 +1381,10 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           scene.add(silkscreen);
           mazeMeshesRef.current.push(silkscreen);
         } else {
-          // COPPER TRACE PATH
+          // THEMED PATH
           const copperGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.85, CELL_SIZE * 0.85);
           const copperMaterial = new THREE.MeshBasicMaterial({
-            color: 0xb87333, // Copper color
+            color: pathColor,
             transparent: true,
             opacity: 0.9,
           });
@@ -1070,10 +1394,10 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           scene.add(copper);
           mazeMeshesRef.current.push(copper);
           
-          // Copper shine effect
+          // Path shine effect
           const shineGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.6, CELL_SIZE * 0.6);
           const shineMaterial = new THREE.MeshBasicMaterial({
-            color: 0xdaa06d, // Lighter copper shine
+            color: pathShineColor,
             transparent: true,
             opacity: 0.4,
           });
@@ -1083,10 +1407,10 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           scene.add(shine);
           mazeMeshesRef.current.push(shine);
           
-          // PCB base under copper
+          // Base under path
           const baseGeometry = new THREE.PlaneGeometry(CELL_SIZE * 0.95, CELL_SIZE * 0.95);
           const baseMaterial = new THREE.MeshBasicMaterial({
-            color: 0x0d2d0d, // Darker PCB green base
+            color: baseColor,
             transparent: true,
             opacity: 0.8,
           });
@@ -1267,7 +1591,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     if (lightningRef.current) {
       lightningRef.current.position.copy(lightningPositionRef.current);
     }
-  }, [clearMaze, createStartMarker, createTeslaCoil, createObstacle, createResistor, createDiode]);
+  }, [clearMaze, createStartMarker, createTeslaCoil, createObstacle, createResistor, createDiode, currentTheme]);
 
   // Detect mobile device
   useEffect(() => {
@@ -1289,10 +1613,28 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     const isMobileDevice = window.innerWidth < 768;
     setIsMobile(isMobileDevice);
     
-    // Brighter background and less fog on mobile for better visibility
-    const bgColor = isMobileDevice ? 0x0a2a0a : 0x051505; // Brighter on mobile
+    // Theme-based background colors
+    let bgColor: number;
+    let fogColor: number;
+    switch (currentTheme) {
+      case 'halloween':
+        bgColor = isMobileDevice ? 0x1a0a2a : 0x0f051a; // Dark purple
+        fogColor = 0x2a1a3a;
+        break;
+      case 'christmas':
+        bgColor = isMobileDevice ? 0x0a1a2a : 0x051020; // Dark blue
+        fogColor = 0x1a2a4a;
+        break;
+      case 'reproductive':
+        bgColor = isMobileDevice ? 0x2a0a1a : 0x1a0510; // Dark pink/red
+        fogColor = 0x3a1a2a;
+        break;
+      default:
+        bgColor = isMobileDevice ? 0x0a2a0a : 0x051505; // Green circuit
+        fogColor = bgColor;
+    }
     scene.background = new THREE.Color(bgColor);
-    scene.fog = new THREE.Fog(bgColor, isMobileDevice ? 40 : 25, isMobileDevice ? 100 : 70); // Less fog on mobile
+    scene.fog = new THREE.Fog(fogColor, isMobileDevice ? 40 : 25, isMobileDevice ? 100 : 70);
     sceneRef.current = scene;
 
     // Create perspective camera for 3D mode - zoom out more on mobile
@@ -1327,15 +1669,166 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Ambient light (brighter on mobile for better visibility)
-    const ambientLight = new THREE.AmbientLight(isMobileDevice ? 0x444444 : 0x222222);
+    // Theme-based ambient lighting
+    let ambientColor: number;
+    switch (currentTheme) {
+      case 'halloween':
+        ambientColor = isMobileDevice ? 0x442266 : 0x221133; // Purple tint
+        break;
+      case 'christmas':
+        ambientColor = isMobileDevice ? 0x334466 : 0x223344; // Blue tint
+        break;
+      case 'reproductive':
+        ambientColor = isMobileDevice ? 0x553344 : 0x332222; // Pink/red tint
+        break;
+      default:
+        ambientColor = isMobileDevice ? 0x444444 : 0x222222; // Standard
+    }
+    const ambientLight = new THREE.AmbientLight(ambientColor);
     scene.add(ambientLight);
     
     // Add extra directional light on mobile for 3D depth
     if (isMobileDevice) {
-      const mobileLight = new THREE.DirectionalLight(0xffffff, 0.3);
+      let lightColor = 0xffffff;
+      if (currentTheme === 'halloween') lightColor = 0x88ff88; // Eerie green
+      if (currentTheme === 'christmas') lightColor = 0x88ccff; // Cool blue
+      if (currentTheme === 'reproductive') lightColor = 0xffcccc; // Warm pink
+      
+      const mobileLight = new THREE.DirectionalLight(lightColor, 0.3);
       mobileLight.position.set(10, 30, 10);
       scene.add(mobileLight);
+    }
+    
+    // Theme-specific decorations
+    if (currentTheme === 'halloween') {
+      // Add floating pumpkins/skulls in corners
+      const decorPositions = [
+        { x: -18, z: -18 }, { x: 18, z: -18 },
+        { x: -18, z: 18 }, { x: 18, z: 18 }
+      ];
+      decorPositions.forEach((pos, i) => {
+        // Glowing jack-o-lantern sphere
+        const pumpkinGeometry = new THREE.SphereGeometry(1.5, 12, 12);
+        pumpkinGeometry.scale(1, 0.8, 1);
+        const pumpkinMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff6600,
+          transparent: true,
+          opacity: 0.7,
+        });
+        const pumpkin = new THREE.Mesh(pumpkinGeometry, pumpkinMaterial);
+        pumpkin.position.set(pos.x, 3, pos.z);
+        pumpkin.name = `pumpkin_${i}`;
+        scene.add(pumpkin);
+        
+        // Pumpkin glow
+        const pumpkinLight = new THREE.PointLight(0xff4400, 1.5, 8);
+        pumpkinLight.position.set(pos.x, 3, pos.z);
+        scene.add(pumpkinLight);
+      });
+      
+      // Full moon in sky
+      const moonGeometry = new THREE.CircleGeometry(5, 32);
+      const moonMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffcc,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+      });
+      const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+      moon.position.set(15, 40, -30);
+      moon.lookAt(0, 0, 0);
+      moon.name = 'moon';
+      scene.add(moon);
+      
+    } else if (currentTheme === 'christmas') {
+      // Add Christmas trees in corners
+      const treePositions = [
+        { x: -18, z: -18 }, { x: 18, z: -18 },
+        { x: -18, z: 18 }, { x: 18, z: 18 }
+      ];
+      treePositions.forEach((pos, i) => {
+        const treeGroup = new THREE.Group();
+        
+        // Tree trunk
+        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 1, 8);
+        const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x4a3728 });
+        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+        trunk.position.y = 0.5;
+        treeGroup.add(trunk);
+        
+        // Tree layers (cones)
+        for (let layer = 0; layer < 3; layer++) {
+          const coneGeometry = new THREE.ConeGeometry(1.5 - layer * 0.3, 2, 8);
+          const coneMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0a5a0a,
+            transparent: true,
+            opacity: 0.8,
+          });
+          const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+          cone.position.y = 2 + layer * 1.2;
+          treeGroup.add(cone);
+        }
+        
+        // Star on top
+        const starGeometry = new THREE.OctahedronGeometry(0.3, 0);
+        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+        const star = new THREE.Mesh(starGeometry, starMaterial);
+        star.position.y = 6;
+        treeGroup.add(star);
+        
+        treeGroup.position.set(pos.x, 0, pos.z);
+        treeGroup.name = `tree_${i}`;
+        scene.add(treeGroup);
+        
+        // Tree glow
+        const treeLight = new THREE.PointLight(0x00ff44, 0.8, 6);
+        treeLight.position.set(pos.x, 3, pos.z);
+        scene.add(treeLight);
+      });
+      
+      // Snowfall particles
+      const snowGeometry = new THREE.BufferGeometry();
+      const snowPositions: number[] = [];
+      for (let i = 0; i < 200; i++) {
+        snowPositions.push(
+          (Math.random() - 0.5) * 60,
+          Math.random() * 40,
+          (Math.random() - 0.5) * 60
+        );
+      }
+      snowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(snowPositions, 3));
+      const snowMaterial = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.2,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const snow = new THREE.Points(snowGeometry, snowMaterial);
+      snow.name = 'snow';
+      scene.add(snow);
+      
+    } else if (currentTheme === 'reproductive') {
+      // Add ovary-like decorations in corners
+      const ovaryPositions = [
+        { x: -18, z: -18 }, { x: 18, z: 18 }
+      ];
+      ovaryPositions.forEach((pos, i) => {
+        const ovaryGeometry = new THREE.SphereGeometry(2, 16, 16);
+        const ovaryMaterial = new THREE.MeshBasicMaterial({
+          color: 0xff6699,
+          transparent: true,
+          opacity: 0.5,
+        });
+        const ovary = new THREE.Mesh(ovaryGeometry, ovaryMaterial);
+        ovary.position.set(pos.x, 4, pos.z);
+        ovary.name = `ovary_${i}`;
+        scene.add(ovary);
+        
+        // Ovary glow
+        const ovaryLight = new THREE.PointLight(0xff3366, 1, 8);
+        ovaryLight.position.set(pos.x, 4, pos.z);
+        scene.add(ovaryLight);
+      });
     }
 
     // Create lightning bolt
@@ -1996,7 +2489,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [createLightningBolt, updateLightningAnimation, createTeslaCoil, animateTeslaCoil, createObstacle, createStartMarker, buildMaze, isValidPosition, findClosestValidPosition, onGameComplete]);
+  }, [createLightningBolt, updateLightningAnimation, createTeslaCoil, animateTeslaCoil, createObstacle, createStartMarker, buildMaze, isValidPosition, findClosestValidPosition, onGameComplete, currentTheme]);
 
   const startGame = () => {
     setGameState('waiting');
