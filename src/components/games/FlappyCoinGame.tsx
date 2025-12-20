@@ -41,6 +41,14 @@ interface HandObstacle {
   bottomBaseY: number;
 }
 
+interface BonusCoin {
+  id: number;
+  x: number;
+  y: number;
+  collected: boolean;
+  mesh: THREE.Group;
+}
+
 export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: FlappyCoinGameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -55,6 +63,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const coinYRef = useRef<number>(0);
   const velocityRef = useRef<number>(0);
   const obstaclesRef = useRef<HandObstacle[]>([]);
+  const bonusCoinsRef = useRef<BonusCoin[]>([]); // Bonus collectible coins
+  const gapsPassedRef = useRef<number>(0); // Track total gaps passed for bonus coins
   const gameSpeedRef = useRef<number>(4);
   const movingForwardRef = useRef<boolean>(true); // Direction: true = forward, false = reverse
   const scoreRef = useRef<number>(0);
@@ -106,6 +116,56 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const CEILING_Y = 4.5;
   const OBSTACLE_GAP = 12.0; // Much larger gap between obstacles for back/forth movement
   const GAP_SIZE = 4.2; // Larger opening to pass through
+  const BONUS_COIN_POINTS = 500; // Points for collecting bonus coins
+  
+  // Create glowing bonus collectible coin
+  const createBonusCoin = useCallback((scene: THREE.Scene, x: number, y: number): THREE.Group => {
+    const group = new THREE.Group();
+    
+    // Golden glowing coin
+    const coinGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.15, 32);
+    const coinMat = new THREE.MeshPhongMaterial({
+      color: 0xFFD700,
+      emissive: 0xFFAA00,
+      emissiveIntensity: 0.8,
+      shininess: 200,
+    });
+    const coin = new THREE.Mesh(coinGeo, coinMat);
+    coin.rotation.x = Math.PI / 2;
+    group.add(coin);
+    
+    // Outer glow ring
+    const glowGeo = new THREE.RingGeometry(0.6, 0.9, 32);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xFFD700,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.rotation.x = Math.PI / 2;
+    group.add(glow);
+    
+    // Star symbol on coin
+    const starShape = new THREE.Shape();
+    const outerR = 0.25, innerR = 0.1;
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const angle = (i * Math.PI) / 5 - Math.PI / 2;
+      if (i === 0) starShape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      else starShape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+    }
+    starShape.closePath();
+    const starGeo = new THREE.ShapeGeometry(starShape);
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+    const star = new THREE.Mesh(starGeo, starMat);
+    star.position.z = 0.08;
+    group.add(star);
+    
+    group.position.set(x, y, 0);
+    scene.add(group);
+    return group;
+  }, []);
   
   // Create beautiful 3D SILVER coin with detailed features
   const createCoin = useCallback(() => {
@@ -377,6 +437,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     setGameState('waiting');
     scoreRef.current = 0;
     setScore(0);
+    gapsPassedRef.current = 0; // Reset gaps counter
+    bonusCoinsRef.current = []; // Clear bonus coins
     coinYRef.current = 0;
     velocityRef.current = 0;
     gameSpeedRef.current = 4;
@@ -712,6 +774,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           // Score - ONLY for crossing gaps, with accuracy and speed bonuses
           if (!obs.passed && obs.x < COIN_X - 0.5) {
             obs.passed = true;
+            gapsPassedRef.current++;
             
             // Calculate accuracy bonus - how centered through the gap
             const gapCenter = obs.gapY;
@@ -742,6 +805,21 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             const popupType = accuracy > 0.9 ? 'perfect' : accuracy > 0.7 ? 'bonus' : speedBonus > 10 ? 'combo' : 'normal';
             const label = accuracy > 0.9 ? 'PERFECT!' : accuracy > 0.7 ? 'CENTERED!' : speedBonus > 10 ? 'FAST!' : 'GAP';
             addPopupRef.current(points, 50, 40, popupType, label);
+            
+            // Spawn bonus coin every 10 gaps!
+            if (gapsPassedRef.current % 10 === 0) {
+              const bonusY = (seededRngRef.current.next() - 0.5) * 6; // Random Y position
+              const bonusX = obs.x + OBSTACLE_GAP / 2; // Between this and next obstacle
+              const bonusMesh = createBonusCoin(scene, bonusX, bonusY);
+              bonusCoinsRef.current.push({
+                id: gapsPassedRef.current,
+                x: bonusX,
+                y: bonusY,
+                collected: false,
+                mesh: bonusMesh,
+              });
+              addPopupRef.current(0, 50, 20, 'bonus', '⭐ BONUS COIN AHEAD!');
+            }
           }
           
           // Collision
@@ -794,6 +872,44 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
         
         toRemove.reverse().forEach(i => {
           obstaclesRef.current.splice(i, 1);
+        });
+        
+        // Update bonus coins
+        const bonusToRemove: number[] = [];
+        bonusCoinsRef.current.forEach((bonus, i) => {
+          if (bonus.collected) return;
+          
+          // Move bonus coin with game speed
+          bonus.x -= gameSpeedRef.current * dt;
+          bonus.mesh.position.x = bonus.x;
+          
+          // Rotate and pulse the bonus coin
+          bonus.mesh.rotation.y += 0.05;
+          const pulseScale = 1 + Math.sin(time / 200) * 0.15;
+          bonus.mesh.scale.set(pulseScale, pulseScale, pulseScale);
+          
+          // Check collision with player coin
+          const coinY = coinYRef.current;
+          const dist = Math.sqrt(Math.pow(bonus.x - COIN_X, 2) + Math.pow(bonus.y - coinY, 2));
+          if (dist < 1.2) {
+            // Collected!
+            bonus.collected = true;
+            bonus.mesh.visible = false;
+            
+            scoreRef.current += BONUS_COIN_POINTS;
+            setScore(scoreRef.current);
+            addPopupRef.current(BONUS_COIN_POINTS, 50, 30, 'critical', '⭐ BONUS! +500');
+          }
+          
+          // Remove off-screen
+          if (bonus.x < -12) {
+            bonusToRemove.push(i);
+            scene.remove(bonus.mesh);
+          }
+        });
+        
+        bonusToRemove.reverse().forEach(i => {
+          bonusCoinsRef.current.splice(i, 1);
         });
       }
       

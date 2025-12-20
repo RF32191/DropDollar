@@ -496,11 +496,11 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
       }
       
       if (targetEnemy.health <= 0) {
-        // Enemy killed! Bonus points for the kill
+        // Enemy killed! 50 points for the kill
         targetEnemy.attackPhase = 'dying';
         enemiesKilledRef.current++;
         
-        const killPoints = 500 + (comboRef.current * 100); // Kill bonus
+        const killPoints = 50; // Kill bonus
         scoreRef.current += killPoints;
         setScore(scoreRef.current);
         setActionFeedback('kill');
@@ -516,7 +516,7 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
         setScreenFlash('white');
         setTimeout(() => setScreenFlash('none'), 100);
         
-        addPopup(killPoints, 50, 35, 'critical', 'KILL!');
+        addPopup(killPoints, 50, 35, 'critical', '💀 KILL! +50');
         
         // Remove enemy mesh after animation
         const enemyToRemove = targetEnemy;
@@ -1127,32 +1127,45 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
             </div>
             <p className="text-gray-500 text-xs mb-4">↑ These buttons appear during gameplay!</p>
             
-            <div className="bg-gray-900/80 rounded-xl p-4 mb-6 text-left border border-red-500/30">
+            <div className="bg-gray-900/80 rounded-xl p-4 mb-6 text-left border border-red-500/30 max-h-64 overflow-y-auto">
               <p className="text-red-400 font-bold mb-3">⚔️ CONTROLS:</p>
               
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="text-center bg-cyan-900/50 rounded-lg p-2">
                   <div className="text-2xl">💨</div>
                   <div className="text-cyan-400 text-xs font-bold">DODGE</div>
-                  <div className="text-gray-400 text-[10px]">Avoid all attacks</div>
+                  <div className="text-gray-400 text-[10px]">←/Shift</div>
                 </div>
                 <div className="text-center bg-amber-900/50 rounded-lg p-2 border border-yellow-500">
-                  <div className="text-2xl">⚔️</div>
+                  <div className="text-2xl">🛡️</div>
                   <div className="text-amber-400 text-xs font-bold">PARRY</div>
-                  <div className="text-gray-400 text-[10px]">Block one attack</div>
+                  <div className="text-gray-400 text-[10px]">↑/Space</div>
                 </div>
                 <div className="text-center bg-red-900/50 rounded-lg p-2">
-                  <div className="text-2xl">🗡️</div>
+                  <div className="text-2xl">⚔️</div>
                   <div className="text-red-400 text-xs font-bold">STRIKE</div>
-                  <div className="text-gray-400 text-[10px]">Attack enemies</div>
+                  <div className="text-gray-400 text-[10px]">→/Enter</div>
                 </div>
               </div>
               
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-red-400">Strike</span> = <span className="text-green-400">+200 pts</span> (3 hits to defeat!)</p>
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-cyan-400">Dodge</span> = <span className="text-green-400">+200 pts</span> per attack dodged</p>
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-purple-400">Parry</span> = <span className="text-green-400">+500 pts</span></p>
-              <p className="text-gray-300 text-sm mb-2">• <span className="text-yellow-400">Perfect Parry</span> = <span className="text-green-400">+750 pts</span> + combo!</p>
-              <p className="text-gray-300 text-sm">• More enemies spawn over time!</p>
+              <p className="text-yellow-400 font-bold mb-2 text-center">💰 SCORING:</p>
+              <div className="bg-black/40 rounded-lg p-2 mb-3">
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  <div className="text-red-400">⚔️ Strike Hit</div>
+                  <div className="text-green-400 text-right font-bold">+200</div>
+                  <div className="text-cyan-400">🏃 Dodge</div>
+                  <div className="text-green-400 text-right font-bold">+200</div>
+                  <div className="text-purple-400">🛡️ Parry</div>
+                  <div className="text-green-400 text-right font-bold">+500</div>
+                  <div className="text-yellow-400">⚡ Perfect Parry</div>
+                  <div className="text-green-400 text-right font-bold">+750</div>
+                  <div className="text-orange-400">💀 Kill Enemy</div>
+                  <div className="text-green-400 text-right font-bold">+50</div>
+                </div>
+              </div>
+              
+              <p className="text-gray-400 text-xs text-center">Perfect timing on parry = more points + combo bonus!</p>
+              <p className="text-gray-400 text-xs text-center">Kill enemies for heart recovery!</p>
             </div>
             
             <button
