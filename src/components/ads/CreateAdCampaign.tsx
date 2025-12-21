@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -9,14 +9,27 @@ import {
   CurrencyDollarIcon,
   ChartBarIcon,
   CheckCircleIcon,
-  XCircleIcon 
+  XCircleIcon,
+  VideoCameraIcon,
+  XMarkIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
+
+interface MediaFile {
+  id: string;
+  file: File;
+  preview: string;
+  type: 'image' | 'video';
+  duration?: number; // For videos, in seconds
+}
 
 export default function CreateAdCampaign() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -30,8 +43,7 @@ export default function CreateAdCampaign() {
     cost_per_impression: 1,
     cost_per_click: 5,
     end_date: '',
-    image_file: null as File | null,
-    image_preview: '' as string
+    media_files: [] as MediaFile[]
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -48,33 +60,106 @@ export default function CreateAdCampaign() {
     }));
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: 'error', text: 'Image must be less than 5MB' });
-      return;
-    }
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData(prev => ({
-        ...prev,
-        image_file: file,
-        image_preview: reader.result as string
-      }));
-    };
-    reader.readAsDataURL(file);
+  // Get video duration
+  const getVideoDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+      video.onerror = () => resolve(0);
+      video.src = URL.createObjectURL(file);
+    });
   };
 
-  const uploadImageToSupabase = async (file: File): Promise<string | null> => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const newMediaFiles: MediaFile[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+
+      if (!isVideo && !isImage) {
+        setMessage({ type: 'error', text: `${file.name} is not a supported file type` });
+        continue;
+      }
+
+      // Validate file size (images: 5MB, videos: 50MB)
+      const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setMessage({ type: 'error', text: `${file.name} exceeds ${isVideo ? '50MB' : '5MB'} limit` });
+        continue;
+      }
+
+      // Check video duration (max 30 seconds)
+      let duration: number | undefined;
+      if (isVideo) {
+        duration = await getVideoDuration(file);
+        if (duration > 30) {
+          setMessage({ type: 'error', text: `${file.name} exceeds 30 second limit (${Math.round(duration)}s)` });
+          continue;
+        }
+      }
+
+      // Check max files (10 images or 3 videos)
+      const currentImages = formData.media_files.filter(m => m.type === 'image').length;
+      const currentVideos = formData.media_files.filter(m => m.type === 'video').length;
+      
+      if (isImage && currentImages + newMediaFiles.filter(m => m.type === 'image').length >= 10) {
+        setMessage({ type: 'error', text: 'Maximum 10 images allowed' });
+        continue;
+      }
+      if (isVideo && currentVideos + newMediaFiles.filter(m => m.type === 'video').length >= 3) {
+        setMessage({ type: 'error', text: 'Maximum 3 videos allowed' });
+        continue;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      const preview = await new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      newMediaFiles.push({
+        id: `${Date.now()}-${i}`,
+        file,
+        preview,
+        type: isVideo ? 'video' : 'image',
+        duration
+      });
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      media_files: [...prev.media_files, ...newMediaFiles]
+    }));
+
+    setIsUploading(false);
+    // Reset input
+    e.target.value = '';
+  };
+
+  const removeMediaFile = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      media_files: prev.media_files.filter(m => m.id !== id)
+    }));
+  };
+
+  const uploadMediaToSupabase = async (file: File, type: 'image' | 'video'): Promise<string | null> => {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-      const filePath = `ad-images/${fileName}`;
+      const fileName = `${user?.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      const folder = type === 'video' ? 'ad-videos' : 'ad-images';
+      const filePath = `${folder}/${fileName}`;
 
       const { data, error } = await supabase.storage
         .from('marketplace-images')
@@ -88,7 +173,7 @@ export default function CreateAdCampaign() {
 
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error uploading media:', error);
       return null;
     }
   };
@@ -134,23 +219,31 @@ export default function CreateAdCampaign() {
 
       const campaignId = data.campaign_id;
 
-      // Upload image if provided
-      if (formData.image_file) {
-        const imageUrl = await uploadImageToSupabase(formData.image_file);
-        
-        if (imageUrl) {
-          await supabase.from('ad_images').insert({
-            campaign_id: campaignId,
-            image_url: imageUrl,
-            image_type: 'banner',
-            is_primary: true
-          });
+      // Upload all media files
+      if (formData.media_files.length > 0) {
+        let uploadedCount = 0;
+        for (let i = 0; i < formData.media_files.length; i++) {
+          const media = formData.media_files[i];
+          const mediaUrl = await uploadMediaToSupabase(media.file, media.type);
+          
+          if (mediaUrl) {
+            await supabase.from('ad_images').insert({
+              campaign_id: campaignId,
+              image_url: mediaUrl,
+              image_type: media.type === 'video' ? 'video' : 'banner',
+              is_primary: i === 0,
+              display_order: i,
+              duration_seconds: media.duration || null
+            });
+            uploadedCount++;
+          }
         }
+        console.log(`📸 Uploaded ${uploadedCount}/${formData.media_files.length} media files`);
       }
 
       setMessage({
         type: 'success',
-        text: `Campaign created successfully! Tokens remaining: ${data.tokens_remaining}. Your ad is pending admin approval.`
+        text: `Campaign created successfully! ${formData.media_files.length > 0 ? `${formData.media_files.length} media files uploaded. ` : ''}Tokens remaining: ${data.tokens_remaining}. Your ad is pending admin approval.`
       });
 
       // Reset form
@@ -165,8 +258,7 @@ export default function CreateAdCampaign() {
         cost_per_impression: 1,
         cost_per_click: 5,
         end_date: '',
-        image_file: null,
-        image_preview: ''
+        media_files: []
       });
       setStep(1);
     } catch (error: any) {
@@ -329,31 +421,132 @@ export default function CreateAdCampaign() {
               </div>
 
               <div>
-                <label className="block text-white font-semibold mb-4">Ad Image (Optional, max 5MB)</label>
-                <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-purple-500 transition-all cursor-pointer">
+                <label className="block text-white font-semibold mb-2">Ad Media (Images & Videos)</label>
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <PhotoIcon className="w-5 h-5 text-blue-400" />
+                    <span className="text-blue-300 font-medium">Upload Guidelines:</span>
+                  </div>
+                  <ul className="text-sm text-blue-200 space-y-1 ml-7">
+                    <li>• Images: Up to 10 images, max 5MB each (728x90 or 300x250 recommended)</li>
+                    <li>• Videos: Up to 3 videos, max 30 seconds each, max 50MB</li>
+                    <li>• Supported formats: JPG, PNG, GIF, MP4, WebM</li>
+                    <li>• First media will be the primary display</li>
+                  </ul>
+                </div>
+
+                {/* Upload Area */}
+                <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                  isUploading ? 'border-purple-500 bg-purple-900/20' : 'border-gray-600 hover:border-purple-500'
+                }`}>
                   <input
                     type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
+                    accept="image/*,video/mp4,video/webm"
+                    onChange={handleMediaUpload}
                     className="hidden"
-                    id="ad-image-upload"
+                    id="ad-media-upload"
+                    multiple
+                    disabled={isUploading}
                   />
-                  <label htmlFor="ad-image-upload" className="cursor-pointer">
-                    {formData.image_preview ? (
-                      <img
-                        src={formData.image_preview}
-                        alt="Preview"
-                        className="max-h-64 mx-auto rounded-lg"
-                      />
+                  <label htmlFor="ad-media-upload" className="cursor-pointer block">
+                    {isUploading ? (
+                      <div className="animate-pulse">
+                        <div className="w-16 h-16 mx-auto bg-purple-500/30 rounded-full flex items-center justify-center mb-4">
+                          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <p className="text-purple-300">Processing media files...</p>
+                      </div>
                     ) : (
                       <div>
-                        <PhotoIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-400">Click to upload an image</p>
-                        <p className="text-xs text-gray-500 mt-2">Recommended: 728x90 or 300x250</p>
+                        <div className="flex justify-center gap-4 mb-4">
+                          <PhotoIcon className="w-12 h-12 text-gray-400" />
+                          <VideoCameraIcon className="w-12 h-12 text-gray-400" />
+                        </div>
+                        <p className="text-gray-300 font-medium">Click or drag to upload images & videos</p>
+                        <p className="text-xs text-gray-500 mt-2">Select multiple files at once</p>
                       </div>
                     )}
                   </label>
                 </div>
+
+                {/* Media Preview Grid */}
+                {formData.media_files.length > 0 && (
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-white font-medium">
+                        {formData.media_files.length} file{formData.media_files.length > 1 ? 's' : ''} selected
+                      </span>
+                      <span className="text-sm text-gray-400">
+                        {formData.media_files.filter(m => m.type === 'image').length} images, {formData.media_files.filter(m => m.type === 'video').length} videos
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {formData.media_files.map((media, index) => (
+                        <div key={media.id} className="relative group">
+                          <div className={`aspect-video rounded-lg overflow-hidden border-2 ${
+                            index === 0 ? 'border-green-500' : 'border-gray-600'
+                          }`}>
+                            {media.type === 'image' ? (
+                              <img
+                                src={media.preview}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="relative w-full h-full bg-gray-800">
+                                <video
+                                  src={media.preview}
+                                  className="w-full h-full object-cover"
+                                  muted
+                                  playsInline
+                                  onMouseOver={(e) => (e.target as HTMLVideoElement).play()}
+                                  onMouseOut={(e) => {
+                                    const vid = e.target as HTMLVideoElement;
+                                    vid.pause();
+                                    vid.currentTime = 0;
+                                  }}
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                  <div className="bg-black/50 rounded-full p-2">
+                                    <PlayIcon className="w-6 h-6 text-white" />
+                                  </div>
+                                </div>
+                                {media.duration && (
+                                  <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-0.5 rounded text-xs text-white">
+                                    {Math.round(media.duration)}s
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {/* Primary badge */}
+                          {index === 0 && (
+                            <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+                              PRIMARY
+                            </div>
+                          )}
+                          {/* Type badge */}
+                          <div className={`absolute top-2 right-8 text-white text-xs font-medium px-2 py-1 rounded ${
+                            media.type === 'video' ? 'bg-purple-500' : 'bg-blue-500'
+                          }`}>
+                            {media.type === 'video' ? '🎬' : '📷'}
+                          </div>
+                          {/* Remove button */}
+                          <button
+                            type="button"
+                            onClick={() => removeMediaFile(media.id)}
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-3">
+                      💡 Tip: Drag to reorder. The first media will be shown as the primary ad.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4">
