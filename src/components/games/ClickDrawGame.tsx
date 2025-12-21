@@ -1031,7 +1031,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
       />
       
       {/* Floating Scores - CoD style */}
-      <FloatingScore popups={scorePopups} onRemove={removeScorePopup} />
+      {scorePopups && <FloatingScore popups={scorePopups} onRemove={removeScorePopup} />}
       
       {/* HUD */}
       {gameState === 'playing' && (

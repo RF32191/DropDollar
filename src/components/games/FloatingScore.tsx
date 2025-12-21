@@ -18,6 +18,11 @@ interface FloatingScoreProps {
 
 // Call of Duty style floating score indicators
 export default function FloatingScore({ popups, onRemove }: FloatingScoreProps) {
+  // Safety check for undefined popups
+  if (!popups || !Array.isArray(popups)) {
+    return null;
+  }
+  
   return (
     <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
       {popups.map((popup) => (
