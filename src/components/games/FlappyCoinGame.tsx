@@ -1879,22 +1879,59 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           obs.topMesh.position.x = obs.x;
           obs.bottomMesh.position.x = obs.x;
           
-          // Staggered up/down animation for hands - GETS FASTER AND BIGGER OVER TIME!
-          const gameProgress = Math.min(1, (Date.now() - gameStartTimeRef.current) / 60000); // 0 to 1 over 60 seconds
-          const baseSpeed = 1.5;
-          const animSpeed = baseSpeed + gameProgress * 2.0; // Speed increases from 1.5 to 3.5
-          const baseAmplitude = 1.5;
-          const animAmplitude = baseAmplitude + gameProgress * 2.5; // Amplitude increases from 1.5 to 4.0!
+          // Staggered up/down animation for hands - STARTS SLOW, GETS FASTER!
+          const gameProgress = Math.min(1, (Date.now() - gameStartTimeRef.current) / 90000); // 0 to 1 over 90 seconds
+          const baseSpeed = 0.5; // Start MUCH slower
+          const animSpeed = baseSpeed + gameProgress * 2.5; // Speed increases from 0.5 to 3.0
+          const baseAmplitude = 0.8; // Start with smaller movement
+          const animAmplitude = baseAmplitude + gameProgress * 2.0; // Amplitude increases from 0.8 to 2.8
           
-          // Occasionally make hands go ALL THE WAY DOWN (every ~5 seconds, random)
-          const slamChance = Math.sin(time / 5000 + obs.id * 1.7) > 0.85;
-          const slamMultiplier = slamChance ? 2.5 : 1.0; // Triple movement when slamming
+          // Occasionally make hands go ALL THE WAY DOWN (every ~8 seconds, random)
+          const slamChance = Math.sin(time / 8000 + obs.id * 1.7) > 0.9;
+          const slamMultiplier = slamChance ? 2.0 : 1.0;
           
           const topOffset = Math.sin(time / 1000 * animSpeed + obs.topPhase) * animAmplitude * slamMultiplier;
           const bottomOffset = Math.sin(time / 1000 * animSpeed + obs.bottomPhase) * animAmplitude * slamMultiplier;
           
           obs.topMesh.position.y = obs.topBaseY + topOffset;
           obs.bottomMesh.position.y = obs.bottomBaseY + bottomOffset;
+          
+          // Calculate gap between hands - GLOW GREEN when closing!
+          const topHandY = obs.topMesh.position.y;
+          const bottomHandY = obs.bottomMesh.position.y;
+          const currentGap = topHandY - bottomHandY;
+          const dangerThreshold = obs.gapSize * 0.8; // When gap is 80% of normal or less
+          const isDangerous = currentGap < dangerThreshold;
+          
+          // Apply green glow to hands when they're close together
+          obs.topMesh.traverse((child: THREE.Object3D) => {
+            if (child instanceof THREE.Mesh && child.material) {
+              const mat = child.material as THREE.MeshStandardMaterial;
+              if (mat.emissive) {
+                if (isDangerous) {
+                  mat.emissive.setHex(0x00FF00); // GREEN GLOW - DANGER!
+                  mat.emissiveIntensity = 0.8 + Math.sin(time / 100) * 0.4;
+                } else {
+                  mat.emissive.setHex(0x3A1505); // Normal
+                  mat.emissiveIntensity = 0.05;
+                }
+              }
+            }
+          });
+          obs.bottomMesh.traverse((child: THREE.Object3D) => {
+            if (child instanceof THREE.Mesh && child.material) {
+              const mat = child.material as THREE.MeshStandardMaterial;
+              if (mat.emissive) {
+                if (isDangerous) {
+                  mat.emissive.setHex(0x00FF00); // GREEN GLOW - DANGER!
+                  mat.emissiveIntensity = 0.8 + Math.sin(time / 100) * 0.4;
+                } else {
+                  mat.emissive.setHex(0x3A1505); // Normal
+                  mat.emissiveIntensity = 0.05;
+                }
+              }
+            }
+          });
           
           // Score - ONLY for crossing gaps, with accuracy and speed bonuses
           if (!obs.passed && obs.x < COIN_X - 0.5) {

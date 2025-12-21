@@ -4,12 +4,17 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three';
 import { logGameCompletion, GAME_TYPES, GAME_MODES } from '@/lib/gameAudit';
 import FloatingScore, { useFloatingScores } from './FloatingScore';
+import GameThemeSelector from './GameThemeSelector';
+import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
+
+type ClickDrawTheme = 'standard' | 'halloween' | 'christmas';
 
 interface ClickDrawGameProps {
   onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
   rngSeed?: number;
+  theme?: ClickDrawTheme;
 }
 
 // Seeded RNG
@@ -51,13 +56,21 @@ interface Bullet {
   endPos: THREE.Vector3;
 }
 
-export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed }: ClickDrawGameProps) {
+export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: ClickDrawGameProps) {
+  const [currentTheme, setCurrentTheme] = useState<ClickDrawTheme>(() => (initialTheme || getSavedTheme()) as ClickDrawTheme);
+  const currentThemeRef = useRef(currentTheme);
+  
+  useEffect(() => {
+    currentThemeRef.current = currentTheme;
+  }, [currentTheme]);
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const playerGunRef = useRef<THREE.Group | null>(null);
   const animationFrameRef = useRef<number>(0);
+  const snowflakesRef = useRef<THREE.Points | null>(null);
   const initializedRef = useRef(false);
   
   // Music ref
@@ -385,102 +398,234 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     return group;
   }, []);
   
-  // Create cowboy outlaw
+  // Create cowboy outlaw - THEME AWARE
   const createOutlaw = useCallback((side: Outlaw['side']) => {
     const group = new THREE.Group();
+    const theme = currentThemeRef.current;
     
-    // Body (western clothing)
-    const bodyGeo = new THREE.CapsuleGeometry(0.4, 1.2, 8, 16);
-    const bodyMat = new THREE.MeshPhongMaterial({
-      color: 0x4a3728, // Brown leather
-      emissive: 0x1a1008,
-      emissiveIntensity: 0.3,
-    });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = 0.6;
-    body.name = 'body';
-    group.add(body);
+    if (theme === 'halloween') {
+      // === HALLOWEEN SKELETON ===
+      const boneMat = new THREE.MeshPhongMaterial({
+        color: 0xE8E8D0,
+        emissive: 0x2a2a20,
+        emissiveIntensity: 0.3,
+      });
+      
+      // Skeleton body (ribcage)
+      const ribcageGeo = new THREE.CapsuleGeometry(0.35, 0.8, 8, 16);
+      const ribcage = new THREE.Mesh(ribcageGeo, boneMat);
+      ribcage.position.y = 0.6;
+      ribcage.name = 'body';
+      group.add(ribcage);
+      
+      // Individual ribs
+      for (let i = 0; i < 5; i++) {
+        const ribGeo = new THREE.TorusGeometry(0.25, 0.03, 8, 16, Math.PI);
+        const rib = new THREE.Mesh(ribGeo, boneMat);
+        rib.position.set(0, 0.3 + i * 0.15, 0.1);
+        rib.rotation.x = Math.PI / 2;
+        group.add(rib);
+      }
+      
+      // Spine
+      for (let i = 0; i < 8; i++) {
+        const vertebraGeo = new THREE.BoxGeometry(0.1, 0.08, 0.1);
+        const vertebra = new THREE.Mesh(vertebraGeo, boneMat);
+        vertebra.position.set(0, 0.1 + i * 0.12, -0.1);
+        group.add(vertebra);
+      }
+      
+      // Skull
+      const skullGeo = new THREE.SphereGeometry(0.28, 16, 16);
+      const skull = new THREE.Mesh(skullGeo, boneMat);
+      skull.position.y = 1.5;
+      skull.scale.set(1, 1.1, 0.9);
+      skull.name = 'head';
+      group.add(skull);
+      
+      // Jaw
+      const jawGeo = new THREE.BoxGeometry(0.2, 0.08, 0.15);
+      const jaw = new THREE.Mesh(jawGeo, boneMat);
+      jaw.position.set(0, 1.28, 0.1);
+      group.add(jaw);
+      
+      // Eye sockets (dark holes)
+      const socketMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const socketGeo = new THREE.CircleGeometry(0.08, 12);
+      const leftSocket = new THREE.Mesh(socketGeo, socketMat);
+      leftSocket.position.set(-0.1, 1.55, 0.25);
+      group.add(leftSocket);
+      const rightSocket = new THREE.Mesh(socketGeo, socketMat);
+      rightSocket.position.set(0.1, 1.55, 0.25);
+      group.add(rightSocket);
+      
+      // Glowing red eyes inside sockets
+      const glowEyeMat = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+      const glowEyeGeo = new THREE.SphereGeometry(0.03, 8, 8);
+      const leftGlowEye = new THREE.Mesh(glowEyeGeo, glowEyeMat);
+      leftGlowEye.position.set(-0.1, 1.55, 0.22);
+      group.add(leftGlowEye);
+      const rightGlowEye = new THREE.Mesh(glowEyeGeo, glowEyeMat);
+      rightGlowEye.position.set(0.1, 1.55, 0.22);
+      group.add(rightGlowEye);
+      
+      // Cowboy hat on skeleton
+      const hatMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a, emissive: 0x0a0a0a });
+      const brimGeo = new THREE.CylinderGeometry(0.5, 0.55, 0.06, 24);
+      const brim = new THREE.Mesh(brimGeo, hatMat);
+      brim.position.y = 1.8;
+      group.add(brim);
+      const crownGeo = new THREE.CylinderGeometry(0.2, 0.28, 0.3, 16);
+      const crown = new THREE.Mesh(crownGeo, hatMat);
+      crown.position.y = 1.95;
+      group.add(crown);
+      
+    } else if (theme === 'christmas') {
+      // === CHRISTMAS COWBOY with Santa Hat ===
+      const bodyGeo = new THREE.CapsuleGeometry(0.4, 1.2, 8, 16);
+      const bodyMat = new THREE.MeshPhongMaterial({
+        color: 0xCC0000, // Red Christmas outfit
+        emissive: 0x330000,
+        emissiveIntensity: 0.3,
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 0.6;
+      body.name = 'body';
+      group.add(body);
+      
+      // White fur trim on outfit
+      const trimMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF, emissive: 0x888888 });
+      const trimGeo = new THREE.TorusGeometry(0.42, 0.06, 8, 24);
+      const trim1 = new THREE.Mesh(trimGeo, trimMat);
+      trim1.position.y = 0.2;
+      trim1.rotation.x = Math.PI / 2;
+      group.add(trim1);
+      const trim2 = new THREE.Mesh(trimGeo, trimMat);
+      trim2.position.y = 1.1;
+      trim2.rotation.x = Math.PI / 2;
+      group.add(trim2);
+      
+      // Head
+      const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
+      const headMat = new THREE.MeshPhongMaterial({ color: 0xd4a574, emissive: 0x3a2a1a });
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = 1.5;
+      head.name = 'head';
+      group.add(head);
+      
+      // SANTA HAT
+      const santaHatMat = new THREE.MeshPhongMaterial({ color: 0xCC0000, emissive: 0x330000 });
+      const hatBaseGeo = new THREE.ConeGeometry(0.35, 0.6, 16);
+      const hatBase = new THREE.Mesh(hatBaseGeo, santaHatMat);
+      hatBase.position.y = 1.9;
+      hatBase.rotation.z = 0.3;
+      group.add(hatBase);
+      
+      // White fur brim
+      const furBrimGeo = new THREE.TorusGeometry(0.28, 0.08, 8, 24);
+      const furBrim = new THREE.Mesh(furBrimGeo, trimMat);
+      furBrim.position.y = 1.68;
+      furBrim.rotation.x = Math.PI / 2;
+      group.add(furBrim);
+      
+      // Pompom
+      const pompomGeo = new THREE.SphereGeometry(0.1, 12, 12);
+      const pompom = new THREE.Mesh(pompomGeo, trimMat);
+      pompom.position.set(0.15, 2.15, 0);
+      group.add(pompom);
+      
+      // Eyes
+      const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+      leftEye.position.set(-0.08, 1.55, 0.2);
+      group.add(leftEye);
+      const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+      rightEye.position.set(0.08, 1.55, 0.2);
+      group.add(rightEye);
+      
+      // White beard
+      const beardMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+      const beardGeo = new THREE.SphereGeometry(0.2, 12, 12);
+      const beard = new THREE.Mesh(beardGeo, beardMat);
+      beard.position.set(0, 1.35, 0.15);
+      beard.scale.set(1.2, 1.5, 0.6);
+      group.add(beard);
+      
+    } else {
+      // === STANDARD COWBOY ===
+      const bodyGeo = new THREE.CapsuleGeometry(0.4, 1.2, 8, 16);
+      const bodyMat = new THREE.MeshPhongMaterial({
+        color: 0x4a3728,
+        emissive: 0x1a1008,
+        emissiveIntensity: 0.3,
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 0.6;
+      body.name = 'body';
+      group.add(body);
+      
+      const vestGeo = new THREE.BoxGeometry(0.7, 0.8, 0.4);
+      const vestMat = new THREE.MeshPhongMaterial({ color: 0x2a2a2a, emissive: 0x0a0a0a });
+      const vest = new THREE.Mesh(vestGeo, vestMat);
+      vest.position.y = 0.7;
+      group.add(vest);
+      
+      const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
+      const headMat = new THREE.MeshPhongMaterial({ color: 0xd4a574, emissive: 0x3a2a1a });
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = 1.5;
+      head.name = 'head';
+      group.add(head);
+      
+      // Cowboy hat
+      const hatMat = new THREE.MeshPhongMaterial({ color: 0x3d2817, emissive: 0x1a0a05, shininess: 30 });
+      const brimGeo = new THREE.CylinderGeometry(0.5, 0.55, 0.06, 24);
+      const brim = new THREE.Mesh(brimGeo, hatMat);
+      brim.position.y = 1.75;
+      group.add(brim);
+      const crownGeo = new THREE.CylinderGeometry(0.2, 0.28, 0.3, 16);
+      const crown = new THREE.Mesh(crownGeo, hatMat);
+      crown.position.y = 1.9;
+      group.add(crown);
+      const indentGeo = new THREE.BoxGeometry(0.35, 0.05, 0.15);
+      const indent = new THREE.Mesh(indentGeo, hatMat);
+      indent.position.y = 2.05;
+      group.add(indent);
+      const bandGeo = new THREE.TorusGeometry(0.24, 0.02, 8, 24);
+      const bandMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 });
+      const band = new THREE.Mesh(bandGeo, bandMat);
+      band.position.y = 1.78;
+      band.rotation.x = Math.PI / 2;
+      group.add(band);
+      
+      // Bandana
+      const scarfGeo = new THREE.BoxGeometry(0.5, 0.15, 0.3);
+      const scarfMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 });
+      const scarf = new THREE.Mesh(scarfGeo, scarfMat);
+      scarf.position.y = 1.2;
+      scarf.position.z = 0.1;
+      group.add(scarf);
+      
+      // Eyes
+      const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+      leftEye.position.set(-0.08, 1.55, 0.2);
+      group.add(leftEye);
+      const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+      rightEye.position.set(0.08, 1.55, 0.2);
+      group.add(rightEye);
+      
+      // Mustache
+      const stacheGeo = new THREE.BoxGeometry(0.2, 0.04, 0.05);
+      const stacheMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+      const stache = new THREE.Mesh(stacheGeo, stacheMat);
+      stache.position.set(0, 1.42, 0.22);
+      group.add(stache);
+    }
     
-    // Vest
-    const vestGeo = new THREE.BoxGeometry(0.7, 0.8, 0.4);
-    const vestMat = new THREE.MeshPhongMaterial({
-      color: 0x2a2a2a, // Dark vest
-      emissive: 0x0a0a0a,
-    });
-    const vest = new THREE.Mesh(vestGeo, vestMat);
-    vest.position.y = 0.7;
-    group.add(vest);
-    
-    // Head
-    const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
-    const headMat = new THREE.MeshPhongMaterial({
-      color: 0xd4a574, // Skin tone
-      emissive: 0x3a2a1a,
-      emissiveIntensity: 0.2,
-    });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = 1.5;
-    head.name = 'head';
-    group.add(head);
-    
-    // COWBOY HAT
-    // Hat brim
-    const brimGeo = new THREE.CylinderGeometry(0.5, 0.55, 0.06, 24);
-    const hatMat = new THREE.MeshPhongMaterial({
-      color: 0x3d2817, // Brown hat
-      emissive: 0x1a0a05,
-      shininess: 30,
-    });
-    const brim = new THREE.Mesh(brimGeo, hatMat);
-    brim.position.y = 1.75;
-    group.add(brim);
-    
-    // Hat crown (curved top)
-    const crownGeo = new THREE.CylinderGeometry(0.2, 0.28, 0.3, 16);
-    const crown = new THREE.Mesh(crownGeo, hatMat);
-    crown.position.y = 1.9;
-    group.add(crown);
-    
-    // Hat top indent
-    const indentGeo = new THREE.BoxGeometry(0.35, 0.05, 0.15);
-    const indent = new THREE.Mesh(indentGeo, hatMat);
-    indent.position.y = 2.05;
-    group.add(indent);
-    
-    // Hat band
-    const bandGeo = new THREE.TorusGeometry(0.24, 0.02, 8, 24);
-    const bandMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 }); // Red band
-    const band = new THREE.Mesh(bandGeo, bandMat);
-    band.position.y = 1.78;
-    band.rotation.x = Math.PI / 2;
-    group.add(band);
-    
-    // Bandana/scarf
-    const scarfGeo = new THREE.BoxGeometry(0.5, 0.15, 0.3);
-    const scarfMat = new THREE.MeshPhongMaterial({ color: 0x8B0000 }); // Red bandana
-    const scarf = new THREE.Mesh(scarfGeo, scarfMat);
-    scarf.position.y = 1.2;
-    scarf.position.z = 0.1;
-    group.add(scarf);
-    
-    // Eyes (menacing)
-    const eyeGeo = new THREE.SphereGeometry(0.04, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.08, 1.55, 0.2);
-    group.add(leftEye);
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.08, 1.55, 0.2);
-    group.add(rightEye);
-    
-    // Mustache
-    const stacheGeo = new THREE.BoxGeometry(0.2, 0.04, 0.05);
-    const stacheMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
-    const stache = new THREE.Mesh(stacheGeo, stacheMat);
-    stache.position.set(0, 1.42, 0.22);
-    group.add(stache);
-    
-    // Gun in holster (will be raised when attacking)
+    // Gun in holster (will be raised when attacking) - ALL THEMES
     const gun = createGun(true);
     gun.position.set(0.5, 0.3, 0);
     gun.rotation.z = -Math.PI / 4;
@@ -839,10 +984,23 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     
     const container = containerRef.current;
     
-    // Scene - Western desert theme
+    // Scene - THEME AWARE
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xd4a574); // Dusty desert
-    scene.fog = new THREE.Fog(0xc4a070, 10, 40);
+    const theme = currentThemeRef.current;
+    
+    if (theme === 'halloween') {
+      // HALLOWEEN - Dark spooky night
+      scene.background = new THREE.Color(0x0a0a1a);
+      scene.fog = new THREE.Fog(0x1a1a2a, 5, 30);
+    } else if (theme === 'christmas') {
+      // CHRISTMAS - Snowy winter night
+      scene.background = new THREE.Color(0x1a2a3a);
+      scene.fog = new THREE.Fog(0x2a3a4a, 8, 35);
+    } else {
+      // STANDARD - Western desert sunset
+      scene.background = new THREE.Color(0xd4a574);
+      scene.fog = new THREE.Fog(0xc4a070, 10, 40);
+    }
     sceneRef.current = scene;
     
     // Camera - zoom out more for mobile
@@ -863,29 +1021,147 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    // Lighting - Western sunset
-    const ambientLight = new THREE.AmbientLight(0xffa366, 0.6);
-    scene.add(ambientLight);
+    // Lighting - THEME AWARE
+    if (theme === 'halloween') {
+      const ambientLight = new THREE.AmbientLight(0x4444aa, 0.4);
+      scene.add(ambientLight);
+      const moonLight = new THREE.DirectionalLight(0x8888ff, 0.8);
+      moonLight.position.set(-5, 10, 5);
+      scene.add(moonLight);
+      
+      // Full moon
+      const moonGeo = new THREE.CircleGeometry(2, 32);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+      const moon = new THREE.Mesh(moonGeo, moonMat);
+      moon.position.set(8, 12, -20);
+      scene.add(moon);
+      
+      // Moon glow
+      const moonGlowGeo = new THREE.CircleGeometry(3, 32);
+      const moonGlowMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.3 });
+      const moonGlow = new THREE.Mesh(moonGlowGeo, moonGlowMat);
+      moonGlow.position.set(8, 12, -21);
+      scene.add(moonGlow);
+      
+    } else if (theme === 'christmas') {
+      const ambientLight = new THREE.AmbientLight(0x6688aa, 0.5);
+      scene.add(ambientLight);
+      const moonLight = new THREE.DirectionalLight(0xaabbff, 1.0);
+      moonLight.position.set(5, 10, 5);
+      scene.add(moonLight);
+      
+      // Snowflakes
+      const snowGeo = new THREE.BufferGeometry();
+      const snowCount = 200;
+      const snowPositions = new Float32Array(snowCount * 3);
+      for (let i = 0; i < snowCount; i++) {
+        snowPositions[i * 3] = (Math.random() - 0.5) * 40;
+        snowPositions[i * 3 + 1] = Math.random() * 20;
+        snowPositions[i * 3 + 2] = (Math.random() - 0.5) * 40 - 10;
+      }
+      snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+      const snowMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0.8 });
+      const snow = new THREE.Points(snowGeo, snowMat);
+      snow.name = 'snowflakes';
+      scene.add(snow);
+      snowflakesRef.current = snow;
+      
+    } else {
+      const ambientLight = new THREE.AmbientLight(0xffa366, 0.6);
+      scene.add(ambientLight);
+      const sunLight = new THREE.DirectionalLight(0xff8844, 1.5);
+      sunLight.position.set(5, 10, 5);
+      sunLight.castShadow = true;
+      scene.add(sunLight);
+      const backLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+      backLight.position.set(-5, 3, -5);
+      scene.add(backLight);
+    }
     
-    const sunLight = new THREE.DirectionalLight(0xff8844, 1.5);
-    sunLight.position.set(5, 10, 5);
-    sunLight.castShadow = true;
-    scene.add(sunLight);
-    
-    const backLight = new THREE.DirectionalLight(0x4488ff, 0.3);
-    backLight.position.set(-5, 3, -5);
-    scene.add(backLight);
-    
-    // Desert ground
+    // Ground - THEME AWARE
     const groundGeo = new THREE.CircleGeometry(20, 32);
-    const groundMat = new THREE.MeshPhongMaterial({
-      color: 0xc4a060,
-      emissive: 0x3a2a10,
-    });
+    let groundColor = 0xc4a060;
+    let groundEmissive = 0x3a2a10;
+    if (theme === 'halloween') {
+      groundColor = 0x2a2a1a;
+      groundEmissive = 0x0a0a05;
+    } else if (theme === 'christmas') {
+      groundColor = 0xeeeeee; // Snow
+      groundEmissive = 0x888888;
+    }
+    const groundMat = new THREE.MeshPhongMaterial({ color: groundColor, emissive: groundEmissive });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
+    
+    // === HALLOWEEN DECORATIONS ===
+    if (theme === 'halloween') {
+      // Tombstones
+      const tombMat = new THREE.MeshPhongMaterial({ color: 0x555555, emissive: 0x111111 });
+      const tombPositions = [[-6, -4], [-3, -3], [3, -3.5], [6, -4], [0, -5]];
+      tombPositions.forEach(([x, z]) => {
+        const tombGeo = new THREE.BoxGeometry(0.8, 1.2, 0.2);
+        const tomb = new THREE.Mesh(tombGeo, tombMat);
+        tomb.position.set(x, 0.6, z);
+        scene.add(tomb);
+        // Curved top
+        const topGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 16, 1, false, 0, Math.PI);
+        const top = new THREE.Mesh(topGeo, tombMat);
+        top.position.set(x, 1.2, z);
+        top.rotation.z = Math.PI / 2;
+        top.rotation.y = Math.PI / 2;
+        scene.add(top);
+      });
+    }
+    
+    // === CHRISTMAS DECORATIONS ===
+    if (theme === 'christmas') {
+      // Christmas trees
+      const treeMat = new THREE.MeshPhongMaterial({ color: 0x0a5a0a, emissive: 0x021a02 });
+      const treePositions = [[-7, -5], [7, -5], [-5, -8], [5, -8]];
+      treePositions.forEach(([x, z]) => {
+        // Trunk
+        const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.5, 8);
+        const trunkMat = new THREE.MeshPhongMaterial({ color: 0x4a2a1a });
+        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.set(x, 0.25, z);
+        scene.add(trunk);
+        // Tree layers
+        for (let i = 0; i < 3; i++) {
+          const coneGeo = new THREE.ConeGeometry(1.2 - i * 0.3, 1.5, 12);
+          const cone = new THREE.Mesh(coneGeo, treeMat);
+          cone.position.set(x, 1 + i * 0.8, z);
+          scene.add(cone);
+        }
+        // Star on top
+        const starMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const starGeo = new THREE.OctahedronGeometry(0.15, 0);
+        const star = new THREE.Mesh(starGeo, starMat);
+        star.position.set(x, 3.5, z);
+        scene.add(star);
+        // Ornaments
+        const ornColors = [0xff0000, 0x0000ff, 0xffff00, 0xff00ff];
+        for (let i = 0; i < 6; i++) {
+          const ornGeo = new THREE.SphereGeometry(0.08, 8, 8);
+          const ornMat = new THREE.MeshPhongMaterial({ color: ornColors[i % ornColors.length], emissive: ornColors[i % ornColors.length], emissiveIntensity: 0.3 });
+          const orn = new THREE.Mesh(ornGeo, ornMat);
+          const angle = (i / 6) * Math.PI * 2;
+          orn.position.set(x + Math.cos(angle) * 0.6, 1.5 + (i % 3) * 0.5, z + Math.sin(angle) * 0.6);
+          scene.add(orn);
+        }
+      });
+      
+      // String of Christmas lights on saloon
+      const lightColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff];
+      for (let i = 0; i < 15; i++) {
+        const bulbGeo = new THREE.SphereGeometry(0.1, 8, 8);
+        const bulbMat = new THREE.MeshBasicMaterial({ color: lightColors[i % lightColors.length] });
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        bulb.position.set(-4 + i * 0.6, 5.5, -6);
+        scene.add(bulb);
+      }
+    }
     
     // === MAIN SALOON - Big and prominent behind enemies ===
     const saloonGroup = new THREE.Group();
@@ -1313,6 +1589,19 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
         outlawsRef.current = outlawsRef.current.filter(o => o.mesh !== null || o.phase !== 'dying');
       }
       
+      // Animate snowflakes for Christmas theme
+      if (snowflakesRef.current && currentThemeRef.current === 'christmas') {
+        const positions = snowflakesRef.current.geometry.attributes.position.array as Float32Array;
+        for (let i = 0; i < positions.length / 3; i++) {
+          positions[i * 3 + 1] -= 0.02; // Fall down
+          positions[i * 3] += Math.sin(time / 1000 + i) * 0.005; // Drift sideways
+          if (positions[i * 3 + 1] < 0) {
+            positions[i * 3 + 1] = 15 + Math.random() * 5;
+          }
+        }
+        snowflakesRef.current.geometry.attributes.position.needsUpdate = true;
+      }
+      
       renderer.render(scene, camera);
     };
     
@@ -1373,7 +1662,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
         musicRef.current = null;
       }
     };
-  }, [createGun, createOutlaw, spawnOutlaw, addPopup, getOutlawPosition]);
+  }, [createGun, createOutlaw, spawnOutlaw, addPopup, getOutlawPosition, currentTheme]);
   
   // Keyboard handler
   // Arrow keys: Left=Dodge, Up=Draw, Right=Shoot, Down=Reload
@@ -1566,6 +1855,43 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
                 <p className="text-yellow-200 text-xs text-center">
                   ⌨️ ↑/Space = Draw | ← = Dodge | → = Shoot | ↓ = Reload
                 </p>
+              </div>
+            </div>
+            
+            {/* Theme Selector */}
+            <div className="mb-6">
+              <p className="text-amber-200 text-sm mb-2">🎨 Choose Theme:</p>
+              <div className="flex gap-2 justify-center flex-wrap">
+                <button
+                  onClick={() => setCurrentTheme('standard')}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'standard'
+                      ? 'bg-amber-500 text-amber-900 border-2 border-yellow-300'
+                      : 'bg-amber-800/50 text-amber-200 border-2 border-amber-600 hover:bg-amber-700/50'
+                  }`}
+                >
+                  🤠 Standard
+                </button>
+                <button
+                  onClick={() => setCurrentTheme('halloween')}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'halloween'
+                      ? 'bg-purple-500 text-white border-2 border-purple-300'
+                      : 'bg-purple-800/50 text-purple-200 border-2 border-purple-600 hover:bg-purple-700/50'
+                  }`}
+                >
+                  💀 Halloween
+                </button>
+                <button
+                  onClick={() => setCurrentTheme('christmas')}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                    currentTheme === 'christmas'
+                      ? 'bg-red-500 text-white border-2 border-red-300'
+                      : 'bg-red-800/50 text-red-200 border-2 border-red-600 hover:bg-red-700/50'
+                  }`}
+                >
+                  🎄 Christmas
+                </button>
               </div>
             </div>
             
