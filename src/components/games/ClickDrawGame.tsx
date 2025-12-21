@@ -76,6 +76,8 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   const outlawsKilledRef = useRef<number>(0);
   const gameTimeRef = useRef<number>(0);
   const isDrawingRef = useRef<boolean>(false);
+  const isDodgingRef = useRef<boolean>(false);
+  const totalDodgesRef = useRef<number>(0);
   const drawWindowRef = useRef<number>(0);
   const lastActionTimeRef = useRef<number>(0);
   const gameStateRef = useRef<'ready' | 'playing' | 'complete'>('ready');
@@ -523,6 +525,44 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     addPopup(0, 50, 25, 'bonus', '🔄 RELOADED!');
   }, [addPopup]);
   
+  // Handle DODGE action - dodge incoming attacks
+  const handleDodge = useCallback(() => {
+    if (gameStateRef.current !== 'playing') return;
+    if (isDodgingRef.current) return;
+    
+    isDodgingRef.current = true;
+    
+    // Check if any outlaw is currently attacking (in drawing phase)
+    const attackingOutlaws = outlawsRef.current.filter(o => o.phase === 'drawing');
+    
+    if (attackingOutlaws.length > 0) {
+      // Successfully dodged attacks!
+      totalDodgesRef.current++;
+      const dodgePoints = 200 * attackingOutlaws.length;
+      scoreRef.current += dodgePoints;
+      setScore(scoreRef.current);
+      addPopup(dodgePoints, 50, 35, 'bonus', `🏃 DODGE! +${dodgePoints}`);
+      
+      // Reset attacking outlaws
+      attackingOutlaws.forEach(outlaw => {
+        outlaw.phase = 'recovery';
+        outlaw.attackTimer = 0;
+      });
+      
+      comboRef.current++;
+      if (comboRef.current > maxComboRef.current) maxComboRef.current = comboRef.current;
+      setCombo(comboRef.current);
+    } else {
+      // Dodged when no attack - small penalty
+      addPopup(0, 50, 35, 'kill', '🏃 DODGE (no attack)');
+    }
+    
+    // Dodge cooldown
+    setTimeout(() => {
+      isDodgingRef.current = false;
+    }, 300);
+  }, [addPopup]);
+  
   // Initialize scene
   useEffect(() => {
     if (!containerRef.current) return;
@@ -551,11 +591,11 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     scene.fog = new THREE.Fog(0xc4a070, 10, 40);
     sceneRef.current = scene;
     
-    // Camera
+    // Camera - zoom out more for mobile
     const isMobileDevice = window.innerWidth < 768;
-    const fov = isMobileDevice ? 85 : 60;
-    const camZ = isMobileDevice ? 8 : 5;
-    const camY = isMobileDevice ? 3 : 2;
+    const fov = isMobileDevice ? 90 : 60;
+    const camZ = isMobileDevice ? 12 : 5;
+    const camY = isMobileDevice ? 4 : 2;
     const camera = new THREE.PerspectiveCamera(fov, container.clientWidth / container.clientHeight, 0.1, 100);
     camera.position.set(0, camY, camZ);
     camera.lookAt(0, 1, -3);
@@ -901,6 +941,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
           gameData: {
             perfectDraws: perfectDrawsRef.current,
             totalDraws: totalDrawsRef.current,
+            totalDodges: totalDodgesRef.current,
             totalShots: totalShotsRef.current,
             outlawsKilled: outlawsKilledRef.current,
             maxCombo: maxComboRef.current,
@@ -936,23 +977,27 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   }, [createGun, createOutlaw, spawnOutlaw, addPopup, getOutlawPosition]);
   
   // Keyboard handler
+  // Arrow keys: Left=Dodge, Up=Draw, Right=Shoot, Down=Reload
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         handleDraw();
-      } else if (e.code === 'KeyR' || e.code === 'ArrowDown') {
+      } else if (e.code === 'ArrowDown' || e.code === 'KeyR') {
         e.preventDefault();
         handleReload();
-      } else if (e.code === 'KeyS' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyS') {
         e.preventDefault();
         handleShoot();
+      } else if (e.code === 'ArrowLeft' || e.code === 'KeyD') {
+        e.preventDefault();
+        handleDodge();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDraw, handleReload, handleShoot]);
+  }, [handleDraw, handleReload, handleShoot, handleDodge]);
   
   // Start game
   const startGame = useCallback(() => {
@@ -971,6 +1016,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     perfectDrawsRef.current = 0;
     totalDrawsRef.current = 0;
     totalShotsRef.current = 0;
+    totalDodgesRef.current = 0;
     outlawsKilledRef.current = 0;
     maxComboRef.current = 0;
     setEndReason(null);
@@ -1044,36 +1090,53 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
             ))}
           </div>
           
-          {/* Control Buttons */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4 z-10">
-            <button
-              onClick={handleShoot}
-              className="px-6 py-4 bg-gradient-to-b from-gray-600 to-gray-800 text-white font-bold text-xl rounded-lg border-4 border-gray-500 shadow-lg active:scale-95 transition-transform"
-              style={{ boxShadow: '0 4px 0 #333, 0 6px 10px rgba(0,0,0,0.3)' }}
-            >
-              🔫 SHOOT
-            </button>
+          {/* Control Buttons - Mobile Optimized */}
+          <div className="absolute bottom-2 sm:bottom-4 left-0 right-0 z-10 px-2">
+            {/* Top row - DRAW (main action) */}
+            <div className="flex justify-center mb-2">
+              <button
+                onClick={handleDraw}
+                className="px-10 sm:px-12 py-4 sm:py-5 bg-gradient-to-b from-red-600 to-red-800 text-white font-bold text-xl sm:text-2xl rounded-xl border-4 border-red-400 shadow-lg active:scale-95 transition-transform animate-pulse"
+                style={{ boxShadow: '0 4px 0 #8B0000, 0 6px 10px rgba(0,0,0,0.3)' }}
+              >
+                ⚡ DRAW! (↑)
+              </button>
+            </div>
             
-            <button
-              onClick={handleDraw}
-              className="px-8 py-4 bg-gradient-to-b from-red-600 to-red-800 text-white font-bold text-xl rounded-lg border-4 border-red-400 shadow-lg active:scale-95 transition-transform animate-pulse"
-              style={{ boxShadow: '0 4px 0 #8B0000, 0 6px 10px rgba(0,0,0,0.3)' }}
-            >
-              ⚡ DRAW!
-            </button>
-            
-            <button
-              onClick={handleReload}
-              disabled={bullets === MAX_BULLETS}
-              className={`px-6 py-4 font-bold text-xl rounded-lg border-4 shadow-lg transition-transform ${
-                bullets === MAX_BULLETS
-                  ? 'bg-gray-500 text-gray-300 border-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-b from-amber-500 to-amber-700 text-white border-amber-400 active:scale-95'
-              }`}
-              style={{ boxShadow: bullets < MAX_BULLETS ? '0 4px 0 #8B4513, 0 6px 10px rgba(0,0,0,0.3)' : 'none' }}
-            >
-              🔄 RELOAD
-            </button>
+            {/* Bottom row - DODGE, SHOOT, RELOAD */}
+            <div className="flex justify-center gap-2 sm:gap-3">
+              <button
+                onClick={handleDodge}
+                className="px-3 sm:px-5 py-3 sm:py-4 bg-gradient-to-b from-blue-500 to-blue-700 text-white font-bold text-sm sm:text-lg rounded-lg border-3 border-blue-400 shadow-lg active:scale-95 transition-transform"
+                style={{ boxShadow: '0 3px 0 #1e40af, 0 5px 8px rgba(0,0,0,0.3)' }}
+              >
+                🏃 DODGE
+                <span className="block text-xs opacity-75">(←)</span>
+              </button>
+              
+              <button
+                onClick={handleShoot}
+                className="px-3 sm:px-5 py-3 sm:py-4 bg-gradient-to-b from-gray-600 to-gray-800 text-white font-bold text-sm sm:text-lg rounded-lg border-3 border-gray-500 shadow-lg active:scale-95 transition-transform"
+                style={{ boxShadow: '0 3px 0 #333, 0 5px 8px rgba(0,0,0,0.3)' }}
+              >
+                🔫 SHOOT
+                <span className="block text-xs opacity-75">(→)</span>
+              </button>
+              
+              <button
+                onClick={handleReload}
+                disabled={bullets === MAX_BULLETS}
+                className={`px-3 sm:px-5 py-3 sm:py-4 font-bold text-sm sm:text-lg rounded-lg border-3 shadow-lg transition-transform ${
+                  bullets === MAX_BULLETS
+                    ? 'bg-gray-500 text-gray-300 border-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-b from-amber-500 to-amber-700 text-white border-amber-400 active:scale-95'
+                }`}
+                style={{ boxShadow: bullets < MAX_BULLETS ? '0 3px 0 #8B4513, 0 5px 8px rgba(0,0,0,0.3)' : 'none' }}
+              >
+                🔄 RELOAD
+                <span className="block text-xs opacity-75">(↓)</span>
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -1094,6 +1157,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
               <ul className="text-amber-100 text-sm space-y-2">
                 <li>⚡ <strong>DRAW</strong> when enemy gun glows <span className="text-red-400 font-bold">RED</span> for one-shot kill!</li>
                 <li>🎯 <strong>Perfect Draw</strong> = 750+ points + combo bonus!</li>
+                <li>🏃 <strong>DODGE</strong> to avoid attacks = 200 points per attack!</li>
                 <li>🔫 <strong>SHOOT</strong> anytime = 50 points (3 hits to kill)</li>
                 <li>🔄 <strong>RELOAD</strong> when out of bullets (6 max)</li>
                 <li>💙 Gun glows <span className="text-blue-400 font-bold">BLUE</span> = Enemy is preparing</li>
@@ -1101,7 +1165,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
               
               <div className="mt-3 pt-3 border-t border-amber-600">
                 <p className="text-yellow-200 text-xs text-center">
-                  ⌨️ Space/↑ = Draw | S/←/→ = Shoot | R/↓ = Reload
+                  ⌨️ ↑/Space = Draw | ← = Dodge | → = Shoot | ↓ = Reload
                 </p>
               </div>
             </div>
@@ -1129,21 +1193,29 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
               {score.toLocaleString()}
             </div>
             
-            <div className="grid grid-cols-2 gap-4 text-amber-200 mb-6">
+            <div className="grid grid-cols-3 gap-3 text-amber-200 mb-6 text-center">
               <div>
-                <div className="text-2xl">⚡ {perfectDrawsRef.current}</div>
+                <div className="text-xl sm:text-2xl">⚡ {perfectDrawsRef.current}</div>
                 <div className="text-xs">Perfect Draws</div>
               </div>
               <div>
-                <div className="text-2xl">☠️ {outlawsKilledRef.current}</div>
+                <div className="text-xl sm:text-2xl">🏃 {totalDodgesRef.current}</div>
+                <div className="text-xs">Dodges</div>
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl">☠️ {outlawsKilledRef.current}</div>
                 <div className="text-xs">Outlaws Killed</div>
               </div>
               <div>
-                <div className="text-2xl">🔥 {maxComboRef.current}x</div>
+                <div className="text-xl sm:text-2xl">🔥 {maxComboRef.current}x</div>
                 <div className="text-xs">Max Combo</div>
               </div>
               <div>
-                <div className="text-2xl">🎯 {totalShotsRef.current > 0 ? Math.round((outlawsKilledRef.current / totalShotsRef.current) * 100) : 0}%</div>
+                <div className="text-xl sm:text-2xl">🔫 {totalShotsRef.current}</div>
+                <div className="text-xs">Total Shots</div>
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl">🎯 {totalShotsRef.current > 0 ? Math.round((outlawsKilledRef.current / totalShotsRef.current) * 100) : 0}%</div>
                 <div className="text-xs">Accuracy</div>
               </div>
             </div>
