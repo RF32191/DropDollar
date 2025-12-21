@@ -705,9 +705,9 @@ export default function ProfessionalTokenWallet() {
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl sm:text-4xl font-bold text-gray-400">Tokens</span>
-                  <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-white transition-colors">
+                <button onClick={() => setShowBalance(!showBalance)} className="text-gray-400 hover:text-white transition-colors">
                     {showBalance ? <EyeSlashIcon className="h-6 w-6 sm:h-8 sm:w-8" /> : <EyeIcon className="h-6 w-6 sm:h-8 sm:w-8" />}
-                  </button>
+                </button>
                 </div>
               </div>
             </div>

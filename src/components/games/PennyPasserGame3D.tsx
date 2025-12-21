@@ -107,8 +107,8 @@ class Mulberry32 {
   }
 }
 
-export default function PennyPasserGame3D({ 
-  onGameEnd, 
+export default function PennyPasserGame3D({
+  onGameEnd,
   gameMode = 'practice',
   rngSeed,
   competitionId,
@@ -884,10 +884,10 @@ export default function PennyPasserGame3D({
                 }
               }, 300);
             }
-          }
-        });
-      }
-      
+            }
+          });
+        }
+        
       // *** TRICK SHAPE PLACEMENT - +200 points! ***
       // If target zone had a trick shape and player put the CORRECT (trick) coin there!
       if (result.trickShapePlacement) {
@@ -1552,7 +1552,7 @@ export default function PennyPasserGame3D({
         accuracy: finalAccuracy,
         reactionTime: 0,
         durationSeconds: 60 - timeLeft,
-        additionalData: {
+      additionalData: {
           rngSeed,
           competitionId,
           correctSorts: correctSortsRef.current,
@@ -1594,16 +1594,16 @@ export default function PennyPasserGame3D({
             {combo > 1 && (
               <div className="text-lg font-bold text-yellow-400 animate-pulse">
                 🔥 {combo}x Combo!
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+                  </div>
           <div className="bg-black/50 rounded-lg p-3 text-right">
             <div className="text-2xl font-bold">Time: {timeLeft}s</div>
             <div className="text-sm text-gray-300">Sorted: {correctSortsRef.current}</div>
-          </div>
-        </div>
-      )}
-      
+                  </div>
+                </div>
+              )}
+              
       {/* Instructions */}
       {gameState === 'playing' && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 text-white text-center pointer-events-none">
@@ -1615,10 +1615,10 @@ export default function PennyPasserGame3D({
               <span className="text-purple-400"> 🔺 Triangle</span> • 
               <span className="text-red-400"> ⬠ Pentagon</span>
             </p>
-          </div>
-        </div>
-      )}
-      
+                  </div>
+            </div>
+          )}
+          
       {/* Ready Screen */}
       {gameState === 'ready' && (
         <div className="absolute inset-0 flex items-center justify-center z-20 bg-gradient-to-br from-blue-900/90 via-purple-900/90 to-red-900/90">
@@ -1640,24 +1640,24 @@ export default function PennyPasserGame3D({
                 <div className="text-xl">⭕</div>
                 <p className="text-[10px] text-cyan-300 font-bold">CIRCLE</p>
                 <p className="text-[8px] text-cyan-200">Cyan • Tiny</p>
-              </div>
+            </div>
               <div className="bg-green-500/20 rounded-lg p-2 border border-green-500/40">
                 <div className="text-xl">⬜</div>
                 <p className="text-[10px] text-green-300 font-bold">SQUARE</p>
                 <p className="text-[8px] text-green-200">Green • Med</p>
-              </div>
+            </div>
               <div className="bg-purple-500/20 rounded-lg p-2 border border-purple-500/40">
                 <div className="text-xl">🔺</div>
                 <p className="text-[10px] text-purple-300 font-bold">TRIANGLE</p>
                 <p className="text-[8px] text-purple-200">Purple • Small</p>
-              </div>
+          </div>
               <div className="bg-red-500/20 rounded-lg p-2 border border-red-500/40">
                 <div className="text-xl">Ω</div>
                 <p className="text-[10px] text-red-300 font-bold">OMEGA</p>
                 <p className="text-[8px] text-red-200">Red • Large</p>
-              </div>
-            </div>
-            
+        </div>
+                </div>
+                
             {/* Scoring info */}
             <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10 text-left">
               <h3 className="text-xs font-bold text-yellow-400 mb-2 text-center">🎯 SCORING SYSTEM</h3>
@@ -1666,9 +1666,9 @@ export default function PennyPasserGame3D({
                 <p>🎯 <span className="text-cyan-400">Target zone:</span> +250 bonus</p>
                 <p>🔥 <span className="text-orange-400">Combo streak:</span> Multiplier!</p>
                 <p>⚡ <span className="text-yellow-400">Speed bonus:</span> Fast = more pts</p>
-              </div>
-            </div>
-            
+                  </div>
+                  </div>
+                  
             {/* Pro tips */}
             <div className="bg-purple-500/10 rounded-xl p-3 mb-4 border border-purple-500/20">
               <h3 className="text-xs font-bold text-purple-400 mb-2">💡 PRO TIPS</h3>
@@ -1678,8 +1678,8 @@ export default function PennyPasserGame3D({
                 <p>• <span className="text-green-400">Target crosshair</span> shows perfect placement spot</p>
                 <p>• <span className="text-red-400">Trick shapes</span> in target = match THAT shape for +200 bonus!</p>
               </div>
-            </div>
-            
+                  </div>
+                  
             {/* Theme Selector */}
             <div className="mb-4 bg-black/20 rounded-xl p-3">
               <GameThemeSelector
@@ -1687,8 +1687,8 @@ export default function PennyPasserGame3D({
                 onThemeChange={setCurrentTheme}
                 compact={true}
               />
-            </div>
-            
+              </div>
+              
             <button
               onClick={startGame}
               className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 via-purple-500 to-red-500 rounded-2xl text-lg font-bold hover:scale-105 transition-transform shadow-lg shadow-purple-500/30 text-white"
@@ -1698,7 +1698,7 @@ export default function PennyPasserGame3D({
           </div>
         </div>
       )}
-      
+
       {/* Countdown */}
       {gameState === 'countdown' && (
         <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/50">
@@ -1707,7 +1707,7 @@ export default function PennyPasserGame3D({
           </div>
         </div>
       )}
-      
+
       {/* End Screen */}
       {gameState === 'ended' && (
         <div className="absolute inset-0 flex items-center justify-center z-20 bg-black/70">
@@ -1718,7 +1718,7 @@ export default function PennyPasserGame3D({
             <p className="text-3xl mb-2">Score: <span className="text-yellow-400">{score.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
             <p className="text-xl mb-4">Accuracy: <span className="text-cyan-400">{accuracy.toFixed(1)}%</span></p>
             <p className="text-lg text-gray-400">Coins Sorted: {correctSortsRef.current} / {totalCoinsRef.current}</p>
-          </div>
+      </div>
         </div>
       )}
     </div>

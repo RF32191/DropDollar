@@ -528,7 +528,7 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Only move if gyroscope is not handling movement
     if (!gyroscopeEnabled || !isMobile) {
-      handleTouchMove(event);
+    handleTouchMove(event);
     }
     
     // Rotate sword on tap - quick rotation animation
@@ -879,8 +879,8 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
   const handleSwordClick = () => {
     if (gameState === 'waiting' && !hasControl) {
       setHasControl(true);
-      setCountdown(3);
-      setGameState('countdown');
+    setCountdown(3);
+    setGameState('countdown');
     }
   };
 
@@ -1025,14 +1025,14 @@ export default function SwordParryGame({ onGameEnd, onExit, listingId, entryNumb
                   </>
                 ) : (
                   <>
-                    <div className="flex items-start space-x-3">
-                      <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-red-400 rounded-full mt-2 animate-pulse"></div>
                       <p><span className="text-red-300 font-semibold">🖱️ Mouse = Sword:</span> Move mouse to control your blade position</p>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full mt-2 animate-pulse"></div>
                       <p><span className="text-orange-300 font-semibold">Click to Slash:</span> Click to destroy bright red attacks!</p>
-                    </div>
+                </div>
                   </>
                 )}
                 <div className="flex items-start space-x-3">

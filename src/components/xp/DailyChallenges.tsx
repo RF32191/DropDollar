@@ -114,7 +114,7 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
     
     return () => clearInterval(timerInterval);
   }, []);
-  
+
   useEffect(() => {
     if (!userId) {
       console.warn('⚠️ [DailyChallenges] No userId provided');
@@ -410,12 +410,12 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
             <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded-lg">
               ⏰ Resets in {dailyResetTime}
             </span>
-            <button
-              onClick={handleManualRefresh}
-              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
+          <button
+            onClick={handleManualRefresh}
+            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
               🔄
-            </button>
+          </button>
           </div>
         </div>
         
@@ -449,12 +449,12 @@ export default function DailyChallenges({ userId, initialLoading = false }: Dail
             <span className="text-xs text-purple-400 bg-purple-500/20 px-2 py-1 rounded-lg">
               ⏰ Resets in {weeklyResetTime}
             </span>
-            <button
-              onClick={handleManualRefresh}
-              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-            >
+          <button
+            onClick={handleManualRefresh}
+            className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
               🔄
-            </button>
+          </button>
           </div>
         </div>
         

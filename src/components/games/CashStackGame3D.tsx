@@ -724,7 +724,7 @@ export default function CashStackGame3D({
 
   // Track block index for alternating colors
   const blockIndexRef = useRef(0);
-  
+
   // Create a 3D block
   const createBlock = useCallback((
     x: number,
@@ -860,17 +860,17 @@ export default function CashStackGame3D({
       
     } else {
       // STANDARD: Draw yellow circle with $ sign
-      ctx.fillStyle = '#FFD700';
-      ctx.beginPath();
-      ctx.arc(64, 64, 50, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Draw $ sign
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 72px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('$', 64, 64);
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(64, 64, 50, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw $ sign
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 72px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', 64, 64);
     }
     
     const texture = new THREE.CanvasTexture(canvas);
@@ -1910,23 +1910,23 @@ export default function CashStackGame3D({
               <p className="text-gray-400 text-sm mb-3 text-center">🎨 Choose Block Color</p>
               <div className="bg-black/40 rounded-xl p-4 border border-gray-600">
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-80 overflow-y-auto">
-                  {GAME_VARIATIONS.map(variation => (
-                    <button
-                      key={variation.id}
-                      onClick={() => setCurrentVariation(variation)}
+              {GAME_VARIATIONS.map(variation => (
+                <button
+                  key={variation.id}
+                  onClick={() => setCurrentVariation(variation)}
                       className={`px-4 py-3 rounded-xl font-bold text-sm transition-all pointer-events-auto shadow-lg hover:shadow-xl ${
-                        currentVariation.id === variation.id 
+                    currentVariation.id === variation.id 
                           ? 'ring-4 ring-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)]' 
                           : 'opacity-80 hover:opacity-100 hover:scale-105'
-                      }`}
+                  }`}
                       style={{ 
                         backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}`,
                         textShadow: '0 1px 2px rgba(0,0,0,0.8)'
                       }}
-                    >
-                      {variation.name}
-                    </button>
-                  ))}
+                >
+                  {variation.name}
+                </button>
+              ))}
                 </div>
               </div>
             </div>

@@ -527,7 +527,7 @@ export default function TriumphStyleDashboard() {
       
       // Try service first
       try {
-        const highScores = await SimpleGameService.getUserHighScores(userId);
+      const highScores = await SimpleGameService.getUserHighScores(userId);
         if (highScores && Object.keys(highScores).length > 0) {
           console.log('✅ [Dashboard] High scores loaded from service:', Object.keys(highScores).length, 'games');
           return Object.values(highScores) as unknown as HighScoreRecord[];
@@ -632,10 +632,10 @@ export default function TriumphStyleDashboard() {
       
       // Fallback to SimpleGameService
       try {
-        const userStats = await SimpleGameService.getUserGameStats(userId);
+      const userStats = await SimpleGameService.getUserGameStats(userId);
         if (userStats && userStats.totalGames > 0) {
           console.log('✅ [Dashboard] User stats loaded from service:', userStats);
-          return userStats;
+      return userStats;
         }
       } catch (serviceError) {
         console.log('⚠️ [Dashboard] Service fallback failed, calculating from history');
@@ -837,7 +837,7 @@ export default function TriumphStyleDashboard() {
   const normalizeGameType = (gameType: string): string => {
     return gameType.toLowerCase().replace(/-/g, '_');
   };
-  
+
   const formatGameType = (gameType: string) => {
     const normalized = normalizeGameType(gameType);
     const gameNames: Record<string, string> = {
@@ -1138,13 +1138,13 @@ export default function TriumphStyleDashboard() {
                   {/* Mobile: Emoji only, Desktop: Icon + Label */}
                   <span className="sm:hidden text-lg">{tab.shortLabel}</span>
                   <div className="hidden sm:flex items-center">
-                    <div className="relative mr-2">
-                      <tab.icon className="w-5 h-5" />
-                      {tab.id === 'messages' && unreadMessageCount > 0 && (
-                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50 border border-white"></div>
-                      )}
-                    </div>
-                    {tab.label}
+                  <div className="relative mr-2">
+                    <tab.icon className="w-5 h-5" />
+                    {tab.id === 'messages' && unreadMessageCount > 0 && (
+                      <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50 border border-white"></div>
+                    )}
+                  </div>
+                  {tab.label}
                   </div>
                   {tab.id === 'messages' && unreadMessageCount > 0 && (
                     <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] sm:min-w-[20px] sm:h-5 flex items-center justify-center px-1 sm:px-2 shadow-lg animate-pulse">
@@ -1331,41 +1331,41 @@ export default function TriumphStyleDashboard() {
                       <p className="text-2xl font-bold text-white">{userStats?.practiceGames ?? 0}</p>
                     </div>
                     <StarIcon className="w-8 h-8 text-yellow-500" />
-                  </div>
-                </div>
+                          </div>
+                        </div>
                 
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-gray-400 text-sm">Competitions</p>
                       <p className="text-2xl font-bold text-white">{userStats?.competitionGames ?? 0}</p>
-                    </div>
+                                </div>
                     <TrophyIcon className="w-8 h-8 text-red-500" />
-                  </div>
-                </div>
+                        </div>
+                      </div>
                       
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
-                    <div>
+                            <div>
                       <p className="text-gray-400 text-sm">Avg Score</p>
                       <p className="text-2xl font-bold text-white">{Math.round(userStats?.averageScore ?? 0)}</p>
                     </div>
                     <FireIcon className="w-8 h-8 text-orange-500" />
-                  </div>
-                </div>
-              </div>
+                            </div>
+                          </div>
+                        </div>
 
               {/* Token Stats */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
-                    <div>
+                            <div>
                       <p className="text-gray-400 text-sm">Tokens Wagered</p>
                       <p className="text-2xl font-bold text-white">{userStats?.totalTokensWagered ?? 0}</p>
-                    </div>
+                            </div>
                     <BanknotesIcon className="w-8 h-8 text-purple-500" />
-                  </div>
-                </div>
+                          </div>
+                        </div>
                 
                 <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between">
@@ -1385,12 +1385,12 @@ export default function TriumphStyleDashboard() {
                   Your Game Stats
                 </h3>
                 {!highScores || highScores.filter(s => s && s.games_played > 0).length === 0 ? (
-                  <div className="text-center py-8">
+                    <div className="text-center py-8">
                     <ChartBarIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-400">No games played yet</p>
                     <p className="text-sm text-gray-500">Play some games to see your stats!</p>
-                  </div>
-                ) : (
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {highScores
                       .filter(score => score && score.games_played > 0)
@@ -1419,10 +1419,10 @@ export default function TriumphStyleDashboard() {
                             </p>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             </div>
           )}

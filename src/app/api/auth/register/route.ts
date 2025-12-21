@@ -174,16 +174,16 @@ export async function POST(request: NextRequest) {
     // Create user profile in users table with formatted phone number
     console.log('📝 Inserting user profile (without phone in users table)');
     const userProfile = {
-      id: authData.user.id,
-      email: email.toLowerCase().trim(),
-      username,
-      full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
-      location: location || null,
+        id: authData.user.id,
+        email: email.toLowerCase().trim(),
+        username,
+        full_name: `${firstName || ''} ${lastName || ''}`.trim() || null,
+        location: location || null,
       tokens: 1, // Starting token
-      is_verified: false,
-      marketing_consent: marketingConsent || false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+        is_verified: false,
+        marketing_consent: marketingConsent || false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
     };
     
     console.log('📦 User profile data:', JSON.stringify(userProfile, null, 2));

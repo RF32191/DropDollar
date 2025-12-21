@@ -751,37 +751,57 @@ export default function NeonStrikerGame({
         setScore(scoreRef.current);
         addPopup(levelBonus, 50, 30, 'critical', `🏆 LEVEL ${currentLevelRef.current + 1} DONE! +${levelBonus}`);
         
+        // Store next level index
+        let nextLevelIndex: number;
+        
         // Move to next level
         if (currentLevelRef.current < LEVELS.length - 1) {
-          currentLevelRef.current++;
-          setCurrentLevel(currentLevelRef.current);
-          console.log('⏭️ [NeonStriker] Advancing to level', currentLevelRef.current + 1);
+          nextLevelIndex = currentLevelRef.current + 1;
+          console.log('⏭️ [NeonStriker] Advancing to level', nextLevelIndex + 1);
         } else {
           // Loop back to first level with bonus
-          currentLevelRef.current = 0;
-          setCurrentLevel(0);
+          nextLevelIndex = 0;
           scoreRef.current += 500;
           setScore(scoreRef.current);
           addPopup(500, 50, 25, 'critical', '🌟 ALL LEVELS CLEARED! +500');
           console.log('🔄 [NeonStriker] All levels cleared! Restarting from level 1');
         }
         
-        // Reset for next level - use setTimeout to ensure state updates are applied
+        // Reset for next level
         isShootingRef.current = false;
         hitsThisShotRef.current = 0;
         setAimLocked(false);
-        setGameState('playing'); // Ensure gameState is playing for scene reinitialization
         
-        // Delay scene reset to allow state updates and show level complete message
+        // Use a single timeout to handle the level transition
+        // This ensures clean state management
         setTimeout(() => {
-          console.log('🔧 [NeonStriker] Reinitializing scene for level', currentLevelRef.current + 1);
+          console.log('🔧 [NeonStriker] Reinitializing for level', nextLevelIndex + 1);
+          
+          // Update level refs and state
+          currentLevelRef.current = nextLevelIndex;
+          setCurrentLevel(nextLevelIndex);
+          
           // Cancel any pending animation
           if (animationRef.current) {
             cancelAnimationFrame(animationRef.current);
             animationRef.current = null;
           }
+          
+          // Dispose current scene
+          if (rendererRef.current && containerRef.current) {
+            if (containerRef.current.contains(rendererRef.current.domElement)) {
+              containerRef.current.removeChild(rendererRef.current.domElement);
+            }
+            rendererRef.current.dispose();
+            rendererRef.current = null;
+          }
+          sceneRef.current = null;
+          coinsRef.current = [];
+          
+          // Set scene not ready to trigger re-initialization
           setSceneReady(false);
-        }, 300);
+          setGameState('playing');
+        }, 500);
       } else {
         setGameState('playing');
         setAimLocked(false);
@@ -817,13 +837,26 @@ export default function NeonStrikerGame({
 
   // Animation loop
   useEffect(() => {
-    if (!sceneReady || gameState === 'ready' || gameState === 'complete') return;
-    if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+    if (!sceneReady || gameState === 'ready' || gameState === 'complete') {
+      console.log('🎬 [NeonStriker] Animation loop skipped - sceneReady:', sceneReady, 'gameState:', gameState);
+      return;
+    }
+    if (!sceneRef.current || !cameraRef.current || !rendererRef.current) {
+      console.log('🎬 [NeonStriker] Animation loop skipped - refs not ready');
+      return;
+    }
 
+    console.log('🎬 [NeonStriker] Animation loop STARTING for level', currentLevelRef.current + 1);
     let isAnimating = true;
+    let frameCount = 0;
     
     const animate = () => {
       if (!isAnimating || !sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+      
+      frameCount++;
+      if (frameCount === 1 || frameCount % 300 === 0) {
+        console.log('🎬 [NeonStriker] Animation frame', frameCount, 'level', currentLevelRef.current + 1);
+      }
       
       updatePhysics();
       updateAimLine();
@@ -851,6 +884,7 @@ export default function NeonStrikerGame({
 
     animate();
     return () => { 
+      console.log('🎬 [NeonStriker] Animation loop STOPPING');
       isAnimating = false;
       if (animationRef.current) cancelAnimationFrame(animationRef.current); 
     };
@@ -888,17 +922,41 @@ export default function NeonStrikerGame({
   }, []);
 
   useEffect(() => {
-    if (gameState !== 'playing' && gameState !== 'charging' && gameState !== 'shooting') return;
-    if (sceneReady) return;
+    // Only initialize when playing and scene is not ready
+    if (gameState !== 'playing' && gameState !== 'charging' && gameState !== 'shooting') {
+      console.log('🔄 [NeonStriker] Scene init skipped - gameState:', gameState);
+      return;
+    }
+    if (sceneReady) {
+      console.log('🔄 [NeonStriker] Scene init skipped - already ready');
+      return;
+    }
+    
+    console.log('🎮 [NeonStriker] Starting scene initialization for level', currentLevelRef.current + 1);
+    
+    let initAttempts = 0;
+    const maxAttempts = 20;
     
     const checkAndInit = () => {
+      initAttempts++;
+      console.log('🔍 [NeonStriker] Init attempt', initAttempts, 'container:', !!containerRef.current);
+      
       if (containerRef.current) {
-        initScene(currentLevelRef.current);
+        try {
+          initScene(currentLevelRef.current);
+          console.log('✅ [NeonStriker] Scene initialized successfully');
+        } catch (error) {
+          console.error('❌ [NeonStriker] Scene init error:', error);
+        }
+      } else if (initAttempts < maxAttempts) {
+        setTimeout(checkAndInit, 100);
       } else {
-        setTimeout(checkAndInit, 50);
+        console.error('❌ [NeonStriker] Failed to initialize - container not found after', maxAttempts, 'attempts');
       }
     };
-    setTimeout(checkAndInit, 50);
+    
+    // Small delay to ensure React has rendered the container
+    setTimeout(checkAndInit, 100);
   }, [gameState, sceneReady, initScene]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {

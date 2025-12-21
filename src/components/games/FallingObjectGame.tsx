@@ -989,8 +989,8 @@ export default function FallingObjectGame({ onGameEnd, onExit, listingId, entryN
                 <span className="text-yellow-400 font-bold">💰 {score.toFixed(0)}</span>
                 <span className="text-gray-400">|</span>
                 <span className="text-green-400">✅ {caughtObjects}</span>
-              </div>
-            </div>
+                </div>
+                </div>
             
             <div className="absolute top-2 right-2 z-50 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg text-white text-xs sm:text-sm pointer-events-none">
               <span>⏱️ {timer.timeLeft}s</span>

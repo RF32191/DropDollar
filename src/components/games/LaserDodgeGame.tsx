@@ -285,7 +285,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
     };
   }, []);
-  
+
   // Audio unlock mechanism for browser autoplay restrictions
   const unlockAudio = () => {
     if (audioUnlockedRef.current) return;
@@ -1309,7 +1309,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     
     // Only move by touch if gyroscope is not enabled
     if (!gyroscopeEnabled) {
-      handleTouchMove(event);
+    handleTouchMove(event);
     }
   };
   
@@ -1366,8 +1366,8 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       }
       
       setHasControl(true);
-      setCountdown(5);
-      setGameState('countdown');
+    setCountdown(5);
+    setGameState('countdown');
     }
   };
 
@@ -2170,10 +2170,10 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                       filter: 'drop-shadow(0 0 10px rgba(255, 0, 0, 1)) drop-shadow(0 0 20px rgba(255, 0, 0, 0.6))',
                     } : {
                       // Standard: Normal enemy ship
-                      backgroundImage: 'url("/SHIP.png")',
-                      backgroundSize: 'contain',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'center',
+                    backgroundImage: 'url("/SHIP.png")',
+                    backgroundSize: 'contain',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
                       filter: 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.8))',
                     })
                   }}
@@ -2529,20 +2529,20 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   </div>
                 ) : (
                   // Standard: Normal ship
-                  <div
-                    className="absolute w-8 h-8"
-                    style={{
-                      left: '50%',
-                      top: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      backgroundImage: 'url("/SHIP.png")',
-                      backgroundSize: 'contain',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'center',
+                <div
+                  className="absolute w-8 h-8"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundImage: 'url("/SHIP.png")',
+                    backgroundSize: 'contain',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
                       filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))',
-                      zIndex: 10,
-                    }}
-                  />
+                    zIndex: 10,
+                  }}
+                />
                 )}
               </div>
           </div>
