@@ -118,6 +118,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const addPopupRef = useRef(addPopup);
   addPopupRef.current = addPopup;
   
+  // Theme ref for animation loop
+  const currentThemeRef = useRef(currentTheme);
+  useEffect(() => {
+    currentThemeRef.current = currentTheme;
+  }, [currentTheme]);
+  
   // Flappy Bird style physics constants
   const GRAVITY = -40;
   const JUMP_VELOCITY = 10;
@@ -127,6 +133,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const OBSTACLE_GAP = 12.0; // Much larger gap between obstacles for back/forth movement
   const GAP_SIZE = 4.2; // Larger opening to pass through
   const BONUS_COIN_POINTS = 500; // Points for collecting bonus coins
+  const BONUS_SPAWN_INTERVAL = 5; // Spawn bonus every 5 gaps (was 10)
   
   // Create theme-aware bonus collectible - moves vertically!
   const createBonusCoin = useCallback((scene: THREE.Scene, x: number, y: number): THREE.Group => {
@@ -309,6 +316,12 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     scene.add(group);
     return group;
   }, [currentTheme]);
+  
+  // Ref for createBonusCoin to use latest version in animation loop
+  const createBonusCoinRef = useRef(createBonusCoin);
+  useEffect(() => {
+    createBonusCoinRef.current = createBonusCoin;
+  }, [createBonusCoin]);
   
   // Create beautiful 3D SILVER coin with detailed features
   const createCoin = useCallback(() => {
@@ -1910,11 +1923,11 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             const label = accuracy > 0.9 ? 'PERFECT!' : accuracy > 0.7 ? 'CENTERED!' : speedBonus > 10 ? 'FAST!' : 'GAP';
             addPopupRef.current(points, 50, 40, popupType, label);
             
-            // Spawn bonus coin every 10 gaps!
-            if (gapsPassedRef.current % 10 === 0) {
+            // Spawn bonus coin every BONUS_SPAWN_INTERVAL gaps!
+            if (gapsPassedRef.current % BONUS_SPAWN_INTERVAL === 0 && gapsPassedRef.current > 0) {
               const bonusY = (seededRngRef.current.next() - 0.5) * 4; // Random Y position (smaller range)
               const bonusX = obs.x + OBSTACLE_GAP / 2; // Between this and next obstacle
-              const bonusMesh = createBonusCoin(scene, bonusX, bonusY);
+              const bonusMesh = createBonusCoinRef.current(scene, bonusX, bonusY);
               bonusCoinsRef.current.push({
                 id: gapsPassedRef.current,
                 x: bonusX,
@@ -1924,7 +1937,10 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
                 collected: false,
                 mesh: bonusMesh,
               });
-              addPopupRef.current(0, 50, 20, 'bonus', '⭐ BONUS COIN AHEAD!');
+              const themeLabel = currentThemeRef.current === 'halloween' ? '🍬 CANDY AHEAD!' 
+                : currentThemeRef.current === 'christmas' ? '💡 LIGHT AHEAD!' 
+                : '⭐ BONUS COIN AHEAD!';
+              addPopupRef.current(0, 50, 20, 'bonus', themeLabel);
             }
           }
           
@@ -1997,9 +2013,9 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           
           // Rotate the bonus item for visual effect
           bonus.mesh.rotation.y += dt * 2;
-          if (currentTheme === 'halloween') {
+          if (currentThemeRef.current === 'halloween') {
             bonus.mesh.rotation.z = Math.sin(time / 500) * 0.2; // Slight wobble for candy
-          } else if (currentTheme === 'christmas') {
+          } else if (currentThemeRef.current === 'christmas') {
             bonus.mesh.rotation.x = Math.sin(time / 400) * 0.1; // Gentle sway for lights
           }
           
