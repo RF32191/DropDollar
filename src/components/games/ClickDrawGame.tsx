@@ -93,8 +93,8 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   const gameModeRef = useRef(gameMode);
   const rngSeedRef = useRef(rngSeed);
   
-  // Floating scores
-  const { floatingScores, addFloatingScore } = useFloatingScores();
+  // Floating scores - CoD style popups
+  const { popups, addPopup: addScorePopup, removePopup } = useFloatingScores();
   
   // State
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'complete'>('ready');
@@ -326,17 +326,10 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     outlawsRef.current.push(outlaw);
   }, [createOutlaw]);
   
-  // Add popup score
-  const addPopup = useCallback((points: number, x: number, y: number, type: 'perfect' | 'bonus' | 'kill' | 'critical', label?: string) => {
-    addFloatingScore({
-      id: Date.now() + Math.random(),
-      value: points,
-      x,
-      y,
-      type,
-      label,
-    });
-  }, [addFloatingScore]);
+  // Add popup score - wrapper for CoD style floating scores
+  const addPopup = useCallback((points: number, x: number, y: number, type: 'perfect' | 'bonus' | 'kill' | 'critical' | 'normal' | 'combo', label?: string) => {
+    addScorePopup(points, x, y, type as 'normal' | 'bonus' | 'perfect' | 'combo' | 'critical', label);
+  }, [addScorePopup]);
   
   // Create bullet animation - must be defined before handleDraw
   const createBulletAnimation = useCallback((targetOutlaw: Outlaw) => {
@@ -1035,8 +1028,8 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
         style={{ touchAction: 'none' }}
       />
       
-      {/* Floating Scores */}
-      <FloatingScore scores={floatingScores} />
+      {/* Floating Scores - CoD style */}
+      <FloatingScore popups={popups} onRemove={removePopup} />
       
       {/* HUD */}
       {gameState === 'playing' && (
