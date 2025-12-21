@@ -134,123 +134,252 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     }
   }, []);
   
-  // Create revolver gun - ENHANCED with more details
+  // Create gun - REVOLVER for player, RIFLE for enemies
   const createGun = useCallback((isEnemy: boolean = false) => {
     const group = new THREE.Group();
     
-    // Gun barrel - longer and shinier
-    const barrelGeo = new THREE.CylinderGeometry(0.05, 0.06, 1.0, 16);
-    const barrelMat = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x1a1a1a : 0x666666,
-      emissive: isEnemy ? 0x000000 : 0x222222,
-      shininess: 150,
-      specular: 0xffffff,
-    });
-    const barrel = new THREE.Mesh(barrelGeo, barrelMat);
-    barrel.rotation.x = Math.PI / 2;
-    barrel.position.z = 0.5;
-    barrel.name = 'barrel';
-    group.add(barrel);
-    
-    // Barrel tip (muzzle)
-    const muzzleGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.1, 16);
-    const muzzle = new THREE.Mesh(muzzleGeo, barrelMat);
-    muzzle.rotation.x = Math.PI / 2;
-    muzzle.position.z = 1.0;
-    group.add(muzzle);
-    
-    // Cylinder (revolver chamber) - bigger with bullet holes
-    const cylinderGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.18, 16);
-    const cylinderMat = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x111111 : 0x444444,
-      shininess: 100,
-      specular: 0x888888,
-    });
-    const cylinder = new THREE.Mesh(cylinderGeo, cylinderMat);
-    cylinder.rotation.x = Math.PI / 2;
-    cylinder.position.z = 0.15;
-    group.add(cylinder);
-    
-    // Bullet holes on cylinder
-    for (let i = 0; i < 6; i++) {
-      const holeGeo = new THREE.CircleGeometry(0.02, 8);
-      const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-      const hole = new THREE.Mesh(holeGeo, holeMat);
-      const angle = (i / 6) * Math.PI * 2;
-      hole.position.set(Math.cos(angle) * 0.08, Math.sin(angle) * 0.08, 0.25);
-      group.add(hole);
-    }
-    
-    // Frame/body
-    const frameGeo = new THREE.BoxGeometry(0.12, 0.15, 0.25);
-    const frameMat = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x1a1a1a : 0x555555,
-      shininess: 80,
-    });
-    const frame = new THREE.Mesh(frameGeo, frameMat);
-    frame.position.set(0, -0.05, 0.05);
-    group.add(frame);
-    
-    // Hammer
-    const hammerGeo = new THREE.BoxGeometry(0.04, 0.08, 0.06);
-    const hammer = new THREE.Mesh(hammerGeo, barrelMat);
-    hammer.position.set(0, 0.05, -0.05);
-    hammer.rotation.x = -0.3;
-    group.add(hammer);
-    
-    // Handle - ornate wooden grip
-    const handleGeo = new THREE.BoxGeometry(0.1, 0.3, 0.14);
-    const handleMat = new THREE.MeshPhongMaterial({
-      color: isEnemy ? 0x4a2a1a : 0x8B4513,
-      emissive: isEnemy ? 0x1a0a00 : 0x3A1A05,
-      shininess: 40,
-    });
-    const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.y = -0.22;
-    handle.rotation.x = -0.4;
-    group.add(handle);
-    
-    // Handle grip lines
-    for (let i = 0; i < 4; i++) {
-      const lineGeo = new THREE.BoxGeometry(0.11, 0.015, 0.01);
-      const lineMat = new THREE.MeshPhongMaterial({ color: 0x2a1a0a });
-      const line = new THREE.Mesh(lineGeo, lineMat);
-      line.position.set(0, -0.15 - i * 0.05, 0.08);
-      line.rotation.x = -0.4;
-      group.add(line);
-    }
-    
-    // Trigger guard - gold accent
-    const guardGeo = new THREE.TorusGeometry(0.07, 0.018, 8, 16, Math.PI);
-    const guardMat = new THREE.MeshPhongMaterial({ 
-      color: isEnemy ? 0x333333 : 0xDAA520, 
-      shininess: 100,
-      specular: 0xffffff,
-    });
-    const guard = new THREE.Mesh(guardGeo, guardMat);
-    guard.position.set(0, -0.08, 0.08);
-    guard.rotation.x = Math.PI / 2;
-    group.add(guard);
-    
-    // Trigger
-    const triggerGeo = new THREE.BoxGeometry(0.02, 0.06, 0.02);
-    const trigger = new THREE.Mesh(triggerGeo, barrelMat);
-    trigger.position.set(0, -0.1, 0.08);
-    group.add(trigger);
-    
-    // Glow ring for enemy guns (for warning effect)
     if (isEnemy) {
-      const glowGeo = new THREE.RingGeometry(0.06, 0.1, 16);
+      // === ENEMY RIFLE - Long Western lever-action rifle ===
+      const metalMat = new THREE.MeshPhongMaterial({
+        color: 0x1a1a1a,
+        emissive: 0x000000,
+        shininess: 120,
+        specular: 0x666666,
+      });
+      
+      const woodMat = new THREE.MeshPhongMaterial({
+        color: 0x5a3a2a,
+        emissive: 0x1a0a00,
+        shininess: 30,
+      });
+      
+      // Long rifle barrel
+      const barrelGeo = new THREE.CylinderGeometry(0.035, 0.04, 1.8, 16);
+      const barrel = new THREE.Mesh(barrelGeo, metalMat);
+      barrel.rotation.x = Math.PI / 2;
+      barrel.position.z = 0.9;
+      barrel.name = 'barrel';
+      group.add(barrel);
+      
+      // Muzzle flash suppressor
+      const muzzleGeo = new THREE.CylinderGeometry(0.045, 0.04, 0.15, 16);
+      const muzzle = new THREE.Mesh(muzzleGeo, metalMat);
+      muzzle.rotation.x = Math.PI / 2;
+      muzzle.position.z = 1.85;
+      group.add(muzzle);
+      
+      // Front sight
+      const sightGeo = new THREE.BoxGeometry(0.02, 0.06, 0.02);
+      const sight = new THREE.Mesh(sightGeo, metalMat);
+      sight.position.set(0, 0.06, 1.7);
+      group.add(sight);
+      
+      // Receiver (action housing)
+      const receiverGeo = new THREE.BoxGeometry(0.12, 0.14, 0.4);
+      const receiver = new THREE.Mesh(receiverGeo, metalMat);
+      receiver.position.set(0, -0.02, 0.1);
+      group.add(receiver);
+      
+      // Lever
+      const leverGeo = new THREE.BoxGeometry(0.08, 0.15, 0.04);
+      const lever = new THREE.Mesh(leverGeo, metalMat);
+      lever.position.set(0, -0.12, 0.05);
+      lever.rotation.x = 0.3;
+      group.add(lever);
+      
+      // Magazine tube (under barrel)
+      const magGeo = new THREE.CylinderGeometry(0.03, 0.03, 1.2, 12);
+      const mag = new THREE.Mesh(magGeo, metalMat);
+      mag.rotation.x = Math.PI / 2;
+      mag.position.set(0, -0.06, 0.6);
+      group.add(mag);
+      
+      // Wooden stock
+      const stockGeo = new THREE.BoxGeometry(0.1, 0.12, 0.6);
+      const stock = new THREE.Mesh(stockGeo, woodMat);
+      stock.position.set(0, -0.04, -0.35);
+      group.add(stock);
+      
+      // Stock butt (curved)
+      const buttGeo = new THREE.BoxGeometry(0.1, 0.18, 0.15);
+      const butt = new THREE.Mesh(buttGeo, woodMat);
+      butt.position.set(0, -0.06, -0.7);
+      butt.rotation.x = -0.2;
+      group.add(butt);
+      
+      // Wooden forearm (handguard)
+      const forearmGeo = new THREE.BoxGeometry(0.08, 0.08, 0.5);
+      const forearm = new THREE.Mesh(forearmGeo, woodMat);
+      forearm.position.set(0, -0.08, 0.5);
+      group.add(forearm);
+      
+      // Trigger
+      const triggerGeo = new THREE.BoxGeometry(0.02, 0.06, 0.02);
+      const trigger = new THREE.Mesh(triggerGeo, metalMat);
+      trigger.position.set(0, -0.1, 0.0);
+      group.add(trigger);
+      
+      // Trigger guard
+      const guardGeo = new THREE.TorusGeometry(0.05, 0.012, 8, 16, Math.PI);
+      const guard = new THREE.Mesh(guardGeo, metalMat);
+      guard.position.set(0, -0.08, 0.0);
+      guard.rotation.x = Math.PI / 2;
+      group.add(guard);
+      
+      // === INTENSE GLOW EFFECTS for rifle ===
+      // Large glowing orb at muzzle
+      const glowSphereGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const glowSphereMat = new THREE.MeshBasicMaterial({
+        color: 0x00AAFF,
+        transparent: true,
+        opacity: 0,
+      });
+      const glowSphere = new THREE.Mesh(glowSphereGeo, glowSphereMat);
+      glowSphere.position.z = 1.9;
+      glowSphere.name = 'glowSphere';
+      group.add(glowSphere);
+      
+      // Glow ring at barrel end
+      const glowGeo = new THREE.RingGeometry(0.08, 0.18, 24);
       const glowMat = new THREE.MeshBasicMaterial({
-        color: 0x0066ff,
+        color: 0x00AAFF,
         transparent: true,
         opacity: 0,
         side: THREE.DoubleSide,
       });
       const glow = new THREE.Mesh(glowGeo, glowMat);
-      glow.position.z = 1.05;
+      glow.position.z = 1.9;
       glow.name = 'glow';
       group.add(glow);
+      
+      // Secondary inner glow
+      const innerGlowGeo = new THREE.RingGeometry(0.04, 0.1, 24);
+      const innerGlowMat = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+      });
+      const innerGlow = new THREE.Mesh(innerGlowGeo, innerGlowMat);
+      innerGlow.position.z = 1.92;
+      innerGlow.name = 'innerGlow';
+      group.add(innerGlow);
+      
+      // Barrel glow (runs along barrel when charging)
+      const barrelGlowGeo = new THREE.CylinderGeometry(0.05, 0.055, 1.8, 16);
+      const barrelGlowMat = new THREE.MeshBasicMaterial({
+        color: 0x00AAFF,
+        transparent: true,
+        opacity: 0,
+      });
+      const barrelGlow = new THREE.Mesh(barrelGlowGeo, barrelGlowMat);
+      barrelGlow.rotation.x = Math.PI / 2;
+      barrelGlow.position.z = 0.9;
+      barrelGlow.name = 'barrelGlow';
+      group.add(barrelGlow);
+      
+    } else {
+      // === PLAYER REVOLVER - Classic Western style ===
+      const barrelMat = new THREE.MeshPhongMaterial({
+        color: 0x666666,
+        emissive: 0x222222,
+        shininess: 150,
+        specular: 0xffffff,
+      });
+      
+      // Gun barrel
+      const barrelGeo = new THREE.CylinderGeometry(0.05, 0.06, 1.0, 16);
+      const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+      barrel.rotation.x = Math.PI / 2;
+      barrel.position.z = 0.5;
+      barrel.name = 'barrel';
+      group.add(barrel);
+      
+      // Barrel tip (muzzle)
+      const muzzleGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.1, 16);
+      const muzzle = new THREE.Mesh(muzzleGeo, barrelMat);
+      muzzle.rotation.x = Math.PI / 2;
+      muzzle.position.z = 1.0;
+      group.add(muzzle);
+      
+      // Cylinder (revolver chamber)
+      const cylinderGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.18, 16);
+      const cylinderMat = new THREE.MeshPhongMaterial({
+        color: 0x444444,
+        shininess: 100,
+        specular: 0x888888,
+      });
+      const cylinder = new THREE.Mesh(cylinderGeo, cylinderMat);
+      cylinder.rotation.x = Math.PI / 2;
+      cylinder.position.z = 0.15;
+      group.add(cylinder);
+      
+      // Bullet holes on cylinder
+      for (let i = 0; i < 6; i++) {
+        const holeGeo = new THREE.CircleGeometry(0.02, 8);
+        const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const hole = new THREE.Mesh(holeGeo, holeMat);
+        const angle = (i / 6) * Math.PI * 2;
+        hole.position.set(Math.cos(angle) * 0.08, Math.sin(angle) * 0.08, 0.25);
+        group.add(hole);
+      }
+      
+      // Frame/body
+      const frameGeo = new THREE.BoxGeometry(0.12, 0.15, 0.25);
+      const frameMat = new THREE.MeshPhongMaterial({
+        color: 0x555555,
+        shininess: 80,
+      });
+      const frame = new THREE.Mesh(frameGeo, frameMat);
+      frame.position.set(0, -0.05, 0.05);
+      group.add(frame);
+      
+      // Hammer
+      const hammerGeo = new THREE.BoxGeometry(0.04, 0.08, 0.06);
+      const hammer = new THREE.Mesh(hammerGeo, barrelMat);
+      hammer.position.set(0, 0.05, -0.05);
+      hammer.rotation.x = -0.3;
+      group.add(hammer);
+      
+      // Handle - ornate wooden grip
+      const handleGeo = new THREE.BoxGeometry(0.1, 0.3, 0.14);
+      const handleMat = new THREE.MeshPhongMaterial({
+        color: 0x8B4513,
+        emissive: 0x3A1A05,
+        shininess: 40,
+      });
+      const handle = new THREE.Mesh(handleGeo, handleMat);
+      handle.position.y = -0.22;
+      handle.rotation.x = -0.4;
+      group.add(handle);
+      
+      // Handle grip lines
+      for (let i = 0; i < 4; i++) {
+        const lineGeo = new THREE.BoxGeometry(0.11, 0.015, 0.01);
+        const lineMat = new THREE.MeshPhongMaterial({ color: 0x2a1a0a });
+        const line = new THREE.Mesh(lineGeo, lineMat);
+        line.position.set(0, -0.15 - i * 0.05, 0.08);
+        line.rotation.x = -0.4;
+        group.add(line);
+      }
+      
+      // Trigger guard - gold accent
+      const guardGeo = new THREE.TorusGeometry(0.07, 0.018, 8, 16, Math.PI);
+      const guardMat = new THREE.MeshPhongMaterial({ 
+        color: 0xDAA520, 
+        shininess: 100,
+        specular: 0xffffff,
+      });
+      const guard = new THREE.Mesh(guardGeo, guardMat);
+      guard.position.set(0, -0.08, 0.08);
+      guard.rotation.x = Math.PI / 2;
+      group.add(guard);
+      
+      // Trigger
+      const triggerGeo = new THREE.BoxGeometry(0.02, 0.06, 0.02);
+      const trigger = new THREE.Mesh(triggerGeo, barrelMat);
+      trigger.position.set(0, -0.1, 0.08);
+      group.add(trigger);
     }
     
     return group;
@@ -514,32 +643,81 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
         }
       }
     } else {
-      // Missed draw timing - shoot at random enemy
-      const targetOutlaw = outlawsRef.current.find(o => o.phase !== 'dying' && o.health > 0);
-      if (targetOutlaw) {
+      // SPAM PENALTY - No enemy was in "drawing" phase, user is spamming!
+      // Check if ANY enemy is at least winding up
+      const windupOutlaw = outlawsRef.current.find(o => o.phase === 'windup' && o.health > 0);
+      
+      if (windupOutlaw) {
+        // At least someone is winding up - shoot at them (regular hit)
         totalShotsRef.current++;
         bulletsRemainingRef.current--;
         setBullets(bulletsRemainingRef.current);
         
-        targetOutlaw.health--;
-        targetOutlaw.hitFlashTime = 0.2;
-        targetOutlaw.phase = 'stunned';
-        targetOutlaw.attackTimer = 0;
+        windupOutlaw.health--;
+        windupOutlaw.hitFlashTime = 0.2;
+        windupOutlaw.phase = 'stunned';
+        windupOutlaw.attackTimer = 0;
         
         const points = 50;
         scoreRef.current += points;
         setScore(scoreRef.current);
         addPopup(points, 50, 35, 'kill', `💥 HIT! +${points}`);
         
-        createBulletAnimation(targetOutlaw);
+        createBulletAnimation(windupOutlaw);
         
-        if (targetOutlaw.health <= 0) {
-          targetOutlaw.phase = 'dying';
+        if (windupOutlaw.health <= 0) {
+          windupOutlaw.phase = 'dying';
           outlawsKilledRef.current++;
           const killPoints = 50;
           scoreRef.current += killPoints;
           setScore(scoreRef.current);
           addPopup(killPoints, 50, 40, 'kill', `☠️ KILLED! +${killPoints}`);
+        }
+      } else {
+        // NO ONE is drawing or winding up - SPAM PENALTY!
+        // Bullet misses and player loses points
+        totalShotsRef.current++;
+        bulletsRemainingRef.current--;
+        setBullets(bulletsRemainingRef.current);
+        
+        // Reset combo for spamming
+        comboRef.current = 0;
+        setCombo(0);
+        
+        // Deduct 25 points
+        scoreRef.current = Math.max(0, scoreRef.current - 25);
+        setScore(scoreRef.current);
+        addPopup(-25, 50, 35, 'kill', `❌ MISS! -25 (wait for glow!)`);
+        
+        // Create a miss animation (bullet goes to random spot)
+        const missPos = new THREE.Vector3(
+          (seededRngRef.current.next() - 0.5) * 6,
+          seededRngRef.current.next() * 3 + 1,
+          -5
+        );
+        
+        // Create miss bullet (fades quickly)
+        if (sceneRef.current) {
+          const bulletGeo = new THREE.SphereGeometry(0.08, 8, 8);
+          const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFCC00 });
+          const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+          bullet.position.set(0, 1.5, 3);
+          sceneRef.current.add(bullet);
+          
+          // Animate miss
+          let progress = 0;
+          const startPos = bullet.position.clone();
+          const animateMiss = () => {
+            progress += 0.1;
+            if (progress >= 1) {
+              if (sceneRef.current) sceneRef.current.remove(bullet);
+              return;
+            }
+            bullet.position.lerpVectors(startPos, missPos, progress);
+            bullet.scale.setScalar(1 - progress * 0.5);
+            requestAnimationFrame(animateMiss);
+          };
+          animateMiss();
         }
       }
     }
@@ -974,26 +1152,47 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
           } else if (outlaw.phase === 'windup') {
             outlaw.attackTimer += deltaTime;
             
-            // Raise gun - BRIGHT BLUE glow when winding up
+            // Raise rifle - INTENSE BLUE GLOW when winding up
             if (outlaw.mesh) {
               const gun = outlaw.mesh.getObjectByName('gun') as THREE.Group;
               if (gun) {
                 const progress = Math.min(outlaw.attackTimer / 0.8, 1);
-                gun.rotation.z = -Math.PI / 4 + progress * (Math.PI / 2);
-                gun.position.y = 0.3 + progress * 0.5;
+                gun.rotation.z = -Math.PI / 6 + progress * (Math.PI / 3);
+                gun.position.y = 0.3 + progress * 0.4;
                 
-                // BRIGHT BLUE glow on barrel - pulsing
+                // INTENSE BLUE glow on barrel - pulsing bright
                 const barrel = gun.getObjectByName('barrel') as THREE.Mesh;
                 if (barrel?.material) {
-                  (barrel.material as THREE.MeshPhongMaterial).emissive.setHex(0x00AAFF);
-                  (barrel.material as THREE.MeshPhongMaterial).emissiveIntensity = 1.5 + Math.sin(time / 80) * 0.5;
+                  (barrel.material as THREE.MeshPhongMaterial).emissive.setHex(0x00CCFF);
+                  (barrel.material as THREE.MeshPhongMaterial).emissiveIntensity = 2.0 + Math.sin(time / 60) * 1.0;
                 }
                 
-                // Update glow ring
+                // Barrel glow effect (cylinder around barrel)
+                const barrelGlow = gun.getObjectByName('barrelGlow') as THREE.Mesh;
+                if (barrelGlow?.material) {
+                  (barrelGlow.material as THREE.MeshBasicMaterial).color.setHex(0x00CCFF);
+                  (barrelGlow.material as THREE.MeshBasicMaterial).opacity = 0.3 * progress + Math.sin(time / 50) * 0.15;
+                }
+                
+                // Glow sphere at muzzle - pulsing blue orb
+                const glowSphere = gun.getObjectByName('glowSphere') as THREE.Mesh;
+                if (glowSphere?.material) {
+                  (glowSphere.material as THREE.MeshBasicMaterial).color.setHex(0x00AAFF);
+                  (glowSphere.material as THREE.MeshBasicMaterial).opacity = 0.5 * progress + Math.sin(time / 40) * 0.2;
+                  glowSphere.scale.setScalar(1 + Math.sin(time / 30) * 0.2);
+                }
+                
+                // Outer glow ring - bright cyan
                 const glow = gun.getObjectByName('glow') as THREE.Mesh;
                 if (glow?.material) {
-                  (glow.material as THREE.MeshBasicMaterial).color.setHex(0x00CCFF);
-                  (glow.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(time / 60) * 0.3;
+                  (glow.material as THREE.MeshBasicMaterial).color.setHex(0x00FFFF);
+                  (glow.material as THREE.MeshBasicMaterial).opacity = 0.7 * progress + Math.sin(time / 35) * 0.2;
+                }
+                
+                // Inner white glow core
+                const innerGlow = gun.getObjectByName('innerGlow') as THREE.Mesh;
+                if (innerGlow?.material) {
+                  (innerGlow.material as THREE.MeshBasicMaterial).opacity = 0.4 * progress + Math.sin(time / 25) * 0.15;
                 }
               }
             }
@@ -1005,21 +1204,43 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
           } else if (outlaw.phase === 'drawing') {
             outlaw.attackTimer += deltaTime;
             
-            // BRIGHT RED glow when drawing (about to shoot) - DANGER!
+            // INTENSE RED GLOW when drawing (about to shoot) - DANGER!
             if (outlaw.mesh) {
               const gun = outlaw.mesh.getObjectByName('gun') as THREE.Group;
               if (gun) {
                 const barrel = gun.getObjectByName('barrel') as THREE.Mesh;
                 if (barrel?.material) {
                   (barrel.material as THREE.MeshPhongMaterial).emissive.setHex(0xFF0000);
-                  (barrel.material as THREE.MeshPhongMaterial).emissiveIntensity = 2.5 + Math.sin(time / 30) * 1.0;
+                  (barrel.material as THREE.MeshPhongMaterial).emissiveIntensity = 3.5 + Math.sin(time / 20) * 1.5;
                 }
                 
-                // BRIGHT RED glow ring - flashing danger!
+                // Barrel glow - RED WARNING
+                const barrelGlow = gun.getObjectByName('barrelGlow') as THREE.Mesh;
+                if (barrelGlow?.material) {
+                  (barrelGlow.material as THREE.MeshBasicMaterial).color.setHex(0xFF0000);
+                  (barrelGlow.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(time / 15) * 0.3;
+                }
+                
+                // Glow sphere - FLASHING RED
+                const glowSphere = gun.getObjectByName('glowSphere') as THREE.Mesh;
+                if (glowSphere?.material) {
+                  (glowSphere.material as THREE.MeshBasicMaterial).color.setHex(0xFF0000);
+                  (glowSphere.material as THREE.MeshBasicMaterial).opacity = 0.9 + Math.sin(time / 10) * 0.1;
+                  glowSphere.scale.setScalar(1.3 + Math.sin(time / 15) * 0.3);
+                }
+                
+                // Glow ring - BRIGHT RED FLASHING
                 const glow = gun.getObjectByName('glow') as THREE.Mesh;
                 if (glow?.material) {
                   (glow.material as THREE.MeshBasicMaterial).color.setHex(0xFF0000);
-                  (glow.material as THREE.MeshBasicMaterial).opacity = 0.9 + Math.sin(time / 20) * 0.1;
+                  (glow.material as THREE.MeshBasicMaterial).opacity = 1.0;
+                }
+                
+                // Inner glow - WHITE HOT CENTER
+                const innerGlow = gun.getObjectByName('innerGlow') as THREE.Mesh;
+                if (innerGlow?.material) {
+                  (innerGlow.material as THREE.MeshBasicMaterial).color.setHex(0xFFAAAA);
+                  (innerGlow.material as THREE.MeshBasicMaterial).opacity = 0.8 + Math.sin(time / 8) * 0.2;
                 }
               }
             }

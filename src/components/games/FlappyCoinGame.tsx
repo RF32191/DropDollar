@@ -1879,11 +1879,19 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           obs.topMesh.position.x = obs.x;
           obs.bottomMesh.position.x = obs.x;
           
-          // Staggered up/down animation for hands
-          const animSpeed = 1.8; // Faster oscillation
-          const animAmplitude = 1.2; // Much larger movement up/down!
-          const topOffset = Math.sin(time / 1000 * animSpeed + obs.topPhase) * animAmplitude;
-          const bottomOffset = Math.sin(time / 1000 * animSpeed + obs.bottomPhase) * animAmplitude;
+          // Staggered up/down animation for hands - GETS FASTER AND BIGGER OVER TIME!
+          const gameProgress = Math.min(1, (Date.now() - gameStartTimeRef.current) / 60000); // 0 to 1 over 60 seconds
+          const baseSpeed = 1.5;
+          const animSpeed = baseSpeed + gameProgress * 2.0; // Speed increases from 1.5 to 3.5
+          const baseAmplitude = 1.5;
+          const animAmplitude = baseAmplitude + gameProgress * 2.5; // Amplitude increases from 1.5 to 4.0!
+          
+          // Occasionally make hands go ALL THE WAY DOWN (every ~5 seconds, random)
+          const slamChance = Math.sin(time / 5000 + obs.id * 1.7) > 0.85;
+          const slamMultiplier = slamChance ? 2.5 : 1.0; // Triple movement when slamming
+          
+          const topOffset = Math.sin(time / 1000 * animSpeed + obs.topPhase) * animAmplitude * slamMultiplier;
+          const bottomOffset = Math.sin(time / 1000 * animSpeed + obs.bottomPhase) * animAmplitude * slamMultiplier;
           
           obs.topMesh.position.y = obs.topBaseY + topOffset;
           obs.bottomMesh.position.y = obs.bottomBaseY + bottomOffset;
@@ -1923,24 +1931,31 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             const label = accuracy > 0.9 ? 'PERFECT!' : accuracy > 0.7 ? 'CENTERED!' : speedBonus > 10 ? 'FAST!' : 'GAP';
             addPopupRef.current(points, 50, 40, popupType, label);
             
-            // Spawn bonus coin every BONUS_SPAWN_INTERVAL gaps!
-            if (gapsPassedRef.current % BONUS_SPAWN_INTERVAL === 0 && gapsPassedRef.current > 0) {
-              const bonusY = (seededRngRef.current.next() - 0.5) * 4; // Random Y position (smaller range)
+            // Spawn bonus coin/candy/light every 3 gaps starting from gap 3!
+            if (gapsPassedRef.current >= 3 && gapsPassedRef.current % 3 === 0) {
+              console.log('🎁 Spawning bonus at gap:', gapsPassedRef.current, 'Theme:', currentThemeRef.current);
+              const bonusY = (seededRngRef.current.next() - 0.5) * 3; // Random Y position
               const bonusX = obs.x + OBSTACLE_GAP / 2; // Between this and next obstacle
-              const bonusMesh = createBonusCoinRef.current(scene, bonusX, bonusY);
-              bonusCoinsRef.current.push({
-                id: gapsPassedRef.current,
-                x: bonusX,
-                y: bonusY,
-                baseY: bonusY, // Store base Y for vertical oscillation
-                verticalPhase: seededRngRef.current.next() * Math.PI * 2, // Random phase
-                collected: false,
-                mesh: bonusMesh,
-              });
-              const themeLabel = currentThemeRef.current === 'halloween' ? '🍬 CANDY AHEAD!' 
-                : currentThemeRef.current === 'christmas' ? '💡 LIGHT AHEAD!' 
-                : '⭐ BONUS COIN AHEAD!';
-              addPopupRef.current(0, 50, 20, 'bonus', themeLabel);
+              try {
+                const bonusMesh = createBonusCoinRef.current(scene, bonusX, bonusY);
+                if (bonusMesh) {
+                  bonusCoinsRef.current.push({
+                    id: gapsPassedRef.current,
+                    x: bonusX,
+                    y: bonusY,
+                    baseY: bonusY, // Store base Y for vertical oscillation
+                    verticalPhase: seededRngRef.current.next() * Math.PI * 2, // Random phase
+                    collected: false,
+                    mesh: bonusMesh,
+                  });
+                  const themeLabel = currentThemeRef.current === 'halloween' ? '🍬 CANDY!' 
+                    : currentThemeRef.current === 'christmas' ? '💡 LIGHT!' 
+                    : '⭐ BONUS!';
+                  addPopupRef.current(0, 50, 20, 'bonus', themeLabel);
+                }
+              } catch (e) {
+                console.error('Failed to spawn bonus:', e);
+              }
             }
           }
           
