@@ -338,6 +338,38 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     });
   }, [addFloatingScore]);
   
+  // Create bullet animation - must be defined before handleDraw
+  const createBulletAnimation = useCallback((targetOutlaw: Outlaw) => {
+    if (!sceneRef.current || !playerGunRef.current) return;
+    
+    const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8);
+    const bulletMat = new THREE.MeshBasicMaterial({ 
+      color: 0xffcc00,
+    });
+    const bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
+    
+    // Start from player gun
+    const startPos = new THREE.Vector3(0, 0.8, 3);
+    
+    // End at outlaw
+    const outlawPos = getOutlawPosition(targetOutlaw.side);
+    const endPos = new THREE.Vector3(outlawPos.x, 1.2, outlawPos.z);
+    
+    bulletMesh.position.copy(startPos);
+    sceneRef.current.add(bulletMesh);
+    
+    const bullet: Bullet = {
+      id: nextBulletIdRef.current++,
+      mesh: bulletMesh,
+      targetOutlaw,
+      progress: 0,
+      startPos,
+      endPos,
+    };
+    
+    bulletsRef.current.push(bullet);
+  }, [getOutlawPosition]);
+  
   // Handle DRAW action
   const handleDraw = useCallback(() => {
     if (gameStateRef.current !== 'playing') return;
@@ -438,40 +470,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
     setTimeout(() => {
       isDrawingRef.current = false;
     }, 100);
-  }, [addPopup]);
-  
-  // Create bullet animation
-  const createBulletAnimation = useCallback((targetOutlaw: Outlaw) => {
-    if (!sceneRef.current || !playerGunRef.current) return;
-    
-    const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8);
-    const bulletMat = new THREE.MeshBasicMaterial({ 
-      color: 0xffcc00,
-      emissive: 0xffaa00,
-    });
-    const bulletMesh = new THREE.Mesh(bulletGeo, bulletMat);
-    
-    // Start from player gun
-    const startPos = new THREE.Vector3(0, 0.8, 3);
-    
-    // End at outlaw
-    const outlawPos = getOutlawPosition(targetOutlaw.side);
-    const endPos = new THREE.Vector3(outlawPos.x, 1.2, outlawPos.z);
-    
-    bulletMesh.position.copy(startPos);
-    sceneRef.current.add(bulletMesh);
-    
-    const bullet: Bullet = {
-      id: nextBulletIdRef.current++,
-      mesh: bulletMesh,
-      targetOutlaw,
-      progress: 0,
-      startPos,
-      endPos,
-    };
-    
-    bulletsRef.current.push(bullet);
-  }, [getOutlawPosition]);
+  }, [addPopup, createBulletAnimation]);
   
   // Handle SHOOT action (regular shot without draw timing)
   const handleShoot = useCallback(() => {
