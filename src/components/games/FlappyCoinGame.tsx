@@ -50,6 +50,8 @@ interface BonusCoin {
   id: number;
   x: number;
   y: number;
+  baseY: number; // Base Y for vertical oscillation
+  verticalPhase: number; // Phase for vertical movement
   collected: boolean;
   mesh: THREE.Group;
 }
@@ -108,8 +110,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const [gameState, setGameState] = useState<'ready' | 'waiting' | 'playing' | 'complete'>('ready');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(60); // 60 second timer
-  const GAME_DURATION = 60; // 1 minute game duration
+  const [timeLeft, setTimeLeft] = useState(90); // 90 second timer (1:30)
+  const GAME_DURATION = 90; // 1 minute 30 seconds game duration
   
   // CoD-style floating score indicators
   const { popups, addPopup, removePopup } = useFloatingScores();
@@ -126,54 +128,187 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
   const GAP_SIZE = 4.2; // Larger opening to pass through
   const BONUS_COIN_POINTS = 500; // Points for collecting bonus coins
   
-  // Create glowing bonus collectible coin
+  // Create theme-aware bonus collectible - moves vertically!
   const createBonusCoin = useCallback((scene: THREE.Scene, x: number, y: number): THREE.Group => {
     const group = new THREE.Group();
     
-    // Golden glowing coin
-    const coinGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.15, 32);
-    const coinMat = new THREE.MeshPhongMaterial({
-      color: 0xFFD700,
-      emissive: 0xFFAA00,
-      emissiveIntensity: 0.8,
-      shininess: 200,
-    });
-    const coin = new THREE.Mesh(coinGeo, coinMat);
-    coin.rotation.x = Math.PI / 2;
-    group.add(coin);
-    
-    // Outer glow ring
-    const glowGeo = new THREE.RingGeometry(0.6, 0.9, 32);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: 0xFFD700,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide,
-    });
-    const glow = new THREE.Mesh(glowGeo, glowMat);
-    glow.rotation.x = Math.PI / 2;
-    group.add(glow);
-    
-    // Star symbol on coin
-    const starShape = new THREE.Shape();
-    const outerR = 0.25, innerR = 0.1;
-    for (let i = 0; i < 10; i++) {
-      const r = i % 2 === 0 ? outerR : innerR;
-      const angle = (i * Math.PI) / 5 - Math.PI / 2;
-      if (i === 0) starShape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
-      else starShape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+    if (currentTheme === 'halloween') {
+      // HALLOWEEN: Wrapped candy
+      const candyColors = [0xFF6600, 0x9933FF, 0x00FF00, 0xFF0066];
+      const candyColor = candyColors[Math.floor(Math.random() * candyColors.length)];
+      
+      // Candy body (oval shape)
+      const candyGeo = new THREE.SphereGeometry(0.4, 16, 16);
+      const candyMat = new THREE.MeshPhongMaterial({
+        color: candyColor,
+        emissive: candyColor,
+        emissiveIntensity: 0.6,
+        shininess: 150,
+      });
+      const candy = new THREE.Mesh(candyGeo, candyMat);
+      candy.scale.set(1, 0.7, 0.7);
+      group.add(candy);
+      
+      // Wrapper ends (twisted)
+      const wrapperMat = new THREE.MeshPhongMaterial({
+        color: 0xFFFFFF,
+        emissive: 0x888888,
+        emissiveIntensity: 0.3,
+        shininess: 100,
+        transparent: true,
+        opacity: 0.8,
+      });
+      
+      // Left wrapper twist
+      for (let i = 0; i < 4; i++) {
+        const twistGeo = new THREE.ConeGeometry(0.15 - i * 0.03, 0.3, 8);
+        const twist = new THREE.Mesh(twistGeo, wrapperMat);
+        twist.position.x = -0.5 - i * 0.12;
+        twist.rotation.z = Math.PI / 2 + i * 0.2;
+        group.add(twist);
+      }
+      
+      // Right wrapper twist
+      for (let i = 0; i < 4; i++) {
+        const twistGeo = new THREE.ConeGeometry(0.15 - i * 0.03, 0.3, 8);
+        const twist = new THREE.Mesh(twistGeo, wrapperMat);
+        twist.position.x = 0.5 + i * 0.12;
+        twist.rotation.z = -Math.PI / 2 - i * 0.2;
+        group.add(twist);
+      }
+      
+      // Candy stripes
+      for (let i = 0; i < 3; i++) {
+        const stripeGeo = new THREE.TorusGeometry(0.35, 0.05, 8, 16);
+        const stripeMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+        const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+        stripe.position.x = (i - 1) * 0.2;
+        stripe.rotation.y = Math.PI / 2;
+        group.add(stripe);
+      }
+      
+      // Glow effect
+      const glowGeo = new THREE.SphereGeometry(0.7, 16, 16);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: candyColor,
+        transparent: true,
+        opacity: 0.3,
+      });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      group.add(glow);
+      
+    } else if (currentTheme === 'christmas') {
+      // CHRISTMAS: Colored Christmas light bulb
+      const lightColors = [0x00FF00, 0xFF0000, 0x0066FF, 0xFFFF00]; // Green, Red, Blue, Yellow
+      const lightColor = lightColors[Math.floor(Math.random() * lightColors.length)];
+      
+      // Light bulb base (silver screw cap)
+      const baseGeo = new THREE.CylinderGeometry(0.15, 0.2, 0.25, 12);
+      const baseMat = new THREE.MeshPhongMaterial({
+        color: 0xC0C0C0,
+        shininess: 150,
+        metalness: 0.9,
+      });
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.position.y = 0.4;
+      group.add(base);
+      
+      // Screw threads on base
+      for (let i = 0; i < 3; i++) {
+        const threadGeo = new THREE.TorusGeometry(0.18, 0.02, 8, 24);
+        const thread = new THREE.Mesh(threadGeo, baseMat);
+        thread.position.y = 0.35 + i * 0.08;
+        thread.rotation.x = Math.PI / 2;
+        group.add(thread);
+      }
+      
+      // Light bulb (teardrop shape)
+      const bulbGeo = new THREE.SphereGeometry(0.35, 16, 16);
+      const bulbMat = new THREE.MeshPhongMaterial({
+        color: lightColor,
+        emissive: lightColor,
+        emissiveIntensity: 1.2,
+        shininess: 100,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+      bulb.scale.set(1, 1.3, 1);
+      group.add(bulb);
+      
+      // Inner filament glow
+      const filamentGeo = new THREE.SphereGeometry(0.15, 12, 12);
+      const filamentMat = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const filament = new THREE.Mesh(filamentGeo, filamentMat);
+      group.add(filament);
+      
+      // Outer glow
+      const glowGeo = new THREE.SphereGeometry(0.6, 16, 16);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: lightColor,
+        transparent: true,
+        opacity: 0.4,
+      });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      group.add(glow);
+      
+      // Small shine highlight
+      const shineGeo = new THREE.CircleGeometry(0.08, 12);
+      const shineMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+      const shine = new THREE.Mesh(shineGeo, shineMat);
+      shine.position.set(-0.15, 0.15, 0.35);
+      group.add(shine);
+      
+    } else {
+      // STANDARD: Golden glowing coin
+      const coinGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.15, 32);
+      const coinMat = new THREE.MeshPhongMaterial({
+        color: 0xFFD700,
+        emissive: 0xFFAA00,
+        emissiveIntensity: 0.8,
+        shininess: 200,
+      });
+      const coin = new THREE.Mesh(coinGeo, coinMat);
+      coin.rotation.x = Math.PI / 2;
+      group.add(coin);
+      
+      // Outer glow ring
+      const glowGeo = new THREE.RingGeometry(0.6, 0.9, 32);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xFFD700,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+      });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.rotation.x = Math.PI / 2;
+      group.add(glow);
+      
+      // Star symbol on coin
+      const starShape = new THREE.Shape();
+      const outerR = 0.25, innerR = 0.1;
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI) / 5 - Math.PI / 2;
+        if (i === 0) starShape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+        else starShape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      starShape.closePath();
+      const starGeo = new THREE.ShapeGeometry(starShape);
+      const starMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+      const star = new THREE.Mesh(starGeo, starMat);
+      star.position.z = 0.08;
+      group.add(star);
     }
-    starShape.closePath();
-    const starGeo = new THREE.ShapeGeometry(starShape);
-    const starMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
-    const star = new THREE.Mesh(starGeo, starMat);
-    star.position.z = 0.08;
-    group.add(star);
     
     group.position.set(x, y, 0);
     scene.add(group);
     return group;
-  }, []);
+  }, [currentTheme]);
   
   // Create beautiful 3D SILVER coin with detailed features
   const createCoin = useCallback(() => {
@@ -601,31 +736,42 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     return group;
   }, []);
   
-  // Create standard realistic hand
+  // Create ENHANCED standard realistic hand - elegant businessman style
   const createStandardHand = useCallback((isTop: boolean) => {
     const group = new THREE.Group();
     
-    // Multiple skin materials for realistic color variation
+    // Premium skin materials with subsurface scattering look
     const skinColorBase = 0xE8B89D;
     const skinColorDark = 0xD4A088;
     const skinColorLight = 0xF5C9B8;
+    const skinColorWarm = 0xF0A080;
     
     const skinMaterial = new THREE.MeshStandardMaterial({
       color: skinColorBase,
+      roughness: 0.6,
+      metalness: 0.0,
+      emissive: 0x4A1808,
+      emissiveIntensity: 0.08,
+    });
+    
+    const skinMaterialDark = new THREE.MeshStandardMaterial({
+      color: skinColorDark,
       roughness: 0.7,
       metalness: 0.0,
       emissive: 0x3A1505,
       emissiveIntensity: 0.05,
     });
     
-    const skinMaterialDark = new THREE.MeshStandardMaterial({
-      color: skinColorDark,
-      roughness: 0.75,
-      metalness: 0.0,
-    });
-    
     const skinMaterialLight = new THREE.MeshStandardMaterial({
       color: skinColorLight,
+      roughness: 0.55,
+      metalness: 0.0,
+      emissive: 0x5A2510,
+      emissiveIntensity: 0.06,
+    });
+    
+    const skinMaterialWarm = new THREE.MeshStandardMaterial({
+      color: skinColorWarm,
       roughness: 0.65,
       metalness: 0.0,
     });
@@ -934,6 +1080,67 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
     minHand.position.set(-0.95, isTop ? 2.57 : -2.63, 0.14);
     minHand.rotation.z = -0.8;
     group.add(minHand);
+    
+    // === ELEGANT SIGNET RING on pinky finger ===
+    const ringGoldMat = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      roughness: 0.1,
+      metalness: 0.95,
+      emissive: 0x553300,
+      emissiveIntensity: 0.15,
+    });
+    
+    // Ring band
+    const ringBandGeo = new THREE.TorusGeometry(0.14, 0.04, 16, 24);
+    const ringBand = new THREE.Mesh(ringBandGeo, ringGoldMat);
+    const ringY = isTop ? -0.6 : 0.6;
+    ringBand.position.set(-0.7, ringY, 0);
+    ringBand.rotation.x = Math.PI / 2;
+    group.add(ringBand);
+    
+    // Signet face (flat octagonal top)
+    const signetGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8);
+    const signet = new THREE.Mesh(signetGeo, ringGoldMat);
+    signet.rotation.x = Math.PI / 2;
+    signet.position.set(-0.7, ringY, 0.15);
+    group.add(signet);
+    
+    // Onyx inlay on signet
+    const onyxMat = new THREE.MeshStandardMaterial({
+      color: 0x0a0a0a,
+      roughness: 0.3,
+      metalness: 0.2,
+    });
+    const onyxGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8);
+    const onyx = new THREE.Mesh(onyxGeo, onyxMat);
+    onyx.rotation.x = Math.PI / 2;
+    onyx.position.set(-0.7, ringY, 0.18);
+    group.add(onyx);
+    
+    // Gold initial "D" on onyx (for Drop Dollar)
+    const initialMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+    // Create a simple D shape
+    const dShape = new THREE.Shape();
+    dShape.moveTo(-0.03, 0.04);
+    dShape.lineTo(-0.03, -0.04);
+    dShape.lineTo(0.01, -0.04);
+    dShape.quadraticCurveTo(0.04, -0.04, 0.04, 0);
+    dShape.quadraticCurveTo(0.04, 0.04, 0.01, 0.04);
+    dShape.closePath();
+    const dGeo = new THREE.ShapeGeometry(dShape);
+    const dMesh = new THREE.Mesh(dGeo, initialMat);
+    dMesh.position.set(-0.7, ringY, 0.2);
+    group.add(dMesh);
+    
+    // Subtle veins on back of hand for realism
+    const veinMat = new THREE.MeshBasicMaterial({ color: 0x8888BB, transparent: true, opacity: 0.15 });
+    for (let v = 0; v < 3; v++) {
+      const veinGeo = new THREE.CylinderGeometry(0.015, 0.02, 0.8, 6);
+      const vein = new THREE.Mesh(veinGeo, veinMat);
+      vein.position.set(-0.3 + v * 0.4, isTop ? 0.6 : -0.6, -0.15);
+      vein.rotation.x = Math.PI / 2 + (v - 1) * 0.15;
+      group.add(vein);
+    }
     
     return group;
   }, []);
@@ -1660,8 +1867,8 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           obs.bottomMesh.position.x = obs.x;
           
           // Staggered up/down animation for hands
-          const animSpeed = 1.5; // Speed of oscillation
-          const animAmplitude = 0.4; // How far they move up/down
+          const animSpeed = 1.8; // Faster oscillation
+          const animAmplitude = 1.2; // Much larger movement up/down!
           const topOffset = Math.sin(time / 1000 * animSpeed + obs.topPhase) * animAmplitude;
           const bottomOffset = Math.sin(time / 1000 * animSpeed + obs.bottomPhase) * animAmplitude;
           
@@ -1705,13 +1912,15 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
             
             // Spawn bonus coin every 10 gaps!
             if (gapsPassedRef.current % 10 === 0) {
-              const bonusY = (seededRngRef.current.next() - 0.5) * 6; // Random Y position
+              const bonusY = (seededRngRef.current.next() - 0.5) * 4; // Random Y position (smaller range)
               const bonusX = obs.x + OBSTACLE_GAP / 2; // Between this and next obstacle
               const bonusMesh = createBonusCoin(scene, bonusX, bonusY);
               bonusCoinsRef.current.push({
                 id: gapsPassedRef.current,
                 x: bonusX,
                 y: bonusY,
+                baseY: bonusY, // Store base Y for vertical oscillation
+                verticalPhase: seededRngRef.current.next() * Math.PI * 2, // Random phase
                 collected: false,
                 mesh: bonusMesh,
               });
@@ -1771,7 +1980,7 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           obstaclesRef.current.splice(i, 1);
         });
         
-        // Update bonus coins
+        // Update bonus coins - now with vertical movement!
         const bonusToRemove: number[] = [];
         bonusCoinsRef.current.forEach((bonus, i) => {
           if (bonus.collected) return;
@@ -1779,6 +1988,20 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
           // Move bonus coin with game speed
           bonus.x -= gameSpeedRef.current * dt;
           bonus.mesh.position.x = bonus.x;
+          
+          // Vertical oscillation - moves up and down smoothly
+          const verticalAmplitude = 2.0; // How far it moves up/down
+          const verticalSpeed = 2.0; // Speed of oscillation
+          bonus.y = bonus.baseY + Math.sin(time / 1000 * verticalSpeed + bonus.verticalPhase) * verticalAmplitude;
+          bonus.mesh.position.y = bonus.y;
+          
+          // Rotate the bonus item for visual effect
+          bonus.mesh.rotation.y += dt * 2;
+          if (currentTheme === 'halloween') {
+            bonus.mesh.rotation.z = Math.sin(time / 500) * 0.2; // Slight wobble for candy
+          } else if (currentTheme === 'christmas') {
+            bonus.mesh.rotation.x = Math.sin(time / 400) * 0.1; // Gentle sway for lights
+          }
           
           // Rotate and pulse the bonus coin
           bonus.mesh.rotation.y += 0.05;
