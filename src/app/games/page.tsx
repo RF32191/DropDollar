@@ -1281,31 +1281,22 @@ export default function GamesPage() {
         show={showCelebration}
         gameName={currentGame ? GAMES.find(g => g.id === currentGame)?.name || 'Game' : 'Game'}
         score={gameResults?.score || 0}
-        duration={3000}
+        duration={2000}
         onComplete={() => {
           setShowCelebration(false);
-          // Reload page for Mouseblade and Cash Stack games
-          if (currentGame === 'blade-bounce' || currentGame === 'cash-stack') {
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
-            return;
-          }
-          // Force dashboard reload with game data
-          setTimeout(() => {
-            // Store game result in localStorage for dashboard to show
-            localStorage.setItem('lastGameResult', JSON.stringify({
-              score: gameResults?.score || 0,
-              gameType: currentGame,
-              entryFee: 0,
-              mode: isCompetitionMode ? 'competition' : 'practice',
-              timestamp: new Date().toISOString(),
-              accuracy: gameResults?.accuracy || 100
-            }));
-            
-            // Reload games page to play again
-            window.location.href = '/games';
-          }, 500);
+          
+          // Store game result in localStorage for dashboard to show
+          localStorage.setItem('lastGameResult', JSON.stringify({
+            score: gameResults?.score || 0,
+            gameType: currentGame,
+            entryFee: 0,
+            mode: isCompetitionMode ? 'competition' : 'practice',
+            timestamp: new Date().toISOString(),
+            accuracy: gameResults?.accuracy || 100
+          }));
+          
+          // Reload games page to play again after 2 seconds total
+          window.location.href = '/games';
         }}
       />
       

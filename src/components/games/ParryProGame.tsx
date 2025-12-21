@@ -8,11 +8,15 @@ import GameThemeSelector from './GameThemeSelector';
 import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 interface ParryProGameProps {
-  onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onGameEnd?: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onGameComplete?: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
+  isCompetitionMode?: boolean;
   rngSeed?: number;
   theme?: GameTheme;
+  listingId?: string;
+  entryNumber?: number;
 }
 
 // Seeded RNG
@@ -44,7 +48,9 @@ interface Enemy {
   hitFlashTime: number;
 }
 
-export default function ParryProGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: ParryProGameProps) {
+export default function ParryProGame({ onGameEnd, onGameComplete, onExit, gameMode = 'practice', isCompetitionMode, rngSeed, theme: initialTheme, listingId, entryNumber }: ParryProGameProps) {
+  // Support both onGameEnd (from games page) and onGameComplete (legacy)
+  const handleGameComplete = onGameEnd || onGameComplete || (() => {});
   const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -81,15 +87,15 @@ export default function ParryProGame({ onGameComplete, onExit, gameMode = 'pract
   const endGameRef = useRef<() => void>(() => {});
   
   // Callbacks ref
-  const onGameCompleteRef = useRef(onGameComplete);
-  const gameModeRef = useRef(gameMode);
+  const onGameCompleteRef = useRef(handleGameComplete);
+  const gameModeRef = useRef(isCompetitionMode ? 'competition' : gameMode);
   const rngSeedRef = useRef(rngSeed);
   
   useEffect(() => {
-    onGameCompleteRef.current = onGameComplete;
-    gameModeRef.current = gameMode;
+    onGameCompleteRef.current = handleGameComplete;
+    gameModeRef.current = isCompetitionMode ? 'competition' : gameMode;
     rngSeedRef.current = rngSeed;
-  }, [onGameComplete, gameMode, rngSeed]);
+  }, [handleGameComplete, gameMode, isCompetitionMode, rngSeed]);
   
   const seededRng = useMemo(() => {
     const seed = rngSeed ?? Math.floor(Math.random() * 1000000);

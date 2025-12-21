@@ -10,11 +10,15 @@ import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 type ClickDrawTheme = 'standard' | 'halloween' | 'christmas';
 
 interface ClickDrawGameProps {
-  onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onGameEnd?: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onGameComplete?: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
+  isCompetitionMode?: boolean;
   rngSeed?: number;
   theme?: ClickDrawTheme;
+  listingId?: string;
+  entryNumber?: number;
 }
 
 // Seeded RNG
@@ -56,7 +60,9 @@ interface Bullet {
   endPos: THREE.Vector3;
 }
 
-export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: ClickDrawGameProps) {
+export default function ClickDrawGame({ onGameEnd, onGameComplete, onExit, gameMode = 'practice', isCompetitionMode, rngSeed, theme: initialTheme, listingId, entryNumber }: ClickDrawGameProps) {
+  // Support both onGameEnd (from games page) and onGameComplete (legacy)
+  const handleGameComplete = onGameEnd || onGameComplete || (() => {});
   const [currentTheme, setCurrentTheme] = useState<ClickDrawTheme>(() => (initialTheme || getSavedTheme()) as ClickDrawTheme);
   const currentThemeRef = useRef(currentTheme);
   
@@ -102,8 +108,8 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   const nextBulletIdRef = useRef<number>(1);
   
   // Callbacks ref
-  const onGameCompleteRef = useRef(onGameComplete);
-  const gameModeRef = useRef(gameMode);
+  const onGameCompleteRef = useRef(handleGameComplete);
+  const gameModeRef = useRef(isCompetitionMode ? 'competition' : gameMode);
   const rngSeedRef = useRef(rngSeed);
   
   // Floating scores - CoD style popups
@@ -119,10 +125,10 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   const [bullets, setBullets] = useState(MAX_BULLETS);
   
   useEffect(() => {
-    onGameCompleteRef.current = onGameComplete;
-    gameModeRef.current = gameMode;
+    onGameCompleteRef.current = handleGameComplete;
+    gameModeRef.current = isCompetitionMode ? 'competition' : gameMode;
     rngSeedRef.current = rngSeed;
-  }, [onGameComplete, gameMode, rngSeed]);
+  }, [handleGameComplete, gameMode, isCompetitionMode, rngSeed]);
   
   const seededRng = useMemo(() => {
     const seed = rngSeed ?? Math.floor(Math.random() * 1000000);
