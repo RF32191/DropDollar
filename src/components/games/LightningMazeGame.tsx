@@ -10,11 +10,15 @@ import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 type LightningMazeTheme = GameTheme | 'reproductive';
 
 interface LightningMazeGameProps {
-  onGameComplete: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onGameEnd?: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
+  onGameComplete?: (result: { score: number; accuracy: number; avgReactionTime?: number }) => void;
   onExit?: () => void;
   gameMode?: 'practice' | 'competition';
+  isCompetitionMode?: boolean;
   rngSeed?: number;
   theme?: GameTheme;
+  listingId?: string;
+  entryNumber?: number;
 }
 
 // Seeded random number generator for fair gameplay
@@ -94,7 +98,10 @@ function generateMaze(width: number, height: number, rng: Mulberry32): CellType[
   return maze;
 }
 
-export default function LightningMazeGame({ onGameComplete, onExit, gameMode = 'practice', rngSeed, theme: initialTheme }: LightningMazeGameProps) {
+export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, gameMode = 'practice', isCompetitionMode, rngSeed, theme: initialTheme, listingId, entryNumber }: LightningMazeGameProps) {
+  // Support both onGameEnd (from games page) and onGameComplete (legacy)
+  const handleGameComplete = onGameEnd || onGameComplete || (() => {});
+  const effectiveGameMode = isCompetitionMode ? 'competition' : gameMode;
   const [currentTheme, setCurrentTheme] = useState<LightningMazeTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -2285,7 +2292,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
           // Log to audit system for fair gameplay tracking
           logGameCompletion({
             gameType: GAME_TYPES.LIGHTNING_MAZE || 'lightning_maze',
-            gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+            gameMode: effectiveGameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
             score: scoreRef.current,
             accuracy: accuracy,
             reactionTime: avgReactionTime,
@@ -2298,7 +2305,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             }
           }).catch(err => console.error('❌ [LightningMaze] Audit log failed:', err));
           
-          onGameComplete({
+          handleGameComplete({
             score: scoreRef.current,
             accuracy: accuracy,
             avgReactionTime: avgReactionTime
@@ -2579,7 +2586,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
             // Log to audit system for fair gameplay tracking
             logGameCompletion({
               gameType: GAME_TYPES.LIGHTNING_MAZE || 'lightning_maze',
-              gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+              gameMode: effectiveGameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
               score: scoreRef.current,
               accuracy: accuracy,
               reactionTime: avgReactionTime,
@@ -2592,7 +2599,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
               }
             }).catch(err => console.error('❌ [LightningMaze] Audit log failed:', err));
             
-            onGameComplete({
+            handleGameComplete({
               score: scoreRef.current,
               accuracy: accuracy,
               avgReactionTime: avgReactionTime
@@ -2647,7 +2654,7 @@ export default function LightningMazeGame({ onGameComplete, onExit, gameMode = '
         containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, [createLightningBolt, updateLightningAnimation, createTeslaCoil, animateTeslaCoil, createObstacle, createStartMarker, buildMaze, isValidPosition, findClosestValidPosition, onGameComplete, currentTheme]);
+  }, [createLightningBolt, updateLightningAnimation, createTeslaCoil, animateTeslaCoil, createObstacle, createStartMarker, buildMaze, isValidPosition, findClosestValidPosition, handleGameComplete, currentTheme]);
 
   const startGame = () => {
     setGameState('waiting');

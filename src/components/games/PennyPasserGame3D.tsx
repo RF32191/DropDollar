@@ -8,10 +8,15 @@ import GameThemeSelector from './GameThemeSelector';
 import { GameTheme, getSavedTheme } from '@/lib/gameThemes';
 
 interface PennyPasserGameProps {
-  onGameEnd: (result: { score: number; accuracy: number }) => void;
+  onGameEnd?: (result: { score: number; accuracy: number }) => void;
+  onGameComplete?: (result: { score: number; accuracy: number }) => void;
+  onExit?: () => void;
   gameMode?: 'practice' | 'competition';
+  isCompetitionMode?: boolean;
   rngSeed?: number;
   competitionId?: string;
+  listingId?: string;
+  entryNumber?: number;
   theme?: GameTheme;
 }
 
@@ -109,11 +114,19 @@ class Mulberry32 {
 
 export default function PennyPasserGame3D({
   onGameEnd,
+  onGameComplete,
+  onExit,
   gameMode = 'practice',
+  isCompetitionMode,
   rngSeed,
   competitionId,
+  listingId,
+  entryNumber,
   theme: initialTheme
 }: PennyPasserGameProps) {
+  // Support both onGameEnd (from games page) and onGameComplete (legacy)
+  const handleGameComplete = onGameEnd || onGameComplete || (() => {});
+  const effectiveGameMode = isCompetitionMode ? 'competition' : gameMode;
   const [currentTheme, setCurrentTheme] = useState<GameTheme>(() => initialTheme || getSavedTheme());
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -1547,7 +1560,7 @@ export default function PennyPasserGame3D({
     try {
       await logGameCompletion({
         gameType: GAME_TYPES.PENNY_PASSER || 'Penny Passer',
-        gameMode: gameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
+        gameMode: effectiveGameMode === 'competition' ? GAME_MODES.ONE_V_ONE : GAME_MODES.PRACTICE,
         score: adjustedScore,
         accuracy: finalAccuracy,
         reactionTime: 0,
@@ -1564,7 +1577,7 @@ export default function PennyPasserGame3D({
       console.error('Audit logging failed:', error);
     }
     
-    onGameEnd({
+    handleGameComplete({
       score: adjustedScore,
       accuracy: finalAccuracy
     });
