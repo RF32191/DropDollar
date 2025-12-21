@@ -100,6 +100,7 @@ export default function NeonStrikerGame({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const powerTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isShootingRef = useRef(false);
+  const levelTransitionRef = useRef(false);
   const scoreRef = useRef(0);
   const comboCountRef = useRef(0);
   const joystickStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -772,8 +773,10 @@ export default function NeonStrikerGame({
         hitsThisShotRef.current = 0;
         setAimLocked(false);
         
+        // Mark that we're transitioning levels
+        levelTransitionRef.current = true;
+        
         // Use a single timeout to handle the level transition
-        // This ensures clean state management
         setTimeout(() => {
           console.log('🔧 [NeonStriker] Reinitializing for level', nextLevelIndex + 1);
           
@@ -797,17 +800,28 @@ export default function NeonStrikerGame({
           }
           sceneRef.current = null;
           coinsRef.current = [];
+          bumpersRef.current = [];
+          aimLineRef.current = null;
+          aimArrowRef.current = null;
           
-          // Set scene not ready to trigger re-initialization
-          setSceneReady(false);
-          setGameState('playing');
+          // Directly initialize the new level after a small delay
+          setTimeout(() => {
+            console.log('🎮 [NeonStriker] Direct init for level', nextLevelIndex + 1);
+            if (containerRef.current) {
+              initScene(nextLevelIndex);
+              levelTransitionRef.current = false;
+              setGameState('playing');
+            }
+          }, 100);
         }, 500);
+        
+        return; // Exit early - don't reset game state
       } else {
         setGameState('playing');
         setAimLocked(false);
       }
     }
-  }, [addPopup]);
+  }, [addPopup, initScene]);
 
   const endGame = useCallback(() => {
     setGameState('complete');
@@ -852,6 +866,13 @@ export default function NeonStrikerGame({
     
     const animate = () => {
       if (!isAnimating || !sceneRef.current || !rendererRef.current || !cameraRef.current) return;
+      
+      // Skip physics during level transition
+      if (levelTransitionRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
       
       frameCount++;
       if (frameCount === 1 || frameCount % 300 === 0) {
