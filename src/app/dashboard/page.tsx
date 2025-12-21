@@ -20,7 +20,7 @@ import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlac
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 import TaxNotifications from '@/components/notifications/TaxNotifications';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon, BoltIcon, ArrowDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 interface GameHistoryRecord {
   id: string;
@@ -858,7 +858,13 @@ export default function TriumphStyleDashboard() {
       'penny_passer': 'Penny Passer',
       'coin_sorter': 'Penny Passer',
       'dead_shot': 'Dead Shot',
-      'lightning_maze': 'Lightning Maze'
+      'lightning_maze': 'Lightning Maze',
+      'circuit_runner': 'Circuit Runner',
+      'flippy_coin': 'Flippy Coin',
+      'flappy_coin': 'Flippy Coin',
+      'parry_pro': 'Parry Pro',
+      'click_draw': 'Click Draw',
+      'neon_striker': 'Neon Striker'
     };
     return gameNames[normalized] || gameType.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -878,15 +884,34 @@ export default function TriumphStyleDashboard() {
   };
 
   const getGameIcon = (gameType: string) => {
+    const normalized = normalizeGameType(gameType);
     const icons: Record<string, any> = {
-      'sword-parry': <FireIcon className="w-5 h-5 text-red-500" />,
-      'quick-click': <StarIcon className="w-5 h-5 text-yellow-500" />,
-      'memory-color': <HeartIcon className="w-5 h-5 text-pink-500" />,
-      'number-tap': <ChartBarIcon className="w-5 h-5 text-blue-500" />,
-      'shape-tap': <TrophyIcon className="w-5 h-5 text-purple-500" />,
-      'reaction-test': <ClockIcon className="w-5 h-5 text-green-500" />
+      'sword_parry': <FireIcon className="w-5 h-5 text-red-500" />,
+      'quick_click': <StarIcon className="w-5 h-5 text-yellow-500" />,
+      'memory_color': <HeartIcon className="w-5 h-5 text-pink-500" />,
+      'number_tap': <ChartBarIcon className="w-5 h-5 text-blue-500" />,
+      'multi_target': <ChartBarIcon className="w-5 h-5 text-blue-500" />,
+      'multi_target_reaction': <ChartBarIcon className="w-5 h-5 text-blue-500" />,
+      'shape_tap': <TrophyIcon className="w-5 h-5 text-purple-500" />,
+      'reaction_test': <ClockIcon className="w-5 h-5 text-green-500" />,
+      'laser_dodge': <BoltIcon className="w-5 h-5 text-cyan-500" />,
+      'blade_bounce': <FireIcon className="w-5 h-5 text-orange-500" />,
+      'falling_object': <ArrowDownIcon className="w-5 h-5 text-green-500" />,
+      'falling_objects': <ArrowDownIcon className="w-5 h-5 text-green-500" />,
+      'cash_stack': <CurrencyDollarIcon className="w-5 h-5 text-green-500" />,
+      'penny_passer': <CurrencyDollarIcon className="w-5 h-5 text-amber-500" />,
+      'coin_sorter': <CurrencyDollarIcon className="w-5 h-5 text-amber-500" />,
+      'dead_shot': <FireIcon className="w-5 h-5 text-red-600" />,
+      'lightning_maze': <BoltIcon className="w-5 h-5 text-yellow-400" />,
+      'circuit_runner': <BoltIcon className="w-5 h-5 text-cyan-400" />,
+      'flippy_coin': <CurrencyDollarIcon className="w-5 h-5 text-yellow-500" />,
+      'flappy_coin': <CurrencyDollarIcon className="w-5 h-5 text-yellow-500" />,
+      'parry_pro': <FireIcon className="w-5 h-5 text-red-500" />,
+      'click_draw': <FireIcon className="w-5 h-5 text-amber-600" />,
+      'neon_striker': <StarIcon className="w-5 h-5 text-purple-500" />,
+      'color_sequence': <HeartIcon className="w-5 h-5 text-pink-500" />
     };
-    return icons[gameType] || <TrophyIcon className="w-5 h-5 text-gray-500" />;
+    return icons[normalized] || <TrophyIcon className="w-5 h-5 text-gray-500" />;
   };
 
   if (authLoading || isLoading) {

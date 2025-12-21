@@ -15,6 +15,35 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 
+// Format game type for display
+const formatGameType = (gameType: string) => {
+  const normalized = gameType?.toLowerCase().replace(/-/g, '_') || '';
+  const gameNames: Record<string, string> = {
+    'sword_parry': 'Sword Parry',
+    'quick_click': 'Quick Click',
+    'memory_color': 'Memory Color',
+    'color_sequence': 'Color Sequence',
+    'multi_target': 'Multi-Target',
+    'multi_target_reaction': 'Multi-Target',
+    'laser_dodge': 'Laser Dodge',
+    'blade_bounce': 'Blade Bounce',
+    'falling_object': 'Falling Objects',
+    'falling_objects': 'Falling Objects',
+    'cash_stack': 'Cash Stack',
+    'penny_passer': 'Penny Passer',
+    'coin_sorter': 'Penny Passer',
+    'dead_shot': 'Dead Shot',
+    'lightning_maze': 'Lightning Maze',
+    'circuit_runner': 'Circuit Runner',
+    'flippy_coin': 'Flippy Coin',
+    'flappy_coin': 'Flippy Coin',
+    'parry_pro': 'Parry Pro',
+    'click_draw': 'Click Draw',
+    'neon_striker': 'Neon Striker'
+  };
+  return gameNames[normalized] || gameType?.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown Game';
+};
+
 export default function MobileOptimizedDashboard() {
   const { user, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
@@ -160,7 +189,7 @@ export default function MobileOptimizedDashboard() {
                   <div className="flex justify-between items-center">
                     <div>
                       <div className="text-white font-medium capitalize">
-                        {game.game_type?.replace('_', ' ') || 'Unknown Game'}
+                        {formatGameType(game.game_type)}
                       </div>
                       <div className="text-gray-300 text-sm">
                         {game.is_practice ? 'Practice' : 'Competition'}
