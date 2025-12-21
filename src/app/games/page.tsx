@@ -87,6 +87,11 @@ const ParryProGame = dynamic(() => import('@/components/games/ParryProGame'), {
   loading: () => <GameLoadingSkeleton name="Parry Pro" color="red" />
 });
 
+const ClickDrawGame = dynamic(() => import('@/components/games/ClickDrawGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Click Draw" color="yellow" />
+});
+
 const NeonStrikerGame = dynamic(() => import('@/components/games/NeonStrikerGame'), { 
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Neon Striker" color="cyan" />
@@ -129,7 +134,8 @@ import {
   ShieldExclamationIcon,
   BanknotesIcon,
   CurrencyDollarIcon,
-  SparklesIcon
+  SparklesIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -262,6 +268,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Timing', 'Reflexes', 'Focus', 'Pattern Recognition'],
     component: ParryProGame
+  },
+  {
+    id: 'click-draw',
+    name: 'Click Draw',
+    description: 'Western quick draw showdown! Draw your revolver at the perfect moment when outlaws draw on you!',
+    icon: FireIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Timing', 'Reflexes', 'Accuracy', 'Quick Thinking'],
+    component: ClickDrawGame
   },
   {
     id: 'neon-striker',

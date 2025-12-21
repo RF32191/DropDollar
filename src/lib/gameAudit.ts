@@ -211,6 +211,7 @@ export const GAME_TYPES = {
   LIGHTNING_MAZE: 'lightning_maze',
   FLIPPY_COIN: 'flippy_coin',
   PARRY_PRO: 'parry_pro',
+  CLICK_DRAW: 'click_draw',
   ONE_V_ONE: 'one_v_one',
   WINNER_TAKES_ALL: 'winner_takes_all',
   HOT_SELL: 'hot_sell',
