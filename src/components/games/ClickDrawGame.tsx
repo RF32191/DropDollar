@@ -94,7 +94,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   const rngSeedRef = useRef(rngSeed);
   
   // Floating scores - CoD style popups
-  const { popups, addPopup: addScorePopup, removePopup } = useFloatingScores();
+  const { popups: scorePopups, addPopup: addScorePopup, removePopup: removeScorePopup } = useFloatingScores();
   
   // State
   const [gameState, setGameState] = useState<'ready' | 'playing' | 'complete'>('ready');
@@ -328,7 +328,9 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
   
   // Add popup score - wrapper for CoD style floating scores
   const addPopup = useCallback((points: number, x: number, y: number, type: 'perfect' | 'bonus' | 'kill' | 'critical' | 'normal' | 'combo', label?: string) => {
-    addScorePopup(points, x, y, type as 'normal' | 'bonus' | 'perfect' | 'combo' | 'critical', label);
+    // Map 'kill' to 'critical' for display
+    const displayType = type === 'kill' ? 'critical' : type;
+    addScorePopup(points, x, y, displayType as 'normal' | 'bonus' | 'perfect' | 'combo' | 'critical', label);
   }, [addScorePopup]);
   
   // Create bullet animation - must be defined before handleDraw
@@ -1029,7 +1031,7 @@ export default function ClickDrawGame({ onGameComplete, onExit, gameMode = 'prac
       />
       
       {/* Floating Scores - CoD style */}
-      <FloatingScore popups={popups} onRemove={removePopup} />
+      <FloatingScore popups={scorePopups} onRemove={removeScorePopup} />
       
       {/* HUD */}
       {gameState === 'playing' && (
