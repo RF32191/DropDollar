@@ -2111,32 +2111,82 @@ export default function FlappyCoinGame({ onGameComplete, onExit, gameMode = 'pra
         </div>
       )}
       
-      {/* Control Buttons - during waiting and playing */}
+      {/* Control Buttons - Theme-Aware during waiting and playing */}
       {(gameState === 'waiting' || gameState === 'playing') && (
         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-8 z-20 px-4">
-          {/* Reverse Button */}
+          {/* Reverse Button - Theme Specific */}
           <button
             onClick={(e) => { e.stopPropagation(); handleReverse(); }}
             onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); handleReverse(); }}
-            className="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-xl border-4 border-blue-300 active:scale-90 transition-transform"
-            style={{ touchAction: 'none' }}
+            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-all duration-150 ${
+              currentTheme === 'halloween' 
+                ? 'bg-gradient-to-b from-purple-500 via-purple-600 to-purple-800 border-4 border-purple-400 hover:from-purple-400 hover:to-purple-700'
+                : currentTheme === 'christmas'
+                ? 'bg-gradient-to-b from-red-400 via-red-500 to-red-700 border-4 border-red-300 hover:from-red-300 hover:to-red-600'
+                : 'bg-gradient-to-b from-blue-400 via-blue-500 to-blue-700 border-4 border-blue-300 hover:from-blue-300 hover:to-blue-600'
+            }`}
+            style={{ 
+              touchAction: 'none',
+              boxShadow: currentTheme === 'halloween' 
+                ? '0 0 20px rgba(147, 51, 234, 0.6), 0 8px 32px rgba(0,0,0,0.4), inset 0 2px 8px rgba(255,255,255,0.2)'
+                : currentTheme === 'christmas'
+                ? '0 0 20px rgba(239, 68, 68, 0.6), 0 8px 32px rgba(0,0,0,0.4), inset 0 2px 8px rgba(255,255,255,0.2)'
+                : '0 0 20px rgba(59, 130, 246, 0.5), 0 8px 32px rgba(0,0,0,0.3), inset 0 2px 8px rgba(255,255,255,0.2)'
+            }}
           >
             <div className="text-center">
-              <div className="text-4xl sm:text-5xl">⬅️</div>
-              <div className="text-white text-sm font-bold mt-1" style={{ textShadow: '1px 1px 0 #000' }}>REVERSE</div>
+              <div className="text-5xl sm:text-6xl mb-1" style={{ 
+                filter: currentTheme === 'halloween' 
+                  ? 'drop-shadow(0 0 8px #9333ea) drop-shadow(0 0 16px #7c3aed)'
+                  : currentTheme === 'christmas'
+                  ? 'drop-shadow(0 0 8px #ef4444) drop-shadow(0 0 16px #dc2626)'
+                  : 'drop-shadow(0 0 6px #3b82f6)'
+              }}>
+                {currentTheme === 'halloween' ? '🦇' : currentTheme === 'christmas' ? '🎄' : '⬅️'}
+              </div>
+              <div className={`text-sm font-bold uppercase tracking-wider ${
+                currentTheme === 'halloween' ? 'text-purple-100' : currentTheme === 'christmas' ? 'text-red-100' : 'text-white'
+              }`} style={{ textShadow: '2px 2px 0 #000, 0 0 10px rgba(0,0,0,0.5)' }}>
+                {currentTheme === 'halloween' ? '🎃 RETREAT' : currentTheme === 'christmas' ? '❄️ BACK' : 'REVERSE'}
+              </div>
             </div>
           </button>
           
-          {/* Forward Button */}
+          {/* Forward Button - Theme Specific */}
           <button
             onClick={(e) => { e.stopPropagation(); handleJumpForward(); }}
             onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); handleJumpForward(); }}
-            className="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-b from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-xl border-4 border-green-300 active:scale-90 transition-transform"
-            style={{ touchAction: 'none' }}
+            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center shadow-2xl active:scale-90 transition-all duration-150 ${
+              currentTheme === 'halloween' 
+                ? 'bg-gradient-to-b from-orange-400 via-orange-500 to-orange-700 border-4 border-orange-300 hover:from-orange-300 hover:to-orange-600'
+                : currentTheme === 'christmas'
+                ? 'bg-gradient-to-b from-green-400 via-green-500 to-green-700 border-4 border-green-300 hover:from-green-300 hover:to-green-600'
+                : 'bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 border-4 border-emerald-300 hover:from-emerald-300 hover:to-emerald-600'
+            }`}
+            style={{ 
+              touchAction: 'none',
+              boxShadow: currentTheme === 'halloween' 
+                ? '0 0 20px rgba(249, 115, 22, 0.6), 0 8px 32px rgba(0,0,0,0.4), inset 0 2px 8px rgba(255,255,255,0.2)'
+                : currentTheme === 'christmas'
+                ? '0 0 20px rgba(34, 197, 94, 0.6), 0 8px 32px rgba(0,0,0,0.4), inset 0 2px 8px rgba(255,255,255,0.2)'
+                : '0 0 20px rgba(16, 185, 129, 0.5), 0 8px 32px rgba(0,0,0,0.3), inset 0 2px 8px rgba(255,255,255,0.2)'
+            }}
           >
             <div className="text-center">
-              <div className="text-4xl sm:text-5xl">➡️</div>
-              <div className="text-white text-sm font-bold mt-1" style={{ textShadow: '1px 1px 0 #000' }}>FORWARD</div>
+              <div className="text-5xl sm:text-6xl mb-1" style={{ 
+                filter: currentTheme === 'halloween' 
+                  ? 'drop-shadow(0 0 8px #f97316) drop-shadow(0 0 16px #ea580c)'
+                  : currentTheme === 'christmas'
+                  ? 'drop-shadow(0 0 8px #22c55e) drop-shadow(0 0 16px #16a34a)'
+                  : 'drop-shadow(0 0 6px #10b981)'
+              }}>
+                {currentTheme === 'halloween' ? '👻' : currentTheme === 'christmas' ? '🎅' : '➡️'}
+              </div>
+              <div className={`text-sm font-bold uppercase tracking-wider ${
+                currentTheme === 'halloween' ? 'text-orange-100' : currentTheme === 'christmas' ? 'text-green-100' : 'text-white'
+              }`} style={{ textShadow: '2px 2px 0 #000, 0 0 10px rgba(0,0,0,0.5)' }}>
+                {currentTheme === 'halloween' ? '💀 HAUNT' : currentTheme === 'christmas' ? '🎁 GO!' : 'FORWARD'}
+              </div>
             </div>
           </button>
         </div>
