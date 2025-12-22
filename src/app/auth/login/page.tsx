@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon, EnvelopeIcon, PhoneIcon, UserIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 
-type LoginMethod = 'email' | 'phone';
+type LoginMethod = 'email' | 'username' | 'phone';
 
 export default function SimpleLoginPage() {
   const { login } = useAuth();
@@ -14,6 +14,7 @@ export default function SimpleLoginPage() {
   const [mounted, setMounted] = useState(false);
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('email');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +32,7 @@ export default function SimpleLoginPage() {
 
   // Format phone number as user types
   const formatPhoneInput = (value: string) => {
-    const digits = value.replace(/\D/g, '');
+    const digits = (value || '').replace(/\D/g, '');
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
@@ -47,50 +48,82 @@ export default function SimpleLoginPage() {
     setIsSubmitting(true);
     setError(null);
 
-    if (loginMethod === 'email') {
-      // Email login
-      if (!email || !password) {
-        setError('Please enter both email and password.');
-        setIsSubmitting(false);
-        return;
-      }
+    try {
+      if (loginMethod === 'email') {
+        // Email login
+        const trimmedEmail = (email || '').trim();
+        if (!trimmedEmail || !password) {
+          setError('Please enter both email and password.');
+          setIsSubmitting(false);
+          return;
+        }
 
-      if (!email.includes('@')) {
-        setError('Please enter a valid email address.');
-        setIsSubmitting(false);
-        return;
-      }
+        if (!trimmedEmail.includes('@')) {
+          setError('Please enter a valid email address.');
+          setIsSubmitting(false);
+          return;
+        }
 
-      try {
         console.log('🔐 Attempting email login...');
-        await login(email.trim(), password, rememberMe);
+        await login(trimmedEmail, password, rememberMe);
         console.log('✅ Login successful!');
         window.location.href = redirectUrl;
-      } catch (err: unknown) {
-        console.error('❌ Login failed:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
-        setError(errorMessage);
-        setIsSubmitting(false);
-      }
-    } else {
-      // Phone login - find email by phone, then login
-      const digits = phone.replace(/\D/g, '');
-      if (digits.length < 10) {
-        setError('Please enter a valid 10-digit phone number.');
-        setIsSubmitting(false);
-        return;
-      }
 
-      if (!password) {
-        setError('Please enter your password.');
-        setIsSubmitting(false);
-        return;
-      }
+      } else if (loginMethod === 'username') {
+        // Username login - find email by username, then login
+        const trimmedUsername = (username || '').trim();
+        if (!trimmedUsername || !password) {
+          setError('Please enter both username and password.');
+          setIsSubmitting(false);
+          return;
+        }
 
-      try {
+        if (trimmedUsername.length < 3) {
+          setError('Please enter a valid username.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        console.log('🔐 Attempting username login...');
+        
+        // Find email by username
+        const response = await fetch('/api/auth/find-email-by-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: trimmedUsername }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.email) {
+          setError(data.error || 'No account found with this username.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Login with found email
+        await login(data.email, password, rememberMe);
+        console.log('✅ Username login successful!');
+        window.location.href = redirectUrl;
+
+      } else {
+        // Phone login - find email by phone, then login
+        const digits = (phone || '').replace(/\D/g, '');
+        if (digits.length < 10) {
+          setError('Please enter a valid 10-digit phone number.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (!password) {
+          setError('Please enter your password.');
+          setIsSubmitting(false);
+          return;
+        }
+
         console.log('🔐 Attempting phone login...');
         
-        // First, find the email associated with this phone
+        // Find email by phone
         const response = await fetch('/api/auth/find-email-by-phone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -105,17 +138,16 @@ export default function SimpleLoginPage() {
           return;
         }
 
-        // Now login with the found email
+        // Login with found email - go straight to dashboard (no email verification needed)
         await login(data.email, password, rememberMe);
         console.log('✅ Phone login successful!');
-        // For phone login, always go to settings so user can verify/update email if needed
-        window.location.href = redirectUrl === '/dashboard' ? '/dashboard/settings' : redirectUrl;
-      } catch (err: unknown) {
-        console.error('❌ Phone login failed:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
-        setError(errorMessage);
-        setIsSubmitting(false);
+        window.location.href = redirectUrl;
       }
+    } catch (err: unknown) {
+      console.error('❌ Login failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      setIsSubmitting(false);
     }
   };
 
@@ -199,30 +231,42 @@ export default function SimpleLoginPage() {
             </p>
           </div>
 
-          {/* Login Method Toggle */}
-          <div className="flex mb-6 bg-gray-700 rounded-lg p-1">
+          {/* Login Method Toggle - 3 options */}
+          <div className="flex mb-6 bg-gray-700 rounded-lg p-1 gap-1">
             <button
               type="button"
               onClick={() => { setLoginMethod('email'); setError(null); }}
-              className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center py-2 px-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                 loginMethod === 'email'
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-gray-300 hover:text-white'
               }`}
             >
-              <EnvelopeIcon className="w-4 h-4 mr-2" />
+              <EnvelopeIcon className="w-4 h-4 mr-1" />
               Email
             </button>
             <button
               type="button"
+              onClick={() => { setLoginMethod('username'); setError(null); }}
+              className={`flex-1 flex items-center justify-center py-2 px-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                loginMethod === 'username'
+                  ? 'bg-purple-600 text-white shadow'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <UserIcon className="w-4 h-4 mr-1" />
+              Username
+            </button>
+            <button
+              type="button"
               onClick={() => { setLoginMethod('phone'); setError(null); }}
-              className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center py-2 px-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                 loginMethod === 'phone'
                   ? 'bg-green-600 text-white shadow'
                   : 'text-gray-300 hover:text-white'
               }`}
             >
-              <PhoneIcon className="w-4 h-4 mr-2" />
+              <PhoneIcon className="w-4 h-4 mr-1" />
               Phone
             </button>
           </div>
@@ -244,7 +288,8 @@ export default function SimpleLoginPage() {
               </div>
             )}
 
-            {loginMethod === 'email' ? (
+            {/* Dynamic input based on login method */}
+            {loginMethod === 'email' && (
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-300">
                   Email address
@@ -258,7 +303,6 @@ export default function SimpleLoginPage() {
                     name="email"
                     type="email"
                     autoComplete="email"
-                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
@@ -267,7 +311,33 @@ export default function SimpleLoginPage() {
                   />
                 </div>
               </div>
-            ) : (
+            )}
+
+            {loginMethod === 'username' && (
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-300">
+                  Username
+                </label>
+                <div className="mt-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <UserIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-gray-700 text-white"
+                    placeholder="your_username"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+            )}
+
+            {loginMethod === 'phone' && (
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
                   Phone number
@@ -281,7 +351,6 @@ export default function SimpleLoginPage() {
                     name="phone"
                     type="tel"
                     autoComplete="tel"
-                    required
                     value={phone}
                     onChange={handlePhoneChange}
                     className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm bg-gray-700 text-white"
@@ -306,10 +375,13 @@ export default function SimpleLoginPage() {
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                  className={`appearance-none block w-full px-3 py-2 pr-10 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none sm:text-sm bg-gray-700 text-white ${
+                    loginMethod === 'email' ? 'focus:ring-blue-500 focus:border-blue-500' :
+                    loginMethod === 'username' ? 'focus:ring-purple-500 focus:border-purple-500' :
+                    'focus:ring-green-500 focus:border-green-500'
+                  }`}
                   placeholder="Enter your password"
                   disabled={isSubmitting}
                 />
@@ -355,11 +427,13 @@ export default function SimpleLoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
                   loginMethod === 'email'
                     ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                    : loginMethod === 'username'
+                    ? 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'
                     : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50`}
+                }`}
               >
                 {isSubmitting ? (
                   <>
@@ -367,7 +441,7 @@ export default function SimpleLoginPage() {
                     Signing in...
                   </>
                 ) : (
-                  `Sign in with ${loginMethod === 'email' ? 'Email' : 'Phone'}`
+                  `Sign in with ${loginMethod === 'email' ? 'Email' : loginMethod === 'username' ? 'Username' : 'Phone'}`
                 )}
               </button>
             </div>
