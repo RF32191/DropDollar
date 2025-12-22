@@ -1585,7 +1585,7 @@ export default function TriumphStyleDashboard() {
                   <div className="flex items-center justify-between py-3 border-b border-white/10">
                     <div>
                       <p className="text-white font-medium">Username</p>
-                      <p className="text-gray-400 text-sm">{username || 'Not set'}</p>
+                      <p className="text-gray-400 text-sm">{user?.username || user?.user_metadata?.username || 'Not set'}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between py-3">

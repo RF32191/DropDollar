@@ -93,13 +93,13 @@ function ThemePreview({ theme, isSelected, onSelect }: ThemePreviewProps) {
 }
 
 export default function SiteThemeSelector() {
-  const { currentTheme, setTheme } = useSiteTheme();
+  const { currentTheme, setTheme, isSaving } = useSiteTheme();
   const [showSuccess, setShowSuccess] = useState(false);
   
-  const handleThemeSelect = (theme: SiteTheme) => {
-    setTheme(theme);
+  const handleThemeSelect = async (theme: SiteTheme) => {
+    await setTheme(theme);
     setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
+    setTimeout(() => setShowSuccess(false), 3000);
   };
   
   return (
@@ -113,13 +113,21 @@ export default function SiteThemeSelector() {
           <h2 className="text-xl font-bold text-white">Site Theme</h2>
           <p className="text-sm text-gray-400">Customize your Drop Dollar experience</p>
         </div>
+        {isSaving && (
+          <div className="ml-auto flex items-center gap-2 text-blue-400">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs">Saving...</span>
+          </div>
+        )}
       </div>
       
       {/* Success message */}
       {showSuccess && (
-        <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg flex items-center gap-2 animate-pulse">
+        <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg flex items-center gap-2">
           <CheckCircleIcon className="w-5 h-5 text-green-500" />
-          <span className="text-green-400 text-sm font-medium">Theme applied successfully!</span>
+          <span className="text-green-400 text-sm font-medium">
+            Theme applied and saved to your account! 🎉
+          </span>
         </div>
       )}
       
