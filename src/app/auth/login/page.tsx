@@ -1,57 +1,126 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import CleanNavigation from '@/components/navigation/CleanNavigation';
+import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 
+type LoginMethod = 'email' | 'phone';
+
 export default function SimpleLoginPage() {
-  const { login } = useAuth(); // USE REAL AUTH!
+  const { login } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('email');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
   
-  // Detect Safari
-  const isSafari = typeof navigator !== 'undefined' && 
-                   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  // Handle hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Format phone number as user types
+  const formatPhoneInput = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneInput(e.target.value);
+    setPhone(formatted);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
-    // Basic validation
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      setIsSubmitting(false);
-      return;
-    }
+    if (loginMethod === 'email') {
+      // Email login
+      if (!email || !password) {
+        setError('Please enter both email and password.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    if (!email.includes('@')) {
-      setError('Please enter a valid email address.');
-      setIsSubmitting(false);
-      return;
-    }
+      if (!email.includes('@')) {
+        setError('Please enter a valid email address.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    // REAL AUTHENTICATION using AuthContext
-    try {
-      console.log('🔐 Attempting login with Supabase...');
-      await login(email.trim(), password, rememberMe);
-      
-      console.log('✅ Login successful! Redirecting to dashboard...');
-      
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
-    } catch (error: any) {
-      console.error('❌ Login failed:', error);
-      setError(error.message || 'Login failed. Please check your credentials.');
-      setIsSubmitting(false);
+      try {
+        console.log('🔐 Attempting email login...');
+        await login(email.trim(), password, rememberMe);
+        console.log('✅ Login successful!');
+        window.location.href = '/dashboard';
+      } catch (err: unknown) {
+        console.error('❌ Login failed:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
+        setError(errorMessage);
+        setIsSubmitting(false);
+      }
+    } else {
+      // Phone login - find email by phone, then login
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        setError('Please enter a valid 10-digit phone number.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!password) {
+        setError('Please enter your password.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        console.log('🔐 Attempting phone login...');
+        
+        // First, find the email associated with this phone
+        const response = await fetch('/api/auth/find-email-by-phone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: digits }),
+        });
+
+        const data = await response.json();
+
+        if (!data.success || !data.email) {
+          setError(data.error || 'No account found with this phone number.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Now login with the found email
+        await login(data.email, password, rememberMe);
+        console.log('✅ Phone login successful!');
+        window.location.href = '/dashboard';
+      } catch (err: unknown) {
+        console.error('❌ Phone login failed:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
+        setError(errorMessage);
+        setIsSubmitting(false);
+      }
     }
   };
+
+  // Loading state
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex flex-col justify-center py-16 sm:py-12 px-4 sm:px-6 lg:px-8">
@@ -75,20 +144,20 @@ export default function SimpleLoginPage() {
               Home
             </Link>
             <Link href="/games" className="text-purple-300 hover:text-purple-200 font-medium transition-colors">
-              🎮 Games
+              Games
             </Link>
             <Link href="/tournaments" className="text-yellow-300 hover:text-yellow-200 font-medium transition-colors">
-              🏆 Tournaments
+              Tournaments
             </Link>
             <Link href="/hot-sell" className="text-red-300 hover:text-red-200 font-medium transition-colors">
-              🔥 Hot Sell
+              Hot Sell
             </Link>
             <Link href="/buy-tokens" className="text-green-300 hover:text-green-200 font-medium transition-colors">
-              💰 Buy Tokens
+              Buy Tokens
             </Link>
           </div>
           
-          {/* Mobile Navigation - Icons only */}
+          {/* Mobile Navigation */}
           <div className="flex md:hidden items-center space-x-3">
             <Link href="/" className="text-white hover:text-yellow-300 text-xl transition-colors">🏠</Link>
             <Link href="/games" className="text-purple-300 hover:text-purple-200 text-xl transition-colors">🎮</Link>
@@ -111,7 +180,6 @@ export default function SimpleLoginPage() {
           </Link>
         </div>
 
-        {/* Account Management Buttons */}
         <div className="bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 border border-gray-700">
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-white text-center">
@@ -125,31 +193,35 @@ export default function SimpleLoginPage() {
             </p>
           </div>
 
+          {/* Login Method Toggle */}
+          <div className="flex mb-6 bg-gray-700 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => { setLoginMethod('email'); setError(null); }}
+              className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                loginMethod === 'email'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <EnvelopeIcon className="w-4 h-4 mr-2" />
+              Email
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoginMethod('phone'); setError(null); }}
+              className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                loginMethod === 'phone'
+                  ? 'bg-green-600 text-white shadow'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <PhoneIcon className="w-4 h-4 mr-2" />
+              Phone
+            </button>
+          </div>
+
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Safari Warning */}
-            {isSafari && (
-              <div className="rounded-md bg-blue-900/50 border border-blue-500/30 p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-blue-200">Safari User Tips</h3>
-                    <div className="mt-2 text-sm text-blue-300">
-                      <p>If login is slow or fails:</p>
-                      <ul className="list-disc ml-4 mt-1 space-y-1">
-                        <li>Disable Private Browsing mode</li>
-                        <li>Enable cookies: Settings → Safari → Privacy</li>
-                        <li>Try Chrome or Firefox for best experience</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
             {error && (
               <div className="rounded-md bg-red-900 p-4">
                 <div className="flex">
@@ -166,25 +238,57 @@ export default function SimpleLoginPage() {
               </div>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
-                  placeholder="you@example.com"
-                  disabled={isSubmitting}
-                />
+            {loginMethod === 'email' ? (
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+                  Email address
+                </label>
+                <div className="mt-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
+                    placeholder="you@example.com"
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
+                  Phone number
+                </label>
+                <div className="mt-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <PhoneIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    required
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    className="appearance-none block w-full pl-10 px-3 py-2 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm bg-gray-700 text-white"
+                    placeholder="(555) 555-5555"
+                    maxLength={14}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  Use the phone number you registered with
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">
@@ -200,7 +304,7 @@ export default function SimpleLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-700 text-white"
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   disabled={isSubmitting}
                 />
                 <button
@@ -236,7 +340,7 @@ export default function SimpleLoginPage() {
 
               <div className="text-sm">
                 <Link href="/auth/forgot-password" className="font-medium text-blue-400 hover:text-blue-300">
-                  Forgot your password?
+                  Forgot password?
                 </Link>
               </div>
             </div>
@@ -245,12 +349,20 @@ export default function SimpleLoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
+                  loginMethod === 'email'
+                    ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                    : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50`}
               >
                 {isSubmitting ? (
-                  <ArrowPathIcon className="h-5 w-5 animate-spin mr-2" />
-                ) : null}
-                Sign in
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin mr-2" />
+                    Signing in...
+                  </>
+                ) : (
+                  `Sign in with ${loginMethod === 'email' ? 'Email' : 'Phone'}`
+                )}
               </button>
             </div>
           </form>

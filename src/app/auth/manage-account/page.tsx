@@ -19,8 +19,8 @@ type Step = 'loading' | 'verified' | 'success' | 'error' | 'enterCode';
 
 interface UserData {
   id: string;
-  email: string;
-  username: string;
+  email: string | null;
+  username: string | null;
 }
 
 function ManageAccountContent() {
@@ -140,7 +140,7 @@ function ManageAccountContent() {
         setError('Email addresses do not match');
         return;
       }
-      if (newEmail.toLowerCase() === user?.email?.toLowerCase()) {
+      if (user?.email && newEmail.toLowerCase() === user.email.toLowerCase()) {
         setError('New email must be different from your current email');
         return;
       }

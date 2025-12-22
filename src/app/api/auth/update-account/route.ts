@@ -103,7 +103,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const authUser = authUsers.users.find(u => u.email?.toLowerCase() === oldEmail?.toLowerCase());
+    const authUser = authUsers.users.find(u => {
+      if (!u.email || !oldEmail) return false;
+      return u.email.toLowerCase() === oldEmail.toLowerCase();
+    });
 
     if (!authUser) {
       console.log('⚠️ [UpdateAccount] Auth user not found for email:', oldEmail);
