@@ -204,10 +204,18 @@ export default function BladeBounce3D({
     }
   }, []);
 
-  // Setup background music for gameplay
+  // Setup background music for gameplay - theme-aware
   useEffect(() => {
-    // Create audio element for mouseblade.mp3
-    const audio = new Audio('/mouseblade.mp3');
+    // Choose audio file based on theme
+    const audioFile = currentTheme === 'halloween' 
+      ? '/halloween-blade-bounce.mp3'
+      : currentTheme === 'christmas'
+      ? '/mouseblade.mp3' // TODO: Add christmas version when available
+      : '/mouseblade.mp3';
+    
+    console.log(`🎵 [BladeBounce3D] Loading ${currentTheme} theme music: ${audioFile}`);
+    
+    const audio = new Audio(audioFile);
     audio.loop = true;
     audio.volume = 0.7; // Set volume to 70% for better audibility
     audio.preload = 'auto'; // Preload the audio
@@ -227,7 +235,7 @@ export default function BladeBounce3D({
     
     backgroundMusicRef.current = audio;
     
-    // Cleanup on unmount
+    // Cleanup on unmount or theme change
     return () => {
       if (backgroundMusicRef.current) {
         backgroundMusicRef.current.pause();
@@ -235,64 +243,73 @@ export default function BladeBounce3D({
         backgroundMusicRef.current = null;
       }
     };
-  }, []);
+  }, [currentTheme]);
   
-  // Play background music when game starts (during gameplay)
+  // Play background music when game starts (during countdown AND gameplay) - also re-trigger on theme change
   useEffect(() => {
-    if (gameState === 'playing' && backgroundMusicRef.current) {
+    // Start music during countdown OR playing - don't wait for gameplay to begin
+    if ((gameState === 'countdown' || gameState === 'playing') && backgroundMusicRef.current) {
       // Unlock audio first if needed
       if (!audioUnlockedRef.current) {
         unlockAudio();
       }
       
-      // Play music on loop when game starts
-      try {
-        const audio = backgroundMusicRef.current;
-        
-        // Ensure audio is loaded
-        if (audio.readyState < 2) {
-          try {
-            audio.load();
-          } catch (e) {
-            // Ignore load errors
+      // Only play if not already playing
+      const audio = backgroundMusicRef.current;
+      
+      if (audio.paused) {
+        try {
+          // Reset to beginning only on countdown start (not countdown->playing transition)
+          if (gameState === 'countdown') {
+            audio.currentTime = 0;
           }
+          
+          // Ensure audio is loaded
+          if (audio.readyState < 2) {
+            try {
+              audio.load();
+            } catch (e) {
+              // Ignore load errors
+            }
+          }
+          
+          // Play music immediately
+          console.log(`🎵 [BladeBounce3D] Starting ${currentTheme} theme music during ${gameState}...`);
+          const playPromise = audio.play();
+          
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log(`✅ [BladeBounce3D] ${currentTheme} background music playing!`);
+                audioUnlockedRef.current = true;
+              })
+              .catch((err) => {
+                console.warn('⚠️ [BladeBounce3D] Audio play failed, will retry:', err);
+                // Try again after a short delay
+                setTimeout(() => {
+                  if (backgroundMusicRef.current && (gameState === 'countdown' || gameState === 'playing')) {
+                    backgroundMusicRef.current.play()
+                      .then(() => {
+                        audioUnlockedRef.current = true;
+                        console.log(`✅ [BladeBounce3D] ${currentTheme} background music started on retry`);
+                      })
+                      .catch(() => {
+                        // Final attempt failed - that's okay
+                      });
+                  }
+                }, 500);
+              });
+          }
+        } catch (err) {
+          // Audio failed - game continues normally
+          console.warn('⚠️ [BladeBounce3D] Audio play failed (non-critical)');
         }
-        
-        // Play music on loop when game starts
-        const playPromise = audio.play();
-        
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log('✅ [BladeBounce3D] Background music started playing on game start');
-              audioUnlockedRef.current = true;
-            })
-            .catch((err) => {
-              console.warn('⚠️ [BladeBounce3D] Audio play failed, will retry:', err);
-              // Try again after a short delay
-              setTimeout(() => {
-                if (backgroundMusicRef.current && gameState === 'playing') {
-                  backgroundMusicRef.current.play()
-                    .then(() => {
-                      audioUnlockedRef.current = true;
-                      console.log('✅ [BladeBounce3D] Background music started on retry');
-                    })
-                    .catch(() => {
-                      // Final attempt failed - that's okay
-                    });
-                }
-              }, 500);
-            });
-        }
-      } catch (err) {
-        // Audio failed - game continues normally
-        console.warn('⚠️ [BladeBounce3D] Audio play failed (non-critical)');
       }
-    } else if (gameState !== 'playing' && backgroundMusicRef.current) {
-      // Stop music when game is not playing
+    } else if (gameState !== 'countdown' && gameState !== 'playing' && backgroundMusicRef.current) {
+      // Stop music only when game is ended or in ready/waiting states
       try {
         backgroundMusicRef.current.pause();
-        if (gameState === 'ended') {
+        if (gameState === 'ended' || gameState === 'ready') {
           // Reset to beginning for next game
           backgroundMusicRef.current.currentTime = 0;
         }
@@ -300,7 +317,7 @@ export default function BladeBounce3D({
         // Ignore pause errors
       }
     }
-  }, [gameState, unlockAudio]);
+  }, [gameState, currentTheme, unlockAudio]);
   
   // Play victory sound when game ends
   useEffect(() => {
