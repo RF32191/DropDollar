@@ -3398,12 +3398,23 @@ export default function DeadShotGame({
           gameStartTimeRef.current = Date.now();
           clockRef.current.start();
           
-          // Start background music
+          // Start background music - theme-aware
           try {
-            if (!musicRef.current) {
-              musicRef.current = new Audio('/dead-shot.mp3');
+            // Choose audio file based on current theme
+            const audioFile = currentTheme === 'halloween' 
+              ? '/halloween-(dead-shot).mp3'
+              : currentTheme === 'christmas'
+              ? '/merry-dead-shot-christmas.mp3'
+              : '/dead-shot.mp3';
+            
+            if (!musicRef.current || musicRef.current.src !== audioFile) {
+              if (musicRef.current) {
+                musicRef.current.pause();
+              }
+              musicRef.current = new Audio(audioFile);
               musicRef.current.loop = true;
               musicRef.current.volume = 0.4;
+              console.log(`🎵 [DeadShot] Loading ${currentTheme} theme music: ${audioFile}`);
             }
             musicRef.current.currentTime = 0;
             musicRef.current.play().catch(err => console.log('Music autoplay blocked:', err));
