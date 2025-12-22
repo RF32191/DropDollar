@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { validatePasswordStrength } from '@/lib/passwordUtils';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { updatePassword } = useAuth();
@@ -21,15 +22,79 @@ export default function ResetPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isValidSession, setIsValidSession] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  // Check for access token in URL (from email link)
+  // Check for valid session from password reset link
   useEffect(() => {
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
+    const checkSession = async () => {
+      try {
+        console.log('🔐 [ResetPassword] Checking for password reset session...');
+        
+        // Supabase handles the token exchange automatically when the page loads
+        // We just need to check if there's a valid session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ [ResetPassword] Session error:', sessionError);
+          setError('Invalid or expired reset link. Please request a new password reset.');
+          setIsCheckingSession(false);
+          return;
+        }
+        
+        if (session) {
+          console.log('✅ [ResetPassword] Valid session found for:', session.user?.email);
+          setIsValidSession(true);
+          setError(null);
+        } else {
+          // Check URL hash for tokens (Supabase sometimes uses hash fragments)
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const type = hashParams.get('type');
+          
+          if (accessToken && type === 'recovery') {
+            console.log('🔐 [ResetPassword] Found recovery token in URL hash');
+            // The token should be automatically processed by Supabase
+            // Wait a moment and check session again
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const { data: { session: newSession } } = await supabase.auth.getSession();
+            if (newSession) {
+              console.log('✅ [ResetPassword] Session established after token processing');
+              setIsValidSession(true);
+              setError(null);
+            } else {
+              setError('Invalid or expired reset link. Please request a new password reset.');
+            }
+          } else {
+            // Also check query params
+            const code = searchParams.get('code');
+            if (code) {
+              console.log('🔐 [ResetPassword] Found code in query params, exchanging...');
+              const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+              if (exchangeError) {
+                console.error('❌ [ResetPassword] Code exchange error:', exchangeError);
+                setError('Invalid or expired reset link. Please request a new password reset.');
+              } else {
+                console.log('✅ [ResetPassword] Code exchanged successfully');
+                setIsValidSession(true);
+                setError(null);
+              }
+            } else {
+              console.log('⚠️ [ResetPassword] No valid tokens found');
+              setError('Invalid or expired reset link. Please request a new password reset.');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('❌ [ResetPassword] Error checking session:', err);
+        setError('An error occurred. Please try again.');
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
     
-    if (!accessToken || !refreshToken) {
-      setError('Invalid or expired reset link. Please request a new password reset.');
-    }
+    checkSession();
   }, [searchParams]);
 
   const validateForm = () => {
@@ -91,6 +156,18 @@ export default function ResetPasswordPage() {
       setIsLoading(false);
     }
   };
+
+  // Loading state while checking session
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-gray-300">Verifying your reset link...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (
@@ -243,7 +320,7 @@ export default function ResetPasswordPage() {
           <div>
             <button
               type="submit"
-              disabled={isLoading || !!error}
+              disabled={isLoading || !!error || !isValidSession}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? (
@@ -268,5 +345,21 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Wrap in Suspense for useSearchParams
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-gray-300">Loading...</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

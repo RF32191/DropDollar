@@ -13,6 +13,8 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   updateTokens: (newBalance: number) => Promise<void>;
   refreshTokens: () => Promise<number>;
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -401,6 +403,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Reset password - sends recovery email to user
+  const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log('🔐 Sending password reset email to:', email);
+      
+      // Get the current site URL for the redirect
+      const siteUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : 'https://www.drop-dollar.com';
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${siteUrl}/auth/reset-password`,
+      });
+
+      if (error) {
+        console.error('❌ Password reset error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Password reset email sent successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('❌ Password reset error:', error);
+      return { success: false, error: error.message || 'Failed to send reset email' };
+    }
+  };
+
+  // Update password - for use after clicking reset link
+  const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log('🔐 Updating password...');
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('❌ Password update error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Password updated successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('❌ Password update error:', error);
+      return { success: false, error: error.message || 'Failed to update password' };
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated,
@@ -410,6 +461,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser,
     updateTokens,
     refreshTokens,
+    resetPassword,
+    updatePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
