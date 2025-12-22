@@ -985,99 +985,275 @@ export function SpiderOverlay() {
   );
 }
 
+// 3D Spider Component
+function Spider3D({ x, y, size = 40, delay = 0 }: { x: number; y: number; size?: number; delay?: number }) {
+  return (
+    <div 
+      className="absolute animate-spider-crawl"
+      style={{ 
+        left: `${x}%`, 
+        top: `${y}%`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      {/* Thread */}
+      <div 
+        className="absolute left-1/2 -translate-x-1/2 -top-20 w-px bg-gradient-to-b from-transparent via-gray-400/50 to-gray-300/80"
+        style={{ height: '80px' }}
+      />
+      
+      <div className="relative" style={{ width: `${size}px`, height: `${size * 1.2}px` }}>
+        {/* Head */}
+        <div 
+          className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-b from-gray-800 to-black"
+          style={{ 
+            width: `${size * 0.5}px`, 
+            height: `${size * 0.45}px`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.8)',
+          }}
+        >
+          {/* Eyes */}
+          <div className="absolute top-2 left-1 w-2 h-2 bg-red-500 rounded-full" style={{ boxShadow: '0 0 6px red' }} />
+          <div className="absolute top-2 right-1 w-2 h-2 bg-red-500 rounded-full" style={{ boxShadow: '0 0 6px red' }} />
+          <div className="absolute top-3 left-2.5 w-1 h-1 bg-red-400 rounded-full" />
+          <div className="absolute top-3 right-2.5 w-1 h-1 bg-red-400 rounded-full" />
+        </div>
+        
+        {/* Body */}
+        <div 
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-b from-gray-800 to-black"
+          style={{ 
+            width: `${size * 0.7}px`, 
+            height: `${size * 0.8}px`,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.8)',
+          }}
+        >
+          {/* Skull pattern on body */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-3 h-2 bg-gray-600/50 rounded-full" />
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-2 h-3 bg-gray-600/30 rounded-full" />
+        </div>
+        
+        {/* Legs - 8 total */}
+        {[...Array(8)].map((_, i) => {
+          const isLeft = i < 4;
+          const legIndex = i % 4;
+          const angles = [-30, -50, -70, -90];
+          
+          return (
+            <div
+              key={i}
+              className="absolute animate-leg-wiggle"
+              style={{
+                top: `${20 + legIndex * 12}%`,
+                left: isLeft ? '20%' : '80%',
+                width: `${size * 0.6}px`,
+                height: '3px',
+                background: 'linear-gradient(90deg, #1a1a1a, #333, #1a1a1a)',
+                transformOrigin: isLeft ? 'right center' : 'left center',
+                transform: `rotate(${isLeft ? angles[legIndex] : -angles[legIndex]}deg)`,
+                animationDelay: `${i * 0.1}s`,
+                borderRadius: '2px',
+              }}
+            >
+              {/* Leg joint */}
+              <div 
+                className="absolute h-2 bg-gray-800 rounded-full"
+                style={{
+                  width: `${size * 0.35}px`,
+                  left: isLeft ? '-5px' : 'auto',
+                  right: isLeft ? 'auto' : '-5px',
+                  top: '-2px',
+                  transform: `rotate(${isLeft ? -40 : 40}deg)`,
+                  transformOrigin: isLeft ? 'right center' : 'left center',
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ============================================
 // MONEY HORROR THEME - For Buy Tokens Page
+// ORANGE/PURPLE with SPIDERS
 // ============================================
 export function MoneyHorrorOverlay() {
   const [eyeOpen, setEyeOpen] = useState(false);
+  const [spiderMove, setSpiderMove] = useState(0);
   
   useEffect(() => {
-    const interval = setInterval(() => {
+    const eyeInterval = setInterval(() => {
       setEyeOpen(true);
       setTimeout(() => setEyeOpen(false), 2500);
     }, 5000);
-    return () => clearInterval(interval);
+    
+    const spiderInterval = setInterval(() => {
+      setSpiderMove(prev => (prev + 1) % 100);
+    }, 100);
+    
+    return () => { clearInterval(eyeInterval); clearInterval(spiderInterval); };
   }, []);
   
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* HORROR GREEN/PURPLE PAGE */}
+      {/* ORANGE/PURPLE PAGE */}
       <div 
         className="absolute inset-0"
         style={{
           background: `linear-gradient(180deg, 
-            #050a08 0%, 
-            ${HALLOWEEN_COLORS.darkPurple}cc 25%, 
-            #0a1810 50%, 
-            ${HALLOWEEN_COLORS.darkPurple}bb 75%, 
-            #050508 100%)`,
+            ${HALLOWEEN_COLORS.darkPurple}ee 0%, 
+            #3a1535 20%, 
+            ${HALLOWEEN_COLORS.orange}40 45%,
+            #4a2030 60%,
+            ${HALLOWEEN_COLORS.darkPurple}dd 80%, 
+            #150815 100%)`,
         }}
       />
       
+      {/* Orange glow */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse at 50% 50%, ${HALLOWEEN_COLORS.orange}30 0%, transparent 55%)`,
+        }}
+      />
+      
+      {/* Spider webs in corners */}
+      <svg className="absolute top-0 left-0 w-80 h-80 opacity-35" viewBox="0 0 100 100">
+        <path d="M0,0 Q55,20 100,0" stroke="#fff" strokeWidth="0.6" fill="none" />
+        <path d="M0,0 Q20,55 0,100" stroke="#fff" strokeWidth="0.6" fill="none" />
+        <path d="M0,0 L85,85" stroke="#fff" strokeWidth="0.45" fill="none" />
+        <path d="M0,0 L100,45" stroke="#fff" strokeWidth="0.35" fill="none" />
+        <path d="M0,0 L45,100" stroke="#fff" strokeWidth="0.35" fill="none" />
+        <ellipse cx="20" cy="20" rx="16" ry="12" stroke="#fff" strokeWidth="0.3" fill="none" transform="rotate(-45 20 20)" />
+        <ellipse cx="38" cy="38" rx="32" ry="24" stroke="#fff" strokeWidth="0.25" fill="none" transform="rotate(-45 38 38)" />
+        <ellipse cx="55" cy="55" rx="48" ry="36" stroke="#fff" strokeWidth="0.2" fill="none" transform="rotate(-45 55 55)" />
+      </svg>
+      <svg className="absolute top-0 right-0 w-80 h-80 opacity-35 scale-x-[-1]" viewBox="0 0 100 100">
+        <path d="M0,0 Q55,20 100,0" stroke="#fff" strokeWidth="0.6" fill="none" />
+        <path d="M0,0 Q20,55 0,100" stroke="#fff" strokeWidth="0.6" fill="none" />
+        <path d="M0,0 L85,85" stroke="#fff" strokeWidth="0.45" fill="none" />
+        <ellipse cx="25" cy="25" rx="20" ry="15" stroke="#fff" strokeWidth="0.25" fill="none" transform="rotate(-45 25 25)" />
+      </svg>
+      <svg className="absolute bottom-0 left-0 w-64 h-64 opacity-25 scale-y-[-1]" viewBox="0 0 100 100">
+        <path d="M0,0 Q50,25 100,0" stroke="#fff" strokeWidth="0.5" fill="none" />
+        <path d="M0,0 Q25,50 0,100" stroke="#fff" strokeWidth="0.5" fill="none" />
+        <path d="M0,0 L75,75" stroke="#fff" strokeWidth="0.4" fill="none" />
+      </svg>
+      <svg className="absolute bottom-0 right-0 w-64 h-64 opacity-25 scale-[-1]" viewBox="0 0 100 100">
+        <path d="M0,0 Q50,25 100,0" stroke="#fff" strokeWidth="0.5" fill="none" />
+        <path d="M0,0 Q25,50 0,100" stroke="#fff" strokeWidth="0.5" fill="none" />
+        <path d="M0,0 L75,75" stroke="#fff" strokeWidth="0.4" fill="none" />
+      </svg>
+      
+      {/* 3D SPIDERS */}
+      <Spider3D x={12} y={15} size={45} delay={0} />
+      <Spider3D x={82} y={20} size={38} delay={1.5} />
+      <Spider3D x={25} y={55} size={35} delay={3} />
+      <Spider3D x={72} y={50} size={40} delay={2} />
+      
+      {/* Small crawling spiders */}
+      <div 
+        className="absolute w-8 h-8 opacity-60"
+        style={{
+          left: `${15 + Math.sin(spiderMove * 0.05) * 10}%`,
+          top: `${40 + Math.cos(spiderMove * 0.03) * 8}%`,
+        }}
+      >
+        <div className="w-3 h-3 bg-black rounded-full" />
+        <div className="w-4 h-5 bg-black rounded-full -mt-1 ml-0.5" />
+      </div>
+      <div 
+        className="absolute w-6 h-6 opacity-50"
+        style={{
+          right: `${20 + Math.cos(spiderMove * 0.04) * 8}%`,
+          top: `${60 + Math.sin(spiderMove * 0.06) * 6}%`,
+        }}
+      >
+        <div className="w-2 h-2 bg-black rounded-full" />
+        <div className="w-3 h-4 bg-black rounded-full -mt-0.5" />
+      </div>
+      
       {/* Evil watching eye */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 opacity-50">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 opacity-45">
         <div 
           className={`rounded-full transition-all duration-500 ${eyeOpen ? 'scale-110' : 'scale-90'}`}
           style={{
-            width: '120px',
-            height: '70px',
-            background: 'radial-gradient(ellipse, rgba(20,0,0,0.95) 0%, rgba(40,0,0,0.8) 40%, transparent 70%)',
-            border: '4px solid rgba(80,0,0,0.7)',
+            width: '130px',
+            height: '75px',
+            background: 'radial-gradient(ellipse, rgba(20,0,0,0.95) 0%, rgba(50,0,0,0.85) 40%, transparent 70%)',
+            border: `4px solid ${HALLOWEEN_COLORS.orange}55`,
           }}
         >
           <div 
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full transition-all duration-400 ${eyeOpen ? 'bg-green-400' : 'bg-green-900'}`}
-            style={{ boxShadow: eyeOpen ? `0 0 50px 20px ${HALLOWEEN_COLORS.green}88` : 'none' }}
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full transition-all duration-400 ${eyeOpen ? 'bg-orange-500' : 'bg-orange-900'}`}
+            style={{ boxShadow: eyeOpen ? `0 0 60px 25px ${HALLOWEEN_COLORS.orange}88` : 'none' }}
           >
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-12 bg-black rounded-full" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-14 bg-black rounded-full" />
           </div>
         </div>
       </div>
       
       {/* Floating cursed money */}
-      {[...Array(8)].map((_, i) => (
+      {[...Array(6)].map((_, i) => (
         <div
           key={i}
           className="absolute animate-cursed-money"
           style={{
-            left: `${8 + i * 12}%`,
-            top: `${35 + (i % 3) * 15}%`,
-            animationDelay: `${i * 0.9}s`,
+            left: `${10 + i * 15}%`,
+            top: `${38 + (i % 3) * 12}%`,
+            animationDelay: `${i * 1}s`,
           }}
         >
           <div 
-            className="w-18 h-10 rounded relative overflow-hidden"
+            className="rounded relative overflow-hidden"
             style={{
-              width: '72px',
-              height: '40px',
-              background: `linear-gradient(135deg, rgba(40,80,40,0.8) 0%, rgba(30,60,30,0.95) 100%)`,
-              border: `1px solid ${HALLOWEEN_COLORS.green}55`,
-              boxShadow: `0 0 20px ${HALLOWEEN_COLORS.green}33`,
+              width: '75px',
+              height: '42px',
+              background: `linear-gradient(135deg, ${HALLOWEEN_COLORS.orange}55 0%, ${HALLOWEEN_COLORS.purple}55 100%)`,
+              border: `2px solid ${HALLOWEEN_COLORS.orange}66`,
+              boxShadow: `0 0 25px ${HALLOWEEN_COLORS.orange}44`,
             }}
           >
-            <div className="absolute inset-0 flex items-center justify-center text-green-400/80 text-2xl font-bold">$</div>
-            <div className="absolute top-1 right-1 w-4 h-2.5 bg-red-800/70 rounded-full" />
+            <div className="absolute inset-0 flex items-center justify-center text-orange-300/90 text-2xl font-bold">$</div>
+            <div className="absolute top-1 right-1 w-4 h-3 bg-red-800/70 rounded-full" />
           </div>
         </div>
       ))}
       
       {/* 3D Pumpkins */}
-      <Pumpkin3D x={8} y={68} size={52} glowing={true} delay={0} />
-      <Pumpkin3D x={85} y={65} size={46} glowing={true} delay={1.2} />
+      <Pumpkin3D x={6} y={70} size={55} glowing={true} delay={0} />
+      <Pumpkin3D x={88} y={68} size={48} glowing={true} delay={1.2} />
       
-      {/* Green poison mist */}
+      {/* Flying bats */}
+      <Bat3D x={30} y={15} size={22} delay={0} />
+      <Bat3D x={65} y={12} size={18} delay={1.5} />
+      
+      {/* Purple/orange mist */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-52"
+        className="absolute bottom-0 left-0 right-0 h-56"
         style={{
-          background: `linear-gradient(0deg, ${HALLOWEEN_COLORS.green}55 0%, ${HALLOWEEN_COLORS.green}22 50%, transparent 100%)`,
+          background: `linear-gradient(0deg, ${HALLOWEEN_COLORS.purple}66 0%, ${HALLOWEEN_COLORS.orange}33 40%, transparent 100%)`,
         }}
       />
       
       <style jsx>{`
         @keyframes cursed-money { 0%, 100% { transform: translateY(0) rotate(-4deg); opacity: 0.6; } 50% { transform: translateY(-25px) rotate(4deg); opacity: 0.85; } }
         @keyframes pumpkin-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes spider-crawl { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
+        @keyframes leg-wiggle { 0%, 100% { transform: rotate(var(--base-angle, 0deg)); } 50% { transform: rotate(calc(var(--base-angle, 0deg) + 8deg)); } }
+        @keyframes bat-fly { 0%, 100% { transform: translateY(0) translateX(0); } 25% { transform: translateY(-15px) translateX(20px); } 50% { transform: translateY(5px) translateX(40px); } 75% { transform: translateY(-10px) translateX(20px); } }
+        @keyframes wing-flap { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(40deg); } }
+        @keyframes wing-flap-reverse { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(-40deg); } }
         .animate-cursed-money { animation: cursed-money 7s ease-in-out infinite; }
         .animate-pumpkin-bob { animation: pumpkin-bob 3s ease-in-out infinite; }
+        .animate-spider-crawl { animation: spider-crawl 4s ease-in-out infinite; }
+        .animate-leg-wiggle { animation: leg-wiggle 0.5s ease-in-out infinite; }
+        .animate-bat-fly { animation: bat-fly 8s ease-in-out infinite; }
+        .animate-wing-flap { animation: wing-flap 0.3s ease-in-out infinite; }
+        .animate-wing-flap-reverse { animation: wing-flap-reverse 0.3s ease-in-out infinite; }
       `}</style>
     </div>
   );

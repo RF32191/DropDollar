@@ -19,6 +19,7 @@ import {
   TreasureOverlay,
   WinterOverlay,
   ToyshopOverlay,
+  BuyTokensOverlay,
 } from './ChristmasOverlays';
 
 // Page identifiers for themed overlays
@@ -91,7 +92,7 @@ export default function PageThemeOverlay({ page }: PageThemeOverlayProps) {
       case 'home':
         return <WinterOverlay />; // Reuse winter for home
       case 'buy-tokens':
-        return <TreasureOverlay />; // Golden treasure for buy tokens
+        return <BuyTokensOverlay />; // Snowmen and red/green for buy tokens
       default:
         return null;
     }
@@ -116,7 +117,7 @@ export function usePageThemeDescription(page: ThemedPage) {
       case 'games': return { icon: '🎪', name: 'Creepy Carnival', description: 'Haunted circus with spotlights' };
       case 'home': return { icon: '🕷️', name: 'Spider Lair', description: 'Giant webs and spiders' };
       case 'marketplace': return { icon: '🕸️', name: 'Spider Web', description: 'Haunted market' };
-      case 'buy-tokens': return { icon: '💸', name: 'Money Horror', description: 'Cursed riches' };
+      case 'buy-tokens': return { icon: '🕷️', name: 'Spider Money', description: 'Spiders & cursed riches' };
       default: return { icon: '🎃', name: 'Halloween', description: 'Spooky season' };
     }
   }
@@ -131,7 +132,7 @@ export function usePageThemeDescription(page: ThemedPage) {
       case 'games': return { icon: '🧸', name: 'Toy Shop', description: 'Magical toys' };
       case 'home': return { icon: '🏠', name: 'Winter Home', description: 'Cozy holiday' };
       case 'marketplace': return { icon: '🎄', name: 'Holiday Market', description: 'Festive shopping' };
-      case 'buy-tokens': return { icon: '💰', name: 'Golden Gifts', description: 'Festive treasures' };
+      case 'buy-tokens': return { icon: '⛄', name: 'Snowman Shop', description: 'Frosty friends & gifts' };
       default: return { icon: '🎄', name: 'Christmas', description: 'Holiday cheer' };
     }
   }

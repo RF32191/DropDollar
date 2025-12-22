@@ -826,6 +826,273 @@ export function WinterOverlay() {
   );
 }
 
+// 3D Snowman Component
+function Snowman3D({ x, y, size = 80, delay = 0 }: { x: number; y: number; size?: number; delay?: number }) {
+  return (
+    <div 
+      className="absolute animate-snowman-sway"
+      style={{ 
+        left: `${x}%`, 
+        bottom: `${y}%`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      <div className="relative" style={{ width: `${size}px`, height: `${size * 1.6}px` }}>
+        {/* Top hat */}
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 -top-2"
+          style={{ width: `${size * 0.5}px`, height: `${size * 0.35}px` }}
+        >
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-2 bg-gradient-to-b from-gray-800 to-gray-900 rounded" />
+          <div 
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 rounded-t"
+            style={{ width: `${size * 0.35}px`, height: `${size * 0.3}px` }}
+          />
+          {/* Red band */}
+          <div 
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 h-2 bg-gradient-to-r from-red-700 via-red-500 to-red-700 rounded"
+            style={{ width: `${size * 0.36}px` }}
+          />
+        </div>
+        
+        {/* Head */}
+        <div 
+          className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full"
+          style={{ 
+            width: `${size * 0.5}px`, 
+            height: `${size * 0.45}px`,
+            background: 'radial-gradient(circle at 35% 30%, white 0%, #f5f5f5 50%, #e0e0e0 100%)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 -5px 15px rgba(0,0,0,0.05)',
+          }}
+        >
+          {/* Eyes - coal */}
+          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-black rounded-full" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.5)' }} />
+          <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-black rounded-full" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.5)' }} />
+          {/* Carrot nose */}
+          <div 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: 0,
+              height: 0,
+              borderTop: '4px solid transparent',
+              borderBottom: '4px solid transparent',
+              borderLeft: `${size * 0.15}px solid #ff6600`,
+              filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
+            }}
+          />
+          {/* Smile - coal dots */}
+          <div className="absolute bottom-1/4 left-1/4 w-1.5 h-1.5 bg-black rounded-full" />
+          <div className="absolute bottom-[22%] left-[32%] w-1.5 h-1.5 bg-black rounded-full" />
+          <div className="absolute bottom-[20%] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-black rounded-full" />
+          <div className="absolute bottom-[22%] right-[32%] w-1.5 h-1.5 bg-black rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-1.5 h-1.5 bg-black rounded-full" />
+        </div>
+        
+        {/* Scarf */}
+        <div 
+          className="absolute left-1/2 -translate-x-1/2"
+          style={{ 
+            top: `${size * 0.38}px`,
+            width: `${size * 0.55}px`, 
+            height: `${size * 0.12}px`,
+            background: `linear-gradient(90deg, ${SANTA_COLORS.red} 0%, #cc0000 50%, ${SANTA_COLORS.red} 100%)`,
+            borderRadius: '4px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          }}
+        />
+        {/* Scarf tail */}
+        <div 
+          className="absolute animate-scarf-wave"
+          style={{ 
+            top: `${size * 0.42}px`,
+            left: `${size * 0.55}px`,
+            width: `${size * 0.15}px`, 
+            height: `${size * 0.25}px`,
+            background: `linear-gradient(180deg, ${SANTA_COLORS.red} 0%, #aa0000 100%)`,
+            borderRadius: '0 0 4px 4px',
+          }}
+        />
+        
+        {/* Body (middle ball) */}
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 rounded-full"
+          style={{ 
+            top: `${size * 0.45}px`,
+            width: `${size * 0.65}px`, 
+            height: `${size * 0.55}px`,
+            background: 'radial-gradient(circle at 35% 30%, white 0%, #f0f0f0 50%, #d8d8d8 100%)',
+            boxShadow: '0 6px 15px rgba(0,0,0,0.25), inset 0 -8px 20px rgba(0,0,0,0.08)',
+          }}
+        >
+          {/* Buttons */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-3 h-3 bg-black rounded-full" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 w-3 h-3 bg-black rounded-full" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }} />
+        </div>
+        
+        {/* Bottom ball */}
+        <div 
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full"
+          style={{ 
+            width: `${size * 0.85}px`, 
+            height: `${size * 0.6}px`,
+            background: 'radial-gradient(circle at 35% 30%, white 0%, #f0f0f0 50%, #d0d0d0 100%)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.3), inset 0 -10px 25px rgba(0,0,0,0.1)',
+          }}
+        />
+        
+        {/* Arms - sticks */}
+        <div 
+          className="absolute bg-gradient-to-r from-amber-900 to-amber-800 rounded"
+          style={{ 
+            top: `${size * 0.55}px`,
+            left: `-${size * 0.2}px`,
+            width: `${size * 0.35}px`, 
+            height: '4px',
+            transform: 'rotate(-20deg)',
+          }}
+        />
+        <div 
+          className="absolute bg-gradient-to-l from-amber-900 to-amber-800 rounded"
+          style={{ 
+            top: `${size * 0.55}px`,
+            right: `-${size * 0.2}px`,
+            width: `${size * 0.35}px`, 
+            height: '4px',
+            transform: 'rotate(20deg)',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// BUY TOKENS THEME - For Buy Tokens Page
+// RED/GREEN with SNOWMEN
+// ============================================
+export function BuyTokensOverlay() {
+  const [sparkle, setSparkle] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSparkle(prev => (prev + 2) % 360);
+    }, 30);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      {/* RED/GREEN CHRISTMAS PAGE */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(180deg, 
+            #0a150a 0%, 
+            #152010 20%, 
+            #1a0a0a 40%,
+            #0f1a0f 60%,
+            #150a0a 80%,
+            #0a100a 100%)`,
+        }}
+      />
+      
+      {/* Red and green glows */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse at 30% 30%, ${SANTA_COLORS.red}25 0%, transparent 40%),
+                       radial-gradient(ellipse at 70% 70%, ${SANTA_COLORS.green}25 0%, transparent 40%)`,
+        }}
+      />
+      
+      {/* Golden shimmer sweep */}
+      <div 
+        className="absolute inset-0 opacity-25"
+        style={{
+          background: `linear-gradient(${sparkle}deg, transparent 40%, ${SANTA_COLORS.gold}55 50%, transparent 60%)`,
+        }}
+      />
+      
+      {/* Christmas lights ALL sides */}
+      <ChristmasLights position="top" count={30} />
+      <ChristmasLights position="bottom" count={30} />
+      <ChristmasLights position="left" count={20} />
+      <ChristmasLights position="right" count={20} />
+      
+      {/* 3D Snowfall */}
+      <Snowfall3D count={35} />
+      
+      {/* 3D SNOWMEN */}
+      <Snowman3D x={8} y={5} size={75} delay={0} />
+      <Snowman3D x={85} y={8} size={65} delay={0.5} />
+      <Snowman3D x={25} y={3} size={55} delay={1} />
+      <Snowman3D x={70} y={6} size={60} delay={1.5} />
+      
+      {/* 3D Gift boxes */}
+      <GiftBox3D x={15} y={25} color1={SANTA_COLORS.red} color2={SANTA_COLORS.gold} size={50} delay={0} />
+      <GiftBox3D x={78} y={30} color1={SANTA_COLORS.green} color2={SANTA_COLORS.red} size={45} delay={1} />
+      <GiftBox3D x={45} y={22} color1={SANTA_COLORS.gold} color2={SANTA_COLORS.red} size={40} delay={2} />
+      
+      {/* 3D Ornaments */}
+      <Ornament3D x={20} y={15} color={SANTA_COLORS.red} size={35} delay={0} />
+      <Ornament3D x={75} y={12} color={SANTA_COLORS.green} size={38} delay={0.5} />
+      <Ornament3D x={50} y={10} color={SANTA_COLORS.gold} size={32} delay={1} />
+      
+      {/* Floating coins with Christmas glow */}
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute animate-coin-spin"
+          style={{
+            left: `${12 + i * 15}%`,
+            top: `${35 + (i % 3) * 10}%`,
+            animationDelay: `${i * 0.8}s`,
+          }}
+        >
+          <div 
+            className="rounded-full"
+            style={{
+              width: '48px',
+              height: '48px',
+              background: 'radial-gradient(circle at 35% 30%, #FFD700 0%, #DAA520 50%, #B8860B 100%)',
+              boxShadow: `0 0 25px 8px ${SANTA_COLORS.gold}66, 0 0 50px 15px ${i % 2 === 0 ? SANTA_COLORS.red : SANTA_COLORS.green}33`,
+            }}
+          >
+            <div className="absolute inset-0 flex items-center justify-center text-yellow-900 text-xl font-bold">$</div>
+            <div className="absolute top-1 left-2 w-2 h-1.5 bg-white/50 rounded-full" />
+          </div>
+        </div>
+      ))}
+      
+      {/* Snowy ground */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-28"
+        style={{ 
+          background: 'linear-gradient(0deg, rgba(255,255,255,0.45) 0%, rgba(230,245,255,0.25) 50%, transparent 100%)',
+          boxShadow: '0 -10px 40px rgba(255,255,255,0.2)',
+        }}
+      />
+      
+      {/* Corner glows */}
+      <div className="absolute bottom-0 left-0 w-64 h-64" style={{ background: `radial-gradient(circle at 0% 100%, ${SANTA_COLORS.red}30 0%, transparent 50%)` }} />
+      <div className="absolute bottom-0 right-0 w-64 h-64" style={{ background: `radial-gradient(circle at 100% 100%, ${SANTA_COLORS.green}30 0%, transparent 50%)` }} />
+      
+      <style jsx>{`
+        @keyframes snowman-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+        @keyframes scarf-wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(8deg); } }
+        @keyframes coin-spin { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
+        @keyframes gift-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-10px) rotate(2deg); } }
+        @keyframes ornament-swing { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+        .animate-snowman-sway { animation: snowman-sway 4s ease-in-out infinite; }
+        .animate-scarf-wave { animation: scarf-wave 2s ease-in-out infinite; }
+        .animate-coin-spin { animation: coin-spin 4s linear infinite; }
+        .animate-gift-float { animation: gift-float 4s ease-in-out infinite; }
+        .animate-ornament-swing { animation: ornament-swing 3s ease-in-out infinite; }
+      `}</style>
+    </div>
+  );
+}
+
 // ============================================
 // TOYSHOP THEME - For Games Page
 // Santa Tracker magical toy store
