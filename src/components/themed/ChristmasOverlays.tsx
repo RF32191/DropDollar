@@ -2,94 +2,178 @@
 
 import React, { useState, useEffect } from 'react';
 
-// ============================================
-// FIREPLACE THEME - For Hot Sell Page
-// Cozy Christmas cabin, warm fire, hanging lights
-// ============================================
-export function FireplaceOverlay() {
+// Christmas light colors
+const LIGHT_COLORS = ['#ff0000', '#00ff00', '#ffd700', '#00bfff', '#ff69b4', '#ff4500'];
+
+// Reusable Christmas Lights Component
+function ChristmasLights({ position = 'top', count = 20, offset = 0 }: { position?: 'top' | 'bottom' | 'left' | 'right'; count?: number; offset?: number }) {
+  const [activeLight, setActiveLight] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveLight(prev => (prev + 1) % count);
+    }, 150);
+    return () => clearInterval(interval);
+  }, [count]);
+  
+  const isVertical = position === 'left' || position === 'right';
+  
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Warm red/green Christmas gradient */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(180deg, rgba(100,20,20,0.3) 0%, rgba(20,60,30,0.2) 50%, rgba(80,30,20,0.35) 100%)',
-        }}
-      />
+    <div 
+      className={`absolute ${
+        position === 'top' ? 'top-0 left-0 right-0 h-8 flex-row' :
+        position === 'bottom' ? 'bottom-0 left-0 right-0 h-8 flex-row' :
+        position === 'left' ? 'top-0 bottom-0 left-0 w-8 flex-col' :
+        'top-0 bottom-0 right-0 w-8 flex-col'
+      } flex justify-around items-center`}
+    >
+      {/* Wire */}
+      <div className={`absolute ${isVertical ? 'w-0.5 h-full left-1/2 -translate-x-1/2' : 'h-0.5 w-full top-1/2 -translate-y-1/2'} bg-gray-700`} />
       
-      {/* Christmas string lights at top */}
-      <div className="absolute top-0 left-0 right-0 h-12 flex items-center justify-center">
-        <div className="flex gap-6 sm:gap-10">
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-3 h-4 rounded-full animate-light-twinkle ${
-                i % 3 === 0 ? 'bg-red-500 shadow-red-500/80' : 
-                i % 3 === 1 ? 'bg-green-500 shadow-green-500/80' : 
-                'bg-yellow-400 shadow-yellow-400/80'
-              }`}
+      {[...Array(count)].map((_, i) => {
+        const colorIndex = (i + offset) % LIGHT_COLORS.length;
+        const isActive = Math.abs(i - activeLight) <= 2 || Math.abs(i - activeLight - count) <= 2 || Math.abs(i - activeLight + count) <= 2;
+        
+        return (
+          <div key={i} className="relative z-10">
+            {/* Bulb socket */}
+            <div className="w-2 h-1.5 bg-gray-600 rounded-t-sm mx-auto" />
+            {/* Bulb */}
+            <div 
+              className="w-3 h-4 rounded-b-full transition-all duration-150"
               style={{
-                animationDelay: `${i * 0.2}s`,
-                boxShadow: `0 0 10px 3px ${
-                  i % 3 === 0 ? 'rgba(239,68,68,0.6)' : 
-                  i % 3 === 1 ? 'rgba(34,197,94,0.6)' : 
-                  'rgba(250,204,21,0.6)'
-                }`,
+                background: isActive 
+                  ? `radial-gradient(circle at 30% 30%, white 0%, ${LIGHT_COLORS[colorIndex]} 40%, ${LIGHT_COLORS[colorIndex]}88 100%)`
+                  : `radial-gradient(circle at 30% 30%, ${LIGHT_COLORS[colorIndex]}66 0%, ${LIGHT_COLORS[colorIndex]}33 100%)`,
+                boxShadow: isActive 
+                  ? `0 0 15px 5px ${LIGHT_COLORS[colorIndex]}aa, 0 0 30px 10px ${LIGHT_COLORS[colorIndex]}55`
+                  : 'none',
               }}
             />
-          ))}
-        </div>
-        {/* String wire */}
-        <div className="absolute top-5 left-0 right-0 h-px bg-gray-600/50" style={{ 
-          backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(100,100,100,0.3) 20px, rgba(100,100,100,0.3) 40px)' 
-        }} />
-      </div>
-      
-      {/* Fireplace glow at bottom center */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-48">
-        <div 
-          className="absolute inset-0 animate-fire-glow"
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Falling Snow Component
+function FallingSnow({ count = 30, speed = 'normal' }: { count?: number; speed?: 'slow' | 'normal' | 'fast' }) {
+  const duration = speed === 'slow' ? 15 : speed === 'fast' ? 6 : 10;
+  
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(count)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full bg-white animate-snowfall"
           style={{
-            background: 'radial-gradient(ellipse at 50% 100%, rgba(255,100,50,0.35) 0%, rgba(255,50,20,0.15) 40%, transparent 70%)',
+            width: `${2 + (i % 4) * 2}px`,
+            height: `${2 + (i % 4) * 2}px`,
+            left: `${(i * 3.3) % 100}%`,
+            animationDelay: `${(i * 0.5) % duration}s`,
+            animationDuration: `${duration + (i % 5)}s`,
+            opacity: 0.4 + (i % 4) * 0.15,
           }}
         />
-        <div 
-          className="absolute inset-0 animate-fire-glow-alt"
-          style={{
-            background: 'radial-gradient(ellipse at 50% 100%, rgba(255,150,50,0.25) 0%, transparent 50%)',
-          }}
-        />
-      </div>
-      
-      {/* Red and green corner glows */}
-      <div 
-        className="absolute bottom-0 left-0 w-64 h-64"
-        style={{
-          background: 'radial-gradient(circle at 0% 100%, rgba(200,50,50,0.15) 0%, transparent 50%)',
-        }}
-      />
-      <div 
-        className="absolute bottom-0 right-0 w-64 h-64"
-        style={{
-          background: 'radial-gradient(circle at 100% 100%, rgba(50,150,50,0.15) 0%, transparent 50%)',
-        }}
-      />
-      
-      {/* Warm Christmas vignette */}
+      ))}
+      <style jsx>{`
+        @keyframes snowfall { 
+          0% { transform: translateY(-20px) translateX(0) rotate(0deg); } 
+          100% { transform: translateY(100vh) translateX(${speed === 'fast' ? '50' : '30'}px) rotate(360deg); } 
+        }
+        .animate-snowfall { animation: snowfall linear infinite; }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================
+// FIREPLACE THEME - For Hot Sell Page
+// Cozy cabin, crackling fire, Christmas magic
+// ============================================
+export function FireplaceOverlay() {
+  const [fireFlicker, setFireFlicker] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFireFlicker(prev => (prev + 1) % 100);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      {/* DEEP RED/GREEN CHRISTMAS PAGE COLOR */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at 50% 100%, transparent 30%, rgba(60,20,20,0.3) 100%)',
+          background: 'linear-gradient(180deg, #1a0a0a 0%, #0d1a0d 30%, #1a0f0a 60%, #0a0d0a 100%)',
         }}
       />
       
+      {/* Christmas lights on ALL sides */}
+      <ChristmasLights position="top" count={25} offset={0} />
+      <ChristmasLights position="bottom" count={25} offset={3} />
+      <ChristmasLights position="left" count={15} offset={1} />
+      <ChristmasLights position="right" count={15} offset={2} />
+      
+      {/* Gentle snowfall */}
+      <FallingSnow count={20} speed="slow" />
+      
+      {/* Fireplace at bottom center */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-80 h-48">
+        {/* Fireplace frame */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-40 bg-gradient-to-t from-stone-800 to-stone-700 rounded-t-lg border-4 border-stone-600" />
+        
+        {/* Fire glow */}
+        <div 
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 w-48 h-28"
+          style={{
+            background: `radial-gradient(ellipse at 50% 100%, 
+              rgba(255,${150 + Math.sin(fireFlicker * 0.2) * 50},0,0.9) 0%, 
+              rgba(255,100,0,0.6) 30%, 
+              rgba(255,50,0,0.3) 60%, 
+              transparent 100%)`,
+          }}
+        />
+        
+        {/* Flames */}
+        {[...Array(5)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute bottom-8 animate-flame"
+            style={{
+              left: `${30 + i * 10}%`,
+              width: '20px',
+              height: `${40 + Math.sin((fireFlicker + i * 20) * 0.15) * 15}px`,
+              background: `linear-gradient(0deg, #ff4500 0%, #ff8c00 40%, #ffd700 70%, transparent 100%)`,
+              borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
+              animationDelay: `${i * 0.2}s`,
+              filter: 'blur(2px)',
+            }}
+          />
+        ))}
+        
+        {/* Stockings */}
+        <div className="absolute -top-12 left-4 w-8 h-16 bg-red-700 rounded-b-lg" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 70%, 60% 100%, 0 70%)' }}>
+          <div className="absolute top-0 left-0 right-0 h-3 bg-white" />
+        </div>
+        <div className="absolute -top-12 right-4 w-8 h-16 bg-green-700 rounded-b-lg" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 70%, 60% 100%, 0 70%)' }}>
+          <div className="absolute top-0 left-0 right-0 h-3 bg-white" />
+        </div>
+      </div>
+      
+      {/* Warm corner glows */}
+      <div className="absolute bottom-0 left-0 w-96 h-96" style={{ background: 'radial-gradient(circle at 0% 100%, rgba(255,100,50,0.2) 0%, transparent 50%)' }} />
+      <div className="absolute bottom-0 right-0 w-96 h-96" style={{ background: 'radial-gradient(circle at 100% 100%, rgba(255,100,50,0.2) 0%, transparent 50%)' }} />
+      
+      {/* Cozy vignette */}
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 100%, transparent 30%, rgba(10,5,0,0.5) 100%)' }} />
+      
       <style jsx>{`
-        @keyframes fire-glow { 0%, 100% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
-        @keyframes fire-glow-alt { 0%, 100% { opacity: 0.6; } 33% { opacity: 0.9; } 66% { opacity: 0.7; } }
-        @keyframes light-twinkle { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
-        .animate-fire-glow { animation: fire-glow 2s ease-in-out infinite; }
-        .animate-fire-glow-alt { animation: fire-glow-alt 1.5s ease-in-out infinite; }
-        .animate-light-twinkle { animation: light-twinkle 1.5s ease-in-out infinite; }
+        @keyframes flame { 0%, 100% { transform: scaleY(1) translateX(0); } 50% { transform: scaleY(1.1) translateX(2px); } }
+        .animate-flame { animation: flame 0.5s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -97,92 +181,68 @@ export function FireplaceOverlay() {
 
 // ============================================
 // SNOWBALL THEME - For 1v1 Page
-// Christmas battle, icicles, snow
+// Epic winter battle arena
 // ============================================
 export function SnowballOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Red and green battle gradient */}
+      {/* ICY BLUE/GREEN BATTLE PAGE COLOR */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(135deg, rgba(150,30,30,0.25) 0%, rgba(20,20,50,0.3) 50%, rgba(30,100,50,0.25) 100%)',
+          background: 'linear-gradient(135deg, #0a1a2a 0%, #0d2010 30%, #1a0a0a 70%, #0a1520 100%)',
         }}
       />
       
-      {/* Icicles hanging from top */}
-      <div className="absolute top-0 left-0 right-0 flex justify-around">
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={i}
-            className="relative"
-            style={{ marginTop: `${(i % 3) * 5}px` }}
-          >
-            {/* Icicle shape */}
+      {/* Christmas lights border */}
+      <ChristmasLights position="top" count={30} offset={0} />
+      <ChristmasLights position="left" count={20} offset={2} />
+      <ChristmasLights position="right" count={20} offset={4} />
+      
+      {/* Heavy snowfall for battle atmosphere */}
+      <FallingSnow count={40} speed="fast" />
+      
+      {/* Icicles at top - larger and more detailed */}
+      <div className="absolute top-8 left-0 right-0 flex justify-around">
+        {[...Array(25)].map((_, i) => (
+          <div key={i} className="relative" style={{ marginTop: `${(i % 4) * 5}px` }}>
             <div 
-              className="w-2 bg-gradient-to-b from-cyan-200/80 via-cyan-300/60 to-transparent animate-icicle-glow"
+              className="bg-gradient-to-b from-cyan-100/90 via-cyan-200/70 to-cyan-300/30 animate-icicle"
               style={{
-                height: `${30 + (i % 4) * 15}px`,
+                width: `${4 + (i % 3) * 2}px`,
+                height: `${30 + (i % 5) * 15}px`,
                 clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
-                animationDelay: `${i * 0.3}s`,
+                animationDelay: `${i * 0.15}s`,
               }}
             />
             {/* Drip */}
             <div 
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-cyan-300/60 rounded-full animate-drip"
-              style={{ animationDelay: `${i * 0.5}s` }}
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-cyan-300/70 rounded-full animate-drip"
+              style={{ animationDelay: `${i * 0.3}s` }}
             />
           </div>
         ))}
       </div>
       
-      {/* Falling snow */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute bg-white rounded-full animate-snowfall"
-            style={{
-              width: `${3 + (i % 3) * 2}px`,
-              height: `${3 + (i % 3) * 2}px`,
-              left: `${(i * 7) + 2}%`,
-              animationDelay: `${i * 0.6}s`,
-              animationDuration: `${8 + (i % 4) * 2}s`,
-              opacity: 0.5 + (i % 3) * 0.15,
-            }}
-          />
-        ))}
-      </div>
+      {/* Red vs Green battle sides */}
+      <div className="absolute top-0 bottom-0 left-0 w-32" style={{ background: 'linear-gradient(90deg, rgba(200,0,0,0.15) 0%, transparent 100%)' }} />
+      <div className="absolute top-0 bottom-0 right-0 w-32" style={{ background: 'linear-gradient(-90deg, rgba(0,150,0,0.15) 0%, transparent 100%)' }} />
       
-      {/* Red vs Green sides */}
-      <div 
-        className="absolute top-0 bottom-0 left-0 w-24"
-        style={{
-          background: 'linear-gradient(90deg, rgba(200,50,50,0.2) 0%, transparent 100%)',
-        }}
-      />
-      <div 
-        className="absolute top-0 bottom-0 right-0 w-24"
-        style={{
-          background: 'linear-gradient(-90deg, rgba(50,150,50,0.2) 0%, transparent 100%)',
-        }}
-      />
+      {/* Snow forts */}
+      <div className="absolute bottom-0 left-8 w-24 h-20 bg-gradient-to-t from-gray-100 to-white rounded-t-lg opacity-40" />
+      <div className="absolute bottom-0 right-8 w-24 h-20 bg-gradient-to-t from-gray-100 to-white rounded-t-lg opacity-40" />
       
       {/* Snow ground */}
-      <div 
-        className="absolute bottom-0 left-0 right-0 h-24"
-        style={{
-          background: 'linear-gradient(0deg, rgba(255,255,255,0.25) 0%, rgba(200,220,255,0.1) 50%, transparent 100%)',
-        }}
-      />
+      <div className="absolute bottom-0 left-0 right-0 h-16" style={{ background: 'linear-gradient(0deg, rgba(255,255,255,0.4) 0%, rgba(200,220,255,0.2) 60%, transparent 100%)' }} />
+      
+      {/* Frost border effect */}
+      <div className="absolute inset-0 border-8 border-cyan-200/10 rounded-lg" style={{ boxShadow: 'inset 0 0 50px rgba(200,230,255,0.1)' }} />
       
       <style jsx>{`
-        @keyframes icicle-glow { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
-        @keyframes drip { 0%, 90% { transform: translateX(-50%) translateY(0); opacity: 0; } 95% { opacity: 0.6; } 100% { transform: translateX(-50%) translateY(30px); opacity: 0; } }
-        @keyframes snowfall { 0% { transform: translateY(-20px) translateX(0); } 100% { transform: translateY(100vh) translateX(30px); } }
-        .animate-icicle-glow { animation: icicle-glow 3s ease-in-out infinite; }
-        .animate-drip { animation: drip 4s ease-in-out infinite; }
-        .animate-snowfall { animation: snowfall 10s linear infinite; }
+        @keyframes icicle { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+        @keyframes drip { 0%, 80% { opacity: 0; transform: translateX(-50%) translateY(0); } 90% { opacity: 0.7; } 100% { opacity: 0; transform: translateX(-50%) translateY(25px); } }
+        .animate-icicle { animation: icicle 3s ease-in-out infinite; }
+        .animate-drip { animation: drip 3s ease-out infinite; }
       `}</style>
     </div>
   );
@@ -190,111 +250,105 @@ export function SnowballOverlay() {
 
 // ============================================
 // NORTH POLE THEME - For Winner Takes All Page
-// Santa's workshop, magical Christmas lights
+// Santa's magical workshop
 // ============================================
 export function NorthPoleOverlay() {
-  const [activeLights, setActiveLights] = useState<number[]>([]);
+  const [starTwinkle, setStarTwinkle] = useState<number[]>([]);
   
   useEffect(() => {
-    // Random light chase effect
     const interval = setInterval(() => {
-      const newActive = Array.from({ length: 5 }, () => Math.floor(Math.random() * 20));
-      setActiveLights(newActive);
+      const newTwinkles = Array.from({ length: 15 }, () => Math.random());
+      setStarTwinkle(newTwinkles);
     }, 500);
     return () => clearInterval(interval);
   }, []);
   
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Magical red/green night sky */}
+      {/* MAGICAL NIGHT SKY - DEEP GREEN/RED */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(20,40,30,0.5) 0%, rgba(60,20,30,0.35) 50%, rgba(30,60,40,0.4) 100%)',
+          background: 'linear-gradient(180deg, #050a15 0%, #0a1a0f 20%, #150a0a 50%, #0a150a 80%, #0f0a0a 100%)',
         }}
       />
       
-      {/* Christmas light border all around */}
+      {/* Aurora Borealis effect */}
+      <div className="absolute top-0 left-0 right-0 h-64 overflow-hidden opacity-40">
+        <div 
+          className="absolute inset-0 animate-aurora"
+          style={{
+            background: 'linear-gradient(180deg, transparent 0%, rgba(0,255,100,0.2) 20%, rgba(0,200,255,0.15) 40%, rgba(100,0,200,0.1) 60%, transparent 100%)',
+          }}
+        />
+        <div 
+          className="absolute inset-0 animate-aurora-2"
+          style={{
+            background: 'linear-gradient(180deg, transparent 0%, rgba(0,255,150,0.15) 30%, rgba(255,100,200,0.1) 50%, transparent 100%)',
+          }}
+        />
+      </div>
+      
+      {/* Stars */}
       <div className="absolute inset-0">
-        {/* Top lights */}
-        <div className="absolute top-2 left-0 right-0 flex justify-around">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={`top-${i}`}
-              className={`w-2 h-3 rounded-full transition-all duration-300 ${
-                i % 2 === 0 ? 'bg-red-500' : 'bg-green-500'
-              } ${activeLights.includes(i) ? 'scale-125' : 'scale-100'}`}
-              style={{
-                boxShadow: activeLights.includes(i) 
-                  ? `0 0 15px 5px ${i % 2 === 0 ? 'rgba(239,68,68,0.8)' : 'rgba(34,197,94,0.8)'}` 
-                  : `0 0 8px 2px ${i % 2 === 0 ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.4)'}`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      
-      {/* Candy cane poles on sides */}
-      <div className="absolute left-4 top-1/4 bottom-1/4 w-4 overflow-hidden opacity-40">
-        <div 
-          className="w-full h-full animate-candy-stripe"
-          style={{
-            background: 'repeating-linear-gradient(45deg, #dc2626, #dc2626 10px, white 10px, white 20px)',
-          }}
-        />
-      </div>
-      <div className="absolute right-4 top-1/4 bottom-1/4 w-4 overflow-hidden opacity-40">
-        <div 
-          className="w-full h-full animate-candy-stripe"
-          style={{
-            background: 'repeating-linear-gradient(-45deg, #16a34a, #16a34a 10px, white 10px, white 20px)',
-          }}
-        />
-      </div>
-      
-      {/* Falling snow */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(12)].map((_, i) => (
+        {[...Array(30)].map((_, i) => (
           <div
             key={i}
-            className="absolute bg-white rounded-full animate-snowfall"
+            className="absolute bg-white rounded-full"
             style={{
-              width: `${2 + (i % 3) * 2}px`,
-              height: `${2 + (i % 3) * 2}px`,
-              left: `${(i * 8) + 4}%`,
-              animationDelay: `${i * 0.7}s`,
-              animationDuration: `${10 + (i % 3) * 3}s`,
-              opacity: 0.4 + (i % 3) * 0.1,
+              width: `${1 + (i % 3)}px`,
+              height: `${1 + (i % 3)}px`,
+              left: `${(i * 3.3) % 100}%`,
+              top: `${(i * 2.7) % 40}%`,
+              opacity: starTwinkle[i % 15] > 0.5 ? 1 : 0.3,
+              boxShadow: starTwinkle[i % 15] > 0.7 ? '0 0 5px 2px white' : 'none',
+              transition: 'all 0.3s',
             }}
           />
         ))}
       </div>
       
-      {/* Star on top center */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2">
+      {/* Christmas lights ALL around */}
+      <ChristmasLights position="top" count={35} offset={0} />
+      <ChristmasLights position="bottom" count={35} offset={2} />
+      <ChristmasLights position="left" count={25} offset={1} />
+      <ChristmasLights position="right" count={25} offset={3} />
+      
+      {/* Gentle snow */}
+      <FallingSnow count={25} speed="slow" />
+      
+      {/* Giant Christmas star */}
+      <div className="absolute top-12 left-1/2 -translate-x-1/2">
         <div 
-          className="text-4xl animate-star-glow"
-          style={{ textShadow: '0 0 20px rgba(255,215,0,0.8), 0 0 40px rgba(255,215,0,0.4)' }}
+          className="text-6xl animate-star-glow"
+          style={{ 
+            filter: 'drop-shadow(0 0 20px gold) drop-shadow(0 0 40px gold)',
+          }}
         >
           ⭐
         </div>
       </div>
       
+      {/* Candy cane poles */}
+      <div className="absolute bottom-0 left-8 w-6 h-48 overflow-hidden opacity-60">
+        <div className="w-full h-full animate-candy-stripe" style={{ background: 'repeating-linear-gradient(45deg, #dc2626, #dc2626 10px, white 10px, white 20px)' }} />
+      </div>
+      <div className="absolute bottom-0 right-8 w-6 h-48 overflow-hidden opacity-60">
+        <div className="w-full h-full animate-candy-stripe" style={{ background: 'repeating-linear-gradient(-45deg, #16a34a, #16a34a 10px, white 10px, white 20px)' }} />
+      </div>
+      
       {/* Snow ground with sparkle */}
-      <div 
-        className="absolute bottom-0 left-0 right-0 h-20"
-        style={{
-          background: 'linear-gradient(0deg, rgba(255,255,255,0.3) 0%, rgba(200,230,255,0.15) 60%, transparent 100%)',
-        }}
-      />
+      <div className="absolute bottom-0 left-0 right-0 h-20" style={{ background: 'linear-gradient(0deg, rgba(255,255,255,0.35) 0%, rgba(200,230,255,0.15) 60%, transparent 100%)' }} />
       
       <style jsx>{`
+        @keyframes aurora { 0%, 100% { transform: translateX(-20%) scaleY(1); } 50% { transform: translateX(20%) scaleY(1.2); } }
+        @keyframes aurora-2 { 0%, 100% { transform: translateX(10%) scaleY(1); } 50% { transform: translateX(-10%) scaleY(0.8); } }
+        @keyframes star-glow { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.15); opacity: 1; } }
         @keyframes candy-stripe { 0% { transform: translateY(0); } 100% { transform: translateY(40px); } }
-        @keyframes snowfall { 0% { transform: translateY(-20px); } 100% { transform: translateY(100vh); } }
-        @keyframes star-glow { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; } }
-        .animate-candy-stripe { animation: candy-stripe 1s linear infinite; }
-        .animate-snowfall { animation: snowfall 12s linear infinite; }
+        .animate-aurora { animation: aurora 8s ease-in-out infinite; }
+        .animate-aurora-2 { animation: aurora-2 6s ease-in-out infinite; }
         .animate-star-glow { animation: star-glow 2s ease-in-out infinite; }
+        .animate-candy-stripe { animation: candy-stripe 1s linear infinite; }
       `}</style>
     </div>
   );
@@ -302,98 +356,101 @@ export function NorthPoleOverlay() {
 
 // ============================================
 // TREASURE THEME - For Coin Play Page
-// Golden presents, Christmas riches
+// Golden Christmas riches
 // ============================================
 export function TreasureOverlay() {
+  const [shimmer, setShimmer] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShimmer(prev => (prev + 1) % 100);
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
+  
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Rich red/gold/green gradient */}
+      {/* RICH RED/GOLD PAGE COLOR */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(100,30,30,0.3) 0%, rgba(80,60,20,0.25) 50%, rgba(30,80,40,0.3) 100%)',
+          background: 'linear-gradient(180deg, #1a0a05 0%, #2a1508 30%, #1a100a 60%, #150a0a 100%)',
         }}
       />
       
+      {/* Golden shimmer overlay */}
+      <div 
+        className="absolute inset-0 opacity-20"
+        style={{
+          background: `linear-gradient(${shimmer * 3.6}deg, transparent 40%, rgba(255,215,0,0.3) 50%, transparent 60%)`,
+        }}
+      />
+      
+      {/* Christmas lights */}
+      <ChristmasLights position="top" count={25} offset={0} />
+      <ChristmasLights position="left" count={18} offset={1} />
+      <ChristmasLights position="right" count={18} offset={2} />
+      
+      {/* Gentle snow */}
+      <FallingSnow count={15} speed="slow" />
+      
       {/* Hanging ornaments */}
-      <div className="absolute top-0 left-0 right-0 h-32">
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute animate-ornament-swing"
-            style={{
-              left: `${(i * 12) + 6}%`,
-              animationDelay: `${i * 0.3}s`,
-            }}
-          >
-            {/* String */}
-            <div className="w-px h-8 bg-gray-400/50 mx-auto" />
-            {/* Ornament */}
+      <div className="absolute top-8 left-0 right-0 flex justify-around">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} className="relative animate-ornament" style={{ animationDelay: `${i * 0.3}s` }}>
+            <div className="w-px h-10 bg-gray-400/50 mx-auto" />
             <div 
-              className={`w-6 h-6 rounded-full ${
-                i % 3 === 0 ? 'bg-gradient-to-br from-red-400 to-red-600' :
-                i % 3 === 1 ? 'bg-gradient-to-br from-green-400 to-green-600' :
-                'bg-gradient-to-br from-yellow-400 to-yellow-600'
+              className={`w-8 h-8 rounded-full ${
+                i % 3 === 0 ? 'bg-gradient-to-br from-red-400 to-red-700' :
+                i % 3 === 1 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
+                'bg-gradient-to-br from-green-400 to-green-700'
               }`}
               style={{
-                boxShadow: `0 0 15px 3px ${
-                  i % 3 === 0 ? 'rgba(239,68,68,0.5)' :
-                  i % 3 === 1 ? 'rgba(34,197,94,0.5)' :
-                  'rgba(234,179,8,0.5)'
+                boxShadow: `0 0 20px 5px ${
+                  i % 3 === 0 ? 'rgba(239,68,68,0.4)' :
+                  i % 3 === 1 ? 'rgba(234,179,8,0.5)' :
+                  'rgba(34,197,94,0.4)'
                 }`,
               }}
             >
-              {/* Shine */}
-              <div className="absolute top-1 left-1 w-2 h-2 bg-white/40 rounded-full" />
+              <div className="absolute top-1 left-1.5 w-2 h-2 bg-white/50 rounded-full" />
             </div>
           </div>
         ))}
       </div>
       
+      {/* Gift boxes */}
+      <div className="absolute bottom-4 left-8 w-16 h-14 bg-gradient-to-b from-red-600 to-red-800 rounded opacity-50">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-full bg-yellow-500" />
+        <div className="absolute top-1/2 -translate-y-1/2 w-full h-3 bg-yellow-500" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-4 bg-yellow-500 rounded-full" />
+      </div>
+      <div className="absolute bottom-4 right-8 w-12 h-10 bg-gradient-to-b from-green-600 to-green-800 rounded opacity-50">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-full bg-red-500" />
+        <div className="absolute top-1/2 -translate-y-1/2 w-full h-2 bg-red-500" />
+      </div>
+      
       {/* Golden sparkles */}
-      <div className="absolute inset-0">
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-yellow-400 rounded-full animate-sparkle"
-            style={{
-              left: `${(i * 12) + 5}%`,
-              top: `${20 + (i % 4) * 15}%`,
-              animationDelay: `${i * 0.4}s`,
-              boxShadow: '0 0 6px 2px rgba(234,179,8,0.6)',
-            }}
-          />
-        ))}
-      </div>
+      {[...Array(12)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute w-1 h-1 bg-yellow-400 rounded-full animate-sparkle"
+          style={{
+            left: `${(i * 8) + 5}%`,
+            top: `${15 + (i % 5) * 12}%`,
+            animationDelay: `${i * 0.3}s`,
+            boxShadow: '0 0 8px 3px rgba(255,215,0,0.6)',
+          }}
+        />
+      ))}
       
-      {/* Gift box silhouettes at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 flex justify-around items-end opacity-30">
-        <div className="w-12 h-10 bg-red-700 rounded-sm relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-full bg-yellow-500" />
-          <div className="absolute top-0 left-0 right-0 h-2 bg-yellow-500" />
-        </div>
-        <div className="w-16 h-14 bg-green-700 rounded-sm relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-full bg-red-500" />
-          <div className="absolute top-0 left-0 right-0 h-2 bg-red-500" />
-        </div>
-        <div className="w-10 h-8 bg-red-700 rounded-sm relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-full bg-green-500" />
-          <div className="absolute top-0 left-0 right-0 h-2 bg-green-500" />
-        </div>
-      </div>
-      
-      {/* Warm Christmas vignette */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(60,30,20,0.35) 100%)',
-        }}
-      />
+      {/* Warm golden vignette */}
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(40,20,0,0.5) 100%)' }} />
       
       <style jsx>{`
-        @keyframes ornament-swing { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-        @keyframes sparkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-        .animate-ornament-swing { animation: ornament-swing 4s ease-in-out infinite; }
+        @keyframes ornament { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+        @keyframes sparkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.3); } }
+        .animate-ornament { animation: ornament 4s ease-in-out infinite; }
         .animate-sparkle { animation: sparkle 2s ease-in-out infinite; }
       `}</style>
     </div>
@@ -402,99 +459,71 @@ export function TreasureOverlay() {
 
 // ============================================
 // WINTER THEME - For Dashboard
-// Cozy winter home, Christmas lights, icicles
+// Beautiful winter wonderland with lights everywhere
 // ============================================
 export function WinterOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Cool red/green winter gradient */}
+      {/* WINTER GREEN/RED PAGE COLOR - Dramatic change */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(30,50,40,0.35) 0%, rgba(50,30,40,0.25) 50%, rgba(40,50,60,0.3) 100%)',
+          background: 'linear-gradient(180deg, #0a1510 0%, #150a0f 25%, #0a1008 50%, #100a0f 75%, #080a08 100%)',
         }}
       />
       
-      {/* Icicles at top */}
-      <div className="absolute top-0 left-0 right-0 flex justify-around">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="w-1.5 bg-gradient-to-b from-cyan-200/70 via-cyan-300/50 to-transparent animate-icicle-shimmer"
-            style={{
-              height: `${20 + (i % 5) * 8}px`,
-              clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
-              animationDelay: `${i * 0.15}s`,
-            }}
-          />
+      {/* Christmas lights ALL around - more prominent */}
+      <ChristmasLights position="top" count={30} offset={0} />
+      <ChristmasLights position="bottom" count={30} offset={2} />
+      <ChristmasLights position="left" count={22} offset={1} />
+      <ChristmasLights position="right" count={22} offset={3} />
+      
+      {/* Icicles */}
+      <div className="absolute top-8 left-0 right-0 flex justify-around">
+        {[...Array(30)].map((_, i) => (
+          <div key={i} style={{ marginTop: `${(i % 3) * 4}px` }}>
+            <div 
+              className="bg-gradient-to-b from-cyan-100/80 via-cyan-200/60 to-transparent animate-icicle-shimmer"
+              style={{
+                width: `${3 + (i % 2) * 2}px`,
+                height: `${20 + (i % 6) * 10}px`,
+                clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
+                animationDelay: `${i * 0.1}s`,
+              }}
+            />
+          </div>
         ))}
       </div>
       
-      {/* Christmas string lights */}
-      <div className="absolute top-8 left-0 right-0 flex justify-center">
-        <div className="flex gap-8">
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 h-3 rounded-full animate-light-pulse ${
-                i % 2 === 0 ? 'bg-red-500' : 'bg-green-500'
-              }`}
-              style={{
-                animationDelay: `${i * 0.2}s`,
-                boxShadow: `0 0 8px 2px ${i % 2 === 0 ? 'rgba(239,68,68,0.5)' : 'rgba(34,197,94,0.5)'}`,
-              }}
-            />
-          ))}
+      {/* Snow */}
+      <FallingSnow count={25} speed="normal" />
+      
+      {/* Christmas tree silhouette center */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 opacity-20">
+        <div className="relative">
+          {/* Tree layers */}
+          <div className="w-0 h-0 border-l-[60px] border-r-[60px] border-b-[80px] border-transparent border-b-green-800 mx-auto" />
+          <div className="w-0 h-0 border-l-[50px] border-r-[50px] border-b-[70px] border-transparent border-b-green-700 mx-auto -mt-10" />
+          <div className="w-0 h-0 border-l-[40px] border-r-[40px] border-b-[60px] border-transparent border-b-green-600 mx-auto -mt-10" />
+          {/* Trunk */}
+          <div className="w-8 h-12 bg-amber-900 mx-auto" />
+          {/* Star */}
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-2xl">⭐</div>
         </div>
       </div>
       
-      {/* Gentle snowfall */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(10)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute bg-white rounded-full animate-gentle-snow"
-            style={{
-              width: `${2 + (i % 2) * 2}px`,
-              height: `${2 + (i % 2) * 2}px`,
-              left: `${(i * 10) + 5}%`,
-              animationDelay: `${i * 1}s`,
-              animationDuration: `${12 + (i % 3) * 3}s`,
-              opacity: 0.35 + (i % 2) * 0.1,
-            }}
-          />
-        ))}
-      </div>
+      {/* Warm red/green corner glows */}
+      <div className="absolute bottom-0 left-0 w-64 h-64" style={{ background: 'radial-gradient(circle at 0% 100%, rgba(200,50,50,0.15) 0%, transparent 50%)' }} />
+      <div className="absolute bottom-0 right-0 w-64 h-64" style={{ background: 'radial-gradient(circle at 100% 100%, rgba(50,150,50,0.15) 0%, transparent 50%)' }} />
+      <div className="absolute top-0 left-0 w-48 h-48" style={{ background: 'radial-gradient(circle at 0% 0%, rgba(50,150,50,0.1) 0%, transparent 50%)' }} />
+      <div className="absolute top-0 right-0 w-48 h-48" style={{ background: 'radial-gradient(circle at 100% 0%, rgba(200,50,50,0.1) 0%, transparent 50%)' }} />
       
-      {/* Warm corner glows */}
-      <div 
-        className="absolute bottom-0 left-0 w-48 h-48"
-        style={{
-          background: 'radial-gradient(circle at 0% 100%, rgba(200,100,100,0.12) 0%, transparent 50%)',
-        }}
-      />
-      <div 
-        className="absolute bottom-0 right-0 w-48 h-48"
-        style={{
-          background: 'radial-gradient(circle at 100% 100%, rgba(100,180,100,0.12) 0%, transparent 50%)',
-        }}
-      />
-      
-      {/* Subtle blue winter tint */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(30,50,70,0.25) 100%)',
-        }}
-      />
+      {/* Frost on edges */}
+      <div className="absolute inset-0 border-[12px] border-white/5 rounded-lg" style={{ boxShadow: 'inset 0 0 60px rgba(200,230,255,0.1)' }} />
       
       <style jsx>{`
-        @keyframes icicle-shimmer { 0%, 100% { opacity: 0.6; } 50% { opacity: 0.9; } }
-        @keyframes light-pulse { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
-        @keyframes gentle-snow { 0% { transform: translateY(-10px) translateX(0); } 100% { transform: translateY(100vh) translateX(20px); } }
-        .animate-icicle-shimmer { animation: icicle-shimmer 3s ease-in-out infinite; }
-        .animate-light-pulse { animation: light-pulse 1.5s ease-in-out infinite; }
-        .animate-gentle-snow { animation: gentle-snow 14s linear infinite; }
+        @keyframes icicle-shimmer { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+        .animate-icicle-shimmer { animation: icicle-shimmer 2.5s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -502,122 +531,94 @@ export function WinterOverlay() {
 
 // ============================================
 // TOYSHOP THEME - For Games Page
-// Magical toy shop, Christmas decorations
+// Magical toy store atmosphere
 // ============================================
 export function ToyshopOverlay() {
+  const [toyBounce, setToyBounce] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setToyBounce(prev => (prev + 1) % 100);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+  
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Magical red/green gradient */}
+      {/* MAGICAL TOY STORE PAGE COLOR */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(80,30,40,0.35) 0%, rgba(40,60,40,0.3) 50%, rgba(60,40,50,0.35) 100%)',
+          background: 'linear-gradient(180deg, #120a15 0%, #0a1510 30%, #150a0a 60%, #0a0f15 100%)',
         }}
       />
       
-      {/* Garland with lights at top */}
-      <div className="absolute top-0 left-0 right-0 h-16">
-        {/* Garland base */}
+      {/* Christmas lights border - extra festive */}
+      <ChristmasLights position="top" count={35} offset={0} />
+      <ChristmasLights position="bottom" count={35} offset={2} />
+      <ChristmasLights position="left" count={25} offset={1} />
+      <ChristmasLights position="right" count={25} offset={3} />
+      
+      {/* Garland with holly */}
+      <div className="absolute top-8 left-0 right-0 h-10">
         <div 
-          className="absolute top-4 left-0 right-0 h-6"
-          style={{
-            background: 'linear-gradient(180deg, rgba(20,80,30,0.4) 0%, rgba(30,100,40,0.3) 50%, rgba(20,80,30,0.4) 100%)',
-          }}
+          className="absolute inset-x-4 h-6 rounded-full opacity-40"
+          style={{ background: 'linear-gradient(90deg, #166534, #15803d, #166534, #15803d, #166534)' }}
         />
-        {/* Lights on garland */}
-        <div className="absolute top-5 left-0 right-0 flex justify-around">
-          {[...Array(15)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 h-3 rounded-full animate-garland-light ${
-                i % 4 === 0 ? 'bg-red-500' :
-                i % 4 === 1 ? 'bg-yellow-400' :
-                i % 4 === 2 ? 'bg-green-500' :
-                'bg-blue-400'
-              }`}
-              style={{
-                animationDelay: `${i * 0.15}s`,
-                boxShadow: `0 0 8px 2px ${
-                  i % 4 === 0 ? 'rgba(239,68,68,0.6)' :
-                  i % 4 === 1 ? 'rgba(250,204,21,0.6)' :
-                  i % 4 === 2 ? 'rgba(34,197,94,0.6)' :
-                  'rgba(96,165,250,0.6)'
-                }`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      
-      {/* Holly decorations in corners */}
-      <div className="absolute top-20 left-4 opacity-50">
-        <div className="flex gap-1">
-          <div className="w-3 h-4 bg-green-700 rounded-full rotate-45" />
-          <div className="w-3 h-4 bg-green-700 rounded-full -rotate-45" />
-        </div>
-        <div className="flex justify-center gap-0.5 -mt-2">
-          <div className="w-2 h-2 bg-red-600 rounded-full" />
-          <div className="w-2 h-2 bg-red-600 rounded-full" />
-          <div className="w-2 h-2 bg-red-600 rounded-full" />
-        </div>
-      </div>
-      <div className="absolute top-20 right-4 opacity-50 scale-x-[-1]">
-        <div className="flex gap-1">
-          <div className="w-3 h-4 bg-green-700 rounded-full rotate-45" />
-          <div className="w-3 h-4 bg-green-700 rounded-full -rotate-45" />
-        </div>
-        <div className="flex justify-center gap-0.5 -mt-2">
-          <div className="w-2 h-2 bg-red-600 rounded-full" />
-          <div className="w-2 h-2 bg-red-600 rounded-full" />
-          <div className="w-2 h-2 bg-red-600 rounded-full" />
-        </div>
-      </div>
-      
-      {/* Falling snowflakes */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute text-white/40 animate-snowflake-fall"
-            style={{
-              left: `${(i * 8) + 4}%`,
-              fontSize: `${10 + (i % 3) * 4}px`,
-              animationDelay: `${i * 0.8}s`,
-              animationDuration: `${10 + (i % 4) * 2}s`,
-            }}
-          >
-            ❄
+        {/* Holly berries */}
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="absolute top-1" style={{ left: `${10 + i * 12}%` }}>
+            <div className="flex gap-0.5">
+              <div className="w-2 h-2 bg-red-600 rounded-full" style={{ boxShadow: '0 0 5px rgba(255,0,0,0.5)' }} />
+              <div className="w-2 h-2 bg-red-600 rounded-full" style={{ boxShadow: '0 0 5px rgba(255,0,0,0.5)' }} />
+            </div>
           </div>
         ))}
       </div>
       
+      {/* Snow */}
+      <FallingSnow count={20} speed="slow" />
+      
+      {/* Floating presents */}
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute animate-float-present"
+          style={{
+            left: `${15 + i * 25}%`,
+            top: `${25 + (i % 2) * 15}%`,
+            animationDelay: `${i * 1}s`,
+          }}
+        >
+          <div 
+            className={`w-10 h-8 rounded-sm opacity-50 ${
+              i % 2 === 0 ? 'bg-red-600' : 'bg-green-600'
+            }`}
+          >
+            <div className={`absolute top-1/2 -translate-y-1/2 w-full h-2 ${i % 2 === 0 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-2 h-full ${i % 2 === 0 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+          </div>
+        </div>
+      ))}
+      
       {/* Toy shelf glow on sides */}
+      <div className="absolute top-0 bottom-0 left-0 w-20 opacity-25" style={{ background: 'linear-gradient(90deg, rgba(139,69,19,0.4) 0%, transparent 100%)' }} />
+      <div className="absolute top-0 bottom-0 right-0 w-20 opacity-25" style={{ background: 'linear-gradient(-90deg, rgba(139,69,19,0.4) 0%, transparent 100%)' }} />
+      
+      {/* Magical sparkle effect */}
       <div 
-        className="absolute top-0 bottom-0 left-0 w-20 opacity-30"
+        className="absolute inset-0 opacity-30"
         style={{
-          background: 'linear-gradient(90deg, rgba(180,100,50,0.25) 0%, transparent 100%)',
-        }}
-      />
-      <div 
-        className="absolute top-0 bottom-0 right-0 w-20 opacity-30"
-        style={{
-          background: 'linear-gradient(-90deg, rgba(180,100,50,0.25) 0%, transparent 100%)',
+          background: `radial-gradient(circle at ${50 + Math.sin(toyBounce * 0.1) * 20}% ${30 + Math.cos(toyBounce * 0.08) * 15}%, rgba(255,255,200,0.3) 0%, transparent 30%)`,
         }}
       />
       
       {/* Cozy vignette */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(40,25,30,0.35) 100%)',
-        }}
-      />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(15,10,20,0.5) 100%)' }} />
       
       <style jsx>{`
-        @keyframes garland-light { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        @keyframes snowflake-fall { 0% { transform: translateY(-20px) rotate(0deg); } 100% { transform: translateY(100vh) rotate(360deg); } }
-        .animate-garland-light { animation: garland-light 1s ease-in-out infinite; }
-        .animate-snowflake-fall { animation: snowflake-fall 12s linear infinite; }
+        @keyframes float-present { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-15px) rotate(3deg); } }
+        .animate-float-present { animation: float-present 5s ease-in-out infinite; }
       `}</style>
     </div>
   );
