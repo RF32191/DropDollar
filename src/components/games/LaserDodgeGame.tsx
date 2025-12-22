@@ -363,7 +363,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     };
   }, [currentTheme]);
   
-  // Play background music when game starts (during gameplay)
+  // Play background music when game starts (during gameplay) - also re-trigger on theme change
   useEffect(() => {
     if (gameState === 'playing' && backgroundMusicRef.current) {
       // Unlock audio first if needed
@@ -375,6 +375,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       try {
         const audio = backgroundMusicRef.current;
         
+        // Reset to beginning when theme changes during gameplay
+        audio.currentTime = 0;
+        
         // Ensure audio is loaded
         if (audio.readyState < 2) {
           try {
@@ -385,12 +388,13 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         }
         
         // Play music on loop when game starts
+        console.log(`🎵 [LaserDodgeGame] Attempting to play ${currentTheme} theme music...`);
         const playPromise = audio.play();
         
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              console.log('✅ [LaserDodgeGame] Background music started playing on game start');
+              console.log(`✅ [LaserDodgeGame] ${currentTheme} background music started playing!`);
               audioUnlockedRef.current = true;
             })
             .catch((err) => {
@@ -401,7 +405,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                   backgroundMusicRef.current.play()
                     .then(() => {
                       audioUnlockedRef.current = true;
-                      console.log('✅ [LaserDodgeGame] Background music started on retry');
+                      console.log(`✅ [LaserDodgeGame] ${currentTheme} background music started on retry`);
                     })
                     .catch(() => {
                       // Final attempt failed - that's okay
@@ -426,7 +430,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         // Ignore pause errors
       }
     }
-  }, [gameState]);
+  }, [gameState, currentTheme]);
   
   // Play victory sound when game ends
   useEffect(() => {
@@ -1359,18 +1363,23 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       // Start music immediately on user gesture - this is critical for mobile!
       // We play it now because this is a user gesture context
       if (backgroundMusicRef.current) {
+        const audioSrc = backgroundMusicRef.current.src;
+        console.log(`🎵 [LaserDodge] Starting ${currentTheme} music on ship click: ${audioSrc}`);
         backgroundMusicRef.current.volume = 0.7;
         backgroundMusicRef.current.loop = true;
+        backgroundMusicRef.current.currentTime = 0; // Reset to beginning
         backgroundMusicRef.current.play()
           .then(() => {
-            console.log('✅ [LaserDodge] Music started on ship click (mobile)');
+            console.log(`✅ [LaserDodge] ${currentTheme} music started on ship click!`);
             audioUnlockedRef.current = true;
           })
           .catch(e => {
-            console.log('Music start blocked:', e);
+            console.log(`⚠️ [LaserDodge] ${currentTheme} music start blocked:`, e);
             // Mark as unlocked anyway so we can retry
             audioUnlockedRef.current = true;
           });
+      } else {
+        console.warn('⚠️ [LaserDodge] No audio ref available');
       }
       
       setHasControl(true);
