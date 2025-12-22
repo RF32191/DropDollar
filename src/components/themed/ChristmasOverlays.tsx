@@ -4,64 +4,62 @@ import React from 'react';
 
 // ============================================
 // FIREPLACE THEME - For Hot Sell Page
-// Cozy fireplace, stockings, warm glow
+// Cozy warm glow, subtle fire reflections
 // ============================================
 export function FireplaceOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Warm gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-orange-900/30 via-red-900/20 to-gray-900/50" />
+      {/* Warm amber gradient */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgba(40,25,15,0.3) 0%, rgba(50,30,15,0.25) 50%, rgba(60,35,20,0.35) 100%)',
+        }}
+      />
       
-      {/* Fireplace glow at bottom */}
+      {/* Fireplace glow at bottom center */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-48">
-        <div className="absolute bottom-0 w-full h-32 bg-gradient-to-t from-orange-500/40 via-red-500/30 to-transparent rounded-t-full" />
-        <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-yellow-500/30 to-transparent rounded-t-full animate-fire-flicker" />
-      </div>
-      
-      {/* Animated flames */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="text-4xl animate-flame"
-            style={{ animationDelay: `${i * 0.2}s` }}
-          >
-            🔥
-          </div>
-        ))}
-      </div>
-      
-      {/* Stockings */}
-      <div className="absolute bottom-32 left-1/4 text-5xl animate-stocking-sway">🧦</div>
-      <div className="absolute bottom-32 right-1/4 text-5xl animate-stocking-sway" style={{ animationDelay: '0.5s' }}>🧦</div>
-      <div className="absolute bottom-32 left-1/2 -translate-x-1/2 text-5xl animate-stocking-sway" style={{ animationDelay: '1s' }}>🧦</div>
-      
-      {/* Warm light particles */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-2 h-2 bg-orange-400/60 rounded-full animate-ember-float"
+        <div 
+          className="absolute inset-0 animate-fire-glow"
           style={{
-            left: `${40 + Math.random() * 20}%`,
-            bottom: `${Math.random() * 40}%`,
-            animationDelay: `${Math.random() * 3}s`,
+            background: 'radial-gradient(ellipse at 50% 100%, rgba(255,120,50,0.3) 0%, rgba(255,80,30,0.15) 40%, transparent 70%)',
           }}
         />
-      ))}
+        <div 
+          className="absolute inset-0 animate-fire-glow-alt"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 100%, rgba(255,150,50,0.2) 0%, transparent 50%)',
+          }}
+        />
+      </div>
       
-      {/* Hot cocoa */}
-      <div className="absolute bottom-5 left-10 text-4xl">☕</div>
-      <div className="absolute bottom-5 right-10 text-4xl">🍪</div>
+      {/* Warm light reflection on sides */}
+      <div 
+        className="absolute bottom-0 left-0 w-48 h-64 opacity-30"
+        style={{
+          background: 'linear-gradient(45deg, rgba(255,100,50,0.15) 0%, transparent 60%)',
+        }}
+      />
+      <div 
+        className="absolute bottom-0 right-0 w-48 h-64 opacity-30"
+        style={{
+          background: 'linear-gradient(-45deg, rgba(255,100,50,0.15) 0%, transparent 60%)',
+        }}
+      />
+      
+      {/* Subtle warm vignette */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 100%, transparent 30%, rgba(20,10,5,0.3) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes fire-flicker { 0%, 100% { opacity: 0.3; transform: scaleY(1); } 50% { opacity: 0.5; transform: scaleY(1.1); } }
-        @keyframes flame { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.1); } }
-        @keyframes stocking-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
-        @keyframes ember-float { 0%, 100% { transform: translateY(0); opacity: 0.6; } 50% { transform: translateY(-30px); opacity: 0.3; } }
-        .animate-fire-flicker { animation: fire-flicker 1s ease-in-out infinite; }
-        .animate-flame { animation: flame 1.5s ease-in-out infinite; }
-        .animate-stocking-sway { animation: stocking-sway 3s ease-in-out infinite; }
-        .animate-ember-float { animation: ember-float 2s ease-in-out infinite; }
+        @keyframes fire-glow { 0%, 100% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+        @keyframes fire-glow-alt { 0%, 100% { opacity: 0.6; } 33% { opacity: 0.9; } 66% { opacity: 0.7; } }
+        .animate-fire-glow { animation: fire-glow 2s ease-in-out infinite; }
+        .animate-fire-glow-alt { animation: fire-glow-alt 1.5s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -69,66 +67,59 @@ export function FireplaceOverlay() {
 
 // ============================================
 // SNOWBALL THEME - For 1v1 Page
-// Snowball fight, winter wonderland, competitive
+// Winter battle atmosphere, cool tones
 // ============================================
 export function SnowballOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Winter gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-900/40 via-cyan-900/30 to-gray-900/50" />
+      {/* Cool winter gradient */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgba(20,40,60,0.4) 0%, rgba(30,50,70,0.3) 50%, rgba(40,60,80,0.35) 100%)',
+        }}
+      />
       
-      {/* Snowfall */}
-      {Array.from({ length: 50 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-2 h-2 bg-white rounded-full animate-snowfall"
-          style={{
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${3 + Math.random() * 4}s`,
-            opacity: 0.4 + Math.random() * 0.4,
-          }}
-        />
-      ))}
+      {/* Gentle snowfall - just 12 snowflakes, CSS only */}
+      <div className="absolute inset-0 overflow-hidden">
+        {[...Array(12)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute bg-white rounded-full animate-gentle-snow"
+            style={{
+              width: `${3 + (i % 3) * 2}px`,
+              height: `${3 + (i % 3) * 2}px`,
+              left: `${(i * 8) + 4}%`,
+              animationDelay: `${i * 0.8}s`,
+              animationDuration: `${10 + (i % 3) * 3}s`,
+              opacity: 0.4 + (i % 3) * 0.15,
+            }}
+          />
+        ))}
+      </div>
       
-      {/* Snowballs flying */}
-      <div className="absolute top-1/3 left-10 text-4xl animate-snowball-left">⚪</div>
-      <div className="absolute top-1/3 right-10 text-4xl animate-snowball-right">⚪</div>
-      <div className="absolute top-1/2 left-20 text-3xl animate-snowball-left" style={{ animationDelay: '1s' }}>⚪</div>
-      <div className="absolute top-1/2 right-20 text-3xl animate-snowball-right" style={{ animationDelay: '1.5s' }}>⚪</div>
+      {/* Snow on ground */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-20"
+        style={{
+          background: 'linear-gradient(0deg, rgba(255,255,255,0.2) 0%, rgba(230,240,255,0.1) 50%, transparent 100%)',
+        }}
+      />
       
-      {/* Snow forts */}
-      <div className="absolute bottom-0 left-5 w-24 h-16 bg-white/30 rounded-t-lg" />
-      <div className="absolute bottom-0 right-5 w-24 h-16 bg-white/30 rounded-t-lg" />
-      
-      {/* Snowmen as spectators */}
-      <div className="absolute bottom-5 left-1/4 text-5xl opacity-50">⛄</div>
-      <div className="absolute bottom-5 right-1/4 text-5xl opacity-50">⛄</div>
-      
-      {/* Ice sparkles */}
-      {Array.from({ length: 20 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-lg animate-sparkle"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 2}s`,
-          }}
-        >
-          ✨
-        </div>
-      ))}
+      {/* Cool blue vignette */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(20,40,80,0.3) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes snowfall { 0% { transform: translateY(-20px) rotate(0deg); } 100% { transform: translateY(100vh) rotate(360deg); } }
-        @keyframes snowball-left { 0%, 100% { transform: translateX(0); opacity: 1; } 50% { transform: translateX(40vw); opacity: 0; } }
-        @keyframes snowball-right { 0%, 100% { transform: translateX(0); opacity: 1; } 50% { transform: translateX(-40vw); opacity: 0; } }
-        @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 0.8; transform: scale(1); } }
-        .animate-snowfall { animation: snowfall 5s linear infinite; }
-        .animate-snowball-left { animation: snowball-left 3s ease-in-out infinite; }
-        .animate-snowball-right { animation: snowball-right 3s ease-in-out infinite; }
-        .animate-sparkle { animation: sparkle 2s ease-in-out infinite; }
+        @keyframes gentle-snow { 
+          0% { transform: translateY(-20px) translateX(0); } 
+          100% { transform: translateY(100vh) translateX(20px); } 
+        }
+        .animate-gentle-snow { animation: gentle-snow 12s linear infinite; }
       `}</style>
     </div>
   );
@@ -136,79 +127,66 @@ export function SnowballOverlay() {
 
 // ============================================
 // NORTH POLE THEME - For Winner Takes All Page
-// Santa's workshop, elves, presents, candy canes
+// Aurora borealis, magical atmosphere
 // ============================================
 export function NorthPoleOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Magical gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-red-900/40 via-green-900/30 to-gray-900/50" />
+      {/* Dark polar night */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgba(10,20,40,0.5) 0%, rgba(20,30,50,0.4) 50%, rgba(30,40,60,0.45) 100%)',
+        }}
+      />
       
-      {/* Northern lights effect */}
-      <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-green-400/20 via-cyan-400/10 to-transparent animate-aurora" />
-      
-      {/* Candy cane poles */}
-      <div className="absolute bottom-0 left-10 w-4 h-64">
-        <div className="w-full h-full bg-gradient-to-r from-red-500 via-white via-50% to-red-500 animate-candy-spin" />
-      </div>
-      <div className="absolute bottom-0 right-10 w-4 h-64">
-        <div className="w-full h-full bg-gradient-to-r from-red-500 via-white via-50% to-red-500 animate-candy-spin" style={{ animationDelay: '0.5s' }} />
-      </div>
-      
-      {/* Workshop building outline */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-64 h-48 bg-gradient-to-b from-red-800/30 to-red-900/40 rounded-t-lg opacity-40">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-12 bg-yellow-400/50 rounded-sm" /> {/* Window */}
-      </div>
-      
-      {/* Santa */}
-      <div className="absolute top-10 right-10 text-6xl animate-santa-wave">🎅</div>
-      
-      {/* Elves working */}
-      <div className="absolute bottom-20 left-1/3 text-4xl animate-elf-work">🧝</div>
-      <div className="absolute bottom-20 right-1/3 text-4xl animate-elf-work" style={{ animationDelay: '0.5s' }}>🧝</div>
-      
-      {/* Presents */}
-      {Array.from({ length: 10 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-3xl animate-present-bounce"
+      {/* Aurora borealis effect */}
+      <div className="absolute top-0 left-0 right-0 h-64 overflow-hidden">
+        <div 
+          className="absolute inset-0 animate-aurora-1"
           style={{
-            left: `${15 + Math.random() * 70}%`,
-            bottom: `${5 + Math.random() * 15}%`,
-            animationDelay: `${Math.random() * 2}s`,
-          }}
-        >
-          🎁
-        </div>
-      ))}
-      
-      {/* Snowfall */}
-      {Array.from({ length: 30 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-2 h-2 bg-white rounded-full animate-snowfall"
-          style={{
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${4 + Math.random() * 3}s`,
-            opacity: 0.5,
+            background: 'linear-gradient(180deg, rgba(50,200,150,0.15) 0%, rgba(100,150,200,0.1) 50%, transparent 100%)',
           }}
         />
-      ))}
+        <div 
+          className="absolute inset-0 animate-aurora-2"
+          style={{
+            background: 'linear-gradient(180deg, rgba(100,200,100,0.1) 0%, rgba(50,150,200,0.08) 60%, transparent 100%)',
+          }}
+        />
+      </div>
+      
+      {/* Star field - subtle */}
+      <div className="absolute top-0 left-0 right-0 h-48">
+        <div className="absolute top-4 left-1/4 w-1 h-1 bg-white rounded-full opacity-40 animate-twinkle" />
+        <div className="absolute top-8 left-1/2 w-1 h-1 bg-white rounded-full opacity-30 animate-twinkle" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-6 right-1/4 w-1 h-1 bg-white rounded-full opacity-35 animate-twinkle" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-12 left-1/3 w-1 h-1 bg-white rounded-full opacity-25 animate-twinkle" style={{ animationDelay: '0.5s' }} />
+      </div>
+      
+      {/* Snow ground glow */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-24"
+        style={{
+          background: 'linear-gradient(0deg, rgba(200,220,255,0.15) 0%, transparent 100%)',
+        }}
+      />
+      
+      {/* Magical vignette */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 30%, transparent 30%, rgba(10,20,40,0.4) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes aurora { 0%, 100% { opacity: 0.2; transform: translateX(0); } 50% { opacity: 0.4; transform: translateX(20px); } }
-        @keyframes candy-spin { 0% { background-position: 0 0; } 100% { background-position: 0 100px; } }
-        @keyframes santa-wave { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
-        @keyframes elf-work { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        @keyframes present-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-        @keyframes snowfall { 0% { transform: translateY(-20px); } 100% { transform: translateY(100vh); } }
-        .animate-aurora { animation: aurora 8s ease-in-out infinite; }
-        .animate-candy-spin { animation: candy-spin 2s linear infinite; background-size: 100% 100px; }
-        .animate-santa-wave { animation: santa-wave 2s ease-in-out infinite; }
-        .animate-elf-work { animation: elf-work 1s ease-in-out infinite; }
-        .animate-present-bounce { animation: present-bounce 2s ease-in-out infinite; }
-        .animate-snowfall { animation: snowfall 5s linear infinite; }
+        @keyframes aurora-1 { 0%, 100% { transform: translateX(0) scaleY(1); opacity: 0.5; } 50% { transform: translateX(30px) scaleY(1.2); opacity: 0.8; } }
+        @keyframes aurora-2 { 0%, 100% { transform: translateX(0) scaleY(1); opacity: 0.4; } 50% { transform: translateX(-20px) scaleY(1.1); opacity: 0.6; } }
+        @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.6; } }
+        .animate-aurora-1 { animation: aurora-1 8s ease-in-out infinite; }
+        .animate-aurora-2 { animation: aurora-2 10s ease-in-out infinite 2s; }
+        .animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -216,84 +194,51 @@ export function NorthPoleOverlay() {
 
 // ============================================
 // TREASURE THEME - For Coin Play Page
-// Golden gifts, treasure chest, festive coins
+// Golden warmth, festive richness
 // ============================================
 export function TreasureOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Golden gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-yellow-900/30 via-amber-900/20 to-gray-900/50" />
+      {/* Rich golden gradient */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgba(50,40,20,0.35) 0%, rgba(60,45,25,0.3) 50%, rgba(70,50,30,0.4) 100%)',
+        }}
+      />
       
-      {/* Golden light rays */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-64">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute top-0 h-full w-8 bg-gradient-to-b from-yellow-400/20 to-transparent animate-ray-pulse"
-            style={{
-              left: `${i * 12.5}%`,
-              transform: `rotate(${(i - 4) * 8}deg)`,
-              transformOrigin: 'top center',
-              animationDelay: `${i * 0.2}s`,
-            }}
-          />
-        ))}
+      {/* Golden light rays from top */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-48">
+        <div 
+          className="absolute inset-0 animate-golden-ray"
+          style={{
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(255,200,100,0.15) 0%, transparent 60%)',
+          }}
+        />
       </div>
       
-      {/* Treasure chest */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2">
-        <div className="text-7xl animate-chest-glow">🎁</div>
-        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-4xl animate-coin-pop">🪙</div>
-      </div>
+      {/* Subtle golden coins floating - just 3 */}
+      <div className="absolute top-1/3 left-1/4 w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 opacity-25 animate-float-treasure-1 shadow-lg" />
+      <div className="absolute top-1/2 right-1/3 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-500 to-yellow-700 opacity-20 animate-float-treasure-2 shadow-lg" />
+      <div className="absolute top-2/3 left-1/2 w-4 h-4 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 opacity-25 animate-float-treasure-3 shadow-lg" />
       
-      {/* Floating golden coins */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-3xl animate-gold-coin-float"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${20 + Math.random() * 60}%`,
-            animationDelay: `${Math.random() * 4}s`,
-            animationDuration: `${3 + Math.random() * 2}s`,
-          }}
-        >
-          🪙
-        </div>
-      ))}
-      
-      {/* Sparkles */}
-      {Array.from({ length: 25 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-xl animate-treasure-sparkle"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 3}s`,
-          }}
-        >
-          ✨
-        </div>
-      ))}
-      
-      {/* Red ribbons */}
-      <div className="absolute top-20 left-5 text-4xl animate-ribbon-sway">🎀</div>
-      <div className="absolute top-20 right-5 text-4xl animate-ribbon-sway" style={{ animationDelay: '1s' }}>🎀</div>
+      {/* Warm golden vignette */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(40,30,10,0.3) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes ray-pulse { 0%, 100% { opacity: 0.1; } 50% { opacity: 0.3; } }
-        @keyframes chest-glow { 0%, 100% { filter: drop-shadow(0 0 10px gold); } 50% { filter: drop-shadow(0 0 30px gold); } }
-        @keyframes coin-pop { 0%, 100% { transform: translate(-50%, 0) scale(1); } 50% { transform: translate(-50%, -20px) scale(1.2); } }
-        @keyframes gold-coin-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-30px) rotate(180deg); } }
-        @keyframes treasure-sparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(1); } }
-        @keyframes ribbon-sway { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
-        .animate-ray-pulse { animation: ray-pulse 3s ease-in-out infinite; }
-        .animate-chest-glow { animation: chest-glow 2s ease-in-out infinite; }
-        .animate-coin-pop { animation: coin-pop 2s ease-in-out infinite; }
-        .animate-gold-coin-float { animation: gold-coin-float 4s ease-in-out infinite; }
-        .animate-treasure-sparkle { animation: treasure-sparkle 2s ease-in-out infinite; }
-        .animate-ribbon-sway { animation: ribbon-sway 3s ease-in-out infinite; }
+        @keyframes golden-ray { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        @keyframes float-treasure-1 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-15px) rotate(180deg); } }
+        @keyframes float-treasure-2 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(-180deg); } }
+        @keyframes float-treasure-3 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(180deg); } }
+        .animate-golden-ray { animation: golden-ray 4s ease-in-out infinite; }
+        .animate-float-treasure-1 { animation: float-treasure-1 7s ease-in-out infinite; }
+        .animate-float-treasure-2 { animation: float-treasure-2 9s ease-in-out infinite 2s; }
+        .animate-float-treasure-3 { animation: float-treasure-3 8s ease-in-out infinite 4s; }
       `}</style>
     </div>
   );
@@ -301,74 +246,65 @@ export function TreasureOverlay() {
 
 // ============================================
 // WINTER THEME - For Dashboard
-// Gentle snowflakes, warm lights, cozy feel
+// Gentle winter atmosphere, cozy and clean
 // ============================================
 export function WinterOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
       {/* Cool winter gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-900/30 via-slate-800/20 to-gray-900/40" />
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgba(30,40,60,0.3) 0%, rgba(40,50,70,0.25) 50%, rgba(50,60,80,0.3) 100%)',
+        }}
+      />
       
-      {/* Gentle snowfall */}
-      {Array.from({ length: 40 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute bg-white rounded-full animate-gentle-snow"
-          style={{
-            width: `${3 + Math.random() * 5}px`,
-            height: `${3 + Math.random() * 5}px`,
-            left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 8}s`,
-            animationDuration: `${6 + Math.random() * 6}s`,
-            opacity: 0.3 + Math.random() * 0.4,
-          }}
-        />
-      ))}
-      
-      {/* String lights at top */}
-      <div className="absolute top-5 left-0 right-0 flex justify-center gap-8">
-        {Array.from({ length: 10 }).map((_, i) => (
+      {/* Very gentle snowfall - just 8 flakes */}
+      <div className="absolute inset-0 overflow-hidden">
+        {[...Array(8)].map((_, i) => (
           <div
             key={i}
-            className="text-2xl animate-light-twinkle"
-            style={{ animationDelay: `${i * 0.3}s` }}
-          >
-            {i % 3 === 0 ? '🔴' : i % 3 === 1 ? '🟢' : '🟡'}
-          </div>
+            className="absolute bg-white rounded-full animate-gentle-snow"
+            style={{
+              width: `${2 + (i % 2) * 2}px`,
+              height: `${2 + (i % 2) * 2}px`,
+              left: `${(i * 12) + 6}%`,
+              animationDelay: `${i * 1.2}s`,
+              animationDuration: `${12 + (i % 3) * 4}s`,
+              opacity: 0.3 + (i % 2) * 0.1,
+            }}
+          />
         ))}
       </div>
       
-      {/* Christmas tree in corner */}
-      <div className="absolute bottom-5 right-5 text-6xl opacity-40 animate-tree-sway">🎄</div>
+      {/* Warm corner glows - like indoor lights */}
+      <div 
+        className="absolute top-0 left-0 w-64 h-64"
+        style={{
+          background: 'radial-gradient(circle at 0% 0%, rgba(255,200,150,0.08) 0%, transparent 50%)',
+        }}
+      />
+      <div 
+        className="absolute top-0 right-0 w-64 h-64"
+        style={{
+          background: 'radial-gradient(circle at 100% 0%, rgba(255,200,150,0.08) 0%, transparent 50%)',
+        }}
+      />
       
-      {/* Snowflakes */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-2xl opacity-30 animate-snowflake-drift"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-          }}
-        >
-          ❄️
-        </div>
-      ))}
-      
-      {/* Cozy elements */}
-      <div className="absolute bottom-5 left-5 text-4xl opacity-50">☕</div>
-      <div className="absolute bottom-5 left-20 text-3xl opacity-40">🧣</div>
+      {/* Subtle blue tint */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(30,50,80,0.2) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes gentle-snow { 0% { transform: translateY(-20px) translateX(0); } 100% { transform: translateY(100vh) translateX(20px); } }
-        @keyframes light-twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-        @keyframes tree-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-        @keyframes snowflake-drift { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(180deg); } }
-        .animate-gentle-snow { animation: gentle-snow 8s linear infinite; }
-        .animate-light-twinkle { animation: light-twinkle 1.5s ease-in-out infinite; }
-        .animate-tree-sway { animation: tree-sway 4s ease-in-out infinite; }
-        .animate-snowflake-drift { animation: snowflake-drift 6s ease-in-out infinite; }
+        @keyframes gentle-snow { 
+          0% { transform: translateY(-10px) translateX(0); } 
+          100% { transform: translateY(100vh) translateX(15px); } 
+        }
+        .animate-gentle-snow { animation: gentle-snow 15s linear infinite; }
       `}</style>
     </div>
   );
@@ -376,75 +312,62 @@ export function WinterOverlay() {
 
 // ============================================
 // TOYSHOP THEME - For Games Page
-// Toy shop, presents, playful elements
+// Magical toy shop, warm and playful
 // ============================================
 export function ToyshopOverlay() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Festive gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-green-900/30 via-red-900/20 to-gray-900/50" />
+      {/* Warm magical gradient */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(180deg, rgba(40,30,50,0.35) 0%, rgba(50,35,45,0.3) 50%, rgba(60,40,50,0.35) 100%)',
+        }}
+      />
       
-      {/* Shelves at sides */}
-      <div className="absolute left-0 top-20 bottom-20 w-16 bg-gradient-to-r from-amber-900/30 to-transparent" />
-      <div className="absolute right-0 top-20 bottom-20 w-16 bg-gradient-to-l from-amber-900/30 to-transparent" />
+      {/* Magical sparkle effect - subtle */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-32"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(255,220,150,0.1) 0%, transparent 60%)',
+        }}
+      />
       
-      {/* Toys on shelves */}
-      <div className="absolute left-2 top-24 text-3xl animate-toy-bounce">🧸</div>
-      <div className="absolute left-2 top-48 text-3xl animate-toy-bounce" style={{ animationDelay: '0.5s' }}>🪀</div>
-      <div className="absolute left-2 top-72 text-3xl animate-toy-bounce" style={{ animationDelay: '1s' }}>🎮</div>
-      <div className="absolute right-2 top-24 text-3xl animate-toy-bounce" style={{ animationDelay: '0.3s' }}>🚂</div>
-      <div className="absolute right-2 top-48 text-3xl animate-toy-bounce" style={{ animationDelay: '0.8s' }}>🎪</div>
-      <div className="absolute right-2 top-72 text-3xl animate-toy-bounce" style={{ animationDelay: '1.3s' }}>🎨</div>
+      {/* Warm shelf glow on sides */}
+      <div 
+        className="absolute top-0 bottom-0 left-0 w-16 opacity-30"
+        style={{
+          background: 'linear-gradient(90deg, rgba(150,100,50,0.2) 0%, transparent 100%)',
+        }}
+      />
+      <div 
+        className="absolute top-0 bottom-0 right-0 w-16 opacity-30"
+        style={{
+          background: 'linear-gradient(-90deg, rgba(150,100,50,0.2) 0%, transparent 100%)',
+        }}
+      />
       
-      {/* Nutcracker soldiers */}
-      <div className="absolute bottom-5 left-10 text-5xl opacity-50">🪖</div>
-      <div className="absolute bottom-5 right-10 text-5xl opacity-50">🪖</div>
+      {/* Festive colored lights glow at top */}
+      <div className="absolute top-0 left-0 right-0 h-8 flex justify-around opacity-40">
+        <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50 animate-light-pulse" />
+        <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50 animate-light-pulse" style={{ animationDelay: '0.5s' }} />
+        <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-lg shadow-yellow-500/50 animate-light-pulse" style={{ animationDelay: '1s' }} />
+        <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50 animate-light-pulse" style={{ animationDelay: '1.5s' }} />
+        <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50 animate-light-pulse" style={{ animationDelay: '2s' }} />
+      </div>
       
-      {/* Floating presents */}
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-4xl animate-present-float"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${20 + Math.random() * 60}%`,
-            animationDelay: `${Math.random() * 4}s`,
-          }}
-        >
-          🎁
-        </div>
-      ))}
-      
-      {/* Candy canes */}
-      <div className="absolute top-10 left-20 text-4xl animate-candy-swing">🍬</div>
-      <div className="absolute top-10 right-20 text-4xl animate-candy-swing" style={{ animationDelay: '0.7s' }}>🍭</div>
-      
-      {/* Stars */}
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-xl animate-star-twinkle"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 40}%`,
-            animationDelay: `${Math.random() * 2}s`,
-          }}
-        >
-          ⭐
-        </div>
-      ))}
+      {/* Cozy vignette */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(30,20,30,0.35) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes toy-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-        @keyframes present-float { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
-        @keyframes candy-swing { 0%, 100% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } }
-        @keyframes star-twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
-        .animate-toy-bounce { animation: toy-bounce 2s ease-in-out infinite; }
-        .animate-present-float { animation: present-float 4s ease-in-out infinite; }
-        .animate-candy-swing { animation: candy-swing 2s ease-in-out infinite; }
-        .animate-star-twinkle { animation: star-twinkle 1.5s ease-in-out infinite; }
+        @keyframes light-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        .animate-light-pulse { animation: light-pulse 2s ease-in-out infinite; }
       `}</style>
     </div>
   );
 }
-
