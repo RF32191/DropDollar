@@ -413,12 +413,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? window.location.origin 
         : 'https://www.drop-dollar.com';
       
+      // Try API route first (uses admin client)
+      try {
+        const response = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('✅ Password reset email sent via API');
+          return { success: true };
+        }
+        
+        // If API failed, try direct Supabase call as fallback
+        console.log('⚠️ API route failed, trying direct Supabase call...');
+      } catch (apiError) {
+        console.log('⚠️ API route error, trying direct Supabase call...', apiError);
+      }
+      
+      // Fallback to direct Supabase call
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${siteUrl}/auth/reset-password`,
       });
 
       if (error) {
         console.error('❌ Password reset error:', error);
+        
+        // Provide more user-friendly error messages
+        if (error.message.includes('invalid') || error.message.includes('Invalid')) {
+          return { 
+            success: false, 
+            error: 'Unable to send reset email. Please make sure this email is registered with a DropDollar account.' 
+          };
+        }
+        
+        if (error.message.includes('rate') || error.message.includes('limit')) {
+          return { 
+            success: false, 
+            error: 'Too many attempts. Please wait a few minutes before trying again.' 
+          };
+        }
+        
         return { success: false, error: error.message };
       }
 
