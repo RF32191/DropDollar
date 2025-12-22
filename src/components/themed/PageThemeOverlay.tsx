@@ -9,6 +9,8 @@ import {
   StyxOverlay,
   HauntedOverlay,
   CarnivalOverlay,
+  SpiderOverlay,
+  MoneyHorrorOverlay,
 } from './HalloweenOverlays';
 import {
   FireplaceOverlay,
@@ -28,7 +30,8 @@ export type ThemedPage =
   | 'dashboard' 
   | 'games'
   | 'marketplace'
-  | 'home';
+  | 'home'
+  | 'buy-tokens';
 
 interface PageThemeOverlayProps {
   page: ThemedPage;
@@ -58,9 +61,11 @@ export default function PageThemeOverlay({ page }: PageThemeOverlayProps) {
       case 'games':
         return <CarnivalOverlay />;
       case 'marketplace':
-        return <HauntedOverlay />; // Reuse haunted for marketplace
+        return <SpiderOverlay />; // Spider themed for marketplace
       case 'home':
-        return <HauntedOverlay />; // Reuse haunted for home
+        return <SpiderOverlay />; // Spider/haunted for home
+      case 'buy-tokens':
+        return <MoneyHorrorOverlay />; // Money horror for buy tokens
       default:
         return null;
     }
@@ -85,6 +90,8 @@ export default function PageThemeOverlay({ page }: PageThemeOverlayProps) {
         return <WinterOverlay />; // Reuse winter for marketplace
       case 'home':
         return <WinterOverlay />; // Reuse winter for home
+      case 'buy-tokens':
+        return <TreasureOverlay />; // Golden treasure for buy tokens
       default:
         return null;
     }
@@ -101,12 +108,15 @@ export function usePageThemeDescription(page: ThemedPage) {
   
   if (isHalloween) {
     switch (page) {
-      case 'hot-sell': return { icon: '🔥', name: 'Hell', description: 'Flames and hellfire' };
-      case '1v1': return { icon: '⚡', name: 'Frankenstein Lab', description: 'Lightning and electricity' };
+      case 'hot-sell': return { icon: '🔥', name: 'Hell', description: 'Ghostly veil and hellfire' };
+      case '1v1': return { icon: '⚡', name: 'Frankenstein Lab', description: '3D Tesla coils with lightning' };
       case 'winner-takes-all': return { icon: '🧟', name: 'Zombie Graveyard', description: 'Undead rising' };
       case 'coin-play': return { icon: '💀', name: 'River Styx', description: 'Greek underworld' };
-      case 'dashboard': return { icon: '🕷️', name: 'Haunted', description: 'Spiders and bats' };
-      case 'games': return { icon: '🎪', name: 'Creepy Carnival', description: 'Dark circus' };
+      case 'dashboard': return { icon: '🧪', name: 'Acid Rising', description: 'Green acid underglow' };
+      case 'games': return { icon: '🎪', name: 'Creepy Carnival', description: 'Haunted circus with spotlights' };
+      case 'home': return { icon: '🕷️', name: 'Spider Lair', description: 'Giant webs and spiders' };
+      case 'marketplace': return { icon: '🕸️', name: 'Spider Web', description: 'Haunted market' };
+      case 'buy-tokens': return { icon: '💸', name: 'Money Horror', description: 'Cursed riches' };
       default: return { icon: '🎃', name: 'Halloween', description: 'Spooky season' };
     }
   }
@@ -114,11 +124,14 @@ export function usePageThemeDescription(page: ThemedPage) {
   if (isChristmas) {
     switch (page) {
       case 'hot-sell': return { icon: '🔥', name: 'Cozy Fireplace', description: 'Warm and toasty' };
-      case '1v1': return { icon: '❄️', name: 'Snowball Fight', description: 'Winter battle' };
+      case '1v1': return { icon: '❄️', name: 'Snowball Fight', description: 'Icicles and snow' };
       case 'winner-takes-all': return { icon: '🎅', name: 'North Pole', description: "Santa's workshop" };
       case 'coin-play': return { icon: '🎁', name: 'Golden Treasure', description: 'Festive riches' };
-      case 'dashboard': return { icon: '❄️', name: 'Winter Wonderland', description: 'Gentle snow' };
+      case 'dashboard': return { icon: '❄️', name: 'Winter Wonderland', description: 'Icicles and snow' };
       case 'games': return { icon: '🧸', name: 'Toy Shop', description: 'Magical toys' };
+      case 'home': return { icon: '🏠', name: 'Winter Home', description: 'Cozy holiday' };
+      case 'marketplace': return { icon: '🎄', name: 'Holiday Market', description: 'Festive shopping' };
+      case 'buy-tokens': return { icon: '💰', name: 'Golden Gifts', description: 'Festive treasures' };
       default: return { icon: '🎄', name: 'Christmas', description: 'Holiday cheer' };
     }
   }
