@@ -1,164 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import CleanNavigation from '@/components/navigation/CleanNavigation';
 
 export default function HomePage() {
   const [scrollY, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Play audio when page loads
-  useEffect(() => {
-    const audioFile = '/HomePage.mp3';
-    let hasPlayed = false;
-    let audio: HTMLAudioElement | null = null;
-    let fileCheckComplete = false;
-    
-    // Check if file exists BEFORE creating audio element
-    const checkAndPlayAudio = async () => {
-      try {
-        // Try HEAD request to check if file exists - catch errors silently
-        const response = await fetch(audioFile, { 
-          method: 'HEAD',
-          cache: 'no-cache'
-        }).catch(() => null); // Silently catch network errors
-        
-        // If fetch failed or file doesn't exist, don't create audio
-        if (!response || !response.ok || response.status === 404) {
-          // File doesn't exist - silently skip (no console errors)
-          fileCheckComplete = true;
-          return; // Exit early - don't create Audio element
-        }
-        
-        // Double check - only proceed if status is 200
-        if (response.status !== 200) {
-          fileCheckComplete = true;
-          return;
-        }
-        
-        fileCheckComplete = true;
-        console.log('✅ Audio file found:', audioFile);
-        
-        // Only create audio element if file exists and check is complete
-        if (!fileCheckComplete) return;
-        
-        audio = new Audio(audioFile);
-        audioRef.current = audio;
-        audio.volume = 0.7;
-        audio.loop = false;
-        
-        // Error handler as backup - if audio fails to load, clean up immediately
-        audio.addEventListener('error', (e) => {
-          console.log('ℹ️ Audio failed to load - cleaning up');
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = ''; // Clear src to stop loading
-            audioRef.current = null;
-          }
-          audio = null;
-        }, { once: true });
-        
-        audio.addEventListener('loadstart', () => {
-          console.log('📥 Audio loading started');
-        });
-        
-        audio.addEventListener('loadeddata', () => {
-          console.log('📦 Audio data loaded');
-        });
-        
-        audio.addEventListener('canplay', () => {
-          console.log('▶️ Audio can play');
-        });
-        
-        const playAudio = async () => {
-          if (hasPlayed || !audio) return;
-          
-          try {
-            console.log('🎯 Attempting to play audio...');
-            const playPromise = audio.play();
-            
-            if (playPromise !== undefined) {
-              await playPromise;
-              hasPlayed = true;
-              console.log('✅ HomePage audio is now playing!');
-            }
-          } catch (error: any) {
-            console.warn('⚠️ Autoplay blocked:', error.name);
-            console.log('💡 Audio will play on first user interaction');
-            
-            // Play on first user interaction
-            const playOnInteraction = async () => {
-              if (!hasPlayed && audio) {
-                try {
-                  await audio.play();
-                  hasPlayed = true;
-                  console.log('✅ HomePage audio playing after user interaction');
-                } catch (err) {
-                  console.error('❌ Error playing audio:', err);
-                }
-                document.removeEventListener('click', playOnInteraction);
-                document.removeEventListener('touchstart', playOnInteraction);
-                document.removeEventListener('keydown', playOnInteraction);
-              }
-            };
-            
-            document.addEventListener('click', playOnInteraction, { once: true });
-            document.addEventListener('touchstart', playOnInteraction, { once: true });
-            document.addEventListener('keydown', playOnInteraction, { once: true });
-          }
-        };
-        
-        // Try multiple approaches to play
-        audio.addEventListener('canplaythrough', () => {
-          console.log('✅ Audio ready to play');
-          playAudio();
-        }, { once: true });
-        
-        // Immediate attempt after load
-        audio.addEventListener('loadeddata', () => {
-          setTimeout(() => playAudio(), 100);
-        }, { once: true });
-        
-        // Fallback timer
-        const fallbackTimer = setTimeout(() => {
-          if (!hasPlayed && audio) {
-            console.log('⏰ Fallback: attempting to play audio');
-            playAudio();
-          }
-        }, 1000);
-        
-        // Start loading only if file exists
-        audio.load();
-        console.log('🚀 Audio load() called');
-
-        return () => {
-          clearTimeout(fallbackTimer);
-          if (audio) {
-            audio.pause();
-            audio = null;
-          }
-          audioRef.current = null;
-        };
-      } catch (error: any) {
-        // If fetch fails, file doesn't exist - don't create audio element
-        if (error.name === 'TypeError' || error.message?.includes('Failed to fetch')) {
-          console.log('ℹ️ Audio file not found:', audioFile, '- Audio playback disabled');
-        } else {
-          console.log('ℹ️ Could not check audio file:', error);
-        }
-      }
-    };
-    
-    checkAndPlayAudio();
   }, []);
 
   // Generate Star Wars scrolling stars - Travel all the way up

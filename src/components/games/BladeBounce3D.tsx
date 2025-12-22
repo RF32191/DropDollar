@@ -210,7 +210,7 @@ export default function BladeBounce3D({
     const audioFile = currentTheme === 'halloween' 
       ? '/halloween-blade-bounce.mp3'
       : currentTheme === 'christmas'
-      ? '/mouseblade.mp3' // TODO: Add christmas version when available
+      ? '/blade-bounce-christmas-song.mp3'
       : '/mouseblade.mp3';
     
     console.log(`🎵 [BladeBounce3D] Loading ${currentTheme} theme music: ${audioFile}`);
