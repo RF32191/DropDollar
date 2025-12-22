@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { EnvelopeIcon, PhoneIcon, ArrowLeftIcon, CheckCircleIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
@@ -12,9 +11,9 @@ type ResetMethod = 'email' | 'phone';
 type Step = 'choose' | 'enterContact' | 'enterCode' | 'newPassword' | 'success';
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const { resetPassword } = useAuth();
   
+  const [mounted, setMounted] = useState(false);
   const [method, setMethod] = useState<ResetMethod>('email');
   const [step, setStep] = useState<Step>('choose');
   const [email, setEmail] = useState('');
@@ -27,6 +26,11 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [maskedContact, setMaskedContact] = useState('');
+
+  // Handle hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Format phone number as user types
   const formatPhoneInput = (value: string) => {
@@ -65,8 +69,9 @@ export default function ForgotPasswordPage() {
       } else {
         setError(result.error || 'Failed to send reset email');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -98,8 +103,9 @@ export default function ForgotPasswordPage() {
       } else {
         setError(data.error || 'Failed to send reset code');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -131,8 +137,9 @@ export default function ForgotPasswordPage() {
       } else {
         setError(data.error || 'Invalid verification code');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -180,12 +187,22 @@ export default function ForgotPasswordPage() {
       } else {
         setError(data.error || 'Failed to update password');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Loading state while hydrating
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   // Method selection screen
   if (step === 'choose') {
@@ -199,12 +216,12 @@ export default function ForgotPasswordPage() {
               </div>
             </Link>
             <h2 className="text-3xl font-bold text-white mb-2">Reset Your Password</h2>
-            <p className="text-gray-300">Choose how you'd like to reset your password</p>
+            <p className="text-gray-300">Choose how you would like to reset your password</p>
           </div>
 
           <div className="space-y-4">
             <button
-              onClick={() => { setMethod('email'); setStep('enterContact'); }}
+              onClick={() => { setMethod('email'); setStep('enterContact'); setError(null); }}
               className="w-full flex items-center justify-between p-4 bg-gray-800 border border-gray-700 rounded-lg hover:border-blue-500 hover:bg-gray-750 transition-all"
             >
               <div className="flex items-center">
@@ -213,14 +230,14 @@ export default function ForgotPasswordPage() {
                 </div>
                 <div className="text-left">
                   <h3 className="text-white font-medium">Reset via Email</h3>
-                  <p className="text-gray-400 text-sm">We'll send a reset link to your email</p>
+                  <p className="text-gray-400 text-sm">We will send a reset link to your email</p>
                 </div>
               </div>
               <ArrowLeftIcon className="w-5 h-5 text-gray-400 rotate-180" />
             </button>
 
             <button
-              onClick={() => { setMethod('phone'); setStep('enterContact'); }}
+              onClick={() => { setMethod('phone'); setStep('enterContact'); setError(null); }}
               className="w-full flex items-center justify-between p-4 bg-gray-800 border border-gray-700 rounded-lg hover:border-green-500 hover:bg-gray-750 transition-all"
             >
               <div className="flex items-center">
@@ -229,7 +246,7 @@ export default function ForgotPasswordPage() {
                 </div>
                 <div className="text-left">
                   <h3 className="text-white font-medium">Reset via Phone</h3>
-                  <p className="text-gray-400 text-sm">We'll send a code to your phone</p>
+                  <p className="text-gray-400 text-sm">We will send a code to your phone</p>
                 </div>
               </div>
               <ArrowLeftIcon className="w-5 h-5 text-gray-400 rotate-180" />
@@ -238,7 +255,7 @@ export default function ForgotPasswordPage() {
 
           <div className="text-center pt-4">
             <Link href="/auth/login" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-              ← Back to Sign In
+              Back to Sign In
             </Link>
           </div>
         </div>
@@ -262,8 +279,8 @@ export default function ForgotPasswordPage() {
             </h2>
             <p className="text-gray-300">
               {method === 'email' 
-                ? "We'll send you a link to reset your password"
-                : "We'll send you a code to verify your identity"
+                ? 'We will send you a link to reset your password'
+                : 'We will send you a code to verify your identity'
               }
             </p>
           </div>
@@ -330,8 +347,8 @@ export default function ForgotPasswordPage() {
             </button>
 
             <div className="flex justify-between items-center text-sm">
-              <button onClick={() => setStep('choose')} className="text-gray-400 hover:text-white">
-                ← Choose different method
+              <button onClick={() => { setStep('choose'); setError(null); }} className="text-gray-400 hover:text-white">
+                Choose different method
               </button>
               <Link href="/auth/login" className="text-blue-400 hover:text-blue-300">
                 Back to Sign In
@@ -366,7 +383,7 @@ export default function ForgotPasswordPage() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 className="w-full text-center text-2xl tracking-widest py-4 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                placeholder="• • • • • •"
+                placeholder="------"
                 maxLength={6}
               />
             </div>
@@ -398,7 +415,7 @@ export default function ForgotPasswordPage() {
                 disabled={isLoading}
                 className="text-green-400 hover:text-green-300 text-sm"
               >
-                Didn't receive the code? Send again
+                Did not receive the code? Send again
               </button>
             </div>
           </div>
@@ -506,18 +523,18 @@ export default function ForgotPasswordPage() {
           </h2>
           <p className="text-gray-300 mb-6">
             {method === 'email' 
-              ? <>We've sent password reset instructions to <strong>{maskedContact}</strong></>
+              ? `We have sent password reset instructions to ${maskedContact}`
               : 'Your password has been successfully updated. You can now sign in with your new password.'
             }
           </p>
           
           {method === 'email' && (
             <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6 text-left">
-              <h3 className="text-blue-400 font-semibold mb-2">What's Next?</h3>
+              <h3 className="text-blue-400 font-semibold mb-2">What is Next?</h3>
               <ul className="text-blue-300 text-sm space-y-1">
-                <li>• Check your email inbox (and spam folder)</li>
-                <li>• Click the reset link in the email</li>
-                <li>• Create a new secure password</li>
+                <li>Check your email inbox (and spam folder)</li>
+                <li>Click the reset link in the email</li>
+                <li>Create a new secure password</li>
               </ul>
             </div>
           )}
