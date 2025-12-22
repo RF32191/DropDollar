@@ -7,8 +7,8 @@ import { EnvelopeIcon, PhoneIcon, ArrowLeftIcon, CheckCircleIcon, LockClosedIcon
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { validatePasswordStrength } from '@/lib/passwordUtils';
 
-type ResetMethod = 'email' | 'phone';
-type Step = 'choose' | 'enterContact' | 'enterCode' | 'newPassword' | 'success';
+type ResetMethod = 'email' | 'phone' | 'smsLink';
+type Step = 'choose' | 'enterContact' | 'enterCode' | 'newPassword' | 'success' | 'linkSent';
 
 export default function ForgotPasswordPage() {
   const { resetPassword } = useAuth();
@@ -102,6 +102,48 @@ export default function ForgotPasswordPage() {
         setStep('enterCode');
       } else {
         setError(data.error || 'Failed to send reset code');
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Send SMS link for account management
+  const handleSendSMSLink = async () => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/send-account-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: digits }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMaskedContact(data.phone || phone);
+        
+        if (data.method === 'code') {
+          // Twilio Verify was used, need to enter code
+          setResetToken(data.token);
+          setStep('enterCode');
+        } else {
+          // Direct SMS link was sent
+          setStep('linkSent');
+        }
+      } else {
+        setError(data.error || 'Failed to send account link');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -245,8 +287,24 @@ export default function ForgotPasswordPage() {
                   <PhoneIcon className="w-6 h-6 text-green-400" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-white font-medium">Reset via Phone</h3>
-                  <p className="text-gray-400 text-sm">We will send a code to your phone</p>
+                  <h3 className="text-white font-medium">Reset via Phone Code</h3>
+                  <p className="text-gray-400 text-sm">Enter a code to reset password</p>
+                </div>
+              </div>
+              <ArrowLeftIcon className="w-5 h-5 text-gray-400 rotate-180" />
+            </button>
+
+            <button
+              onClick={() => { setMethod('smsLink'); setStep('enterContact'); setError(null); }}
+              className="w-full flex items-center justify-between p-4 bg-gray-800 border border-gray-700 rounded-lg hover:border-purple-500 hover:bg-gray-750 transition-all"
+            >
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mr-4">
+                  <PhoneIcon className="w-6 h-6 text-purple-400" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-white font-medium">Get SMS Link</h3>
+                  <p className="text-gray-400 text-sm">Receive a link to manage password AND email</p>
                 </div>
               </div>
               <ArrowLeftIcon className="w-5 h-5 text-gray-400 rotate-180" />
@@ -280,6 +338,8 @@ export default function ForgotPasswordPage() {
             <p className="text-gray-300">
               {method === 'email' 
                 ? 'We will send you a link to reset your password'
+                : method === 'smsLink'
+                ? 'We will send you a link to manage your account'
                 : 'We will send you a code to verify your identity'
               }
             </p>
@@ -328,21 +388,23 @@ export default function ForgotPasswordPage() {
             )}
 
             <button
-              onClick={method === 'email' ? handleEmailReset : handlePhoneSendCode}
+              onClick={method === 'email' ? handleEmailReset : method === 'smsLink' ? handleSendSMSLink : handlePhoneSendCode}
               disabled={isLoading}
               className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-colors ${
                 method === 'email' 
                   ? 'bg-blue-600 hover:bg-blue-700' 
+                  : method === 'smsLink'
+                  ? 'bg-purple-600 hover:bg-purple-700'
                   : 'bg-green-600 hover:bg-green-700'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {method === 'email' ? 'Sending...' : 'Sending Code...'}
+                  {method === 'email' ? 'Sending...' : method === 'smsLink' ? 'Sending Link...' : 'Sending Code...'}
                 </div>
               ) : (
-                method === 'email' ? 'Send Reset Link' : 'Send Verification Code'
+                method === 'email' ? 'Send Reset Link' : method === 'smsLink' ? 'Send Account Link' : 'Send Verification Code'
               )}
             </button>
 
@@ -504,6 +566,56 @@ export default function ForgotPasswordPage() {
                 'Update Password'
               )}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Link sent screen (SMS link method)
+  if (step === 'linkSent') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="mx-auto h-16 w-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <CheckCircleIcon className="h-8 w-8 text-purple-600" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-2">Check Your Phone!</h2>
+            <p className="text-gray-300 mb-6">
+              We sent an account management link to <strong className="text-purple-400">{maskedContact}</strong>
+            </p>
+            
+            <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4 mb-6 text-left">
+              <h3 className="text-purple-400 font-semibold mb-2">What you can do:</h3>
+              <ul className="text-purple-300 text-sm space-y-1">
+                <li>Click the link in your text message</li>
+                <li>Reset your password</li>
+                <li>Change your email address</li>
+                <li>Or do both at once!</li>
+              </ul>
+            </div>
+
+            <p className="text-gray-400 text-sm mb-6">
+              Link expires in 30 minutes
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleSendSMSLink}
+                disabled={isLoading}
+                className="w-full py-3 px-4 rounded-lg text-purple-400 border border-purple-500 hover:bg-purple-900/20 transition-colors"
+              >
+                {isLoading ? 'Sending...' : 'Send link again'}
+              </button>
+              
+              <Link
+                href="/auth/login"
+                className="w-full flex justify-center py-3 px-4 rounded-lg text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+              >
+                Back to Sign In
+              </Link>
+            </div>
           </div>
         </div>
       </div>
