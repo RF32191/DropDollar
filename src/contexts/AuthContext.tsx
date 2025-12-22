@@ -403,52 +403,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Reset password - sends recovery email to user
+  // Reset password - sends recovery email to user via Supabase
   const resetPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
     try {
       console.log('🔐 Sending password reset email to:', email);
       
-      // Get the current site URL for the redirect
-      const siteUrl = typeof window !== 'undefined' 
-        ? window.location.origin 
-        : 'https://www.drop-dollar.com';
+      // Use the production URL for redirect
+      const redirectTo = 'https://www.drop-dollar.com/auth/reset-password';
       
-      // Try API route first (uses admin client)
-      try {
-        const response = await fetch('/api/auth/reset-password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email }),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          console.log('✅ Password reset email sent via API');
-          return { success: true };
-        }
-        
-        // If API failed, try direct Supabase call as fallback
-        console.log('⚠️ API route failed, trying direct Supabase call...');
-      } catch (apiError) {
-        console.log('⚠️ API route error, trying direct Supabase call...', apiError);
-      }
+      console.log('🔐 Redirect URL:', redirectTo);
       
-      // Fallback to direct Supabase call
+      // Use Supabase's built-in password reset
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${siteUrl}/auth/reset-password`,
+        redirectTo: redirectTo,
       });
 
       if (error) {
         console.error('❌ Password reset error:', error);
         
         // Provide more user-friendly error messages
+        if (error.message.includes('User not found')) {
+          return { 
+            success: false, 
+            error: 'No account found with this email address.' 
+          };
+        }
+        
         if (error.message.includes('invalid') || error.message.includes('Invalid')) {
           return { 
             success: false, 
-            error: 'Unable to send reset email. Please make sure this email is registered with a DropDollar account.' 
+            error: 'Unable to send reset email. Please check if this email is registered.' 
           };
         }
         
