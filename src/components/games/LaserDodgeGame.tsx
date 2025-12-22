@@ -322,10 +322,18 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }
   };
 
-  // Setup background music for gameplay
+  // Setup background music for gameplay - theme-aware
   useEffect(() => {
-    // Create audio element for laser-dodge.mp3
-    const audio = new Audio('/laser-dodge.mp3');
+    // Choose audio file based on theme
+    const audioFile = currentTheme === 'halloween' 
+      ? '/laser-dodge-(halloween-version).mp3'
+      : currentTheme === 'christmas'
+      ? '/laser-doge-christmas.mp3'
+      : '/laser-dodge.mp3';
+    
+    console.log(`🎵 [LaserDodgeGame] Loading ${currentTheme} theme music: ${audioFile}`);
+    
+    const audio = new Audio(audioFile);
     audio.loop = true;
     audio.volume = 0.7; // Set volume to 70% for better audibility
     audio.preload = 'auto'; // Preload the audio
@@ -336,16 +344,16 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     });
     
     audio.addEventListener('loadeddata', () => {
-      console.log('✅ [LaserDodgeGame] Background music loaded successfully');
+      console.log(`✅ [LaserDodgeGame] ${currentTheme} background music loaded successfully`);
     });
     
     audio.addEventListener('canplaythrough', () => {
-      console.log('✅ [LaserDodgeGame] Background music ready to play');
+      console.log(`✅ [LaserDodgeGame] ${currentTheme} background music ready to play`);
     });
     
     backgroundMusicRef.current = audio;
     
-    // Cleanup on unmount
+    // Cleanup on unmount or theme change
     return () => {
       if (backgroundMusicRef.current) {
         backgroundMusicRef.current.pause();
@@ -353,7 +361,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         backgroundMusicRef.current = null;
       }
     };
-  }, []);
+  }, [currentTheme]);
   
   // Play background music when game starts (during gameplay)
   useEffect(() => {
