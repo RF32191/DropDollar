@@ -20,7 +20,9 @@ import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlac
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 import TaxNotifications from '@/components/notifications/TaxNotifications';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon, BoltIcon, ArrowDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, Cog6ToothIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon, BoltIcon, ArrowDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import SiteThemeSelector from '@/components/dashboard/SiteThemeSelector';
+import PageThemeOverlay from '@/components/themed/PageThemeOverlay';
 
 interface GameHistoryRecord {
   id: string;
@@ -89,7 +91,7 @@ export default function TriumphStyleDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'transactions' | 'messages' | 'profile'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'transactions' | 'messages' | 'profile' | 'settings'>('recent');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   // Seller registration state
@@ -180,7 +182,7 @@ export default function TriumphStyleDashboard() {
   useEffect(() => {
     // Check URL parameters for tab selection
     const tab = searchParams.get('tab');
-    if (tab && ['recent', 'practice', 'competition', 'stats', 'transactions', 'messages', 'profile'].includes(tab)) {
+    if (tab && ['recent', 'practice', 'competition', 'stats', 'transactions', 'messages', 'profile', 'settings'].includes(tab)) {
       setActiveTab(tab as any);
     }
     
@@ -948,6 +950,9 @@ export default function TriumphStyleDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 text-white relative overflow-hidden">
+      {/* Site Theme Overlay */}
+      <PageThemeOverlay page="dashboard" />
+      
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -1149,7 +1154,8 @@ export default function TriumphStyleDashboard() {
                 { id: 'stats', label: 'Stats', shortLabel: '📊', icon: ChartBarIcon },
                 { id: 'transactions', label: 'Tokens', shortLabel: '💰', icon: BanknotesIcon },
                 { id: 'messages', label: 'Messages', shortLabel: '✉️', icon: EnvelopeIcon },
-                { id: 'profile', label: 'Address', shortLabel: '🏠', icon: HomeIcon }
+                { id: 'profile', label: 'Address', shortLabel: '🏠', icon: HomeIcon },
+                { id: 'settings', label: 'Settings', shortLabel: '⚙️', icon: Cog6ToothIcon }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1546,6 +1552,50 @@ export default function TriumphStyleDashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold mb-4 flex items-center">
+                <Cog6ToothIcon className="w-6 h-6 mr-2 text-purple-400" />
+                Settings & Appearance
+              </h2>
+              
+              {/* Site Theme Selector */}
+              <SiteThemeSelector />
+              
+              {/* Additional Settings could go here */}
+              <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center">
+                  <ShieldCheckIcon className="w-5 h-5 mr-2 text-green-400" />
+                  Account Settings
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-3 border-b border-white/10">
+                    <div>
+                      <p className="text-white font-medium">Email</p>
+                      <p className="text-gray-400 text-sm">{user?.email || 'Not set'}</p>
+                    </div>
+                    <span className="text-green-400 text-sm flex items-center">
+                      <CheckIcon className="w-4 h-4 mr-1" />
+                      Verified
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b border-white/10">
+                    <div>
+                      <p className="text-white font-medium">Username</p>
+                      <p className="text-gray-400 text-sm">{username || 'Not set'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-white font-medium">Member Since</p>
+                      <p className="text-gray-400 text-sm">{formatDate(user?.created_at || new Date().toISOString())}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

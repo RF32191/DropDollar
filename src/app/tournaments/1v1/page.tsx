@@ -25,6 +25,7 @@ import {
   FireIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import PageThemeOverlay from '@/components/themed/PageThemeOverlay';
 
 interface OneVOneSession {
   id: string;
@@ -622,7 +623,10 @@ export default function OneVOnePage() {
         onLocationDenied={handleLocationDenied}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+        {/* Site Theme Overlay - Frankenstein Lab for Halloween, Snowball Fight for Christmas */}
+        <PageThemeOverlay page="1v1" />
+        
         <CleanNavigation />
         
         <div className="container mx-auto px-4 py-8 pt-24">

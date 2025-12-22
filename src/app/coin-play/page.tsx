@@ -26,6 +26,7 @@ import {
   CurrencyDollarIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
+import PageThemeOverlay from '@/components/themed/PageThemeOverlay';
 
 interface CoinPlaySession {
   id: string;
@@ -701,6 +702,9 @@ export default function CoinPlayPage() {
           background: 'radial-gradient(ellipse at center, rgba(184, 115, 51, 0.6) 0%, rgba(139, 69, 19, 0.85) 30%, rgba(101, 67, 33, 0.95) 60%, rgba(80, 50, 20, 1) 100%)',
           backgroundColor: '#8B4513'
         }}>
+        {/* Site Theme Overlay - Styx (River of Death) for Halloween, Treasure for Christmas */}
+        <PageThemeOverlay page="coin-play" />
+        
         {/* Copper Shimmer Animation */}
         <div className="fixed inset-0 pointer-events-none z-0 copper-shimmer-overlay"></div>
         

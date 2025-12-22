@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { SiteThemeProvider } from '@/contexts/SiteThemeContext'
 import AudioInitializer from '@/components/AudioInitializer'
 import './globals.css'
 
@@ -29,10 +30,12 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <ThemeProvider>
-          <AuthProvider>
-            <AudioInitializer />
-            {children}
-          </AuthProvider>
+          <SiteThemeProvider>
+            <AuthProvider>
+              <AudioInitializer />
+              {children}
+            </AuthProvider>
+          </SiteThemeProvider>
         </ThemeProvider>
       </body>
     </html>
