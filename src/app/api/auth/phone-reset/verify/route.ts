@@ -11,6 +11,81 @@ function formatPhoneNumber(phone: string): string {
   return '+' + digits;
 }
 
+// Helper function to create reset token
+async function createResetToken(
+  supabaseAdmin: ReturnType<typeof createClient>, 
+  userData: { id: string; email: string }, 
+  formattedPhone: string
+) {
+  // Generate a secure reset token
+  const resetToken = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  // Store reset token in database
+  const { error: tokenError } = await supabaseAdmin
+    .from('password_reset_tokens')
+    .upsert({
+      user_id: userData.id,
+      token: resetToken,
+      phone_number: formattedPhone,
+      expires_at: expiresAt.toISOString(),
+      used: false,
+    }, {
+      onConflict: 'user_id'
+    });
+
+  if (tokenError) {
+    // Table might not exist, create it
+    console.log('⚠️ [PhoneReset] Token table error, attempting to create...');
+    
+    // Try to create the table
+    await supabaseAdmin.rpc('exec_sql', {
+      sql: `
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          user_id UUID NOT NULL UNIQUE,
+          token TEXT NOT NULL,
+          phone_number TEXT,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `
+    }).catch(() => {});
+
+    // Retry insert
+    const { error: retryError } = await supabaseAdmin
+      .from('password_reset_tokens')
+      .upsert({
+        user_id: userData.id,
+        token: resetToken,
+        phone_number: formattedPhone,
+        expires_at: expiresAt.toISOString(),
+        used: false,
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (retryError) {
+      console.error('❌ [PhoneReset] Failed to store token:', retryError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to generate reset link. Please try again.' },
+        { status: 500 }
+      );
+    }
+  }
+
+  console.log('✅ [PhoneReset] Reset token generated for user:', userData.id);
+
+  // Return the token for client to use
+  return NextResponse.json({
+    success: true,
+    message: 'Phone verified successfully',
+    resetToken: resetToken,
+    email: userData.email ? userData.email.slice(0, 3) + '***' : null, // Partial email for confirmation
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { phone, code } = await request.json();
@@ -64,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [PhoneReset] Code verified successfully');
 
-    // Find user by phone number
+    // Find user by phone number in user_phones table
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -79,104 +154,98 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Find user by phone
+    // Find user by phone in user_phones table
+    console.log('🔍 [PhoneReset] Looking for phone in user_phones table:', formattedPhone);
+    
     const { data: phoneData, error: phoneError } = await supabaseAdmin
-      .from('phone_verifications')
-      .select('user_id')
+      .from('user_phones')
+      .select('user_id, phone_number')
       .eq('phone_number', formattedPhone)
-      .eq('verified', true)
       .single();
 
-    if (phoneError || !phoneData?.user_id) {
-      console.log('⚠️ [PhoneReset] No verified user found for phone:', formattedPhone);
+    // If exact match found
+    if (!phoneError && phoneData?.user_id) {
+      console.log('✅ [PhoneReset] Found exact phone match, user_id:', phoneData.user_id);
+      
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .select('id, email')
+        .eq('id', phoneData.user_id)
+        .single();
+
+      if (userError || !userData) {
+        console.log('⚠️ [PhoneReset] User not found for user_id:', phoneData.user_id);
+        return NextResponse.json(
+          { success: false, error: 'Account not found.' },
+          { status: 404 }
+        );
+      }
+
+      return await createResetToken(supabaseAdmin, userData, formattedPhone);
+    }
+
+    // No exact match - try matching by digits (handles format differences)
+    console.log('⚠️ [PhoneReset] No exact match, trying digit comparison...');
+    
+    const digitsOnly = formattedPhone.replace(/\D/g, '');
+    const last10Digits = digitsOnly.slice(-10);
+    
+    const { data: allPhones, error: allPhonesError } = await supabaseAdmin
+      .from('user_phones')
+      .select('user_id, phone_number');
+    
+    if (allPhonesError) {
+      console.error('❌ [PhoneReset] Error fetching phones:', allPhonesError);
       return NextResponse.json(
-        { success: false, error: 'No account found with this phone number.' },
+        { success: false, error: 'Database error. Please try again.' },
+        { status: 500 }
+      );
+    }
+
+    console.log('📊 [PhoneReset] Total phones in database:', allPhones?.length || 0);
+    
+    // Log all phones for debugging
+    allPhones?.forEach((p, i) => {
+      console.log(`  Phone ${i + 1}: ${p.phone_number} (user: ${p.user_id})`);
+    });
+
+    const matchedPhone = allPhones?.find(p => {
+      const pDigits = p.phone_number?.replace(/\D/g, '') || '';
+      const pLast10 = pDigits.slice(-10);
+      const isMatch = pLast10 === last10Digits;
+      if (isMatch) {
+        console.log('✅ [PhoneReset] Found match by last 10 digits:', p.phone_number);
+      }
+      return isMatch;
+    });
+
+    if (!matchedPhone) {
+      console.log('❌ [PhoneReset] No phone match found for:', formattedPhone);
+      console.log('   Searched for last 10 digits:', last10Digits);
+      return NextResponse.json(
+        { success: false, error: 'No account found with this phone number. Please make sure you are using the phone number you registered with.' },
         { status: 404 }
       );
     }
 
-    // Get user's auth ID from their profile
+    console.log('✅ [PhoneReset] Found phone by digit match:', matchedPhone.phone_number);
+    
+    // Get user data for matched phone
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('id, email')
-      .eq('id', phoneData.user_id)
+      .eq('id', matchedPhone.user_id)
       .single();
 
     if (userError || !userData) {
-      console.log('⚠️ [PhoneReset] User not found:', phoneData.user_id);
+      console.log('⚠️ [PhoneReset] User not found for matched phone, user_id:', matchedPhone.user_id);
       return NextResponse.json(
         { success: false, error: 'Account not found.' },
         { status: 404 }
       );
     }
 
-    // Generate a secure reset token
-    const resetToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-    // Store reset token in database
-    const { error: tokenError } = await supabaseAdmin
-      .from('password_reset_tokens')
-      .upsert({
-        user_id: userData.id,
-        token: resetToken,
-        phone_number: formattedPhone,
-        expires_at: expiresAt.toISOString(),
-        used: false,
-      }, {
-        onConflict: 'user_id'
-      });
-
-    if (tokenError) {
-      // Table might not exist, create it
-      console.log('⚠️ [PhoneReset] Token table error, attempting to create...');
-      
-      // Try to create the table
-      await supabaseAdmin.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS password_reset_tokens (
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            user_id UUID NOT NULL UNIQUE,
-            token TEXT NOT NULL,
-            phone_number TEXT,
-            expires_at TIMESTAMPTZ NOT NULL,
-            used BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-          );
-        `
-      }).catch(() => {});
-
-      // Retry insert
-      const { error: retryError } = await supabaseAdmin
-        .from('password_reset_tokens')
-        .upsert({
-          user_id: userData.id,
-          token: resetToken,
-          phone_number: formattedPhone,
-          expires_at: expiresAt.toISOString(),
-          used: false,
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (retryError) {
-        console.error('❌ [PhoneReset] Failed to store token:', retryError);
-        return NextResponse.json(
-          { success: false, error: 'Failed to generate reset link. Please try again.' },
-          { status: 500 }
-        );
-      }
-    }
-
-    console.log('✅ [PhoneReset] Reset token generated for user:', userData.id);
-
-    // Return the token for client to use
-    return NextResponse.json({
-      success: true,
-      message: 'Phone verified successfully',
-      resetToken: resetToken,
-      email: userData.email ? userData.email.slice(0, 3) + '***' : null, // Partial email for confirmation
-    });
+    return await createResetToken(supabaseAdmin, userData, formattedPhone);
 
   } catch (error: any) {
     console.error('❌ [PhoneReset] Error:', error);
@@ -186,4 +255,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

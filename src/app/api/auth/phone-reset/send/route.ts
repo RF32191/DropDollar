@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user exists with this phone number
+    // Check if user exists with this phone number in user_phones table
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     
@@ -51,18 +51,19 @@ export async function POST(request: NextRequest) {
         auth: { autoRefreshToken: false, persistSession: false }
       });
 
-      // Check phone_verifications table for this phone
+      // Check user_phones table for this phone (linked to user accounts)
       const { data: phoneData, error: phoneError } = await supabaseAdmin
-        .from('phone_verifications')
-        .select('user_id')
+        .from('user_phones')
+        .select('user_id, phone_number')
         .eq('phone_number', formattedPhone)
-        .eq('verified', true)
         .single();
 
       if (phoneError || !phoneData) {
-        console.log('⚠️ [PhoneReset] Phone not found in verified phones:', formattedPhone);
-        // Don't reveal if phone exists for security
-        // Still return success to prevent phone enumeration
+        console.log('⚠️ [PhoneReset] Phone not found in user_phones:', formattedPhone);
+        // For security, we still proceed but the verify step will fail
+        // This prevents phone enumeration attacks
+      } else {
+        console.log('✅ [PhoneReset] Found phone linked to user:', phoneData.user_id);
       }
     }
 
