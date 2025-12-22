@@ -829,6 +829,9 @@ export default function WinnerTakesAllPage() {
       />
 
       <div className="min-h-screen bg-gradient-to-br from-yellow-800 via-amber-800 to-orange-800 text-white relative overflow-hidden">
+        {/* Site Theme Overlay - Zombies for Halloween, North Pole for Christmas */}
+        <PageThemeOverlay page="winner-takes-all" />
+        
         {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500/20 rounded-full blur-3xl animate-pulse"></div>
