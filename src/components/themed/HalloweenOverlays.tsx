@@ -1,127 +1,111 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 
 // ============================================
 // HELL THEME - For Hot Sell Page
-// Ominous lightning, hellfire sky, dark red atmosphere
+// Deep orange/purple, hellfire, dramatic lightning
 // ============================================
 export function HellOverlay() {
   const [lightning, setLightning] = useState(false);
-  const [lightningPosition, setLightningPosition] = useState({ x: 50, branch: 0 });
+  const [lightningPos, setLightningPos] = useState({ x: 50, type: 0 });
   
   useEffect(() => {
-    // Random lightning strikes
-    const triggerLightning = () => {
-      setLightningPosition({ 
-        x: 20 + Math.random() * 60, 
-        branch: Math.floor(Math.random() * 3) 
-      });
+    const strike = () => {
+      setLightningPos({ x: 15 + Math.random() * 70, type: Math.floor(Math.random() * 3) });
       setLightning(true);
-      
-      // Double flash effect
       setTimeout(() => setLightning(false), 100);
       setTimeout(() => {
         setLightning(true);
-        setTimeout(() => setLightning(false), 50);
-      }, 150);
+        setTimeout(() => setLightning(false), 60);
+      }, 120);
     };
-    
-    const interval = setInterval(triggerLightning, 4000 + Math.random() * 6000);
+    const interval = setInterval(strike, 3000 + Math.random() * 4000);
     return () => clearInterval(interval);
   }, []);
   
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Hellish gradient sky */}
+      {/* HALLOWEEN ORANGE/PURPLE PAGE COLOR OVERRIDE */}
       <div 
-        className="absolute inset-0 transition-opacity duration-100"
+        className="absolute inset-0"
         style={{
-          background: lightning 
-            ? 'linear-gradient(180deg, rgba(255,100,50,0.4) 0%, rgba(139,0,0,0.5) 50%, rgba(20,0,0,0.7) 100%)'
-            : 'linear-gradient(180deg, rgba(80,20,20,0.3) 0%, rgba(40,0,0,0.4) 50%, rgba(10,0,0,0.5) 100%)',
+          background: 'linear-gradient(180deg, rgba(60,20,80,0.7) 0%, rgba(120,40,20,0.6) 30%, rgba(80,30,60,0.7) 60%, rgba(40,10,30,0.8) 100%)',
         }}
       />
+      
+      {/* Lightning flash overlay */}
+      {lightning && (
+        <div className="absolute inset-0 bg-orange-200/30 animate-flash" style={{ mixBlendMode: 'overlay' }} />
+      )}
       
       {/* Lightning bolt SVG */}
       {lightning && (
         <svg 
-          className="absolute top-0 h-full opacity-90 animate-flash"
-          style={{ left: `${lightningPosition.x}%`, width: '200px', transform: 'translateX(-50%)' }}
-          viewBox="0 0 100 400"
-          preserveAspectRatio="none"
+          className="absolute top-0 h-full"
+          style={{ left: `${lightningPos.x}%`, width: '150px', transform: 'translateX(-50%)' }}
+          viewBox="0 0 80 400"
         >
           <defs>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            <filter id="hellGlow">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
           </defs>
-          {/* Main bolt */}
           <path 
-            d="M50,0 L45,80 L60,85 L40,180 L55,185 L30,300 L50,305 L25,400" 
-            stroke="#fff" 
-            strokeWidth="3" 
+            d={lightningPos.type === 0 
+              ? "M40,0 L35,60 L50,65 L30,140 L48,145 L20,250 L45,255 L15,400"
+              : lightningPos.type === 1
+              ? "M40,0 L45,70 L30,75 L50,150 L35,155 L55,280 L30,285 L50,400"
+              : "M40,0 L38,80 L52,85 L28,180 L45,185 L25,300 L42,305 L20,400"
+            }
+            stroke="#FFE4B5" 
+            strokeWidth="4" 
             fill="none"
-            filter="url(#glow)"
+            filter="url(#hellGlow)"
           />
-          {/* Branch 1 */}
-          {lightningPosition.branch >= 1 && (
-            <path 
-              d="M45,80 L70,140 L65,145 L80,200" 
-              stroke="#fff" 
-              strokeWidth="2" 
-              fill="none"
-              filter="url(#glow)"
-            />
-          )}
-          {/* Branch 2 */}
-          {lightningPosition.branch >= 2 && (
-            <path 
-              d="M40,180 L20,240 L25,245 L10,300" 
-              stroke="#fff" 
-              strokeWidth="2" 
-              fill="none"
-              filter="url(#glow)"
-            />
-          )}
+          {/* Branch */}
+          <path 
+            d="M35,60 L60,120 L55,125 L75,180" 
+            stroke="#FFE4B5" 
+            strokeWidth="2" 
+            fill="none"
+            filter="url(#hellGlow)"
+          />
         </svg>
       )}
       
-      {/* Bottom hellfire glow */}
+      {/* Hellfire glow bottom */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-32"
+        className="absolute bottom-0 left-0 right-0 h-40 animate-hellfire"
         style={{
-          background: 'linear-gradient(0deg, rgba(255,50,0,0.25) 0%, rgba(200,50,0,0.1) 50%, transparent 100%)',
+          background: 'linear-gradient(0deg, rgba(255,80,0,0.5) 0%, rgba(200,50,0,0.3) 40%, transparent 100%)',
         }}
       />
       
-      {/* Ambient red pulse */}
+      {/* Purple mist rising */}
       <div 
-        className="absolute inset-0 animate-pulse-slow"
+        className="absolute bottom-0 left-0 right-0 h-64 animate-mist-rise"
         style={{
-          background: 'radial-gradient(ellipse at 50% 100%, rgba(180,0,0,0.15) 0%, transparent 60%)',
+          background: 'linear-gradient(0deg, rgba(100,0,150,0.3) 0%, rgba(80,0,120,0.15) 50%, transparent 100%)',
         }}
       />
       
-      {/* Smoke wisps at bottom - CSS only, no JS particles */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 overflow-hidden opacity-30">
-        <div className="absolute bottom-0 left-1/4 w-64 h-32 bg-gradient-radial from-gray-800/50 to-transparent rounded-full animate-smoke-1" />
-        <div className="absolute bottom-0 left-1/2 w-48 h-24 bg-gradient-radial from-gray-700/40 to-transparent rounded-full animate-smoke-2" />
-        <div className="absolute bottom-0 right-1/4 w-56 h-28 bg-gradient-radial from-gray-800/50 to-transparent rounded-full animate-smoke-3" />
-      </div>
+      {/* Dark vignette */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(20,0,30,0.6) 100%)',
+        }}
+      />
       
       <style jsx>{`
-        @keyframes flash { 0%, 100% { opacity: 0; } 10% { opacity: 1; } }
-        @keyframes pulse-slow { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-        @keyframes smoke-1 { 0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.3; } 50% { transform: translateY(-60px) translateX(30px) scale(1.3); opacity: 0.1; } }
-        @keyframes smoke-2 { 0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.4; } 50% { transform: translateY(-80px) translateX(-20px) scale(1.4); opacity: 0.1; } }
-        @keyframes smoke-3 { 0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.3; } 50% { transform: translateY(-50px) translateX(-40px) scale(1.2); opacity: 0.1; } }
-        .animate-flash { animation: flash 0.15s ease-out; }
-        .animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
-        .animate-smoke-1 { animation: smoke-1 8s ease-in-out infinite; }
-        .animate-smoke-2 { animation: smoke-2 10s ease-in-out infinite 2s; }
-        .animate-smoke-3 { animation: smoke-3 9s ease-in-out infinite 4s; }
+        @keyframes flash { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        @keyframes hellfire { 0%, 100% { opacity: 0.8; transform: scaleY(1); } 50% { opacity: 1; transform: scaleY(1.1); } }
+        @keyframes mist-rise { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-20px); opacity: 0.7; } }
+        .animate-flash { animation: flash 0.1s ease-out; }
+        .animate-hellfire { animation: hellfire 2s ease-in-out infinite; }
+        .animate-mist-rise { animation: mist-rise 6s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -129,108 +113,165 @@ export function HellOverlay() {
 
 // ============================================
 // FRANKENSTEIN THEME - For 1v1 Page
-// Electric lab, green toxic glow, Tesla coil arcs
+// GREEN/PURPLE MIX with REAL LIGHTNING
 // ============================================
 export function FrankensteinOverlay() {
-  const [arcActive, setArcActive] = useState(false);
-  const [arcSide, setArcSide] = useState<'left' | 'right' | 'both'>('left');
+  const [leftArc, setLeftArc] = useState(false);
+  const [rightArc, setRightArc] = useState(false);
+  const [centerLightning, setCenterLightning] = useState(false);
   
   useEffect(() => {
-    const triggerArc = () => {
-      const sides: ('left' | 'right' | 'both')[] = ['left', 'right', 'both'];
-      setArcSide(sides[Math.floor(Math.random() * 3)]);
-      setArcActive(true);
-      setTimeout(() => setArcActive(false), 200 + Math.random() * 300);
-    };
+    // Tesla coil arcs
+    const arcInterval = setInterval(() => {
+      const side = Math.random();
+      if (side < 0.4) { setLeftArc(true); setTimeout(() => setLeftArc(false), 200); }
+      else if (side < 0.8) { setRightArc(true); setTimeout(() => setRightArc(false), 200); }
+      else { 
+        setLeftArc(true); setRightArc(true); 
+        setTimeout(() => { setLeftArc(false); setRightArc(false); }, 300);
+      }
+    }, 1500 + Math.random() * 2000);
     
-    const interval = setInterval(triggerArc, 2000 + Math.random() * 3000);
-    return () => clearInterval(interval);
+    // Center lightning
+    const lightningInterval = setInterval(() => {
+      setCenterLightning(true);
+      setTimeout(() => setCenterLightning(false), 150);
+    }, 5000 + Math.random() * 5000);
+    
+    return () => { clearInterval(arcInterval); clearInterval(lightningInterval); };
   }, []);
   
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Dark lab atmosphere */}
+      {/* GREEN/PURPLE GRADIENT PAGE COLOR */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(10,20,15,0.6) 0%, rgba(0,30,20,0.4) 50%, rgba(5,15,10,0.5) 100%)',
+          background: 'linear-gradient(135deg, rgba(20,60,30,0.75) 0%, rgba(60,20,80,0.7) 50%, rgba(30,80,40,0.75) 100%)',
         }}
       />
       
-      {/* Green toxic glow from bottom */}
+      {/* Dark laboratory sections */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-48"
+        className="absolute top-0 left-0 right-0 h-1/3"
         style={{
-          background: 'radial-gradient(ellipse at 50% 100%, rgba(0,255,100,0.2) 0%, rgba(0,200,50,0.1) 40%, transparent 70%)',
+          background: 'linear-gradient(180deg, rgba(10,5,20,0.6) 0%, transparent 100%)',
+        }}
+      />
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-1/4"
+        style={{
+          background: 'linear-gradient(0deg, rgba(5,10,5,0.5) 0%, transparent 100%)',
         }}
       />
       
-      {/* Left Tesla coil */}
-      <div className="absolute left-4 top-20 bottom-20 w-8">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-full bg-gradient-to-b from-gray-600 via-gray-500 to-gray-600 rounded" />
+      {/* Lightning flash */}
+      {(leftArc || rightArc || centerLightning) && (
         <div 
-          className={`absolute top-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full transition-all duration-100 ${arcActive && (arcSide === 'left' || arcSide === 'both') ? 'bg-cyan-400 shadow-lg shadow-cyan-400/80' : 'bg-cyan-600/50'}`}
-        />
-        {/* Electric arc from left */}
-        {arcActive && (arcSide === 'left' || arcSide === 'both') && (
-          <svg className="absolute top-3 left-6 w-48 h-32 opacity-80" viewBox="0 0 200 100">
-            <path 
-              d="M0,50 Q30,30 60,50 T120,50 T180,50" 
-              stroke="#00ffff" 
-              strokeWidth="2" 
-              fill="none"
-              className="animate-arc-jitter"
-            />
-          </svg>
-        )}
-      </div>
-      
-      {/* Right Tesla coil */}
-      <div className="absolute right-4 top-20 bottom-20 w-8">
-        <div className="absolute top-0 right-1/2 translate-x-1/2 w-4 h-full bg-gradient-to-b from-gray-600 via-gray-500 to-gray-600 rounded" />
-        <div 
-          className={`absolute top-0 right-1/2 translate-x-1/2 w-6 h-6 rounded-full transition-all duration-100 ${arcActive && (arcSide === 'right' || arcSide === 'both') ? 'bg-cyan-400 shadow-lg shadow-cyan-400/80' : 'bg-cyan-600/50'}`}
-        />
-        {/* Electric arc from right */}
-        {arcActive && (arcSide === 'right' || arcSide === 'both') && (
-          <svg className="absolute top-3 right-6 w-48 h-32 opacity-80 scale-x-[-1]" viewBox="0 0 200 100">
-            <path 
-              d="M0,50 Q30,70 60,50 T120,50 T180,50" 
-              stroke="#00ffff" 
-              strokeWidth="2" 
-              fill="none"
-              className="animate-arc-jitter"
-            />
-          </svg>
-        )}
-      </div>
-      
-      {/* Screen flash on arc */}
-      {arcActive && (
-        <div 
-          className="absolute inset-0 bg-cyan-500/10 animate-flash"
-          style={{ mixBlendMode: 'screen' }}
+          className="absolute inset-0 animate-flash"
+          style={{ 
+            background: centerLightning 
+              ? 'rgba(200,255,200,0.2)' 
+              : 'rgba(100,255,200,0.15)',
+            mixBlendMode: 'screen'
+          }} 
         />
       )}
       
-      {/* Vignette effect */}
+      {/* Center lightning bolt */}
+      {centerLightning && (
+        <svg className="absolute top-0 left-1/2 -translate-x-1/2 h-full w-48" viewBox="0 0 100 400">
+          <defs>
+            <filter id="greenGlow">
+              <feGaussianBlur stdDeviation="5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <path 
+            d="M50,0 L45,60 L58,65 L38,130 L55,135 L30,220 L52,225 L25,320 L48,325 L35,400" 
+            stroke="#00FF88" 
+            strokeWidth="5" 
+            fill="none"
+            filter="url(#greenGlow)"
+          />
+          <path 
+            d="M45,60 L70,100 L65,105 L85,150" 
+            stroke="#00FF88" 
+            strokeWidth="3" 
+            fill="none"
+            filter="url(#greenGlow)"
+          />
+          <path 
+            d="M38,130 L15,180 L20,185 L5,230" 
+            stroke="#00FF88" 
+            strokeWidth="3" 
+            fill="none"
+            filter="url(#greenGlow)"
+          />
+        </svg>
+      )}
+      
+      {/* Left Tesla coil with arc */}
+      <div className="absolute left-4 top-16 bottom-16">
+        <div className="w-6 h-full bg-gradient-to-b from-gray-600 via-gray-500 to-gray-600 rounded" />
+        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full transition-all duration-100 ${leftArc ? 'bg-cyan-300 shadow-2xl shadow-cyan-400' : 'bg-cyan-700/50'}`} 
+          style={{ boxShadow: leftArc ? '0 0 40px 15px rgba(0,255,200,0.8)' : 'none' }}
+        />
+        {leftArc && (
+          <svg className="absolute top-5 left-8 w-64 h-48" viewBox="0 0 250 150">
+            <path 
+              d="M0,75 Q40,50 80,75 T160,75 T240,75" 
+              stroke="#00FFCC" 
+              strokeWidth="3" 
+              fill="none"
+              className="animate-arc"
+              style={{ filter: 'drop-shadow(0 0 10px #00FFCC)' }}
+            />
+          </svg>
+        )}
+      </div>
+      
+      {/* Right Tesla coil with arc */}
+      <div className="absolute right-4 top-16 bottom-16">
+        <div className="w-6 h-full bg-gradient-to-b from-gray-600 via-gray-500 to-gray-600 rounded" />
+        <div className={`absolute top-0 right-1/2 translate-x-1/2 w-10 h-10 rounded-full transition-all duration-100 ${rightArc ? 'bg-purple-300 shadow-2xl shadow-purple-400' : 'bg-purple-700/50'}`}
+          style={{ boxShadow: rightArc ? '0 0 40px 15px rgba(180,100,255,0.8)' : 'none' }}
+        />
+        {rightArc && (
+          <svg className="absolute top-5 right-8 w-64 h-48 scale-x-[-1]" viewBox="0 0 250 150">
+            <path 
+              d="M0,75 Q40,100 80,75 T160,75 T240,75" 
+              stroke="#CC88FF" 
+              strokeWidth="3" 
+              fill="none"
+              className="animate-arc"
+              style={{ filter: 'drop-shadow(0 0 10px #CC88FF)' }}
+            />
+          </svg>
+        )}
+      </div>
+      
+      {/* Green toxic glow */}
       <div 
-        className="absolute inset-0"
+        className="absolute bottom-0 left-0 right-0 h-32"
         style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.4) 100%)',
+          background: 'radial-gradient(ellipse at 50% 100%, rgba(0,255,100,0.25) 0%, transparent 60%)',
+        }}
+      />
+      
+      {/* Purple energy at top */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-24"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(150,50,200,0.2) 0%, transparent 60%)',
         }}
       />
       
       <style jsx>{`
-        @keyframes arc-jitter { 
-          0%, 100% { transform: translateY(0); } 
-          25% { transform: translateY(-3px); } 
-          50% { transform: translateY(2px); } 
-          75% { transform: translateY(-2px); } 
-        }
         @keyframes flash { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
-        .animate-arc-jitter { animation: arc-jitter 0.1s linear infinite; }
-        .animate-flash { animation: flash 0.2s ease-out; }
+        @keyframes arc { 0%, 100% { transform: translateY(0); opacity: 0.8; } 25% { transform: translateY(-5px); opacity: 1; } 75% { transform: translateY(5px); opacity: 1; } }
+        .animate-flash { animation: flash 0.15s ease-out; }
+        .animate-arc { animation: arc 0.1s linear infinite; }
       `}</style>
     </div>
   );
@@ -238,92 +279,85 @@ export function FrankensteinOverlay() {
 
 // ============================================
 // ZOMBIES THEME - For Winner Takes All Page
-// Eerie fog, decay, moonlit graveyard atmosphere
+// Dark purple/green decay, eerie atmosphere
 // ============================================
 export function ZombiesOverlay() {
+  const [flicker, setFlicker] = useState(false);
+  
+  useEffect(() => {
+    const flickerInterval = setInterval(() => {
+      setFlicker(true);
+      setTimeout(() => setFlicker(false), 100);
+    }, 8000 + Math.random() * 4000);
+    return () => clearInterval(flickerInterval);
+  }, []);
+  
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Moonlit night sky */}
+      {/* PURPLE/GREEN DECAY GRADIENT */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(20,25,40,0.7) 0%, rgba(30,35,50,0.5) 40%, rgba(40,50,60,0.4) 100%)',
+          background: 'linear-gradient(180deg, rgba(40,20,60,0.75) 0%, rgba(30,40,30,0.6) 40%, rgba(50,30,50,0.7) 70%, rgba(20,30,20,0.8) 100%)',
         }}
       />
       
-      {/* Moon with glow */}
+      {/* Lightning flicker */}
+      {flicker && (
+        <div className="absolute inset-0 bg-purple-200/20" style={{ mixBlendMode: 'screen' }} />
+      )}
+      
+      {/* Full moon with purple haze */}
       <div className="absolute top-8 right-12">
         <div 
-          className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-100 to-yellow-200 shadow-2xl"
+          className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-100 to-yellow-200"
           style={{
-            boxShadow: '0 0 60px 20px rgba(255,255,200,0.3), 0 0 100px 40px rgba(255,255,150,0.1)',
-          }}
-        />
-        {/* Moon craters - subtle */}
-        <div className="absolute top-3 left-4 w-3 h-3 rounded-full bg-yellow-300/30" />
-        <div className="absolute top-8 left-8 w-2 h-2 rounded-full bg-yellow-300/20" />
-      </div>
-      
-      {/* Ground fog - layered CSS gradients */}
-      <div className="absolute bottom-0 left-0 right-0 h-64">
-        <div 
-          className="absolute inset-0 animate-fog-1"
-          style={{
-            background: 'linear-gradient(0deg, rgba(180,190,200,0.4) 0%, rgba(150,160,170,0.2) 40%, transparent 80%)',
-          }}
-        />
-        <div 
-          className="absolute inset-0 animate-fog-2"
-          style={{
-            background: 'linear-gradient(0deg, rgba(160,170,180,0.3) 0%, rgba(140,150,160,0.15) 50%, transparent 90%)',
+            boxShadow: '0 0 60px 20px rgba(255,255,200,0.3), 0 0 100px 40px rgba(150,100,200,0.2)',
           }}
         />
       </div>
       
-      {/* Tombstone silhouettes */}
-      <div className="absolute bottom-12 left-8 opacity-40">
-        <div className="w-10 h-16 bg-gray-800 rounded-t-lg" />
-      </div>
-      <div className="absolute bottom-12 left-24 opacity-30">
-        <div className="w-8 h-12 bg-gray-800 rounded-t-lg" />
-        <div className="w-12 h-3 bg-gray-800 -mt-1 -ml-2 rounded-sm" />
-      </div>
-      <div className="absolute bottom-12 right-8 opacity-40">
-        <div className="w-12 h-20 bg-gray-800 rounded-t-full" />
-      </div>
-      <div className="absolute bottom-12 right-28 opacity-35">
-        <div className="w-10 h-14 bg-gray-800 rounded-t-lg" />
-      </div>
-      
-      {/* Dead tree silhouette */}
-      <div className="absolute bottom-12 left-1/3 opacity-25">
-        <div className="w-4 h-48 bg-gray-900" />
-        <div className="absolute top-8 left-4 w-24 h-2 bg-gray-900 -rotate-12" />
-        <div className="absolute top-16 left-4 w-16 h-2 bg-gray-900 rotate-6" />
-        <div className="absolute top-4 -left-16 w-20 h-2 bg-gray-900 rotate-12" />
-      </div>
-      
-      {/* Green decay glow at ground level */}
+      {/* Green fog layers */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-24"
+        className="absolute bottom-0 left-0 right-0 h-48 animate-fog-drift"
         style={{
-          background: 'linear-gradient(0deg, rgba(100,150,50,0.15) 0%, transparent 100%)',
+          background: 'linear-gradient(0deg, rgba(100,150,80,0.4) 0%, rgba(80,120,60,0.2) 50%, transparent 100%)',
+        }}
+      />
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-32 animate-fog-drift-slow"
+        style={{
+          background: 'linear-gradient(0deg, rgba(120,100,150,0.3) 0%, transparent 80%)',
         }}
       />
       
-      {/* Vignette */}
+      {/* Tombstones with purple glow */}
+      <div className="absolute bottom-16 left-12 opacity-50">
+        <div className="w-12 h-20 bg-gray-800 rounded-t-lg" />
+        <div className="absolute -inset-2 bg-purple-500/20 rounded-lg blur-sm" />
+      </div>
+      <div className="absolute bottom-16 right-12 opacity-50">
+        <div className="w-14 h-24 bg-gray-700 rounded-t-lg" />
+        <div className="absolute -inset-2 bg-purple-500/20 rounded-lg blur-sm" />
+      </div>
+      <div className="absolute bottom-16 left-1/3 opacity-40">
+        <div className="w-10 h-16 bg-gray-800 rounded-t-lg" />
+        <div className="absolute -inset-1 bg-green-500/10 rounded-lg blur-sm" />
+      </div>
+      
+      {/* Purple/green vignette */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.5) 100%)',
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(40,20,60,0.5) 100%)',
         }}
       />
       
       <style jsx>{`
-        @keyframes fog-1 { 0%, 100% { transform: translateX(0); opacity: 0.4; } 50% { transform: translateX(30px); opacity: 0.5; } }
-        @keyframes fog-2 { 0%, 100% { transform: translateX(0); opacity: 0.3; } 50% { transform: translateX(-40px); opacity: 0.4; } }
-        .animate-fog-1 { animation: fog-1 12s ease-in-out infinite; }
-        .animate-fog-2 { animation: fog-2 15s ease-in-out infinite 3s; }
+        @keyframes fog-drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(30px); } }
+        @keyframes fog-drift-slow { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-40px); } }
+        .animate-fog-drift { animation: fog-drift 10s ease-in-out infinite; }
+        .animate-fog-drift-slow { animation: fog-drift-slow 14s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -331,82 +365,90 @@ export function ZombiesOverlay() {
 
 // ============================================
 // STYX THEME - For Coin Play Page
-// Greek underworld, dark waters, ethereal coins
+// Deep purple underworld, ghostly blue
 // ============================================
 export function StyxOverlay() {
+  const [ghostLight, setGhostLight] = useState(false);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGhostLight(true);
+      setTimeout(() => setGhostLight(false), 500);
+    }, 6000 + Math.random() * 4000);
+    return () => clearInterval(interval);
+  }, []);
+  
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Deep underworld gradient */}
+      {/* DEEP PURPLE/DARK BLUE UNDERWORLD */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(30,20,50,0.6) 0%, rgba(20,15,40,0.5) 40%, rgba(10,20,40,0.6) 100%)',
+          background: 'linear-gradient(180deg, rgba(30,15,60,0.8) 0%, rgba(20,20,50,0.7) 40%, rgba(40,25,70,0.8) 70%, rgba(15,25,45,0.85) 100%)',
         }}
       />
       
-      {/* River Styx at bottom - dark waters */}
-      <div className="absolute bottom-0 left-0 right-0 h-40">
+      {/* Ghost light flash */}
+      {ghostLight && (
+        <div className="absolute inset-0 bg-blue-300/10" style={{ mixBlendMode: 'screen' }} />
+      )}
+      
+      {/* River Styx - dark mystical water */}
+      <div className="absolute bottom-0 left-0 right-0 h-36">
         <div 
-          className="absolute inset-0 animate-water-shimmer"
+          className="absolute inset-0 animate-water"
           style={{
-            background: 'linear-gradient(0deg, rgba(20,40,80,0.6) 0%, rgba(30,50,100,0.4) 40%, transparent 100%)',
+            background: 'linear-gradient(0deg, rgba(30,50,100,0.7) 0%, rgba(40,60,120,0.4) 50%, transparent 100%)',
           }}
         />
-        {/* Water surface reflection */}
+        {/* Purple reflections */}
         <div 
-          className="absolute top-0 left-0 right-0 h-2 opacity-30 animate-water-line"
+          className="absolute inset-0 animate-water-alt"
           style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(100,150,200,0.5) 25%, transparent 50%, rgba(100,150,200,0.3) 75%, transparent 100%)',
+            background: 'linear-gradient(0deg, rgba(80,40,120,0.3) 0%, transparent 60%)',
           }}
         />
       </div>
       
-      {/* Floating ethereal coins - few, slow, subtle */}
-      <div className="absolute bottom-20 left-1/4 w-6 h-6 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-800 opacity-40 animate-float-coin-1 shadow-lg shadow-yellow-900/50" />
-      <div className="absolute bottom-28 right-1/3 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-700 to-yellow-900 opacity-30 animate-float-coin-2 shadow-lg shadow-yellow-900/50" />
-      <div className="absolute bottom-16 left-1/2 w-4 h-4 rounded-full bg-gradient-to-br from-yellow-600 to-yellow-800 opacity-35 animate-float-coin-3 shadow-lg shadow-yellow-900/50" />
-      
-      {/* Greek column silhouettes */}
-      <div className="absolute bottom-0 left-4 w-8 h-56 opacity-20">
-        <div className="w-full h-4 bg-gray-600 rounded" />
-        <div className="w-6 h-48 bg-gray-700 mx-auto" />
-        <div className="w-full h-4 bg-gray-600 rounded" />
-      </div>
-      <div className="absolute bottom-0 right-4 w-8 h-56 opacity-20">
-        <div className="w-full h-4 bg-gray-600 rounded" />
-        <div className="w-6 h-48 bg-gray-700 mx-auto" />
-        <div className="w-full h-4 bg-gray-600 rounded" />
-      </div>
-      
-      {/* Purple mist overlay */}
-      <div 
-        className="absolute inset-0 animate-pulse-mist"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 80%, rgba(100,50,150,0.1) 0%, transparent 50%)',
-        }}
+      {/* Floating spirit coins */}
+      <div className="absolute bottom-24 left-1/4 w-8 h-8 rounded-full bg-gradient-to-br from-yellow-600/60 to-yellow-900/60 animate-float-coin shadow-lg" 
+        style={{ boxShadow: '0 0 20px 5px rgba(150,100,50,0.4)' }} 
+      />
+      <div className="absolute bottom-32 right-1/3 w-6 h-6 rounded-full bg-gradient-to-br from-yellow-700/50 to-yellow-900/50 animate-float-coin-alt shadow-lg"
+        style={{ boxShadow: '0 0 15px 3px rgba(150,100,50,0.3)', animationDelay: '2s' }}
       />
       
-      {/* Vignette */}
+      {/* Greek columns with purple glow */}
+      <div className="absolute bottom-0 left-4 w-10 h-64 opacity-30">
+        <div className="w-full h-5 bg-purple-800 rounded" />
+        <div className="w-8 h-52 bg-purple-900 mx-auto" />
+        <div className="w-full h-5 bg-purple-800 rounded" />
+        <div className="absolute -inset-2 bg-purple-500/20 blur-md" />
+      </div>
+      <div className="absolute bottom-0 right-4 w-10 h-64 opacity-30">
+        <div className="w-full h-5 bg-purple-800 rounded" />
+        <div className="w-8 h-52 bg-purple-900 mx-auto" />
+        <div className="w-full h-5 bg-purple-800 rounded" />
+        <div className="absolute -inset-2 bg-purple-500/20 blur-md" />
+      </div>
+      
+      {/* Dark vignette */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(10,5,20,0.6) 100%)',
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(15,10,30,0.7) 100%)',
         }}
       />
       
       <style jsx>{`
-        @keyframes water-shimmer { 0%, 100% { opacity: 0.6; } 50% { opacity: 0.8; } }
-        @keyframes water-line { 0%, 100% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-        @keyframes float-coin-1 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-15px) rotate(180deg); } }
-        @keyframes float-coin-2 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(-180deg); } }
-        @keyframes float-coin-3 { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(180deg); } }
-        @keyframes pulse-mist { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-        .animate-water-shimmer { animation: water-shimmer 4s ease-in-out infinite; }
-        .animate-water-line { animation: water-line 8s linear infinite; }
-        .animate-float-coin-1 { animation: float-coin-1 6s ease-in-out infinite; }
-        .animate-float-coin-2 { animation: float-coin-2 8s ease-in-out infinite 2s; }
-        .animate-float-coin-3 { animation: float-coin-3 7s ease-in-out infinite 4s; }
-        .animate-pulse-mist { animation: pulse-mist 6s ease-in-out infinite; }
+        @keyframes water { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.9; } }
+        @keyframes water-alt { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+        @keyframes float-coin { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(180deg); } }
+        @keyframes float-coin-alt { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-25px) rotate(-180deg); } }
+        .animate-water { animation: water 4s ease-in-out infinite; }
+        .animate-water-alt { animation: water-alt 6s ease-in-out infinite; }
+        .animate-float-coin { animation: float-coin 5s ease-in-out infinite; }
+        .animate-float-coin-alt { animation: float-coin-alt 6s ease-in-out infinite; }
       `}</style>
     </div>
   );
@@ -414,149 +456,159 @@ export function StyxOverlay() {
 
 // ============================================
 // HAUNTED THEME - For Dashboard
-// Subtle creepy atmosphere, spider webs, shadows
+// Orange/purple Halloween colors, spooky
 // ============================================
 export function HauntedOverlay() {
+  const [candleFlicker, setCandleFlicker] = useState(true);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCandleFlicker(prev => !prev);
+    }, 200 + Math.random() * 300);
+    return () => clearInterval(interval);
+  }, []);
+  
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Dark purple/orange atmosphere */}
+      {/* ORANGE/PURPLE HALLOWEEN GRADIENT */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(135deg, rgba(40,20,50,0.4) 0%, rgba(30,15,25,0.3) 50%, rgba(50,30,20,0.35) 100%)',
+          background: 'linear-gradient(180deg, rgba(60,30,80,0.65) 0%, rgba(100,50,30,0.5) 40%, rgba(70,40,70,0.6) 70%, rgba(40,20,50,0.75) 100%)',
         }}
       />
       
-      {/* Corner spider web - top left */}
-      <svg className="absolute top-0 left-0 w-48 h-48 opacity-20" viewBox="0 0 100 100">
-        <path d="M0,0 Q50,20 100,0" stroke="white" strokeWidth="0.5" fill="none" />
-        <path d="M0,0 Q20,50 0,100" stroke="white" strokeWidth="0.5" fill="none" />
-        <path d="M0,0 L70,70" stroke="white" strokeWidth="0.3" fill="none" />
-        <path d="M0,0 Q35,10 70,35" stroke="white" strokeWidth="0.3" fill="none" />
-        <path d="M0,0 Q10,35 35,70" stroke="white" strokeWidth="0.3" fill="none" />
-        {/* Radial web lines */}
-        <path d="M0,0 L100,50" stroke="white" strokeWidth="0.2" fill="none" />
-        <path d="M0,0 L50,100" stroke="white" strokeWidth="0.2" fill="none" />
+      {/* Spider webs in corners */}
+      <svg className="absolute top-0 left-0 w-56 h-56 opacity-25" viewBox="0 0 100 100">
+        <path d="M0,0 Q50,25 100,0" stroke="#fff" strokeWidth="0.4" fill="none" />
+        <path d="M0,0 Q25,50 0,100" stroke="#fff" strokeWidth="0.4" fill="none" />
+        <path d="M0,0 L75,75" stroke="#fff" strokeWidth="0.3" fill="none" />
+        <path d="M0,0 Q40,15 80,40" stroke="#fff" strokeWidth="0.25" fill="none" />
+        <path d="M0,0 Q15,40 40,80" stroke="#fff" strokeWidth="0.25" fill="none" />
+        <path d="M0,0 L50,100" stroke="#fff" strokeWidth="0.2" fill="none" />
+        <path d="M0,0 L100,50" stroke="#fff" strokeWidth="0.2" fill="none" />
+        {/* Web circles */}
+        <ellipse cx="25" cy="25" rx="20" ry="15" stroke="#fff" strokeWidth="0.2" fill="none" transform="rotate(-45 25 25)" />
+        <ellipse cx="40" cy="40" rx="35" ry="25" stroke="#fff" strokeWidth="0.15" fill="none" transform="rotate(-45 40 40)" />
+      </svg>
+      <svg className="absolute top-0 right-0 w-56 h-56 opacity-25 scale-x-[-1]" viewBox="0 0 100 100">
+        <path d="M0,0 Q50,25 100,0" stroke="#fff" strokeWidth="0.4" fill="none" />
+        <path d="M0,0 Q25,50 0,100" stroke="#fff" strokeWidth="0.4" fill="none" />
+        <path d="M0,0 L75,75" stroke="#fff" strokeWidth="0.3" fill="none" />
       </svg>
       
-      {/* Corner spider web - top right */}
-      <svg className="absolute top-0 right-0 w-48 h-48 opacity-20 scale-x-[-1]" viewBox="0 0 100 100">
-        <path d="M0,0 Q50,20 100,0" stroke="white" strokeWidth="0.5" fill="none" />
-        <path d="M0,0 Q20,50 0,100" stroke="white" strokeWidth="0.5" fill="none" />
-        <path d="M0,0 L70,70" stroke="white" strokeWidth="0.3" fill="none" />
-        <path d="M0,0 Q35,10 70,35" stroke="white" strokeWidth="0.3" fill="none" />
-      </svg>
-      
-      {/* Subtle pumpkin glow at bottom corners */}
+      {/* Pumpkin glow corners */}
       <div 
-        className="absolute bottom-0 left-0 w-48 h-48 animate-pumpkin-glow"
+        className={`absolute bottom-0 left-0 w-48 h-48 transition-opacity duration-200 ${candleFlicker ? 'opacity-100' : 'opacity-70'}`}
         style={{
-          background: 'radial-gradient(circle at 20% 80%, rgba(255,120,0,0.15) 0%, transparent 50%)',
+          background: 'radial-gradient(circle at 20% 80%, rgba(255,120,0,0.25) 0%, transparent 50%)',
         }}
       />
       <div 
-        className="absolute bottom-0 right-0 w-48 h-48 animate-pumpkin-glow"
+        className={`absolute bottom-0 right-0 w-48 h-48 transition-opacity duration-200 ${!candleFlicker ? 'opacity-100' : 'opacity-70'}`}
         style={{
-          background: 'radial-gradient(circle at 80% 80%, rgba(255,120,0,0.15) 0%, transparent 50%)',
-          animationDelay: '1.5s',
+          background: 'radial-gradient(circle at 80% 80%, rgba(255,100,0,0.25) 0%, transparent 50%)',
         }}
       />
       
-      {/* Dark shadow creeping from corners */}
+      {/* Purple mist at bottom */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-32"
+        style={{
+          background: 'linear-gradient(0deg, rgba(100,50,150,0.3) 0%, transparent 100%)',
+        }}
+      />
+      
+      {/* Dark vignette */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.3) 100%)',
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(30,15,40,0.5) 100%)',
         }}
       />
-      
-      {/* Subtle purple tint */}
-      <div 
-        className="absolute inset-0 opacity-30"
-        style={{
-          background: 'linear-gradient(45deg, rgba(100,0,150,0.1) 0%, transparent 50%, rgba(150,50,0,0.1) 100%)',
-        }}
-      />
-      
-      <style jsx>{`
-        @keyframes pumpkin-glow { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
-        .animate-pumpkin-glow { animation: pumpkin-glow 3s ease-in-out infinite; }
-      `}</style>
     </div>
   );
 }
 
 // ============================================
 // CARNIVAL THEME - For Games Page
-// Dark circus, spotlight effects, eerie atmosphere
+// Dark purple/orange circus, eerie lights
 // ============================================
 export function CarnivalOverlay() {
   const [spotlightAngle, setSpotlightAngle] = useState(0);
+  const [lightFlicker, setLightFlicker] = useState([true, true, true]);
   
   useEffect(() => {
-    const animate = () => {
-      setSpotlightAngle(prev => (prev + 0.5) % 360);
-    };
-    const interval = setInterval(animate, 50);
-    return () => clearInterval(interval);
+    const spotInterval = setInterval(() => {
+      setSpotlightAngle(prev => (prev + 1) % 360);
+    }, 50);
+    
+    const flickerInterval = setInterval(() => {
+      setLightFlicker([
+        Math.random() > 0.1,
+        Math.random() > 0.15,
+        Math.random() > 0.1,
+      ]);
+    }, 150);
+    
+    return () => { clearInterval(spotInterval); clearInterval(flickerInterval); };
   }, []);
   
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {/* Dark circus tent gradient */}
+      {/* DARK PURPLE/ORANGE CIRCUS GRADIENT */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(180deg, rgba(50,10,30,0.5) 0%, rgba(30,5,20,0.4) 50%, rgba(20,0,10,0.5) 100%)',
+          background: 'linear-gradient(180deg, rgba(50,20,60,0.7) 0%, rgba(80,40,30,0.55) 40%, rgba(60,25,50,0.65) 70%, rgba(30,10,35,0.8) 100%)',
         }}
       />
       
-      {/* Circus tent stripes at top - subtle */}
-      <div className="absolute top-0 left-0 right-0 h-12 overflow-hidden opacity-20">
+      {/* Circus tent stripes at top */}
+      <div className="absolute top-0 left-0 right-0 h-16 overflow-hidden opacity-25">
         <div 
           className="absolute inset-0"
           style={{
-            background: 'repeating-linear-gradient(90deg, rgba(150,0,0,0.5) 0px, rgba(150,0,0,0.5) 40px, transparent 40px, transparent 80px)',
+            background: 'repeating-linear-gradient(90deg, rgba(150,50,50,0.6) 0px, rgba(150,50,50,0.6) 30px, rgba(80,40,60,0.4) 30px, rgba(80,40,60,0.4) 60px)',
           }}
         />
       </div>
       
-      {/* Swinging spotlight effect */}
+      {/* Swinging spotlight */}
       <div 
-        className="absolute top-0 left-1/2 w-48 h-full opacity-10"
+        className="absolute top-0 left-1/2 w-40 h-full opacity-15"
         style={{
-          background: 'linear-gradient(180deg, rgba(255,255,200,0.4) 0%, rgba(255,255,150,0.1) 30%, transparent 60%)',
-          transform: `translateX(-50%) rotate(${Math.sin(spotlightAngle * Math.PI / 180) * 15}deg)`,
+          background: 'linear-gradient(180deg, rgba(255,200,100,0.5) 0%, rgba(255,180,80,0.2) 30%, transparent 60%)',
+          transform: `translateX(-50%) rotate(${Math.sin(spotlightAngle * Math.PI / 180) * 20}deg)`,
           transformOrigin: 'top center',
         }}
       />
       
-      {/* Red ambient glow at bottom */}
+      {/* Flickering carnival lights */}
+      <div className="absolute top-20 left-0 right-0 flex justify-around">
+        <div className={`w-3 h-3 rounded-full transition-opacity duration-75 ${lightFlicker[0] ? 'bg-orange-400 opacity-100' : 'bg-orange-600 opacity-50'}`}
+          style={{ boxShadow: lightFlicker[0] ? '0 0 15px 5px rgba(255,150,0,0.6)' : 'none' }} />
+        <div className={`w-3 h-3 rounded-full transition-opacity duration-75 ${lightFlicker[1] ? 'bg-purple-400 opacity-100' : 'bg-purple-600 opacity-50'}`}
+          style={{ boxShadow: lightFlicker[1] ? '0 0 15px 5px rgba(180,100,255,0.6)' : 'none' }} />
+        <div className={`w-3 h-3 rounded-full transition-opacity duration-75 ${lightFlicker[2] ? 'bg-orange-400 opacity-100' : 'bg-orange-600 opacity-50'}`}
+          style={{ boxShadow: lightFlicker[2] ? '0 0 15px 5px rgba(255,150,0,0.6)' : 'none' }} />
+      </div>
+      
+      {/* Dark bottom */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-32"
+        className="absolute bottom-0 left-0 right-0 h-24"
         style={{
-          background: 'radial-gradient(ellipse at 50% 100%, rgba(150,0,0,0.2) 0%, transparent 70%)',
+          background: 'linear-gradient(0deg, rgba(20,10,30,0.6) 0%, transparent 100%)',
         }}
       />
       
-      {/* Vignette - heavier for creepy effect */}
+      {/* Heavy vignette for creepy effect */}
       <div 
         className="absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.5) 100%)',
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(20,10,30,0.6) 100%)',
         }}
       />
-      
-      {/* Subtle golden ticket particles - just 2-3 */}
-      <div className="absolute top-1/4 left-1/4 w-8 h-4 bg-gradient-to-r from-yellow-600 to-yellow-700 rounded opacity-20 animate-float-ticket-1" />
-      <div className="absolute top-1/3 right-1/4 w-6 h-3 bg-gradient-to-r from-yellow-600 to-yellow-700 rounded opacity-15 animate-float-ticket-2" />
-      
-      <style jsx>{`
-        @keyframes float-ticket-1 { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-30px) rotate(5deg); } }
-        @keyframes float-ticket-2 { 0%, 100% { transform: translateY(0) rotate(5deg); } 50% { transform: translateY(-25px) rotate(-5deg); } }
-        .animate-float-ticket-1 { animation: float-ticket-1 8s ease-in-out infinite; }
-        .animate-float-ticket-2 { animation: float-ticket-2 10s ease-in-out infinite 3s; }
-      `}</style>
     </div>
   );
 }
