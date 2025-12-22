@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { EyeIcon, EyeSlashIcon, ExclamationTriangleIcon, ArrowPathIcon, EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -9,6 +10,7 @@ type LoginMethod = 'email' | 'phone';
 
 export default function SimpleLoginPage() {
   const { login } = useAuth();
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('email');
   const [email, setEmail] = useState('');
@@ -18,6 +20,9 @@ export default function SimpleLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
+  
+  // Get redirect URL from query params
+  const redirectUrl = searchParams?.get('redirect') || '/dashboard';
   
   // Handle hydration
   useEffect(() => {
@@ -60,7 +65,7 @@ export default function SimpleLoginPage() {
         console.log('🔐 Attempting email login...');
         await login(email.trim(), password, rememberMe);
         console.log('✅ Login successful!');
-        window.location.href = '/dashboard';
+        window.location.href = redirectUrl;
       } catch (err: unknown) {
         console.error('❌ Login failed:', err);
         const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';
@@ -103,7 +108,8 @@ export default function SimpleLoginPage() {
         // Now login with the found email
         await login(data.email, password, rememberMe);
         console.log('✅ Phone login successful!');
-        window.location.href = '/dashboard';
+        // For phone login, always go to settings so user can verify/update email if needed
+        window.location.href = redirectUrl === '/dashboard' ? '/dashboard/settings' : redirectUrl;
       } catch (err: unknown) {
         console.error('❌ Phone login failed:', err);
         const errorMessage = err instanceof Error ? err.message : 'Login failed. Please check your credentials.';

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { 
   EnvelopeIcon, 
@@ -12,22 +11,27 @@ import {
   EyeIcon, 
   EyeSlashIcon,
   ArrowLeftIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
-import { validatePasswordStrength } from '@/lib/passwordUtils';
+
+interface UserData {
+  email: string;
+  username: string;
+}
 
 export default function AccountSettingsPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<UserData | null>(null);
   
   // Email change state
   const [newEmail, setNewEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState(false);
   
   // Password change state
@@ -37,7 +41,7 @@ export default function AccountSettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
@@ -45,32 +49,72 @@ export default function AccountSettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (mounted && !authLoading && !isAuthenticated) {
-      router.push('/auth/login?redirect=/dashboard/settings');
-    }
-  }, [mounted, authLoading, isAuthenticated, router]);
+    if (!mounted) return;
+    
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          router.push('/auth/login?redirect=/dashboard/settings');
+          return;
+        }
+        
+        // Get user data
+        const email = session.user.email || '';
+        let username = '';
+        
+        // Try to get username from users table
+        try {
+          const { data: userProfile } = await supabase
+            .from('users')
+            .select('username')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (userProfile) {
+            username = userProfile.username || '';
+          }
+        } catch {
+          // Ignore errors getting username
+        }
+        
+        setUserData({ email, username });
+        setLoading(false);
+      } catch (err) {
+        console.error('Auth check error:', err);
+        router.push('/auth/login?redirect=/dashboard/settings');
+      }
+    };
+    
+    checkAuth();
+  }, [mounted, router]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    setEmailError(null);
+    setEmailError('');
     setEmailSuccess(false);
 
-    if (!newEmail) {
+    const trimmedEmail = (newEmail || '').trim();
+    const trimmedConfirm = (confirmEmail || '').trim();
+
+    if (!trimmedEmail) {
       setEmailError('Please enter a new email address');
       return;
     }
 
-    if (!newEmail.includes('@')) {
+    if (!trimmedEmail.includes('@')) {
       setEmailError('Please enter a valid email address');
       return;
     }
 
-    if (newEmail !== confirmEmail) {
+    if (trimmedEmail !== trimmedConfirm) {
       setEmailError('Email addresses do not match');
       return;
     }
 
-    if (newEmail.toLowerCase() === user?.email?.toLowerCase()) {
+    const currentEmail = (userData?.email || '').trim().toLowerCase();
+    if (trimmedEmail.toLowerCase() === currentEmail) {
       setEmailError('New email must be different from current email');
       return;
     }
@@ -78,9 +122,8 @@ export default function AccountSettingsPage() {
     setEmailLoading(true);
 
     try {
-      // Update email in Supabase Auth
       const { error } = await supabase.auth.updateUser({
-        email: newEmail.toLowerCase()
+        email: trimmedEmail.toLowerCase()
       });
 
       if (error) {
@@ -90,7 +133,7 @@ export default function AccountSettingsPage() {
         setNewEmail('');
         setConfirmEmail('');
       }
-    } catch (err: unknown) {
+    } catch (err) {
       setEmailError(err instanceof Error ? err.message : 'Failed to update email');
     } finally {
       setEmailLoading(false);
@@ -99,7 +142,7 @@ export default function AccountSettingsPage() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordError(null);
+    setPasswordError('');
     setPasswordSuccess(false);
 
     if (!currentPassword) {
@@ -112,30 +155,29 @@ export default function AccountSettingsPage() {
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match');
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       return;
     }
 
-    const passwordStrength = validatePasswordStrength({
-      password: newPassword,
-      email: user?.email || '',
-      firstName: '',
-      lastName: '',
-      username: user?.username || ''
-    });
-
-    if (!passwordStrength.isValid) {
-      setPasswordError('Password does not meet security requirements');
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match');
       return;
     }
 
     setPasswordLoading(true);
 
     try {
-      // First verify current password by attempting to sign in
+      // First verify current password
+      const userEmail = userData?.email || '';
+      if (!userEmail) {
+        setPasswordError('Could not verify current password');
+        setPasswordLoading(false);
+        return;
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
+        email: userEmail,
         password: currentPassword
       });
 
@@ -158,23 +200,38 @@ export default function AccountSettingsPage() {
         setNewPassword('');
         setConfirmPassword('');
       }
-    } catch (err: unknown) {
+    } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Failed to update password');
     } finally {
       setPasswordLoading(false);
     }
   };
 
-  if (!mounted || authLoading) {
+  // Loading state
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading settings...</p>
+        </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
+  // Not authenticated
+  if (!userData) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <p className="text-white mb-4">Please sign in to access settings</p>
+          <Link href="/auth/login" className="text-blue-400 hover:text-blue-300">
+            Go to Sign In
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -184,7 +241,7 @@ export default function AccountSettingsPage() {
         <div className="mb-8">
           <Link 
             href="/dashboard" 
-            className="inline-flex items-center text-gray-400 hover:text-white mb-4"
+            className="inline-flex items-center text-gray-400 hover:text-white mb-4 transition-colors"
           >
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back to Dashboard
@@ -205,11 +262,15 @@ export default function AccountSettingsPage() {
           <h2 className="text-lg font-semibold text-white mb-4">Current Account</h2>
           <div className="space-y-2">
             <p className="text-gray-300">
-              <span className="text-gray-500">Email:</span> {user?.email || 'Not set'}
+              <span className="text-gray-500">Email:</span>{' '}
+              <span className="text-white">{userData.email || 'Not set'}</span>
             </p>
-            <p className="text-gray-300">
-              <span className="text-gray-500">Username:</span> {user?.username || 'Not set'}
-            </p>
+            {userData.username && (
+              <p className="text-gray-300">
+                <span className="text-gray-500">Username:</span>{' '}
+                <span className="text-white">{userData.username}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -222,7 +283,7 @@ export default function AccountSettingsPage() {
 
           {emailSuccess && (
             <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4 flex items-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
+              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" />
               <p className="text-green-400 text-sm">
                 Confirmation email sent! Check your inbox to verify the new email.
               </p>
@@ -236,7 +297,7 @@ export default function AccountSettingsPage() {
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="new.email@example.com"
               />
             </div>
@@ -247,7 +308,7 @@ export default function AccountSettingsPage() {
                 type="email"
                 value={confirmEmail}
                 onChange={(e) => setConfirmEmail(e.target.value)}
-                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="Confirm new email"
               />
             </div>
@@ -277,7 +338,7 @@ export default function AccountSettingsPage() {
 
           {passwordSuccess && (
             <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4 flex items-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
+              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" />
               <p className="text-green-400 text-sm">Password updated successfully!</p>
             </div>
           )}
@@ -290,7 +351,7 @@ export default function AccountSettingsPage() {
                   type={showCurrentPassword ? 'text' : 'password'}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                   placeholder="Enter current password"
                 />
                 <button
@@ -314,8 +375,8 @@ export default function AccountSettingsPage() {
                   type={showNewPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Enter new password"
+                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  placeholder="Enter new password (min 8 characters)"
                 />
                 <button
                   type="button"
@@ -329,17 +390,7 @@ export default function AccountSettingsPage() {
                   )}
                 </button>
               </div>
-              {newPassword && (
-                <div className="mt-2">
-                  <PasswordStrengthIndicator 
-                    password={newPassword}
-                    email={user?.email || ''}
-                    firstName=""
-                    lastName=""
-                    username={user?.username || ''}
-                  />
-                </div>
-              )}
+              <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
             </div>
 
             <div>
@@ -348,7 +399,7 @@ export default function AccountSettingsPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                 placeholder="Confirm new password"
               />
             </div>
@@ -368,8 +419,17 @@ export default function AccountSettingsPage() {
             </button>
           </form>
         </div>
+
+        {/* Done button */}
+        <div className="mt-6 text-center">
+          <Link 
+            href="/dashboard"
+            className="inline-flex items-center px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+          >
+            Done - Go to Dashboard
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
-
