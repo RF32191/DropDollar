@@ -96,6 +96,11 @@ const NeonStrikerGame = dynamic(() => import('@/components/games/NeonStrikerGame
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Neon Striker" color="cyan" />
 });
+
+const WormholeGame = dynamic(() => import('@/components/games/WormholeGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Wormhole" color="orange" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -289,6 +294,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Precision', 'Strategy', 'Physics', 'Timing'],
     component: NeonStrikerGame
+  },
+  {
+    id: 'wormhole',
+    name: 'Wormhole',
+    description: 'Portal-style 3D shooter! Use your black & orange portal gun to teleport, destroy enemies, and solve puzzles!',
+    icon: SparklesIcon,
+    difficulty: 'Extreme',
+    avgTime: '120s',
+    skills: ['FPS Combat', 'Puzzle Solving', 'Portal Strategy', 'Spatial Awareness'],
+    component: WormholeGame
   }
 ];
 
