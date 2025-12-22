@@ -11,6 +11,39 @@ function formatPhoneNumber(phone: string): string {
   return '+' + digits;
 }
 
+// Helper function to ensure table exists
+async function ensureTableExists(supabaseAdmin: SupabaseClient): Promise<boolean> {
+  try {
+    // Try to create the table if it doesn't exist
+    const { error } = await supabaseAdmin.rpc('exec_sql', {
+      sql: `
+        CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL,
+          token TEXT NOT NULL,
+          phone_number TEXT,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_prt_token ON public.password_reset_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_prt_user ON public.password_reset_tokens(user_id);
+      `
+    });
+    
+    if (error) {
+      console.log('⚠️ [PhoneReset] Could not create table via RPC:', error.message);
+      return false;
+    }
+    
+    console.log('✅ [PhoneReset] Table ensured to exist');
+    return true;
+  } catch (err) {
+    console.log('⚠️ [PhoneReset] Table creation RPC not available');
+    return false;
+  }
+}
+
 // Helper function to create reset token
 async function createResetToken(
   supabaseAdmin: SupabaseClient, 
@@ -25,12 +58,22 @@ async function createResetToken(
     console.log('🔑 [PhoneReset] Creating reset token for user:', userData.id);
 
     // First, try to delete any existing token for this user
-    await supabaseAdmin
+    const { error: deleteError } = await supabaseAdmin
       .from('password_reset_tokens')
       .delete()
-      .eq('user_id', userData.id)
-      .then(() => console.log('✅ [PhoneReset] Cleaned up old tokens'))
-      .catch(() => console.log('⚠️ [PhoneReset] No old tokens to clean'));
+      .eq('user_id', userData.id);
+    
+    if (deleteError) {
+      console.log('⚠️ [PhoneReset] Delete error (may be first token):', deleteError.code);
+      
+      // If table doesn't exist, try to create it
+      if (deleteError.code === '42P01' || deleteError.message?.includes('does not exist')) {
+        console.log('🔧 [PhoneReset] Table does not exist, attempting to create...');
+        await ensureTableExists(supabaseAdmin);
+      }
+    } else {
+      console.log('✅ [PhoneReset] Cleaned up old tokens');
+    }
 
     // Store reset token in database
     const { error: tokenError } = await supabaseAdmin
@@ -46,16 +89,46 @@ async function createResetToken(
     if (tokenError) {
       console.error('❌ [PhoneReset] Token insert error:', tokenError);
       
-      // If table doesn't exist, return helpful error
+      // If table still doesn't exist, provide clear instructions
       if (tokenError.code === '42P01' || tokenError.message?.includes('does not exist')) {
         return NextResponse.json(
           { 
             success: false, 
-            error: 'Password reset system not configured. Please contact support.',
-            debug: 'Run CREATE_PASSWORD_RESET_TOKENS_TABLE.sql in Supabase'
+            error: 'Password reset system needs setup. Please run the SQL migration in Supabase.',
+            needsSetup: true
           },
           { status: 500 }
         );
+      }
+
+      // If unique constraint violation, try upsert instead
+      if (tokenError.code === '23505') {
+        console.log('🔄 [PhoneReset] Token exists, updating...');
+        const { error: updateError } = await supabaseAdmin
+          .from('password_reset_tokens')
+          .update({
+            token: resetToken,
+            phone_number: formattedPhone,
+            expires_at: expiresAt.toISOString(),
+            used: false,
+          })
+          .eq('user_id', userData.id);
+        
+        if (updateError) {
+          console.error('❌ [PhoneReset] Token update error:', updateError);
+          return NextResponse.json(
+            { success: false, error: 'Failed to generate reset token. Please try again.' },
+            { status: 500 }
+          );
+        }
+        
+        console.log('✅ [PhoneReset] Reset token updated successfully');
+        return NextResponse.json({
+          success: true,
+          message: 'Phone verified successfully',
+          resetToken: resetToken,
+          email: userData.email ? userData.email.slice(0, 3) + '***' : null,
+        });
       }
 
       return NextResponse.json(
