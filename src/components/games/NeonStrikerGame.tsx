@@ -1133,9 +1133,16 @@ export default function NeonStrikerGame({
   // READY SCREEN
   if (gameState === 'ready') {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-black to-cyan-900 flex flex-col items-center justify-start z-50 p-4 overflow-y-auto py-8">
+        {/* Mobile scroll indicator */}
+        <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-cyan-500/90 text-black px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
+          <span>👆</span>
+          <span className="text-sm font-bold">Scroll for more</span>
+          <span>👇</span>
+        </div>
+        
         <div className="bg-black/80 backdrop-blur-xl rounded-3xl p-6 max-w-lg w-full text-center border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.3)]">
-          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent">⚡ NEON STRIKER</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-3 bg-gradient-to-r from-cyan-400 to-pink-500 bg-clip-text text-transparent">⚡ NEON STRIKER</h1>
           <p className="text-cyan-400 mb-2">Physics-Based Pool • {GAME_DURATION} Seconds!</p>
           <p className="text-yellow-400 text-sm mb-4">Hit multiple coins in one shot for COMBO multipliers!</p>
 

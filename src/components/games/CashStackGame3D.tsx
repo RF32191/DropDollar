@@ -1666,9 +1666,8 @@ export default function CashStackGame3D({
       }
       lastInteractionTime = now;
       
-      if (gameState === 'ready') {
-        startGame();
-      } else if (gameState === 'playing') {
+      // Only respond to playing state - use START button to begin game
+      if (gameState === 'playing') {
         // Check if challenge coin is active and in range
         if (challengeCoinRef.current?.active) {
           const coin = challengeCoinRef.current;

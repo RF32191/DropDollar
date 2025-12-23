@@ -1722,7 +1722,7 @@ export default function ClickDrawGame({ onGameEnd, onGameComplete, onExit, gameM
   }, [spawnOutlaw]);
   
   return (
-    <div className="relative w-full h-full min-h-[500px] bg-gradient-to-b from-amber-900 via-orange-800 to-yellow-700 overflow-hidden">
+    <div className="fixed inset-0 w-full h-full bg-gradient-to-b from-amber-900 via-orange-800 to-yellow-700 overflow-hidden" style={{ touchAction: 'none' }}>
       {/* 3D Canvas Container */}
       <div 
         ref={containerRef} 
@@ -1837,9 +1837,16 @@ export default function ClickDrawGame({ onGameEnd, onGameComplete, onExit, gameM
       
       {/* Ready Screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-20">
-          <div className="text-center p-6 max-w-md">
-            <h1 className="text-5xl font-bold text-yellow-400 mb-4 drop-shadow-lg">
+        <div className="absolute inset-0 flex flex-col items-center justify-start bg-black/80 z-20 overflow-y-auto py-8 px-4">
+          {/* Mobile scroll indicator */}
+          <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-500/90 text-black px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
+            <span>👆</span>
+            <span className="text-sm font-bold">Scroll for more</span>
+            <span>👇</span>
+          </div>
+          
+          <div className="text-center p-6 max-w-md w-full">
+            <h1 className="text-4xl sm:text-5xl font-bold text-yellow-400 mb-4 drop-shadow-lg">
               🤠 CLICK DRAW
             </h1>
             <p className="text-amber-200 mb-6 text-lg">

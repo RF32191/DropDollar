@@ -776,9 +776,16 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
 
   if (gameState === 'instructions') {
     return (
-      <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black flex items-center justify-center p-4">
-        <div className="bg-gray-900 rounded-2xl p-6 max-w-lg w-full border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
-          <h1 className="text-4xl font-bold text-center mb-4 bg-gradient-to-r from-green-400 to-red-400 bg-clip-text text-transparent">
+      <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black flex flex-col items-center justify-start p-4 overflow-y-auto py-8">
+        {/* Mobile scroll indicator */}
+        <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500/90 text-black px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
+          <span>👆</span>
+          <span className="text-sm font-bold">Scroll for more</span>
+          <span>👇</span>
+        </div>
+        
+        <div className="bg-gray-900 rounded-2xl p-6 max-w-lg w-full border border-gray-700 shadow-2xl">
+          <h1 className="text-3xl sm:text-4xl font-bold text-center mb-4 bg-gradient-to-r from-green-400 to-red-400 bg-clip-text text-transparent">
             WORMHOLE
           </h1>
 

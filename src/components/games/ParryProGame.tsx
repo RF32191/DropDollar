@@ -1914,10 +1914,17 @@ export default function ParryProGame({ onGameEnd, onGameComplete, onExit, gameMo
       
       {/* Ready Screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-30 p-4">
+        <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-start z-30 p-4 overflow-y-auto py-8">
+          {/* Mobile scroll indicator */}
+          <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
+            <span>👆</span>
+            <span className="text-sm font-bold">Scroll for more</span>
+            <span>👇</span>
+          </div>
+          
           <div className="text-center max-w-md w-full">
-            <div className="text-7xl mb-4">⚔️</div>
-            <h1 className="text-4xl sm:text-5xl font-bold text-red-500 mb-4" style={{ textShadow: '0 0 20px rgba(255, 0, 0, 0.5)' }}>
+            <div className="text-6xl sm:text-7xl mb-4">⚔️</div>
+            <h1 className="text-3xl sm:text-5xl font-bold text-red-500 mb-4" style={{ textShadow: '0 0 20px rgba(255, 0, 0, 0.5)' }}>
               PARRY PRO
             </h1>
             <p className="text-gray-400 mb-4">Master combat against multiple enemies!</p>
