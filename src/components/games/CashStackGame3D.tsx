@@ -1858,9 +1858,10 @@ export default function CashStackGame3D({
           style={{ 
             overflow: 'auto',
             WebkitOverflowScrolling: 'touch',
-            touchAction: 'pan-y',
+            touchAction: 'auto',
             overscrollBehavior: 'contain',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div 
             className="min-h-full flex flex-col items-center text-white p-4"
@@ -1983,21 +1984,26 @@ export default function CashStackGame3D({
             
             {/* Big Start Button - Touch friendly */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
+                console.log('🎮 START button clicked!');
                 startGame();
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                console.log('🎮 START button touched!');
               }}
               onTouchEnd={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
+                console.log('🎮 START button touch released - starting game!');
                 startGame();
               }}
-              className="px-12 sm:px-16 py-6 sm:py-8 text-white text-2xl sm:text-4xl font-bold rounded-2xl transition-all transform active:scale-95 mb-8 shadow-2xl animate-pulse border-4 border-white/30"
+              className="px-12 sm:px-16 py-6 sm:py-8 text-white text-2xl sm:text-4xl font-bold rounded-2xl transition-all transform active:scale-95 mb-8 shadow-2xl animate-pulse border-4 border-white/30 relative z-50"
               style={{ 
                 backgroundColor: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}`,
                 boxShadow: `0 0 40px #${currentVariation.blockColor.toString(16).padStart(6, '0')}80`,
                 touchAction: 'manipulation',
                 WebkitTapHighlightColor: 'transparent',
+                cursor: 'pointer',
               }}
             >
               🚀 START GAME

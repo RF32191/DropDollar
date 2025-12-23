@@ -28,6 +28,8 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   // Controls
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const isPointerLockedRef = useRef(false);
+  const isRightMouseDownRef = useRef(false);
+  const lastMousePosRef = useRef({ x: 0, y: 0 });
   
   // Sword
   const swordRef = useRef<THREE.Group | null>(null);
@@ -605,25 +607,56 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const handleMouseDown = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       
-      // Request pointer lock on first click
-      if (!isPointerLockedRef.current && containerRef.current) {
-        containerRef.current.requestPointerLock();
+      if (e.button === 2) {
+        // Right click - enable drag-to-look
+        isRightMouseDownRef.current = true;
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
         return;
       }
       
       if (e.button === 0) {
-        shootPortal(portalMode);
+        // Left click - try pointer lock first, or just shoot
+        if (!isPointerLockedRef.current && containerRef.current) {
+          containerRef.current.requestPointerLock().catch(() => {
+            // Pointer lock not supported, just shoot
+            shootPortal(portalMode);
+          });
+        } else {
+          shootPortal(portalMode);
+        }
+      }
+    };
+    
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.button === 2) {
+        isRightMouseDownRef.current = false;
       }
     };
     
     const handleMouseMove = (e: MouseEvent) => {
-      if (gameState !== 'playing' || !isPointerLockedRef.current) return;
+      if (gameState !== 'playing') return;
       
-      // Use movementX/Y for pointer lock
-      const sensitivity = 0.002;
-      playerRef.current.yaw -= e.movementX * sensitivity;
-      playerRef.current.pitch -= e.movementY * sensitivity;
-      playerRef.current.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, playerRef.current.pitch));
+      const sensitivity = 0.003;
+      
+      // Pointer lock mode - use movementX/Y
+      if (isPointerLockedRef.current) {
+        playerRef.current.yaw -= e.movementX * sensitivity;
+        playerRef.current.pitch -= e.movementY * sensitivity;
+        playerRef.current.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, playerRef.current.pitch));
+        return;
+      }
+      
+      // Fallback: Right-click drag mode
+      if (isRightMouseDownRef.current) {
+        const dx = e.clientX - lastMousePosRef.current.x;
+        const dy = e.clientY - lastMousePosRef.current.y;
+        
+        playerRef.current.yaw -= dx * sensitivity;
+        playerRef.current.pitch -= dy * sensitivity;
+        playerRef.current.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, playerRef.current.pitch));
+        
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+      }
     };
     
     const handlePointerLockChange = () => {
@@ -637,6 +670,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('pointerlockchange', handlePointerLockChange);
@@ -645,6 +679,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('pointerlockchange', handlePointerLockChange);
@@ -791,11 +826,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           
           {/* Controls hint */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
-            <div className="bg-black/50 text-gray-400 px-4 py-2 rounded-lg text-sm">
-              {!isPointerLocked ? (
-                <span className="text-yellow-400 animate-pulse">👆 Click anywhere to lock cursor and play!</span>
+            <div className="bg-black/50 text-gray-400 px-4 py-2 rounded-lg text-sm text-center">
+              {isPointerLocked ? (
+                'WASD move • Space jump • Mouse look • Click shoot • Q🔵/E🟠 switch • ESC release'
               ) : (
-                'WASD move • Space jump • Mouse look • Click slash/shoot • Q/E switch portals • ESC release'
+                <span>Right-click+drag to look • Left-click to shoot • <span className="text-blue-400">Q</span>=🔵 <span className="text-orange-400">E</span>=🟠</span>
               )}
             </div>
           </div>
