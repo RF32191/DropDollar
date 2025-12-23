@@ -236,6 +236,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const initThreeJS = useCallback(() => {
     if (!containerRef.current) return;
     
+    // Prevent multiple initializations
+    if (rendererRef.current) {
+      console.log('🎮 Three.js already initialized');
+      return;
+    }
+    
+    console.log('🎮 Initializing Three.js...');
+    
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a2e);
@@ -1809,6 +1817,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     document.addEventListener('pointerlockchange', handlePointerLockChange);
     
     return () => {
+      console.log('🧹 Cleaning up Wormhole game...');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('keydown', handleKeyDown);
@@ -1817,17 +1826,36 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = 0;
       }
-      if (rendererRef.current && containerRef.current) {
-        containerRef.current.removeChild(rendererRef.current.domElement);
+      
+      // Properly dispose of Three.js resources
+      if (rendererRef.current) {
         rendererRef.current.dispose();
+        rendererRef.current.forceContextLoss();
+        if (containerRef.current && rendererRef.current.domElement.parentNode === containerRef.current) {
+          containerRef.current.removeChild(rendererRef.current.domElement);
+        }
+        rendererRef.current = null;
       }
+      
+      // Clear scene
+      if (sceneRef.current) {
+        sceneRef.current.clear();
+        sceneRef.current = null;
+      }
+      
+      // Clear camera
+      cameraRef.current = null;
+      
+      console.log('✅ Wormhole cleanup complete');
     };
   }, [initThreeJS, handleMouseMove, handleMouseDown, handleKeyDown, handleKeyUp]);
 
-  // Start game loop when playing
+  // Start game loop when playing AND pointer is locked
   useEffect(() => {
     if (gameState === 'playing') {
+      console.log('🎮 Game playing, pointer locked:', isPointerLocked);
       clockRef.current.start();
       animationRef.current = requestAnimationFrame(gameLoop);
     }
@@ -1836,7 +1864,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [gameState, gameLoop]);
+  }, [gameState, gameLoop, isPointerLocked]);
 
   // Update held object position
   useEffect(() => {
@@ -2137,19 +2165,37 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           {/* Pointer lock message - Click to start/resume */}
           {!isPointerLocked && (
             <div 
-              className="absolute inset-0 flex items-center justify-center bg-black/70 cursor-pointer"
-              onClick={() => containerRef.current?.requestPointerLock()}
+              className="absolute inset-0 flex items-center justify-center bg-black/80 cursor-pointer z-50"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🎮 Requesting pointer lock...');
+                if (containerRef.current) {
+                  containerRef.current.requestPointerLock();
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // On mobile, skip pointer lock and just mark as ready
+                setIsPointerLocked(true);
+              }}
             >
-              <div className="text-center p-8 bg-gradient-to-br from-blue-900/50 to-orange-900/50 rounded-2xl border border-white/30">
-                <div className="text-6xl mb-4">🎮</div>
-                <div className="text-white text-2xl font-bold mb-2">
-                  Click Here to Start
+              <div className="text-center p-8 bg-gradient-to-br from-blue-900/80 to-orange-900/80 rounded-2xl border-2 border-white/50 shadow-2xl animate-pulse">
+                <div className="text-7xl mb-4">🎮</div>
+                <div className="text-white text-3xl font-bold mb-3">
+                  TAP TO PLAY
                 </div>
-                <p className="text-gray-300 text-sm">
-                  Click anywhere in this area to begin playing
+                <p className="text-gray-200 text-base mb-4">
+                  Click or tap anywhere to begin
                 </p>
+                <div className="bg-white/20 px-6 py-3 rounded-xl">
+                  <div className="text-white text-sm font-medium">
+                    WASD to move • Mouse to look • Space to jump
+                  </div>
+                </div>
                 <div className="mt-4 text-gray-400 text-xs">
-                  ESC to pause | WASD to move | Mouse to look
+                  ESC to pause
                 </div>
               </div>
             </div>
