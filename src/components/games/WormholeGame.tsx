@@ -150,57 +150,102 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     };
   }, []);
   
-  // Create glowing sword
+  // Sword action state
+  const swordActionRef = useRef<'idle' | 'slash' | 'parry' | 'strike'>('idle');
+  const parryActiveRef = useRef(false);
+  
+  // Create ParryPro-style glowing sword
   const createSword = (camera: THREE.PerspectiveCamera) => {
     const swordGroup = new THREE.Group();
     
-    // Blade
-    const bladeGeo = new THREE.BoxGeometry(0.05, 0.6, 0.02);
-    const bladeMat = new THREE.MeshStandardMaterial({
-      color: 0x88aacc,
-      metalness: 0.9,
-      roughness: 0.1,
+    // Main blade (larger, more visible)
+    const bladeGeo = new THREE.BoxGeometry(0.08, 1.2, 0.02);
+    const bladeMat = new THREE.MeshPhongMaterial({
+      color: 0xc0c0c0,
+      emissive: 0x404040,
+      emissiveIntensity: 0.3,
+      shininess: 100,
+      specular: 0xffffff,
     });
     const blade = new THREE.Mesh(bladeGeo, bladeMat);
-    blade.position.y = 0.3;
+    blade.position.y = 0.6;
     blade.name = 'blade';
     swordGroup.add(blade);
     
-    // Blade glow edge
-    const glowGeo = new THREE.BoxGeometry(0.06, 0.62, 0.03);
-    const glowMat = new THREE.MeshBasicMaterial({
+    // Glowing edge (changes color with portal mode)
+    const edgeGeo = new THREE.BoxGeometry(0.015, 1.2, 0.025);
+    const edgeMat = new THREE.MeshBasicMaterial({
       color: 0x00aaff,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.8,
     });
-    const glow = new THREE.Mesh(glowGeo, glowMat);
-    glow.position.y = 0.3;
-    glow.name = 'glow';
-    swordGroup.add(glow);
+    const edge = new THREE.Mesh(edgeGeo, edgeMat);
+    edge.position.set(0.045, 0.6, 0);
+    edge.name = 'edge';
+    swordGroup.add(edge);
     
-    // Handle
-    const handleGeo = new THREE.CylinderGeometry(0.02, 0.025, 0.15, 8);
-    const handleMat = new THREE.MeshStandardMaterial({
-      color: 0x442200,
-      roughness: 0.8,
+    // Second edge on other side
+    const edge2 = new THREE.Mesh(edgeGeo, edgeMat.clone());
+    edge2.position.set(-0.045, 0.6, 0);
+    edge2.name = 'edge2';
+    swordGroup.add(edge2);
+    
+    // Blade tip glow
+    const tipGeo = new THREE.ConeGeometry(0.06, 0.15, 4);
+    const tipMat = new THREE.MeshBasicMaterial({
+      color: 0x00aaff,
+      transparent: true,
+      opacity: 0.6,
     });
-    const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.y = -0.05;
-    swordGroup.add(handle);
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.y = 1.25;
+    tip.name = 'tip';
+    swordGroup.add(tip);
     
-    // Guard
-    const guardGeo = new THREE.BoxGeometry(0.12, 0.02, 0.04);
-    const guardMat = new THREE.MeshStandardMaterial({
-      color: 0xccaa00,
-      metalness: 0.8,
+    // Cross guard
+    const guardGeo = new THREE.BoxGeometry(0.4, 0.06, 0.06);
+    const guardMat = new THREE.MeshPhongMaterial({
+      color: 0xdaa520,
+      emissive: 0x554400,
+      shininess: 80,
     });
     const guard = new THREE.Mesh(guardGeo, guardMat);
-    guard.position.y = 0.02;
+    guard.position.y = 0;
     swordGroup.add(guard);
     
-    // Position sword in bottom right of view
-    swordGroup.position.set(0.35, -0.35, -0.5);
-    swordGroup.rotation.set(0.2, -0.3, 0.1);
+    // Guard decorations (gems)
+    const gemGeo = new THREE.SphereGeometry(0.03, 8, 8);
+    const gemMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+    const gem1 = new THREE.Mesh(gemGeo, gemMat);
+    gem1.position.set(0.15, 0, 0);
+    gem1.name = 'gem1';
+    swordGroup.add(gem1);
+    const gem2 = new THREE.Mesh(gemGeo, gemMat.clone());
+    gem2.position.set(-0.15, 0, 0);
+    gem2.name = 'gem2';
+    swordGroup.add(gem2);
+    
+    // Handle
+    const handleGeo = new THREE.CylinderGeometry(0.035, 0.04, 0.35, 8);
+    const handleMat = new THREE.MeshPhongMaterial({
+      color: 0x8b4513,
+      emissive: 0x3a1a05,
+    });
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.y = -0.2;
+    swordGroup.add(handle);
+    
+    // Pommel
+    const pommelGeo = new THREE.SphereGeometry(0.05, 8, 8);
+    const pommelMat = new THREE.MeshPhongMaterial({ color: 0xdaa520 });
+    const pommel = new THREE.Mesh(pommelGeo, pommelMat);
+    pommel.position.y = -0.4;
+    swordGroup.add(pommel);
+    
+    // Position sword in bottom right of view (larger and more visible)
+    swordGroup.position.set(0.4, -0.4, -0.7);
+    swordGroup.rotation.set(0.3, -0.4, 0.15);
+    swordGroup.scale.set(0.8, 0.8, 0.8);
     
     camera.add(swordGroup);
     swordRef.current = swordGroup;
@@ -210,18 +255,50 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const updateSwordColor = (mode: 'blue' | 'orange') => {
     if (!swordRef.current) return;
     
-    const glow = swordRef.current.getObjectByName('glow') as THREE.Mesh;
-    if (glow) {
-      const color = mode === 'blue' ? 0x00aaff : 0xff6600;
-      (glow.material as THREE.MeshBasicMaterial).color.setHex(color);
-    }
+    const color = mode === 'blue' ? 0x00aaff : 0xff6600;
+    
+    // Update all glowing parts
+    ['edge', 'edge2', 'tip', 'gem1', 'gem2'].forEach(name => {
+      const mesh = swordRef.current?.getObjectByName(name) as THREE.Mesh;
+      if (mesh && mesh.material) {
+        (mesh.material as THREE.MeshBasicMaterial).color.setHex(color);
+      }
+    });
   };
   
-  // Animate sword slash
+  // Sword slash animation (for shooting portals)
   const animateSwordSlash = () => {
-    swordSlashRef.current = 1.0; // Start slash animation
+    swordSlashRef.current = 1.0;
+    swordActionRef.current = 'slash';
     isAttackingRef.current = true;
-    setTimeout(() => { isAttackingRef.current = false; }, 300);
+    setTimeout(() => { 
+      isAttackingRef.current = false;
+      swordActionRef.current = 'idle';
+    }, 300);
+  };
+  
+  // Sword parry animation (X key)
+  const animateSwordParry = () => {
+    if (swordActionRef.current !== 'idle') return;
+    swordSlashRef.current = 1.0;
+    swordActionRef.current = 'parry';
+    parryActiveRef.current = true;
+    setTimeout(() => {
+      parryActiveRef.current = false;
+      swordActionRef.current = 'idle';
+    }, 400);
+  };
+  
+  // Sword strike animation (V key)
+  const animateSwordStrike = () => {
+    if (swordActionRef.current !== 'idle') return;
+    swordSlashRef.current = 1.0;
+    swordActionRef.current = 'strike';
+    isAttackingRef.current = true;
+    setTimeout(() => {
+      isAttackingRef.current = false;
+      swordActionRef.current = 'idle';
+    }, 350);
   };
   
   // Create enemy
@@ -631,25 +708,55 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
       });
       
-      // Animate sword slash
+      // Animate sword based on action
       if (swordRef.current && swordSlashRef.current > 0) {
-        const slashProgress = swordSlashRef.current;
-        // Quick slash motion: rotate sword forward then back
-        const slashAngle = Math.sin(slashProgress * Math.PI) * 0.8;
-        swordRef.current.rotation.x = 0.2 - slashAngle;
-        swordRef.current.rotation.z = 0.1 + slashAngle * 0.5;
-        swordSlashRef.current -= delta * 4; // Decay animation
+        const progress = swordSlashRef.current;
+        const action = swordActionRef.current;
+        
+        if (action === 'slash') {
+          // Diagonal slash for portal shooting
+          const slashAngle = Math.sin(progress * Math.PI) * 1.2;
+          swordRef.current.rotation.x = 0.3 - slashAngle;
+          swordRef.current.rotation.z = 0.15 + slashAngle * 0.6;
+          swordRef.current.position.x = 0.4 - Math.sin(progress * Math.PI) * 0.1;
+        } else if (action === 'parry') {
+          // Horizontal parry stance
+          const parryAngle = Math.sin(progress * Math.PI) * 0.5;
+          swordRef.current.rotation.x = 0.3;
+          swordRef.current.rotation.z = 0.15 + parryAngle;
+          swordRef.current.rotation.y = -0.4 + parryAngle * 1.5;
+          swordRef.current.position.x = 0.4 + parryAngle * 0.3;
+        } else if (action === 'strike') {
+          // Forward thrust strike
+          const strikeProgress = Math.sin(progress * Math.PI);
+          swordRef.current.rotation.x = 0.3 - strikeProgress * 0.8;
+          swordRef.current.rotation.z = 0.15;
+          swordRef.current.position.z = -0.7 - strikeProgress * 0.3;
+          swordRef.current.position.y = -0.4 + strikeProgress * 0.1;
+        }
+        
+        swordSlashRef.current -= delta * 3;
         
         if (swordSlashRef.current <= 0) {
           swordSlashRef.current = 0;
-          swordRef.current.rotation.set(0.2, -0.3, 0.1); // Reset
+          swordRef.current.rotation.set(0.3, -0.4, 0.15);
+          swordRef.current.position.set(0.4, -0.4, -0.7);
         }
       }
       
       // Sword idle animation (gentle sway)
       if (swordRef.current && swordSlashRef.current <= 0) {
-        swordRef.current.position.y = -0.35 + Math.sin(elapsed * 2) * 0.01;
-        swordRef.current.rotation.z = 0.1 + Math.sin(elapsed * 1.5) * 0.02;
+        swordRef.current.position.y = -0.4 + Math.sin(elapsed * 2) * 0.015;
+        swordRef.current.rotation.z = 0.15 + Math.sin(elapsed * 1.5) * 0.03;
+        
+        // Pulse glow based on portal mode
+        const pulseIntensity = 0.6 + Math.sin(elapsed * 3) * 0.2;
+        ['edge', 'edge2', 'tip'].forEach(name => {
+          const mesh = swordRef.current?.getObjectByName(name) as THREE.Mesh;
+          if (mesh && mesh.material) {
+            (mesh.material as THREE.MeshBasicMaterial).opacity = pulseIntensity;
+          }
+        });
       }
       
       // Update enemies
@@ -665,11 +772,29 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         
         // AI behavior
         if (distToPlayer < 2 && enemy.attackCooldown <= 0) {
-          // Attack player!
+          // Enemy attacks!
           enemy.state = 'attacking';
           enemy.attackCooldown = 2;
           
-          if (playerHealth > 0) {
+          // Check if player is parrying
+          if (parryActiveRef.current) {
+            // Successful parry!
+            setScore(prev => prev + 150);
+            setMessage('🛡️ PARRY! +150');
+            setTimeout(() => setMessage(''), 1000);
+            
+            // Stun enemy briefly
+            enemy.hitCooldown = 1;
+            enemy.state = 'hit';
+            
+            // Knockback enemy
+            const knockback = new THREE.Vector3()
+              .subVectors(enemy.position, player.position)
+              .normalize()
+              .multiplyScalar(3);
+            enemy.position.add(knockback);
+          } else if (playerHealth > 0) {
+            // Player takes damage
             setPlayerHealth(prev => prev - 1);
             setMessage('💔 Hit by enemy! -1 HP');
             setTimeout(() => setMessage(''), 1500);
@@ -830,6 +955,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         setPortalMode('orange');
         updateSwordColor('orange');
       }
+      if (e.code === 'KeyX' && gameState === 'playing') {
+        // Parry with X key
+        animateSwordParry();
+      }
+      if (e.code === 'KeyV' && gameState === 'playing') {
+        // Strike with V key
+        animateSwordStrike();
+      }
       if (e.code === 'Escape' && isPointerLockedRef.current) {
         document.exitPointerLock();
       }
@@ -987,12 +1120,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
               <h2 className="text-xl font-bold text-white mb-4">🗡️ Controls</h2>
               <div className="space-y-2 text-gray-300">
-                <p>• <span className="text-blue-400">Left-click</span> - Sword slash (shoot portal & attack enemies!)</p>
+                <p>• <span className="text-blue-400">Left-click</span> - Sword slash (shoot portal)</p>
+                <p>• <span className="text-red-400">V</span> - Strike (attack enemies!)</p>
+                <p>• <span className="text-yellow-400">X</span> - Parry (block enemy attacks!)</p>
                 <p>• <span className="text-orange-400">Right-click + drag</span> - Look around</p>
-                <p>• <span className="text-blue-400">WASD</span> - Move</p>
-                <p>• <span className="text-blue-400">Space</span> - Jump</p>
-                <p>• <span className="text-blue-400">Q</span> - Blue portal (sword glows 🔵)</p>
-                <p>• <span className="text-orange-400">E</span> - Orange portal (sword glows 🟠)</p>
+                <p>• <span className="text-blue-400">WASD</span> - Move • <span className="text-blue-400">Space</span> - Jump</p>
+                <p>• <span className="text-blue-400">Q</span> - Blue portal 🔵 • <span className="text-orange-400">E</span> - Orange portal 🟠</p>
               </div>
             </div>
             
@@ -1009,11 +1142,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
               <h2 className="text-xl font-bold text-white mb-4">⭐ Scoring</h2>
               <div className="space-y-1 text-gray-300">
-                <p>• Link portals: <span className="text-green-400">+50</span></p>
-                <p>• Teleport: <span className="text-green-400">+100</span></p>
-                <p>• Hit enemy: <span className="text-green-400">+50</span></p>
+                <p>• <span className="text-yellow-400">Parry (X)</span>: <span className="text-green-400">+150</span></p>
+                <p>• <span className="text-red-400">Strike (V)</span>: <span className="text-green-400">+50</span> per hit</p>
                 <p>• Kill enemy: <span className="text-green-400">+200</span></p>
+                <p>• Teleport: <span className="text-green-400">+100</span></p>
                 <p>• Collect orb: <span className="text-green-400">+200</span></p>
+                <p>• Link portals: <span className="text-green-400">+50</span></p>
               </div>
             </div>
             
@@ -1096,58 +1230,72 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
             <div className="bg-black/50 text-gray-400 px-4 py-2 rounded-lg text-sm text-center">
               {isPointerLocked ? (
-                'WASD move • Space jump • Mouse look • Click shoot • Q🔵/E🟠 switch • ESC release'
+                <span>WASD move • Click shoot • <span className="text-red-400">V</span>=Strike • <span className="text-yellow-400">X</span>=Parry • Q🔵/E🟠</span>
               ) : (
-                <span>Right-click+drag to look • Left-click to shoot • <span className="text-blue-400">Q</span>=🔵 <span className="text-orange-400">E</span>=🟠</span>
+                <span>Right-drag look • Click shoot • <span className="text-red-400">V</span>=Strike • <span className="text-yellow-400">X</span>=Parry • Q🔵/E🟠</span>
               )}
             </div>
           </div>
           
           {/* Mobile controls */}
           {isMobile && (
-            <div className="absolute bottom-20 left-4 right-4 z-40 flex justify-between">
+            <div className="absolute bottom-16 left-4 right-4 z-40 flex justify-between">
               {/* D-pad */}
               <div className="grid grid-cols-3 gap-1">
                 <div />
                 <button 
-                  className="w-14 h-14 bg-white/20 rounded-lg text-white text-2xl active:bg-white/40"
+                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
                   onTouchStart={() => keysRef.current['KeyW'] = true}
                   onTouchEnd={() => keysRef.current['KeyW'] = false}
                 >↑</button>
                 <div />
                 <button 
-                  className="w-14 h-14 bg-white/20 rounded-lg text-white text-2xl active:bg-white/40"
+                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
                   onTouchStart={() => keysRef.current['KeyA'] = true}
                   onTouchEnd={() => keysRef.current['KeyA'] = false}
                 >←</button>
                 <button 
-                  className="w-14 h-14 bg-white/20 rounded-lg text-white text-2xl active:bg-white/40"
+                  className="w-12 h-12 bg-green-600/50 rounded-lg text-white text-xl active:bg-green-600"
                   onTouchStart={() => keysRef.current['Space'] = true}
                   onTouchEnd={() => keysRef.current['Space'] = false}
                 >⬆</button>
                 <button 
-                  className="w-14 h-14 bg-white/20 rounded-lg text-white text-2xl active:bg-white/40"
+                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
                   onTouchStart={() => keysRef.current['KeyD'] = true}
                   onTouchEnd={() => keysRef.current['KeyD'] = false}
                 >→</button>
                 <div />
                 <button 
-                  className="w-14 h-14 bg-white/20 rounded-lg text-white text-2xl active:bg-white/40"
+                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
                   onTouchStart={() => keysRef.current['KeyS'] = true}
                   onTouchEnd={() => keysRef.current['KeyS'] = false}
                 >↓</button>
               </div>
               
               {/* Action buttons */}
-              <div className="flex gap-2">
-                <button 
-                  className="w-16 h-16 bg-blue-600/50 rounded-full text-white text-2xl active:bg-blue-600"
-                  onClick={() => { setPortalMode('blue'); shootPortal('blue'); }}
-                >🔵</button>
-                <button 
-                  className="w-16 h-16 bg-orange-600/50 rounded-full text-white text-2xl active:bg-orange-600"
-                  onClick={() => { setPortalMode('orange'); shootPortal('orange'); }}
-                >🟠</button>
+              <div className="flex flex-col gap-2">
+                {/* Portal buttons */}
+                <div className="flex gap-2">
+                  <button 
+                    className="w-14 h-14 bg-blue-600/50 rounded-full text-white text-xl active:bg-blue-600"
+                    onClick={() => { setPortalMode('blue'); shootPortal('blue'); }}
+                  >🔵</button>
+                  <button 
+                    className="w-14 h-14 bg-orange-600/50 rounded-full text-white text-xl active:bg-orange-600"
+                    onClick={() => { setPortalMode('orange'); shootPortal('orange'); }}
+                  >🟠</button>
+                </div>
+                {/* Combat buttons */}
+                <div className="flex gap-2">
+                  <button 
+                    className="w-14 h-14 bg-red-600/50 rounded-lg text-white text-xs font-bold active:bg-red-600"
+                    onClick={animateSwordStrike}
+                  >⚔️<br/>STRIKE</button>
+                  <button 
+                    className="w-14 h-14 bg-yellow-600/50 rounded-lg text-white text-xs font-bold active:bg-yellow-600"
+                    onClick={animateSwordParry}
+                  >🛡️<br/>PARRY</button>
+                </div>
               </div>
             </div>
           )}
