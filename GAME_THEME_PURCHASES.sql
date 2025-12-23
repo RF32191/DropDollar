@@ -26,6 +26,10 @@ CREATE INDEX IF NOT EXISTS idx_theme_purchases_game ON public.game_theme_purchas
 -- ========================================
 ALTER TABLE public.game_theme_purchases ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (safe re-run)
+DROP POLICY IF EXISTS "Users can view own theme purchases" ON public.game_theme_purchases;
+DROP POLICY IF EXISTS "Authenticated users can purchase themes" ON public.game_theme_purchases;
+
 -- Users can view their own purchases
 CREATE POLICY "Users can view own theme purchases"
 ON public.game_theme_purchases FOR SELECT
@@ -203,6 +207,10 @@ CREATE INDEX IF NOT EXISTS idx_site_theme_id ON public.site_theme_purchases(them
 
 -- Enable RLS
 ALTER TABLE public.site_theme_purchases ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (safe re-run)
+DROP POLICY IF EXISTS "Users can view own site theme purchases" ON public.site_theme_purchases;
+DROP POLICY IF EXISTS "Authenticated users can purchase site themes" ON public.site_theme_purchases;
 
 -- Users can view their own purchases
 CREATE POLICY "Users can view own site theme purchases"
