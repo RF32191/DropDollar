@@ -54,6 +54,22 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const [targetsCollected, setTargetsCollected] = useState(0);
   const [totalTargets, setTotalTargets] = useState(0);
   const [isPointerLocked, setIsPointerLocked] = useState(false);
+  
+  // Enemies
+  interface Enemy {
+    mesh: THREE.Group;
+    health: number;
+    position: THREE.Vector3;
+    velocity: THREE.Vector3;
+    state: 'idle' | 'chasing' | 'attacking' | 'hit' | 'dead';
+    attackCooldown: number;
+    hitCooldown: number;
+  }
+  const enemiesRef = useRef<Enemy[]>([]);
+  const [enemiesKilled, setEnemiesKilled] = useState(0);
+  const [playerHealth, setPlayerHealth] = useState(3);
+  const lastTeleportRef = useRef(0); // Cooldown for teleportation
+  const isAttackingRef = useRef(false);
 
   // Check for mobile
   useEffect(() => {
@@ -204,6 +220,63 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   // Animate sword slash
   const animateSwordSlash = () => {
     swordSlashRef.current = 1.0; // Start slash animation
+    isAttackingRef.current = true;
+    setTimeout(() => { isAttackingRef.current = false; }, 300);
+  };
+  
+  // Create enemy
+  const createEnemy = (scene: THREE.Scene, x: number, z: number): Enemy => {
+    const enemyGroup = new THREE.Group();
+    
+    // Body (dark robot/drone)
+    const bodyGeo = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x440000,
+      emissive: 0x330000,
+      emissiveIntensity: 0.3,
+      metalness: 0.7,
+      roughness: 0.3,
+    });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 0.6;
+    body.name = 'body';
+    enemyGroup.add(body);
+    
+    // Eye (glowing red)
+    const eyeGeo = new THREE.SphereGeometry(0.15, 16, 16);
+    const eyeMat = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+    });
+    const eye = new THREE.Mesh(eyeGeo, eyeMat);
+    eye.position.set(0, 1, 0.3);
+    eye.name = 'eye';
+    enemyGroup.add(eye);
+    
+    // Spikes (danger indicators)
+    const spikeMat = new THREE.MeshStandardMaterial({ color: 0x880000, metalness: 0.8 });
+    for (let i = 0; i < 4; i++) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 4), spikeMat);
+      spike.position.set(
+        Math.cos(i * Math.PI / 2) * 0.4,
+        0.8,
+        Math.sin(i * Math.PI / 2) * 0.4
+      );
+      spike.rotation.z = Math.PI;
+      enemyGroup.add(spike);
+    }
+    
+    enemyGroup.position.set(x, 0, z);
+    scene.add(enemyGroup);
+    
+    return {
+      mesh: enemyGroup,
+      health: 3,
+      position: new THREE.Vector3(x, 0, z),
+      velocity: new THREE.Vector3(),
+      state: 'idle',
+      attackCooldown: 0,
+      hitCooldown: 0,
+    };
   };
 
   // Create test chamber
@@ -302,6 +375,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     
     setTotalTargets(targetPositions.length);
     setTargetsCollected(0);
+    
+    // Spawn enemies
+    enemiesRef.current = [];
+    const enemyPositions = [
+      { x: -5, z: 0 },
+      { x: 5, z: -5 },
+      { x: 0, z: -10 },
+      { x: 10, z: 5 },
+    ];
+    enemyPositions.forEach(pos => {
+      const enemy = createEnemy(scene, pos.x, pos.z);
+      enemiesRef.current.push(enemy);
+    });
   };
   
   // Shoot portal
@@ -385,33 +471,51 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const player = playerRef.current;
     const blue = portalsRef.current.blue;
     const orange = portalsRef.current.orange;
+    const now = Date.now();
     
     if (!blue || !orange) return;
+    
+    // Cooldown to prevent instant re-teleport
+    if (now - lastTeleportRef.current < 500) return;
     
     const distToBlue = player.position.distanceTo(blue.position);
     const distToOrange = player.position.distanceTo(orange.position);
     
     const teleportDist = 1.5;
     
+    const teleportTo = (exitPortal: { position: THREE.Vector3; normal: THREE.Vector3 }) => {
+      // Position player at exit portal
+      player.position.copy(exitPortal.position);
+      player.position.add(exitPortal.normal.clone().multiplyScalar(2.5));
+      
+      // Calculate exit velocity - momentum in the direction of exit portal normal
+      const entrySpeed = Math.max(player.velocity.length(), 5); // Minimum exit speed
+      player.velocity.copy(exitPortal.normal.clone().multiplyScalar(entrySpeed));
+      
+      // Also add a bit of upward momentum if exiting from a wall
+      if (Math.abs(exitPortal.normal.y) < 0.5) {
+        player.velocity.y = Math.max(player.velocity.y, 3);
+      }
+      
+      // Rotate player to face AWAY from the exit portal (opposite direction)
+      // Calculate the yaw angle from the exit portal normal
+      const exitYaw = Math.atan2(-exitPortal.normal.x, -exitPortal.normal.z);
+      player.yaw = exitYaw;
+      player.pitch = 0; // Reset pitch to level
+      
+      // Player is now in the air
+      player.onGround = false;
+      
+      lastTeleportRef.current = now;
+      setScore(prev => prev + 100);
+      setMessage('Teleported! +100');
+      setTimeout(() => setMessage(''), 1500);
+    };
+    
     if (distToBlue < teleportDist) {
-      // Teleport to orange
-      player.position.copy(orange.position);
-      player.position.add(orange.normal.clone().multiplyScalar(2));
-      // Preserve momentum through portal
-      const speed = player.velocity.length();
-      player.velocity.copy(orange.normal.clone().multiplyScalar(speed));
-      setScore(prev => prev + 100);
-      setMessage('Teleported! +100');
-      setTimeout(() => setMessage(''), 1500);
+      teleportTo(orange);
     } else if (distToOrange < teleportDist) {
-      // Teleport to blue
-      player.position.copy(blue.position);
-      player.position.add(blue.normal.clone().multiplyScalar(2));
-      const speed = player.velocity.length();
-      player.velocity.copy(blue.normal.clone().multiplyScalar(speed));
-      setScore(prev => prev + 100);
-      setMessage('Teleported! +100');
-      setTimeout(() => setMessage(''), 1500);
+      teleportTo(blue);
     }
   };
   
@@ -546,6 +650,137 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       if (swordRef.current && swordSlashRef.current <= 0) {
         swordRef.current.position.y = -0.35 + Math.sin(elapsed * 2) * 0.01;
         swordRef.current.rotation.z = 0.1 + Math.sin(elapsed * 1.5) * 0.02;
+      }
+      
+      // Update enemies
+      enemiesRef.current.forEach((enemy, index) => {
+        if (enemy.state === 'dead') return;
+        
+        // Update cooldowns
+        enemy.attackCooldown = Math.max(0, enemy.attackCooldown - delta);
+        enemy.hitCooldown = Math.max(0, enemy.hitCooldown - delta);
+        
+        // Distance to player
+        const distToPlayer = enemy.position.distanceTo(player.position);
+        
+        // AI behavior
+        if (distToPlayer < 2 && enemy.attackCooldown <= 0) {
+          // Attack player!
+          enemy.state = 'attacking';
+          enemy.attackCooldown = 2;
+          
+          if (playerHealth > 0) {
+            setPlayerHealth(prev => prev - 1);
+            setMessage('💔 Hit by enemy! -1 HP');
+            setTimeout(() => setMessage(''), 1500);
+          }
+        } else if (distToPlayer < 10) {
+          // Chase player
+          enemy.state = 'chasing';
+          const dirToPlayer = new THREE.Vector3()
+            .subVectors(player.position, enemy.position)
+            .normalize();
+          dirToPlayer.y = 0; // Stay on ground
+          enemy.velocity.copy(dirToPlayer.multiplyScalar(3 * delta));
+          enemy.position.add(enemy.velocity);
+        } else {
+          enemy.state = 'idle';
+        }
+        
+        // Check if player is attacking this enemy with sword
+        if (isAttackingRef.current && distToPlayer < 3 && enemy.hitCooldown <= 0) {
+          // Check if facing the enemy
+          const toEnemy = new THREE.Vector3()
+            .subVectors(enemy.position, player.position)
+            .normalize();
+          const playerForward = new THREE.Vector3(0, 0, -1)
+            .applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+          
+          const dot = toEnemy.dot(playerForward);
+          if (dot > 0.3) { // Facing enemy
+            enemy.health -= 1;
+            enemy.hitCooldown = 0.5;
+            enemy.state = 'hit';
+            
+            // Flash enemy red
+            const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
+            if (body) {
+              (body.material as THREE.MeshStandardMaterial).emissive.setHex(0xff0000);
+              setTimeout(() => {
+                if (enemy.state !== 'dead') {
+                  (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x330000);
+                }
+              }, 200);
+            }
+            
+            setScore(prev => prev + 50);
+            setMessage(`⚔️ Hit! ${enemy.health > 0 ? enemy.health + ' HP left' : 'KILL!'} +50`);
+            setTimeout(() => setMessage(''), 1000);
+            
+            // Knockback
+            const knockback = new THREE.Vector3()
+              .subVectors(enemy.position, player.position)
+              .normalize()
+              .multiplyScalar(2);
+            enemy.position.add(knockback);
+            
+            if (enemy.health <= 0) {
+              enemy.state = 'dead';
+              setEnemiesKilled(prev => prev + 1);
+              setScore(prev => prev + 200);
+              setMessage('💀 Enemy killed! +200');
+              
+              // Hide enemy
+              enemy.mesh.visible = false;
+              
+              // Respawn after delay
+              setTimeout(() => {
+                if (sceneRef.current) {
+                  enemy.mesh.visible = true;
+                  enemy.health = 3;
+                  enemy.state = 'idle';
+                  enemy.position.set(
+                    (Math.random() - 0.5) * 20,
+                    0,
+                    (Math.random() - 0.5) * 20
+                  );
+                }
+              }, 5000);
+            }
+          }
+        }
+        
+        // Update mesh position
+        enemy.mesh.position.copy(enemy.position);
+        enemy.mesh.position.y = 0;
+        
+        // Face player when chasing
+        if (enemy.state === 'chasing') {
+          const angle = Math.atan2(
+            player.position.x - enemy.position.x,
+            player.position.z - enemy.position.z
+          );
+          enemy.mesh.rotation.y = angle;
+        }
+        
+        // Bob animation
+        enemy.mesh.position.y = 0.5 + Math.sin(elapsed * 3 + index) * 0.1;
+        
+        // Eye pulsing
+        const eye = enemy.mesh.getObjectByName('eye') as THREE.Mesh;
+        if (eye) {
+          const intensity = enemy.state === 'attacking' ? 2 : 1;
+          (eye.material as THREE.MeshBasicMaterial).color.setHex(
+            enemy.state === 'hit' ? 0xffff00 : 0xff0000
+          );
+        }
+      });
+      
+      // Check game over
+      if (playerHealth <= 0) {
+        setGameState('gameover');
+        if (onGameEnd) onGameEnd(score);
+        return;
       }
       
       // Update camera
@@ -695,9 +930,23 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     playerRef.current.pitch = 0;
     setScore(0);
     setTargetsCollected(0);
+    setPlayerHealth(3);
+    setEnemiesKilled(0);
     
     // Reset targets
     targetsRef.current.forEach(t => t.visible = true);
+    
+    // Reset enemies
+    enemiesRef.current.forEach((enemy, i) => {
+      enemy.health = 3;
+      enemy.state = 'idle';
+      enemy.mesh.visible = true;
+      enemy.position.set(
+        [-5, 5, 0, 10][i] || (Math.random() - 0.5) * 20,
+        0,
+        [0, -5, -10, 5][i] || (Math.random() - 0.5) * 20
+      );
+    });
     
     // Clear portals
     if (portalsRef.current.blue?.mesh && sceneRef.current) {
@@ -738,22 +987,23 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
               <h2 className="text-xl font-bold text-white mb-4">🗡️ Controls</h2>
               <div className="space-y-2 text-gray-300">
-                <p>• <span className="text-blue-400">Click</span> - Lock cursor & shoot portal (sword slash!)</p>
-                <p>• <span className="text-blue-400">Mouse</span> - Look around freely</p>
+                <p>• <span className="text-blue-400">Left-click</span> - Sword slash (shoot portal & attack enemies!)</p>
+                <p>• <span className="text-orange-400">Right-click + drag</span> - Look around</p>
                 <p>• <span className="text-blue-400">WASD</span> - Move</p>
                 <p>• <span className="text-blue-400">Space</span> - Jump</p>
                 <p>• <span className="text-blue-400">Q</span> - Blue portal (sword glows 🔵)</p>
                 <p>• <span className="text-orange-400">E</span> - Orange portal (sword glows 🟠)</p>
-                <p>• <span className="text-gray-400">ESC</span> - Release cursor</p>
               </div>
             </div>
             
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
               <h2 className="text-xl font-bold text-white mb-4">🎯 Objective</h2>
-              <p className="text-gray-300">
-                Collect all golden orbs using portals to reach high platforms!
-                Walk through one portal to exit the other.
-              </p>
+              <div className="space-y-2 text-gray-300">
+                <p>• Collect all <span className="text-yellow-400">golden orbs</span> using portals</p>
+                <p>• Fight <span className="text-red-400">red enemies</span> with your sword (3 hits to kill)</p>
+                <p>• Walk through portals - exit facing the <span className="text-blue-400">opposite direction</span></p>
+                <p>• Survive! You have <span className="text-red-400">3 hearts</span></p>
+              </div>
             </div>
             
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
@@ -761,8 +1011,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               <div className="space-y-1 text-gray-300">
                 <p>• Link portals: <span className="text-green-400">+50</span></p>
                 <p>• Teleport: <span className="text-green-400">+100</span></p>
+                <p>• Hit enemy: <span className="text-green-400">+50</span></p>
+                <p>• Kill enemy: <span className="text-green-400">+200</span></p>
                 <p>• Collect orb: <span className="text-green-400">+200</span></p>
-                <p>• Complete level: <span className="text-green-400">+500</span></p>
               </div>
             </div>
             
@@ -785,13 +1036,30 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       {/* HUD */}
       {gameState === 'playing' && (
         <>
-          {/* Score */}
+          {/* Score & Stats */}
           <div className="absolute top-4 left-4 z-40">
-            <div className="bg-black/70 rounded-lg px-4 py-2">
+            <div className="bg-black/70 rounded-lg px-4 py-2 space-y-1">
               <div className="text-white text-xl font-bold">Score: {score}</div>
               <div className="text-gray-300 text-sm">
-                Targets: {targetsCollected}/{totalTargets}
+                🎯 Targets: {targetsCollected}/{totalTargets}
               </div>
+              <div className="text-gray-300 text-sm">
+                💀 Enemies: {enemiesKilled}
+              </div>
+            </div>
+          </div>
+          
+          {/* Health */}
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40">
+            <div className="flex gap-2">
+              {[...Array(3)].map((_, i) => (
+                <div 
+                  key={i}
+                  className={`text-3xl transition-all ${i < playerHealth ? 'animate-pulse' : 'opacity-30'}`}
+                >
+                  {i < playerHealth ? '❤️' : '🖤'}
+                </div>
+              ))}
             </div>
           </div>
           
