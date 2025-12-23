@@ -1814,11 +1814,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
       }
     } else if (e.code === 'Escape') {
-      if (isPointerLocked && document.exitPointerLock) {
-        document.exitPointerLock();
+      // Pause the game
+      if (gameState === 'playing') {
+        setGameState('paused');
       }
     }
-  }, [gameState, isPointerLocked]);
+  }, [gameState]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     keysRef.current[e.code] = false;
