@@ -1885,16 +1885,16 @@ export default function FlappyCoinGame({ onGameEnd, onGameComplete, onExit, game
           obs.topMesh.position.x = obs.x;
           obs.bottomMesh.position.x = obs.x;
           
-          // Staggered up/down animation for hands - STARTS SLOW, GETS FASTER!
+          // Staggered up/down animation for hands - STARTS VERY SLOW, GRADUALLY GETS FASTER
           const gameProgress = Math.min(1, (Date.now() - gameStartTimeRef.current) / 90000); // 0 to 1 over 90 seconds
-          const baseSpeed = 0.5; // Start MUCH slower
-          const animSpeed = baseSpeed + gameProgress * 2.5; // Speed increases from 0.5 to 3.0
-          const baseAmplitude = 0.8; // Start with smaller movement
-          const animAmplitude = baseAmplitude + gameProgress * 2.0; // Amplitude increases from 0.8 to 2.8
+          const baseSpeed = 0.15; // Start VERY slow (gentle sway)
+          const animSpeed = baseSpeed + gameProgress * 1.0; // Speed increases from 0.15 to 1.15 (much gentler)
+          const baseAmplitude = 0.3; // Start with minimal movement
+          const animAmplitude = baseAmplitude + gameProgress * 1.0; // Amplitude increases from 0.3 to 1.3
           
-          // Occasionally make hands go ALL THE WAY DOWN (every ~8 seconds, random)
-          const slamChance = Math.sin(time / 8000 + obs.id * 1.7) > 0.9;
-          const slamMultiplier = slamChance ? 2.0 : 1.0;
+          // Occasionally make hands close more (less frequent, less aggressive)
+          const slamChance = Math.sin(time / 12000 + obs.id * 1.7) > 0.95; // Less frequent
+          const slamMultiplier = slamChance ? 1.4 : 1.0; // Less aggressive
           
           const topOffset = Math.sin(time / 1000 * animSpeed + obs.topPhase) * animAmplitude * slamMultiplier;
           const bottomOffset = Math.sin(time / 1000 * animSpeed + obs.bottomPhase) * animAmplitude * slamMultiplier;
