@@ -145,7 +145,7 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3, v
           setCurrentAdIndex(0);
         }
       }
-    }, 12000); // 12 seconds per slide
+    }, 10000); // 10 seconds per slide - fair rotation for all campaigns
     
     return () => clearInterval(interval);
   }, [ads.length, currentAdIndex, currentSlide]);

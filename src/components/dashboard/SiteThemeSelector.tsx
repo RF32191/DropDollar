@@ -1,17 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useSiteTheme } from '@/contexts/SiteThemeContext';
+import React, { useState, useEffect } from 'react';
+import { useSiteTheme as useSiteThemeContext } from '@/contexts/SiteThemeContext';
+import { useSiteTheme as useSiteThemePurchase, SITE_THEMES as PURCHASABLE_THEMES } from '@/hooks/useSiteTheme';
 import { SiteTheme, SITE_THEMES } from '@/lib/siteThemes';
-import { CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/solid';
+import { CheckCircleIcon, SparklesIcon, LockClosedIcon } from '@heroicons/react/24/solid';
+import ThemePurchaseModal from '../ThemePurchaseModal';
 
 interface ThemePreviewProps {
   theme: SiteTheme;
   isSelected: boolean;
+  isLocked: boolean;
+  price: number;
   onSelect: () => void;
+  onUnlock: () => void;
 }
 
-function ThemePreview({ theme, isSelected, onSelect }: ThemePreviewProps) {
+function ThemePreview({ theme, isSelected, isLocked, price, onSelect, onUnlock }: ThemePreviewProps) {
   const config = SITE_THEMES[theme];
   
   // Page-specific sub-themes for preview
@@ -30,18 +35,36 @@ function ThemePreview({ theme, isSelected, onSelect }: ThemePreviewProps) {
     { page: 'Dashboard', subTheme: '❄️ Winter', color: '#00CED1' },
     { page: 'Games', subTheme: '🧸 Toyshop', color: '#228B22' },
   ] : [];
+
+  const handleClick = () => {
+    if (isLocked) {
+      onUnlock();
+    } else {
+      onSelect();
+    }
+  };
   
   return (
     <button
-      onClick={onSelect}
+      onClick={handleClick}
       className={`relative w-full p-4 rounded-2xl border-2 transition-all duration-300 text-left ${
         isSelected 
           ? 'border-green-500 bg-green-500/10 ring-2 ring-green-500/50' 
+          : isLocked
+          ? 'border-yellow-500/50 bg-yellow-500/5 hover:border-yellow-400 hover:bg-yellow-500/10'
           : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
       }`}
     >
+      {/* Locked badge */}
+      {isLocked && (
+        <div className="absolute top-3 right-3 flex items-center gap-2 bg-yellow-500 text-black px-3 py-1 rounded-full text-sm font-bold">
+          <LockClosedIcon className="w-4 h-4" />
+          {price.toLocaleString()} RP
+        </div>
+      )}
+      
       {/* Selected checkmark */}
-      {isSelected && (
+      {isSelected && !isLocked && (
         <div className="absolute top-3 right-3">
           <CheckCircleIcon className="w-6 h-6 text-green-500" />
         </div>
@@ -49,15 +72,18 @@ function ThemePreview({ theme, isSelected, onSelect }: ThemePreviewProps) {
       
       {/* Theme header */}
       <div className="flex items-center gap-3 mb-3">
-        <span className="text-4xl">{config.icon}</span>
+        <span className={`text-4xl ${isLocked ? 'opacity-70' : ''}`}>{config.icon}</span>
         <div>
-          <h3 className="text-xl font-bold text-white">{config.name}</h3>
+          <h3 className={`text-xl font-bold ${isLocked ? 'text-yellow-400' : 'text-white'}`}>
+            {config.name}
+            {isLocked && <span className="ml-2 text-sm text-yellow-300">• Premium</span>}
+          </h3>
           <p className="text-sm text-gray-400">{config.description}</p>
         </div>
       </div>
       
       {/* Color preview bar */}
-      <div className="flex gap-1 mb-3 rounded-lg overflow-hidden h-2">
+      <div className={`flex gap-1 mb-3 rounded-lg overflow-hidden h-2 ${isLocked ? 'opacity-50' : ''}`}>
         <div className="flex-1" style={{ backgroundColor: config.cssVars['--theme-primary'] }} />
         <div className="flex-1" style={{ backgroundColor: config.cssVars['--theme-secondary'] }} />
         <div className="flex-1" style={{ backgroundColor: config.cssVars['--theme-accent'] }} />
@@ -65,7 +91,7 @@ function ThemePreview({ theme, isSelected, onSelect }: ThemePreviewProps) {
       
       {/* Sub-themes for Halloween/Christmas */}
       {subThemes.length > 0 && (
-        <div className="mt-3 space-y-1">
+        <div className={`mt-3 space-y-1 ${isLocked ? 'opacity-60' : ''}`}>
           <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Unique Page Themes:</p>
           <div className="grid grid-cols-2 gap-1">
             {subThemes.map((sub, i) => (
@@ -88,18 +114,69 @@ function ThemePreview({ theme, isSelected, onSelect }: ThemePreviewProps) {
           Classic Drop Dollar experience - no page-specific themes
         </div>
       )}
+
+      {/* Unlock prompt for locked themes */}
+      {isLocked && (
+        <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center">
+          <p className="text-yellow-400 text-sm font-semibold">
+            🔓 Click to unlock this premium theme!
+          </p>
+        </div>
+      )}
     </button>
   );
 }
 
 export default function SiteThemeSelector() {
-  const { currentTheme, setTheme, isSaving } = useSiteTheme();
+  const { currentTheme, setTheme, isSaving } = useSiteThemeContext();
+  const { 
+    isThemeOwned, 
+    purchaseTheme, 
+    isPurchasing, 
+    userRP,
+    refreshThemes,
+    isLoading: isLoadingPurchases
+  } = useSiteThemePurchase();
+  
   const [showSuccess, setShowSuccess] = useState(false);
+  const [purchaseModalTheme, setPurchaseModalTheme] = useState<SiteTheme | null>(null);
+
+  // Refresh purchases on mount
+  useEffect(() => {
+    refreshThemes();
+  }, [refreshThemes]);
   
   const handleThemeSelect = async (theme: SiteTheme) => {
+    // Check if theme is owned (default is always free)
+    if (theme !== 'default' && !isThemeOwned(theme)) {
+      setPurchaseModalTheme(theme);
+      return;
+    }
+    
     await setTheme(theme);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const handleUnlock = (theme: SiteTheme) => {
+    setPurchaseModalTheme(theme);
+  };
+
+  const handlePurchase = async () => {
+    if (!purchaseModalTheme) return { success: false, error: 'No theme selected' };
+    
+    const result = await purchaseTheme(purchaseModalTheme);
+    if (result.success) {
+      // Apply the theme after purchase
+      await setTheme(purchaseModalTheme);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    }
+    return result;
+  };
+
+  const getThemePrice = (theme: SiteTheme): number => {
+    return PURCHASABLE_THEMES[theme as keyof typeof PURCHASABLE_THEMES]?.price || 2000;
   };
   
   return (
@@ -113,12 +190,20 @@ export default function SiteThemeSelector() {
           <h2 className="text-xl font-bold text-white">Site Theme</h2>
           <p className="text-sm text-gray-400">Customize your Drop Dollar experience</p>
         </div>
-        {isSaving && (
-          <div className="ml-auto flex items-center gap-2 text-blue-400">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs">Saving...</span>
+        <div className="ml-auto flex items-center gap-3">
+          {/* RP Balance */}
+          <div className="bg-yellow-500/20 border border-yellow-500/50 px-3 py-1.5 rounded-lg">
+            <span className="text-yellow-400 font-bold text-sm">
+              {userRP.toLocaleString()} RP
+            </span>
           </div>
-        )}
+          {(isSaving || isLoadingPurchases) && (
+            <div className="flex items-center gap-2 text-blue-400">
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs">{isSaving ? 'Saving...' : 'Loading...'}</span>
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Success message */}
@@ -138,7 +223,10 @@ export default function SiteThemeSelector() {
             key={theme}
             theme={theme}
             isSelected={currentTheme === theme}
+            isLocked={theme !== 'default' && !isThemeOwned(theme)}
+            price={getThemePrice(theme)}
             onSelect={() => handleThemeSelect(theme)}
+            onUnlock={() => handleUnlock(theme)}
           />
         ))}
       </div>
@@ -147,9 +235,31 @@ export default function SiteThemeSelector() {
       <div className="mt-6 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
         <p className="text-xs text-blue-300">
           💡 <strong>Tip:</strong> Each page has unique themed animations and visuals. 
+          Premium themes (🎃 Halloween, 🎄 Christmas) require RP to unlock.
           Your preference is saved automatically and persists across sessions.
         </p>
       </div>
+
+      {/* Purchase Modal */}
+      {purchaseModalTheme && (
+        <ThemePurchaseModal
+          isOpen={!!purchaseModalTheme}
+          onClose={() => setPurchaseModalTheme(null)}
+          theme={{
+            id: purchaseModalTheme,
+            name: SITE_THEMES[purchaseModalTheme].name,
+            price: getThemePrice(purchaseModalTheme),
+            icon: SITE_THEMES[purchaseModalTheme].icon,
+            owned: isThemeOwned(purchaseModalTheme),
+            canAfford: userRP >= getThemePrice(purchaseModalTheme),
+            description: SITE_THEMES[purchaseModalTheme].description
+          }}
+          userRP={userRP}
+          onPurchase={handlePurchase}
+          isPurchasing={isPurchasing}
+          type="site"
+        />
+      )}
     </div>
   );
 }
