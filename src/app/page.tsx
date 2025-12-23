@@ -112,7 +112,7 @@ export default function HomePage() {
           </p>
 
           {/* Video Section */}
-          <div className="mb-16 max-w-4xl mx-auto">
+          <div className="mb-12 max-w-4xl mx-auto">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-purple-500/50 hover:border-purple-400 transition-all duration-300 transform hover:scale-105">
               <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900">
                 <iframe
@@ -127,6 +127,125 @@ export default function HomePage() {
                 ></iframe>
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
+            </div>
+          </div>
+
+          {/* Practice Games Promo Section */}
+          <div className="mb-16 max-w-5xl mx-auto">
+            <div className="text-center mb-6">
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                🎮 <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Practice Makes Perfect</span>
+              </h3>
+              <p className="text-gray-300 text-lg">Master 16 skill-based games before entering real competitions!</p>
+            </div>
+            
+            {/* Gameplay Videos Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Laser Dodge */}
+              <Link href="/games" className="group relative rounded-xl overflow-hidden shadow-xl border-2 border-cyan-500/30 hover:border-cyan-400 transition-all duration-300 transform hover:scale-105">
+                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900">
+                  <video
+                    src="/laser-dodge-gameplay.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-white font-bold text-lg">⚡ Laser Dodge</h4>
+                      <p className="text-cyan-300 text-xs">Dodge deadly lasers!</p>
+                    </div>
+                    <div className="bg-cyan-500/80 text-white text-xs px-2 py-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      PLAY →
+                    </div>
+                  </div>
+                </div>
+                {/* Live indicator */}
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold animate-pulse flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  LIVE
+                </div>
+              </Link>
+
+              {/* Blade Bounce */}
+              <Link href="/games" className="group relative rounded-xl overflow-hidden shadow-xl border-2 border-orange-500/30 hover:border-orange-400 transition-all duration-300 transform hover:scale-105">
+                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900">
+                  <video
+                    src="/mouseblade-gameplay.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-white font-bold text-lg">🗡️ Blade Bounce</h4>
+                      <p className="text-orange-300 text-xs">Master the sword!</p>
+                    </div>
+                    <div className="bg-orange-500/80 text-white text-xs px-2 py-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      PLAY →
+                    </div>
+                  </div>
+                </div>
+                {/* Live indicator */}
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold animate-pulse flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  LIVE
+                </div>
+              </Link>
+
+              {/* Cash Stack */}
+              <Link href="/games" className="group relative rounded-xl overflow-hidden shadow-xl border-2 border-yellow-500/30 hover:border-yellow-400 transition-all duration-300 transform hover:scale-105">
+                <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900">
+                  <video
+                    src="/cash-stack-gameplay.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-white font-bold text-lg">💰 Cash Stack</h4>
+                      <p className="text-yellow-300 text-xs">Stack your fortune!</p>
+                    </div>
+                    <div className="bg-yellow-500/80 text-white text-xs px-2 py-1 rounded-full font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                      PLAY →
+                    </div>
+                  </div>
+                </div>
+                {/* Live indicator */}
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold animate-pulse flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  LIVE
+                </div>
+              </Link>
+            </div>
+
+            {/* View All Games Button */}
+            <div className="text-center mt-6">
+              <Link
+                href="/games"
+                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-full hover:from-cyan-400 hover:to-blue-500 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-cyan-500/30"
+              >
+                🎮 View All 16 Games
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
             </div>
           </div>
 

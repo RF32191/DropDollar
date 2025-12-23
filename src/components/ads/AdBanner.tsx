@@ -415,10 +415,14 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3, v
     );
   }
 
+  // Calculate total slides (ads + 1 video slide)
+  const totalSlides = ads.length + 1;
+  const currentSlideIndex = currentSlide === 'ad' ? currentAdIndex : ads.length;
+
   // Top/Bottom Banner (default)
   return (
     <div className={`w-full ${position === 'top' ? 'mb-6' : 'mt-6'}`}>
-      <div className={`bg-gradient-to-r ${colors.bg} backdrop-blur-lg rounded-2xl p-6 border ${colors.border} relative group hover:${colors.border.replace('/30', '/50').replace('/40', '/60')} transition-all duration-300 shadow-2xl hover:scale-[1.01]`}>
+      <div className={`bg-gradient-to-r ${colors.bg} backdrop-blur-lg rounded-2xl p-6 border ${colors.border} relative group hover:${colors.border.replace('/30', '/50').replace('/40', '/60')} transition-all duration-300 shadow-2xl hover:scale-[1.01] overflow-hidden`}>
         <button
           onClick={() => setDismissed(true)}
           className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100 z-10"
@@ -426,53 +430,134 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3, v
           <XMarkIcon className="w-5 h-5" />
         </button>
         
-        <div className={`text-xs ${colors.text} mb-3 font-semibold uppercase tracking-wider`}>✨ Sponsored</div>
-        
-        <div className="flex flex-col md:flex-row gap-6 items-center">
-          {currentAd.image_url && (
-            <img
-              src={currentAd.image_url}
-              alt={currentAd.headline}
-              className="w-full md:w-64 h-40 object-cover rounded-xl border-2 border-purple-500/30"
-            />
-          )}
-          
-          <div className="flex-1 flex flex-col justify-center">
-            <h2 className={`text-2xl md:text-3xl font-black text-white mb-2 bg-gradient-to-r ${colors.button.replace('from-', 'from-').replace('to-', 'to-').replace('hover:', '')} bg-clip-text text-transparent`}>
-              {currentAd.headline}
-            </h2>
-            <p className="text-gray-300 text-sm md:text-base mb-4 line-clamp-2">
-              {currentAd.description}
-            </p>
+        {/* Video Slide */}
+        {currentSlide === 'video' && currentVideo && (
+          <>
+            <div className={`text-xs ${colors.text} mb-3 font-semibold uppercase tracking-wider flex items-center gap-2`}>
+              🎮 Featured Game
+            </div>
             
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => handleAdClick(currentAd)}
-                className={`bg-gradient-to-r ${colors.button} text-white font-bold px-8 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105`}
-              >
-                {currentAd.call_to_action} →
-              </button>
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+              {/* Video Player */}
+              <div className="relative w-full md:w-80 h-48 rounded-xl overflow-hidden border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/20">
+                <video
+                  ref={videoRef}
+                  src={currentVideo.videoUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                {/* Play/Pause overlay */}
+                <button
+                  onClick={toggleVideo}
+                  className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity"
+                >
+                  {isVideoPlaying ? (
+                    <PauseIcon className="w-12 h-12 text-white drop-shadow-lg" />
+                  ) : (
+                    <PlayIcon className="w-12 h-12 text-white drop-shadow-lg" />
+                  )}
+                </button>
+                {/* Live indicator */}
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold animate-pulse flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  GAMEPLAY
+                </div>
+              </div>
               
-              <div className="text-xs text-gray-500">
-                by <span className={`${colors.text} font-semibold`}>{currentAd.seller_username}</span>
+              <div className="flex-1 flex flex-col justify-center">
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-2">
+                  {currentVideo.title}
+                </h2>
+                <p className="text-gray-300 text-sm md:text-base mb-4">
+                  {currentVideo.description}
+                </p>
+                
+                <div className="flex items-center gap-4">
+                  <a
+                    href={currentVideo.destination}
+                    className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold px-8 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center gap-2"
+                  >
+                    <PlayIcon className="w-5 h-5" />
+                    {currentVideo.cta} →
+                  </a>
+                  
+                  <div className="text-xs text-gray-400">
+                    by <span className="text-cyan-400 font-semibold">DropDollar</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Ad rotation indicator */}
-        {ads.length > 1 && (
-          <div className="flex gap-2 justify-center mt-4">
-            {ads.map((_, idx) => (
-              <div
-                key={idx}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  idx === currentAdIndex ? `w-8 ${colors.text.replace('text-', 'bg-')}` : 'w-1 bg-gray-600'
-                }`}
-              />
-            ))}
-          </div>
+          </>
         )}
+        
+        {/* Ad Slide */}
+        {currentSlide === 'ad' && currentAd && (
+          <>
+            <div className={`text-xs ${colors.text} mb-3 font-semibold uppercase tracking-wider`}>✨ Sponsored</div>
+            
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+              {currentAd.image_url && (
+                <img
+                  src={currentAd.image_url}
+                  alt={currentAd.headline}
+                  className="w-full md:w-64 h-40 object-cover rounded-xl border-2 border-purple-500/30"
+                />
+              )}
+              
+              <div className="flex-1 flex flex-col justify-center">
+                <h2 className={`text-2xl md:text-3xl font-black text-white mb-2 bg-gradient-to-r ${colors.button.replace('from-', 'from-').replace('to-', 'to-').replace('hover:', '')} bg-clip-text text-transparent`}>
+                  {currentAd.headline}
+                </h2>
+                <p className="text-gray-300 text-sm md:text-base mb-4 line-clamp-2">
+                  {currentAd.description}
+                </p>
+                
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => handleAdClick(currentAd)}
+                    className={`bg-gradient-to-r ${colors.button} text-white font-bold px-8 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105`}
+                  >
+                    {currentAd.call_to_action} →
+                  </button>
+                  
+                  <div className="text-xs text-gray-500">
+                    by <span className={`${colors.text} font-semibold`}>{currentAd.seller_username}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        
+        {/* Slide indicator (ads + video) */}
+        <div className="flex gap-2 justify-center mt-4">
+          {/* Ad indicators */}
+          {ads.map((_, idx) => (
+            <button
+              key={`ad-${idx}`}
+              onClick={() => { setCurrentSlide('ad'); setCurrentAdIndex(idx); }}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                currentSlide === 'ad' && idx === currentAdIndex 
+                  ? `w-8 ${colors.text.replace('text-', 'bg-')}` 
+                  : 'w-2 bg-gray-600 hover:bg-gray-500'
+              }`}
+              title={`Ad ${idx + 1}`}
+            />
+          ))}
+          {/* Video indicator */}
+          <button
+            onClick={() => setCurrentSlide('video')}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              currentSlide === 'video' 
+                ? 'w-8 bg-cyan-400' 
+                : 'w-2 bg-gray-600 hover:bg-gray-500'
+            }`}
+            title="Featured Game"
+          />
+        </div>
       </div>
     </div>
   );
