@@ -137,7 +137,7 @@ export default function FlappyCoinGame({ onGameEnd, onGameComplete, onExit, game
   const FLOOR_Y = -4.5;
   const CEILING_Y = 4.5;
   const OBSTACLE_GAP = 12.0; // Much larger gap between obstacles for back/forth movement
-  const GAP_SIZE = 5.0; // Large opening to pass through - more forgiving
+  const GAP_SIZE = 6.0; // Very large opening - easier to pass through
   const BONUS_COIN_POINTS = 500; // Points for collecting bonus coins
   const BONUS_SPAWN_INTERVAL = 5; // Spawn bonus every 5 gaps (was 10)
   
@@ -2003,23 +2003,27 @@ export default function FlappyCoinGame({ onGameEnd, onGameComplete, onExit, game
           }
           
           // Collision - use ACTUAL hand positions (accounting for movement)
-          if (Math.abs(obs.x - COIN_X) < 1.2) {
+          if (Math.abs(obs.x - COIN_X) < 1.0) {
             const coinY = coinYRef.current;
-            const coinRadius = 0.6; // Slightly smaller hitbox for the coin (was 0.5)
+            const coinRadius = 0.5; // Coin hitbox radius
             
             // Get actual hand positions after movement animation
-            // Finger tips extend 1.5 units towards the gap from hand center
-            const fingerExtension = 1.5;
+            // Finger tips extend about 1.5 units towards the gap from hand center
+            const fingerExtension = 2.0; // Slightly more generous
             const topFingerTipY = obs.topMesh.position.y - fingerExtension; // Where top fingers end
             const bottomFingerTipY = obs.bottomMesh.position.y + fingerExtension; // Where bottom fingers end
             
-            // Add a forgiving buffer zone (0.3 units of grace)
-            const buffer = 0.3;
-            const topEdge = topFingerTipY + buffer;
-            const bottomEdge = bottomFingerTipY - buffer;
+            // Add a forgiving buffer zone - SUBTRACT from top, ADD to bottom to make gap BIGGER
+            const buffer = 0.8; // More forgiving
+            const topEdge = topFingerTipY - buffer; // Lower the top edge (more room)
+            const bottomEdge = bottomFingerTipY + buffer; // Raise the bottom edge (more room)
+            
+            // Debug: Log collision check every few frames
+            // console.log('Collision check:', { coinY, topEdge, bottomEdge, hit: coinY > topEdge || coinY < bottomEdge });
             
             // Only collide if coin CLEARLY hits the fingers
-            if (coinY + coinRadius > topEdge || coinY - coinRadius < bottomEdge) {
+            if (coinY > topEdge || coinY < bottomEdge) {
+              console.log('💀 Collision! CoinY:', coinY, 'TopEdge:', topEdge, 'BottomEdge:', bottomEdge);
               isAliveRef.current = false;
               
               gameStateRef.current = 'complete';

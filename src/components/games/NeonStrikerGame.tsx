@@ -51,12 +51,27 @@ interface GameCoin {
 
 // Level configurations - coins start MOVING from level 3
 const LEVELS = [
+  // EASY - Static targets
   { name: 'Triangle', coins: [{ x: 0, z: -2 }, { x: -2, z: 1 }, { x: 2, z: 1 }], bumpers: [{ x: -4, z: 0 }, { x: 4, z: 0 }], moving: false },
   { name: 'Diamond', coins: [{ x: 0, z: -4 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: 0, z: 2 }], bumpers: [{ x: -5, z: -2 }, { x: 5, z: -2 }], moving: false },
+  
+  // MEDIUM - Moving targets begin
   { name: 'The Line', coins: [{ x: -4, z: 0 }, { x: -2, z: 0 }, { x: 0, z: 0 }, { x: 2, z: 0 }, { x: 4, z: 0 }], bumpers: [{ x: 0, z: -3 }, { x: 0, z: 3 }], moving: true },
   { name: 'Circle', coins: [{ x: 0, z: -3 }, { x: 2.6, z: -1.5 }, { x: 2.6, z: 1.5 }, { x: 0, z: 3 }, { x: -2.6, z: 1.5 }, { x: -2.6, z: -1.5 }], bumpers: [{ x: 0, z: 0 }], moving: true },
+  { name: 'X-Factor', coins: [{ x: -3, z: -3 }, { x: 3, z: -3 }, { x: 0, z: 0 }, { x: -3, z: 3 }, { x: 3, z: 3 }], bumpers: [{ x: -5, z: 0 }, { x: 5, z: 0 }], moving: true },
+  
+  // HARD - More coins, more bumpers
   { name: 'Fortress', coins: [{ x: -4, z: -4 }, { x: 4, z: -4 }, { x: -4, z: 2 }, { x: 4, z: 2 }, { x: -2, z: -1 }, { x: 2, z: -1 }, { x: 0, z: 0 }], bumpers: [{ x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: -3 }], moving: true },
+  { name: 'Scatter', coins: [{ x: -5, z: -4 }, { x: -2, z: -5 }, { x: 2, z: -3 }, { x: 5, z: -4 }, { x: -4, z: 1 }, { x: 4, z: 2 }], bumpers: [{ x: 0, z: -2 }, { x: -3, z: 4 }, { x: 3, z: 4 }], moving: true },
+  { name: 'The Grid', coins: [{ x: -3, z: -3 }, { x: 0, z: -3 }, { x: 3, z: -3 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: -3, z: 3 }, { x: 0, z: 3 }, { x: 3, z: 3 }], bumpers: [{ x: 0, z: 0 }], moving: true },
+  
+  // EXPERT - Complex patterns
+  { name: 'Orbit', coins: [{ x: 0, z: -5 }, { x: 3.5, z: -3.5 }, { x: 5, z: 0 }, { x: 3.5, z: 3.5 }, { x: 0, z: 5 }, { x: -3.5, z: 3.5 }, { x: -5, z: 0 }, { x: -3.5, z: -3.5 }], bumpers: [{ x: 0, z: 0 }, { x: 2, z: 2 }, { x: -2, z: -2 }], moving: true },
   { name: 'Chaos', coins: [{ x: -5, z: -5 }, { x: 5, z: -5 }, { x: -3, z: -2 }, { x: 3, z: -2 }, { x: 0, z: 0 }, { x: -4, z: 3 }, { x: 4, z: 3 }, { x: 0, z: 5 }], bumpers: [{ x: -2, z: 0 }, { x: 2, z: 0 }, { x: 0, z: -4 }, { x: 0, z: 2 }], moving: true },
+  { name: 'Spiral', coins: [{ x: 0, z: -4 }, { x: 2, z: -2 }, { x: 3, z: 1 }, { x: 1, z: 3 }, { x: -2, z: 2 }, { x: -3, z: -1 }, { x: -1, z: -3 }], bumpers: [{ x: 0, z: 0 }, { x: 4, z: -3 }, { x: -4, z: 3 }], moving: true },
+  
+  // MASTER - Maximum difficulty
+  { name: 'Gauntlet', coins: [{ x: -5, z: -6 }, { x: 0, z: -6 }, { x: 5, z: -6 }, { x: -4, z: -3 }, { x: 4, z: -3 }, { x: -3, z: 0 }, { x: 3, z: 0 }, { x: -2, z: 3 }, { x: 2, z: 3 }, { x: 0, z: 5 }], bumpers: [{ x: 0, z: -4 }, { x: 0, z: 1 }, { x: -5, z: 0 }, { x: 5, z: 0 }], moving: true },
 ];
 
 const GAME_DURATION = 90; // 1 minute 30 seconds
