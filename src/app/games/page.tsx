@@ -121,6 +121,7 @@ import LazyVideo from '@/components/video/LazyVideo';
 import { GameScoreService, type GameScore } from '@/lib/supabase/gameScores';
 import { SimpleGameService } from '@/lib/supabase/simpleGameService';
 import { XPService } from '@/lib/supabase/xpService';
+import { supabase } from '@/lib/supabase';
 import { LocationService, type LocationData } from '@/lib/locationService';
 import SoundEffects from '@/lib/SoundEffects';
 import { useAuth } from '@/contexts/AuthContext';
