@@ -1168,9 +1168,11 @@ export default function NeonStrikerGame({
             <p className="text-center text-gray-400 text-xs">Level 3+ has MOVING targets! Patterns are consistent for fair play.</p>
           </div>
 
-          {/* Theme Selector */}
+          {/* Theme Selector - Premium themes locked until purchased with RP */}
           <div className="mb-4 bg-black/30 rounded-xl p-3">
             <GameThemeSelector
+              gameId="neon-striker"
+              gameName="Neon Striker"
               currentTheme={currentTheme}
               onThemeChange={setCurrentTheme}
               compact={true}

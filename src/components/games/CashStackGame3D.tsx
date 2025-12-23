@@ -1912,9 +1912,11 @@ export default function CashStackGame3D({
           <p className="text-lg mb-2">🎯 <span className="text-green-400">Decimal scores</span> prevent ties!</p>
           <p className="text-lg mb-6">Align $ signs for 💥 EXPLOSION BONUS!</p>
           
-          {/* Theme selector - available for all modes */}
+          {/* Theme selector - Premium themes locked until purchased with RP */}
           <div className="mb-6 w-full max-w-md">
             <GameThemeSelector
+              gameId="cash-stack"
+              gameName="Cash Stack"
               currentTheme={currentTheme}
               onThemeChange={setCurrentTheme}
               compact={true}

@@ -575,9 +575,11 @@ export default function QuickClickGame({ onGameEnd, onExit, listingId, entryNumb
               </div>
             </div>
             
-            {/* Theme Selector */}
+            {/* Theme Selector - Premium themes locked until purchased with RP */}
             <div className="mb-4 bg-black/30 rounded-xl p-3">
               <GameThemeSelector
+                gameId="quick-click"
+                gameName="Quick Click"
                 currentTheme={currentTheme}
                 onThemeChange={setCurrentTheme}
                 compact={true}

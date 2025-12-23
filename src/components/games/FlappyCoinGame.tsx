@@ -2289,9 +2289,11 @@ export default function FlappyCoinGame({ onGameEnd, onGameComplete, onExit, game
               </div>
             )}
             
-            {/* Theme Selector */}
+            {/* Theme Selector - Premium themes locked until purchased with RP */}
             <div className="mb-4 bg-black/20 rounded-xl p-3">
               <GameThemeSelector
+                gameId="flippy-coin"
+                gameName="Flippy Coin"
                 currentTheme={currentTheme}
                 onThemeChange={setCurrentTheme}
                 compact={true}

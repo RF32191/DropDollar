@@ -2954,9 +2954,11 @@ export default function BladeBounce3D({
             <p className="text-2xl mb-4">❤️ 3 hearts - protect your handle!</p>
             <p className="text-3xl font-bold text-yellow-400 mb-8 animate-pulse">{GAME_DURATION} seconds - Survive & Score!</p>
             
-            {/* Theme Selector */}
+            {/* Theme Selector - Premium themes locked until purchased with RP */}
             <div className="mb-6 w-full max-w-2xl mx-auto">
               <GameThemeSelector
+                gameId="blade-bounce"
+                gameName="Blade Bounce"
                 currentTheme={currentTheme}
                 onThemeChange={setCurrentTheme}
               />

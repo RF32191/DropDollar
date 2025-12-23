@@ -1987,9 +1987,11 @@ export default function ParryProGame({ onGameEnd, onGameComplete, onExit, gameMo
               <p className="text-gray-400 text-xs text-center">Kill enemies for heart recovery!</p>
             </div>
             
-            {/* Theme Selector */}
+            {/* Theme Selector - Premium themes locked until purchased with RP */}
             <div className="mb-4 bg-black/30 rounded-xl p-3">
               <GameThemeSelector
+                gameId="parry-pro"
+                gameName="Parry Pro"
                 currentTheme={currentTheme}
                 onThemeChange={setCurrentTheme}
                 compact={true}
