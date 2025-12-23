@@ -1605,80 +1605,6 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     }
   }, [checkPortalTeleport, showGladosMessage, health, gameState]);
 
-  const gameLoop = useCallback(() => {
-    if (gameState !== 'playing') return;
-    
-    const delta = clockRef.current.getDelta();
-    const elapsed = clockRef.current.getElapsedTime();
-    
-    // Update FPS counter
-    setFps(Math.round(1 / delta));
-    
-    // Update physics
-    updatePhysics(delta);
-    
-    // Animate portals
-    if (portalsRef.current.blue?.mesh) {
-      portalsRef.current.blue.mesh.rotation.z = elapsed * 0.5;
-    }
-    if (portalsRef.current.orange?.mesh) {
-      portalsRef.current.orange.mesh.rotation.z = -elapsed * 0.5;
-    }
-    
-    // Animate exit portal
-    if (chamberRef.current?.exitPortal) {
-      chamberRef.current.exitPortal.rotation.y = elapsed;
-    }
-    
-    // Animate turret eyes
-    turretsRef.current.forEach(turret => {
-      const eye = turret.mesh.getObjectByName('turretEye') as THREE.Mesh;
-      if (eye) {
-        const mat = eye.material as THREE.MeshStandardMaterial;
-        mat.emissiveIntensity = 1.5 + Math.sin(elapsed * 5) * 0.5;
-      }
-    });
-    
-    // Animate energy pellets (glow pulse)
-    pelletsRef.current.forEach(pellet => {
-      if (pellet.isActive) {
-        const scale = 1 + Math.sin(elapsed * 10) * 0.1;
-        pellet.mesh.scale.set(scale, scale, scale);
-        pellet.light.intensity = 2 + Math.sin(elapsed * 10) * 0.5;
-      }
-    });
-    
-    // Animate faith plates (pulse)
-    faithPlatesRef.current.forEach(plate => {
-      const glow = 0.5 + Math.sin(elapsed * 3) * 0.3;
-      (plate.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = glow;
-    });
-    
-    // Animate fizzler particles
-    fizzlersRef.current.forEach(fizzler => {
-      const positions = fizzler.particles.geometry.attributes.position.array as Float32Array;
-      for (let i = 0; i < positions.length; i += 3) {
-        positions[i + 1] += 0.02;
-        if (positions[i + 1] > fizzler.height) {
-          positions[i + 1] = 0;
-        }
-      }
-      fizzler.particles.geometry.attributes.position.needsUpdate = true;
-    });
-    
-    // Animate light bridges (shimmer)
-    lightBridgesRef.current.forEach(bridge => {
-      (bridge.mesh.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(elapsed * 5) * 0.1;
-    });
-    
-    // Render
-    if (rendererRef.current && sceneRef.current && cameraRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
-    
-    animationRef.current = requestAnimationFrame(gameLoop);
-  }, [gameState, updatePhysics]);
-
   // Handle mouse movement for look (works without pointer lock)
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isGameActive || gameState !== 'playing') return;
@@ -1884,15 +1810,107 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   useEffect(() => {
     if (gameState === 'playing' && isGameActive) {
       console.log('🎮 Game loop starting...');
+      
+      // Use a ref to track if loop should continue
+      let shouldRun = true;
+      
+      const runLoop = () => {
+        if (!shouldRun || gameState !== 'playing') {
+          console.log('🛑 Game loop stopped');
+          return;
+        }
+        
+        try {
+          const delta = clockRef.current.getDelta();
+          const elapsed = clockRef.current.getElapsedTime();
+          
+          // Update FPS
+          setFps(Math.round(1 / Math.max(delta, 0.001)));
+          
+          // Update physics
+          updatePhysics(delta);
+          
+          // Animate portals
+          if (portalsRef.current.blue?.mesh) {
+            portalsRef.current.blue.mesh.rotation.z = elapsed * 0.5;
+          }
+          if (portalsRef.current.orange?.mesh) {
+            portalsRef.current.orange.mesh.rotation.z = -elapsed * 0.5;
+          }
+          
+          // Animate exit portal
+          if (chamberRef.current?.exitPortal) {
+            chamberRef.current.exitPortal.rotation.y = elapsed;
+          }
+          
+          // Animate turret eyes
+          turretsRef.current.forEach(turret => {
+            const eye = turret.mesh.getObjectByName('turretEye') as THREE.Mesh;
+            if (eye) {
+              const mat = eye.material as THREE.MeshStandardMaterial;
+              mat.emissiveIntensity = 1.5 + Math.sin(elapsed * 5) * 0.5;
+            }
+          });
+          
+          // Animate energy pellets
+          pelletsRef.current.forEach(pellet => {
+            if (pellet.isActive) {
+              const scale = 1 + Math.sin(elapsed * 10) * 0.1;
+              pellet.mesh.scale.set(scale, scale, scale);
+              pellet.light.intensity = 2 + Math.sin(elapsed * 10) * 0.5;
+            }
+          });
+          
+          // Animate faith plates
+          faithPlatesRef.current.forEach(plate => {
+            const glow = 0.5 + Math.sin(elapsed * 3) * 0.3;
+            (plate.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = glow;
+          });
+          
+          // Animate fizzler particles
+          fizzlersRef.current.forEach(fizzler => {
+            const positions = fizzler.particles.geometry.attributes.position.array as Float32Array;
+            for (let i = 0; i < positions.length; i += 3) {
+              positions[i + 1] += 0.02;
+              if (positions[i + 1] > fizzler.height) {
+                positions[i + 1] = 0;
+              }
+            }
+            fizzler.particles.geometry.attributes.position.needsUpdate = true;
+          });
+          
+          // Animate light bridges
+          lightBridgesRef.current.forEach(bridge => {
+            (bridge.mesh.material as THREE.MeshBasicMaterial).opacity = 0.6 + Math.sin(elapsed * 5) * 0.1;
+          });
+          
+          // Render
+          if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            // Update camera position
+            const player = playerRef.current;
+            cameraRef.current.position.copy(player.position);
+            cameraRef.current.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+            
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+          
+          animationRef.current = requestAnimationFrame(runLoop);
+        } catch (error) {
+          console.error('❌ Game loop error:', error);
+        }
+      };
+      
       clockRef.current.start();
-      animationRef.current = requestAnimationFrame(gameLoop);
+      animationRef.current = requestAnimationFrame(runLoop);
+      
+      return () => {
+        shouldRun = false;
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
     }
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [gameState, gameLoop, isGameActive]);
+  }, [gameState, isGameActive, updatePhysics]);
 
   // Update held object position
   useEffect(() => {
@@ -1915,15 +1933,30 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
 
   const startGame = useCallback(() => {
     console.log('🎮 Starting Wormhole game...');
-    createTestChamber(currentLevel);
-    setScore(0);
-    setHealth(100);
-    setIsGameActive(true); // Activate game controls
-    setGameState('playing');
     
-    // Show GLaDOS intro
-    showGladosMessage();
-    console.log('✅ Game started successfully');
+    try {
+      createTestChamber(currentLevel);
+      setScore(0);
+      setHealth(100);
+      
+      // Set states in sequence to ensure proper triggering
+      setIsGameActive(true);
+      
+      // Use setTimeout to ensure state updates have propagated
+      setTimeout(() => {
+        setGameState('playing');
+        showGladosMessage();
+        console.log('✅ Game started successfully');
+        
+        // Force start the game loop
+        if (clockRef.current) {
+          clockRef.current.start();
+        }
+      }, 100);
+    } catch (error) {
+      console.error('❌ Error starting game:', error);
+      setMessage('Error starting game. Please refresh.');
+    }
   }, [currentLevel, createTestChamber, showGladosMessage]);
 
   const nextLevel = useCallback(() => {
