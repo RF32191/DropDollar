@@ -2036,84 +2036,50 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
     };
     window.addEventListener('resize', handleResize);
 
-    // Click handler for taking control - SIMPLIFIED
+    // Click handler for taking control - CLICK ANYWHERE TO START
     // Music already started in startGame(), just need to take control
-    const handleClick = (event: MouseEvent) => {
+    const handleClick = () => {
       if (gameStateRef.current === 'waiting' && !hasControlRef.current) {
-        // Check if clicked on lightning bolt area - LARGER HIT AREA (8 units)
-        const rect = containerRef.current!.getBoundingClientRect();
-        const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        // Click anywhere on screen to take control - no need to click exactly on bolt
+        hasControlRef.current = true;
+        gameStateRef.current = 'playing';
+        setGameState('playing');
+        startTimeRef.current = Date.now();
+        console.log('✅ [LightningMaze] Control taken! Game playing.');
         
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+        // Reset gyro base for fresh calibration
+        if (gyroEnabledRef.current) {
+          gyroBaseRef.current = null;
+        }
         
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
-        const intersectPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersectPoint);
-        
-        if (intersectPoint) {
-          const dist = intersectPoint.distanceTo(lightningPositionRef.current);
-          console.log(`🎯 [LightningMaze] Click distance from bolt: ${dist.toFixed(2)}`);
-          if (dist < 8) { // LARGER AREA - was 4
-            hasControlRef.current = true;
-            gameStateRef.current = 'playing';
-            setGameState('playing');
-            startTimeRef.current = Date.now();
-            console.log('✅ [LightningMaze] Control taken! Game playing.');
-            
-            // Reset gyro base for fresh calibration
-            if (gyroEnabledRef.current) {
-              gyroBaseRef.current = null;
-            }
-            
-            // Hide start marker
-            if (startMarkerRef.current) {
-              startMarkerRef.current.visible = false;
-            }
-          }
+        // Hide start marker
+        if (startMarkerRef.current) {
+          startMarkerRef.current.visible = false;
         }
       }
     };
     containerRef.current.addEventListener('click', handleClick);
 
-    // Touch handler for mobile - tap to start - SIMPLIFIED
+    // Touch handler for mobile - tap anywhere to start
     const handleTouchStart = (event: TouchEvent) => {
       event.preventDefault();
       if (event.touches.length === 0) return;
       
-      const touch = event.touches[0];
       if (gameStateRef.current === 'waiting' && !hasControlRef.current) {
-        const rect = containerRef.current!.getBoundingClientRect();
-        const touchX = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-        const touchY = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+        // Tap anywhere on screen to take control
+        hasControlRef.current = true;
+        gameStateRef.current = 'playing';
+        setGameState('playing');
+        startTimeRef.current = Date.now();
+        console.log('✅ [LightningMaze] Control taken via touch! Game playing.');
         
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(touchX, touchY), camera);
+        // Reset gyro base for fresh calibration
+        if (gyroEnabledRef.current) {
+          gyroBaseRef.current = null;
+        }
         
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
-        const intersectPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersectPoint);
-        
-        if (intersectPoint) {
-          const dist = intersectPoint.distanceTo(lightningPositionRef.current);
-          console.log(`🎯 [LightningMaze] Touch distance from bolt: ${dist.toFixed(2)}`);
-          if (dist < 10) { // VERY LARGE AREA for mobile - was 6
-            hasControlRef.current = true;
-            gameStateRef.current = 'playing';
-            setGameState('playing');
-            startTimeRef.current = Date.now();
-            console.log('✅ [LightningMaze] Control taken via touch! Game playing.');
-            
-            // Reset gyro base for fresh calibration
-            if (gyroEnabledRef.current) {
-              gyroBaseRef.current = null;
-            }
-            
-            if (startMarkerRef.current) {
-              startMarkerRef.current.visible = false;
-            }
-          }
+        if (startMarkerRef.current) {
+          startMarkerRef.current.visible = false;
         }
       }
     };
@@ -2736,7 +2702,7 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
               <p className="text-amber-300 font-bold text-base sm:text-xl">
                 {currentTheme === 'reproductive' ? '🏊 HOW TO PLAY:' : '⚡ HOW TO PLAY:'}
               </p>
-              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP</span> the {currentTheme === 'reproductive' ? 'sperm cell' : 'electrical current'} to start</p>
+              <p className="text-gray-300 text-sm sm:text-lg">• <span className="text-green-400 font-bold">TAP ANYWHERE</span> on the screen to start</p>
               <p className="text-gray-300 text-sm sm:text-lg">• {isMobile ? 'Drag your finger' : 'Move your mouse'} to guide {currentTheme === 'reproductive' ? 'the swimmer' : 'the signal'}</p>
               <p className="text-gray-300 text-sm sm:text-lg">• Reach all <span className="text-gray-200 font-bold">{currentTheme === 'reproductive' ? 'Ovaries 🥚' : 'IC Chips'}</span> (+500 pts)</p>
               <p className="text-gray-300 text-sm sm:text-lg">• Avoid <span className="text-blue-400 font-bold">{currentTheme === 'reproductive' ? 'IUDs 💉' : 'capacitors'}</span> (-25 pts)</p>
