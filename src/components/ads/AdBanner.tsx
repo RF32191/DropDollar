@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PlayIcon, PauseIcon } from '@heroicons/react/24/outline';
 
 interface Ad {
   id: string;
@@ -15,6 +15,59 @@ interface Ad {
   seller_username: string;
   is_platform_ad?: boolean; // True for platform ads (free), false for paid seller ads
 }
+
+// Promo videos for the second slide
+interface PromoVideo {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  destination: string;
+  cta: string;
+}
+
+const PROMO_VIDEOS: PromoVideo[] = [
+  {
+    id: 'laser-dodge',
+    title: '⚡ Laser Dodge',
+    description: 'Dodge deadly lasers and rack up points in this intense arcade shooter!',
+    videoUrl: '/laser-dodge-gameplay.mp4',
+    destination: '/games',
+    cta: 'Play Now'
+  },
+  {
+    id: 'mouseblade',
+    title: '🗡️ Blade Bounce',
+    description: 'Master the blade! Slash fireballs and survive the onslaught!',
+    videoUrl: '/mouseblade-gameplay.mp4',
+    destination: '/games',
+    cta: 'Play Now'
+  },
+  {
+    id: 'cash-stack',
+    title: '💰 Cash Stack',
+    description: 'Stack your way to fortune! Test your precision and timing!',
+    videoUrl: '/cash-stack-gameplay.mp4',
+    destination: '/games',
+    cta: 'Play Now'
+  },
+  {
+    id: 'quick-click',
+    title: '🎯 Quick Click',
+    description: 'Lightning-fast reflexes required! How fast can you react?',
+    videoUrl: '/quick-click-gameplay.mp4',
+    destination: '/games',
+    cta: 'Play Now'
+  },
+  {
+    id: 'color-sequence',
+    title: '🌈 Color Sequence',
+    description: 'Test your memory with colorful patterns! How far can you go?',
+    videoUrl: '/color-sequence-gameplay.mp4',
+    destination: '/games',
+    cta: 'Play Now'
+  }
+];
 
 type AdBannerVariant = 'default' | 'hot-sell' | 'winner-takes-all' | '1v1' | 'coin-play' | 'rewards' | 'rp-shop';
 
@@ -38,6 +91,17 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3, v
   const [isLoading, setIsLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
   const [impressionLogged, setImpressionLogged] = useState<Set<string>>(new Set());
+  
+  // Video slide state
+  const [currentSlide, setCurrentSlide] = useState<'ad' | 'video'>('ad');
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
+  // Get a random promo video on mount
+  useEffect(() => {
+    setCurrentVideoIndex(Math.floor(Math.random() * PROMO_VIDEOS.length));
+  }, []);
 
   // Generate session ID for tracking
   const [sessionId] = useState(() => {
@@ -56,15 +120,35 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3, v
     loadAds();
   }, [pageLocation]);
 
-  // Rotate ads every 10 seconds
+  // Rotate between ads and video slides
   useEffect(() => {
-    if (ads.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentAdIndex((prev) => (prev + 1) % ads.length);
-      }, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [ads.length]);
+    const interval = setInterval(() => {
+      if (currentSlide === 'ad') {
+        // After showing ad, move to next ad or switch to video
+        if (ads.length > 0) {
+          const nextAdIndex = (currentAdIndex + 1) % ads.length;
+          if (nextAdIndex === 0 && ads.length > 0) {
+            // After cycling through all ads, show video
+            setCurrentSlide('video');
+            setCurrentVideoIndex((prev) => (prev + 1) % PROMO_VIDEOS.length);
+          } else {
+            setCurrentAdIndex(nextAdIndex);
+          }
+        } else {
+          // No ads, show video
+          setCurrentSlide('video');
+        }
+      } else {
+        // After video, go back to ads
+        setCurrentSlide('ad');
+        if (ads.length > 0) {
+          setCurrentAdIndex(0);
+        }
+      }
+    }, 12000); // 12 seconds per slide
+    
+    return () => clearInterval(interval);
+  }, [ads.length, currentAdIndex, currentSlide]);
 
   // Log impression when ad is viewed
   useEffect(() => {
@@ -277,6 +361,19 @@ export default function AdBanner({ pageLocation, position = 'top', maxAds = 3, v
   }
 
   const currentAd = ads[currentAdIndex];
+  const currentVideo = PROMO_VIDEOS[currentVideoIndex];
+
+  // Toggle video play/pause
+  const toggleVideo = () => {
+    if (videoRef.current) {
+      if (isVideoPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsVideoPlaying(!isVideoPlaying);
+    }
+  };
 
   // Different layouts based on position
   if (position === 'sidebar') {

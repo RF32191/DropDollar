@@ -595,7 +595,6 @@ export default function GamesPage() {
     return 'standard';
   });
   const [gamePopularity, setGamePopularity] = useState<{[key: string]: GamePopularity}>({});
-  const [showPopularityStats, setShowPopularityStats] = useState(false);
   const [isLoadingScores, setIsLoadingScores] = useState(false);
   const [isGameActive, setIsGameActive] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
@@ -1423,16 +1422,10 @@ export default function GamesPage() {
             </div>
           ) : (
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-4">
-              Master all 9 skill-based games before entering real competitions. 
+              Master all 16 skill-based games before entering real competitions. 
               Practice <strong className="text-green-600">unlimited times</strong> to perfect your skills!
             </p>
           )}
-          <button
-            onClick={() => setShowPopularityStats(!showPopularityStats)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-          >
-            {showPopularityStats ? 'Hide' : 'Show'} Game Popularity Trends 📊
-          </button>
         </div>
 
         {/* Ad Banner */}
@@ -1492,95 +1485,6 @@ export default function GamesPage() {
             </p>
           )}
         </div>
-
-        {/* Popularity Stats */}
-        {showPopularityStats && (
-          <div className="bg-white rounded-2xl p-8 shadow-lg mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-              📊 Game Popularity Analytics
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Most Popular Games */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">🏆 Most Popular Games</h3>
-                <div className="space-y-3">
-                  {Object.values(gamePopularity)
-                    .sort((a, b) => b.popularityScore - a.popularityScore)
-                    .slice(0, 3)
-                    .map((pop, index) => {
-                      const game = GAMES.find(g => g.id === pop.gameId);
-                      return (
-                        <div key={pop.gameId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center">
-                            <span className="text-lg mr-3">
-                              {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-                            </span>
-                            <span className="font-medium">{game?.name}</span>
-                          </div>
-                          <div className="text-right text-sm text-gray-600">
-                            <div>{pop.timesPlayed.toLocaleString()} plays</div>
-                            <div>{pop.timesUsedInListings.toLocaleString()} listings</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* Highest Scoring Games */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">⭐ Highest Avg Scores</h3>
-                <div className="space-y-3">
-                  {Object.values(gamePopularity)
-                    .sort((a, b) => b.avgScore - a.avgScore)
-                    .slice(0, 3)
-                    .map((pop, index) => {
-                      const game = GAMES.find(g => g.id === pop.gameId);
-                      return (
-                        <div key={pop.gameId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center">
-                            <span className="text-lg mr-3">
-                              {index === 0 ? '🌟' : index === 1 ? '⭐' : index === 2 ? '✨' : `${index + 1}.`}
-                            </span>
-                            <span className="font-medium">{game?.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold text-green-600">{pop.avgScore.toFixed(1)}</span>
-                            <span className="text-sm text-gray-500 ml-1">avg</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-
-            {/* Popularity Insights */}
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900 mb-2">📈 Popularity Insights</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-                <div>
-                  <strong>Most Practiced:</strong> {Object.values(gamePopularity)
-                    .sort((a, b) => b.timesPlayed - a.timesPlayed)[0] ? 
-                    GAMES.find(g => g.id === Object.values(gamePopularity)
-                      .sort((a, b) => b.timesPlayed - a.timesPlayed)[0].gameId)?.name : 'N/A'}
-                </div>
-                <div>
-                  <strong>Most Used in Listings:</strong> {Object.values(gamePopularity)
-                    .sort((a, b) => b.timesUsedInListings - a.timesUsedInListings)[0] ? 
-                    GAMES.find(g => g.id === Object.values(gamePopularity)
-                      .sort((a, b) => b.timesUsedInListings - a.timesUsedInListings)[0].gameId)?.name : 'N/A'}
-                </div>
-                <div>
-                  <strong>Highest Skill Ceiling:</strong> {Object.values(gamePopularity)
-                    .sort((a, b) => b.avgScore - a.avgScore)[0] ? 
-                    GAMES.find(g => g.id === Object.values(gamePopularity)
-                      .sort((a, b) => b.avgScore - a.avgScore)[0].gameId)?.name : 'N/A'}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Mode Notice */}
         <div className={`${isCompetitionMode ? 'bg-red-50 border-red-400' : 'bg-blue-50 border-blue-400'} border-l-4 p-6 mb-8 rounded-r-lg`}>
