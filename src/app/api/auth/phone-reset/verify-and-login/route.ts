@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user email
+    // Get user email from users table
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('id, email, username')
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (userError || !userData?.email) {
-      console.log('❌ [VerifyLogin] User not found');
+      console.log('❌ [VerifyLogin] User not found in users table');
       return NextResponse.json(
         { success: false, error: 'Account not found' },
         { status: 404 }
@@ -124,29 +124,47 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [VerifyLogin] Found user:', userData.username);
 
-    // Generate a temporary password for this session
+    // CRITICAL: Since phone is verified, we need to:
+    // 1. Confirm the user's email in Supabase Auth (phone = valid verification)
+    // 2. Set a temporary password
+    // 3. Return credentials for login
+
     const tempPassword = 'TEMP_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-    // Update the user's password temporarily using admin API
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+    // Update the user: confirm email AND set temp password
+    const { data: authUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       matchedPhone.user_id,
-      { password: tempPassword }
+      { 
+        password: tempPassword,
+        email_confirm: true,  // Confirm email since phone is verified
+      }
     );
 
     if (updateError) {
-      console.error('❌ [VerifyLogin] Failed to set temp password:', updateError);
+      console.error('❌ [VerifyLogin] Failed to update user:', updateError);
       
-      // Try alternative: just return the email for client-side magic link
-      return NextResponse.json({
-        success: true,
-        email: userData.email,
-        username: userData.username,
-        message: 'Phone verified. Please update your password.',
-        requiresPasswordChange: true
-      });
+      // Try just setting password without email_confirm
+      const { error: retryError } = await supabaseAdmin.auth.admin.updateUserById(
+        matchedPhone.user_id,
+        { password: tempPassword }
+      );
+      
+      if (retryError) {
+        console.error('❌ [VerifyLogin] Retry also failed:', retryError);
+        return NextResponse.json({
+          success: false,
+          error: 'Failed to reset password. Please try email reset instead.',
+        }, { status: 500 });
+      }
     }
 
-    console.log('✅ [VerifyLogin] Temp password set, ready for login');
+    console.log('✅ [VerifyLogin] User updated - email confirmed & temp password set');
+
+    // Also mark phone as verified in user_phones table
+    await supabaseAdmin
+      .from('user_phones')
+      .update({ verified: true })
+      .eq('user_id', matchedPhone.user_id);
 
     // Return credentials for client to log in
     return NextResponse.json({
