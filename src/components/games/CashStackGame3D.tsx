@@ -209,12 +209,21 @@ export default function CashStackGame3D({
     oscillator.stop(ctx.currentTime + duration);
   }, []);
   
-  // Setup background music for completed game
+  // Setup background music - theme-based
   useEffect(() => {
-    // Create audio element for cash-stack.mp3
+    // Get music file based on current theme
+    const getMusicFile = () => {
+      switch (currentTheme) {
+        case 'halloween': return '/cash-stackhalloween.mp3';
+        case 'christmas': return '/cash-stack-christmas.mp3';
+        default: return '/cash-stack.mp3';
+      }
+    };
+    const musicFile = getMusicFile();
+    
     // Use try-catch to handle any initialization errors gracefully
     try {
-      const audio = new Audio('/cash-stack.mp3');
+      const audio = new Audio(musicFile);
       audio.loop = true;
       audio.volume = 0.7; // Set volume to 70% for better audibility
       audio.preload = 'auto'; // Preload the audio
@@ -226,14 +235,15 @@ export default function CashStackGame3D({
       });
       
       audio.addEventListener('loadeddata', () => {
-        console.log('✅ [CashStackGame3D] Background music loaded successfully');
+        console.log(`✅ [CashStackGame3D] ${currentTheme} music loaded: ${musicFile}`);
       });
       
       audio.addEventListener('canplaythrough', () => {
-        console.log('✅ [CashStackGame3D] Background music ready to play');
+        console.log(`✅ [CashStackGame3D] ${currentTheme} music ready to play`);
       });
       
       backgroundMusicRef.current = audio;
+      console.log(`🎵 [CashStackGame3D] Loading ${currentTheme} theme music: ${musicFile}`);
       
       // Try to load the audio (but don't fail if it doesn't work)
       if (audio.load) {
@@ -246,7 +256,7 @@ export default function CashStackGame3D({
       // Game continues to work without audio
     }
     
-    // Cleanup on unmount
+    // Cleanup on unmount or theme change
     return () => {
       if (backgroundMusicRef.current) {
         try {
@@ -258,7 +268,7 @@ export default function CashStackGame3D({
         backgroundMusicRef.current = null;
       }
     };
-  }, []);
+  }, [currentTheme]); // Re-initialize music when theme changes
   
   // Play background music when game starts (during gameplay)
   useEffect(() => {
