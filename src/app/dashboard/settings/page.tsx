@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -14,7 +14,8 @@ import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
   PhoneIcon,
-  UserIcon
+  UserIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface UserData {
@@ -26,10 +27,14 @@ interface UserData {
 
 export default function AccountSettingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
+  
+  // Notice state (from phone verification)
+  const [showPasswordNotice, setShowPasswordNotice] = useState(false);
   
   // Email change state
   const [newEmail, setNewEmail] = useState('');
@@ -39,10 +44,8 @@ export default function AccountSettingsPage() {
   const [emailSuccess, setEmailSuccess] = useState(false);
   
   // Password change state
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
@@ -55,11 +58,27 @@ export default function AccountSettingsPage() {
   useEffect(() => {
     if (!mounted) return;
     
+    // Check for password change notice
+    const notice = searchParams?.get('notice');
+    const savedNotice = localStorage.getItem('showPasswordChangeNotice');
+    
+    if (notice === 'password' || savedNotice === 'true') {
+      setShowPasswordNotice(true);
+      localStorage.removeItem('showPasswordChangeNotice');
+    }
+    
     const fetchUserData = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
+          // Check if we have verified phone info in localStorage
+          const verifiedEmail = localStorage.getItem('verifiedEmail');
+          if (verifiedEmail) {
+            // Try to sign in with the verified info
+            localStorage.removeItem('verifiedEmail');
+            localStorage.removeItem('verifiedPhone');
+          }
           router.push('/auth/login?redirect=/dashboard/settings');
           return;
         }
@@ -91,7 +110,7 @@ export default function AccountSettingsPage() {
             phone = phoneData.phone_number;
           }
         } catch {
-          // Phone not found, that's ok
+          // Phone not found
         }
 
         setUserData({
@@ -109,7 +128,7 @@ export default function AccountSettingsPage() {
     };
     
     fetchUserData();
-  }, [mounted, router]);
+  }, [mounted, router, searchParams]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +185,6 @@ export default function AccountSettingsPage() {
 
         if (updateError) {
           console.error('Error updating users table:', updateError);
-          // Don't fail the whole operation if users table update fails
         }
       }
 
@@ -174,7 +192,6 @@ export default function AccountSettingsPage() {
       setNewEmail('');
       setConfirmEmail('');
       
-      // Update local state
       if (userData) {
         setUserData({ ...userData, email: trimmedEmail });
       }
@@ -190,11 +207,6 @@ export default function AccountSettingsPage() {
     setPasswordError('');
     setPasswordSuccess(false);
 
-    if (!currentPassword) {
-      setPasswordError('Please enter your current password');
-      return;
-    }
-
     if (!newPassword) {
       setPasswordError('Please enter a new password');
       return;
@@ -206,33 +218,14 @@ export default function AccountSettingsPage() {
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match');
+      setPasswordError('Passwords do not match');
       return;
     }
 
     setPasswordLoading(true);
 
     try {
-      // Verify current password by re-signing in
-      const userEmail = userData?.email || '';
-      if (!userEmail) {
-        setPasswordError('Could not verify current password - no email found');
-        setPasswordLoading(false);
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password: currentPassword
-      });
-
-      if (signInError) {
-        setPasswordError('Current password is incorrect');
-        setPasswordLoading(false);
-        return;
-      }
-
-      // Update password
+      // Update password directly (user is already logged in via phone verification)
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -241,9 +234,9 @@ export default function AccountSettingsPage() {
         setPasswordError(error.message);
       } else {
         setPasswordSuccess(true);
-        setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
+        setShowPasswordNotice(false);
       }
     } catch (err) {
       setPasswordError(err instanceof Error ? err.message : 'Failed to update password');
@@ -315,6 +308,21 @@ export default function AccountSettingsPage() {
           </div>
         </div>
 
+        {/* Password Change Notice Banner */}
+        {showPasswordNotice && (
+          <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <ExclamationCircleIcon className="w-6 h-6 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-yellow-400 font-semibold">Phone Verification Successful!</h3>
+                <p className="text-yellow-200/80 text-sm mt-1">
+                  Please set a new password below. You can also update your email if needed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Current Account Info */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
           <h2 className="text-lg font-semibold text-white mb-4">Current Account</h2>
@@ -351,11 +359,91 @@ export default function AccountSettingsPage() {
           </div>
         </div>
 
+        {/* Change Password Section - Highlighted if from phone verification */}
+        <div className={`bg-gray-800 rounded-lg p-6 mb-6 border ${showPasswordNotice ? 'border-yellow-500/50 ring-2 ring-yellow-500/20' : 'border-gray-700'}`}>
+          <div className="flex items-center mb-4">
+            <LockClosedIcon className="w-5 h-5 text-green-400 mr-2" />
+            <h2 className="text-lg font-semibold text-white">
+              {showPasswordNotice ? '🔐 Set New Password' : 'Change Password'}
+            </h2>
+            {showPasswordNotice && (
+              <span className="ml-2 px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">Required</span>
+            )}
+          </div>
+
+          {passwordSuccess && (
+            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4 flex items-center">
+              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" />
+              <p className="text-green-400 text-sm">Password updated successfully! You can now use this password to sign in.</p>
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  placeholder="Enter new password"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                placeholder="Confirm new password"
+              />
+            </div>
+
+            {passwordError && (
+              <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+                <p className="text-red-400 text-sm">{passwordError}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            >
+              {passwordLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : showPasswordNotice ? 'Set New Password' : 'Update Password'}
+            </button>
+          </form>
+        </div>
+
         {/* Change Email Section */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
           <div className="flex items-center mb-4">
             <EnvelopeIcon className="w-5 h-5 text-blue-400 mr-2" />
-            <h2 className="text-lg font-semibold text-white">Change Email</h2>
+            <h2 className="text-lg font-semibold text-white">Change Email (Optional)</h2>
           </div>
 
           {emailSuccess && (
@@ -417,125 +505,13 @@ export default function AccountSettingsPage() {
           </form>
         </div>
 
-        {/* Change Password Section */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <div className="flex items-center mb-4">
-            <LockClosedIcon className="w-5 h-5 text-green-400 mr-2" />
-            <h2 className="text-lg font-semibold text-white">Change Password</h2>
-          </div>
-
-          {passwordSuccess && (
-            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4 flex items-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" />
-              <p className="text-green-400 text-sm">Password updated successfully!</p>
-            </div>
-          )}
-
-          <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Current Password</label>
-              <div className="relative">
-                <input
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  placeholder="Enter current password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  {showCurrentPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">New Password</label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  placeholder="Enter new password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
-                  {showNewPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Confirm New Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                placeholder="Confirm new password"
-              />
-            </div>
-
-            {passwordError && (
-              <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
-                <p className="text-red-400 text-sm">{passwordError}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={passwordLoading}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-            >
-              {passwordLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Updating...
-                </>
-              ) : 'Update Password'}
-            </button>
-          </form>
-        </div>
-
-        {/* Forgot Password Link */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-400 text-sm mb-2">
-            Forgot your current password?
-          </p>
-          <Link 
-            href="/auth/forgot-password"
-            className="text-blue-400 hover:text-blue-300 text-sm"
-          >
-            Reset via email or phone
-          </Link>
-        </div>
-
         {/* Done button */}
         <div className="mt-6 text-center">
           <Link 
             href="/dashboard"
             className="inline-flex items-center px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
           >
-            Done - Go to Dashboard
+            {passwordSuccess ? '✓ Done - Go to Dashboard' : 'Go to Dashboard'}
           </Link>
         </div>
       </div>

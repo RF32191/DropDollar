@@ -2,23 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { EnvelopeIcon, PhoneIcon, CheckCircleIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon, PhoneIcon, CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 type ResetMethod = 'email' | 'phone';
-type Step = 'choose' | 'enterContact' | 'enterCode' | 'newPassword' | 'success';
+type Step = 'choose' | 'enterContact' | 'enterCode' | 'loggingIn' | 'success';
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [method, setMethod] = useState<ResetMethod>('email');
   const [step, setStep] = useState<Step>('choose');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [resetToken, setResetToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [maskedContact, setMaskedContact] = useState('');
@@ -103,7 +101,7 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCodeAndLogin = async () => {
     const trimmedCode = (code || '').trim();
     if (trimmedCode.length < 4) {
       setError('Please enter the verification code');
@@ -115,7 +113,9 @@ export default function ForgotPasswordPage() {
 
     try {
       const digits = (phone || '').replace(/\D/g, '');
-      const response = await fetch('/api/auth/phone-reset/verify', {
+      
+      // Verify the code and get login credentials
+      const response = await fetch('/api/auth/phone-reset/verify-and-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: digits, code: trimmedCode }),
@@ -123,57 +123,42 @@ export default function ForgotPasswordPage() {
 
       const data = await response.json();
 
-      if (data.success && data.resetToken) {
-        setResetToken(data.resetToken);
-        setStep('newPassword');
+      if (data.success && data.email && data.tempPassword) {
+        setStep('loggingIn');
+        
+        // Log the user in with the temporary session
+        const { error: loginError } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.tempPassword,
+        });
+
+        if (loginError) {
+          // If direct login fails, try using the session token
+          if (data.sessionToken) {
+            // Redirect to dashboard with change password notice
+            localStorage.setItem('showPasswordChangeNotice', 'true');
+            router.push('/dashboard/settings?notice=password');
+          } else {
+            setError('Login failed. Please try again or use email reset.');
+            setStep('enterCode');
+          }
+        } else {
+          // Login successful - redirect to settings with notice
+          localStorage.setItem('showPasswordChangeNotice', 'true');
+          router.push('/dashboard/settings?notice=password');
+        }
+      } else if (data.success && data.email) {
+        // Code verified, log them in via magic link approach
+        localStorage.setItem('showPasswordChangeNotice', 'true');
+        localStorage.setItem('verifiedPhone', digits);
+        localStorage.setItem('verifiedEmail', data.email);
+        router.push('/dashboard/settings?notice=password&verified=phone');
       } else {
         setError(data.error || 'Invalid verification code');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdatePassword = async () => {
-    const trimmedPassword = (newPassword || '').trim();
-    const trimmedConfirm = (confirmPassword || '').trim();
-    
-    if (!trimmedPassword) {
-      setError('Please enter a new password');
-      return;
-    }
-
-    if (trimmedPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-
-    if (trimmedPassword !== trimmedConfirm) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/auth/phone-reset/update-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resetToken, newPassword: trimmedPassword }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setStep('success');
-      } else {
-        setError(data.error || 'Failed to update password');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setStep('enterCode');
     } finally {
       setIsLoading(false);
     }
@@ -183,6 +168,19 @@ export default function ForgotPasswordPage() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  // Logging in state
+  if (step === 'loggingIn') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4">
+        <div className="text-center">
+          <ArrowPathIcon className="h-12 w-12 text-green-400 mx-auto animate-spin mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Logging You In...</h2>
+          <p className="text-gray-400">Please wait while we verify your identity</p>
+        </div>
       </div>
     );
   }
@@ -225,7 +223,7 @@ export default function ForgotPasswordPage() {
               </div>
               <div className="text-left">
                 <h3 className="text-white font-medium">Reset via Phone</h3>
-                <p className="text-gray-400 text-sm">Get a code via SMS</p>
+                <p className="text-gray-400 text-sm">Get a code via SMS &amp; login directly</p>
               </div>
             </button>
           </div>
@@ -250,7 +248,9 @@ export default function ForgotPasswordPage() {
               {method === 'email' ? 'Enter Your Email' : 'Enter Your Phone'}
             </h2>
             <p className="text-gray-300">
-              {method === 'email' ? 'We will send a reset link' : 'We will send a verification code'}
+              {method === 'email' 
+                ? 'We will send a reset link' 
+                : 'We will send a code to verify and log you in'}
             </p>
           </div>
 
@@ -277,6 +277,9 @@ export default function ForgotPasswordPage() {
                   placeholder="(555) 555-5555"
                   maxLength={14}
                 />
+                <p className="mt-2 text-xs text-gray-400">
+                  After verifying, you&apos;ll be logged in and can change your password
+                </p>
               </div>
             )}
 
@@ -291,9 +294,14 @@ export default function ForgotPasswordPage() {
               disabled={isLoading}
               className={`w-full py-3 px-4 rounded-lg font-medium text-white ${
                 method === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-              } disabled:opacity-50 transition-colors`}
+              } disabled:opacity-50 transition-colors flex items-center justify-center`}
             >
-              {isLoading ? 'Sending...' : method === 'email' ? 'Send Reset Link' : 'Send Code'}
+              {isLoading ? (
+                <>
+                  <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : method === 'email' ? 'Send Reset Link' : 'Send Verification Code'}
             </button>
 
             <div className="flex justify-between text-sm">
@@ -316,9 +324,12 @@ export default function ForgotPasswordPage() {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-2">Enter Code</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">Enter Verification Code</h2>
             <p className="text-gray-300">
               Code sent to <span className="text-green-400">{maskedContact}</span>
+            </p>
+            <p className="text-gray-400 text-sm mt-2">
+              Once verified, you&apos;ll be logged in automatically
             </p>
           </div>
 
@@ -327,9 +338,10 @@ export default function ForgotPasswordPage() {
               type="text"
               value={code}
               onChange={(e) => setCode((e.target.value || '').replace(/\D/g, '').slice(0, 6))}
-              className="w-full text-center text-2xl tracking-widest py-4 border border-gray-600 bg-gray-800 text-white rounded-lg"
-              placeholder="------"
+              className="w-full text-center text-3xl tracking-[0.5em] py-4 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-green-500"
+              placeholder="••••••"
               maxLength={6}
+              autoComplete="one-time-code"
             />
 
             {error && (
@@ -339,117 +351,62 @@ export default function ForgotPasswordPage() {
             )}
 
             <button
-              onClick={handleVerifyCode}
+              onClick={handleVerifyCodeAndLogin}
               disabled={isLoading || code.length < 4}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center"
             >
-              {isLoading ? 'Verifying...' : 'Verify Code'}
+              {isLoading ? (
+                <>
+                  <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                  Verifying & Logging In...
+                </>
+              ) : 'Verify & Login'}
             </button>
 
-            <button
-              onClick={handlePhoneSendCode}
-              disabled={isLoading}
-              className="w-full text-green-400 hover:text-green-300 text-sm transition-colors"
-            >
-              Resend code
-            </button>
+            <div className="text-center">
+              <button
+                onClick={handlePhoneSendCode}
+                disabled={isLoading}
+                className="text-green-400 hover:text-green-300 text-sm transition-colors"
+              >
+                Didn&apos;t receive code? Resend
+              </button>
+            </div>
+
+            <div className="flex justify-between text-sm pt-4 border-t border-gray-700">
+              <button onClick={() => { setStep('enterContact'); setError(''); }} className="text-gray-400 hover:text-white transition-colors">
+                Change Number
+              </button>
+              <Link href="/auth/login" className="text-blue-400 hover:text-blue-300">
+                Cancel
+              </Link>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Step 4: New password
-  if (step === 'newPassword') {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-              <LockClosedIcon className="h-8 w-8 text-blue-400" />
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Create New Password</h2>
-            <p className="text-gray-400">Enter your new password below</p>
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">New Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter new password (min 8 characters)"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full py-3 px-4 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Confirm new password"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleUpdatePassword}
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {isLoading ? 'Updating...' : 'Update Password'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Success
+  // Success (email only - phone goes directly to dashboard)
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full text-center">
         <div className="mx-auto h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
           <CheckCircleIcon className="h-8 w-8 text-green-400" />
         </div>
-        <h2 className="text-3xl font-bold text-white mb-2">
-          {method === 'email' ? 'Check Your Email' : 'Password Updated!'}
-        </h2>
+        <h2 className="text-3xl font-bold text-white mb-2">Check Your Email</h2>
         <p className="text-gray-300 mb-6">
-          {method === 'email' 
-            ? `We sent reset instructions to ${maskedContact}`
-            : 'You can now sign in with your new password.'
-          }
+          We sent reset instructions to <span className="text-blue-400">{maskedContact}</span>
+        </p>
+        <p className="text-gray-400 text-sm mb-6">
+          Click the link in the email to reset your password
         </p>
         
         <Link
           href="/auth/login"
           className="inline-flex justify-center w-full py-3 px-4 rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors"
         >
-          Sign In
+          Back to Sign In
         </Link>
       </div>
     </div>
