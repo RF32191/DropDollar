@@ -1866,10 +1866,8 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     // Show GLaDOS intro
     showGladosMessage();
     
-    // Request pointer lock
-    if (containerRef.current) {
-      containerRef.current.requestPointerLock();
-    }
+    // DON'T auto-lock pointer - let user click inside game to start
+    // This prevents the button click from being consumed by pointer lock
   }, [currentLevel, createTestChamber, showGladosMessage]);
 
   const nextLevel = useCallback(() => {
@@ -2136,12 +2134,23 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             </div>
           )}
           
-          {/* Pointer lock message */}
+          {/* Pointer lock message - Click to start/resume */}
           {!isPointerLocked && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/70 cursor-pointer"
-                 onClick={() => containerRef.current?.requestPointerLock()}>
-              <div className="text-white text-xl font-bold">
-                Click to resume
+            <div 
+              className="absolute inset-0 flex items-center justify-center bg-black/70 cursor-pointer"
+              onClick={() => containerRef.current?.requestPointerLock()}
+            >
+              <div className="text-center p-8 bg-gradient-to-br from-blue-900/50 to-orange-900/50 rounded-2xl border border-white/30">
+                <div className="text-6xl mb-4">🎮</div>
+                <div className="text-white text-2xl font-bold mb-2">
+                  Click Here to Start
+                </div>
+                <p className="text-gray-300 text-sm">
+                  Click anywhere in this area to begin playing
+                </p>
+                <div className="mt-4 text-gray-400 text-xs">
+                  ESC to pause | WASD to move | Mouse to look
+                </div>
               </div>
             </div>
           )}

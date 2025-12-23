@@ -1851,117 +1851,161 @@ export default function CashStackGame3D({
         </div>
       )}
       
-      {/* Ready screen */}
+      {/* Ready screen - Native scroll container */}
       {gameState === 'ready' && (
         <div 
-          className="fixed inset-0 flex flex-col items-center bg-black/80 text-white p-4 z-40"
+          className="fixed inset-0 z-40 bg-black/80"
           style={{ 
-            overflowY: 'scroll', 
+            overflow: 'auto',
             WebkitOverflowScrolling: 'touch',
-            paddingTop: '2rem', 
-            paddingBottom: '6rem'
+            touchAction: 'pan-y',
+            overscrollBehavior: 'contain',
           }}
         >
-          {/* Mobile scroll indicator */}
-          <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-white/90 text-gray-800 px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
-            <span>👆</span>
-            <span className="text-sm font-bold">Scroll for more</span>
-            <span>👇</span>
-          </div>
-          
-          <h1 className="text-6xl font-bold mb-4 animate-pulse" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
-            💰 CASH STACK 3D
-          </h1>
-          <p className="text-3xl font-bold mb-6" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
-            {currentVariation.name}
-          </p>
-          
-          {/* Gameplay Video */}
-          <div className="mb-6 w-full max-w-2xl mx-auto">
-            <div 
-              className="relative w-full cursor-pointer group" 
-              style={{ aspectRatio: '16/9' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpandedVideo('/cash-stack-gameplay.mp4');
-              }}
-            >
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-full rounded-lg border-2 border-yellow-400 shadow-2xl transition-transform group-hover:scale-105"
-                style={{ objectFit: 'contain' }}
-              >
-                <source src="/cash-stack-gameplay.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-2xl font-bold bg-black/50 px-4 py-2 rounded-lg">
-                  Click to expand
-                </div>
-              </div>
-            </div>
-            <p className="text-sm text-gray-400 mt-2 text-center">Watch how to play - Click video to expand</p>
-          </div>
-          
-          <p className="text-xl mb-2">Stack blocks by clicking or pressing SPACE</p>
-          <p className="text-lg mb-2">⚡ <span className="text-yellow-400">FAST STACKING = BONUS POINTS!</span></p>
-          <p className="text-lg mb-2">⏱️ &lt;0.5s = 2.0x | &lt;1s = 1.5x | &lt;2s = 1.2x</p>
-          <p className="text-lg mb-2">🎯 <span className="text-green-400">Decimal scores</span> prevent ties!</p>
-          <p className="text-lg mb-6">Align $ signs for 💥 EXPLOSION BONUS!</p>
-          
-          {/* Theme selector - Premium themes locked until purchased with RP */}
-          <div className="mb-6 w-full max-w-md">
-            <GameThemeSelector
-              gameId="cash-stack"
-              gameName="Cash Stack"
-              currentTheme={currentTheme}
-              onThemeChange={setCurrentTheme}
-              compact={true}
-            />
-          </div>
-          
-          {/* Color selector - only show in practice mode - BIGGER and easier to use */}
-          {!gameSession && (
-            <div className="w-full max-w-2xl mb-6">
-              <p className="text-gray-400 text-sm mb-3 text-center">🎨 Choose Block Color</p>
-              <div className="bg-black/40 rounded-xl p-4 border border-gray-600">
-                <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-80 overflow-y-auto">
-              {GAME_VARIATIONS.map(variation => (
-                <button
-                  key={variation.id}
-                  onClick={() => setCurrentVariation(variation)}
-                      className={`px-4 py-3 rounded-xl font-bold text-sm transition-all pointer-events-auto shadow-lg hover:shadow-xl ${
-                    currentVariation.id === variation.id 
-                          ? 'ring-4 ring-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)]' 
-                          : 'opacity-80 hover:opacity-100 hover:scale-105'
-                  }`}
-                      style={{ 
-                        backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}`,
-                        textShadow: '0 1px 2px rgba(0,0,0,0.8)'
-                      }}
-                >
-                  {variation.name}
-                </button>
-              ))}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <p className="text-2xl font-bold text-yellow-400 mb-4">60 seconds - Go for high score!</p>
-          <button
-            onClick={startGame}
-            className="px-16 py-8 text-white text-4xl font-bold rounded-2xl transition-all transform hover:scale-110 pointer-events-auto mb-4 shadow-2xl animate-pulse border-4 border-white/30"
+          <div 
+            className="min-h-full flex flex-col items-center text-white p-4"
             style={{ 
-              backgroundColor: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}`,
-              boxShadow: `0 0 40px #${currentVariation.blockColor.toString(16).padStart(6, '0')}80`
+              paddingTop: 'max(2rem, env(safe-area-inset-top))', 
+              paddingBottom: 'max(8rem, env(safe-area-inset-bottom))'
             }}
           >
-            🚀 START GAME
-          </button>
+            {/* Mobile scroll indicator */}
+            <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-white/90 text-gray-800 px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
+              <span>👆</span>
+              <span className="text-sm font-bold">Scroll for more</span>
+              <span>👇</span>
+            </div>
+            
+            <h1 className="text-4xl sm:text-6xl font-bold mb-4 animate-pulse text-center" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
+              💰 CASH STACK 3D
+            </h1>
+            <p className="text-xl sm:text-3xl font-bold mb-6" style={{ color: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}` }}>
+              {currentVariation.name}
+            </p>
+            
+            {/* Gameplay Video */}
+            <div className="mb-6 w-full max-w-2xl mx-auto px-4">
+              <div 
+                className="relative w-full cursor-pointer group" 
+                style={{ aspectRatio: '16/9' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedVideo('/cash-stack-gameplay.mp4');
+                }}
+              >
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full rounded-lg border-2 border-yellow-400 shadow-2xl transition-transform group-hover:scale-105"
+                  style={{ objectFit: 'contain' }}
+                >
+                  <source src="/cash-stack-gameplay.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all rounded-lg">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xl font-bold bg-black/50 px-4 py-2 rounded-lg">
+                    Click to expand
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-400 mt-2 text-center">Watch how to play - Click video to expand</p>
+            </div>
+            
+            <div className="text-center mb-4 px-4">
+              <p className="text-lg sm:text-xl mb-2">Stack blocks by clicking or pressing SPACE</p>
+              <p className="text-base sm:text-lg mb-2">⚡ <span className="text-yellow-400">FAST STACKING = BONUS POINTS!</span></p>
+              <p className="text-base sm:text-lg mb-2">⏱️ &lt;0.5s = 2.0x | &lt;1s = 1.5x | &lt;2s = 1.2x</p>
+              <p className="text-base sm:text-lg mb-2">🎯 <span className="text-green-400">Decimal scores</span> prevent ties!</p>
+              <p className="text-base sm:text-lg mb-4">Align $ signs for 💥 EXPLOSION BONUS!</p>
+            </div>
+            
+            {/* Theme selector - Premium themes locked until purchased with RP */}
+            <div className="mb-6 w-full max-w-md px-4">
+              <GameThemeSelector
+                gameId="cash-stack"
+                gameName="Cash Stack"
+                currentTheme={currentTheme}
+                onThemeChange={setCurrentTheme}
+                compact={true}
+              />
+            </div>
+            
+            {/* Color selector - only show in practice mode - Touch friendly */}
+            {!gameSession && (
+              <div className="w-full max-w-2xl mb-6 px-4">
+                <p className="text-gray-400 text-sm mb-3 text-center">🎨 Choose Block Color (swipe to see more)</p>
+                <div 
+                  className="bg-black/40 rounded-xl p-4 border border-gray-600"
+                  style={{ touchAction: 'pan-x pan-y' }}
+                >
+                  <div 
+                    className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"
+                    style={{ 
+                      maxHeight: '300px', 
+                      overflowY: 'auto',
+                      WebkitOverflowScrolling: 'touch',
+                      touchAction: 'pan-y',
+                    }}
+                  >
+                    {GAME_VARIATIONS.map(variation => (
+                      <button
+                        key={variation.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentVariation(variation);
+                        }}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation();
+                          setCurrentVariation(variation);
+                        }}
+                        className={`px-3 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95 ${
+                          currentVariation.id === variation.id 
+                            ? 'ring-4 ring-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.5)]' 
+                            : 'opacity-80 active:opacity-100'
+                        }`}
+                        style={{ 
+                          backgroundColor: `#${variation.blockColor.toString(16).padStart(6, '0')}`,
+                          textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        {variation.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <p className="text-xl sm:text-2xl font-bold text-yellow-400 mb-4">60 seconds - Go for high score!</p>
+            
+            {/* Big Start Button - Touch friendly */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                startGame();
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startGame();
+              }}
+              className="px-12 sm:px-16 py-6 sm:py-8 text-white text-2xl sm:text-4xl font-bold rounded-2xl transition-all transform active:scale-95 mb-8 shadow-2xl animate-pulse border-4 border-white/30"
+              style={{ 
+                backgroundColor: `#${currentVariation.blockColor.toString(16).padStart(6, '0')}`,
+                boxShadow: `0 0 40px #${currentVariation.blockColor.toString(16).padStart(6, '0')}80`,
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              🚀 START GAME
+            </button>
+            
+            {/* Extra padding at bottom for mobile safe area */}
+            <div className="h-16 sm:h-8" />
+          </div>
         </div>
       )}
       
