@@ -109,7 +109,7 @@ SELECT
     u.tokens,
     u.created_at,
     p.phone_number,
-    p.is_verified as phone_verified,
+    p.verified as phone_verified,
     COALESCE(u.email, '') as login_email,
     COALESCE(u.username, '') as login_username,
     COALESCE(p.phone_number, '') as login_phone
