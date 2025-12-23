@@ -340,9 +340,113 @@ GRANT EXECUTE ON FUNCTION purchase_site_theme TO authenticated;
 GRANT EXECUTE ON FUNCTION check_site_theme_ownership TO authenticated;
 GRANT EXECUTE ON FUNCTION get_user_site_theme_purchases TO authenticated;
 
+-- ========================================
+-- STEP 12: Get ALL user's theme purchases (combined)
+-- ========================================
+CREATE OR REPLACE FUNCTION get_all_user_purchases()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_user_id UUID;
+    v_game_purchases JSON;
+    v_site_purchases JSON;
+BEGIN
+    v_user_id := auth.uid();
+    
+    IF v_user_id IS NULL THEN
+        RETURN json_build_object('success', false, 'error', 'Not authenticated');
+    END IF;
+    
+    -- Get game theme purchases
+    SELECT COALESCE(json_agg(json_build_object(
+        'type', 'game',
+        'game_id', game_id,
+        'theme_id', theme_id,
+        'rp_cost', rp_cost,
+        'purchased_at', purchased_at
+    )), '[]'::json)
+    INTO v_game_purchases
+    FROM public.game_theme_purchases
+    WHERE user_id = v_user_id;
+    
+    -- Get site theme purchases
+    SELECT COALESCE(json_agg(json_build_object(
+        'type', 'site',
+        'theme_id', theme_id,
+        'rp_cost', rp_cost,
+        'purchased_at', purchased_at
+    )), '[]'::json)
+    INTO v_site_purchases
+    FROM public.site_theme_purchases
+    WHERE user_id = v_user_id;
+    
+    RETURN json_build_object(
+        'success', true,
+        'game_themes', v_game_purchases,
+        'site_themes', v_site_purchases,
+        'total_game_purchases', (SELECT COUNT(*) FROM public.game_theme_purchases WHERE user_id = v_user_id),
+        'total_site_purchases', (SELECT COUNT(*) FROM public.site_theme_purchases WHERE user_id = v_user_id)
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_all_user_purchases TO authenticated;
+
+-- ========================================
+-- STEP 13: Restore purchases (admin function)
+-- In case purchases need to be restored
+-- ========================================
+CREATE OR REPLACE FUNCTION restore_theme_purchase(
+    p_user_id UUID,
+    p_game_id TEXT,
+    p_theme_id TEXT,
+    p_is_site_theme BOOLEAN DEFAULT FALSE
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    IF p_is_site_theme THEN
+        INSERT INTO public.site_theme_purchases (user_id, theme_id, rp_cost)
+        VALUES (p_user_id, p_theme_id, 0) -- 0 cost for restored purchases
+        ON CONFLICT (user_id, theme_id) DO NOTHING;
+    ELSE
+        INSERT INTO public.game_theme_purchases (user_id, game_id, theme_id, rp_cost)
+        VALUES (p_user_id, p_game_id, p_theme_id, 0) -- 0 cost for restored purchases
+        ON CONFLICT (user_id, game_id, theme_id) DO NOTHING;
+    END IF;
+    
+    RETURN json_build_object('success', true, 'message', 'Purchase restored');
+END;
+$$;
+
+-- Only service role can restore purchases
+GRANT EXECUTE ON FUNCTION restore_theme_purchase TO service_role;
+
+-- ========================================
+-- VERIFICATION
+-- ========================================
 SELECT '✅ Game theme purchases system created!' as result;
 SELECT '✅ Site theme purchases system created!' as result2;
+SELECT '✅ All purchases are backed up to Supabase!' as backup_status;
 SELECT 'Game themes: 1500 RP each. Site themes: 2000 RP each. Default/Standard is always free.' as info;
 SELECT 'Run purchase_game_theme(game_id, theme_id) to buy game themes.' as usage1;
 SELECT 'Run purchase_site_theme(theme_id) to buy site-wide themes.' as usage2;
+SELECT 'Run get_all_user_purchases() to view all your purchased themes.' as usage3;
+
+-- ========================================
+-- DATA VERIFICATION QUERIES (run manually)
+-- ========================================
+-- To check all game theme purchases:
+-- SELECT * FROM public.game_theme_purchases ORDER BY purchased_at DESC;
+
+-- To check all site theme purchases:
+-- SELECT * FROM public.site_theme_purchases ORDER BY purchased_at DESC;
+
+-- To check a specific user's purchases:
+-- SELECT * FROM public.game_theme_purchases WHERE user_id = 'USER_ID_HERE';
+-- SELECT * FROM public.site_theme_purchases WHERE user_id = 'USER_ID_HERE';
 
