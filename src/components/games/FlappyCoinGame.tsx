@@ -137,7 +137,7 @@ export default function FlappyCoinGame({ onGameEnd, onGameComplete, onExit, game
   const FLOOR_Y = -4.5;
   const CEILING_Y = 4.5;
   const OBSTACLE_GAP = 12.0; // Much larger gap between obstacles for back/forth movement
-  const GAP_SIZE = 4.2; // Larger opening to pass through
+  const GAP_SIZE = 5.0; // Large opening to pass through - more forgiving
   const BONUS_COIN_POINTS = 500; // Points for collecting bonus coins
   const BONUS_SPAWN_INTERVAL = 5; // Spawn bonus every 5 gaps (was 10)
   
@@ -2002,13 +2002,24 @@ export default function FlappyCoinGame({ onGameEnd, onGameComplete, onExit, game
             }
           }
           
-          // Collision
-          if (Math.abs(obs.x - COIN_X) < 1.0) {
+          // Collision - use ACTUAL hand positions (accounting for movement)
+          if (Math.abs(obs.x - COIN_X) < 1.2) {
             const coinY = coinYRef.current;
-            const topEdge = obs.gapY + obs.gapSize / 2;
-            const bottomEdge = obs.gapY - obs.gapSize / 2;
+            const coinRadius = 0.6; // Slightly smaller hitbox for the coin (was 0.5)
             
-            if (coinY + 0.5 > topEdge || coinY - 0.5 < bottomEdge) {
+            // Get actual hand positions after movement animation
+            // Finger tips extend 1.5 units towards the gap from hand center
+            const fingerExtension = 1.5;
+            const topFingerTipY = obs.topMesh.position.y - fingerExtension; // Where top fingers end
+            const bottomFingerTipY = obs.bottomMesh.position.y + fingerExtension; // Where bottom fingers end
+            
+            // Add a forgiving buffer zone (0.3 units of grace)
+            const buffer = 0.3;
+            const topEdge = topFingerTipY + buffer;
+            const bottomEdge = bottomFingerTipY - buffer;
+            
+            // Only collide if coin CLEARLY hits the fingers
+            if (coinY + coinRadius > topEdge || coinY - coinRadius < bottomEdge) {
               isAliveRef.current = false;
               
               gameStateRef.current = 'complete';
