@@ -1,13 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import twilio from 'twilio';
-
-// Twilio config
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
 function formatPhoneNumber(phone: string): string {
   let digits = phone.replace(/\D/g, '');
@@ -31,11 +23,23 @@ export async function POST(request: NextRequest) {
     const formattedPhone = formatPhoneNumber(phone);
     console.log('📱 [VerifyLogin] Verifying code for:', formattedPhone.slice(-4));
 
+    // Twilio config
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+
+    if (!accountSid || !authToken || !verifyServiceSid) {
+      return NextResponse.json(
+        { success: false, error: 'SMS service not configured' },
+        { status: 503 }
+      );
+    }
+
     // Setup Supabase admin client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !serviceRoleKey || !verifyServiceSid) {
+    if (!supabaseUrl || !serviceRoleKey) {
       return NextResponse.json(
         { success: false, error: 'Server configuration error' },
         { status: 500 }
@@ -46,31 +50,32 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Verify the code with Twilio
-    try {
-      const verification = await twilioClient.verify.v2
-        .services(verifyServiceSid)
-        .verificationChecks.create({
-          to: formattedPhone,
-          code: code.trim(),
-        });
+    // Verify the code with Twilio REST API
+    const verifyUrl = `https://verify.twilio.com/v2/Services/${verifyServiceSid}/VerificationCheck`;
+    
+    const verifyResponse = await fetch(verifyUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        To: formattedPhone,
+        Code: code.trim(),
+      }),
+    });
 
-      if (verification.status !== 'approved') {
-        console.log('❌ [VerifyLogin] Invalid code');
-        return NextResponse.json(
-          { success: false, error: 'Invalid verification code' },
-          { status: 400 }
-        );
-      }
+    const verifyData = await verifyResponse.json();
 
-      console.log('✅ [VerifyLogin] Code verified!');
-    } catch (twilioError) {
-      console.error('❌ [VerifyLogin] Twilio error:', twilioError);
+    if (!verifyResponse.ok || verifyData.status !== 'approved') {
+      console.log('❌ [VerifyLogin] Invalid code:', verifyData.status);
       return NextResponse.json(
-        { success: false, error: 'Failed to verify code. Please try again.' },
+        { success: false, error: 'Invalid verification code' },
         { status: 400 }
       );
     }
+
+    console.log('✅ [VerifyLogin] Code verified!');
 
     // Find user by phone number
     const last10Digits = formattedPhone.replace(/\D/g, '').slice(-10);
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
     // Generate a temporary password for this session
     const tempPassword = 'TEMP_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-    // Update the user's password temporarily
+    // Update the user's password temporarily using admin API
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       matchedPhone.user_id,
       { password: tempPassword }
@@ -161,4 +166,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
