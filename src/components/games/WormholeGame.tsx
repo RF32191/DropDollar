@@ -148,12 +148,16 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const [currentLevel, setCurrentLevel] = useState(1);
   const [message, setMessage] = useState('');
   const [portalMode, setPortalMode] = useState<'blue' | 'orange'>('blue');
-  const [isPointerLocked, setIsPointerLocked] = useState(false);
+  const [isGameActive, setIsGameActive] = useState(false); // Replaces pointer lock
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [fps, setFps] = useState(60);
   const [isMobile, setIsMobile] = useState(false);
   const [health, setHealth] = useState(100);
   const [glados, setGlados] = useState('');
+  
+  // Mouse position for look control (no pointer lock needed)
+  const lastMousePos = useRef({ x: 0, y: 0 });
+  const isMouseDown = useRef(false);
   
   // GLaDOS-style quotes
   const gladosQuotes = useRef([
@@ -1675,19 +1679,37 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     animationRef.current = requestAnimationFrame(gameLoop);
   }, [gameState, updatePhysics]);
 
-  // Handle mouse movement for look
+  // Handle mouse movement for look (works without pointer lock)
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isPointerLocked || gameState !== 'playing') return;
+    if (!isGameActive || gameState !== 'playing') return;
     
-    const sensitivity = 0.002;
-    playerRef.current.yaw -= e.movementX * sensitivity;
-    playerRef.current.pitch -= e.movementY * sensitivity;
-    playerRef.current.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, playerRef.current.pitch));
-  }, [isPointerLocked, gameState]);
+    // Only look around when right mouse button is held OR always in game area
+    const sensitivity = 0.003;
+    
+    if (isMouseDown.current || isMobile) {
+      const deltaX = e.clientX - lastMousePos.current.x;
+      const deltaY = e.clientY - lastMousePos.current.y;
+      
+      playerRef.current.yaw -= deltaX * sensitivity;
+      playerRef.current.pitch -= deltaY * sensitivity;
+      playerRef.current.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, playerRef.current.pitch));
+    }
+    
+    lastMousePos.current = { x: e.clientX, y: e.clientY };
+  }, [isGameActive, gameState, isMobile]);
 
   // Handle mouse click for portals and turret attacks
   const handleMouseDown = useCallback((e: MouseEvent) => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || !isGameActive) return;
+    
+    // Track mouse position for look control
+    lastMousePos.current = { x: e.clientX, y: e.clientY };
+    
+    if (e.button === 2) {
+      // Right click - enable look mode
+      isMouseDown.current = true;
+      return;
+    }
     
     if (e.button === 0) {
       // Check for turret hit first
@@ -1743,10 +1765,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       }
       
       shootPortal(portalMode);
-    } else if (e.button === 2) {
+    } else if (e.button === 1) {
+      // Middle click to switch portal mode
       setPortalMode(prev => prev === 'blue' ? 'orange' : 'blue');
     }
-  }, [gameState, portalMode, shootPortal]);
+    // Right click (button 2) is handled above for look mode
+  }, [gameState, portalMode, shootPortal, isGameActive]);
 
   // Handle keyboard
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -1800,29 +1824,32 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     keysRef.current[e.code] = false;
   }, []);
 
+  // Handle mouse up - stop look mode
+  const handleMouseUp = useCallback((e: MouseEvent) => {
+    if (e.button === 2) {
+      isMouseDown.current = false;
+    }
+  }, []);
+
   // Initialize game
   useEffect(() => {
     initThreeJS();
     
-    // Event listeners
+    // Event listeners (no pointer lock needed)
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
     document.addEventListener('contextmenu', e => e.preventDefault());
-    
-    const handlePointerLockChange = () => {
-      setIsPointerLocked(document.pointerLockElement === containerRef.current);
-    };
-    document.addEventListener('pointerlockchange', handlePointerLockChange);
     
     return () => {
       console.log('🧹 Cleaning up Wormhole game...');
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('keyup', handleKeyUp);
-      document.removeEventListener('pointerlockchange', handlePointerLockChange);
       
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
@@ -1850,12 +1877,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       
       console.log('✅ Wormhole cleanup complete');
     };
-  }, [initThreeJS, handleMouseMove, handleMouseDown, handleKeyDown, handleKeyUp]);
+  }, [initThreeJS, handleMouseMove, handleMouseDown, handleMouseUp, handleKeyDown, handleKeyUp]);
 
-  // Start game loop when playing AND pointer is locked
+  // Start game loop when playing
   useEffect(() => {
-    if (gameState === 'playing') {
-      console.log('🎮 Game playing, pointer locked:', isPointerLocked);
+    if (gameState === 'playing' && isGameActive) {
+      console.log('🎮 Game loop starting...');
       clockRef.current.start();
       animationRef.current = requestAnimationFrame(gameLoop);
     }
@@ -1864,7 +1891,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [gameState, gameLoop, isPointerLocked]);
+  }, [gameState, gameLoop, isGameActive]);
 
   // Update held object position
   useEffect(() => {
@@ -1886,16 +1913,16 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   }, [gameState]);
 
   const startGame = useCallback(() => {
+    console.log('🎮 Starting Wormhole game...');
     createTestChamber(currentLevel);
     setScore(0);
     setHealth(100);
+    setIsGameActive(true); // Activate game controls
     setGameState('playing');
     
     // Show GLaDOS intro
     showGladosMessage();
-    
-    // DON'T auto-lock pointer - let user click inside game to start
-    // This prevents the button click from being consumed by pointer lock
+    console.log('✅ Game started successfully');
   }, [currentLevel, createTestChamber, showGladosMessage]);
 
   const nextLevel = useCallback(() => {
@@ -1931,11 +1958,6 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       <div 
         ref={containerRef} 
         className="absolute inset-0 cursor-crosshair"
-        onClick={() => {
-          if (gameState === 'playing' && !isPointerLocked && containerRef.current) {
-            containerRef.current.requestPointerLock();
-          }
-        }}
       />
       
       {/* Loading Screen */}
@@ -2162,44 +2184,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             </div>
           )}
           
-          {/* Pointer lock message - Click to start/resume */}
-          {!isPointerLocked && (
-            <div 
-              className="absolute inset-0 flex items-center justify-center bg-black/80 cursor-pointer z-50"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎮 Requesting pointer lock...');
-                if (containerRef.current) {
-                  containerRef.current.requestPointerLock();
-                }
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // On mobile, skip pointer lock and just mark as ready
-                setIsPointerLocked(true);
-              }}
-            >
-              <div className="text-center p-8 bg-gradient-to-br from-blue-900/80 to-orange-900/80 rounded-2xl border-2 border-white/50 shadow-2xl animate-pulse">
-                <div className="text-7xl mb-4">🎮</div>
-                <div className="text-white text-3xl font-bold mb-3">
-                  TAP TO PLAY
-                </div>
-                <p className="text-gray-200 text-base mb-4">
-                  Click or tap anywhere to begin
-                </p>
-                <div className="bg-white/20 px-6 py-3 rounded-xl">
-                  <div className="text-white text-sm font-medium">
-                    WASD to move • Mouse to look • Space to jump
-                  </div>
-                </div>
-                <div className="mt-4 text-gray-400 text-xs">
-                  ESC to pause
-                </div>
+          {/* Controls hint - shown at the start */}
+          <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 pointer-events-none">
+            <div className="bg-black/70 px-6 py-3 rounded-xl text-center">
+              <div className="text-white text-sm font-medium">
+                WASD to move • Right-click + drag to look • Space to jump • Left-click to shoot portal
               </div>
             </div>
-          )}
+          </div>
         </>
       )}
       
