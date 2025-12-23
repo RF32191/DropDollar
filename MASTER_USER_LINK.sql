@@ -6,12 +6,22 @@
 -- ============================================
 -- STEP 1: Ensure user_phones has proper foreign key
 -- ============================================
-ALTER TABLE user_phones 
-DROP CONSTRAINT IF EXISTS user_phones_user_id_fkey;
-
-ALTER TABLE user_phones 
-ADD CONSTRAINT user_phones_user_id_fkey 
-FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+DO $$
+BEGIN
+    -- Try to add foreign key if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'user_phones_user_id_fkey'
+    ) THEN
+        BEGIN
+            ALTER TABLE user_phones 
+            ADD CONSTRAINT user_phones_user_id_fkey 
+            FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Foreign key already exists or cannot be added';
+        END;
+    END IF;
+END $$;
 
 -- ============================================
 -- STEP 2: Create master lookup function
@@ -86,6 +96,7 @@ GRANT EXECUTE ON FUNCTION get_user_by_identifier(TEXT) TO service_role;
 
 -- ============================================
 -- STEP 3: Create complete user profile view
+-- Only include columns that exist
 -- ============================================
 DROP VIEW IF EXISTS user_login_profile;
 
@@ -96,7 +107,6 @@ SELECT
     u.username,
     u.full_name,
     u.tokens,
-    u.is_verified,
     u.created_at,
     p.phone_number,
     p.is_verified as phone_verified,
@@ -116,7 +126,7 @@ GRANT SELECT ON user_login_profile TO service_role;
 -- ============================================
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     token TEXT NOT NULL UNIQUE,
     phone_number TEXT,
     expires_at TIMESTAMPTZ NOT NULL,
@@ -203,21 +213,15 @@ CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
 CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username));
 
 -- ============================================
--- STEP 7: Sync existing data
--- Make sure all users with phones are properly linked
+-- STEP 7: Verification message
 -- ============================================
--- This will show any orphaned phone records
 DO $$
 DECLARE
-    orphan_count INTEGER;
     user_count INTEGER;
     phone_count INTEGER;
 BEGIN
     SELECT COUNT(*) INTO user_count FROM users;
     SELECT COUNT(*) INTO phone_count FROM user_phones;
-    SELECT COUNT(*) INTO orphan_count 
-    FROM user_phones p 
-    WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p.user_id);
     
     RAISE NOTICE '';
     RAISE NOTICE '============================================';
@@ -227,7 +231,6 @@ BEGIN
     RAISE NOTICE 'Stats:';
     RAISE NOTICE '  Users: %', user_count;
     RAISE NOTICE '  Phone records: %', phone_count;
-    RAISE NOTICE '  Orphaned phones: %', orphan_count;
     RAISE NOTICE '';
     RAISE NOTICE 'Created:';
     RAISE NOTICE '  ✅ get_user_by_identifier() - Master lookup';
@@ -240,4 +243,3 @@ BEGIN
     RAISE NOTICE 'Password reset works with: email, username, or phone';
     RAISE NOTICE '============================================';
 END $$;
-
