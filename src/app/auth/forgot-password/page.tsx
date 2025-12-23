@@ -110,6 +110,7 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true);
     setError('');
+    setStep('loggingIn');
 
     try {
       const digits = (phone || '').replace(/\D/g, '');
@@ -123,40 +124,46 @@ export default function ForgotPasswordPage() {
 
       const data = await response.json();
 
-      if (data.success && data.email && data.tempPassword) {
-        setStep('loggingIn');
+      if (!response.ok || !data.success) {
+        setError(data.error || 'Invalid verification code');
+        setStep('enterCode');
+        setIsLoading(false);
+        return;
+      }
+
+      // We have email and temp password - log them in!
+      if (data.email && data.tempPassword) {
+        console.log('🔐 Logging in with temp password...');
         
-        // Log the user in with the temporary session
         const { error: loginError } = await supabase.auth.signInWithPassword({
           email: data.email,
           password: data.tempPassword,
         });
 
         if (loginError) {
-          // If direct login fails, try using the session token
-          if (data.sessionToken) {
-            // Redirect to dashboard with change password notice
-            localStorage.setItem('showPasswordChangeNotice', 'true');
-            router.push('/dashboard/settings?notice=password');
-          } else {
-            setError('Login failed. Please try again or use email reset.');
-            setStep('enterCode');
-          }
-        } else {
-          // Login successful - redirect to settings with notice
-          localStorage.setItem('showPasswordChangeNotice', 'true');
-          router.push('/dashboard/settings?notice=password');
+          console.error('❌ Login failed:', loginError);
+          setError('Login failed. Please try again.');
+          setStep('enterCode');
+          setIsLoading(false);
+          return;
         }
-      } else if (data.success && data.email) {
-        // Code verified, log them in via magic link approach
+
+        console.log('✅ Login successful! Redirecting to settings...');
+        
+        // Set flag for settings page to show password change notice
         localStorage.setItem('showPasswordChangeNotice', 'true');
-        localStorage.setItem('verifiedPhone', digits);
-        localStorage.setItem('verifiedEmail', data.email);
-        router.push('/dashboard/settings?notice=password&verified=phone');
-      } else {
-        setError(data.error || 'Invalid verification code');
+        
+        // Redirect to dashboard settings
+        window.location.href = '/dashboard/settings?notice=password';
+        return;
       }
+
+      // Fallback - shouldn't happen
+      setError('Something went wrong. Please try again.');
+      setStep('enterCode');
+      
     } catch (err) {
+      console.error('❌ Error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setStep('enterCode');
     } finally {
@@ -177,9 +184,16 @@ export default function ForgotPasswordPage() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4">
         <div className="text-center">
-          <ArrowPathIcon className="h-12 w-12 text-green-400 mx-auto animate-spin mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Logging You In...</h2>
-          <p className="text-gray-400">Please wait while we verify your identity</p>
+          <div className="relative mx-auto w-20 h-20 mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-green-500/20"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-green-500 border-t-transparent animate-spin"></div>
+            <div className="absolute inset-4 bg-green-500/20 rounded-full flex items-center justify-center">
+              <CheckCircleIcon className="w-8 h-8 text-green-400" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Code Verified!</h2>
+          <p className="text-gray-400 mb-4">Logging you in...</p>
+          <p className="text-green-400 text-sm">Redirecting to settings to change your password</p>
         </div>
       </div>
     );
@@ -223,7 +237,7 @@ export default function ForgotPasswordPage() {
               </div>
               <div className="text-left">
                 <h3 className="text-white font-medium">Reset via Phone</h3>
-                <p className="text-gray-400 text-sm">Get a code via SMS &amp; login directly</p>
+                <p className="text-gray-400 text-sm">Get a code &amp; login instantly</p>
               </div>
             </button>
           </div>
@@ -250,7 +264,7 @@ export default function ForgotPasswordPage() {
             <p className="text-gray-300">
               {method === 'email' 
                 ? 'We will send a reset link' 
-                : 'We will send a code to verify and log you in'}
+                : 'We\'ll verify & log you in to change your password'}
             </p>
           </div>
 
@@ -277,8 +291,8 @@ export default function ForgotPasswordPage() {
                   placeholder="(555) 555-5555"
                   maxLength={14}
                 />
-                <p className="mt-2 text-xs text-gray-400">
-                  After verifying, you&apos;ll be logged in and can change your password
+                <p className="mt-2 text-xs text-green-400">
+                  ✓ After verifying, you&apos;ll be logged in automatically
                 </p>
               </div>
             )}
@@ -318,31 +332,37 @@ export default function ForgotPasswordPage() {
     );
   }
 
-  // Step 3: Enter code (phone only)
+  // Step 3: Enter code (phone only) - then auto-login
   if (step === 'enterCode') {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-2">Enter Verification Code</h2>
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <PhoneIcon className="w-8 h-8 text-green-400" />
+            </div>
+            <h2 className="text-3xl font-bold text-white mb-2">Enter Code</h2>
             <p className="text-gray-300">
               Code sent to <span className="text-green-400">{maskedContact}</span>
-            </p>
-            <p className="text-gray-400 text-sm mt-2">
-              Once verified, you&apos;ll be logged in automatically
             </p>
           </div>
 
           <div className="space-y-6">
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode((e.target.value || '').replace(/\D/g, '').slice(0, 6))}
-              className="w-full text-center text-3xl tracking-[0.5em] py-4 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-green-500"
-              placeholder="••••••"
-              maxLength={6}
-              autoComplete="one-time-code"
-            />
+            <div>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode((e.target.value || '').replace(/\D/g, '').slice(0, 6))}
+                className="w-full text-center text-3xl tracking-[0.5em] py-4 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-2 focus:ring-green-500"
+                placeholder="••••••"
+                maxLength={6}
+                autoComplete="one-time-code"
+                autoFocus
+              />
+              <p className="mt-3 text-center text-sm text-green-400">
+                ✓ You&apos;ll be logged in after verification
+              </p>
+            </div>
 
             {error && (
               <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
@@ -353,14 +373,19 @@ export default function ForgotPasswordPage() {
             <button
               onClick={handleVerifyCodeAndLogin}
               disabled={isLoading || code.length < 4}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+              className="w-full py-4 px-4 rounded-lg font-bold text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center text-lg"
             >
               {isLoading ? (
                 <>
                   <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
-                  Verifying & Logging In...
+                  Verifying...
                 </>
-              ) : 'Verify & Login'}
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-5 h-5 mr-2" />
+                  Verify &amp; Login
+                </>
+              )}
             </button>
 
             <div className="text-center">
@@ -374,7 +399,7 @@ export default function ForgotPasswordPage() {
             </div>
 
             <div className="flex justify-between text-sm pt-4 border-t border-gray-700">
-              <button onClick={() => { setStep('enterContact'); setError(''); }} className="text-gray-400 hover:text-white transition-colors">
+              <button onClick={() => { setStep('enterContact'); setError(''); setCode(''); }} className="text-gray-400 hover:text-white transition-colors">
                 Change Number
               </button>
               <Link href="/auth/login" className="text-blue-400 hover:text-blue-300">
