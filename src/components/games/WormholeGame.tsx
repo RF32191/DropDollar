@@ -7,31 +7,46 @@ interface WormholeGameProps {
   isCompetitive?: boolean;
 }
 
+// Portal-style physics puzzle game
 export default function WormholeGame({ onGameEnd, isCompetitive = false }: WormholeGameProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   
-  const [gameState, setGameState] = useState<'instructions' | 'playing' | 'gameover'>('instructions');
+  const [gameState, setGameState] = useState<'instructions' | 'playing' | 'gameover' | 'levelcomplete'>('instructions');
   const [score, setScore] = useState(0);
-  const [health, setHealth] = useState(100);
-  const [ammo, setAmmo] = useState(30);
-  const [portalMode, setPortalMode] = useState<'orange' | 'blue'>('orange');
-  const [timeLeft, setTimeLeft] = useState(120);
-  const [enemiesKilled, setEnemiesKilled] = useState(0);
-  const [level, setLevel] = useState(1);
-  const [isMobile, setIsMobile] = useState(false);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [timeLeft, setTimeLeft] = useState(180);
   const [message, setMessage] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+  const [portalMode, setPortalMode] = useState<'orange' | 'blue'>('orange');
 
-  // Game state
+  // Game state ref
   const gameRef = useRef({
-    player: { x: 0, y: 1.7, z: 8, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, onGround: true },
-    portals: { orange: null as { x: number; y: number; z: number; nx: number; ny: number; nz: number } | null, blue: null as { x: number; y: number; z: number; nx: number; ny: number; nz: number } | null },
-    enemies: [] as { x: number; y: number; z: number; health: number; type: string; vx: number; vz: number }[],
-    bullets: [] as { x: number; y: number; z: number; dx: number; dy: number; dz: number; isPortal: boolean; color: string }[],
-    keys: {} as { [key: string]: boolean },
+    // Player
+    player: { x: 2, y: 1.7, z: 2, yaw: 0, pitch: 0, vx: 0, vy: 0, vz: 0, onGround: true },
+    // Portals
+    portals: {
+      orange: null as { x: number; y: number; z: number; wall: string; active: boolean } | null,
+      blue: null as { x: number; y: number; z: number; wall: string; active: boolean } | null
+    },
+    // Physics cubes
+    cubes: [] as { x: number; y: number; z: number; held: boolean; id: number }[],
+    // Buttons
+    buttons: [] as { x: number; z: number; pressed: boolean; targetDoor: number }[],
+    // Doors
+    doors: [] as { x: number; z: number; wall: string; open: boolean; id: number }[],
+    // Exit
+    exit: { x: 0, z: 0, active: false },
+    // Held cube
+    heldCube: null as number | null,
+    // Bullets
+    bullets: [] as { x: number; y: number; z: number; dx: number; dy: number; dz: number; color: string }[],
+    // Input
+    keys: {} as Record<string, boolean>,
     mouseDown: false,
     lastShot: 0,
+    // Level bounds
+    walls: [] as { x1: number; z1: number; x2: number; z2: number; side: string }[],
   });
 
   // Detect mobile
@@ -40,12 +55,86 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   }, []);
 
   // Show message
-  const showMessage = useCallback((msg: string) => {
+  const showMessage = useCallback((msg: string, duration = 2000) => {
     setMessage(msg);
-    setTimeout(() => setMessage(''), 2000);
+    setTimeout(() => setMessage(''), duration);
   }, []);
 
-  // Initialize game
+  // Generate level
+  const generateLevel = useCallback((levelNum: number) => {
+    const game = gameRef.current;
+    
+    // Clear previous level
+    game.cubes = [];
+    game.buttons = [];
+    game.doors = [];
+    game.walls = [];
+    game.portals = { orange: null, blue: null };
+    game.heldCube = null;
+    game.bullets = [];
+    
+    // Room size based on level
+    const size = 10 + levelNum * 2;
+    
+    // Define walls (for portal placement)
+    game.walls = [
+      { x1: -size/2, z1: -size/2, x2: size/2, z2: -size/2, side: 'north' },
+      { x1: -size/2, z1: size/2, x2: size/2, z2: size/2, side: 'south' },
+      { x1: -size/2, z1: -size/2, x2: -size/2, z2: size/2, side: 'west' },
+      { x1: size/2, z1: -size/2, x2: size/2, z2: size/2, side: 'east' },
+    ];
+    
+    // Place cubes
+    const cubeCount = Math.min(1 + levelNum, 3);
+    for (let i = 0; i < cubeCount; i++) {
+      game.cubes.push({
+        x: (Math.random() - 0.5) * (size - 4),
+        y: 0.5,
+        z: (Math.random() - 0.5) * (size - 4),
+        held: false,
+        id: i
+      });
+    }
+    
+    // Place buttons (need cubes on them to activate)
+    const buttonCount = Math.min(1 + Math.floor(levelNum / 2), 3);
+    for (let i = 0; i < buttonCount; i++) {
+      game.buttons.push({
+        x: (Math.random() - 0.5) * (size - 4),
+        z: size/2 - 2 - i * 3,
+        pressed: false,
+        targetDoor: i
+      });
+    }
+    
+    // Place doors (blocking exit)
+    for (let i = 0; i < buttonCount; i++) {
+      game.doors.push({
+        x: 0,
+        z: size/2 - 3 - i * 2,
+        wall: 'horizontal',
+        open: false,
+        id: i
+      });
+    }
+    
+    // Exit portal
+    game.exit = { x: 0, z: size/2 - 1, active: false };
+    
+    // Player start
+    game.player.x = 0;
+    game.player.y = 1.7;
+    game.player.z = -size/2 + 2;
+    game.player.yaw = 0;
+    game.player.pitch = 0;
+    game.player.vx = 0;
+    game.player.vy = 0;
+    game.player.vz = 0;
+    
+    showMessage(`TEST CHAMBER ${levelNum}`, 3000);
+  }, [showMessage]);
+
+  // Main game loop
   useEffect(() => {
     if (gameState !== 'playing' || !canvasRef.current) return;
 
@@ -53,43 +142,63 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
+    // Resize
     const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
     };
     resize();
     window.addEventListener('resize', resize);
 
     const game = gameRef.current;
-
-    // Spawn enemies
-    const spawnEnemies = () => {
-      game.enemies = [];
-      const count = 3 + level * 2;
-      for (let i = 0; i < count; i++) {
-        game.enemies.push({
-          x: (Math.random() - 0.5) * 16,
-          y: Math.random() > 0.5 ? 1.5 + Math.random() * 3 : 0.5,
-          z: (Math.random() - 0.5) * 16 - 5,
-          health: 30,
-          type: Math.random() > 0.5 ? 'drone' : 'turret',
-          vx: 0,
-          vz: 0
-        });
-      }
-    };
-    spawnEnemies();
+    generateLevel(currentLevel);
 
     // Input handlers
     const handleKeyDown = (e: KeyboardEvent) => {
       game.keys[e.code] = true;
+      
       if (e.code === 'KeyQ') {
         setPortalMode(prev => {
           const newMode = prev === 'orange' ? 'blue' : 'orange';
-          showMessage(`${newMode.toUpperCase()} PORTAL MODE`);
+          showMessage(`${newMode.toUpperCase()} PORTAL`, 1000);
           return newMode;
         });
+      }
+      
+      // Pick up / drop cube
+      if (e.code === 'KeyE') {
+        if (game.heldCube !== null) {
+          // Drop cube
+          const cube = game.cubes.find(c => c.id === game.heldCube);
+          if (cube) {
+            cube.held = false;
+            cube.x = game.player.x + Math.sin(game.player.yaw) * 2;
+            cube.z = game.player.z + Math.cos(game.player.yaw) * 2;
+            cube.y = 0.5;
+          }
+          game.heldCube = null;
+          showMessage('CUBE DROPPED', 1000);
+        } else {
+          // Pick up nearest cube
+          let nearest = null;
+          let nearestDist = 3;
+          game.cubes.forEach(cube => {
+            if (cube.held) return;
+            const dx = cube.x - game.player.x;
+            const dz = cube.z - game.player.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearest = cube;
+            }
+          });
+          if (nearest) {
+            nearest.held = true;
+            game.heldCube = nearest.id;
+            showMessage('CUBE ACQUIRED', 1000);
+          }
+        }
       }
     };
 
@@ -99,82 +208,64 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
 
     const handleMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement === canvas) {
-        game.player.yaw -= e.movementX * 0.002;
-        game.player.pitch = Math.max(-1.4, Math.min(1.4, game.player.pitch - e.movementY * 0.002));
+        game.player.yaw += e.movementX * 0.002;
+        game.player.pitch = Math.max(-1.2, Math.min(1.2, game.player.pitch - e.movementY * 0.002));
       }
     };
 
-    const handleMouseDown = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       if (document.pointerLockElement !== canvas) {
         canvas.requestPointerLock();
         return;
       }
-      
+
       const now = Date.now();
-      if (now - game.lastShot < 150) return;
+      if (now - game.lastShot < 200) return;
       game.lastShot = now;
 
-      // Calculate direction
-      const dx = -Math.sin(game.player.yaw) * Math.cos(game.player.pitch);
-      const dy = Math.sin(game.player.pitch);
-      const dz = -Math.cos(game.player.yaw) * Math.cos(game.player.pitch);
+      // Shoot direction
+      const dx = Math.sin(game.player.yaw) * Math.cos(game.player.pitch);
+      const dy = -Math.sin(game.player.pitch);
+      const dz = Math.cos(game.player.yaw) * Math.cos(game.player.pitch);
 
-      if (e.button === 0) {
-        // Left click - regular bullet
-        if (ammo > 0) {
-          game.bullets.push({
-            x: game.player.x,
-            y: game.player.y,
-            z: game.player.z,
-            dx: dx * 50,
-            dy: dy * 50,
-            dz: dz * 50,
-            isPortal: false,
-            color: 'yellow'
-          });
-          setAmmo(prev => prev - 1);
-        }
-      } else if (e.button === 2) {
-        // Right click - portal shot
-        game.bullets.push({
-          x: game.player.x,
-          y: game.player.y,
-          z: game.player.z,
-          dx: dx * 40,
-          dy: dy * 40,
-          dz: dz * 40,
-          isPortal: true,
-          color: portalMode === 'orange' ? '#ff6600' : '#00aaff'
-        });
-      }
+      const isPortalShot = e.button === 2;
+      
+      game.bullets.push({
+        x: game.player.x,
+        y: game.player.y,
+        z: game.player.z,
+        dx: dx * (isPortalShot ? 30 : 50),
+        dy: dy * (isPortalShot ? 30 : 50),
+        dz: dz * (isPortalShot ? 30 : 50),
+        color: isPortalShot ? (portalMode === 'orange' ? '#ff6600' : '#00aaff') : '#ffff00'
+      });
     };
 
     const handleContextMenu = (e: Event) => e.preventDefault();
 
-    // Touch handling
-    let touchStartX = 0, touchStartY = 0;
+    // Touch controls
+    let lastTouchX = 0, lastTouchY = 0;
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
+      if (e.touches.length > 0) {
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
       }
     };
-
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        const dx = e.touches[0].clientX - touchStartX;
-        const dy = e.touches[0].clientY - touchStartY;
-        game.player.yaw -= dx * 0.005;
-        game.player.pitch = Math.max(-1.4, Math.min(1.4, game.player.pitch - dy * 0.005));
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
+      if (e.touches.length > 0) {
+        const dx = e.touches[0].clientX - lastTouchX;
+        const dy = e.touches[0].clientY - lastTouchY;
+        game.player.yaw += dx * 0.005;
+        game.player.pitch = Math.max(-1.2, Math.min(1.2, game.player.pitch - dy * 0.005));
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousedown', handleClick);
     canvas.addEventListener('contextmenu', handleContextMenu);
     canvas.addEventListener('touchstart', handleTouchStart);
     canvas.addEventListener('touchmove', handleTouchMove);
@@ -190,279 +281,236 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       });
     }, 1000);
 
-    // 3D Projection helper
+    // 3D projection
     const project = (x: number, y: number, z: number) => {
-      // Translate relative to player
       let rx = x - game.player.x;
       let ry = y - game.player.y;
       let rz = z - game.player.z;
 
-      // Rotate by yaw (Y axis)
-      const cosY = Math.cos(game.player.yaw);
-      const sinY = Math.sin(game.player.yaw);
+      // Rotate by yaw
+      const cosY = Math.cos(-game.player.yaw);
+      const sinY = Math.sin(-game.player.yaw);
       const tx = rx * cosY - rz * sinY;
       const tz = rx * sinY + rz * cosY;
-      rx = tx;
-      rz = tz;
+      rx = tx; rz = tz;
 
-      // Rotate by pitch (X axis)
+      // Rotate by pitch
       const cosP = Math.cos(game.player.pitch);
       const sinP = Math.sin(game.player.pitch);
-      const ty = ry * cosP - rz * sinP;
-      rz = ry * sinP + rz * cosP;
+      const ty = ry * cosP + rz * sinP;
+      rz = -ry * sinP + rz * cosP;
       ry = ty;
 
-      // Behind camera check
-      if (rz >= -0.1) return null;
+      if (rz < 0.1) return null;
 
-      // Project to screen
-      const fov = 500;
-      const scale = fov / -rz;
-      const sx = canvas.width / 2 + rx * scale;
-      const sy = canvas.height / 2 - ry * scale;
+      const fov = 400;
+      const scale = fov / rz;
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
 
-      return { x: sx, y: sy, scale, z: rz };
+      return { x: w/2 + rx * scale, y: h/2 - ry * scale, scale, z: rz };
     };
 
-    // Draw wall
-    const drawWall = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, color: string) => {
+    // Draw functions
+    const drawLine3D = (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, color: string, width = 2) => {
       const p1 = project(x1, y1, z1);
-      const p2 = project(x2, y1, z2);
-      const p3 = project(x2, y2, z2);
-      const p4 = project(x1, y2, z1);
-
-      if (!p1 || !p2 || !p3 || !p4) return;
-
-      ctx.fillStyle = color;
+      const p2 = project(x2, y2, z2);
+      if (!p1 || !p2) return;
+      
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
-      ctx.lineTo(p3.x, p3.y);
-      ctx.lineTo(p4.x, p4.y);
-      ctx.closePath();
-      ctx.fill();
+      ctx.stroke();
     };
 
-    // Draw floor with grid
-    const drawFloor = () => {
-      const gridSize = 2;
-      for (let x = -10; x < 10; x += gridSize) {
-        for (let z = -15; z < 15; z += gridSize) {
-          const shade = ((x + z) / gridSize) % 2 === 0 ? '#1a1a2e' : '#16213e';
-          drawWall(x, 0, z, x + gridSize, 0, z + gridSize, shade);
-        }
-      }
+    const drawBox = (x: number, y: number, z: number, size: number, color: string) => {
+      const s = size / 2;
+      // Draw edges
+      const edges = [
+        [[-s,-s,-s], [s,-s,-s]], [[s,-s,-s], [s,-s,s]], [[s,-s,s], [-s,-s,s]], [[-s,-s,s], [-s,-s,-s]],
+        [[-s,s,-s], [s,s,-s]], [[s,s,-s], [s,s,s]], [[s,s,s], [-s,s,s]], [[-s,s,s], [-s,s,-s]],
+        [[-s,-s,-s], [-s,s,-s]], [[s,-s,-s], [s,s,-s]], [[s,-s,s], [s,s,s]], [[-s,-s,s], [-s,s,s]]
+      ];
+      edges.forEach(([[ax,ay,az], [bx,by,bz]]) => {
+        drawLine3D(x+ax, y+ay, z+az, x+bx, y+by, z+bz, color, 3);
+      });
     };
 
-    // Draw enemy
-    const drawEnemy = (enemy: typeof game.enemies[0]) => {
-      const p = project(enemy.x, enemy.y, enemy.z);
-      if (!p || p.z > -1) return;
+    const drawPortal = (portal: typeof game.portals.orange, color: string) => {
+      if (!portal) return;
+      const p = project(portal.x, 1.5, portal.z);
+      if (!p || p.z < 0.5) return;
 
-      const size = 30 * p.scale;
-      
-      // Body
-      ctx.fillStyle = enemy.type === 'drone' ? '#ff4444' : '#666666';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye
-      ctx.fillStyle = '#ffff00';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y - size * 0.2, size * 0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Health bar
-      ctx.fillStyle = '#333';
-      ctx.fillRect(p.x - size, p.y - size * 1.5, size * 2, 4);
-      ctx.fillStyle = '#00ff00';
-      ctx.fillRect(p.x - size, p.y - size * 1.5, size * 2 * (enemy.health / 30), 4);
-    };
-
-    // Draw portal
-    const drawPortal = (portal: { x: number; y: number; z: number }, color: string) => {
-      const p = project(portal.x, portal.y, portal.z);
-      if (!p || p.z > -1) return;
-
-      const size = 60 * p.scale;
+      const size = 80 * p.scale;
       
       // Outer ring
       ctx.strokeStyle = color;
-      ctx.lineWidth = 8 * p.scale;
+      ctx.lineWidth = 6 * p.scale;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y, size * 0.6, size, 0, 0, Math.PI * 2);
       ctx.stroke();
 
       // Inner glow
       const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 0.8);
-      gradient.addColorStop(0, color + '80');
+      gradient.addColorStop(0, color + '60');
+      gradient.addColorStop(0.7, color + '20');
       gradient.addColorStop(1, 'transparent');
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, size * 0.8, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y, size * 0.5, size * 0.9, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Swirl effect
-      ctx.strokeStyle = color;
+      // Swirl
+      ctx.strokeStyle = color + '80';
       ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) {
-        const angle = Date.now() * 0.002 + i * Math.PI * 2 / 3;
+      for (let i = 0; i < 4; i++) {
+        const angle = Date.now() * 0.002 + i * Math.PI / 2;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, size * (0.3 + i * 0.2), angle, angle + Math.PI);
+        ctx.arc(p.x, p.y, size * (0.2 + i * 0.15), angle, angle + Math.PI * 0.7);
         ctx.stroke();
       }
     };
 
-    // Draw bullet
-    const drawBullet = (bullet: typeof game.bullets[0]) => {
-      const p = project(bullet.x, bullet.y, bullet.z);
-      if (!p || p.z > -1) return;
-
-      const size = bullet.isPortal ? 12 : 6;
-      ctx.fillStyle = bullet.color;
-      ctx.shadowColor = bullet.color;
-      ctx.shadowBlur = 20;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, size * p.scale, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    };
-
-    // Draw HUD gun
-    const drawGun = () => {
-      const gx = canvas.width - 150;
-      const gy = canvas.height - 80;
-      
-      // Gun body
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(gx, gy, 120, 40);
-      ctx.fillRect(gx + 30, gy + 40, 30, 30);
-
-      // Barrel
-      ctx.fillStyle = '#0a0a0a';
-      ctx.fillRect(gx + 100, gy + 10, 40, 20);
-
-      // Energy ring
-      ctx.strokeStyle = portalMode === 'orange' ? '#ff6600' : '#00aaff';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(gx + 130, gy + 20, 15, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Glow
-      ctx.shadowColor = portalMode === 'orange' ? '#ff6600' : '#00aaff';
-      ctx.shadowBlur = 15;
-      ctx.beginPath();
-      ctx.arc(gx + 130, gy + 20, 8, 0, Math.PI * 2);
-      ctx.fillStyle = portalMode === 'orange' ? '#ff6600' : '#00aaff';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    };
-
-    // Draw crosshair
-    const drawCrosshair = () => {
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      
-      // Cross
-      ctx.beginPath();
-      ctx.moveTo(cx - 15, cy);
-      ctx.lineTo(cx - 5, cy);
-      ctx.moveTo(cx + 5, cy);
-      ctx.lineTo(cx + 15, cy);
-      ctx.moveTo(cx, cy - 15);
-      ctx.lineTo(cx, cy - 5);
-      ctx.moveTo(cx, cy + 5);
-      ctx.lineTo(cx, cy + 15);
-      ctx.stroke();
-
-      // Center dot
-      ctx.fillStyle = portalMode === 'orange' ? '#ff6600' : '#00aaff';
-      ctx.beginPath();
-      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-      ctx.fill();
-    };
-
-    // Main game loop
+    // Game loop
     const gameLoop = () => {
       const dt = 1/60;
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
 
-      // Clear
-      ctx.fillStyle = '#0a0a12';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Clear with gradient
+      const bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+      bgGradient.addColorStop(0, '#0a0a15');
+      bgGradient.addColorStop(1, '#1a1a2e');
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, w, h);
 
       // Player movement
-      const moveSpeed = 5;
+      const speed = 4;
       let mx = 0, mz = 0;
+      if (game.keys['KeyW']) mz = 1;
+      if (game.keys['KeyS']) mz = -1;
+      if (game.keys['KeyA']) mx = -1;
+      if (game.keys['KeyD']) mx = 1;
 
-      if (game.keys['KeyW']) mz -= 1;
-      if (game.keys['KeyS']) mz += 1;
-      if (game.keys['KeyA']) mx -= 1;
-      if (game.keys['KeyD']) mx += 1;
-
-      if (mx !== 0 || mz !== 0) {
-        const len = Math.sqrt(mx * mx + mz * mz);
-        mx /= len;
-        mz /= len;
-
-        // Rotate movement by yaw
+      if (mx || mz) {
+        const len = Math.sqrt(mx*mx + mz*mz);
+        mx /= len; mz /= len;
         const cos = Math.cos(game.player.yaw);
         const sin = Math.sin(game.player.yaw);
-        game.player.vx = (mx * cos - mz * sin) * moveSpeed;
-        game.player.vz = (mx * sin + mz * cos) * moveSpeed;
+        game.player.vx = (mx * cos + mz * sin) * speed;
+        game.player.vz = (-mx * sin + mz * cos) * speed;
       } else {
-        game.player.vx *= 0.8;
-        game.player.vz *= 0.8;
+        game.player.vx *= 0.85;
+        game.player.vz *= 0.85;
       }
 
       // Jump
       if (game.keys['Space'] && game.player.onGround) {
-        game.player.vy = 8;
+        game.player.vy = 6;
         game.player.onGround = false;
       }
-
-      // Gravity
-      game.player.vy -= 20 * dt;
+      game.player.vy -= 15 * dt;
 
       // Update position
       game.player.x += game.player.vx * dt;
       game.player.y += game.player.vy * dt;
       game.player.z += game.player.vz * dt;
 
-      // Ground collision
+      // Ground
       if (game.player.y < 1.7) {
         game.player.y = 1.7;
         game.player.vy = 0;
         game.player.onGround = true;
       }
 
-      // Boundaries
-      game.player.x = Math.max(-9, Math.min(9, game.player.x));
-      game.player.z = Math.max(-14, Math.min(14, game.player.z));
+      // Wall boundaries
+      const size = 10 + currentLevel * 2;
+      const limit = size/2 - 0.5;
+      game.player.x = Math.max(-limit, Math.min(limit, game.player.x));
+      game.player.z = Math.max(-limit, Math.min(limit, game.player.z));
 
-      // Portal teleportation
+      // Portal teleportation with momentum
       if (game.portals.orange && game.portals.blue) {
-        const checkPortal = (from: typeof game.portals.orange, to: typeof game.portals.blue) => {
+        const checkTeleport = (from: typeof game.portals.orange, to: typeof game.portals.blue) => {
           if (!from || !to) return;
           const dx = game.player.x - from.x;
-          const dy = game.player.y - from.y;
           const dz = game.player.z - from.z;
-          const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          const dist = Math.sqrt(dx*dx + dz*dz);
           
-          if (dist < 1) {
-            game.player.x = to.x + to.nx * 2;
-            game.player.y = to.y + to.ny * 2;
-            game.player.z = to.z + to.nz * 2;
-            setScore(prev => prev + 50);
-            showMessage('+50 TELEPORT!');
+          if (dist < 1.2) {
+            // Teleport with momentum preserved
+            const speed = Math.sqrt(game.player.vx**2 + game.player.vz**2);
+            game.player.x = to.x;
+            game.player.z = to.z;
+            
+            // Exit velocity based on exit portal orientation
+            if (to.wall === 'north') { game.player.vz = speed; }
+            else if (to.wall === 'south') { game.player.vz = -speed; }
+            else if (to.wall === 'east') { game.player.vx = -speed; }
+            else if (to.wall === 'west') { game.player.vx = speed; }
+            
+            // Move away from wall
+            game.player.x += game.player.vx * 0.5;
+            game.player.z += game.player.vz * 0.5;
+            
+            setScore(prev => prev + 25);
+            showMessage('MOMENTUM TRANSFERRED', 1000);
           }
         };
-        checkPortal(game.portals.orange, game.portals.blue);
-        checkPortal(game.portals.blue, game.portals.orange);
+        checkTeleport(game.portals.orange, game.portals.blue);
+        checkTeleport(game.portals.blue, game.portals.orange);
+      }
+
+      // Update held cube position
+      if (game.heldCube !== null) {
+        const cube = game.cubes.find(c => c.id === game.heldCube);
+        if (cube) {
+          cube.x = game.player.x + Math.sin(game.player.yaw) * 1.5;
+          cube.z = game.player.z + Math.cos(game.player.yaw) * 1.5;
+          cube.y = 1.5;
+        }
+      }
+
+      // Check buttons
+      let allButtonsPressed = true;
+      game.buttons.forEach((button, i) => {
+        const cubeOnButton = game.cubes.some(cube => {
+          if (cube.held) return false;
+          const dx = cube.x - button.x;
+          const dz = cube.z - button.z;
+          return Math.sqrt(dx*dx + dz*dz) < 1;
+        });
+        
+        if (cubeOnButton && !button.pressed) {
+          button.pressed = true;
+          const door = game.doors[button.targetDoor];
+          if (door) door.open = true;
+          showMessage('BUTTON ACTIVATED', 1500);
+          setScore(prev => prev + 100);
+        } else if (!cubeOnButton && button.pressed) {
+          button.pressed = false;
+          const door = game.doors[button.targetDoor];
+          if (door) door.open = false;
+        }
+        
+        if (!button.pressed) allButtonsPressed = false;
+      });
+
+      // Activate exit when all buttons pressed
+      game.exit.active = allButtonsPressed && game.buttons.length > 0;
+
+      // Check exit
+      if (game.exit.active) {
+        const dx = game.player.x - game.exit.x;
+        const dz = game.player.z - game.exit.z;
+        if (Math.sqrt(dx*dx + dz*dz) < 1.5) {
+          setScore(prev => prev + 500 + currentLevel * 100);
+          setCurrentLevel(prev => prev + 1);
+          generateLevel(currentLevel + 1);
+          showMessage(`CHAMBER ${currentLevel} COMPLETE! +${500 + currentLevel * 100}`, 2000);
+        }
       }
 
       // Update bullets
@@ -471,128 +519,190 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         b.y += b.dy * dt;
         b.z += b.dz * dt;
 
-        // Wall collision for portals
-        if (b.isPortal) {
-          // Back wall
-          if (b.z < -14) {
-            const portal = { x: b.x, y: Math.max(1, b.y), z: -14, nx: 0, ny: 0, nz: 1 };
+        // Check wall collision for portal shots
+        if (b.color !== '#ffff00') {
+          // North wall
+          if (b.z > limit) {
+            const portal = { x: b.x, y: b.y, z: limit, wall: 'north', active: true };
             if (b.color === '#ff6600') {
               game.portals.orange = portal;
-              showMessage('ORANGE PORTAL PLACED!');
+              showMessage('ORANGE PORTAL', 1500);
             } else {
               game.portals.blue = portal;
-              showMessage('BLUE PORTAL PLACED!');
+              showMessage('BLUE PORTAL', 1500);
             }
             if (game.portals.orange && game.portals.blue) {
-              showMessage('PORTALS LINKED!');
+              showMessage('PORTALS LINKED!', 2000);
             }
             return false;
           }
-          // Side walls
-          if (b.x < -9) {
-            const portal = { x: -9, y: Math.max(1, b.y), z: b.z, nx: 1, ny: 0, nz: 0 };
+          // South wall
+          if (b.z < -limit) {
+            const portal = { x: b.x, y: b.y, z: -limit, wall: 'south', active: true };
             if (b.color === '#ff6600') game.portals.orange = portal;
             else game.portals.blue = portal;
-            showMessage(b.color === '#ff6600' ? 'ORANGE PORTAL!' : 'BLUE PORTAL!');
+            showMessage(b.color === '#ff6600' ? 'ORANGE PORTAL' : 'BLUE PORTAL', 1500);
             return false;
           }
-          if (b.x > 9) {
-            const portal = { x: 9, y: Math.max(1, b.y), z: b.z, nx: -1, ny: 0, nz: 0 };
+          // East wall
+          if (b.x > limit) {
+            const portal = { x: limit, y: b.y, z: b.z, wall: 'east', active: true };
             if (b.color === '#ff6600') game.portals.orange = portal;
             else game.portals.blue = portal;
-            showMessage(b.color === '#ff6600' ? 'ORANGE PORTAL!' : 'BLUE PORTAL!');
+            showMessage(b.color === '#ff6600' ? 'ORANGE PORTAL' : 'BLUE PORTAL', 1500);
+            return false;
+          }
+          // West wall
+          if (b.x < -limit) {
+            const portal = { x: -limit, y: b.y, z: b.z, wall: 'west', active: true };
+            if (b.color === '#ff6600') game.portals.orange = portal;
+            else game.portals.blue = portal;
+            showMessage(b.color === '#ff6600' ? 'ORANGE PORTAL' : 'BLUE PORTAL', 1500);
             return false;
           }
         }
 
-        // Enemy collision (for regular bullets)
-        if (!b.isPortal) {
-          for (let i = game.enemies.length - 1; i >= 0; i--) {
-            const e = game.enemies[i];
-            const dx = b.x - e.x;
-            const dy = b.y - e.y;
-            const dz = b.z - e.z;
-            const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-
-            if (dist < 0.8) {
-              e.health -= 15;
-              if (e.health <= 0) {
-                game.enemies.splice(i, 1);
-                const points = e.type === 'drone' ? 100 : 150;
-                setScore(prev => prev + points);
-                setEnemiesKilled(prev => prev + 1);
-                setAmmo(prev => Math.min(prev + 5, 50));
-                showMessage(`+${points} ENEMY DESTROYED!`);
-
-                // Check level complete
-                if (game.enemies.length === 0) {
-                  setScore(prev => prev + 500);
-                  setLevel(prev => prev + 1);
-                  showMessage('+500 LEVEL COMPLETE!');
-                  setTimeout(spawnEnemies, 1000);
-                }
-              }
-              return false;
-            }
-          }
-        }
-
-        // Out of bounds
-        return Math.abs(b.x) < 20 && Math.abs(b.z) < 20 && b.y > 0 && b.y < 15;
+        return b.y > 0 && b.y < 10;
       });
 
-      // Update enemies
-      game.enemies.forEach(e => {
-        if (e.type === 'drone') {
-          // Chase player
-          const dx = game.player.x - e.x;
-          const dz = game.player.z - e.z;
-          const dist = Math.sqrt(dx*dx + dz*dz);
-          if (dist > 0.1) {
-            e.vx = (dx / dist) * 2;
-            e.vz = (dz / dist) * 2;
-          }
-          e.x += e.vx * dt;
-          e.z += e.vz * dt;
-          e.y = 2 + Math.sin(Date.now() * 0.003) * 0.5;
-        }
-
-        // Damage player on contact
-        const dx = game.player.x - e.x;
-        const dy = game.player.y - e.y;
-        const dz = game.player.z - e.z;
-        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        if (dist < 1) {
-          setHealth(prev => {
-            const newHealth = prev - 1;
-            if (newHealth <= 0) setGameState('gameover');
-            return Math.max(0, newHealth);
-          });
-        }
-      });
-
-      // Draw scene
-      drawFloor();
+      // Draw floor grid
+      ctx.strokeStyle = '#333355';
+      ctx.lineWidth = 1;
+      for (let x = -size/2; x <= size/2; x += 2) {
+        drawLine3D(x, 0, -size/2, x, 0, size/2, '#333355', 1);
+      }
+      for (let z = -size/2; z <= size/2; z += 2) {
+        drawLine3D(-size/2, 0, z, size/2, 0, z, '#333355', 1);
+      }
 
       // Draw walls
-      ctx.fillStyle = '#2a2a4a';
-      drawWall(-10, 0, -15, 10, 8, -15, '#2a2a4a'); // Back
-      drawWall(-10, 0, -15, -10, 8, 15, '#252540'); // Left
-      drawWall(10, 0, -15, 10, 8, 15, '#252540'); // Right
+      const wallH = 4;
+      // North
+      drawLine3D(-size/2, 0, size/2, size/2, 0, size/2, '#4444aa', 2);
+      drawLine3D(-size/2, wallH, size/2, size/2, wallH, size/2, '#4444aa', 2);
+      drawLine3D(-size/2, 0, size/2, -size/2, wallH, size/2, '#4444aa', 2);
+      drawLine3D(size/2, 0, size/2, size/2, wallH, size/2, '#4444aa', 2);
+      // South
+      drawLine3D(-size/2, 0, -size/2, size/2, 0, -size/2, '#4444aa', 2);
+      drawLine3D(-size/2, wallH, -size/2, size/2, wallH, -size/2, '#4444aa', 2);
+      // East/West
+      drawLine3D(size/2, 0, -size/2, size/2, 0, size/2, '#3333aa', 2);
+      drawLine3D(size/2, wallH, -size/2, size/2, wallH, size/2, '#3333aa', 2);
+      drawLine3D(-size/2, 0, -size/2, -size/2, 0, size/2, '#3333aa', 2);
+      drawLine3D(-size/2, wallH, -size/2, -size/2, wallH, size/2, '#3333aa', 2);
 
       // Draw portals
-      if (game.portals.orange) drawPortal(game.portals.orange, '#ff6600');
-      if (game.portals.blue) drawPortal(game.portals.blue, '#00aaff');
+      drawPortal(game.portals.orange, '#ff6600');
+      drawPortal(game.portals.blue, '#00aaff');
 
-      // Draw enemies
-      game.enemies.forEach(drawEnemy);
+      // Draw cubes
+      game.cubes.forEach(cube => {
+        if (!cube.held) {
+          drawBox(cube.x, cube.y, cube.z, 0.8, '#ff66ff');
+        }
+      });
+
+      // Draw buttons
+      game.buttons.forEach(button => {
+        const p = project(button.x, 0.1, button.z);
+        if (p && p.z > 0.5) {
+          const size = 40 * p.scale;
+          ctx.fillStyle = button.pressed ? '#00ff00' : '#ff4444';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      });
+
+      // Draw doors
+      game.doors.forEach(door => {
+        if (!door.open) {
+          drawLine3D(door.x - 2, 0, door.z, door.x + 2, 0, door.z, '#ff0000', 4);
+          drawLine3D(door.x - 2, 3, door.z, door.x + 2, 3, door.z, '#ff0000', 4);
+          drawLine3D(door.x - 2, 0, door.z, door.x - 2, 3, door.z, '#ff0000', 4);
+          drawLine3D(door.x + 2, 0, door.z, door.x + 2, 3, door.z, '#ff0000', 4);
+        }
+      });
+
+      // Draw exit
+      if (game.exit.active) {
+        const p = project(game.exit.x, 1.5, game.exit.z);
+        if (p && p.z > 0.5) {
+          const size = 60 * p.scale;
+          ctx.strokeStyle = '#00ffff';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size);
+          gradient.addColorStop(0, '#00ffff40');
+          gradient.addColorStop(1, 'transparent');
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        }
+      }
 
       // Draw bullets
-      game.bullets.forEach(drawBullet);
+      game.bullets.forEach(b => {
+        const p = project(b.x, b.y, b.z);
+        if (p && p.z > 0.5) {
+          ctx.fillStyle = b.color;
+          ctx.shadowColor = b.color;
+          ctx.shadowBlur = 15;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 6 * p.scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      });
 
-      // Draw gun and crosshair
-      drawGun();
-      drawCrosshair();
+      // Draw held cube
+      if (game.heldCube !== null) {
+        ctx.fillStyle = '#ff66ff';
+        ctx.fillRect(w/2 - 30, h - 100, 60, 60);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(w/2 - 30, h - 100, 60, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('HOLDING CUBE', w/2, h - 110);
+      }
+
+      // Crosshair
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w/2 - 15, h/2); ctx.lineTo(w/2 - 5, h/2);
+      ctx.moveTo(w/2 + 5, h/2); ctx.lineTo(w/2 + 15, h/2);
+      ctx.moveTo(w/2, h/2 - 15); ctx.lineTo(w/2, h/2 - 5);
+      ctx.moveTo(w/2, h/2 + 5); ctx.lineTo(w/2, h/2 + 15);
+      ctx.stroke();
+      
+      // Portal mode dot
+      ctx.fillStyle = portalMode === 'orange' ? '#ff6600' : '#00aaff';
+      ctx.beginPath();
+      ctx.arc(w/2, h/2, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Gun HUD
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(w - 130, h - 70, 110, 50);
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(w - 50, h - 60, 30, 30);
+      ctx.strokeStyle = portalMode === 'orange' ? '#ff6600' : '#00aaff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(w - 35, h - 45, 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = portalMode === 'orange' ? '#ff6600' : '#00aaff';
+      ctx.beginPath();
+      ctx.arc(w - 35, h - 45, 6, 0, Math.PI * 2);
+      ctx.fill();
 
       animationRef.current = requestAnimationFrame(gameLoop);
     };
@@ -602,131 +712,121 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     return () => {
       cancelAnimationFrame(animationRef.current);
       clearInterval(timerInterval);
+      window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('resize', resize);
       canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mousedown', handleClick);
       canvas.removeEventListener('contextmenu', handleContextMenu);
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [gameState, portalMode, ammo, level, showMessage]);
+  }, [gameState, currentLevel, portalMode, generateLevel, showMessage]);
 
   // Mobile controls
-  const mobileShoot = () => {
-    if (ammo <= 0) return;
-    const game = gameRef.current;
-    const dx = -Math.sin(game.player.yaw) * Math.cos(game.player.pitch);
-    const dy = Math.sin(game.player.pitch);
-    const dz = -Math.cos(game.player.yaw) * Math.cos(game.player.pitch);
-    game.bullets.push({ x: game.player.x, y: game.player.y, z: game.player.z, dx: dx * 50, dy: dy * 50, dz: dz * 50, isPortal: false, color: 'yellow' });
-    setAmmo(prev => prev - 1);
+  const mobileMove = (dir: string) => { 
+    const g = gameRef.current; 
+    g.keys = { KeyW: dir === 'up', KeyS: dir === 'down', KeyA: dir === 'left', KeyD: dir === 'right' }; 
   };
-
-  const mobilePortal = () => {
-    const game = gameRef.current;
-    const dx = -Math.sin(game.player.yaw) * Math.cos(game.player.pitch);
-    const dy = Math.sin(game.player.pitch);
-    const dz = -Math.cos(game.player.yaw) * Math.cos(game.player.pitch);
-    game.bullets.push({ x: game.player.x, y: game.player.y, z: game.player.z, dx: dx * 40, dy: dy * 40, dz: dz * 40, isPortal: true, color: portalMode === 'orange' ? '#ff6600' : '#00aaff' });
+  const mobileStop = () => { gameRef.current.keys = {}; };
+  const mobileJump = () => { 
+    const g = gameRef.current;
+    if (g.player.onGround) { g.player.vy = 6; g.player.onGround = false; }
   };
-
-  const mobileMove = (dir: string) => {
-    const game = gameRef.current;
-    game.keys['KeyW'] = dir === 'up';
-    game.keys['KeyS'] = dir === 'down';
-    game.keys['KeyA'] = dir === 'left';
-    game.keys['KeyD'] = dir === 'right';
+  const mobileShoot = (isPortal: boolean) => {
+    const g = gameRef.current;
+    const dx = Math.sin(g.player.yaw) * Math.cos(g.player.pitch);
+    const dy = -Math.sin(g.player.pitch);
+    const dz = Math.cos(g.player.yaw) * Math.cos(g.player.pitch);
+    g.bullets.push({ x: g.player.x, y: g.player.y, z: g.player.z, dx: dx * 30, dy: dy * 30, dz: dz * 30, color: isPortal ? (portalMode === 'orange' ? '#ff6600' : '#00aaff') : '#ffff00' });
   };
-
-  const mobileStop = () => {
-    const game = gameRef.current;
-    game.keys = {};
-  };
-
-  const mobileJump = () => {
-    const game = gameRef.current;
-    if (game.player.onGround) {
-      game.player.vy = 8;
-      game.player.onGround = false;
+  const mobilePickup = () => {
+    const g = gameRef.current;
+    if (g.heldCube !== null) {
+      const cube = g.cubes.find(c => c.id === g.heldCube);
+      if (cube) { cube.held = false; cube.x = g.player.x; cube.z = g.player.z; }
+      g.heldCube = null;
+    } else {
+      const nearest = g.cubes.reduce((a, b) => {
+        const da = Math.hypot(a.x - g.player.x, a.z - g.player.z);
+        const db = Math.hypot(b.x - g.player.x, b.z - g.player.z);
+        return da < db ? a : b;
+      }, g.cubes[0]);
+      if (nearest && Math.hypot(nearest.x - g.player.x, nearest.z - g.player.z) < 3) {
+        nearest.held = true;
+        g.heldCube = nearest.id;
+      }
     }
   };
 
   // Instructions
   if (gameState === 'instructions') {
     return (
-      <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center overflow-hidden">
-        {/* Animated rings */}
+      <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-gray-900 via-slate-800 to-black flex items-center justify-center overflow-hidden">
+        {/* Animated portals */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full border-4"
-              style={{
-                width: `${150 + i * 100}px`,
-                height: `${150 + i * 100}px`,
-                borderColor: i % 2 === 0 ? '#ff6600' : '#00aaff',
-                animation: `spin ${4 + i}s linear infinite ${i % 2 === 0 ? '' : 'reverse'}`,
-                opacity: 0.4
-              }}
-            />
-          ))}
+          <div className="absolute w-40 h-60 border-4 border-orange-500 rounded-full animate-pulse" style={{ transform: 'translateX(-150px) rotateY(20deg)' }} />
+          <div className="absolute w-40 h-60 border-4 border-blue-500 rounded-full animate-pulse" style={{ transform: 'translateX(150px) rotateY(-20deg)' }} />
+          <div className="absolute w-32 h-32 bg-gradient-to-r from-orange-500/20 to-blue-500/20 rounded-full blur-xl animate-spin" style={{ animationDuration: '10s' }} />
         </div>
 
-        <div className="relative z-10 bg-black/90 rounded-2xl p-8 max-w-lg mx-4 border border-orange-500/50">
-          <h1 className="text-5xl font-bold text-center mb-2 bg-gradient-to-r from-orange-500 to-blue-500 bg-clip-text text-transparent">
-            WORMHOLE
-          </h1>
-          <p className="text-gray-400 text-center mb-6">Portal Gun Adventure</p>
+        <div className="relative z-10 bg-black/90 rounded-2xl p-8 max-w-lg mx-4 border border-cyan-500/30">
+          <div className="text-center mb-6">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-orange-400 via-white to-blue-400 bg-clip-text text-transparent mb-2">
+              WORMHOLE
+            </h1>
+            <p className="text-cyan-400">Aperture Science Testing Initiative</p>
+          </div>
 
-          <div className="space-y-4 mb-6">
+          <div className="space-y-4 text-sm">
             <div className="bg-gray-800/80 rounded-lg p-4">
-              <h3 className="text-orange-400 font-bold mb-2">🎮 Controls</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm text-gray-300">
-                <div><span className="text-blue-400">WASD</span> - Move</div>
-                <div><span className="text-blue-400">Mouse</span> - Look</div>
-                <div><span className="text-blue-400">Left Click</span> - Shoot</div>
-                <div><span className="text-blue-400">Right Click</span> - Portal</div>
-                <div><span className="text-blue-400">Space</span> - Jump</div>
-                <div><span className="text-blue-400">Q</span> - Switch Portal</div>
+              <h3 className="text-orange-400 font-bold mb-2">🎮 CONTROLS</h3>
+              <div className="grid grid-cols-2 gap-2 text-gray-300">
+                <div>WASD - Move</div>
+                <div>Mouse - Look</div>
+                <div>Left Click - (unused)</div>
+                <div>Right Click - Portal</div>
+                <div>Space - Jump</div>
+                <div>Q - Switch Portal</div>
+                <div>E - Pick Up/Drop Cube</div>
               </div>
             </div>
 
             <div className="bg-gray-800/80 rounded-lg p-4">
-              <h3 className="text-blue-400 font-bold mb-2">🌀 Portal System</h3>
-              <ul className="text-sm text-gray-300 space-y-1">
-                <li>• <span className="text-orange-400">Orange</span> + <span className="text-blue-400">Blue</span> portals link together</li>
-                <li>• Walk into one to teleport to the other</li>
-                <li>• Press Q to switch portal color</li>
+              <h3 className="text-blue-400 font-bold mb-2">🌀 PORTAL PHYSICS</h3>
+              <ul className="text-gray-300 space-y-1">
+                <li>• Place <span className="text-orange-400">ORANGE</span> + <span className="text-blue-400">BLUE</span> portals on walls</li>
+                <li>• Walk through one, exit the other</li>
+                <li>• <span className="text-cyan-400">Momentum is preserved!</span></li>
               </ul>
             </div>
 
             <div className="bg-gray-800/80 rounded-lg p-4">
-              <h3 className="text-green-400 font-bold mb-2">📊 Scoring</h3>
-              <div className="text-sm text-gray-300 grid grid-cols-2 gap-1">
-                <div>Drone: <span className="text-green-400">+100</span></div>
-                <div>Turret: <span className="text-green-400">+150</span></div>
-                <div>Teleport: <span className="text-cyan-400">+50</span></div>
-                <div>Level: <span className="text-yellow-400">+500</span></div>
+              <h3 className="text-pink-400 font-bold mb-2">📦 PUZZLE ELEMENTS</h3>
+              <ul className="text-gray-300 space-y-1">
+                <li>• Pick up <span className="text-pink-400">CUBES</span> with E</li>
+                <li>• Place cubes on <span className="text-red-400">BUTTONS</span> to open doors</li>
+                <li>• Reach the <span className="text-cyan-400">EXIT</span> to complete level</li>
+              </ul>
+            </div>
+
+            <div className="bg-gray-800/80 rounded-lg p-4">
+              <h3 className="text-green-400 font-bold mb-2">📊 SCORING</h3>
+              <div className="text-gray-300 grid grid-cols-2 gap-1">
+                <div>Teleport: +25</div>
+                <div>Button: +100</div>
+                <div>Level Complete: +500+</div>
               </div>
             </div>
           </div>
 
           <button
             onClick={() => setGameState('playing')}
-            className="w-full py-4 bg-gradient-to-r from-orange-600 to-blue-600 hover:from-orange-500 hover:to-blue-500 text-white font-bold rounded-xl text-xl transition-all transform hover:scale-105"
+            className="w-full mt-6 py-4 bg-gradient-to-r from-orange-600 to-blue-600 text-white font-bold rounded-xl text-xl hover:from-orange-500 hover:to-blue-500 transition-all"
           >
-            ENTER THE WORMHOLE
+            BEGIN TESTING
           </button>
         </div>
-
-        <style jsx>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
@@ -734,25 +834,18 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   // Game Over
   if (gameState === 'gameover') {
     return (
-      <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-gray-900 via-red-900/50 to-black flex items-center justify-center">
+      <div className="relative w-full h-full min-h-[600px] bg-gradient-to-br from-red-900/20 via-gray-900 to-black flex items-center justify-center">
         <div className="bg-black/90 rounded-2xl p-8 max-w-md mx-4 border border-red-500/50 text-center">
-          <h1 className="text-4xl font-bold text-red-500 mb-6">GAME OVER</h1>
-
+          <h1 className="text-4xl font-bold text-red-400 mb-6">TEST FAILED</h1>
+          
           <div className="space-y-4 mb-6">
             <div className="bg-gray-800/50 rounded-lg p-4">
               <div className="text-4xl font-bold text-yellow-400">{score.toLocaleString()}</div>
               <div className="text-gray-400">Final Score</div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-800/50 rounded-lg p-3">
-                <div className="text-2xl font-bold text-green-400">{enemiesKilled}</div>
-                <div className="text-gray-400 text-sm">Kills</div>
-              </div>
-              <div className="bg-gray-800/50 rounded-lg p-3">
-                <div className="text-2xl font-bold text-blue-400">{level}</div>
-                <div className="text-gray-400 text-sm">Level</div>
-              </div>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="text-2xl font-bold text-cyan-400">Chamber {currentLevel}</div>
+              <div className="text-gray-400">Reached</div>
             </div>
           </div>
 
@@ -760,21 +853,17 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             <button
               onClick={() => {
                 setScore(0);
-                setHealth(100);
-                setAmmo(30);
-                setTimeLeft(120);
-                setLevel(1);
-                setEnemiesKilled(0);
-                gameRef.current.portals = { orange: null, blue: null };
+                setCurrentLevel(1);
+                setTimeLeft(180);
                 setGameState('playing');
               }}
-              className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl transition-colors"
+              className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl"
             >
               RETRY
             </button>
             <button
               onClick={() => onGameEnd?.(score)}
-              className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl transition-colors"
+              className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl"
             >
               EXIT
             </button>
@@ -786,65 +875,44 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
 
   // Playing
   return (
-    <div ref={containerRef} className="relative w-full h-full min-h-[600px] bg-black">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full cursor-crosshair"
-        style={{ touchAction: 'none' }}
-      />
+    <div className="relative w-full h-full min-h-[600px] bg-black">
+      <canvas ref={canvasRef} className="w-full h-full" style={{ touchAction: 'none' }} />
 
       {/* HUD */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-        <div className="space-y-2">
-          {/* Health */}
-          <div className="bg-black/70 rounded-lg px-4 py-2 backdrop-blur-sm">
-            <div className="text-red-400 text-xs font-bold mb-1">HEALTH</div>
-            <div className="w-32 h-3 bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all" style={{ width: `${health}%` }} />
-            </div>
-          </div>
-          {/* Ammo */}
-          <div className="bg-black/70 rounded-lg px-4 py-2 backdrop-blur-sm">
-            <div className="text-yellow-400 text-xs font-bold">AMMO: {ammo}</div>
-          </div>
+        <div className="bg-black/70 rounded-lg px-4 py-2 backdrop-blur-sm">
+          <div className="text-cyan-400 text-sm font-bold">CHAMBER {currentLevel}</div>
         </div>
-
-        {/* Score & Time */}
         <div className="text-center">
           <div className="bg-black/70 rounded-lg px-6 py-2 backdrop-blur-sm">
             <div className="text-yellow-400 text-2xl font-bold">{score.toLocaleString()}</div>
           </div>
-          <div className="bg-black/70 rounded-lg px-4 py-1 mt-2 backdrop-blur-sm">
-            <div className={`text-xl font-bold ${timeLeft < 30 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+          <div className={`bg-black/70 rounded-lg px-4 py-1 mt-2 backdrop-blur-sm ${timeLeft < 30 ? 'animate-pulse' : ''}`}>
+            <div className={`text-xl font-bold ${timeLeft < 30 ? 'text-red-400' : 'text-white'}`}>
               {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </div>
           </div>
         </div>
-
-        {/* Level & Portal Mode */}
-        <div className="space-y-2">
-          <div className="bg-black/70 rounded-lg px-4 py-2 backdrop-blur-sm">
-            <div className="text-cyan-400 text-xs font-bold">LEVEL {level}</div>
-          </div>
-          <button
-            onClick={() => setPortalMode(p => p === 'orange' ? 'blue' : 'orange')}
-            className={`pointer-events-auto px-4 py-2 rounded-lg font-bold text-sm ${portalMode === 'orange' ? 'bg-orange-600' : 'bg-blue-600'}`}
-          >
-            {portalMode.toUpperCase()}
-          </button>
-        </div>
+        <button
+          onClick={() => setPortalMode(p => p === 'orange' ? 'blue' : 'orange')}
+          className={`pointer-events-auto px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+            portalMode === 'orange' ? 'bg-orange-600 hover:bg-orange-500' : 'bg-blue-600 hover:bg-blue-500'
+          }`}
+        >
+          {portalMode.toUpperCase()} [Q]
+        </button>
       </div>
 
       {/* Message */}
       {message && (
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 text-2xl font-bold text-white bg-black/50 px-6 py-3 rounded-xl animate-pulse">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 px-6 py-3 bg-black/80 rounded-xl border border-cyan-500/50 text-cyan-400 text-xl font-bold animate-pulse">
           {message}
         </div>
       )}
 
-      {/* Click to start */}
-      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-white/50 text-sm pointer-events-none">
-        {!isMobile && 'Click to lock mouse • Left=Shoot • Right=Portal • Q=Switch'}
+      {/* Instructions */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none text-center">
+        {!isMobile ? 'Click to lock mouse • Right-click = Portal • Q = Switch • E = Pick up cube' : 'Swipe to look • Use buttons below'}
       </div>
 
       {/* Mobile Controls */}
@@ -852,22 +920,23 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         <>
           <div className="absolute bottom-4 left-4 grid grid-cols-3 gap-1">
             <div />
-            <button className="w-14 h-14 bg-white/20 rounded-lg text-2xl active:bg-white/40" onTouchStart={() => mobileMove('up')} onTouchEnd={mobileStop}>▲</button>
+            <button className="w-12 h-12 bg-white/20 rounded-lg text-xl active:bg-white/40" onTouchStart={() => mobileMove('up')} onTouchEnd={mobileStop}>▲</button>
             <div />
-            <button className="w-14 h-14 bg-white/20 rounded-lg text-2xl active:bg-white/40" onTouchStart={() => mobileMove('left')} onTouchEnd={mobileStop}>◀</button>
-            <button className="w-14 h-14 bg-white/20 rounded-lg text-xl active:bg-white/40" onTouchStart={mobileJump}>⬆</button>
-            <button className="w-14 h-14 bg-white/20 rounded-lg text-2xl active:bg-white/40" onTouchStart={() => mobileMove('right')} onTouchEnd={mobileStop}>▶</button>
+            <button className="w-12 h-12 bg-white/20 rounded-lg text-xl active:bg-white/40" onTouchStart={() => mobileMove('left')} onTouchEnd={mobileStop}>◀</button>
+            <button className="w-12 h-12 bg-white/20 rounded-lg text-sm active:bg-white/40" onTouchStart={mobileJump}>JUMP</button>
+            <button className="w-12 h-12 bg-white/20 rounded-lg text-xl active:bg-white/40" onTouchStart={() => mobileMove('right')} onTouchEnd={mobileStop}>▶</button>
             <div />
-            <button className="w-14 h-14 bg-white/20 rounded-lg text-2xl active:bg-white/40" onTouchStart={() => mobileMove('down')} onTouchEnd={mobileStop}>▼</button>
+            <button className="w-12 h-12 bg-white/20 rounded-lg text-xl active:bg-white/40" onTouchStart={() => mobileMove('down')} onTouchEnd={mobileStop}>▼</button>
             <div />
           </div>
-
-          <div className="absolute bottom-4 right-4 flex gap-3">
-            <button className="w-16 h-16 bg-yellow-500/50 rounded-full text-2xl active:bg-yellow-500/80" onTouchStart={mobileShoot}>🔫</button>
-            <button className={`w-16 h-16 rounded-full text-2xl active:opacity-80 ${portalMode === 'orange' ? 'bg-orange-500/50' : 'bg-blue-500/50'}`} onTouchStart={mobilePortal}>🌀</button>
+          <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+            <button className={`w-14 h-14 rounded-full text-xl active:opacity-80 ${portalMode === 'orange' ? 'bg-orange-500/60' : 'bg-blue-500/60'}`} onTouchStart={() => mobileShoot(true)}>🌀</button>
+            <button className="w-14 h-14 bg-pink-500/60 rounded-full text-xl active:opacity-80" onTouchStart={mobilePickup}>📦</button>
           </div>
         </>
       )}
     </div>
   );
+}
+
 }
