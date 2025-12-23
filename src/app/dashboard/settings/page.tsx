@@ -12,12 +12,16 @@ import {
   EyeSlashIcon,
   ArrowLeftIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PhoneIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 
 interface UserData {
+  id: string;
   email: string;
   username: string;
+  phone: string;
 }
 
 export default function AccountSettingsPage() {
@@ -51,7 +55,7 @@ export default function AccountSettingsPage() {
   useEffect(() => {
     if (!mounted) return;
     
-    const checkAuth = async () => {
+    const fetchUserData = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
@@ -59,27 +63,44 @@ export default function AccountSettingsPage() {
           router.push('/auth/login?redirect=/dashboard/settings');
           return;
         }
-        
-        // Get user data
+
+        const userId = session.user.id;
         const email = session.user.email || '';
-        let username = '';
         
-        // Try to get username from users table
+        // Get user profile from users table
+        const { data: userProfile, error: profileError } = await supabase
+          .from('users')
+          .select('id, username, email')
+          .eq('id', userId)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+        }
+
+        // Get phone from user_phones table
+        let phone = '';
         try {
-          const { data: userProfile } = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', session.user.id)
+          const { data: phoneData } = await supabase
+            .from('user_phones')
+            .select('phone_number')
+            .eq('user_id', userId)
             .single();
           
-          if (userProfile) {
-            username = userProfile.username || '';
+          if (phoneData?.phone_number) {
+            phone = phoneData.phone_number;
           }
         } catch {
-          // Ignore errors getting username
+          // Phone not found, that's ok
         }
+
+        setUserData({
+          id: userId,
+          email: userProfile?.email || email,
+          username: userProfile?.username || '',
+          phone: phone
+        });
         
-        setUserData({ email, username });
         setLoading(false);
       } catch (err) {
         console.error('Auth check error:', err);
@@ -87,7 +108,7 @@ export default function AccountSettingsPage() {
       }
     };
     
-    checkAuth();
+    fetchUserData();
   }, [mounted, router]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
@@ -95,15 +116,15 @@ export default function AccountSettingsPage() {
     setEmailError('');
     setEmailSuccess(false);
 
-    const trimmedEmail = (newEmail || '').trim();
-    const trimmedConfirm = (confirmEmail || '').trim();
+    const trimmedEmail = (newEmail || '').trim().toLowerCase();
+    const trimmedConfirm = (confirmEmail || '').trim().toLowerCase();
 
     if (!trimmedEmail) {
       setEmailError('Please enter a new email address');
       return;
     }
 
-    if (!trimmedEmail.includes('@')) {
+    if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
       setEmailError('Please enter a valid email address');
       return;
     }
@@ -114,7 +135,7 @@ export default function AccountSettingsPage() {
     }
 
     const currentEmail = (userData?.email || '').trim().toLowerCase();
-    if (trimmedEmail.toLowerCase() === currentEmail) {
+    if (trimmedEmail === currentEmail) {
       setEmailError('New email must be different from current email');
       return;
     }
@@ -122,16 +143,40 @@ export default function AccountSettingsPage() {
     setEmailLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        email: trimmedEmail.toLowerCase()
+      // 1. Update Supabase Auth email
+      const { error: authError } = await supabase.auth.updateUser({
+        email: trimmedEmail
       });
 
-      if (error) {
-        setEmailError(error.message);
-      } else {
-        setEmailSuccess(true);
-        setNewEmail('');
-        setConfirmEmail('');
+      if (authError) {
+        setEmailError(authError.message);
+        setEmailLoading(false);
+        return;
+      }
+
+      // 2. Update users table email
+      if (userData?.id) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ 
+            email: trimmedEmail,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userData.id);
+
+        if (updateError) {
+          console.error('Error updating users table:', updateError);
+          // Don't fail the whole operation if users table update fails
+        }
+      }
+
+      setEmailSuccess(true);
+      setNewEmail('');
+      setConfirmEmail('');
+      
+      // Update local state
+      if (userData) {
+        setUserData({ ...userData, email: trimmedEmail });
       }
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : 'Failed to update email');
@@ -168,10 +213,10 @@ export default function AccountSettingsPage() {
     setPasswordLoading(true);
 
     try {
-      // First verify current password
+      // Verify current password by re-signing in
       const userEmail = userData?.email || '';
       if (!userEmail) {
-        setPasswordError('Could not verify current password');
+        setPasswordError('Could not verify current password - no email found');
         setPasswordLoading(false);
         return;
       }
@@ -205,6 +250,19 @@ export default function AccountSettingsPage() {
     } finally {
       setPasswordLoading(false);
     }
+  };
+
+  // Format phone for display
+  const formatPhoneDisplay = (phone: string) => {
+    if (!phone) return 'Not set';
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('1')) {
+      return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+    }
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    return phone;
   };
 
   // Loading state
@@ -260,17 +318,36 @@ export default function AccountSettingsPage() {
         {/* Current Account Info */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
           <h2 className="text-lg font-semibold text-white mb-4">Current Account</h2>
-          <div className="space-y-2">
-            <p className="text-gray-300">
-              <span className="text-gray-500">Email:</span>{' '}
-              <span className="text-white">{userData.email || 'Not set'}</span>
-            </p>
+          <div className="space-y-3">
+            <div className="flex items-center">
+              <EnvelopeIcon className="w-5 h-5 text-gray-500 mr-3" />
+              <div>
+                <span className="text-gray-500 text-sm">Email</span>
+                <p className="text-white">{userData.email || 'Not set'}</p>
+              </div>
+            </div>
             {userData.username && (
-              <p className="text-gray-300">
-                <span className="text-gray-500">Username:</span>{' '}
-                <span className="text-white">{userData.username}</span>
-              </p>
+              <div className="flex items-center">
+                <UserIcon className="w-5 h-5 text-gray-500 mr-3" />
+                <div>
+                  <span className="text-gray-500 text-sm">Username</span>
+                  <p className="text-white">{userData.username}</p>
+                </div>
+              </div>
             )}
+            <div className="flex items-center">
+              <PhoneIcon className="w-5 h-5 text-gray-500 mr-3" />
+              <div>
+                <span className="text-gray-500 text-sm">Phone</span>
+                <p className="text-white">{formatPhoneDisplay(userData.phone)}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <p className="text-xs text-gray-500">
+              You can sign in with your email, username, or phone number
+            </p>
           </div>
         </div>
 
@@ -282,17 +359,20 @@ export default function AccountSettingsPage() {
           </div>
 
           {emailSuccess && (
-            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4 flex items-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0" />
-              <p className="text-green-400 text-sm">
-                Confirmation email sent! Check your inbox to verify the new email.
-              </p>
+            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4 flex items-start">
+              <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-green-400 text-sm font-medium">Email update initiated!</p>
+                <p className="text-green-400/80 text-xs mt-1">
+                  Check both your old and new email for confirmation links.
+                </p>
+              </div>
             </div>
           )}
 
           <form onSubmit={handleEmailChange} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">New Email</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">New Email Address</label>
               <input
                 type="email"
                 value={newEmail}
@@ -322,9 +402,17 @@ export default function AccountSettingsPage() {
             <button
               type="submit"
               disabled={emailLoading}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
             >
-              {emailLoading ? 'Updating...' : 'Update Email'}
+              {emailLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : 'Update Email'}
             </button>
           </form>
         </div>
@@ -356,13 +444,13 @@ export default function AccountSettingsPage() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                 >
                   {showCurrentPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
               </div>
@@ -376,17 +464,17 @@ export default function AccountSettingsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full pr-10 py-3 px-4 border border-gray-600 bg-gray-700 text-white rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                  placeholder="Enter new password (min 8 characters)"
+                  placeholder="Enter new password"
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
                   onClick={() => setShowNewPassword(!showNewPassword)}
                 >
                   {showNewPassword ? (
-                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
+                    <EyeSlashIcon className="h-5 w-5" />
                   ) : (
-                    <EyeIcon className="h-5 w-5 text-gray-400" />
+                    <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
               </div>
@@ -413,11 +501,32 @@ export default function AccountSettingsPage() {
             <button
               type="submit"
               disabled={passwordLoading}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="w-full py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
             >
-              {passwordLoading ? 'Updating...' : 'Update Password'}
+              {passwordLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : 'Update Password'}
             </button>
           </form>
+        </div>
+
+        {/* Forgot Password Link */}
+        <div className="mt-6 text-center">
+          <p className="text-gray-400 text-sm mb-2">
+            Forgot your current password?
+          </p>
+          <Link 
+            href="/auth/forgot-password"
+            className="text-blue-400 hover:text-blue-300 text-sm"
+          >
+            Reset via email or phone
+          </Link>
         </div>
 
         {/* Done button */}

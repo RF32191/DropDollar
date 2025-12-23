@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const trimmedUsername = (username || '').trim().toLowerCase();
+    const trimmedUsername = (username || '').trim();
 
     if (trimmedUsername.length < 3) {
       return NextResponse.json(
@@ -40,14 +40,47 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Find user by username in users table
+    // Try using the RPC function first (faster, case-insensitive)
+    try {
+      const { data: rpcResult, error: rpcError } = await supabaseAdmin
+        .rpc('find_user_by_username', { search_username: trimmedUsername });
+
+      if (!rpcError && rpcResult && rpcResult.length > 0 && rpcResult[0].email) {
+        console.log('✅ [FindEmail] Found via RPC:', trimmedUsername);
+        return NextResponse.json({
+          success: true,
+          email: rpcResult[0].email,
+        });
+      }
+    } catch {
+      // RPC not available, fall back to direct query
+      console.log('📋 [FindEmail] RPC not available, using direct query');
+    }
+
+    // Fallback: Direct query with case-insensitive search
     const { data: userData, error: userError } = await supabaseAdmin
       .from('users')
       .select('id, email, username')
       .ilike('username', trimmedUsername)
+      .limit(1)
       .single();
 
     if (userError || !userData) {
+      // Try exact match as last resort
+      const { data: exactData } = await supabaseAdmin
+        .from('users')
+        .select('id, email, username')
+        .eq('username', trimmedUsername)
+        .single();
+
+      if (exactData?.email) {
+        console.log('✅ [FindEmail] Found via exact match:', trimmedUsername);
+        return NextResponse.json({
+          success: true,
+          email: exactData.email,
+        });
+      }
+
       console.log('❌ [FindEmail] Username not found:', trimmedUsername);
       return NextResponse.json(
         { success: false, error: 'No account found with this username' },
@@ -78,4 +111,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
