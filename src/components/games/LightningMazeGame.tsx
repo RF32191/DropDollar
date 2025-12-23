@@ -2060,11 +2060,21 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
               console.log('📱 [LightningMaze] Gyro base reset for new calibration');
             }
             
-            // Start background music
-            if (!backgroundMusicRef.current) {
-              backgroundMusicRef.current = new Audio('/lightning-maze.mp3');
+            // Start background music - theme-based
+            const getMusicFile = () => {
+              switch (currentTheme) {
+                case 'halloween': return '/lightening-maze. halloween.mp3';
+                case 'christmas': return '/christmas-maze.mp3';
+                default: return '/lightning-maze.mp3';
+              }
+            };
+            const musicFile = getMusicFile();
+            if (!backgroundMusicRef.current || !backgroundMusicRef.current.src.includes(musicFile)) {
+              if (backgroundMusicRef.current) backgroundMusicRef.current.pause();
+              backgroundMusicRef.current = new Audio(musicFile);
               backgroundMusicRef.current.loop = true;
               backgroundMusicRef.current.volume = 0.4;
+              console.log(`🎵 [LightningMaze] Playing ${currentTheme} music: ${musicFile}`);
             }
             backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
             
@@ -2110,11 +2120,21 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
               console.log('📱 [LightningMaze] Gyro base reset for new calibration (touch)');
             }
             
-            // Start background music
-            if (!backgroundMusicRef.current) {
-              backgroundMusicRef.current = new Audio('/lightning-maze.mp3');
+            // Start background music - theme-based
+            const getMusicFileTouch = () => {
+              switch (currentTheme) {
+                case 'halloween': return '/lightening-maze. halloween.mp3';
+                case 'christmas': return '/christmas-maze.mp3';
+                default: return '/lightning-maze.mp3';
+              }
+            };
+            const musicFileTouch = getMusicFileTouch();
+            if (!backgroundMusicRef.current || !backgroundMusicRef.current.src.includes(musicFileTouch)) {
+              if (backgroundMusicRef.current) backgroundMusicRef.current.pause();
+              backgroundMusicRef.current = new Audio(musicFileTouch);
               backgroundMusicRef.current.loop = true;
               backgroundMusicRef.current.volume = 0.4;
+              console.log(`🎵 [LightningMaze] Playing ${currentTheme} music (touch): ${musicFileTouch}`);
             }
             backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
             

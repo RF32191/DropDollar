@@ -1843,7 +1843,15 @@ export default function CashStackGame3D({
       
       {/* Ready screen */}
       {gameState === 'ready' && (
-        <div className="absolute inset-0 flex flex-col items-center bg-black/70 text-white overflow-y-auto p-4" style={{ justifyContent: 'flex-start', paddingTop: '2rem', paddingBottom: '2rem', minHeight: '100vh' }}>
+        <div 
+          className="fixed inset-0 flex flex-col items-center bg-black/80 text-white p-4 z-40"
+          style={{ 
+            overflowY: 'scroll', 
+            WebkitOverflowScrolling: 'touch',
+            paddingTop: '2rem', 
+            paddingBottom: '6rem'
+          }}
+        >
           {/* Mobile scroll indicator */}
           <div className="md:hidden fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-white/90 text-gray-800 px-4 py-2 rounded-full shadow-lg animate-bounce flex items-center gap-2 pointer-events-none">
             <span>👆</span>
