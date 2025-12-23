@@ -105,6 +105,7 @@ export default function NeonStrikerGame({
   const comboCountRef = useRef(0);
   const joystickStartRef = useRef<{ x: number; y: number } | null>(null);
   const currentLevelRef = useRef(0);
+  const hitsThisShotRef = useRef(0);
 
   const { popups, addPopup, removePopup } = useFloatingScores();
 
