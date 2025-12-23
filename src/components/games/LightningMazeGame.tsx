@@ -128,9 +128,11 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
   
   // Seeded RNG for deterministic/fair gameplay
+  // FIXED SEED (42424242) for practice mode ensures identical mazes for all players
+  const FIXED_PRACTICE_SEED = 42424242;
   const seededRng = useMemo(() => {
-    const seed = rngSeed ?? Math.floor(Math.random() * 1000000);
-    console.log('⚡ [LightningMaze] RNG Seed:', seed);
+    const seed = rngSeed ?? FIXED_PRACTICE_SEED;
+    console.log('⚡ [LightningMaze] RNG Seed:', seed, rngSeed ? '(competition)' : '(fixed practice)');
     return new Mulberry32(seed);
   }, [rngSeed]);
   
@@ -1408,8 +1410,11 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
     
     // Generate new maze using seeded RNG for fairness
     // Create a new RNG with deterministic seed based on maze number
-    const mazeRng = new Mulberry32((rngSeed ?? Date.now()) + mazeNumber * 12345);
+    // FIXED SEED ensures all players get identical mazes in practice mode
+    const FIXED_PRACTICE_SEED = 42424242;
+    const mazeRng = new Mulberry32((rngSeed ?? FIXED_PRACTICE_SEED) + mazeNumber * 12345);
     const maze = generateMaze(MAZE_WIDTH, MAZE_HEIGHT, mazeRng);
+    console.log(`⚡ [LightningMaze] Building maze ${mazeNumber} with seed:`, (rngSeed ?? FIXED_PRACTICE_SEED) + mazeNumber * 12345);
     mazeRef.current = maze;
     
     // Theme-based wall and path colors
@@ -2031,10 +2036,11 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
     };
     window.addEventListener('resize', handleResize);
 
-    // Click handler for taking control
+    // Click handler for taking control - SIMPLIFIED
+    // Music already started in startGame(), just need to take control
     const handleClick = (event: MouseEvent) => {
       if (gameStateRef.current === 'waiting' && !hasControlRef.current) {
-        // Check if clicked on lightning bolt area
+        // Check if clicked on lightning bolt area - LARGER HIT AREA (8 units)
         const rect = containerRef.current!.getBoundingClientRect();
         const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -2048,35 +2054,18 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
         
         if (intersectPoint) {
           const dist = intersectPoint.distanceTo(lightningPositionRef.current);
-          if (dist < 4) {
+          console.log(`🎯 [LightningMaze] Click distance from bolt: ${dist.toFixed(2)}`);
+          if (dist < 8) { // LARGER AREA - was 4
             hasControlRef.current = true;
             gameStateRef.current = 'playing';
             setGameState('playing');
             startTimeRef.current = Date.now();
+            console.log('✅ [LightningMaze] Control taken! Game playing.');
             
-            // Reset gyro base for fresh calibration when control is taken
+            // Reset gyro base for fresh calibration
             if (gyroEnabledRef.current) {
               gyroBaseRef.current = null;
-              console.log('📱 [LightningMaze] Gyro base reset for new calibration');
             }
-            
-            // Start background music - theme-based
-            const getMusicFile = () => {
-              switch (currentTheme) {
-                case 'halloween': return '/lightening-maze. halloween.mp3';
-                case 'christmas': return '/christmas-maze.mp3';
-                default: return '/lightning-maze.mp3';
-              }
-            };
-            const musicFile = getMusicFile();
-            if (!backgroundMusicRef.current || !backgroundMusicRef.current.src.includes(musicFile)) {
-              if (backgroundMusicRef.current) backgroundMusicRef.current.pause();
-              backgroundMusicRef.current = new Audio(musicFile);
-              backgroundMusicRef.current.loop = true;
-              backgroundMusicRef.current.volume = 0.4;
-              console.log(`🎵 [LightningMaze] Playing ${currentTheme} music: ${musicFile}`);
-            }
-            backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
             
             // Hide start marker
             if (startMarkerRef.current) {
@@ -2088,7 +2077,7 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
     };
     containerRef.current.addEventListener('click', handleClick);
 
-    // Touch handler for mobile - tap to start
+    // Touch handler for mobile - tap to start - SIMPLIFIED
     const handleTouchStart = (event: TouchEvent) => {
       event.preventDefault();
       if (event.touches.length === 0) return;
@@ -2108,35 +2097,18 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
         
         if (intersectPoint) {
           const dist = intersectPoint.distanceTo(lightningPositionRef.current);
-          if (dist < 6) { // Larger tap area for mobile
+          console.log(`🎯 [LightningMaze] Touch distance from bolt: ${dist.toFixed(2)}`);
+          if (dist < 10) { // VERY LARGE AREA for mobile - was 6
             hasControlRef.current = true;
             gameStateRef.current = 'playing';
             setGameState('playing');
             startTimeRef.current = Date.now();
+            console.log('✅ [LightningMaze] Control taken via touch! Game playing.');
             
-            // Reset gyro base for fresh calibration when control is taken
+            // Reset gyro base for fresh calibration
             if (gyroEnabledRef.current) {
               gyroBaseRef.current = null;
-              console.log('📱 [LightningMaze] Gyro base reset for new calibration (touch)');
             }
-            
-            // Start background music - theme-based
-            const getMusicFileTouch = () => {
-              switch (currentTheme) {
-                case 'halloween': return '/lightening-maze. halloween.mp3';
-                case 'christmas': return '/christmas-maze.mp3';
-                default: return '/lightning-maze.mp3';
-              }
-            };
-            const musicFileTouch = getMusicFileTouch();
-            if (!backgroundMusicRef.current || !backgroundMusicRef.current.src.includes(musicFileTouch)) {
-              if (backgroundMusicRef.current) backgroundMusicRef.current.pause();
-              backgroundMusicRef.current = new Audio(musicFileTouch);
-              backgroundMusicRef.current.loop = true;
-              backgroundMusicRef.current.volume = 0.4;
-              console.log(`🎵 [LightningMaze] Playing ${currentTheme} music (touch): ${musicFileTouch}`);
-            }
-            backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
             
             if (startMarkerRef.current) {
               startMarkerRef.current.visible = false;
@@ -2688,6 +2660,28 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
     mazesCompletedRef.current = 0;
     setWallHits(0);
     setTimeRemaining(GAME_DURATION);
+    
+    // Start music at game start (when clicking START button)
+    const getMusicFile = () => {
+      switch (currentTheme) {
+        case 'halloween': return '/lightening-maze. halloween.mp3';
+        case 'christmas': return '/christmas-maze.mp3';
+        default: return '/lightning-maze.mp3';
+      }
+    };
+    const musicFile = getMusicFile();
+    try {
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+      }
+      backgroundMusicRef.current = new Audio(musicFile);
+      backgroundMusicRef.current.loop = true;
+      backgroundMusicRef.current.volume = 0.4;
+      backgroundMusicRef.current.play().catch(e => console.log('Music autoplay blocked:', e));
+      console.log(`🎵 [LightningMaze] Playing ${currentTheme} music at game start: ${musicFile}`);
+    } catch (e) {
+      console.log('Music error:', e);
+    }
     
     buildMaze(1);
   };
