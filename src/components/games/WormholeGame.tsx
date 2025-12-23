@@ -413,20 +413,61 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     ceiling.rotation.x = Math.PI / 2;
     scene.add(ceiling);
     
-    // Add some platforms
-    const platformMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.6 });
+    // Add platforms (multiple levels)
+    const platformMat1 = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.6 });
+    const platformMat2 = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.5, emissive: 0x111122 });
+    const platformMat3 = new THREE.MeshStandardMaterial({ color: 0x778899, roughness: 0.4, emissive: 0x222233 });
+    const platformMatTop = new THREE.MeshStandardMaterial({ color: 0x88aacc, roughness: 0.3, emissive: 0x334455, emissiveIntensity: 0.3 });
     
-    const platform1 = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 5), platformMat);
-    platform1.position.set(-8, 2, -8);
-    platform1.castShadow = true;
-    scene.add(platform1);
+    // Ground level platforms
+    const platformConfigs = [
+      // Ground level (darker)
+      { x: -8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
+      { x: 8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
+      { x: 0, y: 2, z: -12, w: 4, d: 4, mat: platformMat1 },
+      // Second level (medium)
+      { x: -10, y: 4.25, z: 0, w: 4, d: 4, mat: platformMat2 },
+      { x: 10, y: 4.25, z: 0, w: 4, d: 4, mat: platformMat2 },
+      { x: 0, y: 4.25, z: 8, w: 6, d: 4, mat: platformMat2 },
+      // Third level (brighter)
+      { x: -6, y: 6.25, z: -6, w: 3, d: 3, mat: platformMat3 },
+      { x: 6, y: 6.25, z: -6, w: 3, d: 3, mat: platformMat3 },
+      { x: 0, y: 6.25, z: 0, w: 4, d: 4, mat: platformMat3 },
+      // Top level (glowing)
+      { x: 0, y: 8.25, z: -10, w: 5, d: 3, mat: platformMatTop },
+    ];
     
-    const platform2 = new THREE.Mesh(new THREE.BoxGeometry(5, 0.5, 5), platformMat);
-    platform2.position.set(8, 4, -8);
-    platform2.castShadow = true;
-    scene.add(platform2);
+    platformConfigs.forEach(p => {
+      const platform = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.5, p.d), p.mat);
+      platform.position.set(p.x, p.y, p.z);
+      platform.castShadow = true;
+      platform.receiveShadow = true;
+      scene.add(platform);
+      
+      // Add edge glow for higher platforms
+      if (p.y > 3) {
+        const edgeGeo = new THREE.BoxGeometry(p.w + 0.1, 0.1, p.d + 0.1);
+        const edgeMat = new THREE.MeshBasicMaterial({ 
+          color: p.y > 7 ? 0x00aaff : (p.y > 5 ? 0x6666ff : 0x4444aa),
+          transparent: true,
+          opacity: 0.5,
+        });
+        const edge = new THREE.Mesh(edgeGeo, edgeMat);
+        edge.position.set(p.x, p.y - 0.2, p.z);
+        scene.add(edge);
+      }
+    });
     
-    // Add collectible targets
+    // Add ramps/stairs for connectivity
+    const rampMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.7 });
+    
+    // Ramp from ground to second level (left)
+    const ramp1 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 6), rampMat);
+    ramp1.position.set(-10, 3.2, -4);
+    ramp1.rotation.x = 0.3;
+    scene.add(ramp1);
+    
+    // Add collectible targets (spread across levels)
     const targetMat = new THREE.MeshStandardMaterial({ 
       color: 0xffff00, 
       emissive: 0xffff00,
@@ -434,11 +475,20 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     
     const targetPositions = [
+      // Ground level
       new THREE.Vector3(-8, 3.5, -8),
-      new THREE.Vector3(8, 5.5, -8),
-      new THREE.Vector3(0, 1, -10),
-      new THREE.Vector3(5, 1, 5),
-      new THREE.Vector3(-5, 1, 10),
+      new THREE.Vector3(8, 3.5, -8),
+      new THREE.Vector3(0, 3.5, -12),
+      // Second level
+      new THREE.Vector3(-10, 5.5, 0),
+      new THREE.Vector3(10, 5.5, 0),
+      new THREE.Vector3(0, 5.5, 8),
+      // Third level
+      new THREE.Vector3(-6, 7.5, -6),
+      new THREE.Vector3(6, 7.5, -6),
+      new THREE.Vector3(0, 7.5, 0),
+      // Top level (hardest to reach)
+      new THREE.Vector3(0, 9.5, -10),
     ];
     
     targetsRef.current = [];
@@ -647,6 +697,20 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       
       // Gravity
       player.velocity.y -= 20 * delta;
+      
+      // Horizontal velocity decay (momentum slows down)
+      const horizontalSpeed = Math.sqrt(player.velocity.x ** 2 + player.velocity.z ** 2);
+      if (horizontalSpeed > 0.1) {
+        const decayRate = player.onGround ? 8 : 3; // Faster decay on ground
+        const decay = Math.min(decayRate * delta, horizontalSpeed);
+        const factor = (horizontalSpeed - decay) / horizontalSpeed;
+        player.velocity.x *= factor;
+        player.velocity.z *= factor;
+      } else {
+        player.velocity.x = 0;
+        player.velocity.z = 0;
+      }
+      
       player.position.add(player.velocity.clone().multiplyScalar(delta));
       
       // Floor collision
@@ -656,10 +720,22 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         player.onGround = true;
       }
       
-      // Platform collisions (simple)
+      // Platform collisions (multiple levels)
       const platforms = [
+        // Ground level platforms
         { x: -8, y: 2.25, z: -8, w: 5, d: 5 },
-        { x: 8, y: 4.25, z: -8, w: 5, d: 5 },
+        { x: 8, y: 2.25, z: -8, w: 5, d: 5 },
+        { x: 0, y: 2.25, z: -12, w: 4, d: 4 },
+        // Second level
+        { x: -10, y: 4.5, z: 0, w: 4, d: 4 },
+        { x: 10, y: 4.5, z: 0, w: 4, d: 4 },
+        { x: 0, y: 4.5, z: 8, w: 6, d: 4 },
+        // Third level
+        { x: -6, y: 6.5, z: -6, w: 3, d: 3 },
+        { x: 6, y: 6.5, z: -6, w: 3, d: 3 },
+        { x: 0, y: 6.5, z: 0, w: 4, d: 4 },
+        // Top level
+        { x: 0, y: 8.5, z: -10, w: 5, d: 3 },
       ];
       
       platforms.forEach(p => {
