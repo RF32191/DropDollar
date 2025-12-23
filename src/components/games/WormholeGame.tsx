@@ -938,5 +938,3 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     </div>
   );
 }
-
-}
