@@ -27,8 +27,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   
   // Controls
   const keysRef = useRef<{ [key: string]: boolean }>({});
-  const isMouseDownRef = useRef(false);
-  const lastMouseRef = useRef({ x: 0, y: 0 });
+  const isPointerLockedRef = useRef(false);
+  
+  // Sword
+  const swordRef = useRef<THREE.Group | null>(null);
+  const swordSlashRef = useRef(0); // Animation progress
   
   // Portals
   const portalsRef = useRef<{
@@ -48,6 +51,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const targetsRef = useRef<THREE.Mesh[]>([]);
   const [targetsCollected, setTargetsCollected] = useState(0);
   const [totalTargets, setTotalTargets] = useState(0);
+  const [isPointerLocked, setIsPointerLocked] = useState(false);
 
   // Check for mobile
   useEffect(() => {
@@ -99,6 +103,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     // Create test chamber
     createTestChamber(scene);
     
+    // Create sword (attached to camera)
+    createSword(camera);
+    
     // Handle resize
     const handleResize = () => {
       if (!containerRef.current || !renderer || !camera) return;
@@ -125,6 +132,78 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     };
   }, []);
   
+  // Create glowing sword
+  const createSword = (camera: THREE.PerspectiveCamera) => {
+    const swordGroup = new THREE.Group();
+    
+    // Blade
+    const bladeGeo = new THREE.BoxGeometry(0.05, 0.6, 0.02);
+    const bladeMat = new THREE.MeshStandardMaterial({
+      color: 0x88aacc,
+      metalness: 0.9,
+      roughness: 0.1,
+    });
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.y = 0.3;
+    blade.name = 'blade';
+    swordGroup.add(blade);
+    
+    // Blade glow edge
+    const glowGeo = new THREE.BoxGeometry(0.06, 0.62, 0.03);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0x00aaff,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.y = 0.3;
+    glow.name = 'glow';
+    swordGroup.add(glow);
+    
+    // Handle
+    const handleGeo = new THREE.CylinderGeometry(0.02, 0.025, 0.15, 8);
+    const handleMat = new THREE.MeshStandardMaterial({
+      color: 0x442200,
+      roughness: 0.8,
+    });
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.y = -0.05;
+    swordGroup.add(handle);
+    
+    // Guard
+    const guardGeo = new THREE.BoxGeometry(0.12, 0.02, 0.04);
+    const guardMat = new THREE.MeshStandardMaterial({
+      color: 0xccaa00,
+      metalness: 0.8,
+    });
+    const guard = new THREE.Mesh(guardGeo, guardMat);
+    guard.position.y = 0.02;
+    swordGroup.add(guard);
+    
+    // Position sword in bottom right of view
+    swordGroup.position.set(0.35, -0.35, -0.5);
+    swordGroup.rotation.set(0.2, -0.3, 0.1);
+    
+    camera.add(swordGroup);
+    swordRef.current = swordGroup;
+  };
+  
+  // Update sword color based on portal mode
+  const updateSwordColor = (mode: 'blue' | 'orange') => {
+    if (!swordRef.current) return;
+    
+    const glow = swordRef.current.getObjectByName('glow') as THREE.Mesh;
+    if (glow) {
+      const color = mode === 'blue' ? 0x00aaff : 0xff6600;
+      (glow.material as THREE.MeshBasicMaterial).color.setHex(color);
+    }
+  };
+  
+  // Animate sword slash
+  const animateSwordSlash = () => {
+    swordSlashRef.current = 1.0; // Start slash animation
+  };
+
   // Create test chamber
   const createTestChamber = (scene: THREE.Scene) => {
     // Floor
@@ -226,6 +305,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   // Shoot portal
   const shootPortal = (color: 'blue' | 'orange') => {
     if (!cameraRef.current || !sceneRef.current) return;
+    
+    // Trigger sword slash animation
+    animateSwordSlash();
     
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(0, 0), cameraRef.current);
@@ -443,6 +525,27 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
       });
       
+      // Animate sword slash
+      if (swordRef.current && swordSlashRef.current > 0) {
+        const slashProgress = swordSlashRef.current;
+        // Quick slash motion: rotate sword forward then back
+        const slashAngle = Math.sin(slashProgress * Math.PI) * 0.8;
+        swordRef.current.rotation.x = 0.2 - slashAngle;
+        swordRef.current.rotation.z = 0.1 + slashAngle * 0.5;
+        swordSlashRef.current -= delta * 4; // Decay animation
+        
+        if (swordSlashRef.current <= 0) {
+          swordSlashRef.current = 0;
+          swordRef.current.rotation.set(0.2, -0.3, 0.1); // Reset
+        }
+      }
+      
+      // Sword idle animation (gentle sway)
+      if (swordRef.current && swordSlashRef.current <= 0) {
+        swordRef.current.position.y = -0.35 + Math.sin(elapsed * 2) * 0.01;
+        swordRef.current.rotation.z = 0.1 + Math.sin(elapsed * 1.5) * 0.02;
+      }
+      
       // Update camera
       if (cameraRef.current) {
         cameraRef.current.position.copy(player.position);
@@ -482,8 +585,17 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.code] = true;
       
-      if (e.code === 'KeyQ') setPortalMode('blue');
-      if (e.code === 'KeyE') setPortalMode('orange');
+      if (e.code === 'KeyQ') {
+        setPortalMode('blue');
+        updateSwordColor('blue');
+      }
+      if (e.code === 'KeyE') {
+        setPortalMode('orange');
+        updateSwordColor('orange');
+      }
+      if (e.code === 'Escape' && isPointerLockedRef.current) {
+        document.exitPointerLock();
+      }
     };
     
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -493,33 +605,31 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const handleMouseDown = (e: MouseEvent) => {
       if (gameState !== 'playing') return;
       
+      // Request pointer lock on first click
+      if (!isPointerLockedRef.current && containerRef.current) {
+        containerRef.current.requestPointerLock();
+        return;
+      }
+      
       if (e.button === 0) {
         shootPortal(portalMode);
-      } else if (e.button === 2) {
-        isMouseDownRef.current = true;
-        lastMouseRef.current = { x: e.clientX, y: e.clientY };
-      }
-    };
-    
-    const handleMouseUp = (e: MouseEvent) => {
-      if (e.button === 2) {
-        isMouseDownRef.current = false;
       }
     };
     
     const handleMouseMove = (e: MouseEvent) => {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' || !isPointerLockedRef.current) return;
       
-      if (isMouseDownRef.current) {
-        const dx = e.clientX - lastMouseRef.current.x;
-        const dy = e.clientY - lastMouseRef.current.y;
-        
-        playerRef.current.yaw -= dx * 0.003;
-        playerRef.current.pitch -= dy * 0.003;
-        playerRef.current.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, playerRef.current.pitch));
-        
-        lastMouseRef.current = { x: e.clientX, y: e.clientY };
-      }
+      // Use movementX/Y for pointer lock
+      const sensitivity = 0.002;
+      playerRef.current.yaw -= e.movementX * sensitivity;
+      playerRef.current.pitch -= e.movementY * sensitivity;
+      playerRef.current.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, playerRef.current.pitch));
+    };
+    
+    const handlePointerLockChange = () => {
+      const locked = document.pointerLockElement === containerRef.current;
+      isPointerLockedRef.current = locked;
+      setIsPointerLocked(locked);
     };
     
     const handleContextMenu = (e: Event) => e.preventDefault();
@@ -527,17 +637,17 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('pointerlockchange', handlePointerLockChange);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('pointerlockchange', handlePointerLockChange);
     };
   }, [gameState, portalMode]);
   
@@ -591,14 +701,15 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             </h1>
             
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
-              <h2 className="text-xl font-bold text-white mb-4">🎮 Controls</h2>
+              <h2 className="text-xl font-bold text-white mb-4">🗡️ Controls</h2>
               <div className="space-y-2 text-gray-300">
+                <p>• <span className="text-blue-400">Click</span> - Lock cursor & shoot portal (sword slash!)</p>
+                <p>• <span className="text-blue-400">Mouse</span> - Look around freely</p>
                 <p>• <span className="text-blue-400">WASD</span> - Move</p>
                 <p>• <span className="text-blue-400">Space</span> - Jump</p>
-                <p>• <span className="text-orange-400">Right-click + drag</span> - Look around</p>
-                <p>• <span className="text-blue-400">Left-click</span> - Shoot portal</p>
-                <p>• <span className="text-blue-400">Q</span> - Blue portal mode</p>
-                <p>• <span className="text-orange-400">E</span> - Orange portal mode</p>
+                <p>• <span className="text-blue-400">Q</span> - Blue portal (sword glows 🔵)</p>
+                <p>• <span className="text-orange-400">E</span> - Orange portal (sword glows 🟠)</p>
+                <p>• <span className="text-gray-400">ESC</span> - Release cursor</p>
               </div>
             </div>
             
@@ -681,7 +792,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           {/* Controls hint */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
             <div className="bg-black/50 text-gray-400 px-4 py-2 rounded-lg text-sm">
-              WASD move • Space jump • Right-click+drag look • Left-click shoot • Q/E switch portals
+              {!isPointerLocked ? (
+                <span className="text-yellow-400 animate-pulse">👆 Click anywhere to lock cursor and play!</span>
+              ) : (
+                'WASD move • Space jump • Mouse look • Click slash/shoot • Q/E switch portals • ESC release'
+              )}
             </div>
           </div>
           
