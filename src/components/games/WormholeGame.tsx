@@ -1286,8 +1286,8 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       });
       
       // Update timer
-      const elapsed = (Date.now() - gameStartTimeRef.current) / 1000;
-      const remaining = Math.max(0, 90 - elapsed);
+      const timerElapsed = (Date.now() - gameStartTimeRef.current) / 1000;
+      const remaining = Math.max(0, 90 - timerElapsed);
       setTimeLeft(Math.ceil(remaining));
       
       // Check game over (time or health)
