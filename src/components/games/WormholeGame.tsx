@@ -31,9 +31,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const isRightMouseDownRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
   
-  // Sword
+  // Sword & combat - MUST be declared before functions that use them
   const swordRef = useRef<THREE.Group | null>(null);
   const swordSlashRef = useRef(0); // Animation progress
+  const swordActionRef = useRef<'idle' | 'slash' | 'parry' | 'strike'>('idle');
+  const parryActiveRef = useRef(false);
+  const armRef = useRef<THREE.Group | null>(null);
   
   // Portals
   const portalsRef = useRef<{
@@ -157,11 +160,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     bridgeLight.position.set(20, 25, 0);
     scene.add(bridgeLight);
     
-    // Create test chamber
-    createTestChamber(scene);
+    // Create test chamber - wrapped in try/catch for safety
+    try {
+      createTestChamber(scene);
+    } catch (err) {
+      console.error('Error creating test chamber:', err);
+    }
     
     // Create sword (attached to camera)
-    createSword(camera);
+    try {
+      createSword(camera);
+    } catch (err) {
+      console.error('Error creating sword:', err);
+    }
     
     // Handle resize
     const handleResize = () => {
@@ -189,12 +200,6 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     };
   }, []);
   
-  // Sword action state
-  const swordActionRef = useRef<'idle' | 'slash' | 'parry' | 'strike'>('idle');
-  const parryActiveRef = useRef(false);
-  
-  // Arm ref for animations
-  const armRef = useRef<THREE.Group | null>(null);
   
   // Create detailed 3D sword WITH ARM in first-person view
   const createSword = (camera: THREE.PerspectiveCamera) => {
