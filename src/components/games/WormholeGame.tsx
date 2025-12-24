@@ -915,87 +915,66 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       0xffff00, // Yellow
     ];
     
+    // Room 2 X offset for targets
+    const r2x = 35;
+    
     const targetPositions = [
       // ROOM 1 targets
-      new THREE.Vector3(-8, 3.5, -8),
-      new THREE.Vector3(8, 3.5, -8),
-      new THREE.Vector3(-10, 6.5, 0),
-      new THREE.Vector3(10, 6.5, 0),
-      new THREE.Vector3(0, 9.5, 0),
-      new THREE.Vector3(-5, 12.5, 0),
-      new THREE.Vector3(0, 15.5, 0),
-      new THREE.Vector3(0, 21.5, 0),
+      { x: -8, y: 3.5, z: -8 },
+      { x: 8, y: 3.5, z: -8 },
+      { x: -10, y: 6.5, z: 0 },
+      { x: 10, y: 6.5, z: 0 },
+      { x: 0, y: 9.5, z: 0 },
+      { x: -5, y: 12.5, z: 0 },
+      { x: 0, y: 15.5, z: 0 },
+      { x: 0, y: 21.5, z: 0 },
       // ROOM 2 targets (after crossing bridge!)
-      new THREE.Vector3(room2OffsetX - 8, 3.5, -8),
-      new THREE.Vector3(room2OffsetX + 8, 3.5, -8),
-      new THREE.Vector3(room2OffsetX - 10, 7.5, 0),
-      new THREE.Vector3(room2OffsetX, 11.5, 0),
-      new THREE.Vector3(room2OffsetX - 4, 15.5, 4),
-      new THREE.Vector3(room2OffsetX, 19.5, 0),
+      { x: r2x - 8, y: 3.5, z: -8 },
+      { x: r2x + 8, y: 3.5, z: -8 },
+      { x: r2x - 10, y: 7.5, z: 0 },
+      { x: r2x, y: 11.5, z: 0 },
+      { x: r2x - 4, y: 15.5, z: 4 },
+      { x: r2x, y: 19.5, z: 0 },
     ];
     
     targetsRef.current = [];
     targetPositions.forEach((pos, index) => {
-      // Create neon crystal group
-      const crystalGroup = new THREE.Group();
-      
       const neonColor = neonColors[index % neonColors.length];
       
-      // Main crystal (octahedron)
-      const crystalGeo = new THREE.OctahedronGeometry(0.5, 0);
+      // Main crystal mesh (octahedron with glow)
+      const crystalGeo = new THREE.OctahedronGeometry(0.6, 1);
       const crystalMat = new THREE.MeshStandardMaterial({ 
         color: neonColor, 
         emissive: neonColor,
-        emissiveIntensity: 1.5,
-        metalness: 0.8,
+        emissiveIntensity: 2,
+        metalness: 0.9,
         roughness: 0.1,
-        transparent: true,
-        opacity: 0.9,
       });
       const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-      crystalGroup.add(crystal);
+      crystal.position.set(pos.x, pos.y, pos.z);
+      crystal.userData.isTarget = true;
+      crystal.userData.baseY = pos.y;
+      crystal.userData.neonColor = neonColor;
+      scene.add(crystal);
       
-      // Inner glow core
-      const coreGeo = new THREE.SphereGeometry(0.25, 12, 12);
-      const coreMat = new THREE.MeshBasicMaterial({ 
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.8,
-      });
-      const core = new THREE.Mesh(coreGeo, coreMat);
-      crystalGroup.add(core);
-      
-      // Outer glow ring
-      const ringGeo = new THREE.TorusGeometry(0.6, 0.08, 8, 24);
-      const ringMat = new THREE.MeshBasicMaterial({ 
+      // Add glow sphere around crystal
+      const glowGeo = new THREE.SphereGeometry(0.8, 16, 16);
+      const glowMat = new THREE.MeshBasicMaterial({ 
         color: neonColor,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.3,
       });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      ring.rotation.x = Math.PI / 2;
-      crystalGroup.add(ring);
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.position.copy(crystal.position);
+      glow.userData.parentCrystal = crystal;
+      scene.add(glow);
       
-      // Sparkle points
-      for (let i = 0; i < 4; i++) {
-        const sparkGeo = new THREE.SphereGeometry(0.06, 6, 6);
-        const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const spark = new THREE.Mesh(sparkGeo, sparkMat);
-        const angle = (i / 4) * Math.PI * 2;
-        spark.position.set(Math.cos(angle) * 0.7, 0, Math.sin(angle) * 0.7);
-        spark.name = `spark${i}`;
-        crystalGroup.add(spark);
-      }
+      // Add point light
+      const light = new THREE.PointLight(neonColor, 1.5, 8);
+      light.position.copy(crystal.position);
+      scene.add(light);
       
-      // Point light for glow effect
-      const crystalLight = new THREE.PointLight(neonColor, 1, 5);
-      crystalGroup.add(crystalLight);
-      
-      crystalGroup.position.copy(pos);
-      crystalGroup.userData.isTarget = true;
-      crystalGroup.userData.neonColor = neonColor;
-      scene.add(crystalGroup);
-      targetsRef.current.push(crystalGroup as unknown as THREE.Mesh);
+      targetsRef.current.push(crystal);
     });
     
     setTotalTargets(targetPositions.length);
@@ -1416,34 +1395,18 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       
       // Animate neon crystals (spin, bob, pulse)
       targetsRef.current.forEach((target, i) => {
-        if (target.visible) {
+        if (target && target.visible) {
           // Spin the crystal
           target.rotation.y = elapsed * 2 + i * 0.5;
-          target.rotation.x = Math.sin(elapsed * 1.5 + i) * 0.2;
+          target.rotation.x = Math.sin(elapsed * 1.5 + i) * 0.3;
           
           // Bob up and down
-          const baseY = target.userData.baseY || target.position.y;
-          if (!target.userData.baseY) target.userData.baseY = target.position.y;
+          const baseY = target.userData?.baseY ?? target.position.y;
           target.position.y = baseY + Math.sin(elapsed * 2 + i * 0.7) * 0.3;
           
-          // Animate sparkles
-          for (let s = 0; s < 4; s++) {
-            const spark = target.getObjectByName(`spark${s}`);
-            if (spark) {
-              const sparkAngle = elapsed * 3 + (s / 4) * Math.PI * 2;
-              spark.position.x = Math.cos(sparkAngle) * 0.7;
-              spark.position.z = Math.sin(sparkAngle) * 0.7;
-              spark.position.y = Math.sin(elapsed * 4 + s) * 0.2;
-            }
-          }
-          
-          // Pulse the ring
-          const ring = target.children.find(c => c.type === 'Mesh' && (c as THREE.Mesh).geometry.type === 'TorusGeometry');
-          if (ring) {
-            ring.rotation.z = elapsed * 1.5;
-            const scale = 1 + Math.sin(elapsed * 3 + i) * 0.15;
-            ring.scale.set(scale, scale, 1);
-          }
+          // Pulse scale
+          const pulseScale = 1 + Math.sin(elapsed * 3 + i) * 0.15;
+          target.scale.set(pulseScale, pulseScale, pulseScale);
         }
       });
       
