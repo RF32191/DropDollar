@@ -96,10 +96,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     
     console.log('🎮 Initializing Wormhole...');
     
-    // Scene
+    // Scene with brighter background
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a1a);
-    scene.fog = new THREE.Fog(0x0a0a1a, 10, 100);
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.Fog(0x1a1a2e, 30, 150); // Extended fog for 2 rooms
     sceneRef.current = scene;
     
     // Renderer
@@ -107,6 +107,8 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
@@ -115,22 +117,45 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     camera.position.copy(playerRef.current.position);
     cameraRef.current = camera;
     
-    // Lighting
-    const ambient = new THREE.AmbientLight(0x404060, 0.5);
+    // ENHANCED LIGHTING for 2-room visibility
+    const ambient = new THREE.AmbientLight(0x6666aa, 0.8); // Brighter ambient
     scene.add(ambient);
     
-    const directional = new THREE.DirectionalLight(0xffffff, 1);
-    directional.position.set(10, 20, 10);
+    const directional = new THREE.DirectionalLight(0xffffff, 1.5);
+    directional.position.set(10, 30, 10);
     directional.castShadow = true;
     scene.add(directional);
     
-    const point1 = new THREE.PointLight(0x3399ff, 1, 20);
-    point1.position.set(-5, 5, -5);
+    // Room 1 lighting
+    const point1 = new THREE.PointLight(0x3399ff, 2, 40);
+    point1.position.set(-5, 10, -5);
     scene.add(point1);
     
-    const point2 = new THREE.PointLight(0x00ffff, 1, 20);
-    point2.position.set(5, 5, 5);
+    const point2 = new THREE.PointLight(0x00ffff, 2, 40);
+    point2.position.set(5, 10, 5);
     scene.add(point2);
+    
+    const point3 = new THREE.PointLight(0x00ff88, 1.5, 30);
+    point3.position.set(0, 20, 0);
+    scene.add(point3);
+    
+    // Room 2 lighting
+    const point4 = new THREE.PointLight(0xff6688, 2, 40);
+    point4.position.set(35, 10, -5);
+    scene.add(point4);
+    
+    const point5 = new THREE.PointLight(0xffaa00, 2, 40);
+    point5.position.set(40, 10, 5);
+    scene.add(point5);
+    
+    const point6 = new THREE.PointLight(0xff00ff, 1.5, 30);
+    point6.position.set(35, 20, 0);
+    scene.add(point6);
+    
+    // Bridge lighting
+    const bridgeLight = new THREE.PointLight(0xffff00, 2, 30);
+    bridgeLight.position.set(20, 25, 0);
+    scene.add(bridgeLight);
     
     // Create test chamber
     createTestChamber(scene);
@@ -880,12 +905,15 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     addRamp(room2OffsetX + 4, 16, -2, 2, 5, 0.3, 'x');
     addRamp(room2OffsetX, 20, 3, 3, 5, 0.25, 'x');
     
-    // Add collectible targets (spread across BOTH rooms)
-    const targetMat = new THREE.MeshStandardMaterial({ 
-      color: 0xffff00, 
-      emissive: 0xffff00,
-      emissiveIntensity: 0.5,
-    });
+    // Add collectible NEON CRYSTALS (spread across BOTH rooms)
+    const neonColors = [
+      0x00ffff, // Cyan
+      0xff00ff, // Magenta
+      0x00ff88, // Green
+      0xff6600, // Orange
+      0x6666ff, // Purple
+      0xffff00, // Yellow
+    ];
     
     const targetPositions = [
       // ROOM 1 targets
@@ -907,12 +935,67 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     ];
     
     targetsRef.current = [];
-    targetPositions.forEach((pos) => {
-      const target = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), targetMat);
-      target.position.copy(pos);
-      target.userData.isTarget = true;
-      scene.add(target);
-      targetsRef.current.push(target);
+    targetPositions.forEach((pos, index) => {
+      // Create neon crystal group
+      const crystalGroup = new THREE.Group();
+      
+      const neonColor = neonColors[index % neonColors.length];
+      
+      // Main crystal (octahedron)
+      const crystalGeo = new THREE.OctahedronGeometry(0.5, 0);
+      const crystalMat = new THREE.MeshStandardMaterial({ 
+        color: neonColor, 
+        emissive: neonColor,
+        emissiveIntensity: 1.5,
+        metalness: 0.8,
+        roughness: 0.1,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+      crystalGroup.add(crystal);
+      
+      // Inner glow core
+      const coreGeo = new THREE.SphereGeometry(0.25, 12, 12);
+      const coreMat = new THREE.MeshBasicMaterial({ 
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.8,
+      });
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      crystalGroup.add(core);
+      
+      // Outer glow ring
+      const ringGeo = new THREE.TorusGeometry(0.6, 0.08, 8, 24);
+      const ringMat = new THREE.MeshBasicMaterial({ 
+        color: neonColor,
+        transparent: true,
+        opacity: 0.6,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      crystalGroup.add(ring);
+      
+      // Sparkle points
+      for (let i = 0; i < 4; i++) {
+        const sparkGeo = new THREE.SphereGeometry(0.06, 6, 6);
+        const sparkMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const spark = new THREE.Mesh(sparkGeo, sparkMat);
+        const angle = (i / 4) * Math.PI * 2;
+        spark.position.set(Math.cos(angle) * 0.7, 0, Math.sin(angle) * 0.7);
+        spark.name = `spark${i}`;
+        crystalGroup.add(spark);
+      }
+      
+      // Point light for glow effect
+      const crystalLight = new THREE.PointLight(neonColor, 1, 5);
+      crystalGroup.add(crystalLight);
+      
+      crystalGroup.position.copy(pos);
+      crystalGroup.userData.isTarget = true;
+      crystalGroup.userData.neonColor = neonColor;
+      scene.add(crystalGroup);
+      targetsRef.current.push(crystalGroup as unknown as THREE.Mesh);
     });
     
     setTotalTargets(targetPositions.length);
@@ -1330,6 +1413,39 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           }
         });
       }
+      
+      // Animate neon crystals (spin, bob, pulse)
+      targetsRef.current.forEach((target, i) => {
+        if (target.visible) {
+          // Spin the crystal
+          target.rotation.y = elapsed * 2 + i * 0.5;
+          target.rotation.x = Math.sin(elapsed * 1.5 + i) * 0.2;
+          
+          // Bob up and down
+          const baseY = target.userData.baseY || target.position.y;
+          if (!target.userData.baseY) target.userData.baseY = target.position.y;
+          target.position.y = baseY + Math.sin(elapsed * 2 + i * 0.7) * 0.3;
+          
+          // Animate sparkles
+          for (let s = 0; s < 4; s++) {
+            const spark = target.getObjectByName(`spark${s}`);
+            if (spark) {
+              const sparkAngle = elapsed * 3 + (s / 4) * Math.PI * 2;
+              spark.position.x = Math.cos(sparkAngle) * 0.7;
+              spark.position.z = Math.sin(sparkAngle) * 0.7;
+              spark.position.y = Math.sin(elapsed * 4 + s) * 0.2;
+            }
+          }
+          
+          // Pulse the ring
+          const ring = target.children.find(c => c.type === 'Mesh' && (c as THREE.Mesh).geometry.type === 'TorusGeometry');
+          if (ring) {
+            ring.rotation.z = elapsed * 1.5;
+            const scale = 1 + Math.sin(elapsed * 3 + i) * 0.15;
+            ring.scale.set(scale, scale, 1);
+          }
+        }
+      });
       
       // Update enemies with attack patterns like ParryPro/ClickDraw
       enemiesRef.current.forEach((enemy, index) => {
