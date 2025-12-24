@@ -507,19 +507,19 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   const shoot = () => {
     const now = Date.now();
     if (now - lastShotRef.current < 200) {
-      console.log('LaserDodge: Shot rate limited');
+      // console.log('LaserDodge: Shot rate limited');
       return; // Rate limit shooting (5 shots per second)
     }
     
     lastShotRef.current = now;
     
     const currentShip = shipRef.current; // Use ref for accurate position
-    console.log('LaserDodge: SHOOTING bullet at', currentShip.x, currentShip.y);
+    // console.log('LaserDodge: SHOOTING bullet at', currentShip.x, currentShip.y);
     
     // Play shooting sound - ensure it plays
     try {
       playShootSound();
-      console.log('LaserDodge: 🔫 Shooting sound played');
+      // console.log('LaserDodge: 🔫 Shooting sound played');
     } catch (e) {
       console.error('LaserDodge: Shoot sound error (non-critical):', e);
       // Fallback: create a simple shooting sound using Web Audio API
@@ -550,7 +550,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       createdAt: now
     };
     
-    console.log('LaserDodge: Created bullet:', newBullet.id);
+    // console.log('LaserDodge: Created bullet:', newBullet.id);
     
     setBullets(prev => {
       const updated = [...prev, newBullet];
@@ -563,7 +563,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   // Game loop - simplified without useCallback
   const gameLoop = () => {
     if (!isGameRunningRef.current) {
-      console.log('LaserDodge: Game loop stopped - isGameRunningRef is false');
+      // console.log('LaserDodge: Game loop stopped - isGameRunningRef is false');
       return;
     }
 
@@ -609,7 +609,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           l.id === laser.id ? { ...l, bonusCollected: true } : l
         );
         
-        console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points! Total instant bonuses:', instantBonusRef.current);
+        // console.log('LaserDodge: 💎 Blue laser bonus collected! +200 points! Total instant bonuses:', instantBonusRef.current);
         
         // CoD-style floating score popup
         addPopupRef.current(200, currentShip.x, currentShip.y, 'bonus', 'LASER BONUS');
@@ -987,7 +987,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
             try {
               playExplosionSound();
               playEnemyHitSound();
-              console.log('LaserDodge: 💥 Explosion sound played for enemy ship');
+              // console.log('LaserDodge: 💥 Explosion sound played for enemy ship');
             } catch (e) {
               console.error('LaserDodge: Explosion sound error, using Web Audio fallback:', e);
             }
@@ -1012,14 +1012,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
                 oscillator.start(ctx.currentTime + i * 0.05);
                 oscillator.stop(ctx.currentTime + i * 0.05 + 0.3);
               });
-              console.log('LaserDodge: 💥 Web Audio explosion sound created');
+              // console.log('LaserDodge: 💥 Web Audio explosion sound created');
             } catch (fallbackError) {
               console.error('LaserDodge: Web Audio explosion sound failed:', fallbackError);
             }
             
             // Award points immediately - add to ref that persists across frames (like blue laser bonus)
             enemyDestroyedPointsRef.current += 100; // Add 100 points IMMEDIATELY and PERMANENTLY
-            console.log('LaserDodge: 💥 Enemy destroyed! +100 points! Total enemy points:', enemyDestroyedPointsRef.current);
+            // console.log('LaserDodge: 💥 Enemy destroyed! +100 points! Total enemy points:', enemyDestroyedPointsRef.current);
             
             // CoD-style floating score popup
             addPopupRef.current(100, enemy.x, enemy.y, 'critical', 'KILL');
@@ -1078,14 +1078,14 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           // Ship dies when center is within 2.5 units of horizontal laser center line
           if (Math.abs(laser.position - currentShipPos.y) < 2.5) {
             collision = true;
-            console.log('LaserDodge: 💀 Hit by horizontal RED laser at', laser.position, 'ship at', currentShipPos.y);
+            // console.log('LaserDodge: 💀 Hit by horizontal RED laser at', laser.position, 'ship at', currentShipPos.y);
             break;
           }
         } else {
           // Ship dies when center is within 2.5 units of vertical laser center line
           if (Math.abs(laser.position - currentShipPos.x) < 2.5) {
             collision = true;
-            console.log('LaserDodge: 💀 Hit by vertical RED laser at', laser.position, 'ship at', currentShipPos.x);
+            // console.log('LaserDodge: 💀 Hit by vertical RED laser at', laser.position, 'ship at', currentShipPos.x);
             break;
           }
         }
@@ -1100,7 +1100,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
         // PRECISE hitbox: 4 units for realistic ship-to-ship collision
         if (Math.abs(enemy.x - currentShipPos.x) < 4 && Math.abs(enemy.y - currentShipPos.y) < 4) {
           collision = true;
-          console.log('LaserDodge: 💥 Collision with enemy ship at', enemy.x, enemy.y, 'ship at', currentShipPos.x, currentShipPos.y);
+          // console.log('LaserDodge: 💥 Collision with enemy ship at', enemy.x, enemy.y, 'ship at', currentShipPos.x, currentShipPos.y);
           break;
         }
       }
@@ -1165,7 +1165,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
           
           // Game over only when hearts reach 0
           if (newHearts <= 0) {
-            console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
+            // console.log('LaserDodge: ☠️ All hearts lost! Game Over!');
             // Stop the game loop immediately
             isGameRunningRef.current = false;
             
@@ -1200,9 +1200,9 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
       animationRef.current = requestAnimationFrame(gameLoop);
     } else {
       if (heartsRef.current <= 0) {
-        console.log('LaserDodge: Game loop stopping - all hearts lost');
+        // console.log('LaserDodge: Game loop stopping - all hearts lost');
       } else {
-        console.log('LaserDodge: Game loop ending - isGameRunningRef is false');
+        // console.log('LaserDodge: Game loop ending - isGameRunningRef is false');
       }
     }
   };
@@ -1211,7 +1211,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
 
   // End game
   const endGame = async () => {
-    console.log('LaserDodge: Ending game...');
+    // console.log('LaserDodge: Ending game...');
     isGameRunningRef.current = false;
     setGameState('ended');
     
@@ -1396,7 +1396,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
   };
 
   const handleCountdownComplete = () => {
-    console.log('LaserDodge: Starting game...');
+    // console.log('LaserDodge: Starting game...');
     
     // Reset everything
     setScore(0);
@@ -1439,7 +1439,7 @@ export default function LaserDodgeGame({ onGameEnd, onExit, listingId, entryNumb
     }, 1000);
     
     // Start game loop
-    console.log('LaserDodge: Starting game loop...');
+    // console.log('LaserDodge: Starting game loop...');
     animationRef.current = requestAnimationFrame(gameLoop);
   };
 

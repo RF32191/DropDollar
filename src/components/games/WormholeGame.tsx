@@ -835,7 +835,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         });
       }
       
-      // Update enemies
+      // Update enemies with attack patterns like ParryPro/ClickDraw
       enemiesRef.current.forEach((enemy, index) => {
         if (enemy.state === 'dead') return;
         
@@ -846,35 +846,62 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         // Distance to player
         const distToPlayer = enemy.position.distanceTo(player.position);
         
-        // AI behavior
-        if (distToPlayer < 2 && enemy.attackCooldown <= 0) {
-          // Enemy attacks!
-          enemy.state = 'attacking';
-          enemy.attackCooldown = 2;
-          
-          // Check if player is parrying
-          if (parryActiveRef.current) {
-            // Successful parry!
-            setScore(prev => prev + 150);
-            setMessage('🛡️ PARRY! +150');
-            setTimeout(() => setMessage(''), 1000);
-            
-            // Stun enemy briefly
-            enemy.hitCooldown = 1;
-            enemy.state = 'hit';
-            
-            // Knockback enemy
-            const knockback = new THREE.Vector3()
-              .subVectors(enemy.position, player.position)
-              .normalize()
-              .multiplyScalar(3);
-            enemy.position.add(knockback);
-          } else if (playerHealth > 0) {
-            // Player takes damage
-            setPlayerHealth(prev => prev - 1);
-            setMessage('💔 Hit by enemy! -1 HP');
-            setTimeout(() => setMessage(''), 1500);
+        // AI behavior with wind-up patterns
+        if (enemy.state === 'winding_up') {
+          // Wind-up animation - enemy prepares to attack (blue glow)
+          const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
+          if (body) {
+            const windUpPulse = Math.sin(elapsed * 10) * 0.5 + 0.5;
+            (body.material as THREE.MeshStandardMaterial).emissive.setHex(
+              windUpPulse > 0.5 ? 0x0044ff : 0x002288
+            );
           }
+          
+          // After 0.8 seconds, execute attack
+          if (enemy.attackCooldown <= 1.2) {
+            enemy.state = 'attacking';
+            // Flash red when attacking!
+            if (body) {
+              (body.material as THREE.MeshStandardMaterial).emissive.setHex(0xff0000);
+            }
+            
+            // Check if player is parrying at the right moment
+            if (parryActiveRef.current) {
+              // Perfect parry timing!
+              setScore(prev => prev + 200);
+              setMessage('⚡ PERFECT PARRY! +200');
+              setTimeout(() => setMessage(''), 1000);
+              
+              enemy.hitCooldown = 1.5;
+              enemy.state = 'stunned';
+              
+              const knockback = new THREE.Vector3()
+                .subVectors(enemy.position, player.position)
+                .normalize()
+                .multiplyScalar(4);
+              enemy.position.add(knockback);
+            } else if (playerHealth > 0) {
+              // Player takes damage
+              setPlayerHealth(prev => prev - 1);
+              setMessage('💔 Hit by enemy! -1 HP');
+              setTimeout(() => setMessage(''), 1500);
+            }
+            
+            enemy.attackCooldown = 2.5; // Full cooldown after attack
+          }
+        } else if (enemy.state === 'stunned') {
+          // Stunned - can't move, yellow glow
+          const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
+          if (body) {
+            (body.material as THREE.MeshStandardMaterial).emissive.setHex(0xffff00);
+          }
+          if (enemy.hitCooldown <= 0) {
+            enemy.state = 'idle';
+          }
+        } else if (distToPlayer < 2.5 && enemy.attackCooldown <= 0) {
+          // Start wind-up phase (like ParryPro)
+          enemy.state = 'winding_up';
+          enemy.attackCooldown = 2; // 0.8s wind-up, then attack at 1.2
         } else if (distToPlayer < 10) {
           // Chase player
           enemy.state = 'chasing';
@@ -884,8 +911,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           dirToPlayer.y = 0; // Stay on ground
           enemy.velocity.copy(dirToPlayer.multiplyScalar(3 * delta));
           enemy.position.add(enemy.velocity);
+          
+          // Reset color when chasing
+          const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
+          if (body) {
+            (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x330000);
+          }
         } else {
           enemy.state = 'idle';
+          // Reset color when idle
+          const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
+          if (body) {
+            (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x220000);
+          }
         }
         
         // Check if player is attacking this enemy with sword
@@ -1313,10 +1351,29 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             </div>
           </div>
           
+          {/* Sword POV Indicator */}
+          <div className="absolute bottom-32 right-4 z-30 pointer-events-none">
+            <div className={`text-6xl transform -rotate-45 transition-all ${
+              swordSlashRef.current > 0 ? 'scale-125 rotate-0' : ''
+            }`}>
+              <span className="drop-shadow-lg" style={{
+                textShadow: portalMode === 'blue' 
+                  ? '0 0 20px #00aaff, 0 0 40px #00aaff, 0 0 60px #00aaff'
+                  : '0 0 20px #ff6600, 0 0 40px #ff6600, 0 0 60px #ff6600',
+                filter: `drop-shadow(0 0 10px ${portalMode === 'blue' ? '#00aaff' : '#ff6600'})`
+              }}>🗡️</span>
+            </div>
+            <div className={`text-xs text-center mt-1 font-bold ${
+              portalMode === 'blue' ? 'text-blue-400' : 'text-orange-400'
+            }`}>
+              {portalMode.toUpperCase()}
+            </div>
+          </div>
+          
           {/* Mobile controls */}
           {isMobile && (
-            <div className="absolute bottom-16 left-4 right-4 z-40 flex justify-between">
-              {/* D-pad */}
+            <div className="absolute bottom-16 left-4 right-4 z-40 flex justify-between items-end">
+              {/* Left: D-pad for movement */}
               <div className="grid grid-cols-3 gap-1">
                 <div />
                 <button 
@@ -1348,7 +1405,42 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
                 >↓</button>
               </div>
               
-              {/* Action buttons */}
+              {/* Center: Analog stick for looking */}
+              <div 
+                className="relative w-24 h-24 rounded-full border-2 border-white/30 bg-black/30"
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const centerX = rect.left + rect.width / 2;
+                  const centerY = rect.top + rect.height / 2;
+                  const lookStickStart = { x: touch.clientX, y: touch.clientY, centerX, centerY };
+                  (window as any).lookStickStart = lookStickStart;
+                }}
+                onTouchMove={(e) => {
+                  const touch = e.touches[0];
+                  const start = (window as any).lookStickStart;
+                  if (start) {
+                    const dx = (touch.clientX - start.centerX) * 0.003;
+                    const dy = (touch.clientY - start.centerY) * 0.003;
+                    playerRef.current.yaw -= dx;
+                    playerRef.current.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, playerRef.current.pitch - dy));
+                  }
+                }}
+                onTouchEnd={() => {
+                  (window as any).lookStickStart = null;
+                }}
+              >
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`w-10 h-10 rounded-full ${
+                    portalMode === 'blue' ? 'bg-blue-500/50' : 'bg-orange-500/50'
+                  }`} />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
+                  LOOK
+                </div>
+              </div>
+              
+              {/* Right: Action buttons */}
               <div className="flex flex-col gap-2">
                 {/* Portal buttons */}
                 <div className="flex gap-2">
