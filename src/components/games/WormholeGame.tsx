@@ -162,116 +162,179 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const swordActionRef = useRef<'idle' | 'slash' | 'parry' | 'strike'>('idle');
   const parryActiveRef = useRef(false);
   
-  // Create detailed 3D sword with glowing runes
+  // Arm ref for animations
+  const armRef = useRef<THREE.Group | null>(null);
+  
+  // Create detailed 3D sword WITH ARM in first-person view
   const createSword = (camera: THREE.PerspectiveCamera) => {
+    // Main arm+sword group for unified animation
+    const armSwordGroup = new THREE.Group();
+    armSwordGroup.name = 'armSword';
+    
+    // === CREATE 3D ARM ===
+    const armMat = new THREE.MeshPhongMaterial({
+      color: 0xc9a07c, // Skin tone
+      emissive: 0x301a0a,
+      emissiveIntensity: 0.1,
+      shininess: 20,
+    });
+    
+    // Upper arm (partially visible)
+    const upperArmGeo = new THREE.CapsuleGeometry(0.06, 0.25, 8, 16);
+    const upperArm = new THREE.Mesh(upperArmGeo, armMat);
+    upperArm.position.set(0, -0.35, 0);
+    upperArm.rotation.z = -0.3;
+    armSwordGroup.add(upperArm);
+    
+    // Forearm
+    const forearmGeo = new THREE.CapsuleGeometry(0.055, 0.35, 8, 16);
+    const forearm = new THREE.Mesh(forearmGeo, armMat);
+    forearm.position.set(0.08, -0.12, 0);
+    forearm.rotation.z = 0.6;
+    armSwordGroup.add(forearm);
+    
+    // Wrist
+    const wristGeo = new THREE.SphereGeometry(0.05, 12, 12);
+    const wrist = new THREE.Mesh(wristGeo, armMat);
+    wrist.position.set(0.18, 0.08, 0);
+    armSwordGroup.add(wrist);
+    
+    // Hand (fist holding sword)
+    const handGeo = new THREE.BoxGeometry(0.08, 0.12, 0.06);
+    const hand = new THREE.Mesh(handGeo, armMat);
+    hand.position.set(0.22, 0.15, 0);
+    hand.rotation.z = 0.2;
+    armSwordGroup.add(hand);
+    
+    // Fingers wrapped around handle
+    const fingerMat = armMat.clone();
+    for (let i = 0; i < 4; i++) {
+      const fingerGeo = new THREE.CapsuleGeometry(0.015, 0.05, 4, 8);
+      const finger = new THREE.Mesh(fingerGeo, fingerMat);
+      finger.position.set(0.24, 0.12 + i * 0.025, 0.025 - i * 0.015);
+      finger.rotation.x = 0.4;
+      finger.rotation.z = 0.3 + i * 0.1;
+      armSwordGroup.add(finger);
+    }
+    
+    // Thumb
+    const thumbGeo = new THREE.CapsuleGeometry(0.018, 0.04, 4, 8);
+    const thumb = new THREE.Mesh(thumbGeo, fingerMat);
+    thumb.position.set(0.19, 0.18, -0.04);
+    thumb.rotation.x = -0.4;
+    thumb.rotation.y = 0.5;
+    armSwordGroup.add(thumb);
+    
+    // === CREATE SWORD ===
     const swordGroup = new THREE.Group();
+    swordGroup.name = 'sword';
     
     // Main blade shape using ExtrudeGeometry for proper 3D sword shape
     const bladeShape = new THREE.Shape();
     bladeShape.moveTo(0, 0);
-    bladeShape.lineTo(0.05, 0.08);
-    bladeShape.lineTo(0.04, 1.1);
-    bladeShape.lineTo(0, 1.3); // Point
-    bladeShape.lineTo(-0.04, 1.1);
-    bladeShape.lineTo(-0.05, 0.08);
+    bladeShape.lineTo(0.06, 0.1);
+    bladeShape.lineTo(0.05, 1.4);
+    bladeShape.lineTo(0, 1.7); // Point
+    bladeShape.lineTo(-0.05, 1.4);
+    bladeShape.lineTo(-0.06, 0.1);
     bladeShape.closePath();
     
     const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { 
-      depth: 0.015, 
+      depth: 0.02, 
       bevelEnabled: true, 
-      bevelThickness: 0.003, 
-      bevelSize: 0.003 
+      bevelThickness: 0.005, 
+      bevelSize: 0.005 
     });
     bladeGeo.center();
     bladeGeo.rotateX(Math.PI / 2);
     
     const bladeMat = new THREE.MeshPhongMaterial({
-      color: 0xd0d0e0,
-      emissive: 0x303040,
-      emissiveIntensity: 0.2,
-      shininess: 120,
+      color: 0xe0e0f0,
+      emissive: 0x404060,
+      emissiveIntensity: 0.3,
+      shininess: 150,
       specular: 0xffffff,
     });
     const blade = new THREE.Mesh(bladeGeo, bladeMat);
-    blade.position.y = 0.65;
+    blade.position.y = 0.85;
     blade.name = 'blade';
     swordGroup.add(blade);
     
     // Fuller (groove in blade center)
-    const fullerGeo = new THREE.BoxGeometry(0.015, 0.9, 0.02);
-    const fullerMat = new THREE.MeshPhongMaterial({ color: 0x606070, shininess: 60 });
+    const fullerGeo = new THREE.BoxGeometry(0.02, 1.2, 0.025);
+    const fullerMat = new THREE.MeshPhongMaterial({ color: 0x505060, shininess: 80 });
     const fuller = new THREE.Mesh(fullerGeo, fullerMat);
-    fuller.position.set(0, 0.65, 0.012);
+    fuller.position.set(0, 0.85, 0.015);
     swordGroup.add(fuller);
     
     // Glowing edges (change color with portal mode)
     const edgeMat = new THREE.MeshBasicMaterial({
       color: 0x00ff88, // Default green
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
     });
     
-    const leftEdge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1.15, 0.02), edgeMat);
-    leftEdge.position.set(0.045, 0.65, 0);
+    const leftEdge = new THREE.Mesh(new THREE.BoxGeometry(0.015, 1.5, 0.025), edgeMat);
+    leftEdge.position.set(0.055, 0.85, 0);
     leftEdge.name = 'edge';
     swordGroup.add(leftEdge);
     
-    const rightEdge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1.15, 0.02), edgeMat.clone());
-    rightEdge.position.set(-0.045, 0.65, 0);
+    const rightEdge = new THREE.Mesh(new THREE.BoxGeometry(0.015, 1.5, 0.025), edgeMat.clone());
+    rightEdge.position.set(-0.055, 0.85, 0);
     rightEdge.name = 'edge2';
     swordGroup.add(rightEdge);
     
     // Glowing blade tip
-    const tipGeo = new THREE.ConeGeometry(0.06, 0.2, 6);
+    const tipGeo = new THREE.ConeGeometry(0.08, 0.3, 6);
     const tipMat = new THREE.MeshBasicMaterial({
       color: 0x00ff88,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.98,
     });
     const tip = new THREE.Mesh(tipGeo, tipMat);
-    tip.position.y = 1.35;
+    tip.position.y = 1.75;
     tip.rotation.x = Math.PI;
     tip.name = 'tip';
     swordGroup.add(tip);
     
     // Ornate cross guard with curved ends
-    const guardGeo = new THREE.BoxGeometry(0.35, 0.05, 0.05);
+    const guardGeo = new THREE.BoxGeometry(0.45, 0.06, 0.06);
     const guardMat = new THREE.MeshPhongMaterial({
       color: 0xdaa520,
       emissive: 0x664400,
-      shininess: 90,
+      shininess: 100,
     });
     const guard = new THREE.Mesh(guardGeo, guardMat);
-    guard.position.y = 0.05;
+    guard.position.y = 0.08;
     swordGroup.add(guard);
     
     // Guard end caps (curves)
-    const guardCapGeo = new THREE.SphereGeometry(0.03, 8, 8);
+    const guardCapGeo = new THREE.SphereGeometry(0.04, 8, 8);
     const leftCap = new THREE.Mesh(guardCapGeo, guardMat.clone());
-    leftCap.position.set(-0.175, 0.05, 0);
+    leftCap.position.set(-0.225, 0.08, 0);
     swordGroup.add(leftCap);
     const rightCap = new THREE.Mesh(guardCapGeo, guardMat.clone());
-    rightCap.position.set(0.175, 0.05, 0);
+    rightCap.position.set(0.225, 0.08, 0);
     swordGroup.add(rightCap);
     
     // Glowing gems on guard
-    const gemGeo = new THREE.OctahedronGeometry(0.025, 0);
+    const gemGeo = new THREE.OctahedronGeometry(0.035, 0);
     const gemMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
     
     const gem1 = new THREE.Mesh(gemGeo, gemMat);
-    gem1.position.set(0.12, 0.05, 0.03);
+    gem1.position.set(0.15, 0.08, 0.04);
     gem1.rotation.y = Math.PI / 4;
     gem1.name = 'gem1';
     swordGroup.add(gem1);
     
     const gem2 = new THREE.Mesh(gemGeo, gemMat.clone());
-    gem2.position.set(-0.12, 0.05, 0.03);
+    gem2.position.set(-0.15, 0.08, 0.04);
     gem2.rotation.y = Math.PI / 4;
     gem2.name = 'gem2';
     swordGroup.add(gem2);
     
     // Leather handle with wrap detail
-    const handleGeo = new THREE.CylinderGeometry(0.028, 0.032, 0.3, 10);
+    const handleGeo = new THREE.CylinderGeometry(0.035, 0.04, 0.35, 12);
     const handleMat = new THREE.MeshPhongMaterial({
       color: 0x5a3015,
       emissive: 0x1a0a05,
@@ -281,33 +344,40 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     swordGroup.add(handle);
     
     // Handle wrapping rings
-    for (let i = 0; i < 4; i++) {
-      const ringGeo = new THREE.TorusGeometry(0.032, 0.004, 6, 12);
+    for (let i = 0; i < 5; i++) {
+      const ringGeo = new THREE.TorusGeometry(0.04, 0.005, 6, 12);
       const ring = new THREE.Mesh(ringGeo, new THREE.MeshPhongMaterial({ color: 0x996633, shininess: 40 }));
-      ring.position.y = -0.22 + i * 0.07;
+      ring.position.y = -0.28 + i * 0.08;
       ring.rotation.x = Math.PI / 2;
       swordGroup.add(ring);
     }
     
     // Ornate pommel
-    const pommelGeo = new THREE.DodecahedronGeometry(0.045, 0);
+    const pommelGeo = new THREE.DodecahedronGeometry(0.055, 0);
     const pommelMat = new THREE.MeshPhongMaterial({ color: 0xdaa520, emissive: 0x442200, shininess: 80 });
     const pommel = new THREE.Mesh(pommelGeo, pommelMat);
-    pommel.position.y = -0.32;
+    pommel.position.y = -0.38;
     swordGroup.add(pommel);
     
     // Pommel center gem
-    const pommelGem = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), gemMat.clone());
-    pommelGem.position.y = -0.32;
-    pommelGem.name = 'gem1';
+    const pommelGem = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), gemMat.clone());
+    pommelGem.position.y = -0.38;
+    pommelGem.name = 'gem3';
     swordGroup.add(pommelGem);
     
-    // Position sword in bottom right of view (larger and more visible)
-    swordGroup.position.set(0.45, -0.35, -0.6);
-    swordGroup.rotation.set(0.25, -0.35, 0.12);
-    swordGroup.scale.set(0.95, 0.95, 0.95);
+    // Position sword relative to hand
+    swordGroup.position.set(0.22, 0.2, 0);
+    swordGroup.rotation.set(0.1, 0.1, 0.15);
     
-    camera.add(swordGroup);
+    armSwordGroup.add(swordGroup);
+    
+    // Position arm+sword combo in first-person view (bottom right, angled)
+    armSwordGroup.position.set(0.55, -0.45, -0.8);
+    armSwordGroup.rotation.set(0.1, -0.4, 0.05);
+    armSwordGroup.scale.set(1.1, 1.1, 1.1);
+    
+    camera.add(armSwordGroup);
+    armRef.current = armSwordGroup;
     swordRef.current = swordGroup;
   };
   
@@ -326,7 +396,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
   };
   
-  // Sword slash animation (for shooting portals)
+  // Sword slash animation (for shooting portals) - wide horizontal swing
   const animateSwordSlash = () => {
     swordSlashRef.current = 1.0;
     swordActionRef.current = 'slash';
@@ -334,10 +404,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTimeout(() => { 
       isAttackingRef.current = false;
       swordActionRef.current = 'idle';
-    }, 300);
+    }, 350);
   };
   
-  // Sword parry animation (X key)
+  // Sword parry animation (X key) - bring sword up to block
   const animateSwordParry = () => {
     if (swordActionRef.current !== 'idle') return;
     swordSlashRef.current = 1.0;
@@ -346,10 +416,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTimeout(() => {
       parryActiveRef.current = false;
       swordActionRef.current = 'idle';
-    }, 400);
+    }, 450);
   };
   
-  // Sword strike animation (V key)
+  // Sword strike animation (V key) - thrust forward
   const animateSwordStrike = () => {
     if (swordActionRef.current !== 'idle') return;
     swordSlashRef.current = 1.0;
@@ -358,7 +428,58 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTimeout(() => {
       isAttackingRef.current = false;
       swordActionRef.current = 'idle';
-    }, 350);
+    }, 400);
+  };
+  
+  // Update arm+sword animation each frame
+  const updateArmAnimation = (delta: number) => {
+    if (!armRef.current || !swordRef.current) return;
+    
+    const arm = armRef.current;
+    const sword = swordRef.current;
+    const action = swordActionRef.current;
+    const progress = swordSlashRef.current;
+    
+    // Base position
+    const basePos = { x: 0.55, y: -0.45, z: -0.8 };
+    const baseRot = { x: 0.1, y: -0.4, z: 0.05 };
+    
+    if (action === 'idle') {
+      // Subtle breathing/idle motion
+      const breathe = Math.sin(Date.now() * 0.003) * 0.015;
+      const sway = Math.sin(Date.now() * 0.002) * 0.01;
+      arm.position.set(basePos.x + sway, basePos.y + breathe, basePos.z);
+      arm.rotation.set(baseRot.x, baseRot.y + sway * 0.5, baseRot.z);
+      sword.rotation.set(0.1, 0.1, 0.15);
+    } else if (action === 'slash') {
+      // Wide horizontal slash for portal shooting
+      const t = 1 - progress;
+      const swingAngle = Math.sin(t * Math.PI) * 1.2; // Swing arc
+      arm.rotation.set(
+        baseRot.x - t * 0.3,
+        baseRot.y + swingAngle,
+        baseRot.z + t * 0.4
+      );
+      sword.rotation.set(0.1 - t * 0.5, 0.1 + swingAngle * 0.5, 0.15 + t * 0.6);
+      arm.position.set(basePos.x + t * 0.1, basePos.y + t * 0.15, basePos.z - t * 0.15);
+      swordSlashRef.current = Math.max(0, progress - delta * 3.5);
+    } else if (action === 'parry') {
+      // Bring sword up to block position
+      const t = 1 - progress;
+      const blockHeight = Math.sin(t * Math.PI * 0.5) * 0.5;
+      arm.position.set(basePos.x - t * 0.15, basePos.y + blockHeight, basePos.z + t * 0.1);
+      arm.rotation.set(baseRot.x + t * 0.5, baseRot.y + t * 0.3, baseRot.z - t * 0.4);
+      sword.rotation.set(0.1 + t * 0.8, 0.1, 0.15 - t * 0.5);
+      swordSlashRef.current = Math.max(0, progress - delta * 2.5);
+    } else if (action === 'strike') {
+      // Forward thrust
+      const t = 1 - progress;
+      const thrust = Math.sin(t * Math.PI) * 0.4;
+      arm.position.set(basePos.x - t * 0.1, basePos.y + t * 0.1, basePos.z - thrust);
+      arm.rotation.set(baseRot.x - t * 0.3, baseRot.y, baseRot.z);
+      sword.rotation.set(0.1 - t * 0.4, 0.1, 0.15);
+      swordSlashRef.current = Math.max(0, progress - delta * 3.0);
+    }
   };
   
   // Create demon enemy with sword
@@ -1015,50 +1136,13 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
       });
       
-      // Animate sword based on action
-      if (swordRef.current && swordSlashRef.current > 0) {
-        const progress = swordSlashRef.current;
-        const action = swordActionRef.current;
-        
-        if (action === 'slash') {
-          // Diagonal slash for portal shooting
-          const slashAngle = Math.sin(progress * Math.PI) * 1.2;
-          swordRef.current.rotation.x = 0.3 - slashAngle;
-          swordRef.current.rotation.z = 0.15 + slashAngle * 0.6;
-          swordRef.current.position.x = 0.4 - Math.sin(progress * Math.PI) * 0.1;
-        } else if (action === 'parry') {
-          // Horizontal parry stance
-          const parryAngle = Math.sin(progress * Math.PI) * 0.5;
-          swordRef.current.rotation.x = 0.3;
-          swordRef.current.rotation.z = 0.15 + parryAngle;
-          swordRef.current.rotation.y = -0.4 + parryAngle * 1.5;
-          swordRef.current.position.x = 0.4 + parryAngle * 0.3;
-        } else if (action === 'strike') {
-          // Forward thrust strike
-          const strikeProgress = Math.sin(progress * Math.PI);
-          swordRef.current.rotation.x = 0.3 - strikeProgress * 0.8;
-          swordRef.current.rotation.z = 0.15;
-          swordRef.current.position.z = -0.7 - strikeProgress * 0.3;
-          swordRef.current.position.y = -0.4 + strikeProgress * 0.1;
-        }
-        
-        swordSlashRef.current -= delta * 3;
-        
-        if (swordSlashRef.current <= 0) {
-          swordSlashRef.current = 0;
-          swordRef.current.rotation.set(0.3, -0.4, 0.15);
-          swordRef.current.position.set(0.4, -0.4, -0.7);
-        }
-      }
+      // Animate arm + sword with smooth animations
+      updateArmAnimation(delta);
       
-      // Sword idle animation (gentle sway)
-      if (swordRef.current && swordSlashRef.current <= 0) {
-        swordRef.current.position.y = -0.4 + Math.sin(elapsed * 2) * 0.015;
-        swordRef.current.rotation.z = 0.15 + Math.sin(elapsed * 1.5) * 0.03;
-        
-        // Pulse glow based on portal mode
-        const pulseIntensity = 0.6 + Math.sin(elapsed * 3) * 0.2;
-        ['edge', 'edge2', 'tip'].forEach(name => {
+      // Pulse sword glow based on portal mode
+      if (swordRef.current) {
+        const pulseIntensity = 0.7 + Math.sin(elapsed * 3) * 0.25;
+        ['edge', 'edge2', 'tip', 'gem1', 'gem2', 'gem3'].forEach(name => {
           const mesh = swordRef.current?.getObjectByName(name) as THREE.Mesh;
           if (mesh && mesh.material) {
             (mesh.material as THREE.MeshBasicMaterial).opacity = pulseIntensity;
@@ -1115,26 +1199,33 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               sword.rotation.z = 0.5; // Swing down
             }
             
-            // Check if player is parrying at the right moment
-            if (parryActiveRef.current) {
-              // PERFECT PARRY timing!
-              setScore(prev => prev + 300);
-              setMessage('⚡ PERFECT PARRY! +300');
-              setTimeout(() => setMessage(''), 1000);
-              
-              enemy.hitCooldown = 2;
-              enemy.state = 'stunned';
-              
-              const knockback = new THREE.Vector3()
-                .subVectors(enemy.position, player.position)
-                .normalize()
-                .multiplyScalar(5);
-              enemy.position.add(knockback);
-            } else if (playerHealth > 0) {
-              // Player takes damage
-              setPlayerHealth(prev => prev - 1);
-              setMessage('💔 Hit by enemy! -1 HP');
-              setTimeout(() => setMessage(''), 1500);
+            // CLOSE RANGE CHECK - Only hit player if within 3 units
+            if (distToPlayer <= 3) {
+              // Check if player is parrying at the right moment
+              if (parryActiveRef.current) {
+                // PERFECT PARRY timing!
+                setScore(prev => prev + 300);
+                setMessage('⚡ PERFECT PARRY! +300');
+                setTimeout(() => setMessage(''), 1000);
+                
+                enemy.hitCooldown = 2;
+                enemy.state = 'stunned';
+                
+                const knockback = new THREE.Vector3()
+                  .subVectors(enemy.position, player.position)
+                  .normalize()
+                  .multiplyScalar(5);
+                enemy.position.add(knockback);
+              } else if (playerHealth > 0) {
+                // Player takes damage (ONLY AT CLOSE RANGE)
+                setPlayerHealth(prev => prev - 1);
+                setMessage('💔 Hit by enemy! -1 HP');
+                setTimeout(() => setMessage(''), 1500);
+              }
+            } else {
+              // Enemy attack missed - player too far away
+              setMessage('💨 Enemy missed! (out of range)');
+              setTimeout(() => setMessage(''), 800);
             }
             
             enemy.attackCooldown = 2.5; // Full cooldown after attack
