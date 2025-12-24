@@ -57,25 +57,39 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   // ===== INITIALIZATION =====
   useEffect(() => {
     if (!containerRef.current || initRef.current) return;
-    initRef.current = true;
     
-    console.log('🎮 Initializing Wormhole...');
+    // Wait for container to have proper dimensions
+    const container = containerRef.current;
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
+    
+    if (width < 100 || height < 100) {
+      // Container not ready, retry
+      const retryTimer = setTimeout(() => {
+        initRef.current = false;
+        setGameState('loading');
+      }, 100);
+      return () => clearTimeout(retryTimer);
+    }
+    
+    initRef.current = true;
+    console.log('🎮 Initializing Wormhole...', { width, height });
     
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a2e);
     scene.fog = new THREE.Fog(0x1a1a2e, 20, 100);
     sceneRef.current = scene;
     
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    containerRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
     
-    const camera = new THREE.PerspectiveCamera(75, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
     camera.position.copy(playerRef.current.position);
     cameraRef.current = camera;
     
@@ -223,18 +237,28 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     
     // Resize handler
     const handleResize = () => {
-      if (!containerRef.current || !renderer || !camera) return;
-      camera.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
+      if (!container || !renderer || !camera) return;
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+      renderer.setSize(w, h);
     };
     window.addEventListener('resize', handleResize);
     
-    // Initial render
-    renderer.render(scene, camera);
+    // Initial render loop to ensure display
+    let frameCount = 0;
+    const initialRender = () => {
+      renderer.render(scene, camera);
+      frameCount++;
+      if (frameCount < 10) {
+        requestAnimationFrame(initialRender);
+      }
+    };
+    initialRender();
     
     setGameState('instructions');
-    console.log('✅ Wormhole initialized');
+    console.log('✅ Wormhole initialized', { width, height });
     
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -477,10 +501,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       <div ref={containerRef} className="absolute inset-0" />
       
       {gameState === 'loading' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-50">
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 z-50">
           <div className="text-center">
-            <div className="text-4xl animate-spin mb-4">🌀</div>
-            <div className="text-white text-xl">Loading...</div>
+            <div className="text-6xl animate-spin mb-4">🌀</div>
+            <div className="text-white text-2xl font-bold mb-2">WORMHOLE</div>
+            <div className="text-gray-400 text-lg">Initializing portal systems...</div>
+            <div className="mt-4 w-48 h-2 bg-gray-700 rounded-full overflow-hidden mx-auto">
+              <div className="h-full bg-gradient-to-r from-green-500 to-cyan-500 animate-pulse" style={{ width: '60%' }} />
+            </div>
           </div>
         </div>
       )}
