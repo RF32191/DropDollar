@@ -1871,41 +1871,15 @@ export default function ClickDrawGame({ onGameEnd, onGameComplete, onExit, gameM
               </div>
             </div>
             
-            {/* Theme Selector */}
+            {/* Theme Selector with RP Paywall */}
             <div className="mb-6">
-              <p className="text-amber-200 text-sm mb-2">🎨 Choose Theme:</p>
-              <div className="flex gap-2 justify-center flex-wrap">
-                <button
-                  onClick={() => setCurrentTheme('standard')}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'standard'
-                      ? 'bg-amber-500 text-amber-900 border-2 border-yellow-300'
-                      : 'bg-amber-800/50 text-amber-200 border-2 border-amber-600 hover:bg-amber-700/50'
-                  }`}
-                >
-                  🤠 Standard
-                </button>
-                <button
-                  onClick={() => setCurrentTheme('halloween')}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'halloween'
-                      ? 'bg-purple-500 text-white border-2 border-purple-300'
-                      : 'bg-purple-800/50 text-purple-200 border-2 border-purple-600 hover:bg-purple-700/50'
-                  }`}
-                >
-                  💀 Halloween
-                </button>
-                <button
-                  onClick={() => setCurrentTheme('christmas')}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'christmas'
-                      ? 'bg-red-500 text-white border-2 border-red-300'
-                      : 'bg-red-800/50 text-red-200 border-2 border-red-600 hover:bg-red-700/50'
-                  }`}
-                >
-                  🎄 Christmas
-                </button>
-              </div>
+              <GameThemeSelector
+                gameId="clickdraw"
+                gameName="Click Draw"
+                currentTheme={currentTheme as GameTheme}
+                onThemeChange={(theme) => setCurrentTheme(theme)}
+                compact={true}
+              />
             </div>
             
             <button

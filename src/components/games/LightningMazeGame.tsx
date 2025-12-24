@@ -2712,43 +2712,15 @@ export default function LightningMazeGame({ onGameEnd, onGameComplete, onExit, g
               <p className="text-yellow-300 font-bold text-sm sm:text-lg mt-2 sm:mt-4">⏱️ {GAME_DURATION} SECONDS FOR ALL 5 MAZES!</p>
             </div>
             
-            {/* Theme Selector with Special Reproductive Theme */}
-            <div className="mb-4 bg-black/40 rounded-xl p-4 border border-gray-600">
-              <p className="text-gray-400 text-sm mb-3">🎨 Select Game Theme</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <button
-                  onClick={() => setCurrentTheme('standard')}
-                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'standard' ? 'bg-blue-500 text-white ring-2 ring-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  🎮 Standard
-                </button>
-                <button
-                  onClick={() => setCurrentTheme('halloween')}
-                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'halloween' ? 'bg-orange-600 text-white ring-2 ring-orange-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  🎃 Halloween
-                </button>
-                <button
-                  onClick={() => setCurrentTheme('christmas')}
-                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'christmas' ? 'bg-red-600 text-white ring-2 ring-green-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  🎄 Christmas
-                </button>
-                <button
-                  onClick={() => setCurrentTheme('reproductive')}
-                  className={`px-3 py-2 rounded-lg font-bold text-sm transition-all ${
-                    currentTheme === 'reproductive' ? 'bg-pink-600 text-white ring-2 ring-pink-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  🧬 Sperm Race
-                </button>
-              </div>
+            {/* Theme Selector with RP Paywall */}
+            <div className="mb-4">
+              <GameThemeSelector
+                gameId="lightning-maze"
+                gameName="Circuit Runner"
+                currentTheme={currentTheme === 'reproductive' ? 'standard' : currentTheme as GameTheme}
+                onThemeChange={(theme) => setCurrentTheme(theme as LightningMazeTheme)}
+                compact={true}
+              />
             </div>
             
             <button

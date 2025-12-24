@@ -37,15 +37,15 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   
   // Portals
   const portalsRef = useRef<{
-    blue: { mesh: THREE.Mesh | null; position: THREE.Vector3; normal: THREE.Vector3 } | null;
-    orange: { mesh: THREE.Mesh | null; position: THREE.Vector3; normal: THREE.Vector3 } | null;
-  }>({ blue: null, orange: null });
+    green: { mesh: THREE.Mesh | null; position: THREE.Vector3; normal: THREE.Vector3 } | null;
+    cyan: { mesh: THREE.Mesh | null; position: THREE.Vector3; normal: THREE.Vector3 } | null;
+  }>({ green: null, cyan: null });
   
   // Game state
   const [gameState, setGameState] = useState<'loading' | 'instructions' | 'playing' | 'gameover'>('loading');
   const [score, setScore] = useState(0);
   const [currentLevel, setCurrentLevel] = useState(1);
-  const [portalMode, setPortalMode] = useState<'blue' | 'orange'>('blue');
+  const [portalMode, setPortalMode] = useState<'green' | 'cyan'>('green');
   const [message, setMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   
@@ -114,7 +114,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     point1.position.set(-5, 5, -5);
     scene.add(point1);
     
-    const point2 = new THREE.PointLight(0xff6600, 1, 20);
+    const point2 = new THREE.PointLight(0x00ffff, 1, 20);
     point2.position.set(5, 5, 5);
     scene.add(point2);
     
@@ -175,7 +175,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     // Glowing edge (changes color with portal mode)
     const edgeGeo = new THREE.BoxGeometry(0.015, 1.2, 0.025);
     const edgeMat = new THREE.MeshBasicMaterial({
-      color: 0x00aaff,
+      color: 0x00ff88,
       transparent: true,
       opacity: 0.8,
     });
@@ -193,7 +193,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     // Blade tip glow
     const tipGeo = new THREE.ConeGeometry(0.06, 0.15, 4);
     const tipMat = new THREE.MeshBasicMaterial({
-      color: 0x00aaff,
+      color: 0x00ff88,
       transparent: true,
       opacity: 0.6,
     });
@@ -215,7 +215,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     
     // Guard decorations (gems)
     const gemGeo = new THREE.SphereGeometry(0.03, 8, 8);
-    const gemMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+    const gemMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
     const gem1 = new THREE.Mesh(gemGeo, gemMat);
     gem1.position.set(0.15, 0, 0);
     gem1.name = 'gem1';
@@ -252,10 +252,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   };
   
   // Update sword color based on portal mode
-  const updateSwordColor = (mode: 'blue' | 'orange') => {
+  const updateSwordColor = (mode: 'green' | 'cyan') => {
     if (!swordRef.current) return;
     
-    const color = mode === 'blue' ? 0x00aaff : 0xff6600;
+    const color = mode === 'green' ? 0x00ff88 : 0x00ffff;
     
     // Update all glowing parts
     ['edge', 'edge2', 'tip', 'gem1', 'gem2'].forEach(name => {
@@ -373,68 +373,86 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const gridHelper = new THREE.GridHelper(30, 30, 0x4444ff, 0x222244);
     scene.add(gridHelper);
     
-    // Walls (portalable surfaces)
+    // Walls (portalable surfaces) - TALLER for 5 stories
+    const wallHeight = 25; // 5 stories tall
     const wallMat = new THREE.MeshStandardMaterial({ 
       color: 0x445566,
       roughness: 0.5,
       side: THREE.DoubleSide,
     });
     
-    // Back wall
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), wallMat);
-    backWall.position.set(0, 5, -15);
+    // Back wall (Z-)
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat);
+    backWall.position.set(0, wallHeight/2, -15);
     backWall.userData.portalable = true;
+    backWall.name = 'backWall';
     scene.add(backWall);
     
-    // Front wall
-    const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), wallMat);
-    frontWall.position.set(0, 5, 15);
+    // Front wall (Z+)
+    const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat.clone());
+    frontWall.position.set(0, wallHeight/2, 15);
     frontWall.rotation.y = Math.PI;
     frontWall.userData.portalable = true;
+    frontWall.name = 'frontWall';
     scene.add(frontWall);
     
-    // Left wall
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), wallMat);
-    leftWall.position.set(-15, 5, 0);
-    leftWall.rotation.y = Math.PI / 2;
+    // Left wall (X-) - Use BoxGeometry for better raycasting
+    const leftWallGeo = new THREE.BoxGeometry(0.5, wallHeight, 30);
+    const leftWall = new THREE.Mesh(leftWallGeo, wallMat.clone());
+    leftWall.position.set(-15, wallHeight/2, 0);
     leftWall.userData.portalable = true;
+    leftWall.name = 'leftWall';
     scene.add(leftWall);
     
-    // Right wall
-    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), wallMat);
-    rightWall.position.set(15, 5, 0);
-    rightWall.rotation.y = -Math.PI / 2;
+    // Right wall (X+) - Use BoxGeometry for better raycasting
+    const rightWallGeo = new THREE.BoxGeometry(0.5, wallHeight, 30);
+    const rightWall = new THREE.Mesh(rightWallGeo, wallMat.clone());
+    rightWall.position.set(15, wallHeight/2, 0);
     rightWall.userData.portalable = true;
+    rightWall.name = 'rightWall';
     scene.add(rightWall);
     
-    // Ceiling
+    // Ceiling (higher now)
     const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x222233 }));
-    ceiling.position.y = 10;
+    ceiling.position.y = wallHeight;
     ceiling.rotation.x = Math.PI / 2;
     scene.add(ceiling);
     
-    // Add platforms (multiple levels)
+    // Add platforms (5 stories high)
     const platformMat1 = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.6 });
     const platformMat2 = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.5, emissive: 0x111122 });
     const platformMat3 = new THREE.MeshStandardMaterial({ color: 0x778899, roughness: 0.4, emissive: 0x222233 });
-    const platformMatTop = new THREE.MeshStandardMaterial({ color: 0x88aacc, roughness: 0.3, emissive: 0x334455, emissiveIntensity: 0.3 });
+    const platformMat4 = new THREE.MeshStandardMaterial({ color: 0x88aacc, roughness: 0.3, emissive: 0x334455 });
+    const platformMatTop = new THREE.MeshStandardMaterial({ color: 0x99ccee, roughness: 0.2, emissive: 0x446688, emissiveIntensity: 0.5 });
     
-    // Ground level platforms
+    // 5 story platform configuration
     const platformConfigs = [
-      // Ground level (darker)
+      // Story 1 - Ground level (y=2)
       { x: -8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
       { x: 8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
       { x: 0, y: 2, z: -12, w: 4, d: 4, mat: platformMat1 },
-      // Second level (medium)
-      { x: -10, y: 4.25, z: 0, w: 4, d: 4, mat: platformMat2 },
-      { x: 10, y: 4.25, z: 0, w: 4, d: 4, mat: platformMat2 },
-      { x: 0, y: 4.25, z: 8, w: 6, d: 4, mat: platformMat2 },
-      // Third level (brighter)
-      { x: -6, y: 6.25, z: -6, w: 3, d: 3, mat: platformMat3 },
-      { x: 6, y: 6.25, z: -6, w: 3, d: 3, mat: platformMat3 },
-      { x: 0, y: 6.25, z: 0, w: 4, d: 4, mat: platformMat3 },
-      // Top level (glowing)
-      { x: 0, y: 8.25, z: -10, w: 5, d: 3, mat: platformMatTop },
+      { x: -10, y: 2, z: 8, w: 4, d: 4, mat: platformMat1 },
+      { x: 10, y: 2, z: 8, w: 4, d: 4, mat: platformMat1 },
+      // Story 2 (y=5)
+      { x: -10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2 },
+      { x: 10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2 },
+      { x: 0, y: 5, z: 8, w: 6, d: 4, mat: platformMat2 },
+      { x: 0, y: 5, z: -8, w: 5, d: 4, mat: platformMat2 },
+      // Story 3 (y=9)
+      { x: -6, y: 9, z: -6, w: 4, d: 4, mat: platformMat3 },
+      { x: 6, y: 9, z: -6, w: 4, d: 4, mat: platformMat3 },
+      { x: 0, y: 9, z: 0, w: 5, d: 5, mat: platformMat3 },
+      { x: -8, y: 9, z: 6, w: 3, d: 3, mat: platformMat3 },
+      { x: 8, y: 9, z: 6, w: 3, d: 3, mat: platformMat3 },
+      // Story 4 (y=13)
+      { x: -5, y: 13, z: 0, w: 4, d: 4, mat: platformMat4 },
+      { x: 5, y: 13, z: 0, w: 4, d: 4, mat: platformMat4 },
+      { x: 0, y: 13, z: -10, w: 5, d: 3, mat: platformMat4 },
+      { x: 0, y: 13, z: 10, w: 5, d: 3, mat: platformMat4 },
+      // Story 5 - Top level (y=17) - the prize!
+      { x: 0, y: 17, z: 0, w: 6, d: 6, mat: platformMatTop },
+      { x: -10, y: 17, z: -10, w: 3, d: 3, mat: platformMatTop },
+      { x: 10, y: 17, z: 10, w: 3, d: 3, mat: platformMatTop },
     ];
     
     platformConfigs.forEach(p => {
@@ -448,7 +466,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       if (p.y > 3) {
         const edgeGeo = new THREE.BoxGeometry(p.w + 0.1, 0.1, p.d + 0.1);
         const edgeMat = new THREE.MeshBasicMaterial({ 
-          color: p.y > 7 ? 0x00aaff : (p.y > 5 ? 0x6666ff : 0x4444aa),
+          color: p.y > 7 ? 0x00ff88 : (p.y > 5 ? 0x6666ff : 0x4444aa),
           transparent: true,
           opacity: 0.5,
         });
@@ -475,20 +493,23 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     
     const targetPositions = [
-      // Ground level
+      // Story 1 - Ground level
       new THREE.Vector3(-8, 3.5, -8),
       new THREE.Vector3(8, 3.5, -8),
-      new THREE.Vector3(0, 3.5, -12),
-      // Second level
-      new THREE.Vector3(-10, 5.5, 0),
-      new THREE.Vector3(10, 5.5, 0),
-      new THREE.Vector3(0, 5.5, 8),
-      // Third level
-      new THREE.Vector3(-6, 7.5, -6),
-      new THREE.Vector3(6, 7.5, -6),
-      new THREE.Vector3(0, 7.5, 0),
-      // Top level (hardest to reach)
-      new THREE.Vector3(0, 9.5, -10),
+      // Story 2
+      new THREE.Vector3(-10, 6.5, 0),
+      new THREE.Vector3(10, 6.5, 0),
+      // Story 3
+      new THREE.Vector3(-6, 10.5, -6),
+      new THREE.Vector3(6, 10.5, -6),
+      new THREE.Vector3(0, 10.5, 0),
+      // Story 4
+      new THREE.Vector3(-5, 14.5, 0),
+      new THREE.Vector3(5, 14.5, 0),
+      // Story 5 - Top level (hardest!)
+      new THREE.Vector3(0, 18.5, 0),
+      new THREE.Vector3(-10, 18.5, -10),
+      new THREE.Vector3(10, 18.5, 10),
     ];
     
     targetsRef.current = [];
@@ -503,13 +524,20 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTotalTargets(targetPositions.length);
     setTargetsCollected(0);
     
-    // Spawn enemies
+    // Spawn MORE enemies (8 total spread across levels)
     enemiesRef.current = [];
     const enemyPositions = [
+      // Ground level enemies
       { x: -5, z: 0 },
       { x: 5, z: -5 },
       { x: 0, z: -10 },
       { x: 10, z: 5 },
+      // Mid-level enemies
+      { x: -8, z: 8 },
+      { x: 8, z: -8 },
+      // Upper level enemies
+      { x: -3, z: 3 },
+      { x: 3, z: -3 },
     ];
     enemyPositions.forEach(pos => {
       const enemy = createEnemy(scene, pos.x, pos.z);
@@ -518,7 +546,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   };
   
   // Shoot portal
-  const shootPortal = (color: 'blue' | 'orange') => {
+  const shootPortal = (color: 'green' | 'cyan') => {
     if (!cameraRef.current || !sceneRef.current) return;
     
     // Trigger sword slash animation
@@ -538,7 +566,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
         
         // Create new portal
-        const portalColor = color === 'blue' ? 0x00aaff : 0xff6600;
+        const portalColor = color === 'green' ? 0x00ff88 : 0x00ffff;
         const portalGeo = new THREE.TorusGeometry(1.2, 0.15, 16, 32);
         const portalMat = new THREE.MeshStandardMaterial({
           color: portalColor,
@@ -582,7 +610,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         setTimeout(() => setMessage(''), 1500);
         
         // Check if both portals exist
-        if (portalsRef.current.blue && portalsRef.current.orange) {
+        if (portalsRef.current.green && portalsRef.current.cyan) {
           setScore(prev => prev + 50);
           setMessage('Portals linked! +50');
           setTimeout(() => setMessage(''), 1500);
@@ -596,17 +624,17 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   // Check portal teleportation
   const checkPortalTeleport = () => {
     const player = playerRef.current;
-    const blue = portalsRef.current.blue;
-    const orange = portalsRef.current.orange;
+    const green = portalsRef.current.green;
+    const cyan = portalsRef.current.cyan;
     const now = Date.now();
     
-    if (!blue || !orange) return;
+    if (!green || !cyan) return;
     
     // Cooldown to prevent instant re-teleport
     if (now - lastTeleportRef.current < 500) return;
     
-    const distToBlue = player.position.distanceTo(blue.position);
-    const distToOrange = player.position.distanceTo(orange.position);
+    const distToGreen = player.position.distanceTo(blue.position);
+    const distToCyan = player.position.distanceTo(orange.position);
     
     const teleportDist = 1.5;
     
@@ -639,10 +667,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       setTimeout(() => setMessage(''), 1500);
     };
     
-    if (distToBlue < teleportDist) {
-      teleportTo(orange);
-    } else if (distToOrange < teleportDist) {
-      teleportTo(blue);
+    if (distToGreen < teleportDist) {
+      teleportTo(cyan);
+    } else if (distToCyan < teleportDist) {
+      teleportTo(green);
     }
   };
   
@@ -720,22 +748,34 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         player.onGround = true;
       }
       
-      // Platform collisions (multiple levels)
+      // Platform collisions (5 stories)
       const platforms = [
-        // Ground level platforms
+        // Story 1 - Ground (y=2)
         { x: -8, y: 2.25, z: -8, w: 5, d: 5 },
         { x: 8, y: 2.25, z: -8, w: 5, d: 5 },
         { x: 0, y: 2.25, z: -12, w: 4, d: 4 },
-        // Second level
-        { x: -10, y: 4.5, z: 0, w: 4, d: 4 },
-        { x: 10, y: 4.5, z: 0, w: 4, d: 4 },
-        { x: 0, y: 4.5, z: 8, w: 6, d: 4 },
-        // Third level
-        { x: -6, y: 6.5, z: -6, w: 3, d: 3 },
-        { x: 6, y: 6.5, z: -6, w: 3, d: 3 },
-        { x: 0, y: 6.5, z: 0, w: 4, d: 4 },
-        // Top level
-        { x: 0, y: 8.5, z: -10, w: 5, d: 3 },
+        { x: -10, y: 2.25, z: 8, w: 4, d: 4 },
+        { x: 10, y: 2.25, z: 8, w: 4, d: 4 },
+        // Story 2 (y=5)
+        { x: -10, y: 5.25, z: 0, w: 4, d: 4 },
+        { x: 10, y: 5.25, z: 0, w: 4, d: 4 },
+        { x: 0, y: 5.25, z: 8, w: 6, d: 4 },
+        { x: 0, y: 5.25, z: -8, w: 5, d: 4 },
+        // Story 3 (y=9)
+        { x: -6, y: 9.25, z: -6, w: 4, d: 4 },
+        { x: 6, y: 9.25, z: -6, w: 4, d: 4 },
+        { x: 0, y: 9.25, z: 0, w: 5, d: 5 },
+        { x: -8, y: 9.25, z: 6, w: 3, d: 3 },
+        { x: 8, y: 9.25, z: 6, w: 3, d: 3 },
+        // Story 4 (y=13)
+        { x: -5, y: 13.25, z: 0, w: 4, d: 4 },
+        { x: 5, y: 13.25, z: 0, w: 4, d: 4 },
+        { x: 0, y: 13.25, z: -10, w: 5, d: 3 },
+        { x: 0, y: 13.25, z: 10, w: 5, d: 3 },
+        // Story 5 - Top (y=17)
+        { x: 0, y: 17.25, z: 0, w: 6, d: 6 },
+        { x: -10, y: 17.25, z: -10, w: 3, d: 3 },
+        { x: 10, y: 17.25, z: 10, w: 3, d: 3 },
       ];
       
       platforms.forEach(p => {
@@ -769,11 +809,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       
       // Animate portals
       const elapsed = clockRef.current.getElapsedTime();
-      if (portalsRef.current.blue?.mesh) {
-        portalsRef.current.blue.mesh.rotation.z = elapsed;
+      if (portalsRef.current.green?.mesh) {
+        portalsRef.current.green.mesh.rotation.z = elapsed;
       }
-      if (portalsRef.current.orange?.mesh) {
-        portalsRef.current.orange.mesh.rotation.z = -elapsed;
+      if (portalsRef.current.cyan?.mesh) {
+        portalsRef.current.cyan.mesh.rotation.z = -elapsed;
       }
       
       // Animate targets
@@ -1062,12 +1102,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       keysRef.current[e.code] = true;
       
       if (e.code === 'KeyQ') {
-        setPortalMode('blue');
-        updateSwordColor('blue');
+        setPortalMode('green');
+        updateSwordColor('green');
       }
       if (e.code === 'KeyE') {
-        setPortalMode('orange');
-        updateSwordColor('orange');
+        setPortalMode('cyan');
+        updateSwordColor('cyan');
       }
       if (e.code === 'KeyX' && gameState === 'playing') {
         // Parry with X key
@@ -1196,13 +1236,13 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     
     // Clear portals
-    if (portalsRef.current.blue?.mesh && sceneRef.current) {
-      sceneRef.current.remove(portalsRef.current.blue.mesh);
+    if (portalsRef.current.green?.mesh && sceneRef.current) {
+      sceneRef.current.remove(portalsRef.current.green.mesh);
     }
-    if (portalsRef.current.orange?.mesh && sceneRef.current) {
-      sceneRef.current.remove(portalsRef.current.orange.mesh);
+    if (portalsRef.current.cyan?.mesh && sceneRef.current) {
+      sceneRef.current.remove(portalsRef.current.cyan.mesh);
     }
-    portalsRef.current = { blue: null, orange: null };
+    portalsRef.current = { green: null, cyan: null };
     
     setGameState('playing');
     console.log('✅ Game started');
@@ -1227,19 +1267,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       {gameState === 'instructions' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-50 overflow-y-auto">
           <div className="max-w-lg mx-auto p-6 text-center">
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-orange-400 mb-6">
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400 mb-6">
               🌀 WORMHOLE
             </h1>
             
             <div className="bg-gray-900/80 rounded-xl p-6 mb-6 text-left">
               <h2 className="text-xl font-bold text-white mb-4">🗡️ Controls</h2>
               <div className="space-y-2 text-gray-300">
-                <p>• <span className="text-blue-400">Left-click</span> - Sword slash (shoot portal)</p>
+                <p>• <span className="text-green-400">Left-click</span> - Sword slash (shoot portal)</p>
                 <p>• <span className="text-red-400">V</span> - Strike (attack enemies!)</p>
                 <p>• <span className="text-yellow-400">X</span> - Parry (block enemy attacks!)</p>
-                <p>• <span className="text-orange-400">Right-click + drag</span> - Look around</p>
-                <p>• <span className="text-blue-400">WASD</span> - Move • <span className="text-blue-400">Space</span> - Jump</p>
-                <p>• <span className="text-blue-400">Q</span> - Blue portal 🔵 • <span className="text-orange-400">E</span> - Orange portal 🟠</p>
+                <p>• <span className="text-cyan-400">Right-click + drag</span> - Look around</p>
+                <p>• <span className="text-green-400">WASD</span> - Move • <span className="text-green-400">Space</span> - Jump</p>
+                <p>• <span className="text-green-400">Q</span> - Blue portal 🔵 • <span className="text-cyan-400">E</span> - Orange portal 🟠</p>
               </div>
             </div>
             
@@ -1248,7 +1288,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               <div className="space-y-2 text-gray-300">
                 <p>• Collect all <span className="text-yellow-400">golden orbs</span> using portals</p>
                 <p>• Fight <span className="text-red-400">red enemies</span> with your sword (3 hits to kill)</p>
-                <p>• Walk through portals - exit facing the <span className="text-blue-400">opposite direction</span></p>
+                <p>• Walk through portals - exit facing the <span className="text-green-400">opposite direction</span></p>
                 <p>• Survive! You have <span className="text-red-400">3 hearts</span></p>
               </div>
             </div>
@@ -1273,7 +1313,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             
             <button
               onClick={startGame}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-orange-600 hover:from-blue-500 hover:to-orange-500 text-white text-xl font-bold rounded-xl transition-all transform hover:scale-105"
+              className="w-full py-4 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white text-xl font-bold rounded-xl transition-all transform hover:scale-105"
             >
               🚀 BEGIN TEST
             </button>
@@ -1314,19 +1354,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           {/* Portal Mode */}
           <div className="absolute top-4 right-4 z-40">
             <div className={`rounded-lg px-4 py-2 font-bold ${
-              portalMode === 'blue' ? 'bg-blue-600' : 'bg-orange-600'
+              portalMode === 'green' ? 'bg-green-600' : 'bg-cyan-600'
             }`}>
-              {portalMode === 'blue' ? '🔵 BLUE' : '🟠 ORANGE'} PORTAL
+              {portalMode === 'green' ? '🟢 GREEN' : '🔵 CYAN'} PORTAL
             </div>
           </div>
           
           {/* Crosshair */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
             <div className={`w-8 h-8 border-2 rounded-full ${
-              portalMode === 'blue' ? 'border-blue-400' : 'border-orange-400'
+              portalMode === 'green' ? 'border-green-400' : 'border-cyan-400'
             }`}>
               <div className={`absolute top-1/2 left-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                portalMode === 'blue' ? 'bg-blue-400' : 'bg-orange-400'
+                portalMode === 'green' ? 'bg-green-400' : 'bg-cyan-400'
               }`} />
             </div>
           </div>
@@ -1357,14 +1397,14 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               swordSlashRef.current > 0 ? 'scale-125 rotate-0' : ''
             }`}>
               <span className="drop-shadow-lg" style={{
-                textShadow: portalMode === 'blue' 
+                textShadow: portalMode === 'green' 
                   ? '0 0 20px #00aaff, 0 0 40px #00aaff, 0 0 60px #00aaff'
                   : '0 0 20px #ff6600, 0 0 40px #ff6600, 0 0 60px #ff6600',
-                filter: `drop-shadow(0 0 10px ${portalMode === 'blue' ? '#00aaff' : '#ff6600'})`
+                filter: `drop-shadow(0 0 10px ${portalMode === 'green' ? '#00aaff' : '#ff6600'})`
               }}>🗡️</span>
             </div>
             <div className={`text-xs text-center mt-1 font-bold ${
-              portalMode === 'blue' ? 'text-blue-400' : 'text-orange-400'
+              portalMode === 'green' ? 'text-green-400' : 'text-cyan-400'
             }`}>
               {portalMode.toUpperCase()}
             </div>
@@ -1432,7 +1472,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               >
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className={`w-10 h-10 rounded-full ${
-                    portalMode === 'blue' ? 'bg-blue-500/50' : 'bg-orange-500/50'
+                    portalMode === 'green' ? 'bg-green-500/50' : 'bg-cyan-500/50'
                   }`} />
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">
@@ -1445,12 +1485,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
                 {/* Portal buttons */}
                 <div className="flex gap-2">
                   <button 
-                    className="w-14 h-14 bg-blue-600/50 rounded-full text-white text-xl active:bg-blue-600"
-                    onClick={() => { setPortalMode('blue'); shootPortal('blue'); }}
+                    className="w-14 h-14 bg-green-600/50 rounded-full text-white text-xl active:bg-green-600"
+                    onClick={() => { setPortalMode('green'); shootPortal('green'); }}
                   >🔵</button>
                   <button 
-                    className="w-14 h-14 bg-orange-600/50 rounded-full text-white text-xl active:bg-orange-600"
-                    onClick={() => { setPortalMode('orange'); shootPortal('orange'); }}
+                    className="w-14 h-14 bg-cyan-600/50 rounded-full text-white text-xl active:bg-cyan-600"
+                    onClick={() => { setPortalMode('cyan'); shootPortal('cyan'); }}
                   >🟠</button>
                 </div>
                 {/* Combat buttons */}
@@ -1473,13 +1513,13 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       {/* Game Over */}
       {gameState === 'gameover' && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-50">
-          <div className="text-center p-8 bg-gradient-to-br from-blue-900/80 to-orange-900/80 rounded-2xl">
+          <div className="text-center p-8 bg-gradient-to-br from-green-900/80 to-cyan-900/80 rounded-2xl">
             <div className="text-6xl mb-4">🎉</div>
             <h2 className="text-3xl font-bold text-white mb-4">Test Complete!</h2>
             <p className="text-4xl font-bold text-green-400 mb-6">{score} points</p>
             <button
               onClick={startGame}
-              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-orange-600 text-white font-bold rounded-xl hover:scale-105 transition-transform"
+              className="px-8 py-3 bg-gradient-to-r from-green-600 to-cyan-600 text-white font-bold rounded-xl hover:scale-105 transition-transform"
             >
               🔄 Try Again
             </button>
