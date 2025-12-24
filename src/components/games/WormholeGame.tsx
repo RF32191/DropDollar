@@ -353,46 +353,117 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     }, 350);
   };
   
-  // Create enemy
+  // Create demon enemy with sword
   const createEnemy = (scene: THREE.Scene, x: number, z: number): Enemy => {
     const enemyGroup = new THREE.Group();
     
-    // Body (dark robot/drone)
-    const bodyGeo = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
+    // Demonic body (humanoid shape)
+    const bodyGeo = new THREE.CapsuleGeometry(0.35, 0.9, 8, 16);
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x440000,
-      emissive: 0x330000,
-      emissiveIntensity: 0.3,
-      metalness: 0.7,
-      roughness: 0.3,
+      color: 0x2a0808,
+      emissive: 0x220000,
+      emissiveIntensity: 0.4,
+      metalness: 0.4,
+      roughness: 0.6,
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = 0.6;
     body.name = 'body';
     enemyGroup.add(body);
     
-    // Eye (glowing red)
-    const eyeGeo = new THREE.SphereGeometry(0.15, 16, 16);
-    const eyeMat = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
+    // Demon head (larger, more menacing)
+    const headGeo = new THREE.SphereGeometry(0.3, 12, 12);
+    const headMat = new THREE.MeshStandardMaterial({
+      color: 0x3a0a0a,
+      emissive: 0x110000,
+      roughness: 0.7,
     });
-    const eye = new THREE.Mesh(eyeGeo, eyeMat);
-    eye.position.set(0, 1, 0.3);
-    eye.name = 'eye';
-    enemyGroup.add(eye);
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 1.3;
+    head.scale.set(1, 1.1, 0.9);
+    enemyGroup.add(head);
     
-    // Spikes (danger indicators)
-    const spikeMat = new THREE.MeshStandardMaterial({ color: 0x880000, metalness: 0.8 });
-    for (let i = 0; i < 4; i++) {
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 4), spikeMat);
-      spike.position.set(
-        Math.cos(i * Math.PI / 2) * 0.4,
-        0.8,
-        Math.sin(i * Math.PI / 2) * 0.4
-      );
-      spike.rotation.z = Math.PI;
-      enemyGroup.add(spike);
-    }
+    // Horns
+    const hornMat = new THREE.MeshStandardMaterial({ color: 0x1a0505, metalness: 0.5, roughness: 0.3 });
+    const hornGeo = new THREE.ConeGeometry(0.06, 0.35, 6);
+    const leftHorn = new THREE.Mesh(hornGeo, hornMat);
+    leftHorn.position.set(-0.2, 1.5, 0);
+    leftHorn.rotation.z = -0.4;
+    enemyGroup.add(leftHorn);
+    const rightHorn = new THREE.Mesh(hornGeo, hornMat);
+    rightHorn.position.set(0.2, 1.5, 0);
+    rightHorn.rotation.z = 0.4;
+    enemyGroup.add(rightHorn);
+    
+    // Glowing eyes (2 eyes)
+    const eyeGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.1, 1.35, 0.25);
+    leftEye.name = 'eye';
+    enemyGroup.add(leftEye);
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat.clone());
+    rightEye.position.set(0.1, 1.35, 0.25);
+    rightEye.name = 'eye2';
+    enemyGroup.add(rightEye);
+    
+    // Enemy Sword (held in right "arm" position)
+    const swordGroup = new THREE.Group();
+    swordGroup.name = 'enemySword';
+    
+    // Sword blade
+    const bladeMat = new THREE.MeshStandardMaterial({
+      color: 0x555566,
+      metalness: 0.9,
+      roughness: 0.1,
+    });
+    const bladeGeo = new THREE.BoxGeometry(0.04, 0.8, 0.015);
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+    blade.position.y = 0.4;
+    swordGroup.add(blade);
+    
+    // Sword glow edge (changes with attack state)
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0x0044ff, // Blue default (wind-up color)
+      transparent: true,
+      opacity: 0.8,
+    });
+    const glowGeo = new THREE.BoxGeometry(0.01, 0.8, 0.02);
+    const leftGlow = new THREE.Mesh(glowGeo, glowMat);
+    leftGlow.position.set(0.025, 0.4, 0);
+    leftGlow.name = 'swordGlow';
+    swordGroup.add(leftGlow);
+    const rightGlow = new THREE.Mesh(glowGeo, glowMat.clone());
+    rightGlow.position.set(-0.025, 0.4, 0);
+    rightGlow.name = 'swordGlow2';
+    swordGroup.add(rightGlow);
+    
+    // Sword tip
+    const tipMat = new THREE.MeshBasicMaterial({ color: 0x0044ff, transparent: true, opacity: 0.9 });
+    const tipGeo = new THREE.ConeGeometry(0.03, 0.1, 4);
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.y = 0.85;
+    tip.rotation.x = Math.PI;
+    tip.name = 'swordTip';
+    swordGroup.add(tip);
+    
+    // Sword guard
+    const guardMat = new THREE.MeshStandardMaterial({ color: 0x442200, metalness: 0.7 });
+    const guardGeo = new THREE.BoxGeometry(0.15, 0.03, 0.03);
+    const guard = new THREE.Mesh(guardGeo, guardMat);
+    swordGroup.add(guard);
+    
+    // Sword handle
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x331100 });
+    const handleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.15, 6);
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.y = -0.1;
+    swordGroup.add(handle);
+    
+    // Position sword at "arm" position
+    swordGroup.position.set(0.5, 0.6, 0.2);
+    swordGroup.rotation.z = -0.3;
+    enemyGroup.add(swordGroup);
     
     enemyGroup.position.set(x, 0, z);
     scene.add(enemyGroup);
@@ -757,8 +828,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       const player = playerRef.current;
       const keys = keysRef.current;
       
-      // Movement
-      const moveSpeed = 8 * delta;
+      // Movement with Sprint (Shift key)
+      const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+      const moveSpeed = (isSprinting ? 16 : 8) * delta; // 2x speed when sprinting
       const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
       const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
       
@@ -938,39 +1010,58 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         // Distance to player
         const distToPlayer = enemy.position.distanceTo(player.position);
         
-        // AI behavior with wind-up patterns
+        // AI behavior with wind-up patterns (like ParryPro)
         if (enemy.state === 'winding_up') {
-          // Wind-up animation - enemy prepares to attack (blue glow)
+          // Wind-up animation - enemy prepares to attack (BLUE GLOW on sword)
+          const swordGlow = enemy.mesh.getObjectByName('swordGlow') as THREE.Mesh;
+          const swordGlow2 = enemy.mesh.getObjectByName('swordGlow2') as THREE.Mesh;
+          const swordTip = enemy.mesh.getObjectByName('swordTip') as THREE.Mesh;
           const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
-          if (body) {
-            const windUpPulse = Math.sin(elapsed * 10) * 0.5 + 0.5;
-            (body.material as THREE.MeshStandardMaterial).emissive.setHex(
-              windUpPulse > 0.5 ? 0x0044ff : 0x002288
-            );
+          
+          // Pulsing blue glow during wind-up
+          const windUpPulse = Math.sin(elapsed * 12) * 0.5 + 0.5;
+          const blueColor = windUpPulse > 0.5 ? 0x0066ff : 0x0033aa;
+          
+          if (swordGlow) (swordGlow.material as THREE.MeshBasicMaterial).color.setHex(blueColor);
+          if (swordGlow2) (swordGlow2.material as THREE.MeshBasicMaterial).color.setHex(blueColor);
+          if (swordTip) (swordTip.material as THREE.MeshBasicMaterial).color.setHex(blueColor);
+          if (body) (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x001144);
+          
+          // Raise sword during wind-up
+          const sword = enemy.mesh.getObjectByName('enemySword') as THREE.Group;
+          if (sword) {
+            sword.rotation.z = -0.3 - (2 - enemy.attackCooldown) * 0.8; // Raise sword
           }
           
           // After 0.8 seconds, execute attack
           if (enemy.attackCooldown <= 1.2) {
             enemy.state = 'attacking';
-            // Flash red when attacking!
-            if (body) {
-              (body.material as THREE.MeshStandardMaterial).emissive.setHex(0xff0000);
+            
+            // Flash RED when attacking!
+            if (swordGlow) (swordGlow.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+            if (swordGlow2) (swordGlow2.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+            if (swordTip) (swordTip.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+            if (body) (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x440000);
+            
+            // Swing sword down
+            if (sword) {
+              sword.rotation.z = 0.5; // Swing down
             }
             
             // Check if player is parrying at the right moment
             if (parryActiveRef.current) {
-              // Perfect parry timing!
-              setScore(prev => prev + 200);
-              setMessage('⚡ PERFECT PARRY! +200');
+              // PERFECT PARRY timing!
+              setScore(prev => prev + 300);
+              setMessage('⚡ PERFECT PARRY! +300');
               setTimeout(() => setMessage(''), 1000);
               
-              enemy.hitCooldown = 1.5;
+              enemy.hitCooldown = 2;
               enemy.state = 'stunned';
               
               const knockback = new THREE.Vector3()
                 .subVectors(enemy.position, player.position)
                 .normalize()
-                .multiplyScalar(4);
+                .multiplyScalar(5);
               enemy.position.add(knockback);
             } else if (playerHealth > 0) {
               // Player takes damage
@@ -982,11 +1073,17 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             enemy.attackCooldown = 2.5; // Full cooldown after attack
           }
         } else if (enemy.state === 'stunned') {
-          // Stunned - can't move, yellow glow
+          // Stunned - can't move, yellow glow on sword
+          const swordGlow = enemy.mesh.getObjectByName('swordGlow') as THREE.Mesh;
+          const swordGlow2 = enemy.mesh.getObjectByName('swordGlow2') as THREE.Mesh;
+          const swordTip = enemy.mesh.getObjectByName('swordTip') as THREE.Mesh;
           const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
-          if (body) {
-            (body.material as THREE.MeshStandardMaterial).emissive.setHex(0xffff00);
-          }
+          
+          if (swordGlow) (swordGlow.material as THREE.MeshBasicMaterial).color.setHex(0xffff00);
+          if (swordGlow2) (swordGlow2.material as THREE.MeshBasicMaterial).color.setHex(0xffff00);
+          if (swordTip) (swordTip.material as THREE.MeshBasicMaterial).color.setHex(0xffff00);
+          if (body) (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x444400);
+          
           if (enemy.hitCooldown <= 0) {
             enemy.state = 'idle';
           }
@@ -1004,18 +1101,32 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           enemy.velocity.copy(dirToPlayer.multiplyScalar(3 * delta));
           enemy.position.add(enemy.velocity);
           
-          // Reset color when chasing
+          // Reset sword and body color when chasing
+          const swordGlow = enemy.mesh.getObjectByName('swordGlow') as THREE.Mesh;
+          const swordGlow2 = enemy.mesh.getObjectByName('swordGlow2') as THREE.Mesh;
+          const swordTip = enemy.mesh.getObjectByName('swordTip') as THREE.Mesh;
           const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
-          if (body) {
-            (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x330000);
-          }
+          const sword = enemy.mesh.getObjectByName('enemySword') as THREE.Group;
+          
+          if (swordGlow) (swordGlow.material as THREE.MeshBasicMaterial).color.setHex(0x444444);
+          if (swordGlow2) (swordGlow2.material as THREE.MeshBasicMaterial).color.setHex(0x444444);
+          if (swordTip) (swordTip.material as THREE.MeshBasicMaterial).color.setHex(0x444444);
+          if (body) (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x220000);
+          if (sword) sword.rotation.z = -0.3; // Reset sword position
         } else {
           enemy.state = 'idle';
-          // Reset color when idle
+          // Reset color and sword when idle
+          const swordGlow = enemy.mesh.getObjectByName('swordGlow') as THREE.Mesh;
+          const swordGlow2 = enemy.mesh.getObjectByName('swordGlow2') as THREE.Mesh;
+          const swordTip = enemy.mesh.getObjectByName('swordTip') as THREE.Mesh;
           const body = enemy.mesh.getObjectByName('body') as THREE.Mesh;
-          if (body) {
-            (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x220000);
-          }
+          const sword = enemy.mesh.getObjectByName('enemySword') as THREE.Group;
+          
+          if (swordGlow) (swordGlow.material as THREE.MeshBasicMaterial).color.setHex(0x333333);
+          if (swordGlow2) (swordGlow2.material as THREE.MeshBasicMaterial).color.setHex(0x333333);
+          if (swordTip) (swordTip.material as THREE.MeshBasicMaterial).color.setHex(0x333333);
+          if (body) (body.material as THREE.MeshStandardMaterial).emissive.setHex(0x110000);
+          if (sword) sword.rotation.z = -0.3; // Reset sword position
         }
         
         // Check if player is attacking this enemy with sword
@@ -1436,9 +1547,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40">
             <div className="bg-black/50 text-gray-400 px-4 py-2 rounded-lg text-sm text-center">
               {isPointerLocked ? (
-                <span>WASD move • Click shoot • <span className="text-red-400">V</span>=Strike • <span className="text-yellow-400">X</span>=Parry • Q🔵/E🟠</span>
+                <span>WASD move • <span className="text-yellow-300">SHIFT</span>=Sprint • Click shoot • <span className="text-red-400">V</span>=Strike • <span className="text-yellow-400">X</span>=Parry • Q🟢/E🔵</span>
               ) : (
-                <span>Right-drag look • Click shoot • <span className="text-red-400">V</span>=Strike • <span className="text-yellow-400">X</span>=Parry • Q🔵/E🟠</span>
+                <span>WASD move • <span className="text-yellow-300">SHIFT</span>=Sprint • Click shoot • <span className="text-red-400">V</span>=Strike • <span className="text-yellow-400">X</span>=Parry • Q🟢/E🔵</span>
               )}
             </div>
           </div>
@@ -1465,36 +1576,44 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           {/* Mobile controls */}
           {isMobile && (
             <div className="absolute bottom-16 left-4 right-4 z-40 flex justify-between items-end">
-              {/* Left: D-pad for movement */}
-              <div className="grid grid-cols-3 gap-1">
-                <div />
+              {/* Left: D-pad for movement + Sprint */}
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-3 gap-1">
+                  <div />
+                  <button 
+                    className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
+                    onTouchStart={() => keysRef.current['KeyW'] = true}
+                    onTouchEnd={() => keysRef.current['KeyW'] = false}
+                  >↑</button>
+                  <div />
+                  <button 
+                    className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
+                    onTouchStart={() => keysRef.current['KeyA'] = true}
+                    onTouchEnd={() => keysRef.current['KeyA'] = false}
+                  >←</button>
+                  <button 
+                    className="w-12 h-12 bg-green-600/50 rounded-lg text-white text-xl active:bg-green-600"
+                    onTouchStart={() => keysRef.current['Space'] = true}
+                    onTouchEnd={() => keysRef.current['Space'] = false}
+                  >⬆</button>
+                  <button 
+                    className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
+                    onTouchStart={() => keysRef.current['KeyD'] = true}
+                    onTouchEnd={() => keysRef.current['KeyD'] = false}
+                  >→</button>
+                  <div />
+                  <button 
+                    className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
+                    onTouchStart={() => keysRef.current['KeyS'] = true}
+                    onTouchEnd={() => keysRef.current['KeyS'] = false}
+                  >↓</button>
+                </div>
+                {/* Sprint button */}
                 <button 
-                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
-                  onTouchStart={() => keysRef.current['KeyW'] = true}
-                  onTouchEnd={() => keysRef.current['KeyW'] = false}
-                >↑</button>
-                <div />
-                <button 
-                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
-                  onTouchStart={() => keysRef.current['KeyA'] = true}
-                  onTouchEnd={() => keysRef.current['KeyA'] = false}
-                >←</button>
-                <button 
-                  className="w-12 h-12 bg-green-600/50 rounded-lg text-white text-xl active:bg-green-600"
-                  onTouchStart={() => keysRef.current['Space'] = true}
-                  onTouchEnd={() => keysRef.current['Space'] = false}
-                >⬆</button>
-                <button 
-                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
-                  onTouchStart={() => keysRef.current['KeyD'] = true}
-                  onTouchEnd={() => keysRef.current['KeyD'] = false}
-                >→</button>
-                <div />
-                <button 
-                  className="w-12 h-12 bg-white/20 rounded-lg text-white text-xl active:bg-white/40"
-                  onTouchStart={() => keysRef.current['KeyS'] = true}
-                  onTouchEnd={() => keysRef.current['KeyS'] = false}
-                >↓</button>
+                  className="w-full h-10 bg-yellow-600/50 rounded-lg text-white text-sm font-bold active:bg-yellow-600"
+                  onTouchStart={() => keysRef.current['ShiftLeft'] = true}
+                  onTouchEnd={() => keysRef.current['ShiftLeft'] = false}
+                >🏃 SPRINT</button>
               </div>
               
               {/* Center: Analog stick for looking */}
