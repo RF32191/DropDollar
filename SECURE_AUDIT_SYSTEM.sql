@@ -796,7 +796,387 @@ GRANT ALL ON public.token_balance_snapshots TO service_role;
 GRANT ALL ON public.fraud_alerts TO service_role;
 
 -- =====================================================
--- PART 9: VERIFICATION
+-- PART 9: ADMIN NOTIFICATION SYSTEM
+-- =====================================================
+
+-- Admin security notifications table
+CREATE TABLE IF NOT EXISTS public.admin_security_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_email TEXT NOT NULL DEFAULT 'rf32191@gmail.com',
+    notification_type TEXT NOT NULL CHECK (notification_type IN (
+        'fraud_alert',
+        'balance_mismatch',
+        'rapid_transactions',
+        'high_value_transaction',
+        'suspicious_activity',
+        'checksum_failure',
+        'system_error'
+    )),
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical', 'emergency')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    related_user_id UUID REFERENCES auth.users(id),
+    related_user_email TEXT,
+    related_transaction_id UUID,
+    details JSONB DEFAULT '{}',
+    read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_admin_notifications_unread ON public.admin_security_notifications(read, created_at DESC) WHERE read = FALSE;
+CREATE INDEX idx_admin_notifications_severity ON public.admin_security_notifications(severity, created_at DESC);
+CREATE INDEX idx_admin_notifications_type ON public.admin_security_notifications(notification_type);
+
+-- Function to send admin notification
+CREATE OR REPLACE FUNCTION notify_admin_security(
+    p_notification_type TEXT,
+    p_severity TEXT,
+    p_title TEXT,
+    p_message TEXT,
+    p_related_user_id UUID DEFAULT NULL,
+    p_related_transaction_id UUID DEFAULT NULL,
+    p_details JSONB DEFAULT '{}'
+) RETURNS UUID AS $$
+DECLARE
+    v_notification_id UUID;
+    v_user_email TEXT;
+BEGIN
+    -- Get user email if user_id provided
+    IF p_related_user_id IS NOT NULL THEN
+        SELECT email INTO v_user_email
+        FROM auth.users
+        WHERE id = p_related_user_id;
+    END IF;
+    
+    -- Insert notification for admin
+    INSERT INTO public.admin_security_notifications (
+        admin_email,
+        notification_type,
+        severity,
+        title,
+        message,
+        related_user_id,
+        related_user_email,
+        related_transaction_id,
+        details
+    ) VALUES (
+        'rf32191@gmail.com',
+        p_notification_type,
+        p_severity,
+        p_title,
+        p_message,
+        p_related_user_id,
+        v_user_email,
+        p_related_transaction_id,
+        p_details
+    ) RETURNING id INTO v_notification_id;
+    
+    -- Also insert into user messages for admin dashboard visibility
+    INSERT INTO public.messages (
+        sender_id,
+        recipient_id,
+        content,
+        message_type,
+        metadata,
+        created_at
+    )
+    SELECT
+        p_related_user_id,  -- From the suspicious user
+        u.id,               -- To admin
+        '🚨 SECURITY ALERT: ' || p_title || E'\n\n' || p_message,
+        'security_alert',
+        jsonb_build_object(
+            'notification_id', v_notification_id,
+            'severity', p_severity,
+            'type', p_notification_type,
+            'details', p_details
+        ),
+        NOW()
+    FROM public.users u
+    WHERE u.email = 'rf32191@gmail.com'
+    LIMIT 1;
+    
+    RETURN v_notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger function to auto-notify on fraud alerts
+CREATE OR REPLACE FUNCTION trigger_fraud_alert_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_title TEXT;
+    v_message TEXT;
+    v_user_email TEXT;
+BEGIN
+    -- Get user email
+    SELECT email INTO v_user_email
+    FROM auth.users
+    WHERE id = NEW.user_id;
+    
+    -- Build notification message based on alert type
+    CASE NEW.alert_type
+        WHEN 'rapid_transactions' THEN
+            v_title := '⚡ Rapid Transaction Alert';
+            v_message := format(
+                'User %s made %s transactions in %s seconds (threshold: %s).',
+                COALESCE(v_user_email, NEW.user_id::TEXT),
+                NEW.details->>'transaction_count',
+                NEW.details->>'window_seconds',
+                NEW.details->>'threshold'
+            );
+        WHEN 'balance_mismatch' THEN
+            v_title := '💰 Balance Mismatch Detected';
+            v_message := format(
+                'User %s has a %s balance mismatch! Calculated: %s, Actual: %s, Difference: %s',
+                COALESCE(v_user_email, NEW.user_id::TEXT),
+                NEW.currency_type,
+                NEW.details->>'calculated',
+                NEW.details->>'actual',
+                NEW.details->>'difference'
+            );
+        WHEN 'suspicious_pattern' THEN
+            v_title := '🔍 Suspicious Activity Pattern';
+            v_message := format(
+                'Suspicious activity detected for user %s. Details: %s',
+                COALESCE(v_user_email, NEW.user_id::TEXT),
+                NEW.details::TEXT
+            );
+        WHEN 'high_value_transaction' THEN
+            v_title := '💎 High Value Transaction';
+            v_message := format(
+                'Large transaction by user %s: %s %s',
+                COALESCE(v_user_email, NEW.user_id::TEXT),
+                NEW.details->>'amount',
+                NEW.currency_type
+            );
+        WHEN 'cross_account_activity' THEN
+            v_title := '👥 Cross-Account Activity';
+            v_message := format(
+                'Same IP detected for multiple accounts. User: %s, IP: %s',
+                COALESCE(v_user_email, NEW.user_id::TEXT),
+                NEW.details->>'ip_address'
+            );
+        WHEN 'checksum_failure' THEN
+            v_title := '🔐 Data Integrity Violation';
+            v_message := format(
+                'CRITICAL: Checksum failure for user %s. Possible data tampering!',
+                COALESCE(v_user_email, NEW.user_id::TEXT)
+            );
+        ELSE
+            v_title := '⚠️ Security Alert';
+            v_message := format(
+                'Security alert for user %s: %s',
+                COALESCE(v_user_email, NEW.user_id::TEXT),
+                NEW.alert_type
+            );
+    END CASE;
+    
+    -- Send notification
+    PERFORM notify_admin_security(
+        NEW.alert_type,
+        NEW.severity,
+        v_title,
+        v_message,
+        NEW.user_id,
+        NULL,
+        NEW.details
+    );
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger on fraud_alerts table
+DROP TRIGGER IF EXISTS fraud_alert_notification_trigger ON public.fraud_alerts;
+CREATE TRIGGER fraud_alert_notification_trigger
+    AFTER INSERT ON public.fraud_alerts
+    FOR EACH ROW
+    EXECUTE FUNCTION trigger_fraud_alert_notification();
+
+-- Function to check and alert on high-value transactions
+CREATE OR REPLACE FUNCTION check_high_value_transaction()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_threshold_rp INTEGER := 10000;  -- Alert if RP transaction > 10,000
+    v_threshold_tokens DECIMAL := 100;  -- Alert if token transaction > 100
+BEGIN
+    -- Check RP high value
+    IF TG_TABLE_NAME = 'rp_audit_log' THEN
+        IF ABS(NEW.rp_amount) >= v_threshold_rp THEN
+            INSERT INTO public.fraud_alerts (
+                user_id, alert_type, severity, currency_type, details
+            ) VALUES (
+                NEW.user_id,
+                'high_value_transaction',
+                CASE 
+                    WHEN ABS(NEW.rp_amount) >= v_threshold_rp * 5 THEN 'critical'
+                    WHEN ABS(NEW.rp_amount) >= v_threshold_rp * 2 THEN 'high'
+                    ELSE 'medium'
+                END,
+                'rp',
+                jsonb_build_object(
+                    'amount', NEW.rp_amount,
+                    'transaction_type', NEW.transaction_type,
+                    'balance_before', NEW.rp_balance_before,
+                    'balance_after', NEW.rp_balance_after
+                )
+            );
+        END IF;
+    END IF;
+    
+    -- Check token high value
+    IF TG_TABLE_NAME = 'token_audit_log' THEN
+        IF ABS(NEW.token_amount) >= v_threshold_tokens THEN
+            INSERT INTO public.fraud_alerts (
+                user_id, alert_type, severity, currency_type, details
+            ) VALUES (
+                NEW.user_id,
+                'high_value_transaction',
+                CASE 
+                    WHEN ABS(NEW.token_amount) >= v_threshold_tokens * 5 THEN 'critical'
+                    WHEN ABS(NEW.token_amount) >= v_threshold_tokens * 2 THEN 'high'
+                    ELSE 'medium'
+                END,
+                'token',
+                jsonb_build_object(
+                    'amount', NEW.token_amount,
+                    'transaction_type', NEW.transaction_type,
+                    'balance_before', NEW.token_balance_before,
+                    'balance_after', NEW.token_balance_after,
+                    'payment_provider', NEW.payment_provider
+                )
+            );
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create triggers for high-value transaction detection
+DROP TRIGGER IF EXISTS rp_high_value_trigger ON public.rp_audit_log;
+CREATE TRIGGER rp_high_value_trigger
+    AFTER INSERT ON public.rp_audit_log
+    FOR EACH ROW
+    EXECUTE FUNCTION check_high_value_transaction();
+
+DROP TRIGGER IF EXISTS token_high_value_trigger ON public.token_audit_log;
+CREATE TRIGGER token_high_value_trigger
+    AFTER INSERT ON public.token_audit_log
+    FOR EACH ROW
+    EXECUTE FUNCTION check_high_value_transaction();
+
+-- Function to get unread admin notifications count
+CREATE OR REPLACE FUNCTION get_admin_unread_notifications_count()
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN (
+        SELECT COUNT(*)::INTEGER
+        FROM public.admin_security_notifications
+        WHERE read = FALSE
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get admin notifications
+CREATE OR REPLACE FUNCTION get_admin_security_notifications(
+    p_limit INTEGER DEFAULT 50,
+    p_unread_only BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE (
+    id UUID,
+    notification_type TEXT,
+    severity TEXT,
+    title TEXT,
+    message TEXT,
+    related_user_email TEXT,
+    details JSONB,
+    read BOOLEAN,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        n.id,
+        n.notification_type,
+        n.severity,
+        n.title,
+        n.message,
+        n.related_user_email,
+        n.details,
+        n.read,
+        n.created_at
+    FROM public.admin_security_notifications n
+    WHERE (NOT p_unread_only OR n.read = FALSE)
+    ORDER BY n.created_at DESC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to mark notification as read
+CREATE OR REPLACE FUNCTION mark_notification_read(p_notification_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE public.admin_security_notifications
+    SET read = TRUE, read_at = NOW()
+    WHERE id = p_notification_id;
+    
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to mark all notifications as read
+CREATE OR REPLACE FUNCTION mark_all_notifications_read()
+RETURNS INTEGER AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    UPDATE public.admin_security_notifications
+    SET read = TRUE, read_at = NOW()
+    WHERE read = FALSE;
+    
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- RLS for admin notifications
+ALTER TABLE public.admin_security_notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admin views notifications" ON public.admin_security_notifications;
+CREATE POLICY "Admin views notifications" ON public.admin_security_notifications
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE id = auth.uid() AND (role = 'admin' OR email = 'rf32191@gmail.com')
+        )
+    );
+
+DROP POLICY IF EXISTS "Admin manages notifications" ON public.admin_security_notifications;
+CREATE POLICY "Admin manages notifications" ON public.admin_security_notifications
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM public.users
+            WHERE id = auth.uid() AND (role = 'admin' OR email = 'rf32191@gmail.com')
+        )
+    );
+
+DROP POLICY IF EXISTS "Service role full access notifications" ON public.admin_security_notifications;
+CREATE POLICY "Service role full access notifications" ON public.admin_security_notifications
+    FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
+
+-- Grant permissions
+GRANT SELECT, UPDATE ON public.admin_security_notifications TO authenticated;
+GRANT ALL ON public.admin_security_notifications TO service_role;
+GRANT EXECUTE ON FUNCTION notify_admin_security TO service_role;
+GRANT EXECUTE ON FUNCTION get_admin_unread_notifications_count TO authenticated;
+GRANT EXECUTE ON FUNCTION get_admin_security_notifications TO authenticated;
+GRANT EXECUTE ON FUNCTION mark_notification_read TO authenticated;
+GRANT EXECUTE ON FUNCTION mark_all_notifications_read TO authenticated;
+
+-- =====================================================
+-- PART 10: VERIFICATION
 -- =====================================================
 
 DO $$
@@ -809,6 +1189,7 @@ BEGIN
     RAISE NOTICE '   - rp_balance_snapshots (Daily RP snapshots)';
     RAISE NOTICE '   - token_balance_snapshots (Daily token snapshots)';
     RAISE NOTICE '   - fraud_alerts (Suspicious activity alerts)';
+    RAISE NOTICE '   - admin_security_notifications (Admin alerts)';
     RAISE NOTICE '';
     RAISE NOTICE '🔒 Security Functions:';
     RAISE NOTICE '   - secure_add_rp() - Add RP with audit trail';
@@ -818,12 +1199,26 @@ BEGIN
     RAISE NOTICE '   - verify_balance_integrity() - Check for discrepancies';
     RAISE NOTICE '   - check_rapid_transactions() - Detect bot activity';
     RAISE NOTICE '';
+    RAISE NOTICE '🔔 Admin Notification Functions:';
+    RAISE NOTICE '   - notify_admin_security() - Send security alert';
+    RAISE NOTICE '   - get_admin_security_notifications() - Get alerts';
+    RAISE NOTICE '   - get_admin_unread_notifications_count() - Unread count';
+    RAISE NOTICE '   - mark_notification_read() - Mark as read';
+    RAISE NOTICE '   - mark_all_notifications_read() - Mark all read';
+    RAISE NOTICE '';
     RAISE NOTICE '🛡️ Security Features:';
     RAISE NOTICE '   - Row Level Security on all tables';
     RAISE NOTICE '   - SHA256 checksums on all transactions';
     RAISE NOTICE '   - Automatic fraud detection';
     RAISE NOTICE '   - Balance integrity verification';
     RAISE NOTICE '   - IP/session tracking';
+    RAISE NOTICE '   - Real-time admin notifications';
+    RAISE NOTICE '';
+    RAISE NOTICE '📧 Admin Email: rf32191@gmail.com';
+    RAISE NOTICE '   - Receives all security alerts';
+    RAISE NOTICE '   - Fraud alerts auto-notify';
+    RAISE NOTICE '   - High-value transactions auto-notify';
+    RAISE NOTICE '   - Balance mismatches auto-notify';
     RAISE NOTICE '';
     RAISE NOTICE '⚠️ IMPORTANT: Run these functions instead of direct updates!';
 END $$;
