@@ -179,6 +179,7 @@ CREATE INDEX idx_token_snapshots_user ON public.token_balance_snapshots(user_id,
 -- =====================================================
 
 -- Function to generate checksum for integrity
+DROP FUNCTION IF EXISTS generate_transaction_checksum(UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION generate_transaction_checksum(
     p_user_id UUID,
     p_type TEXT,
@@ -199,6 +200,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Secure function to add RP (with full audit trail)
+DROP FUNCTION IF EXISTS secure_add_rp(UUID, INTEGER, TEXT, TEXT, TEXT, JSONB);
 CREATE OR REPLACE FUNCTION secure_add_rp(
     p_user_id UUID,
     p_amount INTEGER,
@@ -276,6 +278,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Secure function to spend RP (with full audit trail)
+DROP FUNCTION IF EXISTS secure_spend_rp(UUID, INTEGER, TEXT, TEXT, TEXT, JSONB);
 CREATE OR REPLACE FUNCTION secure_spend_rp(
     p_user_id UUID,
     p_amount INTEGER,
@@ -358,6 +361,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =====================================================
 
 -- Secure function to add tokens (with full audit trail)
+DROP FUNCTION IF EXISTS secure_add_tokens(UUID, DECIMAL, TEXT, TEXT, TEXT, TEXT, TEXT, JSONB);
 CREATE OR REPLACE FUNCTION secure_add_tokens(
     p_user_id UUID,
     p_amount DECIMAL(18, 8),
@@ -434,6 +438,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Secure function to spend tokens (with full audit trail)
+DROP FUNCTION IF EXISTS secure_spend_tokens(UUID, DECIMAL, TEXT, TEXT, TEXT, JSONB);
 CREATE OR REPLACE FUNCTION secure_spend_tokens(
     p_user_id UUID,
     p_amount DECIMAL(18, 8),
@@ -539,6 +544,7 @@ CREATE INDEX idx_fraud_alerts_unresolved ON public.fraud_alerts(resolved) WHERE 
 CREATE INDEX idx_fraud_alerts_severity ON public.fraud_alerts(severity, created_at DESC);
 
 -- Function to check for rapid transactions (potential bot/exploit)
+DROP FUNCTION IF EXISTS check_rapid_transactions(UUID, TEXT, INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION check_rapid_transactions(
     p_user_id UUID,
     p_currency_type TEXT,  -- 'rp' or 'token'
@@ -582,6 +588,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to verify balance integrity
+DROP FUNCTION IF EXISTS verify_balance_integrity(UUID);
 CREATE OR REPLACE FUNCTION verify_balance_integrity(p_user_id UUID)
 RETURNS JSONB AS $$
 DECLARE
@@ -829,6 +836,7 @@ CREATE INDEX idx_admin_notifications_severity ON public.admin_security_notificat
 CREATE INDEX idx_admin_notifications_type ON public.admin_security_notifications(notification_type);
 
 -- Function to send admin notification
+DROP FUNCTION IF EXISTS notify_admin_security(TEXT, TEXT, TEXT, TEXT, UUID, UUID, JSONB);
 CREATE OR REPLACE FUNCTION notify_admin_security(
     p_notification_type TEXT,
     p_severity TEXT,
@@ -902,6 +910,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger function to auto-notify on fraud alerts
+DROP FUNCTION IF EXISTS trigger_fraud_alert_notification() CASCADE;
 CREATE OR REPLACE FUNCTION trigger_fraud_alert_notification()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -995,6 +1004,7 @@ CREATE TRIGGER fraud_alert_notification_trigger
     EXECUTE FUNCTION trigger_fraud_alert_notification();
 
 -- Function to check and alert on high-value transactions
+DROP FUNCTION IF EXISTS check_high_value_transaction() CASCADE;
 CREATE OR REPLACE FUNCTION check_high_value_transaction()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -1068,6 +1078,7 @@ CREATE TRIGGER token_high_value_trigger
     EXECUTE FUNCTION check_high_value_transaction();
 
 -- Function to get unread admin notifications count
+DROP FUNCTION IF EXISTS get_admin_unread_notifications_count();
 CREATE OR REPLACE FUNCTION get_admin_unread_notifications_count()
 RETURNS INTEGER AS $$
 BEGIN
@@ -1080,6 +1091,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to get admin notifications
+DROP FUNCTION IF EXISTS get_admin_security_notifications(INTEGER, BOOLEAN);
 CREATE OR REPLACE FUNCTION get_admin_security_notifications(
     p_limit INTEGER DEFAULT 50,
     p_unread_only BOOLEAN DEFAULT FALSE
@@ -1115,6 +1127,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to mark notification as read
+DROP FUNCTION IF EXISTS mark_notification_read CASCADE;
 CREATE OR REPLACE FUNCTION mark_notification_read(p_notification_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -1127,6 +1140,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to mark all notifications as read
+DROP FUNCTION IF EXISTS mark_all_notifications_read();
 CREATE OR REPLACE FUNCTION mark_all_notifications_read()
 RETURNS INTEGER AS $$
 DECLARE
