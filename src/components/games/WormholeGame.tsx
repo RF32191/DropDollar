@@ -154,98 +154,150 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const swordActionRef = useRef<'idle' | 'slash' | 'parry' | 'strike'>('idle');
   const parryActiveRef = useRef(false);
   
-  // Create ParryPro-style glowing sword
+  // Create detailed 3D sword with glowing runes
   const createSword = (camera: THREE.PerspectiveCamera) => {
     const swordGroup = new THREE.Group();
     
-    // Main blade (larger, more visible)
-    const bladeGeo = new THREE.BoxGeometry(0.08, 1.2, 0.02);
+    // Main blade shape using ExtrudeGeometry for proper 3D sword shape
+    const bladeShape = new THREE.Shape();
+    bladeShape.moveTo(0, 0);
+    bladeShape.lineTo(0.05, 0.08);
+    bladeShape.lineTo(0.04, 1.1);
+    bladeShape.lineTo(0, 1.3); // Point
+    bladeShape.lineTo(-0.04, 1.1);
+    bladeShape.lineTo(-0.05, 0.08);
+    bladeShape.closePath();
+    
+    const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { 
+      depth: 0.015, 
+      bevelEnabled: true, 
+      bevelThickness: 0.003, 
+      bevelSize: 0.003 
+    });
+    bladeGeo.center();
+    bladeGeo.rotateX(Math.PI / 2);
+    
     const bladeMat = new THREE.MeshPhongMaterial({
-      color: 0xc0c0c0,
-      emissive: 0x404040,
-      emissiveIntensity: 0.3,
-      shininess: 100,
+      color: 0xd0d0e0,
+      emissive: 0x303040,
+      emissiveIntensity: 0.2,
+      shininess: 120,
       specular: 0xffffff,
     });
     const blade = new THREE.Mesh(bladeGeo, bladeMat);
-    blade.position.y = 0.6;
+    blade.position.y = 0.65;
     blade.name = 'blade';
     swordGroup.add(blade);
     
-    // Glowing edge (changes color with portal mode)
-    const edgeGeo = new THREE.BoxGeometry(0.015, 1.2, 0.025);
+    // Fuller (groove in blade center)
+    const fullerGeo = new THREE.BoxGeometry(0.015, 0.9, 0.02);
+    const fullerMat = new THREE.MeshPhongMaterial({ color: 0x606070, shininess: 60 });
+    const fuller = new THREE.Mesh(fullerGeo, fullerMat);
+    fuller.position.set(0, 0.65, 0.012);
+    swordGroup.add(fuller);
+    
+    // Glowing edges (change color with portal mode)
     const edgeMat = new THREE.MeshBasicMaterial({
-      color: 0x00ff88,
+      color: 0x00ff88, // Default green
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9,
     });
-    const edge = new THREE.Mesh(edgeGeo, edgeMat);
-    edge.position.set(0.045, 0.6, 0);
-    edge.name = 'edge';
-    swordGroup.add(edge);
     
-    // Second edge on other side
-    const edge2 = new THREE.Mesh(edgeGeo, edgeMat.clone());
-    edge2.position.set(-0.045, 0.6, 0);
-    edge2.name = 'edge2';
-    swordGroup.add(edge2);
+    const leftEdge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1.15, 0.02), edgeMat);
+    leftEdge.position.set(0.045, 0.65, 0);
+    leftEdge.name = 'edge';
+    swordGroup.add(leftEdge);
     
-    // Blade tip glow
-    const tipGeo = new THREE.ConeGeometry(0.06, 0.15, 4);
+    const rightEdge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1.15, 0.02), edgeMat.clone());
+    rightEdge.position.set(-0.045, 0.65, 0);
+    rightEdge.name = 'edge2';
+    swordGroup.add(rightEdge);
+    
+    // Glowing blade tip
+    const tipGeo = new THREE.ConeGeometry(0.06, 0.2, 6);
     const tipMat = new THREE.MeshBasicMaterial({
       color: 0x00ff88,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.95,
     });
     const tip = new THREE.Mesh(tipGeo, tipMat);
-    tip.position.y = 1.25;
+    tip.position.y = 1.35;
+    tip.rotation.x = Math.PI;
     tip.name = 'tip';
     swordGroup.add(tip);
     
-    // Cross guard
-    const guardGeo = new THREE.BoxGeometry(0.4, 0.06, 0.06);
+    // Ornate cross guard with curved ends
+    const guardGeo = new THREE.BoxGeometry(0.35, 0.05, 0.05);
     const guardMat = new THREE.MeshPhongMaterial({
       color: 0xdaa520,
-      emissive: 0x554400,
-      shininess: 80,
+      emissive: 0x664400,
+      shininess: 90,
     });
     const guard = new THREE.Mesh(guardGeo, guardMat);
-    guard.position.y = 0;
+    guard.position.y = 0.05;
     swordGroup.add(guard);
     
-    // Guard decorations (gems)
-    const gemGeo = new THREE.SphereGeometry(0.03, 8, 8);
+    // Guard end caps (curves)
+    const guardCapGeo = new THREE.SphereGeometry(0.03, 8, 8);
+    const leftCap = new THREE.Mesh(guardCapGeo, guardMat.clone());
+    leftCap.position.set(-0.175, 0.05, 0);
+    swordGroup.add(leftCap);
+    const rightCap = new THREE.Mesh(guardCapGeo, guardMat.clone());
+    rightCap.position.set(0.175, 0.05, 0);
+    swordGroup.add(rightCap);
+    
+    // Glowing gems on guard
+    const gemGeo = new THREE.OctahedronGeometry(0.025, 0);
     const gemMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+    
     const gem1 = new THREE.Mesh(gemGeo, gemMat);
-    gem1.position.set(0.15, 0, 0);
+    gem1.position.set(0.12, 0.05, 0.03);
+    gem1.rotation.y = Math.PI / 4;
     gem1.name = 'gem1';
     swordGroup.add(gem1);
+    
     const gem2 = new THREE.Mesh(gemGeo, gemMat.clone());
-    gem2.position.set(-0.15, 0, 0);
+    gem2.position.set(-0.12, 0.05, 0.03);
+    gem2.rotation.y = Math.PI / 4;
     gem2.name = 'gem2';
     swordGroup.add(gem2);
     
-    // Handle
-    const handleGeo = new THREE.CylinderGeometry(0.035, 0.04, 0.35, 8);
+    // Leather handle with wrap detail
+    const handleGeo = new THREE.CylinderGeometry(0.028, 0.032, 0.3, 10);
     const handleMat = new THREE.MeshPhongMaterial({
-      color: 0x8b4513,
-      emissive: 0x3a1a05,
+      color: 0x5a3015,
+      emissive: 0x1a0a05,
     });
     const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.y = -0.2;
+    handle.position.y = -0.12;
     swordGroup.add(handle);
     
-    // Pommel
-    const pommelGeo = new THREE.SphereGeometry(0.05, 8, 8);
-    const pommelMat = new THREE.MeshPhongMaterial({ color: 0xdaa520 });
+    // Handle wrapping rings
+    for (let i = 0; i < 4; i++) {
+      const ringGeo = new THREE.TorusGeometry(0.032, 0.004, 6, 12);
+      const ring = new THREE.Mesh(ringGeo, new THREE.MeshPhongMaterial({ color: 0x996633, shininess: 40 }));
+      ring.position.y = -0.22 + i * 0.07;
+      ring.rotation.x = Math.PI / 2;
+      swordGroup.add(ring);
+    }
+    
+    // Ornate pommel
+    const pommelGeo = new THREE.DodecahedronGeometry(0.045, 0);
+    const pommelMat = new THREE.MeshPhongMaterial({ color: 0xdaa520, emissive: 0x442200, shininess: 80 });
     const pommel = new THREE.Mesh(pommelGeo, pommelMat);
-    pommel.position.y = -0.4;
+    pommel.position.y = -0.32;
     swordGroup.add(pommel);
     
+    // Pommel center gem
+    const pommelGem = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), gemMat.clone());
+    pommelGem.position.y = -0.32;
+    pommelGem.name = 'gem1';
+    swordGroup.add(pommelGem);
+    
     // Position sword in bottom right of view (larger and more visible)
-    swordGroup.position.set(0.4, -0.4, -0.7);
-    swordGroup.rotation.set(0.3, -0.4, 0.15);
-    swordGroup.scale.set(0.8, 0.8, 0.8);
+    swordGroup.position.set(0.45, -0.35, -0.6);
+    swordGroup.rotation.set(0.25, -0.35, 0.12);
+    swordGroup.scale.set(0.95, 0.95, 0.95);
     
     camera.add(swordGroup);
     swordRef.current = swordGroup;
@@ -633,8 +685,8 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     // Cooldown to prevent instant re-teleport
     if (now - lastTeleportRef.current < 500) return;
     
-    const distToGreen = player.position.distanceTo(blue.position);
-    const distToCyan = player.position.distanceTo(orange.position);
+    const distToGreen = player.position.distanceTo(green.position);
+    const distToCyan = player.position.distanceTo(cyan.position);
     
     const teleportDist = 1.5;
     
@@ -1398,9 +1450,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
             }`}>
               <span className="drop-shadow-lg" style={{
                 textShadow: portalMode === 'green' 
-                  ? '0 0 20px #00aaff, 0 0 40px #00aaff, 0 0 60px #00aaff'
-                  : '0 0 20px #ff6600, 0 0 40px #ff6600, 0 0 60px #ff6600',
-                filter: `drop-shadow(0 0 10px ${portalMode === 'green' ? '#00aaff' : '#ff6600'})`
+                  ? '0 0 20px #00ff88, 0 0 40px #00ff88, 0 0 60px #00ff88'
+                  : '0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff',
+                filter: `drop-shadow(0 0 10px ${portalMode === 'green' ? '#00ff88' : '#00ffff'})`
               }}>🗡️</span>
             </div>
             <div className={`text-xs text-center mt-1 font-bold ${
