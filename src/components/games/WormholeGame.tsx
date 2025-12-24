@@ -55,18 +55,26 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const [totalTargets, setTotalTargets] = useState(0);
   const [isPointerLocked, setIsPointerLocked] = useState(false);
   
+  // Timer
+  const [timeLeft, setTimeLeft] = useState(90); // 90 second game
+  const gameStartTimeRef = useRef<number>(0);
+  
   // Enemies
   interface Enemy {
     mesh: THREE.Group;
     health: number;
     position: THREE.Vector3;
     velocity: THREE.Vector3;
-    state: 'idle' | 'chasing' | 'attacking' | 'hit' | 'dead';
+    state: 'idle' | 'chasing' | 'winding_up' | 'attacking' | 'hit' | 'stunned' | 'dead';
     attackCooldown: number;
     hitCooldown: number;
   }
   const enemiesRef = useRef<Enemy[]>([]);
   const [enemiesKilled, setEnemiesKilled] = useState(0);
+  
+  // Score ref for game end (to get latest value)
+  const scoreRef = useRef(0);
+  useEffect(() => { scoreRef.current = score; }, [score]);
   const [playerHealth, setPlayerHealth] = useState(3);
   const lastTeleportRef = useRef(0); // Cooldown for teleportation
   const isAttackingRef = useRef(false);
@@ -541,14 +549,16 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     ceiling.rotation.x = Math.PI / 2;
     scene.add(ceiling);
     
-    // Add platforms (5 stories high)
+    // Add platforms (7 stories high + upper arena)
     const platformMat1 = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.6 });
     const platformMat2 = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.5, emissive: 0x111122 });
     const platformMat3 = new THREE.MeshStandardMaterial({ color: 0x778899, roughness: 0.4, emissive: 0x222233 });
     const platformMat4 = new THREE.MeshStandardMaterial({ color: 0x88aacc, roughness: 0.3, emissive: 0x334455 });
-    const platformMatTop = new THREE.MeshStandardMaterial({ color: 0x99ccee, roughness: 0.2, emissive: 0x446688, emissiveIntensity: 0.5 });
+    const platformMat5 = new THREE.MeshStandardMaterial({ color: 0x99bbdd, roughness: 0.25, emissive: 0x445566 });
+    const platformMat6 = new THREE.MeshStandardMaterial({ color: 0xaaccee, roughness: 0.2, emissive: 0x556677 });
+    const platformMatTop = new THREE.MeshStandardMaterial({ color: 0xbbddff, roughness: 0.15, emissive: 0x668899, emissiveIntensity: 0.6 });
     
-    // 5 story platform configuration
+    // 7 story platform configuration + upper arena
     const platformConfigs = [
       // Story 1 - Ground level (y=2)
       { x: -8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
@@ -561,21 +571,29 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       { x: 10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2 },
       { x: 0, y: 5, z: 8, w: 6, d: 4, mat: platformMat2 },
       { x: 0, y: 5, z: -8, w: 5, d: 4, mat: platformMat2 },
-      // Story 3 (y=9)
-      { x: -6, y: 9, z: -6, w: 4, d: 4, mat: platformMat3 },
-      { x: 6, y: 9, z: -6, w: 4, d: 4, mat: platformMat3 },
-      { x: 0, y: 9, z: 0, w: 5, d: 5, mat: platformMat3 },
-      { x: -8, y: 9, z: 6, w: 3, d: 3, mat: platformMat3 },
-      { x: 8, y: 9, z: 6, w: 3, d: 3, mat: platformMat3 },
-      // Story 4 (y=13)
-      { x: -5, y: 13, z: 0, w: 4, d: 4, mat: platformMat4 },
-      { x: 5, y: 13, z: 0, w: 4, d: 4, mat: platformMat4 },
-      { x: 0, y: 13, z: -10, w: 5, d: 3, mat: platformMat4 },
-      { x: 0, y: 13, z: 10, w: 5, d: 3, mat: platformMat4 },
-      // Story 5 - Top level (y=17) - the prize!
-      { x: 0, y: 17, z: 0, w: 6, d: 6, mat: platformMatTop },
-      { x: -10, y: 17, z: -10, w: 3, d: 3, mat: platformMatTop },
-      { x: 10, y: 17, z: 10, w: 3, d: 3, mat: platformMatTop },
+      // Story 3 (y=8)
+      { x: -6, y: 8, z: -6, w: 4, d: 4, mat: platformMat3 },
+      { x: 6, y: 8, z: -6, w: 4, d: 4, mat: platformMat3 },
+      { x: 0, y: 8, z: 0, w: 5, d: 5, mat: platformMat3 },
+      { x: -8, y: 8, z: 6, w: 3, d: 3, mat: platformMat3 },
+      { x: 8, y: 8, z: 6, w: 3, d: 3, mat: platformMat3 },
+      // Story 4 (y=11)
+      { x: -5, y: 11, z: 0, w: 4, d: 4, mat: platformMat4 },
+      { x: 5, y: 11, z: 0, w: 4, d: 4, mat: platformMat4 },
+      { x: 0, y: 11, z: -10, w: 5, d: 3, mat: platformMat4 },
+      { x: 0, y: 11, z: 10, w: 5, d: 3, mat: platformMat4 },
+      // Story 5 (y=14)
+      { x: -8, y: 14, z: -4, w: 3, d: 3, mat: platformMat5 },
+      { x: 8, y: 14, z: 4, w: 3, d: 3, mat: platformMat5 },
+      { x: 0, y: 14, z: 0, w: 4, d: 4, mat: platformMat5 },
+      // Story 6 (y=17)
+      { x: -4, y: 17, z: 4, w: 3, d: 3, mat: platformMat6 },
+      { x: 4, y: 17, z: -4, w: 3, d: 3, mat: platformMat6 },
+      { x: 0, y: 17, z: 8, w: 4, d: 3, mat: platformMat6 },
+      // Story 7 - Top level (y=20) - Upper Arena Entry!
+      { x: 0, y: 20, z: 0, w: 8, d: 8, mat: platformMatTop },
+      { x: -10, y: 20, z: -10, w: 4, d: 4, mat: platformMatTop },
+      { x: 10, y: 20, z: 10, w: 4, d: 4, mat: platformMatTop },
     ];
     
     platformConfigs.forEach(p => {
@@ -588,10 +606,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       // Add edge glow for higher platforms
       if (p.y > 3) {
         const edgeGeo = new THREE.BoxGeometry(p.w + 0.1, 0.1, p.d + 0.1);
+        const glowColor = p.y > 15 ? 0x00ffff : (p.y > 10 ? 0x00ff88 : (p.y > 5 ? 0x6666ff : 0x4444aa));
         const edgeMat = new THREE.MeshBasicMaterial({ 
-          color: p.y > 7 ? 0x00ff88 : (p.y > 5 ? 0x6666ff : 0x4444aa),
+          color: glowColor,
           transparent: true,
-          opacity: 0.5,
+          opacity: 0.6,
         });
         const edge = new THREE.Mesh(edgeGeo, edgeMat);
         edge.position.set(p.x, p.y - 0.2, p.z);
@@ -599,14 +618,50 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       }
     });
     
-    // Add ramps/stairs for connectivity
-    const rampMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.7 });
+    // Add slopes/ramps for connectivity
+    const rampMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5 });
     
-    // Ramp from ground to second level (left)
-    const ramp1 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 6), rampMat);
-    ramp1.position.set(-10, 3.2, -4);
-    ramp1.rotation.x = 0.3;
+    // Slope from ground to second level (multiple ramps)
+    const ramp1 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 8), rampMat);
+    ramp1.position.set(-10, 3, -4);
+    ramp1.rotation.x = 0.25;
     scene.add(ramp1);
+    
+    const ramp2 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 8), rampMat);
+    ramp2.position.set(10, 3, 4);
+    ramp2.rotation.x = -0.25;
+    scene.add(ramp2);
+    
+    // Slope from level 2 to 3
+    const ramp3 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 6), rampMat);
+    ramp3.position.set(0, 6.5, 4);
+    ramp3.rotation.x = 0.3;
+    scene.add(ramp3);
+    
+    // Spiral slope from level 3 to 4
+    const ramp4 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 6), rampMat);
+    ramp4.position.set(-3, 9.5, 0);
+    ramp4.rotation.x = 0.25;
+    ramp4.rotation.y = 0.3;
+    scene.add(ramp4);
+    
+    // Slope to level 5
+    const ramp5 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 5), rampMat);
+    ramp5.position.set(3, 12.5, -2);
+    ramp5.rotation.x = 0.35;
+    scene.add(ramp5);
+    
+    // Slope to level 6
+    const ramp6 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 5), rampMat);
+    ramp6.position.set(-2, 15.5, 2);
+    ramp6.rotation.x = 0.35;
+    scene.add(ramp6);
+    
+    // Final grand slope to top arena
+    const ramp7 = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 6), rampMat);
+    ramp7.position.set(0, 18.5, 4);
+    ramp7.rotation.x = 0.3;
+    scene.add(ramp7);
     
     // Add collectible targets (spread across levels)
     const targetMat = new THREE.MeshStandardMaterial({ 
@@ -616,23 +671,27 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     
     const targetPositions = [
-      // Story 1 - Ground level
+      // Story 1 - Ground level (y=2)
       new THREE.Vector3(-8, 3.5, -8),
       new THREE.Vector3(8, 3.5, -8),
-      // Story 2
+      // Story 2 (y=5)
       new THREE.Vector3(-10, 6.5, 0),
       new THREE.Vector3(10, 6.5, 0),
-      // Story 3
-      new THREE.Vector3(-6, 10.5, -6),
-      new THREE.Vector3(6, 10.5, -6),
-      new THREE.Vector3(0, 10.5, 0),
-      // Story 4
-      new THREE.Vector3(-5, 14.5, 0),
-      new THREE.Vector3(5, 14.5, 0),
-      // Story 5 - Top level (hardest!)
-      new THREE.Vector3(0, 18.5, 0),
-      new THREE.Vector3(-10, 18.5, -10),
-      new THREE.Vector3(10, 18.5, 10),
+      // Story 3 (y=8)
+      new THREE.Vector3(-6, 9.5, -6),
+      new THREE.Vector3(0, 9.5, 0),
+      // Story 4 (y=11)
+      new THREE.Vector3(-5, 12.5, 0),
+      new THREE.Vector3(5, 12.5, 0),
+      // Story 5 (y=14)
+      new THREE.Vector3(0, 15.5, 0),
+      // Story 6 (y=17)
+      new THREE.Vector3(-4, 18.5, 4),
+      new THREE.Vector3(4, 18.5, -4),
+      // Story 7 - Top Arena (y=20) - the prizes!
+      new THREE.Vector3(0, 21.5, 0),
+      new THREE.Vector3(-10, 21.5, -10),
+      new THREE.Vector3(10, 21.5, 10),
     ];
     
     targetsRef.current = [];
@@ -872,7 +931,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         player.onGround = true;
       }
       
-      // Platform collisions (5 stories)
+      // Platform collisions (7 stories + upper arena)
       const platforms = [
         // Story 1 - Ground (y=2)
         { x: -8, y: 2.25, z: -8, w: 5, d: 5 },
@@ -885,21 +944,29 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         { x: 10, y: 5.25, z: 0, w: 4, d: 4 },
         { x: 0, y: 5.25, z: 8, w: 6, d: 4 },
         { x: 0, y: 5.25, z: -8, w: 5, d: 4 },
-        // Story 3 (y=9)
-        { x: -6, y: 9.25, z: -6, w: 4, d: 4 },
-        { x: 6, y: 9.25, z: -6, w: 4, d: 4 },
-        { x: 0, y: 9.25, z: 0, w: 5, d: 5 },
-        { x: -8, y: 9.25, z: 6, w: 3, d: 3 },
-        { x: 8, y: 9.25, z: 6, w: 3, d: 3 },
-        // Story 4 (y=13)
-        { x: -5, y: 13.25, z: 0, w: 4, d: 4 },
-        { x: 5, y: 13.25, z: 0, w: 4, d: 4 },
-        { x: 0, y: 13.25, z: -10, w: 5, d: 3 },
-        { x: 0, y: 13.25, z: 10, w: 5, d: 3 },
-        // Story 5 - Top (y=17)
-        { x: 0, y: 17.25, z: 0, w: 6, d: 6 },
-        { x: -10, y: 17.25, z: -10, w: 3, d: 3 },
-        { x: 10, y: 17.25, z: 10, w: 3, d: 3 },
+        // Story 3 (y=8)
+        { x: -6, y: 8.25, z: -6, w: 4, d: 4 },
+        { x: 6, y: 8.25, z: -6, w: 4, d: 4 },
+        { x: 0, y: 8.25, z: 0, w: 5, d: 5 },
+        { x: -8, y: 8.25, z: 6, w: 3, d: 3 },
+        { x: 8, y: 8.25, z: 6, w: 3, d: 3 },
+        // Story 4 (y=11)
+        { x: -5, y: 11.25, z: 0, w: 4, d: 4 },
+        { x: 5, y: 11.25, z: 0, w: 4, d: 4 },
+        { x: 0, y: 11.25, z: -10, w: 5, d: 3 },
+        { x: 0, y: 11.25, z: 10, w: 5, d: 3 },
+        // Story 5 (y=14)
+        { x: -8, y: 14.25, z: -4, w: 3, d: 3 },
+        { x: 8, y: 14.25, z: 4, w: 3, d: 3 },
+        { x: 0, y: 14.25, z: 0, w: 4, d: 4 },
+        // Story 6 (y=17)
+        { x: -4, y: 17.25, z: 4, w: 3, d: 3 },
+        { x: 4, y: 17.25, z: -4, w: 3, d: 3 },
+        { x: 0, y: 17.25, z: 8, w: 4, d: 3 },
+        // Story 7 - Top Arena (y=20)
+        { x: 0, y: 20.25, z: 0, w: 8, d: 8 },
+        { x: -10, y: 20.25, z: -10, w: 4, d: 4 },
+        { x: 10, y: 20.25, z: 10, w: 4, d: 4 },
       ];
       
       platforms.forEach(p => {
@@ -1218,10 +1285,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
       });
       
-      // Check game over
-      if (playerHealth <= 0) {
+      // Update timer
+      const elapsed = (Date.now() - gameStartTimeRef.current) / 1000;
+      const remaining = Math.max(0, 90 - elapsed);
+      setTimeLeft(Math.ceil(remaining));
+      
+      // Check game over (time or health)
+      if (playerHealth <= 0 || remaining <= 0) {
         setGameState('gameover');
-        if (onGameEnd) onGameEnd(score);
+        try {
+          if (onGameEnd) onGameEnd(scoreRef.current);
+        } catch (e) {
+          console.error('Error calling onGameEnd:', e);
+        }
         return;
       }
       
@@ -1241,7 +1317,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         setScore(prev => prev + 500);
         setMessage('Level Complete! +500');
         setGameState('gameover');
-        if (onGameEnd) onGameEnd(score + 500);
+        try {
+          if (onGameEnd) onGameEnd(scoreRef.current + 500);
+        } catch (e) {
+          console.error('Error calling onGameEnd:', e);
+        }
         return;
       }
       
@@ -1379,6 +1459,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     playerRef.current.yaw = 0;
     playerRef.current.pitch = 0;
     setScore(0);
+    scoreRef.current = 0;
+    setTimeLeft(90);
+    gameStartTimeRef.current = Date.now();
     setTargetsCollected(0);
     setPlayerHealth(3);
     setEnemiesKilled(0);
@@ -1511,6 +1594,15 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
                   {i < playerHealth ? '❤️' : '🖤'}
                 </div>
               ))}
+            </div>
+          </div>
+          
+          {/* Timer */}
+          <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-40">
+            <div className={`rounded-lg px-4 py-2 font-bold text-2xl ${
+              timeLeft <= 10 ? 'bg-red-600 animate-pulse' : 'bg-gray-800'
+            }`}>
+              ⏱️ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </div>
           </div>
           
