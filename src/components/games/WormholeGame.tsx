@@ -55,6 +55,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const [totalTargets, setTotalTargets] = useState(0);
   const [isPointerLocked, setIsPointerLocked] = useState(false);
   
+  // Multi-room system
+  const [currentRoom, setCurrentRoom] = useState(1);
+  const disappearingPlatformsRef = useRef<THREE.Mesh[]>([]);
+  const portalWallsRef = useRef<THREE.Mesh[]>([]);
+  const rampsRef = useRef<{ mesh: THREE.Mesh; angle: number; axis: 'x' | 'z'; y: number; length: number }[]>([]);
+  
   // Timer
   const [timeLeft, setTimeLeft] = useState(90); // 90 second game
   const gameStartTimeRef = useRef<number>(0);
@@ -608,183 +614,273 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     };
   };
 
-  // Create test chamber
+  // Create multi-room test chamber with advanced features
   const createTestChamber = (scene: THREE.Scene) => {
-    // Floor
+    // === ROOM 1 (Main Chamber) ===
+    const room1OffsetX = 0;
+    const room1OffsetZ = 0;
+    
+    // === ROOM 2 (Connected via bridge at top) ===
+    const room2OffsetX = 35; // Next room to the right
+    const room2OffsetZ = 0;
+    
+    // Floor for Room 1
     const floorGeo = new THREE.PlaneGeometry(30, 30);
-    const floorMat = new THREE.MeshStandardMaterial({ 
-      color: 0x333344,
-      roughness: 0.8,
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.8 });
+    const floor1 = new THREE.Mesh(floorGeo, floorMat);
+    floor1.rotation.x = -Math.PI / 2;
+    floor1.position.set(room1OffsetX, 0, room1OffsetZ);
+    floor1.receiveShadow = true;
+    scene.add(floor1);
     
-    // Grid on floor
-    const gridHelper = new THREE.GridHelper(30, 30, 0x4444ff, 0x222244);
-    scene.add(gridHelper);
+    // Floor for Room 2
+    const floor2 = new THREE.Mesh(floorGeo, floorMat.clone());
+    floor2.rotation.x = -Math.PI / 2;
+    floor2.position.set(room2OffsetX, 0, room2OffsetZ);
+    floor2.receiveShadow = true;
+    scene.add(floor2);
     
-    // Walls (portalable surfaces) - TALLER for 5 stories
-    const wallHeight = 25; // 5 stories tall
-    const wallMat = new THREE.MeshStandardMaterial({ 
-      color: 0x445566,
-      roughness: 0.5,
-      side: THREE.DoubleSide,
-    });
+    // Grids
+    const gridHelper1 = new THREE.GridHelper(30, 30, 0x4444ff, 0x222244);
+    gridHelper1.position.set(room1OffsetX, 0, room1OffsetZ);
+    scene.add(gridHelper1);
+    const gridHelper2 = new THREE.GridHelper(30, 30, 0xff4444, 0x442222);
+    gridHelper2.position.set(room2OffsetX, 0, room2OffsetZ);
+    scene.add(gridHelper2);
     
-    // Back wall (Z-)
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat);
-    backWall.position.set(0, wallHeight/2, -15);
-    backWall.userData.portalable = true;
-    backWall.name = 'backWall';
-    scene.add(backWall);
+    // Wall height and materials
+    const wallHeight = 28;
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5, side: THREE.DoubleSide });
+    const wallMat2 = new THREE.MeshStandardMaterial({ color: 0x664455, roughness: 0.5, side: THREE.DoubleSide });
     
-    // Front wall (Z+)
-    const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat.clone());
-    frontWall.position.set(0, wallHeight/2, 15);
-    frontWall.rotation.y = Math.PI;
-    frontWall.userData.portalable = true;
-    frontWall.name = 'frontWall';
-    scene.add(frontWall);
+    // === ROOM 1 WALLS ===
+    // Back wall
+    const backWall1 = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat);
+    backWall1.position.set(room1OffsetX, wallHeight/2, room1OffsetZ - 15);
+    backWall1.userData.portalable = true;
+    scene.add(backWall1);
     
-    // Left wall (X-) - Use BoxGeometry for better raycasting
-    const leftWallGeo = new THREE.BoxGeometry(0.5, wallHeight, 30);
-    const leftWall = new THREE.Mesh(leftWallGeo, wallMat.clone());
-    leftWall.position.set(-15, wallHeight/2, 0);
-    leftWall.userData.portalable = true;
-    leftWall.name = 'leftWall';
-    scene.add(leftWall);
+    // Front wall (with opening to bridge at top)
+    const frontWall1 = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat.clone());
+    frontWall1.position.set(room1OffsetX, wallHeight/2, room1OffsetZ + 15);
+    frontWall1.rotation.y = Math.PI;
+    frontWall1.userData.portalable = true;
+    scene.add(frontWall1);
     
-    // Right wall (X+) - Use BoxGeometry for better raycasting
-    const rightWallGeo = new THREE.BoxGeometry(0.5, wallHeight, 30);
-    const rightWall = new THREE.Mesh(rightWallGeo, wallMat.clone());
-    rightWall.position.set(15, wallHeight/2, 0);
-    rightWall.userData.portalable = true;
-    rightWall.name = 'rightWall';
-    scene.add(rightWall);
+    // Left wall
+    const leftWall1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, wallHeight, 30), wallMat.clone());
+    leftWall1.position.set(room1OffsetX - 15, wallHeight/2, room1OffsetZ);
+    leftWall1.userData.portalable = true;
+    scene.add(leftWall1);
     
-    // Ceiling (higher now)
-    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x222233 }));
-    ceiling.position.y = wallHeight;
-    ceiling.rotation.x = Math.PI / 2;
-    scene.add(ceiling);
+    // Right wall (partial - has bridge opening at top)
+    const rightWall1Bottom = new THREE.Mesh(new THREE.BoxGeometry(0.5, 20, 30), wallMat.clone());
+    rightWall1Bottom.position.set(room1OffsetX + 15, 10, room1OffsetZ);
+    rightWall1Bottom.userData.portalable = true;
+    scene.add(rightWall1Bottom);
     
-    // Add platforms (7 stories high + upper arena)
+    // Ceiling Room 1
+    const ceiling1 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x222233 }));
+    ceiling1.position.set(room1OffsetX, wallHeight, room1OffsetZ);
+    ceiling1.rotation.x = Math.PI / 2;
+    scene.add(ceiling1);
+    
+    // === ROOM 2 WALLS ===
+    const backWall2 = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat2);
+    backWall2.position.set(room2OffsetX, wallHeight/2, room2OffsetZ - 15);
+    backWall2.userData.portalable = true;
+    scene.add(backWall2);
+    
+    const frontWall2 = new THREE.Mesh(new THREE.PlaneGeometry(30, wallHeight), wallMat2.clone());
+    frontWall2.position.set(room2OffsetX, wallHeight/2, room2OffsetZ + 15);
+    frontWall2.rotation.y = Math.PI;
+    frontWall2.userData.portalable = true;
+    scene.add(frontWall2);
+    
+    // Left wall Room 2 (partial - has bridge opening)
+    const leftWall2Bottom = new THREE.Mesh(new THREE.BoxGeometry(0.5, 20, 30), wallMat2.clone());
+    leftWall2Bottom.position.set(room2OffsetX - 15, 10, room2OffsetZ);
+    leftWall2Bottom.userData.portalable = true;
+    scene.add(leftWall2Bottom);
+    
+    const rightWall2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, wallHeight, 30), wallMat2.clone());
+    rightWall2.position.set(room2OffsetX + 15, wallHeight/2, room2OffsetZ);
+    rightWall2.userData.portalable = true;
+    scene.add(rightWall2);
+    
+    const ceiling2 = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x332233 }));
+    ceiling2.position.set(room2OffsetX, wallHeight, room2OffsetZ);
+    ceiling2.rotation.x = Math.PI / 2;
+    scene.add(ceiling2);
+    
+    // === BRIDGE CONNECTING ROOMS at y=22 ===
+    const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0x442200, roughness: 0.3 });
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 6), bridgeMat);
+    bridge.position.set(room1OffsetX + 20, 22, 0);
+    scene.add(bridge);
+    
+    // Bridge railings (visual)
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 });
+    const leftRail = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 0.2), railMat);
+    leftRail.position.set(room1OffsetX + 20, 22.75, -2.9);
+    scene.add(leftRail);
+    const rightRail = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 0.2), railMat);
+    rightRail.position.set(room1OffsetX + 20, 22.75, 2.9);
+    scene.add(rightRail);
+    
+    // Platform materials
     const platformMat1 = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.6 });
     const platformMat2 = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.5, emissive: 0x111122 });
     const platformMat3 = new THREE.MeshStandardMaterial({ color: 0x778899, roughness: 0.4, emissive: 0x222233 });
     const platformMat4 = new THREE.MeshStandardMaterial({ color: 0x88aacc, roughness: 0.3, emissive: 0x334455 });
-    const platformMat5 = new THREE.MeshStandardMaterial({ color: 0x99bbdd, roughness: 0.25, emissive: 0x445566 });
-    const platformMat6 = new THREE.MeshStandardMaterial({ color: 0xaaccee, roughness: 0.2, emissive: 0x556677 });
+    const platformMatDisappear = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0x441100, roughness: 0.3 });
     const platformMatTop = new THREE.MeshStandardMaterial({ color: 0xbbddff, roughness: 0.15, emissive: 0x668899, emissiveIntensity: 0.6 });
     
-    // 7 story platform configuration + upper arena
-    const platformConfigs = [
-      // Story 1 - Ground level (y=2)
-      { x: -8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
-      { x: 8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1 },
-      { x: 0, y: 2, z: -12, w: 4, d: 4, mat: platformMat1 },
-      { x: -10, y: 2, z: 8, w: 4, d: 4, mat: platformMat1 },
-      { x: 10, y: 2, z: 8, w: 4, d: 4, mat: platformMat1 },
+    // Clear refs
+    disappearingPlatformsRef.current = [];
+    portalWallsRef.current = [];
+    rampsRef.current = [];
+    
+    // === ROOM 1 PLATFORMS ===
+    const room1Platforms = [
+      // Story 1 (y=2)
+      { x: -8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1, disappearing: false },
+      { x: 8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1, disappearing: false },
+      { x: 0, y: 2, z: -12, w: 4, d: 4, mat: platformMat1, disappearing: false },
+      { x: -10, y: 2, z: 8, w: 4, d: 4, mat: platformMat1, disappearing: false },
+      { x: 10, y: 2, z: 8, w: 4, d: 4, mat: platformMat1, disappearing: false },
       // Story 2 (y=5)
-      { x: -10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2 },
-      { x: 10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2 },
-      { x: 0, y: 5, z: 8, w: 6, d: 4, mat: platformMat2 },
-      { x: 0, y: 5, z: -8, w: 5, d: 4, mat: platformMat2 },
-      // Story 3 (y=8)
-      { x: -6, y: 8, z: -6, w: 4, d: 4, mat: platformMat3 },
-      { x: 6, y: 8, z: -6, w: 4, d: 4, mat: platformMat3 },
-      { x: 0, y: 8, z: 0, w: 5, d: 5, mat: platformMat3 },
-      { x: -8, y: 8, z: 6, w: 3, d: 3, mat: platformMat3 },
-      { x: 8, y: 8, z: 6, w: 3, d: 3, mat: platformMat3 },
+      { x: -10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2, disappearing: false, hasWall: true },
+      { x: 10, y: 5, z: 0, w: 4, d: 4, mat: platformMat2, disappearing: false, hasWall: true },
+      { x: 0, y: 5, z: 8, w: 6, d: 4, mat: platformMat2, disappearing: false },
+      { x: 0, y: 5, z: -8, w: 5, d: 4, mat: platformMat2, disappearing: false },
+      // Story 3 (y=8) - Some disappearing!
+      { x: -6, y: 8, z: -6, w: 4, d: 4, mat: platformMatDisappear, disappearing: true },
+      { x: 6, y: 8, z: -6, w: 4, d: 4, mat: platformMat3, disappearing: false },
+      { x: 0, y: 8, z: 0, w: 5, d: 5, mat: platformMat3, disappearing: false, hasWall: true },
+      { x: -8, y: 8, z: 6, w: 3, d: 3, mat: platformMatDisappear, disappearing: true },
+      { x: 8, y: 8, z: 6, w: 3, d: 3, mat: platformMat3, disappearing: false },
       // Story 4 (y=11)
-      { x: -5, y: 11, z: 0, w: 4, d: 4, mat: platformMat4 },
-      { x: 5, y: 11, z: 0, w: 4, d: 4, mat: platformMat4 },
-      { x: 0, y: 11, z: -10, w: 5, d: 3, mat: platformMat4 },
-      { x: 0, y: 11, z: 10, w: 5, d: 3, mat: platformMat4 },
+      { x: -5, y: 11, z: 0, w: 4, d: 4, mat: platformMat4, disappearing: false },
+      { x: 5, y: 11, z: 0, w: 4, d: 4, mat: platformMatDisappear, disappearing: true },
+      { x: 0, y: 11, z: -10, w: 5, d: 3, mat: platformMat4, disappearing: false, hasWall: true },
+      { x: 0, y: 11, z: 10, w: 5, d: 3, mat: platformMat4, disappearing: false },
       // Story 5 (y=14)
-      { x: -8, y: 14, z: -4, w: 3, d: 3, mat: platformMat5 },
-      { x: 8, y: 14, z: 4, w: 3, d: 3, mat: platformMat5 },
-      { x: 0, y: 14, z: 0, w: 4, d: 4, mat: platformMat5 },
+      { x: -8, y: 14, z: -4, w: 3, d: 3, mat: platformMatDisappear, disappearing: true },
+      { x: 8, y: 14, z: 4, w: 3, d: 3, mat: platformMat4, disappearing: false },
+      { x: 0, y: 14, z: 0, w: 4, d: 4, mat: platformMat4, disappearing: false, hasWall: true },
       // Story 6 (y=17)
-      { x: -4, y: 17, z: 4, w: 3, d: 3, mat: platformMat6 },
-      { x: 4, y: 17, z: -4, w: 3, d: 3, mat: platformMat6 },
-      { x: 0, y: 17, z: 8, w: 4, d: 3, mat: platformMat6 },
-      // Story 7 - Top level (y=20) - Upper Arena Entry!
-      { x: 0, y: 20, z: 0, w: 8, d: 8, mat: platformMatTop },
-      { x: -10, y: 20, z: -10, w: 4, d: 4, mat: platformMatTop },
-      { x: 10, y: 20, z: 10, w: 4, d: 4, mat: platformMatTop },
+      { x: -4, y: 17, z: 4, w: 3, d: 3, mat: platformMat4, disappearing: false },
+      { x: 4, y: 17, z: -4, w: 3, d: 3, mat: platformMatDisappear, disappearing: true },
+      { x: 0, y: 17, z: 8, w: 4, d: 3, mat: platformMat4, disappearing: false },
+      // Story 7 (y=20) - Bridge level!
+      { x: 0, y: 20, z: 0, w: 8, d: 8, mat: platformMatTop, disappearing: false },
+      { x: 12, y: 22, z: 0, w: 4, d: 4, mat: platformMatTop, disappearing: false }, // Bridge entry
     ];
     
-    platformConfigs.forEach(p => {
-      const platform = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.5, p.d), p.mat);
+    // === ROOM 2 PLATFORMS ===
+    const room2Platforms = [
+      // Lower platforms
+      { x: room2OffsetX - 8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1, disappearing: false },
+      { x: room2OffsetX + 8, y: 2, z: -8, w: 5, d: 5, mat: platformMat1, disappearing: false },
+      { x: room2OffsetX, y: 2, z: 8, w: 6, d: 6, mat: platformMat1, disappearing: false },
+      // Mid platforms
+      { x: room2OffsetX - 10, y: 6, z: 0, w: 4, d: 4, mat: platformMat2, disappearing: false, hasWall: true },
+      { x: room2OffsetX + 10, y: 6, z: 0, w: 4, d: 4, mat: platformMat2, disappearing: false },
+      { x: room2OffsetX, y: 6, z: -10, w: 5, d: 4, mat: platformMatDisappear, disappearing: true },
+      // Upper platforms
+      { x: room2OffsetX - 6, y: 10, z: -6, w: 4, d: 4, mat: platformMat3, disappearing: false, hasWall: true },
+      { x: room2OffsetX + 6, y: 10, z: 6, w: 4, d: 4, mat: platformMatDisappear, disappearing: true },
+      { x: room2OffsetX, y: 10, z: 0, w: 5, d: 5, mat: platformMat3, disappearing: false },
+      // Higher platforms
+      { x: room2OffsetX - 4, y: 14, z: 4, w: 3, d: 3, mat: platformMat4, disappearing: false },
+      { x: room2OffsetX + 4, y: 14, z: -4, w: 3, d: 3, mat: platformMat4, disappearing: false, hasWall: true },
+      { x: room2OffsetX, y: 14, z: 8, w: 4, d: 3, mat: platformMatDisappear, disappearing: true },
+      // Top platforms
+      { x: room2OffsetX, y: 18, z: 0, w: 6, d: 6, mat: platformMatTop, disappearing: false },
+      { x: room2OffsetX - 8, y: 22, z: 0, w: 4, d: 4, mat: platformMatTop, disappearing: false }, // Bridge entry
+    ];
+    
+    const allPlatforms = [...room1Platforms, ...room2Platforms];
+    
+    allPlatforms.forEach(p => {
+      const platform = new THREE.Mesh(new THREE.BoxGeometry(p.w, 0.5, p.d), p.mat.clone());
       platform.position.set(p.x, p.y, p.z);
       platform.castShadow = true;
       platform.receiveShadow = true;
+      platform.userData.isPlatform = true;
+      platform.userData.disappearing = p.disappearing;
       scene.add(platform);
       
-      // Add edge glow for higher platforms
+      // Track disappearing platforms
+      if (p.disappearing) {
+        disappearingPlatformsRef.current.push(platform);
+      }
+      
+      // Add edge glow
       if (p.y > 3) {
         const edgeGeo = new THREE.BoxGeometry(p.w + 0.1, 0.1, p.d + 0.1);
-        const glowColor = p.y > 15 ? 0x00ffff : (p.y > 10 ? 0x00ff88 : (p.y > 5 ? 0x6666ff : 0x4444aa));
-        const edgeMat = new THREE.MeshBasicMaterial({ 
-          color: glowColor,
-          transparent: true,
-          opacity: 0.6,
-        });
+        const glowColor = p.disappearing ? 0xff4400 : (p.y > 15 ? 0x00ffff : (p.y > 10 ? 0x00ff88 : 0x6666ff));
+        const edgeMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.6 });
         const edge = new THREE.Mesh(edgeGeo, edgeMat);
         edge.position.set(p.x, p.y - 0.2, p.z);
+        edge.userData.isGlow = true;
+        edge.userData.parentPlatform = platform;
         scene.add(edge);
+      }
+      
+      // Add portal wall on platform (requires portal to cross!)
+      if (p.hasWall) {
+        const portalWallMat = new THREE.MeshStandardMaterial({ 
+          color: 0x00ff88, 
+          emissive: 0x004422,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const portalWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3, p.d - 0.5), portalWallMat);
+        portalWall.position.set(p.x, p.y + 1.75, p.z);
+        portalWall.userData.portalable = true;
+        portalWall.userData.isPortalWall = true;
+        scene.add(portalWall);
+        portalWallsRef.current.push(portalWall);
       }
     });
     
-    // Add slopes/ramps for connectivity
+    // === RAMPS (with collision data) ===
     const rampMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5 });
     
-    // Slope from ground to second level (multiple ramps)
-    const ramp1 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 8), rampMat);
-    ramp1.position.set(-10, 3, -4);
-    ramp1.rotation.x = 0.25;
-    scene.add(ramp1);
+    // Helper function to add ramp with collision data
+    const addRamp = (x: number, y: number, z: number, w: number, l: number, angle: number, axis: 'x' | 'z' = 'x') => {
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(w, 0.4, l), rampMat);
+      ramp.position.set(x, y, z);
+      if (axis === 'x') {
+        ramp.rotation.x = angle;
+      } else {
+        ramp.rotation.z = angle;
+      }
+      ramp.userData.isRamp = true;
+      scene.add(ramp);
+      rampsRef.current.push({ mesh: ramp, angle, axis, y, length: l });
+    };
     
-    const ramp2 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 8), rampMat);
-    ramp2.position.set(10, 3, 4);
-    ramp2.rotation.x = -0.25;
-    scene.add(ramp2);
+    // Room 1 ramps
+    addRamp(-10, 3.5, -4, 2.5, 8, 0.25, 'x');
+    addRamp(10, 3.5, 4, 2.5, 8, -0.25, 'x');
+    addRamp(0, 6.5, 4, 2, 6, 0.3, 'x');
+    addRamp(-3, 9.5, 0, 2, 6, 0.28, 'x');
+    addRamp(3, 12.5, -2, 2, 5, 0.35, 'x');
+    addRamp(-2, 15.5, 2, 2, 5, 0.35, 'x');
+    addRamp(0, 18.5, 4, 3, 6, 0.3, 'x');
     
-    // Slope from level 2 to 3
-    const ramp3 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 6), rampMat);
-    ramp3.position.set(0, 6.5, 4);
-    ramp3.rotation.x = 0.3;
-    scene.add(ramp3);
+    // Room 2 ramps
+    addRamp(room2OffsetX - 8, 4, 4, 2, 6, 0.3, 'x');
+    addRamp(room2OffsetX + 8, 4, -4, 2, 6, -0.3, 'x');
+    addRamp(room2OffsetX, 8, 4, 2, 5, 0.35, 'x');
+    addRamp(room2OffsetX - 4, 12, 0, 2, 5, 0.35, 'x');
+    addRamp(room2OffsetX + 4, 16, -2, 2, 5, 0.3, 'x');
+    addRamp(room2OffsetX, 20, 3, 3, 5, 0.25, 'x');
     
-    // Spiral slope from level 3 to 4
-    const ramp4 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 6), rampMat);
-    ramp4.position.set(-3, 9.5, 0);
-    ramp4.rotation.x = 0.25;
-    ramp4.rotation.y = 0.3;
-    scene.add(ramp4);
-    
-    // Slope to level 5
-    const ramp5 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 5), rampMat);
-    ramp5.position.set(3, 12.5, -2);
-    ramp5.rotation.x = 0.35;
-    scene.add(ramp5);
-    
-    // Slope to level 6
-    const ramp6 = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 5), rampMat);
-    ramp6.position.set(-2, 15.5, 2);
-    ramp6.rotation.x = 0.35;
-    scene.add(ramp6);
-    
-    // Final grand slope to top arena
-    const ramp7 = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 6), rampMat);
-    ramp7.position.set(0, 18.5, 4);
-    ramp7.rotation.x = 0.3;
-    scene.add(ramp7);
-    
-    // Add collectible targets (spread across levels)
+    // Add collectible targets (spread across BOTH rooms)
     const targetMat = new THREE.MeshStandardMaterial({ 
       color: 0xffff00, 
       emissive: 0xffff00,
@@ -792,27 +888,22 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     });
     
     const targetPositions = [
-      // Story 1 - Ground level (y=2)
+      // ROOM 1 targets
       new THREE.Vector3(-8, 3.5, -8),
       new THREE.Vector3(8, 3.5, -8),
-      // Story 2 (y=5)
       new THREE.Vector3(-10, 6.5, 0),
       new THREE.Vector3(10, 6.5, 0),
-      // Story 3 (y=8)
-      new THREE.Vector3(-6, 9.5, -6),
       new THREE.Vector3(0, 9.5, 0),
-      // Story 4 (y=11)
       new THREE.Vector3(-5, 12.5, 0),
-      new THREE.Vector3(5, 12.5, 0),
-      // Story 5 (y=14)
       new THREE.Vector3(0, 15.5, 0),
-      // Story 6 (y=17)
-      new THREE.Vector3(-4, 18.5, 4),
-      new THREE.Vector3(4, 18.5, -4),
-      // Story 7 - Top Arena (y=20) - the prizes!
       new THREE.Vector3(0, 21.5, 0),
-      new THREE.Vector3(-10, 21.5, -10),
-      new THREE.Vector3(10, 21.5, 10),
+      // ROOM 2 targets (after crossing bridge!)
+      new THREE.Vector3(room2OffsetX - 8, 3.5, -8),
+      new THREE.Vector3(room2OffsetX + 8, 3.5, -8),
+      new THREE.Vector3(room2OffsetX - 10, 7.5, 0),
+      new THREE.Vector3(room2OffsetX, 11.5, 0),
+      new THREE.Vector3(room2OffsetX - 4, 15.5, 4),
+      new THREE.Vector3(room2OffsetX, 19.5, 0),
     ];
     
     targetsRef.current = [];
@@ -827,20 +918,19 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTotalTargets(targetPositions.length);
     setTargetsCollected(0);
     
-    // Spawn MORE enemies (8 total spread across levels)
+    // Spawn enemies in BOTH rooms
     enemiesRef.current = [];
     const enemyPositions = [
-      // Ground level enemies
+      // Room 1 enemies
       { x: -5, z: 0 },
       { x: 5, z: -5 },
       { x: 0, z: -10 },
       { x: 10, z: 5 },
-      // Mid-level enemies
       { x: -8, z: 8 },
-      { x: 8, z: -8 },
-      // Upper level enemies
-      { x: -3, z: 3 },
-      { x: 3, z: -3 },
+      // Room 2 enemies
+      { x: room2OffsetX - 5, z: 0 },
+      { x: room2OffsetX + 5, z: -5 },
+      { x: room2OffsetX, z: 8 },
     ];
     enemyPositions.forEach(pos => {
       const enemy = createEnemy(scene, pos.x, pos.z);
@@ -1052,45 +1142,75 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         player.onGround = true;
       }
       
-      // Platform collisions (7 stories + upper arena)
+      // Toggle disappearing platforms every 5 seconds
+      const disappearPhase = Math.floor(elapsed / 5) % 2 === 0;
+      disappearingPlatformsRef.current.forEach(platform => {
+        platform.visible = disappearPhase;
+        // Also hide the glow
+        if (sceneRef.current) {
+          sceneRef.current.children.forEach(child => {
+            if (child.userData.isGlow && child.userData.parentPlatform === platform) {
+              child.visible = disappearPhase;
+            }
+          });
+        }
+      });
+      
+      // Room 2 offset for collision
+      const room2X = 35;
+      
+      // Platform collisions (BOTH ROOMS + BRIDGE)
       const platforms = [
-        // Story 1 - Ground (y=2)
-        { x: -8, y: 2.25, z: -8, w: 5, d: 5 },
-        { x: 8, y: 2.25, z: -8, w: 5, d: 5 },
-        { x: 0, y: 2.25, z: -12, w: 4, d: 4 },
-        { x: -10, y: 2.25, z: 8, w: 4, d: 4 },
-        { x: 10, y: 2.25, z: 8, w: 4, d: 4 },
-        // Story 2 (y=5)
-        { x: -10, y: 5.25, z: 0, w: 4, d: 4 },
-        { x: 10, y: 5.25, z: 0, w: 4, d: 4 },
-        { x: 0, y: 5.25, z: 8, w: 6, d: 4 },
-        { x: 0, y: 5.25, z: -8, w: 5, d: 4 },
-        // Story 3 (y=8)
-        { x: -6, y: 8.25, z: -6, w: 4, d: 4 },
-        { x: 6, y: 8.25, z: -6, w: 4, d: 4 },
-        { x: 0, y: 8.25, z: 0, w: 5, d: 5 },
-        { x: -8, y: 8.25, z: 6, w: 3, d: 3 },
-        { x: 8, y: 8.25, z: 6, w: 3, d: 3 },
-        // Story 4 (y=11)
-        { x: -5, y: 11.25, z: 0, w: 4, d: 4 },
-        { x: 5, y: 11.25, z: 0, w: 4, d: 4 },
-        { x: 0, y: 11.25, z: -10, w: 5, d: 3 },
-        { x: 0, y: 11.25, z: 10, w: 5, d: 3 },
-        // Story 5 (y=14)
-        { x: -8, y: 14.25, z: -4, w: 3, d: 3 },
-        { x: 8, y: 14.25, z: 4, w: 3, d: 3 },
-        { x: 0, y: 14.25, z: 0, w: 4, d: 4 },
-        // Story 6 (y=17)
-        { x: -4, y: 17.25, z: 4, w: 3, d: 3 },
-        { x: 4, y: 17.25, z: -4, w: 3, d: 3 },
-        { x: 0, y: 17.25, z: 8, w: 4, d: 3 },
-        // Story 7 - Top Arena (y=20)
-        { x: 0, y: 20.25, z: 0, w: 8, d: 8 },
-        { x: -10, y: 20.25, z: -10, w: 4, d: 4 },
-        { x: 10, y: 20.25, z: 10, w: 4, d: 4 },
+        // ROOM 1 platforms
+        { x: -8, y: 2.25, z: -8, w: 5, d: 5, disappearing: false },
+        { x: 8, y: 2.25, z: -8, w: 5, d: 5, disappearing: false },
+        { x: 0, y: 2.25, z: -12, w: 4, d: 4, disappearing: false },
+        { x: -10, y: 2.25, z: 8, w: 4, d: 4, disappearing: false },
+        { x: 10, y: 2.25, z: 8, w: 4, d: 4, disappearing: false },
+        { x: -10, y: 5.25, z: 0, w: 4, d: 4, disappearing: false },
+        { x: 10, y: 5.25, z: 0, w: 4, d: 4, disappearing: false },
+        { x: 0, y: 5.25, z: 8, w: 6, d: 4, disappearing: false },
+        { x: 0, y: 5.25, z: -8, w: 5, d: 4, disappearing: false },
+        { x: -6, y: 8.25, z: -6, w: 4, d: 4, disappearing: true },
+        { x: 6, y: 8.25, z: -6, w: 4, d: 4, disappearing: false },
+        { x: 0, y: 8.25, z: 0, w: 5, d: 5, disappearing: false },
+        { x: -8, y: 8.25, z: 6, w: 3, d: 3, disappearing: true },
+        { x: 8, y: 8.25, z: 6, w: 3, d: 3, disappearing: false },
+        { x: -5, y: 11.25, z: 0, w: 4, d: 4, disappearing: false },
+        { x: 5, y: 11.25, z: 0, w: 4, d: 4, disappearing: true },
+        { x: 0, y: 11.25, z: -10, w: 5, d: 3, disappearing: false },
+        { x: 0, y: 11.25, z: 10, w: 5, d: 3, disappearing: false },
+        { x: -8, y: 14.25, z: -4, w: 3, d: 3, disappearing: true },
+        { x: 8, y: 14.25, z: 4, w: 3, d: 3, disappearing: false },
+        { x: 0, y: 14.25, z: 0, w: 4, d: 4, disappearing: false },
+        { x: -4, y: 17.25, z: 4, w: 3, d: 3, disappearing: false },
+        { x: 4, y: 17.25, z: -4, w: 3, d: 3, disappearing: true },
+        { x: 0, y: 17.25, z: 8, w: 4, d: 3, disappearing: false },
+        { x: 0, y: 20.25, z: 0, w: 8, d: 8, disappearing: false },
+        { x: 12, y: 22.25, z: 0, w: 4, d: 4, disappearing: false },
+        // BRIDGE
+        { x: 20, y: 22.25, z: 0, w: 10, d: 6, disappearing: false },
+        // ROOM 2 platforms
+        { x: room2X - 8, y: 2.25, z: -8, w: 5, d: 5, disappearing: false },
+        { x: room2X + 8, y: 2.25, z: -8, w: 5, d: 5, disappearing: false },
+        { x: room2X, y: 2.25, z: 8, w: 6, d: 6, disappearing: false },
+        { x: room2X - 10, y: 6.25, z: 0, w: 4, d: 4, disappearing: false },
+        { x: room2X + 10, y: 6.25, z: 0, w: 4, d: 4, disappearing: false },
+        { x: room2X, y: 6.25, z: -10, w: 5, d: 4, disappearing: true },
+        { x: room2X - 6, y: 10.25, z: -6, w: 4, d: 4, disappearing: false },
+        { x: room2X + 6, y: 10.25, z: 6, w: 4, d: 4, disappearing: true },
+        { x: room2X, y: 10.25, z: 0, w: 5, d: 5, disappearing: false },
+        { x: room2X - 4, y: 14.25, z: 4, w: 3, d: 3, disappearing: false },
+        { x: room2X + 4, y: 14.25, z: -4, w: 3, d: 3, disappearing: false },
+        { x: room2X, y: 14.25, z: 8, w: 4, d: 3, disappearing: true },
+        { x: room2X, y: 18.25, z: 0, w: 6, d: 6, disappearing: false },
+        { x: room2X - 8, y: 22.25, z: 0, w: 4, d: 4, disappearing: false },
       ];
       
       platforms.forEach(p => {
+        // Skip disappearing platforms when they're invisible
+        if (p.disappearing && !disappearPhase) return;
+        
         if (
           player.position.x > p.x - p.w/2 && player.position.x < p.x + p.w/2 &&
           player.position.z > p.z - p.d/2 && player.position.z < p.z + p.d/2 &&
@@ -1103,14 +1223,75 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
         }
       });
       
+      // RAMP COLLISIONS - walk up angled surfaces
+      const rampCollisions = [
+        // Room 1 ramps
+        { x: -10, y: 3.5, z: -4, w: 2.5, l: 8, angle: 0.25, minY: 1.5, maxY: 5.5 },
+        { x: 10, y: 3.5, z: 4, w: 2.5, l: 8, angle: -0.25, minY: 1.5, maxY: 5.5 },
+        { x: 0, y: 6.5, z: 4, w: 2, l: 6, angle: 0.3, minY: 5, maxY: 8.5 },
+        { x: -3, y: 9.5, z: 0, w: 2, l: 6, angle: 0.28, minY: 8, maxY: 11.5 },
+        { x: 3, y: 12.5, z: -2, w: 2, l: 5, angle: 0.35, minY: 11, maxY: 14.5 },
+        { x: -2, y: 15.5, z: 2, w: 2, l: 5, angle: 0.35, minY: 14, maxY: 17.5 },
+        { x: 0, y: 18.5, z: 4, w: 3, l: 6, angle: 0.3, minY: 17, maxY: 20.5 },
+        // Room 2 ramps
+        { x: room2X - 8, y: 4, z: 4, w: 2, l: 6, angle: 0.3, minY: 2, maxY: 6.5 },
+        { x: room2X + 8, y: 4, z: -4, w: 2, l: 6, angle: -0.3, minY: 2, maxY: 6.5 },
+        { x: room2X, y: 8, z: 4, w: 2, l: 5, angle: 0.35, minY: 6, maxY: 10.5 },
+        { x: room2X - 4, y: 12, z: 0, w: 2, l: 5, angle: 0.35, minY: 10, maxY: 14.5 },
+        { x: room2X + 4, y: 16, z: -2, w: 2, l: 5, angle: 0.3, minY: 14, maxY: 18.5 },
+        { x: room2X, y: 20, z: 3, w: 3, l: 5, angle: 0.25, minY: 18, maxY: 22.5 },
+      ];
+      
+      rampCollisions.forEach(r => {
+        const inX = player.position.x > r.x - r.w/2 && player.position.x < r.x + r.w/2;
+        const inZ = player.position.z > r.z - r.l/2 && player.position.z < r.z + r.l/2;
+        const inY = player.position.y >= r.minY && player.position.y <= r.maxY + 2;
+        
+        if (inX && inZ && inY) {
+          // Calculate height based on position along ramp
+          const rampProgress = (player.position.z - (r.z - r.l/2)) / r.l;
+          const rampHeight = r.minY + (r.maxY - r.minY) * (r.angle > 0 ? rampProgress : (1 - rampProgress));
+          
+          if (player.position.y <= rampHeight + 2 && player.velocity.y <= 0) {
+            player.position.y = rampHeight + 2;
+            player.velocity.y = 0;
+            player.onGround = true;
+          }
+        }
+      });
+      
+      // Portal wall collision (blocks movement, requires portal to cross)
+      portalWallsRef.current.forEach(wall => {
+        const wx = wall.position.x;
+        const wy = wall.position.y;
+        const wz = wall.position.z;
+        const wallWidth = 0.3;
+        const wallHeight = 3;
+        const wallDepth = 3; // Approximate from platform size
+        
+        // Check if player is trying to walk through the wall
+        if (
+          player.position.x > wx - wallWidth - 0.5 && player.position.x < wx + wallWidth + 0.5 &&
+          player.position.y > wy - wallHeight/2 && player.position.y < wy + wallHeight/2 + 2 &&
+          player.position.z > wz - wallDepth/2 && player.position.z < wz + wallDepth/2
+        ) {
+          // Push player back
+          if (player.position.x < wx) {
+            player.position.x = wx - wallWidth - 0.6;
+          } else {
+            player.position.x = wx + wallWidth + 0.6;
+          }
+        }
+      });
+      
       // Jump
       if ((keys['Space'] || keys['KeySpace']) && player.onGround) {
         player.velocity.y = 8;
         player.onGround = false;
       }
       
-      // Boundary
-      player.position.x = Math.max(-14, Math.min(14, player.position.x));
+      // Boundary (spans both rooms)
+      player.position.x = Math.max(-14, Math.min(50, player.position.x));
       player.position.z = Math.max(-14, Math.min(14, player.position.z));
       
       // Check portals
