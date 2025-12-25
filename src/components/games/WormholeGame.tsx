@@ -28,7 +28,12 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const isMouseDownRef = useRef(false);
+  const isPointerLockedRef = useRef(false);
   const swordRef = useRef<THREE.Group | null>(null);
+  const isAttackingRef = useRef(false);
+  const isParryingRef = useRef(false);
+  const attackCooldownRef = useRef(0);
+  const parryCooldownRef = useRef(0);
   const targetsRef = useRef<THREE.Mesh[]>([]);
   const enemiesRef = useRef<any[]>([]);
   const portalsRef = useRef<{ green: any; cyan: any }>({ green: null, cyan: null });
@@ -117,6 +122,105 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     }
   }, []);
 
+  // Attack function (V key)
+  const performAttack = useCallback(() => {
+    if (isAttackingRef.current || attackCooldownRef.current > 0) return;
+    
+    isAttackingRef.current = true;
+    attackCooldownRef.current = 0.5; // 0.5 second cooldown
+    
+    // Sword attack animation
+    if (swordRef.current) {
+      swordRef.current.rotation.x -= 0.8;
+      setTimeout(() => { if (swordRef.current) swordRef.current.rotation.x += 0.8; }, 200);
+    }
+    
+    // Check if any enemy is in attack range
+    const player = playerRef.current;
+    const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    
+    enemiesRef.current.forEach(enemy => {
+      if (!enemy.mesh.visible) return;
+      const dist = player.position.distanceTo(enemy.position);
+      
+      // Check if enemy is in front and within range
+      const toEnemy = new THREE.Vector3().subVectors(enemy.position, player.position).normalize();
+      const dot = forward.dot(toEnemy);
+      
+      if (dist < 3 && dot > 0.5) {
+        enemy.health -= 1;
+        setScore(s => s + 100);
+        setMessage('HIT! +100');
+        
+        // Flash enemy red
+        const body = enemy.mesh.children[0] as THREE.Mesh;
+        if (body?.material) {
+          const origColor = (body.material as THREE.MeshStandardMaterial).color.getHex();
+          (body.material as THREE.MeshStandardMaterial).color.setHex(0xffffff);
+          setTimeout(() => {
+            if (body?.material) (body.material as THREE.MeshStandardMaterial).color.setHex(origColor);
+          }, 150);
+        }
+        
+        if (enemy.health <= 0) {
+          enemy.mesh.visible = false;
+          setScore(s => s + 300);
+          setEnemiesKilled(k => k + 1);
+          setMessage('ENEMY KILLED! +300');
+        }
+        
+        setTimeout(() => setMessage(''), 1000);
+      }
+    });
+    
+    setTimeout(() => { isAttackingRef.current = false; }, 300);
+  }, []);
+
+  // Parry function (C key)
+  const performParry = useCallback(() => {
+    if (isParryingRef.current || parryCooldownRef.current > 0) return;
+    
+    isParryingRef.current = true;
+    parryCooldownRef.current = 0.8; // 0.8 second cooldown
+    
+    // Sword parry animation - raise sword
+    if (swordRef.current) {
+      swordRef.current.rotation.z -= 0.5;
+      swordRef.current.position.y += 0.2;
+      setTimeout(() => { 
+        if (swordRef.current) {
+          swordRef.current.rotation.z += 0.5;
+          swordRef.current.position.y -= 0.2;
+        }
+      }, 400);
+    }
+    
+    // Check if parrying an attack
+    const player = playerRef.current;
+    
+    enemiesRef.current.forEach(enemy => {
+      if (!enemy.mesh.visible) return;
+      const dist = player.position.distanceTo(enemy.position);
+      
+      // If enemy is close and attacking, perfect parry!
+      if (dist < 2 && enemy.attackTimer > 1) {
+        enemy.attackTimer = 0; // Reset their attack
+        setScore(s => s + 200);
+        setMessage('PERFECT PARRY! +200');
+        
+        // Stun enemy briefly
+        const origPos = enemy.position.clone();
+        const pushDir = new THREE.Vector3().subVectors(enemy.position, player.position).normalize();
+        enemy.position.add(pushDir.multiplyScalar(2));
+        enemy.mesh.position.copy(enemy.position);
+        
+        setTimeout(() => setMessage(''), 1000);
+      }
+    });
+    
+    setTimeout(() => { isParryingRef.current = false; }, 500);
+  }, []);
+
   // Main game loop - defined as callback
   const gameLoop = useCallback(() => {
     if (gameStateRef.current !== 'playing') return;
@@ -132,6 +236,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       animationRef.current = requestAnimationFrame(gameLoop);
       return;
     }
+    
+    // === COOLDOWNS ===
+    if (attackCooldownRef.current > 0) attackCooldownRef.current -= delta;
+    if (parryCooldownRef.current > 0) parryCooldownRef.current -= delta;
     
     // === MOVEMENT ===
     const speed = keysRef.current['ShiftLeft'] || keysRef.current['ShiftRight'] ? 16 : 8;
@@ -306,14 +414,22 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       const distToCyan = player.position.distanceTo(cyan.position);
       
       if (distToGreen < 1.5) {
+        // Teleport to cyan portal
         player.position.copy(cyan.position).add(cyan.normal.clone().multiplyScalar(2));
-        player.velocity.copy(cyan.normal.clone().multiplyScalar(player.velocity.length()));
+        player.velocity.copy(cyan.normal.clone().multiplyScalar(Math.max(player.velocity.length(), 5)));
+        // Face opposite direction of exit portal (look away from the wall)
+        player.yaw = Math.atan2(-cyan.normal.x, -cyan.normal.z);
+        player.pitch = 0;
         setScore(s => s + 100);
         setMessage('TELEPORT! +100');
         setTimeout(() => setMessage(''), 1000);
       } else if (distToCyan < 1.5) {
+        // Teleport to green portal
         player.position.copy(green.position).add(green.normal.clone().multiplyScalar(2));
-        player.velocity.copy(green.normal.clone().multiplyScalar(player.velocity.length()));
+        player.velocity.copy(green.normal.clone().multiplyScalar(Math.max(player.velocity.length(), 5)));
+        // Face opposite direction of exit portal (look away from the wall)
+        player.yaw = Math.atan2(-green.normal.x, -green.normal.z);
+        player.pitch = 0;
         setScore(s => s + 100);
         setMessage('TELEPORT! +100');
         setTimeout(() => setMessage(''), 1000);
@@ -628,25 +744,47 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     return () => clearInterval(timer);
   }, [gameState, onGameEnd]);
 
+  // Pointer Lock for mouse control
+  const requestPointerLock = useCallback(() => {
+    const container = containerRef.current;
+    if (container && gameStateRef.current === 'playing') {
+      container.requestPointerLock?.();
+    }
+  }, []);
+
   // Keyboard & Mouse controls
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.code] = true;
       if (e.code === 'KeyQ') setPortalMode('green');
       if (e.code === 'KeyE') setPortalMode('cyan');
+      if (e.code === 'KeyV' && gameStateRef.current === 'playing') performAttack();
+      if (e.code === 'KeyC' && gameStateRef.current === 'playing') performParry();
+      if (e.code === 'Escape') {
+        document.exitPointerLock?.();
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       keysRef.current[e.code] = false;
     };
     const onMouseMove = (e: MouseEvent) => {
-      if (!isMouseDownRef.current || gameStateRef.current !== 'playing') return;
-      playerRef.current.yaw -= e.movementX * 0.003;
-      playerRef.current.pitch -= e.movementY * 0.003;
+      // Only move camera when pointer is locked
+      if (!isPointerLockedRef.current || gameStateRef.current !== 'playing') return;
+      playerRef.current.yaw -= e.movementX * 0.002;
+      playerRef.current.pitch -= e.movementY * 0.002;
       playerRef.current.pitch = Math.max(-1.4, Math.min(1.4, playerRef.current.pitch));
     };
     const onMouseDown = (e: MouseEvent) => {
       isMouseDownRef.current = true;
-      if (e.button === 0 && gameStateRef.current === 'playing') {
+      
+      // If not locked, request lock on click
+      if (!isPointerLockedRef.current && gameStateRef.current === 'playing') {
+        requestPointerLock();
+        return;
+      }
+      
+      // Shoot portal on left click when locked
+      if (e.button === 0 && gameStateRef.current === 'playing' && isPointerLockedRef.current) {
         shootPortal();
       }
     };
@@ -654,11 +792,17 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       isMouseDownRef.current = false;
     };
     
+    // Pointer lock change handler
+    const onPointerLockChange = () => {
+      isPointerLockedRef.current = document.pointerLockElement === containerRef.current;
+    };
+    
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('pointerlockchange', onPointerLockChange);
     
     return () => {
       window.removeEventListener('keydown', onKeyDown);
@@ -666,8 +810,10 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('pointerlockchange', onPointerLockChange);
+      document.exitPointerLock?.();
     };
-  }, [shootPortal]);
+  }, [shootPortal, requestPointerLock, performAttack, performParry]);
 
   const startGame = () => {
     playerRef.current.position.set(0, 2, 5);
@@ -692,6 +838,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     if (portalsRef.current.cyan?.mesh && sceneRef.current) sceneRef.current.remove(portalsRef.current.cyan.mesh);
     portalsRef.current = { green: null, cyan: null };
     setGameState('playing');
+    
+    // Request pointer lock after a small delay to ensure game is ready
+    setTimeout(() => {
+      containerRef.current?.requestPointerLock?.();
+    }, 100);
   };
 
   return (
@@ -721,15 +872,24 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
                 <div><span className="text-green-300">WASD</span> Move</div>
                 <div><span className="text-green-300">Space</span> Jump</div>
                 <div><span className="text-green-300">Shift</span> Sprint</div>
-                <div><span className="text-cyan-300">Arrows</span> Also work!</div>
+                <div><span className="text-cyan-300">Mouse</span> Look (auto-lock)</div>
               </div>
               <div className="bg-gray-700/50 rounded-lg p-3">
                 <h3 className="font-bold text-purple-400 mb-2">🎮 Portals</h3>
                 <div><span className="text-green-300">Q</span> Green portal</div>
                 <div><span className="text-cyan-300">E</span> Cyan portal</div>
                 <div><span className="text-yellow-300">Click</span> Shoot portal</div>
-                <div><span className="text-yellow-300">Drag</span> Look around</div>
+                <div><span className="text-gray-400">ESC</span> Unlock mouse</div>
               </div>
+            </div>
+            
+            <div className="bg-gray-700/50 rounded-lg p-3 mb-4 text-sm">
+              <h3 className="font-bold text-red-400 mb-2">⚔️ Combat</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="text-red-300">V</span> Attack (+100)</div>
+                <div><span className="text-blue-300">C</span> Parry (+200)</div>
+              </div>
+              <div className="text-gray-400 text-xs mt-1">3 hits to kill enemies!</div>
             </div>
             
             <div className="bg-gray-700/50 rounded-lg p-3 mb-4 text-sm">
@@ -808,7 +968,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           
           {/* Controls hint */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 bg-black/50 text-gray-400 px-4 py-2 rounded-lg text-sm">
-            Hold click to look • WASD/Arrows move • Space jump • Shift sprint
+            Mouse auto-locks • WASD move • V attack • C parry • Q🟢/E🔵 portals
           </div>
           
           {/* Mobile Controls */}
@@ -826,9 +986,11 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               </div>
               
               <div className="absolute bottom-20 right-4 z-40 flex flex-col gap-2">
+                <button className="w-14 h-14 bg-red-600/50 rounded-lg text-white text-xs font-bold active:bg-red-600" onClick={performAttack}>ATK</button>
+                <button className="w-14 h-14 bg-blue-600/50 rounded-lg text-white text-xs font-bold active:bg-blue-600" onClick={performParry}>PARRY</button>
                 <button className="w-14 h-14 bg-green-600/50 rounded-lg text-white font-bold active:bg-green-600" onClick={() => setPortalMode('green')}>🟢</button>
                 <button className="w-14 h-14 bg-cyan-600/50 rounded-lg text-white font-bold active:bg-cyan-600" onClick={() => setPortalMode('cyan')}>🔵</button>
-                <button className="w-14 h-14 bg-yellow-600/50 rounded-lg text-white font-bold active:bg-yellow-600" onClick={shootPortal}>⚔️</button>
+                <button className="w-14 h-14 bg-yellow-600/50 rounded-lg text-white font-bold active:bg-yellow-600" onClick={shootPortal}>🌀</button>
                 <button className="w-14 h-14 bg-purple-600/50 rounded-lg text-white text-xs font-bold active:bg-purple-600" onTouchStart={() => keysRef.current['ShiftLeft'] = true} onTouchEnd={() => keysRef.current['ShiftLeft'] = false}>RUN</button>
               </div>
             </>
