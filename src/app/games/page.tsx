@@ -116,6 +116,11 @@ const HexArenaGame = dynamic(() => import('@/components/games/HexArenaGame'), {
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="HexArena" color="purple" />
 });
+
+const NeonRailRunnerGame = dynamic(() => import('@/components/games/NeonRailRunnerGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Neon Rail Runner" color="cyan" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -160,7 +165,8 @@ import {
   FireIcon,
   CubeIcon,
   ArrowPathIcon,
-  ViewfinderCircleIcon
+  ViewfinderCircleIcon,
+  RocketLaunchIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -353,6 +359,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Strategy', 'Speed', 'Spatial Planning', 'Quick Thinking'],
     component: HexArenaGame
+  },
+  {
+    id: 'neon-rail-runner',
+    name: 'Neon Rail Runner',
+    description: 'Grind on floating neon rails through 3D space! Jump obstacles, do flips for style points, collect power-ups!',
+    icon: RocketLaunchIcon,
+    difficulty: 'Medium',
+    avgTime: '60s',
+    skills: ['Timing', 'Reflexes', 'Style', 'Risk Assessment'],
+    component: NeonRailRunnerGame
   }
 ];
 
