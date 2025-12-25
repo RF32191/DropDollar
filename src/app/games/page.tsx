@@ -111,6 +111,11 @@ const OrbitalDodgeGame = dynamic(() => import('@/components/games/OrbitalDodgeGa
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Orbital Dodge" color="cyan" />
 });
+
+const HexArenaGame = dynamic(() => import('@/components/games/HexArenaGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="HexArena" color="purple" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -154,7 +159,8 @@ import {
   SparklesIcon,
   FireIcon,
   CubeIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ViewfinderCircleIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -337,6 +343,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Reflexes', 'Timing', 'Spatial Awareness', 'One-Hand Play'],
     component: OrbitalDodgeGame
+  },
+  {
+    id: 'hex-arena',
+    name: 'HexArena',
+    description: 'Tactical 3D survival! Move across hex tiles that collapse after you step on them. Keep moving or fall!',
+    icon: ViewfinderCircleIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Strategy', 'Speed', 'Spatial Planning', 'Quick Thinking'],
+    component: HexArenaGame
   }
 ];
 
