@@ -60,6 +60,20 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const [showTransition, setShowTransition] = useState(false);
   const [transitionRoom, setTransitionRoom] = useState(1);
   const [completionTime, setCompletionTime] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  
+  // Settings (adjustable)
+  const [moveSpeed, setMoveSpeed] = useState(4); // Reduced from 8
+  const [mouseSensitivity, setMouseSensitivity] = useState(0.004); // Increased from 0.002
+  const moveSpeedRef = useRef(4);
+  const mouseSensitivityRef = useRef(0.004);
+  const isPausedRef = useRef(false);
+  
+  // Sync settings refs
+  useEffect(() => { moveSpeedRef.current = moveSpeed; }, [moveSpeed]);
+  useEffect(() => { mouseSensitivityRef.current = mouseSensitivity; }, [mouseSensitivity]);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   
   // Sync refs with state
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -236,6 +250,18 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   const gameLoop = useCallback(() => {
     if (gameStateRef.current !== 'playing') return;
     
+    // Skip updates when paused (but keep rendering)
+    if (isPausedRef.current) {
+      const camera = cameraRef.current;
+      const scene = sceneRef.current;
+      const renderer = rendererRef.current;
+      if (camera && scene && renderer) {
+        renderer.render(scene, camera);
+      }
+      animationRef.current = requestAnimationFrame(gameLoop);
+      return;
+    }
+    
     const delta = Math.min(clockRef.current.getDelta(), 0.1);
     const elapsed = clockRef.current.getElapsedTime();
     const player = playerRef.current;
@@ -252,8 +278,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     if (attackCooldownRef.current > 0) attackCooldownRef.current -= delta;
     if (parryCooldownRef.current > 0) parryCooldownRef.current -= delta;
     
-    // === MOVEMENT ===
-    const speed = keysRef.current['ShiftLeft'] || keysRef.current['ShiftRight'] ? 16 : 8;
+    // === MOVEMENT (uses adjustable speed) ===
+    const baseSpeed = moveSpeedRef.current;
+    const speed = keysRef.current['ShiftLeft'] || keysRef.current['ShiftRight'] ? baseSpeed * 2 : baseSpeed;
     const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
     const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
     
@@ -265,8 +292,8 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     
     if (moveDir.length() > 0) {
       moveDir.normalize();
-      player.velocity.x += moveDir.x * speed * delta * 10;
-      player.velocity.z += moveDir.z * speed * delta * 10;
+      player.velocity.x += moveDir.x * speed * delta * 8;
+      player.velocity.z += moveDir.z * speed * delta * 8;
     }
     
     // Jump
@@ -503,98 +530,117 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       });
     }
     
-    // === BOSS AI (Room 4) ===
+    // === GIANT BOSS AI (Room 4 - The Golden Titan) ===
+    // Player must use portals to get on top of the boss and attack the weak point!
     const boss = (window as any).wormholeBoss;
     if (boss && boss.mesh.visible && currentRoomRef.current === 4) {
       boss.isActive = true;
       const bossPos = boss.position;
-      const distToBoss = player.position.distanceTo(bossPos);
+      const r4x = 105;
       
-      // Animate boss
-      boss.mesh.rotation.y = Math.atan2(
+      // Boss slowly rotates to face player
+      const targetRotation = Math.atan2(
         player.position.x - bossPos.x,
         player.position.z - bossPos.z
       );
+      boss.mesh.rotation.y += (targetRotation - boss.mesh.rotation.y) * 0.02;
       
-      // Boss hover
-      boss.mesh.position.y = bossPos.y + Math.sin(elapsed * 1.5) * 0.3;
+      // Animate weak point pulsing
+      if (boss.weakPoint) {
+        boss.weakPoint.scale.setScalar(1 + Math.sin(elapsed * 5) * 0.1);
+      }
       
-      const bladeMat = boss.sword?.userData?.bladeMat;
+      // Check if player is ON TOP of the boss (on the platform)
+      const onBossTop = player.position.y > 10 && 
+                        Math.abs(player.position.x - r4x) < 3 &&
+                        Math.abs(player.position.z) < 3;
       
-      // Boss attack pattern
-      if (distToBoss < 6 && healthRef.current > 0) {
-        if (boss.state === 'idle') {
-          boss.state = 'winding_up';
-          boss.attackTimer = 0;
-          if (bladeMat) {
-            bladeMat.color.setHex(0x4444ff);
-            bladeMat.emissive.setHex(0x0000ff);
-          }
+      // Player is near the weak point
+      const nearWeakPoint = player.position.y > 11 && 
+                            Math.abs(player.position.x - r4x) < 2 &&
+                            Math.abs(player.position.z) < 2;
+      
+      // If player attacks while near weak point
+      if (nearWeakPoint && isAttackingRef.current && !boss.hitCooldown) {
+        boss.hitCooldown = true;
+        boss.health -= 1;
+        setScore(s => s + 500);
+        setMessage('⚡ WEAK POINT HIT! +500');
+        
+        // Flash weak point
+        if (boss.weakPoint?.material) {
+          const mat = boss.weakPoint.material as THREE.MeshStandardMaterial;
+          mat.emissive.setHex(0xff0000);
+          setTimeout(() => mat.emissive.setHex(0xffaa00), 300);
         }
         
-        if (boss.state === 'winding_up') {
-          boss.attackTimer += delta;
-          if (boss.attackTimer > 1.2) {
-            boss.state = 'attacking';
-            boss.attackTimer = 0;
-            if (bladeMat) {
-              bladeMat.color.setHex(0xff0000);
-              bladeMat.emissive.setHex(0xff0000);
-            }
-            boss.sword.rotation.z = 0.8;
-          }
+        // Boss shakes when hit
+        boss.state = 'shaking';
+        boss.attackTimer = 0;
+        
+        setTimeout(() => { boss.hitCooldown = false; }, 1000);
+        setTimeout(() => setMessage(''), 1500);
+      }
+      
+      // Boss behavior states
+      boss.pushTimer = (boss.pushTimer || 0) + delta;
+      
+      // Every 4 seconds, boss tries to push player off
+      if (onBossTop && boss.pushTimer > 4) {
+        boss.pushTimer = 0;
+        boss.state = 'pushing';
+        boss.attackTimer = 0;
+        setMessage('⚠️ BOSS IS SHAKING! HOLD ON!');
+        setTimeout(() => setMessage(''), 1500);
+      }
+      
+      // Shaking/pushing animation
+      if (boss.state === 'shaking' || boss.state === 'pushing') {
+        boss.attackTimer += delta;
+        const shakeIntensity = boss.state === 'pushing' ? 0.3 : 0.15;
+        boss.mesh.rotation.x = Math.sin(elapsed * 30) * shakeIntensity;
+        boss.mesh.rotation.z = Math.cos(elapsed * 25) * shakeIntensity * 0.5;
+        
+        // Push player off if they're on top during push
+        if (boss.state === 'pushing' && onBossTop && boss.attackTimer > 0.5) {
+          const pushDir = new THREE.Vector3(
+            player.position.x - r4x,
+            2,
+            player.position.z
+          ).normalize();
+          player.velocity.add(pushDir.multiplyScalar(15));
+          player.onGround = false;
         }
         
-        if (boss.state === 'attacking') {
-          boss.attackTimer += delta;
-          if (boss.attackTimer > 0.3 && boss.attackTimer < 0.5) {
-            if (isParryingRef.current) {
-              boss.state = 'stunned';
-              boss.attackTimer = 0;
-              boss.health -= 1;
-              setScore(s => s + 300);
-              setMessage('BOSS PARRY! +300');
-              if (bladeMat) {
-                bladeMat.color.setHex(0xffff00);
-                bladeMat.emissive.setHex(0x888800);
-              }
-              setTimeout(() => setMessage(''), 1000);
-            } else if (!boss.hasHitPlayer) {
-              boss.hasHitPlayer = true;
-              setPlayerHealth(h => Math.max(0, h - 2));
-              setMessage('💀 BOSS HIT! -2 ❤️');
-              setTimeout(() => setMessage(''), 1000);
-            }
-          }
-          if (boss.attackTimer > 1) {
-            boss.state = 'idle';
-            boss.hasHitPlayer = false;
-            boss.sword.rotation.z = -0.3;
-            if (bladeMat) {
-              bladeMat.color.setHex(0xffcc00);
-              bladeMat.emissive.setHex(0xff6600);
-            }
-          }
+        if (boss.attackTimer > 1.5) {
+          boss.state = 'idle';
+          boss.mesh.rotation.x = 0;
+          boss.mesh.rotation.z = 0;
         }
-        
-        if (boss.state === 'stunned') {
-          boss.attackTimer += delta;
-          if (boss.attackTimer > 2) {
-            boss.state = 'idle';
-            boss.sword.rotation.z = -0.3;
-            if (bladeMat) {
-              bladeMat.color.setHex(0xffcc00);
-              bladeMat.emissive.setHex(0xff6600);
-            }
-          }
+      }
+      
+      // Ground stomp attack - damages player if near base
+      boss.stompTimer = (boss.stompTimer || 0) + delta;
+      if (boss.stompTimer > 6) {
+        boss.stompTimer = 0;
+        const distToBase = Math.sqrt(
+          Math.pow(player.position.x - r4x, 2) + Math.pow(player.position.z, 2)
+        );
+        if (distToBase < 8 && player.position.y < 3 && healthRef.current > 0) {
+          setPlayerHealth(h => Math.max(0, h - 1));
+          setMessage('💥 GROUND STOMP! -1 ❤️');
+          player.velocity.y = 8; // Bounce up
+          setTimeout(() => setMessage(''), 1000);
         }
       }
       
       // Boss defeated
       if (boss.health <= 0 && boss.mesh.visible) {
         boss.mesh.visible = false;
-        setScore(s => s + 2000);
-        setMessage('🏆 BOSS DEFEATED! +2000');
+        boss.mesh.rotation.x = 0;
+        boss.mesh.rotation.z = 0;
+        setScore(s => s + 3000);
+        setMessage('🏆 TITAN DEFEATED! +3000');
         setTimeout(() => setMessage(''), 2000);
       }
     }
@@ -1176,88 +1222,133 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     p7.position.set(r4x, 15, 0);
     scene.add(p7);
     
-    // === ROOM 4 BOSS (The Golden Guardian) ===
+    // === ROOM 4 BOSS (The Golden Titan) ===
+    // GIANT boss - must use portals to get on top and attack weak point!
     const bossGroup = new THREE.Group();
     
-    // Boss body (large armored demon)
+    // Boss body (MASSIVE titan - 12 units tall!)
     const bossMat = new THREE.MeshStandardMaterial({ 
-      color: 0xff4400, 
-      emissive: 0x440000, 
-      roughness: 0.3, 
-      metalness: 0.6 
+      color: 0xcc6600, 
+      emissive: 0x441100, 
+      roughness: 0.4, 
+      metalness: 0.7 
     });
-    const bossBody = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 2.5, 12, 24), bossMat);
-    bossBody.position.y = 2.5;
+    
+    // Main body - huge pillar-like torso
+    const bossBody = new THREE.Mesh(new THREE.CylinderGeometry(3, 4, 8, 16), bossMat);
+    bossBody.position.y = 4;
     bossGroup.add(bossBody);
     
-    // Boss shoulders
-    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.9 });
-    [[-1.5, 3.5, 0], [1.5, 3.5, 0]].forEach(([x, y, z]) => {
-      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.6), shoulderMat);
+    // Armored chest plate
+    const armorMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.95, roughness: 0.1 });
+    const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 1), armorMat);
+    chestPlate.position.set(0, 5, 3);
+    bossGroup.add(chestPlate);
+    
+    // Massive shoulders
+    [[-4.5, 7, 0], [4.5, 7, 0]].forEach(([x, y, z]) => {
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(2), armorMat);
       shoulder.position.set(x, y, z);
-      shoulder.scale.set(1.3, 0.9, 1);
+      shoulder.scale.set(1.2, 0.8, 1);
       bossGroup.add(shoulder);
     });
     
-    // Boss horns
+    // Giant arms
+    [[-5.5, 3, 0], [5.5, 3, 0]].forEach(([x, y, z]) => {
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.5, 6, 12), bossMat);
+      arm.position.set(x, y, z);
+      arm.rotation.z = x > 0 ? -0.3 : 0.3;
+      bossGroup.add(arm);
+      
+      // Fist
+      const fist = new THREE.Mesh(new THREE.SphereGeometry(1.5), armorMat);
+      fist.position.set(x > 0 ? x + 1.5 : x - 1.5, 0, z);
+      bossGroup.add(fist);
+    });
+    
+    // Head
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x883300, metalness: 0.6 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(2, 16, 12), headMat);
+    head.position.y = 10;
+    head.scale.set(1, 1.2, 0.9);
+    bossGroup.add(head);
+    
+    // Horns
     const hornMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 });
-    [[-0.5, 4.5, 0.2, -0.3], [0.5, 4.5, 0.2, 0.3]].forEach(([x, y, z, rot]) => {
-      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1, 8), hornMat);
+    [[-1.2, 12, 0, -0.4], [1.2, 12, 0, 0.4]].forEach(([x, y, z, rot]) => {
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3, 8), hornMat);
       horn.position.set(x, y, z);
       horn.rotation.z = rot;
       bossGroup.add(horn);
     });
     
-    // Boss glowing crown
-    const crownMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 1.5 });
-    const crown = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.15, 8, 16), crownMat);
-    crown.position.y = 4.3;
-    crown.rotation.x = Math.PI / 2;
-    bossGroup.add(crown);
-    
-    // Boss eyes
+    // Glowing eyes
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    [[-0.4, 3.8, 0.8], [0.4, 3.8, 0.8]].forEach(([x, y, z]) => {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.2), eyeMat);
+    [[-0.8, 10.5, 1.5], [0.8, 10.5, 1.5]].forEach(([x, y, z]) => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.4), eyeMat);
       eye.position.set(x, y, z);
       bossGroup.add(eye);
+      
+      const eyeLight = new THREE.PointLight(0xff0000, 1, 5);
+      eyeLight.position.set(x, y, z);
+      bossGroup.add(eyeLight);
     });
     
-    // Boss sword (giant golden blade)
-    const bossSwordGroup = new THREE.Group();
-    const bossBladeMat = new THREE.MeshStandardMaterial({ 
-      color: 0xffcc00, 
-      emissive: 0xff6600, 
-      emissiveIntensity: 0.8,
-      metalness: 0.95 
+    // WEAK POINT on top of head (glowing golden orb) - MUST HIT THIS!
+    const weakPointMat = new THREE.MeshStandardMaterial({ 
+      color: 0xffff00, 
+      emissive: 0xffaa00, 
+      emissiveIntensity: 2,
+      transparent: true,
+      opacity: 0.9
     });
-    const bossBlade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 0.1), bossBladeMat);
-    bossBlade.position.y = 1.5;
-    bossSwordGroup.add(bossBlade);
-    const bossHandle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.12, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x442200 })
+    const weakPoint = new THREE.Mesh(new THREE.SphereGeometry(0.8), weakPointMat);
+    weakPoint.position.y = 13;
+    bossGroup.add(weakPoint);
+    
+    const weakPointLight = new THREE.PointLight(0xffff00, 2, 8);
+    weakPointLight.position.y = 13;
+    bossGroup.add(weakPointLight);
+    
+    // Weak point indicator ring
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.5 });
+    const weakRing = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.1, 8, 24), ringMat);
+    weakRing.position.y = 13;
+    weakRing.rotation.x = Math.PI / 2;
+    bossGroup.add(weakRing);
+    
+    // Boss platform (top of head - player can stand here)
+    const topPlatform = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.5, 2.5, 0.5, 16),
+      new THREE.MeshStandardMaterial({ color: 0x553311, roughness: 0.5 })
     );
-    bossHandle.position.y = -0.2;
-    bossSwordGroup.add(bossHandle);
-    bossSwordGroup.position.set(2, 2.5, 0.5);
-    bossSwordGroup.rotation.z = -0.3;
-    bossSwordGroup.userData.bladeMat = bossBladeMat;
-    bossGroup.add(bossSwordGroup);
+    topPlatform.position.y = 11.5;
+    bossGroup.add(topPlatform);
     
-    // Boss position
+    // Boss position - center of room 4
     bossGroup.position.set(r4x, 0, 0);
     scene.add(bossGroup);
+    
+    // Portal-able surface on boss's back for climbing
+    const bossBackWall = new THREE.Mesh(
+      new THREE.PlaneGeometry(6, 8),
+      new THREE.MeshStandardMaterial({ color: 0x554433, roughness: 0.6, side: THREE.DoubleSide })
+    );
+    bossBackWall.position.set(r4x, 4, -4);
+    bossBackWall.userData.portalable = true;
+    scene.add(bossBackWall);
     
     // Store boss reference
     (window as any).wormholeBoss = {
       mesh: bossGroup,
       position: new THREE.Vector3(r4x, 0, 0),
-      health: 10,
-      maxHealth: 10,
+      health: 5, // 5 hits on weak point to kill
+      maxHealth: 5,
       state: 'idle',
       attackTimer: 0,
-      sword: bossSwordGroup,
+      weakPoint: weakPoint,
+      topPlatform: topPlatform,
+      pushTimer: 0,
       isActive: false
     };
     
@@ -1653,6 +1744,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
   useEffect(() => {
     if (gameState !== 'playing') return;
     const timer = setInterval(() => {
+      // Don't tick when paused
+      if (isPausedRef.current) return;
+      
       timeRef.current -= 1;
       setTimeLeft(timeRef.current);
       if (timeRef.current <= 0) {
@@ -1682,8 +1776,13 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       if (e.code === 'KeyE') setPortalMode('cyan');
       if (e.code === 'KeyV' && gameStateRef.current === 'playing') performAttack();
       if (e.code === 'KeyC' && gameStateRef.current === 'playing') performParry();
-      if (e.code === 'Escape') {
-        document.exitPointerLock?.();
+      if (e.code === 'Escape' || e.code === 'KeyP') {
+        if (gameStateRef.current === 'playing') {
+          setIsPaused(p => !p);
+          if (!isPaused) {
+            document.exitPointerLock?.();
+          }
+        }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -1692,8 +1791,9 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     const onMouseMove = (e: MouseEvent) => {
       // Only move camera when pointer is locked
       if (!isPointerLockedRef.current || gameStateRef.current !== 'playing') return;
-      playerRef.current.yaw -= e.movementX * 0.002;
-      playerRef.current.pitch -= e.movementY * 0.002;
+      const sensitivity = mouseSensitivityRef.current;
+      playerRef.current.yaw -= e.movementX * sensitivity;
+      playerRef.current.pitch -= e.movementY * sensitivity;
       playerRef.current.pitch = Math.max(-1.4, Math.min(1.4, playerRef.current.pitch));
     };
     const onMouseDown = (e: MouseEvent) => {
@@ -1735,7 +1835,7 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
       document.removeEventListener('pointerlockchange', onPointerLockChange);
       document.exitPointerLock?.();
     };
-  }, [shootPortal, requestPointerLock, performAttack, performParry]);
+  }, [shootPortal, requestPointerLock, performAttack, performParry, isPaused]);
 
   const startGame = () => {
     playerRef.current.position.set(0, 2, 5);
@@ -1947,16 +2047,18 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
           
           {/* Boss Health (Room 4) */}
           {currentRoom === 4 && (
-            <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 w-64">
-              <div className="text-center text-yellow-400 font-bold mb-1">👹 GOLDEN GUARDIAN</div>
-              <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+            <div className="absolute top-28 left-1/2 -translate-x-1/2 z-40 w-72">
+              <div className="text-center text-yellow-400 font-bold mb-1">👹 THE GOLDEN TITAN</div>
+              <div className="h-5 bg-gray-700 rounded-full overflow-hidden border-2 border-yellow-500/50">
                 <div 
-                  className="h-full bg-gradient-to-r from-red-600 to-yellow-500 transition-all duration-300"
-                  style={{ width: `${((window as any).wormholeBoss?.health || 0) / 10 * 100}%` }}
+                  className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 transition-all duration-300"
+                  style={{ width: `${((window as any).wormholeBoss?.health || 0) / 5 * 100}%` }}
                 />
               </div>
-              <div className="text-center text-xs text-gray-400 mt-1">
-                {((window as any).wormholeBoss?.health || 0) > 0 ? 'Defeat the boss to unlock the Victory Portal!' : '✨ Defeated! Enter the portal!'}
+              <div className="text-center text-xs text-gray-300 mt-1">
+                {((window as any).wormholeBoss?.health || 0) > 0 
+                  ? '🎯 Use portals to climb on top! Attack the weak point!' 
+                  : '✨ Defeated! Enter the Victory Portal!'}
               </div>
             </div>
           )}
@@ -2004,7 +2106,111 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
               </div>
             </>
           )}
+          
+          {/* Pause Button */}
+          <button 
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800/50 hover:bg-gray-700/50 text-white px-4 py-2 rounded-lg text-sm"
+            onClick={() => setIsPaused(true)}
+          >
+            ⏸️ PAUSE [P]
+          </button>
         </>
+      )}
+      
+      {/* Pause Menu */}
+      {isPaused && gameState === 'playing' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-50">
+          <div className="bg-gray-800/95 rounded-2xl p-6 max-w-md w-full text-white">
+            <h2 className="text-3xl font-bold text-center mb-6">⏸️ PAUSED</h2>
+            
+            {!showOptions ? (
+              <div className="space-y-3">
+                <button 
+                  onClick={() => {
+                    setIsPaused(false);
+                    setTimeout(() => containerRef.current?.requestPointerLock?.(), 100);
+                  }}
+                  className="w-full py-4 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white text-xl font-bold rounded-xl transition-all"
+                >
+                  ▶️ Resume Game
+                </button>
+                <button 
+                  onClick={() => setShowOptions(true)}
+                  className="w-full py-4 bg-gray-700 hover:bg-gray-600 text-white text-xl font-bold rounded-xl transition-all"
+                >
+                  ⚙️ Options
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsPaused(false);
+                    setGameState('instructions');
+                  }}
+                  className="w-full py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-xl transition-all"
+                >
+                  🚪 Quit to Menu
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2">
+                    🏃 Movement Speed: {moveSpeed.toFixed(1)}
+                  </label>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="0.5"
+                    value={moveSpeed}
+                    onChange={(e) => setMoveSpeed(parseFloat(e.target.value))}
+                    className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>Slow</span>
+                    <span>Fast</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2">
+                    🖱️ Mouse Sensitivity: {(mouseSensitivity * 1000).toFixed(1)}
+                  </label>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="10" 
+                    step="0.5"
+                    value={mouseSensitivity * 1000}
+                    onChange={(e) => setMouseSensitivity(parseFloat(e.target.value) / 1000)}
+                    className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>Low</span>
+                    <span>High</span>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t border-gray-700">
+                  <button 
+                    onClick={() => {
+                      setMoveSpeed(4);
+                      setMouseSensitivity(0.004);
+                    }}
+                    className="w-full py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm font-bold rounded-lg mb-3"
+                  >
+                    🔄 Reset to Defaults
+                  </button>
+                  <button 
+                    onClick={() => setShowOptions(false)}
+                    className="w-full py-3 bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white font-bold rounded-xl"
+                  >
+                    ✅ Done
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
       
       {/* Game Over */}
