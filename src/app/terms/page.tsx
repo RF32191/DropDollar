@@ -196,7 +196,40 @@ export default function TermsOfServicePage() {
                 </ul>
               </div>
 
-              <h3 className="text-xl font-medium text-white mt-6">4.3 Prize Fulfillment</h3>
+              <h3 className="text-xl font-medium text-white mt-6">4.3 Monthly Win Limits (Fair Play Policy)</h3>
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mt-2">
+                <p className="font-semibold text-yellow-400 mb-2">⚡ ONE WIN PER GAME TYPE PER MONTH</p>
+                <p className="mb-3">
+                  To ensure fair opportunities for all players, the following limits apply:
+                </p>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>
+                    <strong>Game Type Limit:</strong> If you win a competitive game listing (Hot Sell, Winner Takes All, 
+                    or Coin Play), you cannot participate in competitive listings for that same game type for the 
+                    remainder of the calendar month.
+                  </li>
+                  <li>
+                    <strong>Monthly Reset:</strong> All win limits reset on the 1st of each month at 12:00 AM UTC.
+                  </li>
+                  <li>
+                    <strong>Practice Mode:</strong> Practice mode remains available regardless of win status.
+                  </li>
+                  <li>
+                    <strong>1v1 Exception:</strong> Direct 1v1 challenges are exempt from monthly win limits. 
+                    You may participate in unlimited 1v1 matches.
+                  </li>
+                  <li>
+                    <strong>Dashboard Tracking:</strong> You can view your monthly wins and locked game types 
+                    in your dashboard.
+                  </li>
+                </ul>
+                <p className="mt-3 text-sm text-gray-400">
+                  This policy promotes fair play, prevents monopolization of prize pools, and ensures 
+                  all players have genuine opportunities to win.
+                </p>
+              </div>
+
+              <h3 className="text-xl font-medium text-white mt-6">4.4 Prize Fulfillment</h3>
               <p>
                 Prizes are funded by entry fees collected from participants. Drop Dollar maintains 
                 sufficient reserves to fulfill all prizes. All prize winnings are deposited into 

@@ -131,6 +131,11 @@ const MomentumFallGame = dynamic(() => import('@/components/games/MomentumFallGa
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Momentum Fall" color="purple" />
 });
+
+const LockBreak3DGame = dynamic(() => import('@/components/games/LockBreak3DGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Lock Break 3D" color="cyan" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -178,7 +183,8 @@ import {
   ViewfinderCircleIcon,
   RocketLaunchIcon,
   AdjustmentsHorizontalIcon,
-  ArrowDownCircleIcon
+  ArrowDownCircleIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -401,6 +407,16 @@ const GAMES = [
     avgTime: 'Endless',
     skills: ['Momentum', 'Micro-Adjustments', 'Anticipation', 'Flow State'],
     component: MomentumFallGame
+  },
+  {
+    id: 'lock-break-3d',
+    name: 'Lock Break 3D',
+    description: 'Crack combination locks using visual, audio, and haptic feedback! Watch for decoys as levels increase.',
+    icon: LockClosedIcon,
+    difficulty: 'Medium',
+    avgTime: '90s',
+    skills: ['Precision', 'Pattern Recognition', 'Focus', 'Timing'],
+    component: LockBreak3DGame
   }
 ];
 
