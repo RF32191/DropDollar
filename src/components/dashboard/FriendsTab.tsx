@@ -108,25 +108,43 @@ export default function FriendsTab() {
     }
   }, [activeSection, loadAllUsers, searchQuery]);
 
-  // Search users
+  // Search users - searches immediately as you type!
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     
-    if (query.length < 2) {
-      // Show all users when query is cleared
+    // If empty, show all users
+    if (!query || query.trim().length === 0) {
       loadAllUsers();
       return;
     }
     
+    // Search even with 1 character - e.g., "r" shows "Ryan", "Robert", etc.
     try {
       setIsSearching(true);
-      const { data, error } = await supabase.rpc('search_users_for_friends', { search_query: query });
+      const { data, error } = await supabase.rpc('search_users_for_friends', { search_query: query.trim() });
       
       if (!error && data) {
-        console.log('Search results:', data);
+        console.log(`🔍 Search "${query}" found ${data.length} users:`, data);
         setSearchResults(data);
       } else {
         console.error('Search error:', error);
+        // Fallback: try direct query if RPC fails
+        const { data: fallbackData } = await supabase
+          .from('users')
+          .select('id, username, email, avatar_url')
+          .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
+          .neq('id', user?.id || '')
+          .limit(50);
+        
+        if (fallbackData) {
+          const mapped = fallbackData.map(u => ({
+            user_id: u.id,
+            username: u.username || u.email?.split('@')[0] || 'User',
+            avatar_url: u.avatar_url,
+            friendship_status: 'none'
+          }));
+          setSearchResults(mapped);
+        }
       }
     } catch (error) {
       console.error('Error searching users:', error);
@@ -399,10 +417,11 @@ export default function FriendsTab() {
             <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by username or email..."
+              placeholder="🔍 Type any letter to search users... (e.g., 'ry' for Ryan)"
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+              autoComplete="off"
             />
             {isSearching && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -414,18 +433,22 @@ export default function FriendsTab() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-400">
-              {searchQuery.length >= 2 ? `Search results for "${searchQuery}"` : 'All Players'}
+              {searchQuery.length > 0 ? (
+                <>Showing users matching "<span className="text-purple-400">{searchQuery}</span>"</>
+              ) : (
+                'All Players'
+              )}
             </h3>
-            <span className="text-xs text-gray-500">{searchResults.length} users</span>
+            <span className="text-xs text-gray-500">{searchResults.length} found</span>
           </div>
 
           {/* Results (always show) */}
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {searchResults.length === 0 && !isSearching ? (
               <div className="text-center py-8 text-gray-400">
-                {searchQuery.length >= 2 
-                  ? `No users found matching "${searchQuery}"`
-                  : 'No users found. Be the first to invite friends!'}
+                {searchQuery.length > 0 
+                  ? `No users found matching "${searchQuery}" - try a different name`
+                  : 'No users found yet. Invite friends to join!'}
               </div>
             ) : (
               searchResults.map((result) => (
@@ -472,8 +495,8 @@ export default function FriendsTab() {
 
           {/* Tip */}
           {searchQuery.length === 0 && searchResults.length > 0 && (
-            <div className="text-center py-2 text-gray-500 text-xs">
-              💡 Type a username or email above to search for specific users
+            <div className="text-center py-2 text-gray-500 text-xs bg-white/5 rounded-lg p-2">
+              💡 <strong>Tip:</strong> Type any letter to instantly filter users (e.g., "ry" → Ryan, "jo" → John)
             </div>
           )}
 
