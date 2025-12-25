@@ -128,10 +128,10 @@ export default function FriendsTab() {
         setSearchResults(data);
       } else {
         console.error('Search error:', error);
-        // Fallback: try direct query if RPC fails
+        // Fallback: try direct query if RPC fails (without avatar_url which may not exist)
         const { data: fallbackData } = await supabase
           .from('users')
-          .select('id, username, email, avatar_url')
+          .select('id, username, email')
           .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
           .neq('id', user?.id || '')
           .limit(50);
@@ -140,7 +140,7 @@ export default function FriendsTab() {
           const mapped = fallbackData.map(u => ({
             user_id: u.id,
             username: u.username || u.email?.split('@')[0] || 'User',
-            avatar_url: u.avatar_url,
+            avatar_url: null,  // Avatar column may not exist in production
             friendship_status: 'none'
           }));
           setSearchResults(mapped);

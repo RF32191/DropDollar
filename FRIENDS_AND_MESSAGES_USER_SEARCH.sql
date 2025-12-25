@@ -192,7 +192,7 @@ BEGIN
             SPLIT_PART(u.email, '@', 1),
             'User'
         ) as friend_username,
-        u.avatar_url as friend_avatar,
+        NULL::TEXT as friend_avatar,  -- Avatar column may not exist
         COALESCE(f.accepted_at, f.created_at) as since
     FROM public.friendships f
     JOIN public.users u ON u.id = CASE WHEN f.user_id = v_current_user THEN f.friend_id ELSE f.user_id END
@@ -229,7 +229,7 @@ BEGIN
             SPLIT_PART(u.email, '@', 1),
             'User'
         ) as sender_username,
-        u.avatar_url as sender_avatar,
+        NULL::TEXT as sender_avatar,  -- Avatar column may not exist
         f.created_at as sent_at
     FROM public.friendships f
     JOIN public.users u ON u.id = f.user_id
@@ -266,7 +266,7 @@ BEGIN
             SPLIT_PART(u.email, '@', 1),
             'User'
         ) as username,
-        u.avatar_url,
+        NULL::TEXT as avatar_url,  -- Avatar column may not exist, return NULL
         COALESCE(f.status, 'none')::TEXT as friendship_status
     FROM public.users u
     LEFT JOIN public.friendships f ON 
@@ -317,7 +317,7 @@ BEGIN
             SPLIT_PART(u.email, '@', 1),
             'User'
         ) as username,
-        u.avatar_url,
+        NULL::TEXT as avatar_url,  -- Avatar column may not exist, return NULL
         COALESCE(f.status, 'none')::TEXT as friendship_status
     FROM public.users u
     LEFT JOIN public.friendships f ON 
@@ -366,7 +366,7 @@ BEGIN
                 'User'
             ) as username,
             u.email,
-            u.avatar_url
+            NULL::TEXT as avatar_url  -- Avatar column may not exist
         FROM public.users u
         WHERE u.id != v_current_user
           AND u.id IS NOT NULL
@@ -383,7 +383,7 @@ BEGIN
                 'User'
             ) as username,
             u.email,
-            u.avatar_url
+            NULL::TEXT as avatar_url  -- Avatar column may not exist
         FROM public.users u
         WHERE u.id != v_current_user
           AND u.id IS NOT NULL
@@ -448,7 +448,7 @@ BEGIN
             SPLIT_PART(u.email, '@', 1),
             'User'
         ) as friend_username,
-        u.avatar_url as friend_avatar,
+        NULL::TEXT as friend_avatar,  -- Avatar column may not exist
         bs.game_type,
         bs.max_score as best_score,
         bs.is_practice,
