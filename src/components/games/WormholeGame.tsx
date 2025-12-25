@@ -958,10 +958,6 @@ export default function WormholeGame({ onGameEnd, isCompetitive = false }: Wormh
     setTotalTargets(crystalPositions.length);
     
     // === DETAILED ENEMIES WITH SWORDS ===
-    // Room 3 and 4 offsets
-    const r3x = 70;
-    const r4x = 105;
-    
     enemiesRef.current = [];
     const enemyPositions = [
       // Room 1
