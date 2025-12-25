@@ -121,6 +121,11 @@ const NeonRailRunnerGame = dynamic(() => import('@/components/games/NeonRailRunn
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Neon Rail Runner" color="cyan" />
 });
+
+const OneShotArenaGame = dynamic(() => import('@/components/games/OneShotArenaGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="One Shot Arena" color="pink" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -166,7 +171,8 @@ import {
   CubeIcon,
   ArrowPathIcon,
   ViewfinderCircleIcon,
-  RocketLaunchIcon
+  RocketLaunchIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -369,6 +375,16 @@ const GAMES = [
     avgTime: '60s',
     skills: ['Timing', 'Reflexes', 'Style', 'Risk Assessment'],
     component: NeonRailRunnerGame
+  },
+  {
+    id: 'one-shot-arena',
+    name: 'One Shot Arena',
+    description: 'One projectile per round! Bank shots, ricochet off walls, and hit targets with precision. Perfect fairness!',
+    icon: AdjustmentsHorizontalIcon,
+    difficulty: 'Hard',
+    avgTime: '90s',
+    skills: ['Precision', 'Physics', 'Strategy', 'Spatial Reasoning'],
+    component: OneShotArenaGame
   }
 ];
 
