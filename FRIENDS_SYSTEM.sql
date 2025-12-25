@@ -188,7 +188,54 @@ END;
 $$;
 
 -- Function to search users for adding friends
+-- Searches by username OR email, returns display-friendly names
 CREATE OR REPLACE FUNCTION public.search_users_for_friends(search_query TEXT)
+RETURNS TABLE (
+    user_id UUID,
+    username TEXT,
+    avatar_url TEXT,
+    friendship_status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_current_user UUID := auth.uid();
+BEGIN
+    -- Return all users matching the search, with username or email as display
+    RETURN QUERY
+    SELECT 
+        u.id as user_id,
+        COALESCE(
+            NULLIF(u.username, ''), 
+            SPLIT_PART(u.email, '@', 1),
+            'User'
+        ) as username,
+        u.avatar_url,
+        COALESCE(f.status, 'none')::TEXT as friendship_status
+    FROM public.users u
+    LEFT JOIN public.friendships f ON 
+        (f.user_id = v_current_user AND f.friend_id = u.id) OR
+        (f.friend_id = v_current_user AND f.user_id = u.id)
+    WHERE u.id != v_current_user
+      AND u.id IS NOT NULL
+      AND (
+          LOWER(COALESCE(u.username, '')) LIKE LOWER('%' || search_query || '%')
+          OR LOWER(COALESCE(u.email, '')) LIKE LOWER('%' || search_query || '%')
+          OR LOWER(SPLIT_PART(COALESCE(u.email, ''), '@', 1)) LIKE LOWER('%' || search_query || '%')
+      )
+    ORDER BY 
+        CASE WHEN f.status = 'accepted' THEN 0
+             WHEN f.status = 'pending' THEN 1
+             ELSE 2
+        END,
+        COALESCE(u.username, u.email) NULLS LAST
+    LIMIT 30;
+END;
+$$;
+
+-- Function to get all users (for browsing/discovery)
+CREATE OR REPLACE FUNCTION public.get_all_users_for_friends(p_limit INTEGER DEFAULT 50)
 RETURNS TABLE (
     user_id UUID,
     username TEXT,
@@ -204,27 +251,30 @@ BEGIN
     RETURN QUERY
     SELECT 
         u.id as user_id,
-        COALESCE(u.username, u.email, 'Unknown') as username,
+        COALESCE(
+            NULLIF(u.username, ''), 
+            SPLIT_PART(u.email, '@', 1),
+            'User'
+        ) as username,
         u.avatar_url,
-        COALESCE(f.status, 'none') as friendship_status
+        COALESCE(f.status, 'none')::TEXT as friendship_status
     FROM public.users u
     LEFT JOIN public.friendships f ON 
         (f.user_id = v_current_user AND f.friend_id = u.id) OR
         (f.friend_id = v_current_user AND f.user_id = u.id)
     WHERE u.id != v_current_user
-      AND (
-          LOWER(COALESCE(u.username, '')) LIKE LOWER('%' || search_query || '%')
-          OR LOWER(COALESCE(u.email, '')) LIKE LOWER('%' || search_query || '%')
-      )
+      AND u.id IS NOT NULL
     ORDER BY 
         CASE WHEN f.status = 'accepted' THEN 0
              WHEN f.status = 'pending' THEN 1
              ELSE 2
         END,
-        u.username
-    LIMIT 20;
+        u.created_at DESC
+    LIMIT p_limit;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_all_users_for_friends(INTEGER) TO authenticated;
 
 -- Function to get friends' best scores for leaderboard
 CREATE OR REPLACE FUNCTION public.get_friends_leaderboard()

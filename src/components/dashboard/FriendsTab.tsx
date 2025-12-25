@@ -80,12 +80,41 @@ export default function FriendsTab() {
     loadFriendsData();
   }, [loadFriendsData]);
 
+  // Load all users when search section is opened
+  const loadAllUsers = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsSearching(true);
+      const { data, error } = await supabase.rpc('get_all_users_for_friends', { p_limit: 50 });
+      
+      if (!error && data) {
+        console.log('Loaded all users:', data);
+        setSearchResults(data);
+      } else {
+        console.error('Error loading users:', error);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [user?.id]);
+
+  // Load users when search section becomes active
+  useEffect(() => {
+    if (activeSection === 'search' && searchQuery.length === 0) {
+      loadAllUsers();
+    }
+  }, [activeSection, loadAllUsers, searchQuery]);
+
   // Search users
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     
     if (query.length < 2) {
-      setSearchResults([]);
+      // Show all users when query is cleared
+      loadAllUsers();
       return;
     }
     
@@ -94,7 +123,10 @@ export default function FriendsTab() {
       const { data, error } = await supabase.rpc('search_users_for_friends', { search_query: query });
       
       if (!error && data) {
+        console.log('Search results:', data);
         setSearchResults(data);
+      } else {
+        console.error('Search error:', error);
       }
     } catch (error) {
       console.error('Error searching users:', error);
@@ -379,55 +411,73 @@ export default function FriendsTab() {
             )}
           </div>
 
-          {/* Search Results */}
-          {searchQuery.length >= 2 && (
-            <div className="space-y-2">
-              {searchResults.length === 0 && !isSearching ? (
-                <div className="text-center py-8 text-gray-400">
-                  No users found matching "{searchQuery}"
-                </div>
-              ) : (
-                searchResults.map((result) => (
-                  <div 
-                    key={result.user_id}
-                    className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:border-white/20 transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
-                        {result.avatar_url ? (
-                          <img src={result.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                          result.username?.charAt(0)?.toUpperCase() || '?'
-                        )}
-                      </div>
-                      <p className="font-medium text-white">{result.username}</p>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-gray-400">
+              {searchQuery.length >= 2 ? `Search results for "${searchQuery}"` : 'All Players'}
+            </h3>
+            <span className="text-xs text-gray-500">{searchResults.length} users</span>
+          </div>
+
+          {/* Results (always show) */}
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {searchResults.length === 0 && !isSearching ? (
+              <div className="text-center py-8 text-gray-400">
+                {searchQuery.length >= 2 
+                  ? `No users found matching "${searchQuery}"`
+                  : 'No users found. Be the first to invite friends!'}
+              </div>
+            ) : (
+              searchResults.map((result) => (
+                <div 
+                  key={result.user_id}
+                  className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between hover:border-white/20 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold">
+                      {result.avatar_url ? (
+                        <img src={result.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        result.username?.charAt(0)?.toUpperCase() || '?'
+                      )}
                     </div>
-                    
-                    {result.friendship_status === 'accepted' ? (
-                      <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">
-                        ✓ Friends
-                      </span>
-                    ) : result.friendship_status === 'pending' ? (
-                      <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-medium">
-                        ⏳ Pending
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => sendFriendRequest(result.user_id)}
-                        disabled={actionInProgress === result.user_id}
-                        className="flex items-center gap-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium text-sm transition-all disabled:opacity-50"
-                      >
-                        <UserPlusIcon className="w-4 h-4" />
-                        Add
-                      </button>
-                    )}
+                    <div>
+                      <p className="font-medium text-white">{result.username || 'Unknown User'}</p>
+                      <p className="text-xs text-gray-500">Click to add as friend</p>
+                    </div>
                   </div>
-                ))
-              )}
+                  
+                  {result.friendship_status === 'accepted' ? (
+                    <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">
+                      ✓ Friends
+                    </span>
+                  ) : result.friendship_status === 'pending' ? (
+                    <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-medium">
+                      ⏳ Pending
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => sendFriendRequest(result.user_id)}
+                      disabled={actionInProgress === result.user_id}
+                      className="flex items-center gap-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium text-sm transition-all disabled:opacity-50"
+                    >
+                      <UserPlusIcon className="w-4 h-4" />
+                      Add
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Tip */}
+          {searchQuery.length === 0 && searchResults.length > 0 && (
+            <div className="text-center py-2 text-gray-500 text-xs">
+              💡 Type a username or email above to search for specific users
             </div>
           )}
 
-          {searchQuery.length < 2 && (
+          {searchQuery.length === 0 && searchResults.length === 0 && !isSearching && (
             <div className="text-center py-12 bg-white/5 rounded-xl">
               <MagnifyingGlassIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">Find Players</h3>
