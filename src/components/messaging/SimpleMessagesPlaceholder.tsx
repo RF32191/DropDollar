@@ -283,25 +283,45 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
     }
   };
 
-  const searchUsers = async (username: string) => {
-    if (!username.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
+  const searchUsers = async (searchQuery: string) => {
     try {
+      // If empty search, load all users
+      if (!searchQuery.trim()) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, username, email')
+          .neq('id', user?.id || '')
+          .limit(50);
+
+        if (error) throw error;
+        
+        // Map to display names using username or email prefix
+        const mappedData = (data || []).map(u => ({
+          id: u.id,
+          username: u.username || u.email?.split('@')[0] || 'User',
+          email: u.email
+        }));
+        setSearchResults(mappedData);
+        return;
+      }
+
+      // Search by username OR email
       const { data, error } = await supabase
         .from('users')
-        .select('id, username')
-        .ilike('username', `%${username}%`)
-        .neq('id', user?.id)
-        .not('username', 'is', null)
-        .limit(5);
+        .select('id, username, email')
+        .neq('id', user?.id || '')
+        .or(`username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
+        .limit(20);
 
       if (error) throw error;
-      // Filter out any results without usernames
-      const filteredData = (data || []).filter(u => u.username && u.username.trim() !== '');
-      setSearchResults(filteredData);
+      
+      // Map to display names using username or email prefix
+      const mappedData = (data || []).map(u => ({
+        id: u.id,
+        username: u.username || u.email?.split('@')[0] || 'User',
+        email: u.email
+      }));
+      setSearchResults(mappedData);
     } catch (error) {
       console.error('Error searching users:', error);
       setSearchResults([]);
@@ -316,12 +336,13 @@ export default function SimpleMessagesPlaceholder({ onUnreadCountChange }: Simpl
 
     setIsLoading(true);
     try {
-      console.log('Starting conversation with:', otherUser.username);
+      const displayName = otherUser.username || otherUser.email?.split('@')[0] || 'User';
+      console.log('Starting conversation with:', displayName);
       console.log('User ID:', user.id);
       console.log('Other User ID:', otherUser.id);
       
       // Generate conversation title
-      const conversationTitle = `Chat with ${otherUser.username}`;
+      const conversationTitle = `Chat with ${displayName}`;
       
       // Try direct table manipulation instead of RPC (more reliable)
       console.log('Attempting direct conversation creation...');
