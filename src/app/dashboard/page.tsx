@@ -19,8 +19,10 @@ import SellerDashboard from '@/components/seller/SellerDashboard';
 import SimpleMessagesPlaceholder from '@/components/messaging/SimpleMessagesPlaceholder';
 import ShippingAddressForm from '@/components/profile/ShippingAddressForm';
 import TaxNotifications from '@/components/notifications/TaxNotifications';
+import FriendsTab from '@/components/dashboard/FriendsTab';
+import { GoldScoreInline } from '@/components/ui/GoldScoreDisplay';
 // Dashboard with comprehensive icon imports
-import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, Cog6ToothIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon, BoltIcon, ArrowDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, BanknotesIcon, TrophyIcon, StarIcon, FireIcon, HeartIcon, ChartBarIcon, ClockIcon, CheckIcon, EnvelopeIcon, HomeIcon, UserIcon, CogIcon, Cog6ToothIcon, ShieldCheckIcon, SparklesIcon, GiftIcon, ArrowRightIcon, BoltIcon, ArrowDownIcon, CurrencyDollarIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import SiteThemeSelector from '@/components/dashboard/SiteThemeSelector';
 import PageThemeOverlay from '@/components/themed/PageThemeOverlay';
 
@@ -91,7 +93,7 @@ export default function TriumphStyleDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tokenBalanceUpdated, setTokenBalanceUpdated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'transactions' | 'messages' | 'profile' | 'settings'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'practice' | 'competition' | 'stats' | 'transactions' | 'messages' | 'friends' | 'profile' | 'settings'>('recent');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   
   // Seller registration state
@@ -1154,6 +1156,7 @@ export default function TriumphStyleDashboard() {
                 { id: 'stats', label: 'Stats', shortLabel: '📊', icon: ChartBarIcon },
                 { id: 'transactions', label: 'Tokens', shortLabel: '💰', icon: BanknotesIcon },
                 { id: 'messages', label: 'Messages', shortLabel: '✉️', icon: EnvelopeIcon },
+                { id: 'friends', label: 'Friends', shortLabel: '👥', icon: UserGroupIcon },
                 { id: 'profile', label: 'Address', shortLabel: '🏠', icon: HomeIcon },
                 { id: 'settings', label: 'Settings', shortLabel: '⚙️', icon: Cog6ToothIcon }
               ].map((tab) => (
@@ -1259,23 +1262,54 @@ export default function TriumphStyleDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {gameHistory.filter(g => g.is_practice).slice(0, 10).map((game) => (
-                    <div key={game.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-                      <div className="flex items-center">
-                        {getGameIcon(game.game_type)}
-                        <div className="ml-3">
-                          <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
-                          <p className="text-sm text-gray-400">{formatDate(game.created_at)}</p>
-                  </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
-                        <p className="text-sm text-gray-400">
-                          {game.accuracy ? `${game.accuracy}% accuracy` : ''}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                  {(() => {
+                    const practiceGames = gameHistory.filter(g => g.is_practice);
+                    const maxScores: { [key: string]: number } = {};
+                    practiceGames.forEach(g => {
+                      if (!maxScores[g.game_type] || g.score > maxScores[g.game_type]) {
+                        maxScores[g.game_type] = g.score;
+                      }
+                    });
+                    return practiceGames.slice(0, 10).map((game) => {
+                      const isPersonalBest = game.score === maxScores[game.game_type];
+                      return (
+                        <div 
+                          key={game.id} 
+                          className={`relative flex items-center justify-between p-4 rounded-lg transition-all overflow-hidden ${
+                            isPersonalBest 
+                              ? 'bg-gradient-to-r from-yellow-500/20 to-amber-500/10 border border-yellow-500/30' 
+                              : 'bg-gray-700'
+                          }`}
+                        >
+                          {isPersonalBest && (
+                            <div className="absolute top-1 right-1 px-2 py-0.5 bg-yellow-500/20 rounded-full">
+                              <span className="text-xs font-semibold text-yellow-400 flex items-center gap-1">
+                                <StarIcon className="w-3 h-3" />
+                                BEST
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center">
+                            {getGameIcon(game.game_type)}
+                            <div className="ml-3">
+                              <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
+                              <p className="text-sm text-gray-400">{formatDate(game.created_at)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {isPersonalBest ? (
+                              <GoldScoreInline score={game.score} isPersonalBest={true} />
+                            ) : (
+                              <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
+                            )}
+                            <p className="text-sm text-gray-400">
+                              {game.accuracy ? `${game.accuracy}% accuracy` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
@@ -1311,26 +1345,57 @@ export default function TriumphStyleDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {gameHistory.filter(g => !g.is_practice).slice(0, 10).map((game) => (
-                    <div key={game.id} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
-                      <div className="flex items-center">
-                        {getGameIcon(game.game_type)}
-                        <div className="ml-3">
-                          <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
-                          <p className="text-sm text-gray-400">
-                            Competition • {formatDate(game.created_at)}
-                            {game.entry_fee ? ` • $${game.entry_fee} entry` : ''}
-                          </p>
+                  {(() => {
+                    const compGames = gameHistory.filter(g => !g.is_practice);
+                    const maxScores: { [key: string]: number } = {};
+                    compGames.forEach(g => {
+                      if (!maxScores[g.game_type] || g.score > maxScores[g.game_type]) {
+                        maxScores[g.game_type] = g.score;
+                      }
+                    });
+                    return compGames.slice(0, 10).map((game) => {
+                      const isPersonalBest = game.score === maxScores[game.game_type];
+                      return (
+                        <div 
+                          key={game.id} 
+                          className={`relative flex items-center justify-between p-4 rounded-lg transition-all overflow-hidden ${
+                            isPersonalBest 
+                              ? 'bg-gradient-to-r from-yellow-500/20 to-amber-500/10 border border-yellow-500/30' 
+                              : 'bg-gray-700'
+                          }`}
+                        >
+                          {isPersonalBest && (
+                            <div className="absolute top-1 right-1 px-2 py-0.5 bg-yellow-500/20 rounded-full">
+                              <span className="text-xs font-semibold text-yellow-400 flex items-center gap-1">
+                                <TrophyIcon className="w-3 h-3" />
+                                BEST
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center">
+                            {getGameIcon(game.game_type)}
+                            <div className="ml-3">
+                              <p className="font-medium text-white">{formatGameType(game.game_type)}</p>
+                              <p className="text-sm text-gray-400">
+                                Competition • {formatDate(game.created_at)}
+                                {game.entry_fee ? ` • $${game.entry_fee} entry` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {isPersonalBest ? (
+                              <GoldScoreInline score={game.score} isPersonalBest={true} />
+                            ) : (
+                              <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
+                            )}
+                            <p className={`text-sm ${game.tokens_won ? 'text-green-400' : 'text-gray-400'}`}>
+                              {game.tokens_won ? `+${game.tokens_won} tokens` : 'No win'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-white">{formatScore(game.score)}</p>
-                        <p className="text-sm text-gray-400">
-                          {game.tokens_won ? `+${game.tokens_won} tokens` : 'No win'}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
@@ -1427,30 +1492,41 @@ export default function TriumphStyleDashboard() {
                       .filter(score => score && score.games_played > 0)
                       .sort((a, b) => (b?.games_played ?? 0) - (a?.games_played ?? 0))
                       .map((score, index) => (
-                      <div key={score?.game_type || index} className="p-4 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl border border-white/20 hover:border-yellow-500/50 transition-all">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center">
-                            {getGameIcon(score?.game_type || '')}
-                            <h3 className="font-bold text-white ml-2">{formatGameType(score?.game_type || 'Unknown')}</h3>
-                          </div>
-                          <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
-                            {score?.games_played ?? 0} plays
-                          </span>
-                        </div>
+                      <div key={score?.game_type || index} className="relative p-4 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl border border-white/20 hover:border-yellow-500/50 transition-all overflow-hidden group">
+                        {/* Gold glow effect on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/0 to-amber-500/0 group-hover:from-yellow-500/10 group-hover:to-amber-500/5 transition-all duration-500" />
                         
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-black/30 rounded-lg p-3">
-                            <p className="text-xs text-gray-400 uppercase tracking-wide">High Score</p>
-                            <p className="text-xl font-bold text-yellow-400">{formatScore(score?.best_score)}</p>
+                        <div className="relative z-10">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center">
+                              {getGameIcon(score?.game_type || '')}
+                              <h3 className="font-bold text-white ml-2">{formatGameType(score?.game_type || 'Unknown')}</h3>
+                            </div>
+                            <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full flex items-center gap-1">
+                              <SparklesIcon className="w-3 h-3" />
+                              {score?.games_played ?? 0} plays
+                            </span>
                           </div>
-                          <div className="bg-black/30 rounded-lg p-3">
-                            <p className="text-xs text-gray-400 uppercase tracking-wide">Avg Accuracy</p>
-                            <p className="text-xl font-bold text-cyan-400">
-                              {score?.avg_accuracy ? `${score.avg_accuracy}%` : '--'}
-                            </p>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-gradient-to-br from-yellow-500/10 to-amber-500/5 rounded-lg p-3 border border-yellow-500/20">
+                              <p className="text-xs text-yellow-400/80 uppercase tracking-wide flex items-center gap-1">
+                                <StarIcon className="w-3 h-3" />
+                                Personal Best
+                              </p>
+                              <div className="text-xl font-bold">
+                                <GoldScoreInline score={score?.best_score ?? 0} isPersonalBest={true} />
+                              </div>
+                            </div>
+                            <div className="bg-black/30 rounded-lg p-3">
+                              <p className="text-xs text-gray-400 uppercase tracking-wide">Avg Accuracy</p>
+                              <p className="text-xl font-bold text-cyan-400">
+                                {score?.avg_accuracy ? `${score.avg_accuracy}%` : '--'}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                        </div>
+                      </div>
                       ))}
                     </div>
                   )}
@@ -1478,6 +1554,10 @@ export default function TriumphStyleDashboard() {
                 onUnreadCountChange={(count) => setUnreadMessageCount(count)}
               />
             </div>
+          )}
+
+          {activeTab === 'friends' && (
+            <FriendsTab />
           )}
 
           {activeTab === 'profile' && (
