@@ -106,6 +106,11 @@ const TowerTapGame = dynamic(() => import('@/components/games/TowerTapGame'), {
   ssr: false, 
   loading: () => <GameLoadingSkeleton name="Tower Tap" color="green" />
 });
+
+const OrbitalDodgeGame = dynamic(() => import('@/components/games/OrbitalDodgeGame'), { 
+  ssr: false, 
+  loading: () => <GameLoadingSkeleton name="Orbital Dodge" color="cyan" />
+});
 import AdOverlay from '@/components/ads/AdOverlay';
 import AdBanner from '@/components/ads/AdBanner';
 import CelebrationEffect from '@/components/CelebrationEffect';
@@ -148,7 +153,8 @@ import {
   CurrencyDollarIcon,
   SparklesIcon,
   FireIcon,
-  CubeIcon
+  CubeIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 const GAMES = [
@@ -321,6 +327,16 @@ const GAMES = [
     avgTime: '90s',
     skills: ['Precision', 'Timing', 'Strategy', 'Structural Awareness'],
     component: TowerTapGame
+  },
+  {
+    id: 'orbital-dodge',
+    name: 'Orbital Dodge',
+    description: 'Control a sphere orbiting a core! Tap to flip direction, dodge hazards in layered 3D rings. Speed ramps up!',
+    icon: ArrowPathIcon,
+    difficulty: 'Hard',
+    avgTime: '60s',
+    skills: ['Reflexes', 'Timing', 'Spatial Awareness', 'One-Hand Play'],
+    component: OrbitalDodgeGame
   }
 ];
 
